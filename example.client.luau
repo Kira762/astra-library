@@ -89,7 +89,6 @@ controls:CreateInput({
 })
 controls:CreateSwitch({
     name = "Compact mode",
-    description = "CreateSwitch is an alias for CreateToggle.",
     value = false,
     callback = function(value)
         window:Toast({
@@ -352,7 +351,6 @@ local collapsibleTab = window:CreateTab({ name = "Collapsible Groups", icon = "p
 collapsibleTab:CreateCollapsibleGroup({
     name = "Player Preferences",
     icon = "user-round",
-    description = "Click to expand. Closing keeps the values and features active.",
     elements = {
         { type = "Toggle", name = "Enabled", flag = "collapsibleEnabled", value = true },
         { type = "Slider", name = "Speed", flag = "collapsibleSpeed", range = { 16, 100 }, value = 16 },
@@ -379,13 +377,11 @@ collapsibleTab:CreateCollapsibleGroup({
 collapsibleTab:CreateCollapsibleGroup({
     name = "All Supported Children",
     icon = "tabler:layout-grid",
-    description = "Open this group to test every supported child type without nesting another Collapsible Group.",
     elements = {
         { type = "Section", name = "State controls" },
         {
             type = "Switch",
             name = "Collapsible switch",
-            description = "Switch is supported as an alias for Toggle.",
             flag = "collapsibleSwitch",
             value = false,
             callback = function(value)
@@ -452,7 +448,6 @@ lab:CreateButton({
 lab:CreateDivider({ text = "Dropdown and progress" })
 local labDropdown = lab:CreateDropdown({
     name = "Multi-select tags",
-    description = "Try searching, selecting multiple rows, and editing the options while closed.",
     options = { "Combat", "Movement", "Visual" },
     value = { "Combat" },
     multiSelect = true,
@@ -493,7 +488,6 @@ lab:CreateButton({
 lab:CreateSection({ name = "Input and diagnostics" })
 lab:CreateInput({
     name = "Numeric input",
-    description = "Only numeric text is accepted.",
     placeholder = "Enter an amount",
     numeric = true,
     clearOnFocus = true,
@@ -503,7 +497,6 @@ lab:CreateInput({
 })
 lab:CreateKeybind({
     name = "Hold action",
-    description = "Press and hold the binding to test holdThreshold callbacks.",
     value = Enum.KeyCode.LeftAlt,
     hold = true,
     holdThreshold = 0.2,

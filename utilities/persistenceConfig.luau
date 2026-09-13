@@ -206,7 +206,7 @@ function persistenceConfig.list(window: ConfigWindow): { string }
 
     for _, file in files do
         local baseName = pathUtil.basename(file)
-                        if baseName:sub(-5) == ".rfld" then
+        if baseName:sub(-5):lower() == ".rfld" then
             local configName = pathUtil.stripExtension(baseName, ".rfld")
             if configName and configName ~= "" and not configName:find(" %(Incorrect Format[^%)]*%)$") then
                 table.insert(names, configName)

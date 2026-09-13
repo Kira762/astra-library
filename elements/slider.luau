@@ -6,7 +6,6 @@ local constants = script.Parent.Parent.utilities
 
 local Slider = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
-local description = require(script.Parent.description)
 local props = require(constants.odometer)
 local name = require(constants.moveable)
 local flag = require(constants.lockable)
@@ -51,7 +50,6 @@ function state.new(ownerTab, a31)
         window = ownerTab.window,
         name = a31.name or a31.Name or "Slider",
         icon = ownerTab.window:ResolveIcon(a31.icon or a31.Icon),
-        description = a31.description or a31.Description,
         forgetState = a31.forgetState or a31.ForgetState or ownerTab.forgetState,
 
         range = a31.range or a31.Range or { 0, 100 },
@@ -62,15 +60,15 @@ function state.new(ownerTab, a31)
 
         dragging = false,
         minimal = a31.minimal or a31.Minimal or false,
-                _handleWidth = a23.X,
+        _handleWidth = a23.X,
     }, state)
 
-        assert(
+    assert(
         typeof(self.range) == "table" and typeof(self.range[1]) == "number" and typeof(self.range[2]) == "number",
         "A slider range needs two numbers, like { 0, 100 }."
     )
 
-        if self.range[1] > self.range[2] then
+    if self.range[1] > self.range[2] then
         self.range = { self.range[2], self.range[1] }
     end
     if self.increment <= 0 then
@@ -84,7 +82,7 @@ function state.new(ownerTab, a31)
         )
         else self.range[1]
 
-            self.value = element(self.range, self.increment, self.value)
+    self.value = element(self.range, self.increment, self.value)
 
     self._decimals = increment(self.increment)
 
@@ -108,16 +106,12 @@ function state.new(ownerTab, a31)
     self._lastValue = self.value
 
     if not self.minimal then
-        description.attach(self)
-    end
-
-        if not self.minimal then
         self:_buildLabel()
     end
 
-        self.track = self.window:Create("Frame", {
+    self.track = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -15, description.center(self, 65)),
+        Position = UDim2.new(1, -15, 0.5, 0),
         Size = UDim2.fromOffset(222, 14),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
@@ -158,14 +152,9 @@ function state.new(ownerTab, a31)
         Parent = self.progress,
     }, { Color = { "SliderProgress", tab.toColorSequence } })
 
-        self.progressGlow = self.window:CreateGlow(self.progress, "AccentColor", 20, 1)
+    self.progressGlow = self.window:CreateGlow(self.progress, "AccentColor", 20, 1)
 
-        -- [[The knob rides the track, not the fill: its centre travels only
-        -- [[within [halfWidth, travel - halfWidth], so the capsule stays
-        -- [[inside the track (and inside the card) at both extremes, and the
-        -- [[fill ends at the knob's centre so the bar never peeks out from
-        -- [[under it. _renderProgress places both from one centre number.]]
-        self.handle = self.window:Create("Frame", {
+    self.handle = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0, 0, 0.5, 0),
         Size = UDim2.fromOffset(a23.X, a23.Y),
@@ -181,16 +170,13 @@ function state.new(ownerTab, a31)
         Parent = self.handle,
     })
 
-        self.handleGlow = self.window:CreateGlow(self.handle, Color3.fromRGB(255, 255, 255), 10, 1)
+    self.handleGlow = self.window:CreateGlow(self.handle, Color3.fromRGB(255, 255, 255), 10, 1)
 
     self.handleStroke = self.window:Create("UIStroke", {
         Transparency = 1,
         Parent = self.handle,
     }, { Color = "SliderStroke" })
 
-    -- [[In the narrow layout the track is scale-sized, so a window resize
-    -- [[moves its measured width without a layout-mode switch; re-seat the
-    -- [[fill and knob whenever that happens.]]
     self.window:ConnectFor(self, self.track:GetPropertyChangedSignal("AbsoluteSize"), function()
         self:_renderProgress()
     end)
@@ -205,9 +191,10 @@ function state.new(ownerTab, a31)
         Parent = self.track,
     })
 
-        self.window:ConnectFor(self, self.main.MouseEnter, function()
+    self.window:ConnectFor(self, self.main.MouseEnter, function()
         if not self.window:_interactive() then
-            return         end
+            return
+        end
         Slider.tweenService
             :Create(self.track, max, { BackgroundColor3 = self.window.theme.SliderBackgroundHover })
             :Play()
@@ -224,16 +211,17 @@ function state.new(ownerTab, a31)
             a32.UserInputType == Enum.UserInputType.MouseButton1
             or a32.UserInputType == Enum.UserInputType.Touch
         then
-            value.click()             self.dragging = true
+            value.click()
+            self.dragging = true
             self:_setHeld(true)
             self:_updateFromMouse()
 
-                        if self._dragConnection then
+            if self._dragConnection then
                 self._dragConnection:Disconnect()
                 self._dragConnection = nil
             end
 
-                                    self._dragConnection = Slider.runService.RenderStepped:Connect(function()
+            self._dragConnection = Slider.runService.RenderStepped:Connect(function()
                 if self.window.unloaded or not self.dragging then
                     if self._dragConnection then
                         self._dragConnection:Disconnect()
@@ -255,12 +243,12 @@ function state.new(ownerTab, a31)
         end
     end)
 
-            self.window:ConnectFor(self, Slider.userInputService.WindowFocusReleased, function()
+    self.window:ConnectFor(self, Slider.userInputService.WindowFocusReleased, function()
         self:_endDrag()
     end)
 
-            self.window:ConnectFor(self, self.main:GetPropertyChangedSignal("AbsoluteSize"), function()
-                                                if self.window.animating or (self.window.hidden and self.window.hasShownOnce) then
+    self.window:ConnectFor(self, self.main:GetPropertyChangedSignal("AbsoluteSize"), function()
+        if self.window.animating or (self.window.hidden and self.window.hasShownOnce) then
             return
         end
         self:_applyLayout()
@@ -268,7 +256,7 @@ function state.new(ownerTab, a31)
     self:_applyLayout()
 
     if self.minimal then
-                        self.main.Size = UDim2.new(1, -20, 0, 41)
+        self.main.Size = UDim2.new(1, -20, 0, 41)
         self.track.AnchorPoint = Vector2.new(0.5, 0.5)
         self.track.Position = UDim2.new(0.5, 0, 0.5, 0)
         self.track.Size = UDim2.new(1, -30, 0, 14)
@@ -280,10 +268,10 @@ function state.new(ownerTab, a31)
 end
 
 function state:_buildLabel()
-        self.container = self.window:Create("Frame", {
+    self.container = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 20, description.center(self, 65)),
-        Size = UDim2.fromOffset(170, 33),
+        Position = UDim2.new(0, 20, 0.5, 0),
+        Size = UDim2.new(1, -255, 0, 33),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ZIndex = 5,
@@ -317,7 +305,7 @@ function state:_buildLabel()
         Parent = self.titleContainer,
     })
 
-            self.titleFlex = self.window:Create("UIFlexItem", {
+    self.titleFlex = self.window:Create("UIFlexItem", {
         FlexMode = Enum.UIFlexMode.None,
         Parent = self.titleContainer,
     })
@@ -330,7 +318,7 @@ function state:_buildLabel()
             BackgroundTransparency = 1,
             ZIndex = 5,
 
-                        ImageTransparency = 1,
+            ImageTransparency = 1,
             Parent = self.titleContainer,
         }, { ImageColor3 = "ContentColor" })
     end
@@ -342,20 +330,21 @@ function state:_buildLabel()
         BackgroundTransparency = 1,
         TextSize = 16,
         TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,         RichText = true,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        RichText = true,
         LayoutOrder = 1,
         ZIndex = 5,
 
-                TextTransparency = 1,
+        TextTransparency = 1,
         Parent = self.titleContainer,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-        self.window:Create("UIFlexItem", {
+    self.window:Create("UIFlexItem", {
         FlexMode = Enum.UIFlexMode.Shrink,
         Parent = self.title,
     })
 
-            self.valueHost = self.window:Create("Frame", {
+    self.valueHost = self.window:Create("Frame", {
         Size = UDim2.new(1, 0, 0, 16),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -367,21 +356,24 @@ function state:_buildLabel()
     self.valueOdo = props.new(self.window, self.valueHost, {
         textSize = 15,
         alignment = Enum.HorizontalAlignment.Left,
-        transparency = 1,         duration = 0.28,     })
+        transparency = 1,
+        duration = 0.28,
+    })
     self.valueOdo:snap(self:_format(self.value))
 end
 
 function state:_setMainHeight(a34)
     if self._widthManaged then
-        self.main.Size = UDim2.new(self.main.Size.X.Scale, self.main.Size.X.Offset, 0, description.height(self, a34))
+        self.main.Size = UDim2.new(self.main.Size.X.Scale, self.main.Size.X.Offset, 0, a34)
     else
-        self.main.Size = UDim2.new(1, -20, 0, description.height(self, a34))
+        self.main.Size = UDim2.new(1, -20, 0, a34)
     end
 end
 
 function state:_applyLayout()
     if self.minimal then
-        return     end
+        return
+    end
     local a35 = self.main.AbsoluteSize.X
     local a36 = if a35 > 0 and a35 < a22 then "narrow" else "wide"
     if self._layoutMode == a36 then
@@ -396,31 +388,29 @@ function state:_applyLayout()
         self.container.Position = UDim2.new(0, 20, 0, 14)
         self.container.Size = UDim2.new(1, -40, 0, 16)
         self.containerLayout.FillDirection = Enum.FillDirection.Horizontal
-        self.titleFlex.FlexMode = Enum.UIFlexMode.Fill         self.valueHost.AutomaticSize = Enum.AutomaticSize.X
+        self.titleFlex.FlexMode = Enum.UIFlexMode.Fill
+        self.valueHost.AutomaticSize = Enum.AutomaticSize.X
         self.valueHost.Size = UDim2.new(0, 0, 0, 16)
 
         self.track.AnchorPoint = Vector2.new(0.5, 1)
-        self.track.Position = UDim2.new(0.5, 0, 1, -14 - (self._descriptionExtra or 0))
+        self.track.Position = UDim2.new(0.5, 0, 1, -14)
         self.track.Size = UDim2.new(1, -30, 0, 14)
     else
         self:_setMainHeight(65)
 
         self.container.AnchorPoint = Vector2.new(0, 0.5)
-        self.container.Position = UDim2.new(0, 20, description.center(self, 65))
-        self.container.Size = UDim2.new(0, 170, 0, 33)
+        self.container.Position = UDim2.new(0, 20, 0.5, 0)
+        self.container.Size = UDim2.new(1, -255, 0, 33)
         self.containerLayout.FillDirection = Enum.FillDirection.Vertical
         self.titleFlex.FlexMode = Enum.UIFlexMode.None
         self.valueHost.AutomaticSize = Enum.AutomaticSize.None
         self.valueHost.Size = UDim2.new(1, 0, 0, 16)
 
         self.track.AnchorPoint = Vector2.new(1, 0.5)
-        self.track.Position = UDim2.new(1, -15, description.center(self, 65))
+        self.track.Position = UDim2.new(1, -15, 0.5, 0)
         self.track.Size = UDim2.new(0, 222, 0, 14)
     end
 
-    -- [[The knob and the fill are placed in pixels off the track's measured
-    -- [[width, so every track resize (first layout, mode switch, window
-    -- [[resize) re-seats them through the same clamp.]]
     self:_renderProgress()
 end
 
@@ -440,12 +430,6 @@ function state:_renderProgress(a39)
     local a40 = self.range[2] - self.range[1]
     local a41 = if a40 ~= 0 then math.clamp((self.value - self.range[1]) / a40, 0, 1) else 0
 
-    -- [[One centre number drives both the fill and the knob: the centre sits
-    -- [[half a knob in from each track end at the extremes (so the capsule
-    -- [[never overlaps the card edge or stroke), and the fill's right edge is
-    -- [[exactly that centre, so it stays tucked under the knob. The held
-    -- [[knob is wider than the resting one, so the clamp follows
-    -- [[_handleWidth and a hold re-renders through the same path.]]
     local half = (self._handleWidth or a23.X) / 2
     local center = half + a41 * math.max(self:_pillTravel() - half * 2, 0)
     local fill = UDim2.new(0, center, 1, 0)
@@ -472,7 +456,8 @@ function state:_updateFromMouse()
     if a45 ~= self.value then
         self.value = a45
         if self.valueOdo then
-            self.valueOdo:snap(self:_format(a45))         end
+            self.valueOdo:snap(self:_format(a45))
+        end
         self._lastValue = a45
         self:_renderProgress(connection)
         self:_fireCallback(a45)
@@ -495,7 +480,7 @@ function state:_endDrag()
 end
 
 function state:_setHeld(a46)
-                if not a46 then
+    if not a46 then
         self:_fireCallback(self.value)
     end
 
@@ -543,7 +528,7 @@ function state:_setShown(a52, a53)
         if self.valueOdo then
             self.valueOdo:reveal(0.3, a53)
         end
-                w:_reveal(self.progressGlow, { Transparency = math.max(0.55, w.theme.AccentGlow) }, a53, a51)
+        w:_reveal(self.progressGlow, { Transparency = math.max(0.55, w.theme.AccentGlow) }, a53, a51)
         w:_reveal(self.handleGlow, { Transparency = 0.8 }, a53, a51)
     else
         w:_hideCommon(self, a53)
@@ -570,11 +555,15 @@ end
 
 function state:_minWidth()
     if self.minimal then
-        return 100     end
-    local w = 40     if self.icon then
-        w += 22     end
-        w += tab.textWidth(self.window.theme.Font, 16, range.resolve(self.name))
-    w += 12     w += tab.textWidth(self.window.theme.Font, 15, self:_format(self.value))
+        return 100
+    end
+    local w = 40
+    if self.icon then
+        w += 22
+    end
+    w += tab.textWidth(self.window.theme.Font, 16, range.resolve(self.name))
+    w += 12
+    w += tab.textWidth(self.window.theme.Font, 15, self:_format(self.value))
     return math.max(w, 160)
 end
 

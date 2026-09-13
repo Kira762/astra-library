@@ -1,20 +1,28 @@
 local window = Astra:CreateWindow({ name = "Capsule reset" })
 TestPump(0.8)
 window:_buildSettingsUI()
-local appearance
+local general
 for _, tab in window._settingsTabs do
-    if tab.name == "Appearance" then appearance = tab end
+    if tab.name == "General" then general = tab end
 end
-assert(appearance, "Appearance tab exists")
-appearance:Select()
+assert(general, "General tab exists")
+general:Select()
 TestPump(0.6)
 local reset
-for index, control in appearance.elements do
-    if control.name == "Reset Capsule Position" then
-        reset = control
-        assert(appearance.elements[index - 1].name == "Reset Window Position", "Reset actions are adjacent")
+local function scan(elements)
+    for index, control in elements do
+        if control.name == "Reset Capsule Position" then
+            reset = control
+            assert(elements[index - 1].name == "Reset Window Position", "Reset actions are adjacent")
+            return
+        end
+        if control.elements then
+            scan(control.elements)
+            if reset then return end
+        end
     end
 end
+scan(general.elements)
 assert(reset and reset.__type == "Button", "Capsule reset is a settings button")
 local function samePosition(actual, expected)
     assert(actual.X.Scale == expected.X.Scale and actual.X.Offset == expected.X.Offset

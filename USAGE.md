@@ -175,7 +175,7 @@ Groups support: `CreateButton`, `CreateToggle`/`CreateSwitch`, `CreateSlider`, `
 
 ### Elements
 
-Every element supports `Moveable` (`:MoveTo`, `:MoveToTop`, `:MoveToBottom`, `:MoveUp`, `:MoveDown`) and most support `Lockable` (`:Lock`, `:Unlock`, `:IsLocked`). Most element props also accept `description` (helper text under the name, rendered inside the element's own card) and `icon`.
+Every element supports `Moveable` (`:MoveTo`, `:MoveToTop`, `:MoveToBottom`, `:MoveUp`, `:MoveDown`) and most support `Lockable` (`:Lock`, `:Unlock`, `:IsLocked`). Most element props also accept `icon`.
 
 ```lua
 tab:CreateButton({ name = "Click Me", icon = "play", callback = function() end })
@@ -189,7 +189,6 @@ tab:CreateKeybind({ name = "Toggle Panel", value = Enum.KeyCode.F3, isMenuToggle
 ```lua
 tab:CreateButton({
     name = "Click Me", icon = "play",
-    description = "Optional helper text",
     callback = function() print("clicked") end,
 })
 ```
@@ -521,7 +520,6 @@ local tab = window:CreateTab({ name = "Player", icon = "user-round" })
 local playerControls = tab:CreateCollapsibleGroup({
     name = "LocalPlayer",
     icon = "user-round", -- optional; may be from any icon pack
-    description = "Movement and character settings", -- optional
     elements = {
         {
             type = "Toggle",
@@ -565,8 +563,7 @@ local playerControls = tab:CreateCollapsibleGroup({
 **Supported types:** `Button`, `Toggle`, `Switch`, `Slider`, `Dropdown`, `Input`,
 `Keybind`, `Stat`, `Progress`, `Section`, `Text`, `Changelog`, `Divider`,
 and ordinary `Group`. Each uses the same properties and implementation as its
-normal `Create…` method. Descriptions supplied to child elements keep their normal
-behavior. `elements` can be omitted for an empty header.
+normal `Create…` method. `elements` can be omitted for an empty header.
 
 An ordinary Group retains its compact row layout when its children support it.
 Use `direction = "column"` for a vertical Group; the declarative builder also

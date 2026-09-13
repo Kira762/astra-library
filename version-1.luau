@@ -269,20 +269,17 @@ export type CollapsibleElementProps = {
 export type CollapsibleGroupProps = {
     name: string?,
     icon: (string | number)?,
-    description: string?,
     elements: { CollapsibleElementProps }?,
 }
 
 export type ButtonProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     callback: (() -> ())?,
 }
 
 export type ToggleProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     flag: string?,
     value: boolean?,
@@ -292,7 +289,6 @@ export type ToggleProps = {
 
 export type SliderProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     flag: string?,
     range: { number }?,     increment: number?,
@@ -304,7 +300,6 @@ export type SliderProps = {
 
 export type DropdownProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     flag: string?,
     options: { string }?,
@@ -317,7 +312,6 @@ export type DropdownProps = {
 
 export type InputProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     flag: string?,
     value: string?,
@@ -330,7 +324,6 @@ export type InputProps = {
 
 export type KeybindProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     flag: string?,
     value: (EnumItem | string)?,     forgetState: boolean?,     editable: boolean?,
@@ -338,7 +331,6 @@ export type KeybindProps = {
 
 export type StatProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     prefix: string?,
     suffix: string?,
@@ -349,7 +341,6 @@ export type StatProps = {
 
 export type ProgressProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     range: { number }?,     value: number?,
     steps: number?,     text: string?,     format: ((value: number, min: number, max: number) -> string)?,     showValue: boolean?,     indeterminate: boolean?, }
@@ -7585,80 +7576,197 @@ function Window:_buildSettingsUI()
     end
     self._settingsUIBuilt = true
     local appearance = self:CreateTab({ name = "Appearance", icon = "palette", customOrder = 1002, forgetState = true, isSettingsTab = true })
-    local behavior = self:CreateTab({ name = "Behavior", icon = "shield-check", customOrder = 1003, forgetState = true, isSettingsTab = true })
-    local performance = self:CreateTab({ name = "Performance", icon = "gauge", customOrder = 1004, forgetState = true, isSettingsTab = true })
-    local persistence = self:CreateTab({ name = "Persistence", icon = "save", customOrder = 1005, forgetState = true, isSettingsTab = true })
-    local about = self:CreateTab({ name = "About", icon = "info", customOrder = 1006, forgetState = true, isSettingsTab = true })
-    for _, tab in { appearance, behavior, performance, persistence, about } do
+    local persistence = self:CreateTab({ name = "Persistence", icon = "save", customOrder = 1003, forgetState = true, isSettingsTab = true })
+    local about = self:CreateTab({ name = "About", icon = "info", customOrder = 1004, forgetState = true, isSettingsTab = true })
+    for _, tab in { appearance, persistence, about } do
         tab._isSettingsTab = true
         table.insert(self._settingsTabs, tab)
     end
 
     -- [[The settings shells are created on first settings access.]]
-    -- [[Each tab's elements]]
-    -- [[are created the first time that tab is opened (see]]
-    -- [[_buildSettingsContent), so opening the window stays fast. The]]
+    -- [[Each tab's elements are created the first time that tab is opened]]
+    -- [[(see _buildSettingsContent), so opening the window stays fast. The]]
     -- [[builders run at most once, in the original creation order.]]
     self._settingsContentBuilt = self._settingsContentBuilt or {}
 
     local function buildAbout()
-    about:CreateSection({ name = "Rayfield Gen2" })
-    about:CreateText({
-        name = "About Rayfield Gen2",
-        text = "Rayfield Gen2 is a ground-up rebuild of the Rayfield Interface Suite, built entirely in code for a faster, more stable, and more consistent experience.",
+    about:CreateCollapsibleGroup({
+        name = "Rayfield Gen2",
+        icon = "info",
+        elements = {
+            {
+                type = "Text",
+                name = "About Rayfield Gen2",
+                text = "Rayfield Gen2 is a ground-up rebuild of the Rayfield Interface Suite, built entirely in code for a faster, more stable, and more consistent experience.",
+            },
+            {
+                type = "Text",
+                name = "Highlights",
+                text = "State can persist between sessions, themes can change at runtime, labels can be translated, and the interface is designed for both desktop and mobile.",
+            },
+        },
     })
-    about:CreateText({
-        name = "Highlights",
-        text = "State can persist between sessions, themes can change at runtime, labels can be translated, and the interface is designed for both desktop and mobile.",
+    about:CreateCollapsibleGroup({
+        name = "Astra",
+        icon = "sparkles",
+        elements = {
+            {
+                type = "Text",
+                name = "Our Story",
+                text = "Astra began from Rayfield Gen2 and was reshaped into a distinct interface library with its own visual language, behavior, and features.",
+            },
+            {
+                type = "Text",
+                name = "What Astra Provides",
+                text = "A responsive, customizable interface with persistent settings, runtime themes, localization support, animated window transitions, and a growing set of reusable elements.",
+            },
+            {
+                type = "Text",
+                name = "Customized by Haijo",
+                text = "Originally from Rayfield, Astra is customized, refined, and maintained by Haijo.",
+            },
+        },
     })
-    about:CreateSection({ name = "Astra" })
-    about:CreateText({
-        name = "Our Story",
-        text = "Astra began from Rayfield Gen2 and was reshaped into a distinct interface library with its own visual language, behavior, and features.",
-    })
-    about:CreateText({
-        name = "What Astra Provides",
-        text = "A responsive, customizable interface with persistent settings, runtime themes, localization support, animated window transitions, and a growing set of reusable elements.",
-    })
-    about:CreateText({
-        name = "Customized by Haijo",
-        text = "Originally from Rayfield, Astra is customized, refined, and maintained by Haijo.",
-    })
-    about:CreateSection({ name = "Links" })
-    about:CreateText({
-        name = "Documentation",
-        text = "https://docs.sirius.menu/rayfield-gen2",
+    about:CreateCollapsibleGroup({
+        name = "Links",
+        icon = "link",
+        elements = {
+            {
+                type = "Text",
+                name = "Documentation",
+                text = "https://docs.sirius.menu/rayfield-gen2",
+            },
+        },
     })
     end
     about._settingsContentBuilder = buildAbout
 
     local function buildGeneral()
-    self.rfSettings:CreateSection({ name = "General" })
-    self.rfSettings:CreateKeybind({
-        name = "Toggle Keybind", description = "Type one letter. Extra characters are removed automatically.", icon = constants.icons.search, value = self.settings.toggleKeybind, editable = true,
-        isMenuToggle = true, onChanged = function(value)
-            self.settings.toggleKeybind = value
-            self:SaveSettings()
-        end,
-    })
-    self.rfSettings:CreateToggle({
-        name = "Unlock cursor while open",
-        description = "Unlocks the cursor while the menu is open so you can configure in FPS games that lock it.",
-        value = self.settings.mouseOverride,
-        callback = function(value) self.settings.mouseOverride = value; self:SaveSettings() end,
-    })
-    self.rfSettings:CreateToggle({
-        name = "Welcome toast",
-        description = "Shows a 'Signed in as' toast the first time you open the menu on a new account.",
-        value = self.settings.welcomeToast,
-        callback = function(value) self.settings.welcomeToast = value; self:SaveSettings() end,
+    self.rfSettings:CreateCollapsibleGroup({
+        name = "General Controls",
+        icon = constants.icons.settings,
+        elements = {
+            {
+                type = "Keybind",
+                name = "Toggle Keybind",
+                icon = constants.icons.search,
+                value = self.settings.toggleKeybind,
+                editable = true,
+                isMenuToggle = true,
+                onChanged = function(value)
+                    self.settings.toggleKeybind = value
+                    self:SaveSettings()
+                end,
+            },
+            {
+                type = "Toggle",
+                name = "Unlock cursor while open",
+                value = self.settings.mouseOverride,
+                callback = function(value)
+                    self.settings.mouseOverride = value
+                    self:SaveSettings()
+                end,
+            },
+            {
+                type = "Toggle",
+                name = "Welcome toast",
+                value = self.settings.welcomeToast,
+                callback = function(value)
+                    self.settings.welcomeToast = value
+                    self:SaveSettings()
+                end,
+            },
+        },
     })
 
+    self.rfSettings:CreateCollapsibleGroup({
+        name = "Window Behavior",
+        icon = "layout",
+        elements = {
+            {
+                type = "Toggle",
+                name = "Prevent duplicate windows",
+                value = self.settings.antiWindowDuplicate,
+                callback = function(value)
+                    self.settings.antiWindowDuplicate = value
+                    self:SaveSettings()
+                end,
+            },
+            {
+                type = "Toggle",
+                name = "Keep window on screen",
+                value = self.settings.keepOnScreen,
+                callback = function(value)
+                    self.settings.keepOnScreen = value
+                    self:SaveSettings()
+                end,
+            },
+            {
+                type = "Toggle",
+                name = "Draggable capsule",
+                value = self.settings.dragMinimisedBar,
+                callback = function(value)
+                    self.settings.dragMinimisedBar = value == true
+                    self:SaveSettings()
+                end,
+            },
+            {
+                type = "Button",
+                name = "Reset Window Position",
+                callback = function()
+                    self:_recenterForProfile(true)
+                end,
+            },
+            {
+                type = "Button",
+                name = "Reset Capsule Position",
+                callback = function()
+                    self:_resetCapsulePosition()
+                end,
+            },
+        },
+    })
+
+    local motionLabels = { relaxed = "Relaxed", normal = "Normal", snappy = "Snappy", instant = "Instant" }
+    local motionOptions = { "Relaxed", "Normal", "Snappy", "Instant" }
+    local motionProfiles = { Relaxed = "relaxed", Normal = "normal", Snappy = "snappy", Instant = "instant" }
+    local currentMotion = motionLabels[self.settings.motionSpeed] or motionLabels.normal
+
+    self.rfSettings:CreateCollapsibleGroup({
+        name = "Performance & Motion",
+        icon = "gauge",
+        elements = {
+            {
+                type = "Toggle",
+                name = "Haptics",
+                value = self.settings.haptics,
+                callback = function(value)
+                    self.settings.haptics = value
+                    haptic.setEnabled(value)
+                    self:SaveSettings()
+                end,
+            },
+            {
+                type = "Dropdown",
+                name = "Animation speed",
+                options = motionOptions,
+                value = currentMotion,
+                callback = function(value)
+                    local profile = motionProfiles[value]
+                    if not profile or profile == self.settings.motionSpeed then
+                        return
+                    end
+                    self.settings.motionSpeed = profile
+                    self:_applyMotionSetting()
+                    self:SaveSettings()
+                end,
+            },
+        },
+    })
     end
     self.rfSettings._settingsContentBuilder = buildGeneral
 
     local function buildAppearance()
-    appearance:CreateSection({ name = "Theme" })
     local themes = {
         default = "Default",
         amethyst = "Amethyst",
@@ -7678,252 +7786,320 @@ function Window:_buildSettingsUI()
     if not themes[selectedTheme] then
         selectedTheme = "default"
     end
-    appearance:CreateDropdown({
+
+    appearance:CreateCollapsibleGroup({
         name = "Theme",
-        description = "Choose a built-in theme to preview and apply.",
-        options = { "Default", "Amethyst", "Cobalt", "Crimson", "Ember", "Emerald", "Frost", "Gold", "Onyx", "Rose" },
-        value = themeLabel(selectedTheme),
-        callback = function(value)
-            for key, label in themes do
-                if value == label then
-                    selectedTheme = key
-                    break
-                end
-            end
-        end,
-    })
-    appearance:CreateButton({
-        name = "Apply theme",
-        description = "Confirm the selected theme before changing the window.",
-        callback = function()
-            if selectedTheme == self.settings.theme then
-                self:Notify({ title = "Theme", content = "The " .. themeLabel(selectedTheme) .. " theme is already active." })
-                return
-            end
-            self:Popup({
-                title = "Apply theme?",
-                content = "Apply the " .. themeLabel(selectedTheme) .. " theme to this window?",
-                options = {
-                    { text = "Cancel" },
-                    { text = "Apply", style = "primary", callback = function()
-                        self.settings.theme = selectedTheme
-                        self:ChangeTheme(selectedTheme)
-                        self:SaveSettings()
-                        self:Notify({ title = "Theme applied", subtitle = themeLabel(selectedTheme) })
-                    end },
-                },
-            })
-        end,
+        icon = "palette",
+        elements = {
+            {
+                type = "Dropdown",
+                name = "Theme",
+                options = { "Default", "Amethyst", "Cobalt", "Crimson", "Ember", "Emerald", "Frost", "Gold", "Onyx", "Rose" },
+                value = themeLabel(selectedTheme),
+                callback = function(value)
+                    for key, label in themes do
+                        if value == label then
+                            selectedTheme = key
+                            break
+                        end
+                    end
+                end,
+            },
+            {
+                type = "Button",
+                name = "Apply theme",
+                callback = function()
+                    if selectedTheme == self.settings.theme then
+                        self:Notify({ title = "Theme", content = "The " .. themeLabel(selectedTheme) .. " theme is already active." })
+                        return
+                    end
+                    self:Popup({
+                        title = "Apply theme?",
+                        content = "Apply the " .. themeLabel(selectedTheme) .. " theme to this window?",
+                        options = {
+                            { text = "Cancel" },
+                            { text = "Apply", style = "primary", callback = function()
+                                self.settings.theme = selectedTheme
+                                self:ChangeTheme(selectedTheme)
+                                self:SaveSettings()
+                                self:Notify({ title = "Theme applied", subtitle = themeLabel(selectedTheme) })
+                            end },
+                        },
+                    })
+                end,
+            },
+        },
     })
 
-    appearance:CreateSection({ name = "Layout" })
     local layouts = { top = "Default Topbar", sidebar = "Sidebar (Responsive)", collapsedSidebar = "Collapsed Sidebar" }
     local layoutDropdown
     local currentLayout = self.settings.layoutMode or self.layout.mode
-    layoutDropdown = appearance:CreateDropdown({
-        name = "Bar Layout",
-        description = "Choose Default Topbar, responsive Sidebar, or an automatic compact Collapsed Sidebar for desktop and mobile.",
-        options = { layouts.top, layouts.sidebar, layouts.collapsedSidebar },
-        value = layouts[currentLayout],
-        callback = function(choice)
-            local requested
-            for key, label in layouts do if choice == label then requested = key break end end
-            if not requested then return end
-            local active = layoutKey(self.layout)
-            if requested == active then
-                self:Notify({ title = "Bar layout", content = "The " .. choice .. " layout is already active." })
-                layoutDropdown:Set(layouts[active], true)
-                return
-            end
-            layoutDropdown:Set(layouts[active], true)
-            self:Popup({
-                title = "Apply bar layout?",
-                content = "Are you sure you want to change the layout to " .. choice .. "?",
-                options = {
-                    { text = "Cancel" },
-                    { text = "Apply", style = "primary", callback = function()
-                        if self:_setLayoutMode(requested) then
-                            currentLayout = requested
-                            self.settings.layoutMode = requested
-                            self:SaveSettings()
-                            layoutDropdown:Set(layouts[requested], true)
-                            self:Notify({ title = "Bar layout changed", content = "Switched to the " .. layouts[requested] .. " layout." })
-                        else
-                            currentLayout = layoutKey(self.layout)
-                            layoutDropdown:Set(layouts[currentLayout], true)
-                            self:Notify({ title = "Bar layout", content = "The selected bar layout could not be applied right now." })
-                        end
-                    end },
-                },
-            })
-        end,
-    })
-    appearance:CreateSection({ name = "Profile" })
-    -- [[Forward declaration: the "Show profile" callback rolls the reveal]]
-    -- [[switch back when the card goes away, and that switch is created]]
-    -- [[after this one.]]
-    local revealToggle
-    appearance:CreateToggle({
-        name = "Show profile", description = "Shows your account profile in a panel beside the window. The window and the card recentre together, and \"Reveal profile details\" needs this on.", value = self.settings.showProfile,
-        callback = function(value)
-            local revealCleared = profilePanel.setEnabled(self, value)
-            if revealCleared and revealToggle then
-                -- [[Silent: setEnabled already cleared the setting and said]]
-                -- [[why, this only rolls the switch back so the row tells]]
-                -- [[the truth.]]
-                revealToggle:Set(false, true)
-            end
-            self:SaveSettings()
-        end,
-    })
-    appearance:CreateDropdown({
-        name = "Profile side", description = "Which side of the window the profile panel sits on. The window recentres so it and the panel stay centred together.",
-        options = { "Right", "Left" },
-        value = if (self.settings.profileSide or "right") == "left" then "Left" else "Right",
-        callback = function(choice)
-            local side = if choice == "Left" then "left" else "right"
-            if (self.settings.profileSide or "right") == side then
-                return
-            end
-            profilePanel.setSide(self, side)
-            self:SaveSettings()
-        end,
-    })
-    revealToggle = appearance:CreateToggle({
-        name = "Reveal profile details", description = "Reveals your display name, username, user ID, place ID, job ID and license key on the profile card. Off keeps them all masked. Needs \"Show profile\" to be on.", value = self.settings.showFullUsername,
-        callback = function(value)
-            -- [[The card carries the values this unmasks, so the switch is]]
-            -- [[refused while "Show profile" is off: setReveal keeps the]]
-            -- [[setting off, re-masks the card and raises the notification]]
-            -- [[that says what is required. Rolling the switch back is]]
-            -- [[silent because the work is already done.]]
-            if not profilePanel.setReveal(self, value) and revealToggle then
-                revealToggle:Set(false, true)
-            end
-            self:SaveSettings()
-        end,
-    })
 
-    appearance:CreateSection({ name = "Window" })
-    appearance:CreateToggle({
-        name = "Keep window on screen", description = "Stops the window being dragged off the edge of the screen and lost.", value = self.settings.keepOnScreen,
-        callback = function(value) self.settings.keepOnScreen = value; self:SaveSettings() end,
+    local layoutGroup = appearance:CreateCollapsibleGroup({
+        name = "Layout",
+        icon = "panel-left",
+        elements = {
+            {
+                type = "Dropdown",
+                name = "Bar Layout",
+                options = { layouts.top, layouts.sidebar, layouts.collapsedSidebar },
+                value = layouts[currentLayout],
+                callback = function(choice)
+                    local requested
+                    for key, label in layouts do
+                        if choice == label then
+                            requested = key
+                            break
+                        end
+                    end
+                    if not requested then
+                        return
+                    end
+                    local active = layoutKey(self.layout)
+                    if requested == active then
+                        self:Notify({ title = "Bar layout", content = "The " .. choice .. " layout is already active." })
+                        if layoutDropdown then
+                            layoutDropdown:Set(layouts[active], true)
+                        end
+                        return
+                    end
+                    if layoutDropdown then
+                        layoutDropdown:Set(layouts[active], true)
+                    end
+                    self:Popup({
+                        title = "Apply bar layout?",
+                        content = "Are you sure you want to change the layout to " .. choice .. "?",
+                        options = {
+                            { text = "Cancel" },
+                            { text = "Apply", style = "primary", callback = function()
+                                if self:_setLayoutMode(requested) then
+                                    currentLayout = requested
+                                    self.settings.layoutMode = requested
+                                    self:SaveSettings()
+                                    if layoutDropdown then
+                                        layoutDropdown:Set(layouts[requested], true)
+                                    end
+                                    self:Notify({ title = "Bar layout changed", content = "Switched to the " .. layouts[requested] .. " layout." })
+                                else
+                                    currentLayout = layoutKey(self.layout)
+                                    if layoutDropdown then
+                                        layoutDropdown:Set(layouts[currentLayout], true)
+                                    end
+                                    self:Notify({ title = "Bar layout", content = "The selected bar layout could not be applied right now." })
+                                end
+                            end },
+                        },
+                    })
+                end,
+            },
+        },
     })
-    appearance:CreateToggle({
-        name = "Draggable capsule", description = "Allows the minimized capsule to be dragged to a new position. When off, it stays where it was left.", value = self.settings.dragMinimisedBar,
-        callback = function(value) self.settings.dragMinimisedBar = value == true; self:SaveSettings() end,
+    layoutDropdown = layoutGroup.elements[1]
+
+    local revealToggle
+    local profileGroup = appearance:CreateCollapsibleGroup({
+        name = "Profile",
+        icon = "user",
+        elements = {
+            {
+                type = "Toggle",
+                name = "Show profile",
+                value = self.settings.showProfile,
+                callback = function(value)
+                    local revealCleared = profilePanel.setEnabled(self, value)
+                    if revealCleared and revealToggle then
+                        revealToggle:Set(false, true)
+                    end
+                    self:SaveSettings()
+                end,
+            },
+            {
+                type = "Dropdown",
+                name = "Profile side",
+                options = { "Right", "Left" },
+                value = if (self.settings.profileSide or "right") == "left" then "Left" else "Right",
+                callback = function(choice)
+                    local side = if choice == "Left" then "left" else "right"
+                    if (self.settings.profileSide or "right") == side then
+                        return
+                    end
+                    profilePanel.setSide(self, side)
+                    self:SaveSettings()
+                end,
+            },
+            {
+                type = "Toggle",
+                name = "Reveal profile details",
+                value = self.settings.showFullUsername,
+                callback = function(value)
+                    if not profilePanel.setReveal(self, value) and revealToggle then
+                        revealToggle:Set(false, true)
+                    end
+                    self:SaveSettings()
+                end,
+            },
+        },
     })
-    appearance:CreateButton({
-        name = "Reset Window Position", callback = function()
-            self:_recenterForProfile(true)
-        end,
-    })
-    appearance:CreateButton({
-        name = "Reset Capsule Position",
-        description = "Returns the minimized capsule to its default top-center position without moving the open window.",
-        callback = function()
-            self:_resetCapsulePosition()
-        end,
-    })
+    revealToggle = profileGroup.elements[3]
     end
     appearance._settingsContentBuilder = buildAppearance
 
-    local function buildBehavior()
-    behavior:CreateSection({ name = "Window behavior" })
-    behavior:CreateToggle({
-        name = "Prevent duplicate windows", description = "Prevents Astra from creating another window while this window is active.", value = self.settings.antiWindowDuplicate,
-        callback = function(value) self.settings.antiWindowDuplicate = value; self:SaveSettings() end,
-    })
-    end
-    behavior._settingsContentBuilder = buildBehavior
-
-    local function buildPerformance()
-    performance:CreateSection({ name = "Performance" })
-    performance:CreateToggle({
-        name = "Haptics", description = "A subtle tap as you interact, on devices that support haptics.", value = self.settings.haptics,
-        callback = function(value) self.settings.haptics = value; haptic.setEnabled(value); self:SaveSettings() end,
-    })
-
-    -- [[Animation speed. Every prompt names a profile of the motion service
-    -- (utilities/motion.luau); the labels are the display names for them.]]
-    performance:CreateSection({ name = "Motion" })
-    local motionLabels = { relaxed = "Relaxed", normal = "Normal", snappy = "Snappy", instant = "Instant" }
-    local motionOptions = { "Relaxed", "Normal", "Snappy", "Instant" }
-    local motionProfiles = { Relaxed = "relaxed", Normal = "normal", Snappy = "snappy", Instant = "instant" }
-    local currentMotion = motionLabels[self.settings.motionSpeed] or motionLabels.normal
-    performance:CreateDropdown({
-        name = "Animation speed",
-        description = "How long transitions take. Relaxed is slower and softer, Snappy is quicker, Instant switches animation off and applies every change on the spot (easiest on low-end devices).",
-        options = motionOptions,
-        value = currentMotion,
-        callback = function(value)
-            local profile = motionProfiles[value]
-            if not profile or profile == self.settings.motionSpeed then
-                return
-            end
-            self.settings.motionSpeed = profile
-            self:_applyMotionSetting()
-            self:SaveSettings()
-        end,
-    })
-    end
-    performance._settingsContentBuilder = buildPerformance
-
     local function buildPersistence()
-    -- Saving preferences are independent of saved control values. Named
-    -- presets remain available without exposing the hidden default filename.
-    persistence:CreateSection({ name = "Configurations" })
-    persistence:CreateToggle({
-        name = "Auto Save Config",
-        description = "Automatically saves control changes. Turning this off does not delete saved configurations.",
-        value = self.settings.autoSaveConfig,
-        callback = function(value)
-            self.settings.autoSaveConfig = value
-            self.configuration.autoSave = value
-            self:SaveSettings()
-        end,
+    persistence:CreateCollapsibleGroup({
+        name = "Auto Save & Load",
+        icon = "save",
+        elements = {
+            {
+                type = "Toggle",
+                name = "Auto Save Config",
+                value = self.settings.autoSaveConfig,
+                callback = function(value)
+                    self.settings.autoSaveConfig = value
+                    self.configuration.autoSave = value
+                    self:SaveSettings()
+                end,
+            },
+            {
+                type = "Toggle",
+                name = "Auto Load Config",
+                value = self.settings.autoLoadConfig,
+                callback = function(value)
+                    self.settings.autoLoadConfig = value
+                    self.configuration.autoLoad = value
+                    self:SaveSettings()
+                end,
+            },
+        },
     })
-    persistence:CreateToggle({
-        name = "Auto Load Config",
-        description = "Restores saved controls on the next window startup.",
-        value = self.settings.autoLoadConfig,
-        callback = function(value)
-            self.settings.autoLoadConfig = value
-            self.configuration.autoLoad = value
-            self:SaveSettings()
-        end,
-    })
+
     local function namedConfigs()
-        local names = {}
-        for _, name in ipairs(self:ListConfigs()) do
-            if name ~= self.configuration.fileName then table.insert(names, name) end
-        end
-        return names
+        return self:ListConfigs()
     end
     local selected = namedConfigs()[1]
     local configDropdown, configName
     local function refresh()
-        local configs = namedConfigs(); configDropdown:Refresh(configs)
-        if selected and not table.find(configs, selected) then selected = configs[1] end
-        if selected then configDropdown:Set(selected, true) end
+        local configs = namedConfigs()
+        if configDropdown then
+            configDropdown:Refresh(configs)
+            if selected and not table.find(configs, selected) then
+                selected = configs[1]
+            elseif not selected and #configs > 0 then
+                selected = configs[1]
+            end
+            if selected then
+                configDropdown:Set(selected, true)
+            else
+                configDropdown:Set(nil, true)
+            end
+        end
     end
-    configDropdown = persistence:CreateDropdown({ name = "Saved Configurations", icon = constants.icons.config, options = namedConfigs(), value = selected, placeholder = "No saved configurations", callback = function(value) selected = value end })
-    configName = persistence:CreateInput({ name = "Configuration Name", description = "Name a new configuration, or leave blank to overwrite the selected one.", placeholder = "e.g. PvP Loadout", clearOnFocus = false })
-    local group = persistence:CreateGroup()
-    group:CreateButton({ name = "Save", icon = constants.icons.config, callback = function()
-        local name = configName.value; if name == "" then name = selected end
-        if not name or name == "" then self:Toast({ title = locale.resolve("Name your configuration first") }); return end
-        if self:Save(name) then configName:Set(""); selected = name; refresh(); self:Toast({ title = locale.resolve("Saved configuration"), subtitle = name, icon = constants.icons.config }) else self:Toast({ title = locale.resolve("Couldn't save configuration"), subtitle = name }) end
-    end })
-    group:CreateButton({ name = "Load", callback = function()
-        if not selected or selected == "" then self:Toast({ title = locale.resolve("Pick a configuration to load") }); return end
-        if self:_applyNamedConfig(selected) then self:Toast({ title = locale.resolve("Loaded configuration"), subtitle = selected }) else self:Toast({ title = locale.resolve("Couldn't load configuration"), subtitle = selected }) end
-    end })
-    group:CreateButton({ name = "Delete", callback = function()
-        local name = selected
-        if not name or name == "" then self:Toast({ title = locale.resolve("Pick a configuration to delete") }); return end
-        if self:DeleteConfig(name) then refresh(); self:Toast({ title = locale.resolve("Deleted configuration"), subtitle = name }) else self:Toast({ title = locale.resolve("Couldn't delete configuration"), subtitle = name }) end
-    end })
+
+    local configGroup = persistence:CreateCollapsibleGroup({
+        name = "Configurations",
+        icon = constants.icons.config,
+        elements = {
+            {
+                type = "Dropdown",
+                name = "Saved Configurations",
+                icon = constants.icons.config,
+                options = namedConfigs(),
+                value = selected,
+                placeholder = "No saved configurations",
+                callback = function(value)
+                    selected = value
+                end,
+            },
+            {
+                type = "Input",
+                name = "Configuration Name",
+                placeholder = "e.g. PvP Loadout",
+                clearOnFocus = false,
+            },
+            {
+                type = "Group",
+                elements = {
+                    {
+                        type = "Button",
+                        name = "Save",
+                        icon = constants.icons.config,
+                        callback = function()
+                            local name = if configName then configName.value else ""
+                            if name == "" then
+                                name = selected
+                            end
+                            if not name or name == "" then
+                                name = self.configuration.fileName or "Configuration"
+                            end
+                            if self:Save(name) then
+                                if configName then
+                                    configName:Set("")
+                                end
+                                selected = name
+                                refresh()
+                                self:Toast({
+                                    title = locale.resolve("Saved configuration"),
+                                    subtitle = name,
+                                    icon = constants.icons.config,
+                                })
+                            else
+                                self:Toast({
+                                    title = locale.resolve("Couldn't save configuration"),
+                                    subtitle = name,
+                                })
+                            end
+                        end,
+                    },
+                    {
+                        type = "Button",
+                        name = "Load",
+                        callback = function()
+                            if not selected or selected == "" then
+                                self:Toast({ title = locale.resolve("Pick a configuration to load") })
+                                return
+                            end
+                            if self:_applyNamedConfig(selected) then
+                                self:Toast({
+                                    title = locale.resolve("Loaded configuration"),
+                                    subtitle = selected,
+                                })
+                            else
+                                self:Toast({
+                                    title = locale.resolve("Couldn't load configuration"),
+                                    subtitle = selected,
+                                })
+                            end
+                        end,
+                    },
+                    {
+                        type = "Button",
+                        name = "Delete",
+                        callback = function()
+                            local name = selected
+                            if not name or name == "" then
+                                self:Toast({ title = locale.resolve("Pick a configuration to delete") })
+                                return
+                            end
+                            if self:DeleteConfig(name) then
+                                selected = nil
+                                refresh()
+                                self:Toast({
+                                    title = locale.resolve("Deleted configuration"),
+                                    subtitle = name,
+                                })
+                            else
+                                self:Toast({
+                                    title = locale.resolve("Couldn't delete configuration"),
+                                    subtitle = name,
+                                })
+                            end
+                        end,
+                    },
+                },
+            },
+        },
+    })
+    configDropdown = configGroup.elements[1]
+    configName = configGroup.elements[2]
     end
     persistence._settingsContentBuilder = buildPersistence
 end
@@ -9266,7 +9442,6 @@ local name = require(constants.lockable)
 local icon = require(constants.locale)
 local callback = require(constants.HapticEngine)
 local element = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-local description = require(script.Parent.description)
 
 function state.new(tab, frame)
     frame = if typeof(frame) == "table" then frame else {}
@@ -9276,7 +9451,6 @@ function state.new(tab, frame)
         window = tab.window,
         name = frame.name or frame.Name or "Button",
         icon = tab.window:ResolveIcon(frame.icon or frame.Icon),
-        description = frame.description or frame.Description,
         compact = tab.compact or false,
         callback = frame.callback or frame.Callback or function() end,
     }, state)
@@ -9287,7 +9461,7 @@ function state.new(tab, frame)
         self:_buildFull()
     end
 
-        return self
+    return self
 end
 
 function state:_runCallback()
@@ -9301,21 +9475,19 @@ function state:_buildFull()
         Name = self.name,
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 
-                BackgroundTransparency = 1,
+        BackgroundTransparency = 1,
         Parent = self.tab.tabPage,
     }, { BackgroundTransparency = "ElementTransparency" })
 
     self.stroke = self.window:StyleElementBody(self.main)
     self.hoverOverlay = self.window:CreateHoverOverlay(self.main)
 
-    description.attach(self)
-
     self.container = self.window:Create("Frame", {
         BorderSizePixel = 0,
 
         Parent = self.main,
-        Size = UDim2.new(0, 170, 0, 16),
-        Position = UDim2.new(0, 20, description.center(self, 43)),
+        Size = UDim2.new(1, -40, 0, 16),
+        Position = UDim2.new(0, 20, 0.5, 0),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
     })
@@ -9336,7 +9508,7 @@ function state:_buildFull()
             BorderSizePixel = 0,
             BackgroundTransparency = 1,
 
-                        ImageTransparency = 1,
+            ImageTransparency = 1,
             Parent = self.container,
         }, { ImageColor3 = "ContentColor" })
     end
@@ -9344,16 +9516,15 @@ function state:_buildFull()
     self.title = self.window:Create("TextLabel", {
         Text = icon.t(self.name),
 
-        Size = UDim2.fromOffset(250, 16),
+        Size = UDim2.new(1, if self.icon then -21 else 0, 0, 16),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 16,
-        AutomaticSize = Enum.AutomaticSize.X,
         TextXAlignment = Enum.TextXAlignment.Left,
-        TextWrapped = true,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         LayoutOrder = 1,
 
-                TextTransparency = 1,
+        TextTransparency = 1,
         Parent = self.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
@@ -9370,7 +9541,7 @@ function state:_buildFull()
 
     self.window:_wireElementHover(self)
 
-        self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
+    self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
         callback.click()
         Button.tweenService
             :Create(
@@ -9383,7 +9554,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-                { Size = UDim2.new(1, -26, 0, description.height(self, 43)) }
+                { Size = UDim2.new(1, -26, 0, 43) }
             )
             :Play()
 
@@ -9399,7 +9570,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 TweenInfo.new(0.25, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-                { Size = UDim2.new(1, -20, 0, description.height(self, 43)) }
+                { Size = UDim2.new(1, -20, 0, 43) }
             )
             :Play()
         Button.tweenService
@@ -9462,14 +9633,14 @@ function state:_buildCompact()
         Parent = self.interact,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-        window:Create("UIFlexItem", {
+    window:Create("UIFlexItem", {
         FlexMode = Enum.UIFlexMode.Shrink,
         Parent = self.title,
     })
 
     self.window:_wireElementHover(self)
 
-        self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
+    self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
         callback.click()
         Button.tweenService
             :Create(
@@ -9506,9 +9677,11 @@ function state:_setShown(stroke, hoverOverlay)
 end
 
 function state:_minWidth()
-    local w = 32     if self.icon then
-        w += 22     end
-        w += tab.textWidth(self.window.theme.Font, 16, icon.resolve(self.name))
+    local w = 32
+    if self.icon then
+        w += 22
+    end
+    w += tab.textWidth(self.window.theme.Font, 16, icon.resolve(self.name))
     return w
 end
 
@@ -9808,6 +9981,7 @@ function Changelog:_renderEntry(entry: ChangelogEntry, index: number)
         self:_makeLabel(header, "Title", heading, 15, 0, 1, { TextColor3 = "TitlingColor", FontFace = "TitleFont" })
     title.Size = UDim2.new(1, -100, 1, 0)
     title.AutomaticSize = Enum.AutomaticSize.None
+    title.TextTruncate = Enum.TextTruncate.AtEnd
     title.TextYAlignment = Enum.TextYAlignment.Center
     local date = self.window:Create("TextLabel", {
         Name = "Date",
@@ -10070,14 +10244,13 @@ function Collapsible.new(tab, props)
     local self = setmetatable({
         tab = tab, window = tab.window, elements = {}, connections = {},
         name = props.name or props.Name or "Collapsible Group",
-        description = props.description or props.Description,
         icon = tab.window:ResolveIcon(props.icon or props.Icon),
         deriveFlagFromName = tab.deriveFlagFromName,
         forgetState = props.forgetState or tab.forgetState,
         _expanded = false, _shown = false,
     }, Collapsible)
     local w = self.window
-    self.headerHeight = if self.description then 61 else 41
+    self.headerHeight = 41
     -- The container only reserves layout space: it must not clip. The header
     -- card fills it edge to edge, and a tight ClipsDescendants parent shaves
     -- the outer half of its 1px stroke (Border mode straddles the edge) plus
@@ -10115,14 +10288,6 @@ function Collapsible.new(tab, props)
         TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
         TextTransparency = 1, Parent = self.header,
     }, { TextColor3 = "TitlingColor", FontFace = "Font" })
-    if self.description then
-        self.descriptionLabel = w:Create("TextLabel", {
-            Text = locale.t(self.description), Position = UDim2.fromOffset(textX, 37),
-            Size = UDim2.new(1, -(textX + 20), 0, 18), BackgroundTransparency = 1,
-            TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
-            TextTransparency = 1, Parent = self.header,
-        }, { TextColor3 = "ContentColor", FontFace = "Font" })
-    end
     self.chevron = w:Create("ImageLabel", {
         Image = w:ResolveIcon("chevron-right"), Position = UDim2.new(1, -36, 0, 12),
         Size = UDim2.fromOffset(16, 16), BackgroundTransparency = 1,
@@ -10252,7 +10417,6 @@ function Collapsible:_setShown(shown, animate)
     w:_reveal(self.title, { TextTransparency = if shown then 0 else 1 }, animate)
     w:_reveal(self.chevron, { ImageTransparency = if shown then 0.4 else 1 }, animate)
     if self.iconLabel then w:_reveal(self.iconLabel, { ImageTransparency = if shown then 0 else 1 }, animate) end
-    if self.descriptionLabel then w:_reveal(self.descriptionLabel, { TextTransparency = if shown then 0.45 else 1 }, animate) end
     if self._expanded then
         for _, child in ipairs(self.elements) do child:_setShown(shown, animate) end
     end
@@ -10581,7 +10745,6 @@ local selected = 38
 local a19 = 38
 local a20 = 5
 local a21 = 2
-local description = require(script.Parent.description)
 local a22 = 41
 local a23 = 6
 local a24 = 7
@@ -10662,7 +10825,6 @@ function state.new(tab, a49)
         window = tab.window,
         name = a49.name or a49.Name or "Dropdown",
         icon = tab.window:ResolveIcon(a49.icon or a49.Icon),
-        description = a49.description or a49.Description,
         forgetState = a49.forgetState or a49.ForgetState or tab.forgetState,
         flag = a49.flag
             or a49.Flag
@@ -10702,7 +10864,6 @@ function state.new(tab, a49)
         Parent = self.tab.tabPage,
     })
 
-        description.attach(self)
 
         self.top = self.window:Create("Frame", {
         Size = UDim2.new(1, 0, 0, 41),
@@ -10722,7 +10883,7 @@ function state.new(tab, a49)
         BorderSizePixel = 0,
 
         Parent = self.top,
-        Size = UDim2.new(0, 170, 0, 16),
+        Size = UDim2.new(1, -195, 0, 16),
         Position = UDim2.new(0, 20, 0.5, 0),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
@@ -10752,18 +10913,17 @@ function state.new(tab, a49)
     end
 
     self.title = self.window:Create("TextLabel", {
-                Text = flag.t(self.name),
+        Text = flag.t(self.name),
 
-        Size = UDim2.fromOffset(150, 16),
+        Size = UDim2.new(1, if self.icon then -21 else 0, 0, 16),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 16,
-        AutomaticSize = Enum.AutomaticSize.X,
         TextXAlignment = Enum.TextXAlignment.Left,
-        TextWrapped = true,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         LayoutOrder = 1,
 
-                TextTransparency = 1,
+        TextTransparency = 1,
         ZIndex = 5,
         Parent = self.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
@@ -10771,14 +10931,14 @@ function state.new(tab, a49)
     self.selectedLabel = self.window:Create("TextLabel", {
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -41, 0.5, 0),
-        Size = UDim2.fromOffset(168, 15),
+        Size = UDim2.fromOffset(130, 15),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 15,
         TextXAlignment = Enum.TextXAlignment.Right,
-        TextWrapped = true,
+        TextTruncate = Enum.TextTruncate.AtEnd,
 
-                TextTransparency = 1,
+        TextTransparency = 1,
         ZIndex = 5,
         Parent = self.top,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
@@ -10813,7 +10973,7 @@ function state.new(tab, a49)
                     self.panel = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 1),
         Position = UDim2.new(1, 0, 1, 0),
-        Size = UDim2.new(1, 0, 1, -(a22 + a23 + (self._descriptionExtra or 0))),
+        Size = UDim2.new(1, 0, 1, -(a22 + a23)),
         BorderSizePixel = 0,
         ClipsDescendants = true,
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
@@ -11503,7 +11663,7 @@ function state:_openHeight()
     local a110 = self:_pageHeight()
         local a111 = math.min(math.max(n, 1), a27, a104(a110 - a109))
 
-    return math.min(a109 + a102(a111), a110) + (self._descriptionExtra or 0)
+    return math.min(a109 + a102(a111), a110)
 end
 
 -- [[Materialise one row, by option index. Idempotent: the row keeps whatever
@@ -11695,7 +11855,7 @@ function state:_close()
         :Create(
             self.main,
             a32,
-            { Size = UDim2.new(1, -20, 0, description.height(self, 41)) }
+            { Size = UDim2.new(1, -20, 0, 41) }
         )
         :Play()
 end
@@ -11873,9 +12033,6 @@ function state:_setShown(a160, a161)
     w:_reveal(self.top, { BackgroundTransparency = if a160 then (w.theme.ElementTransparency or 0) else 1 }, a161)
     if self.iconLabel then
         w:_reveal(self.iconLabel, { ImageTransparency = if a160 then 0 else 1 }, a161)
-    end
-    if self.descriptionLabel then
-        w:_reveal(self.descriptionLabel, { TextTransparency = if a160 then 0.45 else 1 }, a161)
     end
     w:_reveal(self.selectedLabel, { TextTransparency = if a160 then 0.5 else 1 }, a161)
     w:_reveal(self.chevron, { ImageTransparency = if a160 then 0.5 else 1 }, a161)
@@ -12136,7 +12293,6 @@ local constants = script.Parent.Parent.utilities
 
 local Input = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
-local description = require(script.Parent.description)
 local props = require(constants.moveable)
 local name = require(constants.lockable)
 local placeholder = require(constants.locale)
@@ -12165,10 +12321,10 @@ function state.new(tab, placeholderLabel)
         window = tab.window,
         name = placeholderLabel.name or placeholderLabel.Name or "Input",
         icon = tab.window:ResolveIcon(placeholderLabel.icon or placeholderLabel.Icon),
-        description = placeholderLabel.description or placeholderLabel.Description,
         forgetState = placeholderLabel.forgetState or placeholderLabel.ForgetState or tab.forgetState,
         placeholder = placeholderLabel.placeholder or placeholderLabel.Placeholder or "",
-        numeric = placeholderLabel.numeric or placeholderLabel.Numeric or false,         clearOnFocus = placeholderLabel.clearOnFocus or placeholderLabel.ClearOnFocus or false,
+        numeric = placeholderLabel.numeric or placeholderLabel.Numeric or false,
+        clearOnFocus = placeholderLabel.clearOnFocus or placeholderLabel.ClearOnFocus or false,
 
         callback = placeholderLabel.callback or placeholderLabel.Callback or function() end,
     }, state)
@@ -12194,11 +12350,9 @@ function state.new(tab, placeholderLabel)
     self.stroke = self.window:StyleElementBody(self.main)
     self.hoverOverlay = self.window:CreateHoverOverlay(self.main)
 
-    description.attach(self)
-
-        self.container = self.window:Create("Frame", {
-        Size = UDim2.new(0, 170, 0, 16),
-        Position = UDim2.new(0, 20, description.center(self, 41)),
+    self.container = self.window:Create("Frame", {
+        Size = UDim2.new(1, -115, 0, 16),
+        Position = UDim2.new(0, 20, 0.5, 0),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -12230,12 +12384,12 @@ function state.new(tab, placeholderLabel)
 
     self.title = self.window:Create("TextLabel", {
         Text = placeholder.t(self.name),
-        Size = UDim2.fromOffset(150, 16),
-        AutomaticSize = Enum.AutomaticSize.X,
+        Size = UDim2.new(1, if self.icon then -21 else 0, 0, 16),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 16,
         TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         LayoutOrder = 1,
         ZIndex = 5,
 
@@ -12243,9 +12397,9 @@ function state.new(tab, placeholderLabel)
         Parent = self.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-        self.box = self.window:Create("Frame", {
+    self.box = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -7, 0, if self.descriptionLabel then 20.5 else 20),
+        Position = UDim2.new(1, -7, 0.5, 0),
         Size = UDim2.fromOffset(85, 30),
         BorderSizePixel = 0,
 
@@ -12253,12 +12407,6 @@ function state.new(tab, placeholderLabel)
         Parent = self.main,
     }, { BackgroundColor3 = "FieldBackground" })
 
-    -- [[The field takes the same corner every other element surface wears
-    -- [[(the theme's ElementCornerRadius) instead of a capsule of its own:
-    -- [[notifications, toasts, tab rows and the Text card all read their
-    -- [[roundness off a theme token, so the box reads as a smaller member of
-    -- [[the same family — and a theme that rounds elements tighter or softer
-    -- [[moves the field with them.]]
     self.window:Create("UICorner", {
         Parent = self.box,
     }, { CornerRadius = "ElementCornerRadius" })
@@ -12268,9 +12416,6 @@ function state.new(tab, placeholderLabel)
         Parent = self.box,
     }, { Color = "SurfaceStroke" })
 
-        -- [[The field glow is the validation flash, and its idle transparency
-        -- [[is 1 (invisible): it is built by _fieldGlow() the first time the
-        -- [[field has a result to flash.]]
     self._glowIdle = 1
     self.input = self.window:Create("TextBox", {
         Text = self.value,
@@ -12289,28 +12434,30 @@ function state.new(tab, placeholderLabel)
         Parent = self.box,
     }, { TextColor3 = "ContentColor", FontFace = "Font", PlaceholderColor3 = "PlaceholderColor" })
 
-        self.window:ConnectFor(self, self.input:GetPropertyChangedSignal("Text"), function()
+    self.window:ConnectFor(self, self.input:GetPropertyChangedSignal("Text"), function()
         if self.numeric then
             local a15 = (self.input.Text:gsub("[^%d%.%-eE%^]", ""))
             if a15 ~= self.input.Text then
                 self.input.Text = a15
-                return             end
+                return
+            end
         end
         self:_sizeBox(true)
     end)
 
-        self.window:ConnectFor(self, self.input.Focused, function()
+    self.window:ConnectFor(self, self.input.Focused, function()
         Input.tweenService:Create(self.input, element, { TextTransparency = 0 }):Play()
     end)
 
-        self.window:ConnectFor(self, self.input.FocusLost, function()
+    self.window:ConnectFor(self, self.input.FocusLost, function()
         Input.tweenService:Create(self.input, element, { TextTransparency = 0.6 }):Play()
-                        if self.clearOnFocus and self.input.Text == "" and self.value ~= "" then
+        if self.clearOnFocus and self.input.Text == "" and self.value ~= "" then
             self.input.Text = self.value
             return
         end
         if self.input.Text == self.value then
-            return         end
+            return
+        end
         self:_commit(self.input.Text)
     end)
 
@@ -12323,6 +12470,7 @@ end
 function state:_sizeBox(a16)
     local a17 = self.input.Text ~= "" and self.input.Text or self.placeholder
     local a18 = math.clamp(tab.textWidth(self.window.theme.Font, 15, a17) + 30, 70, 220)
+    self.container.Size = UDim2.new(1, -(a18 + 35), 0, 16)
     if a16 then
         Input.tweenService:Create(self.box, callback, { Size = UDim2.fromOffset(a18, 30) }):Play()
     else
@@ -12335,7 +12483,7 @@ function state:_commit(a19, a20)
     if self.numeric then
         local n = frame(a19)
         if not n or n ~= n or n == math.huge or n == -math.huge then
-                        if self.input.Text ~= self.value then
+            if self.input.Text ~= self.value then
                 self.input.Text = self.value
             end
             return
@@ -12352,7 +12500,7 @@ function state:_commit(a19, a20)
     if not a20 then
         self.window:_runGuarded(self, self.callback, a19)
         self.window:_persist(self)
-                        if a21 and not self.window._loading then
+        if a21 and not self.window._loading then
             clearOnFocus.click()
             self.window:_flashResult(self, true)
         end
@@ -12410,7 +12558,6 @@ local constants = script.Parent.Parent.utilities
 
 local Keybind = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
-local description = require(script.Parent.description)
 local props = require(constants.moveable)
 local name = require(constants.lockable)
 local flag = require(constants.locale)
@@ -12464,7 +12611,6 @@ function state.new(tab, a22)
         window = tab.window,
         name = a22.name or a22.Name or "Keybind",
         icon = tab.window:ResolveIcon(a22.icon or a22.Icon),
-        description = a22.description or a22.Description,
         forgetState = a22.forgetState or a22.ForgetState or tab.forgetState,
         editable = a22.editable or a22.Editable or false,
 
@@ -12499,11 +12645,10 @@ function state.new(tab, a22)
     self.stroke = self.window:StyleElementBody(self.main)
     self.hoverOverlay = self.window:CreateHoverOverlay(self.main)
 
-    description.attach(self)
 
         self.container = self.window:Create("Frame", {
-        Size = UDim2.new(0, 170, 0, 16),
-        Position = UDim2.new(0, 20, description.center(self, 41)),
+        Size = UDim2.new(1, -115, 0, 16),
+        Position = UDim2.new(0, 20, 0.5, 0),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -12535,12 +12680,12 @@ function state.new(tab, a22)
 
     self.title = self.window:Create("TextLabel", {
         Text = flag.t(self.name),
-        Size = UDim2.fromOffset(150, 16),
-        AutomaticSize = Enum.AutomaticSize.X,
+        Size = UDim2.new(1, if self.icon then -21 else 0, 0, 16),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 16,
         TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         LayoutOrder = 1,
         ZIndex = 5,
 
@@ -12550,7 +12695,7 @@ function state.new(tab, a22)
 
         self.box = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -7, 0, if self.descriptionLabel then 20.5 else 20),
+        Position = UDim2.new(1, -7, 0.5, 0),
         Size = UDim2.fromOffset(40, 30),
         BorderSizePixel = 0,
 
@@ -12697,6 +12842,7 @@ end
 
 function state:_sizeBox(a25)
     local a26 = math.clamp(tab.textWidth(self.window.theme.Font, 15, self.keyLabel.Text) + 28, 40, 200)
+    self.container.Size = UDim2.new(1, -(a26 + 35), 0, 16)
     if a25 then
         Keybind.tweenService:Create(self.box, callback, { Size = UDim2.fromOffset(a26, 30) }):Play()
     else
@@ -12967,7 +13113,6 @@ local constants = script.Parent.Parent.utilities
 
 local Progress = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
-local description = require(script.Parent.description)
 local props = require(constants.moveable)
 local name = require(constants.locale)
 
@@ -13017,7 +13162,6 @@ function state.new(tab, a22)
         window = tab.window,
         name = a22.name or a22.Name or "Progress",
         icon = tab.window:ResolveIcon(a22.icon or a22.Icon),
-        description = a22.description or a22.Description,
 
         min = a25,
         max = a26,
@@ -13082,10 +13226,9 @@ function state:_build()
 
     self.stroke = self.window:StyleElementBody(self.main)
 
-    description.attach(self)
 
         self.container = self.window:Create("Frame", {
-        Size = UDim2.new(0, 170, 0, fill),
+        Size = UDim2.new(1, -110, 0, fill),
         Position = UDim2.new(0, text, 0, 20),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
@@ -13119,16 +13262,15 @@ function state:_build()
     self.title = self.window:Create("TextLabel", {
         Text = name.t(self.name),
 
-        Size = UDim2.fromOffset(250, fill),
+        Size = UDim2.new(1, if self.icon then -22 else 0, 0, fill),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = fill,
-        AutomaticSize = Enum.AutomaticSize.X,
         TextXAlignment = Enum.TextXAlignment.Left,
-        TextWrapped = true,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         LayoutOrder = 1,
 
-                TextTransparency = 1,
+        TextTransparency = 1,
         Parent = self.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
@@ -13156,7 +13298,7 @@ function state:_build()
 
                 self.track = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0.5, 1),
-        Position = UDim2.new(0.5, 0, 1, -16 - (self._descriptionExtra or 0)),
+        Position = UDim2.new(0.5, 0, 1, -16),
         Size = UDim2.new(1, -text * 2, 0, value),
         BorderSizePixel = 0,
 
@@ -13208,7 +13350,7 @@ function state:_buildSteps()
 
     self.track = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0.5, 1),
-        Position = UDim2.new(0.5, 0, 1, -17 - (self._descriptionExtra or 0)),
+        Position = UDim2.new(0.5, 0, 1, -17),
         Size = UDim2.new(1, -text * 2, 0, element),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -13422,7 +13564,7 @@ function state.new(tab, element)
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
     }, state)
 
-            local props = if #self.tab.elements == 0 then 0 else 13
+    local props = if #self.tab.elements == 0 then 0 else 13
 
     self.main = self.window:Create("Frame", {
         Size = UDim2.new(1, -40, 0, 20 + props),
@@ -13454,24 +13596,23 @@ function state.new(tab, element)
             BorderSizePixel = 0,
             BackgroundTransparency = 1,
 
-                        ImageTransparency = 1,
+            ImageTransparency = 1,
             Parent = self.main,
         }, { ImageColor3 = "ContentColor" })
     end
 
     self.title = self.window:Create("TextLabel", {
-                Text = Section.t(self.name),
+        Text = Section.t(self.name),
 
-        Size = UDim2.fromOffset(0, 16),
+        Size = UDim2.new(1, if self.icon then -22 else 0, 0, 16),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 15,
-        AutomaticSize = Enum.AutomaticSize.X,
         TextXAlignment = Enum.TextXAlignment.Left,
-        TextWrapped = true,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         LayoutOrder = 1,
 
-                TextTransparency = 1,
+        TextTransparency = 1,
         Parent = self.main,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
@@ -13500,7 +13641,6 @@ local constants = script.Parent.Parent.utilities
 
 local Slider = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
-local description = require(script.Parent.description)
 local props = require(constants.odometer)
 local name = require(constants.moveable)
 local flag = require(constants.lockable)
@@ -13545,7 +13685,6 @@ function state.new(ownerTab, a31)
         window = ownerTab.window,
         name = a31.name or a31.Name or "Slider",
         icon = ownerTab.window:ResolveIcon(a31.icon or a31.Icon),
-        description = a31.description or a31.Description,
         forgetState = a31.forgetState or a31.ForgetState or ownerTab.forgetState,
 
         range = a31.range or a31.Range or { 0, 100 },
@@ -13556,15 +13695,15 @@ function state.new(ownerTab, a31)
 
         dragging = false,
         minimal = a31.minimal or a31.Minimal or false,
-                _handleWidth = a23.X,
+        _handleWidth = a23.X,
     }, state)
 
-        assert(
+    assert(
         typeof(self.range) == "table" and typeof(self.range[1]) == "number" and typeof(self.range[2]) == "number",
         "A slider range needs two numbers, like { 0, 100 }."
     )
 
-        if self.range[1] > self.range[2] then
+    if self.range[1] > self.range[2] then
         self.range = { self.range[2], self.range[1] }
     end
     if self.increment <= 0 then
@@ -13578,7 +13717,7 @@ function state.new(ownerTab, a31)
         )
         else self.range[1]
 
-            self.value = element(self.range, self.increment, self.value)
+    self.value = element(self.range, self.increment, self.value)
 
     self._decimals = increment(self.increment)
 
@@ -13602,16 +13741,12 @@ function state.new(ownerTab, a31)
     self._lastValue = self.value
 
     if not self.minimal then
-        description.attach(self)
-    end
-
-        if not self.minimal then
         self:_buildLabel()
     end
 
-        self.track = self.window:Create("Frame", {
+    self.track = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -15, description.center(self, 65)),
+        Position = UDim2.new(1, -15, 0.5, 0),
         Size = UDim2.fromOffset(222, 14),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
@@ -13652,14 +13787,9 @@ function state.new(ownerTab, a31)
         Parent = self.progress,
     }, { Color = { "SliderProgress", tab.toColorSequence } })
 
-        self.progressGlow = self.window:CreateGlow(self.progress, "AccentColor", 20, 1)
+    self.progressGlow = self.window:CreateGlow(self.progress, "AccentColor", 20, 1)
 
-        -- [[The knob rides the track, not the fill: its centre travels only
-        -- [[within [halfWidth, travel - halfWidth], so the capsule stays
-        -- [[inside the track (and inside the card) at both extremes, and the
-        -- [[fill ends at the knob's centre so the bar never peeks out from
-        -- [[under it. _renderProgress places both from one centre number.]]
-        self.handle = self.window:Create("Frame", {
+    self.handle = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0, 0, 0.5, 0),
         Size = UDim2.fromOffset(a23.X, a23.Y),
@@ -13675,16 +13805,13 @@ function state.new(ownerTab, a31)
         Parent = self.handle,
     })
 
-        self.handleGlow = self.window:CreateGlow(self.handle, Color3.fromRGB(255, 255, 255), 10, 1)
+    self.handleGlow = self.window:CreateGlow(self.handle, Color3.fromRGB(255, 255, 255), 10, 1)
 
     self.handleStroke = self.window:Create("UIStroke", {
         Transparency = 1,
         Parent = self.handle,
     }, { Color = "SliderStroke" })
 
-    -- [[In the narrow layout the track is scale-sized, so a window resize
-    -- [[moves its measured width without a layout-mode switch; re-seat the
-    -- [[fill and knob whenever that happens.]]
     self.window:ConnectFor(self, self.track:GetPropertyChangedSignal("AbsoluteSize"), function()
         self:_renderProgress()
     end)
@@ -13699,9 +13826,10 @@ function state.new(ownerTab, a31)
         Parent = self.track,
     })
 
-        self.window:ConnectFor(self, self.main.MouseEnter, function()
+    self.window:ConnectFor(self, self.main.MouseEnter, function()
         if not self.window:_interactive() then
-            return         end
+            return
+        end
         Slider.tweenService
             :Create(self.track, max, { BackgroundColor3 = self.window.theme.SliderBackgroundHover })
             :Play()
@@ -13718,16 +13846,17 @@ function state.new(ownerTab, a31)
             a32.UserInputType == Enum.UserInputType.MouseButton1
             or a32.UserInputType == Enum.UserInputType.Touch
         then
-            value.click()             self.dragging = true
+            value.click()
+            self.dragging = true
             self:_setHeld(true)
             self:_updateFromMouse()
 
-                        if self._dragConnection then
+            if self._dragConnection then
                 self._dragConnection:Disconnect()
                 self._dragConnection = nil
             end
 
-                                    self._dragConnection = Slider.runService.RenderStepped:Connect(function()
+            self._dragConnection = Slider.runService.RenderStepped:Connect(function()
                 if self.window.unloaded or not self.dragging then
                     if self._dragConnection then
                         self._dragConnection:Disconnect()
@@ -13749,12 +13878,12 @@ function state.new(ownerTab, a31)
         end
     end)
 
-            self.window:ConnectFor(self, Slider.userInputService.WindowFocusReleased, function()
+    self.window:ConnectFor(self, Slider.userInputService.WindowFocusReleased, function()
         self:_endDrag()
     end)
 
-            self.window:ConnectFor(self, self.main:GetPropertyChangedSignal("AbsoluteSize"), function()
-                                                if self.window.animating or (self.window.hidden and self.window.hasShownOnce) then
+    self.window:ConnectFor(self, self.main:GetPropertyChangedSignal("AbsoluteSize"), function()
+        if self.window.animating or (self.window.hidden and self.window.hasShownOnce) then
             return
         end
         self:_applyLayout()
@@ -13762,7 +13891,7 @@ function state.new(ownerTab, a31)
     self:_applyLayout()
 
     if self.minimal then
-                        self.main.Size = UDim2.new(1, -20, 0, 41)
+        self.main.Size = UDim2.new(1, -20, 0, 41)
         self.track.AnchorPoint = Vector2.new(0.5, 0.5)
         self.track.Position = UDim2.new(0.5, 0, 0.5, 0)
         self.track.Size = UDim2.new(1, -30, 0, 14)
@@ -13774,10 +13903,10 @@ function state.new(ownerTab, a31)
 end
 
 function state:_buildLabel()
-        self.container = self.window:Create("Frame", {
+    self.container = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 20, description.center(self, 65)),
-        Size = UDim2.fromOffset(170, 33),
+        Position = UDim2.new(0, 20, 0.5, 0),
+        Size = UDim2.new(1, -255, 0, 33),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ZIndex = 5,
@@ -13811,7 +13940,7 @@ function state:_buildLabel()
         Parent = self.titleContainer,
     })
 
-            self.titleFlex = self.window:Create("UIFlexItem", {
+    self.titleFlex = self.window:Create("UIFlexItem", {
         FlexMode = Enum.UIFlexMode.None,
         Parent = self.titleContainer,
     })
@@ -13824,7 +13953,7 @@ function state:_buildLabel()
             BackgroundTransparency = 1,
             ZIndex = 5,
 
-                        ImageTransparency = 1,
+            ImageTransparency = 1,
             Parent = self.titleContainer,
         }, { ImageColor3 = "ContentColor" })
     end
@@ -13836,20 +13965,21 @@ function state:_buildLabel()
         BackgroundTransparency = 1,
         TextSize = 16,
         TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,         RichText = true,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        RichText = true,
         LayoutOrder = 1,
         ZIndex = 5,
 
-                TextTransparency = 1,
+        TextTransparency = 1,
         Parent = self.titleContainer,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-        self.window:Create("UIFlexItem", {
+    self.window:Create("UIFlexItem", {
         FlexMode = Enum.UIFlexMode.Shrink,
         Parent = self.title,
     })
 
-            self.valueHost = self.window:Create("Frame", {
+    self.valueHost = self.window:Create("Frame", {
         Size = UDim2.new(1, 0, 0, 16),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -13861,21 +13991,24 @@ function state:_buildLabel()
     self.valueOdo = props.new(self.window, self.valueHost, {
         textSize = 15,
         alignment = Enum.HorizontalAlignment.Left,
-        transparency = 1,         duration = 0.28,     })
+        transparency = 1,
+        duration = 0.28,
+    })
     self.valueOdo:snap(self:_format(self.value))
 end
 
 function state:_setMainHeight(a34)
     if self._widthManaged then
-        self.main.Size = UDim2.new(self.main.Size.X.Scale, self.main.Size.X.Offset, 0, description.height(self, a34))
+        self.main.Size = UDim2.new(self.main.Size.X.Scale, self.main.Size.X.Offset, 0, a34)
     else
-        self.main.Size = UDim2.new(1, -20, 0, description.height(self, a34))
+        self.main.Size = UDim2.new(1, -20, 0, a34)
     end
 end
 
 function state:_applyLayout()
     if self.minimal then
-        return     end
+        return
+    end
     local a35 = self.main.AbsoluteSize.X
     local a36 = if a35 > 0 and a35 < a22 then "narrow" else "wide"
     if self._layoutMode == a36 then
@@ -13890,31 +14023,29 @@ function state:_applyLayout()
         self.container.Position = UDim2.new(0, 20, 0, 14)
         self.container.Size = UDim2.new(1, -40, 0, 16)
         self.containerLayout.FillDirection = Enum.FillDirection.Horizontal
-        self.titleFlex.FlexMode = Enum.UIFlexMode.Fill         self.valueHost.AutomaticSize = Enum.AutomaticSize.X
+        self.titleFlex.FlexMode = Enum.UIFlexMode.Fill
+        self.valueHost.AutomaticSize = Enum.AutomaticSize.X
         self.valueHost.Size = UDim2.new(0, 0, 0, 16)
 
         self.track.AnchorPoint = Vector2.new(0.5, 1)
-        self.track.Position = UDim2.new(0.5, 0, 1, -14 - (self._descriptionExtra or 0))
+        self.track.Position = UDim2.new(0.5, 0, 1, -14)
         self.track.Size = UDim2.new(1, -30, 0, 14)
     else
         self:_setMainHeight(65)
 
         self.container.AnchorPoint = Vector2.new(0, 0.5)
-        self.container.Position = UDim2.new(0, 20, description.center(self, 65))
-        self.container.Size = UDim2.new(0, 170, 0, 33)
+        self.container.Position = UDim2.new(0, 20, 0.5, 0)
+        self.container.Size = UDim2.new(1, -255, 0, 33)
         self.containerLayout.FillDirection = Enum.FillDirection.Vertical
         self.titleFlex.FlexMode = Enum.UIFlexMode.None
         self.valueHost.AutomaticSize = Enum.AutomaticSize.None
         self.valueHost.Size = UDim2.new(1, 0, 0, 16)
 
         self.track.AnchorPoint = Vector2.new(1, 0.5)
-        self.track.Position = UDim2.new(1, -15, description.center(self, 65))
+        self.track.Position = UDim2.new(1, -15, 0.5, 0)
         self.track.Size = UDim2.new(0, 222, 0, 14)
     end
 
-    -- [[The knob and the fill are placed in pixels off the track's measured
-    -- [[width, so every track resize (first layout, mode switch, window
-    -- [[resize) re-seats them through the same clamp.]]
     self:_renderProgress()
 end
 
@@ -13934,12 +14065,6 @@ function state:_renderProgress(a39)
     local a40 = self.range[2] - self.range[1]
     local a41 = if a40 ~= 0 then math.clamp((self.value - self.range[1]) / a40, 0, 1) else 0
 
-    -- [[One centre number drives both the fill and the knob: the centre sits
-    -- [[half a knob in from each track end at the extremes (so the capsule
-    -- [[never overlaps the card edge or stroke), and the fill's right edge is
-    -- [[exactly that centre, so it stays tucked under the knob. The held
-    -- [[knob is wider than the resting one, so the clamp follows
-    -- [[_handleWidth and a hold re-renders through the same path.]]
     local half = (self._handleWidth or a23.X) / 2
     local center = half + a41 * math.max(self:_pillTravel() - half * 2, 0)
     local fill = UDim2.new(0, center, 1, 0)
@@ -13966,7 +14091,8 @@ function state:_updateFromMouse()
     if a45 ~= self.value then
         self.value = a45
         if self.valueOdo then
-            self.valueOdo:snap(self:_format(a45))         end
+            self.valueOdo:snap(self:_format(a45))
+        end
         self._lastValue = a45
         self:_renderProgress(connection)
         self:_fireCallback(a45)
@@ -13989,7 +14115,7 @@ function state:_endDrag()
 end
 
 function state:_setHeld(a46)
-                if not a46 then
+    if not a46 then
         self:_fireCallback(self.value)
     end
 
@@ -14037,7 +14163,7 @@ function state:_setShown(a52, a53)
         if self.valueOdo then
             self.valueOdo:reveal(0.3, a53)
         end
-                w:_reveal(self.progressGlow, { Transparency = math.max(0.55, w.theme.AccentGlow) }, a53, a51)
+        w:_reveal(self.progressGlow, { Transparency = math.max(0.55, w.theme.AccentGlow) }, a53, a51)
         w:_reveal(self.handleGlow, { Transparency = 0.8 }, a53, a51)
     else
         w:_hideCommon(self, a53)
@@ -14064,11 +14190,15 @@ end
 
 function state:_minWidth()
     if self.minimal then
-        return 100     end
-    local w = 40     if self.icon then
-        w += 22     end
-        w += tab.textWidth(self.window.theme.Font, 16, range.resolve(self.name))
-    w += 12     w += tab.textWidth(self.window.theme.Font, 15, self:_format(self.value))
+        return 100
+    end
+    local w = 40
+    if self.icon then
+        w += 22
+    end
+    w += tab.textWidth(self.window.theme.Font, 16, range.resolve(self.name))
+    w += 12
+    w += tab.textWidth(self.window.theme.Font, 15, self:_format(self.value))
     return math.max(w, 160)
 end
 
@@ -14089,7 +14219,6 @@ local Stat = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
 local props = require(constants.odometer)
 local name = require(constants.moveable)
-local description = require(script.Parent.description)
 local value = require(constants.constants)
 local prefix = require(constants.locale)
 local suffix = require(constants.log)
@@ -14101,7 +14230,7 @@ local frame = NumberSequence.new({
     NumberSequenceKeypoint.new(1, 0),
 })
 
-local valueLabel = 41
+local valueLabel = 38
 
 local baseline = TweenInfo.new(0.6, Enum.EasingStyle.Exponential)
 
@@ -14151,7 +14280,6 @@ function state.new(tab, a25)
         window = tab.window,
         name = a25.name or a25.Name or "Statistic",
         icon = tab.window:ResolveIcon(a25.icon or a25.Icon),
-        description = a25.description or a25.Description,
 
         value = if (a25.value or a25.Value) ~= nil then (a25.value or a25.Value) else 0,
                         _hasValue = (a25.value or a25.Value) ~= nil,
@@ -14180,9 +14308,6 @@ function state.new(tab, a25)
         self:_buildFull()
     end
 
-    if self.description and self.compact then
-        suffix.warn(`Astra: a compact stat has no room for a description, ignoring it on '{self.name}'.`)
-    end
 
     return self
 end
@@ -14191,7 +14316,7 @@ function state:_buildFull()
     local window = self.window
 
     self.main = window:Create("Frame", {
-        Size = UDim2.new(1, -20, 0, 90),
+        Size = UDim2.new(1, -20, 0, 70),
         BorderSizePixel = 0,
         Name = self.name,
         ZIndex = 5,
@@ -14206,7 +14331,8 @@ function state:_buildFull()
     }, { CornerRadius = "ElementCornerRadius" })
 
     self.stroke = window:Create("UIStroke", {
-        Transparency = 1,         Color = Color3.fromRGB(255, 255, 255),
+        Transparency = 1,
+        Color = Color3.fromRGB(255, 255, 255),
 
         Parent = self.main,
     }, { Transparency = "ElementStrokeTransparency" })
@@ -14220,11 +14346,9 @@ function state:_buildFull()
         Parent = self.stroke,
     })
 
-    description.attach(self)
-
     self.titleContainer = window:Create("Frame", {
-        Size = UDim2.new(1, -40, 0, 32),
-        Position = UDim2.fromOffset(20, 15),
+        Size = UDim2.new(1, -30, 0, 22),
+        Position = UDim2.fromOffset(15, 12),
         BorderSizePixel = 0,
         LayoutOrder = -1,
         BackgroundTransparency = 1,
@@ -14237,23 +14361,24 @@ function state:_buildFull()
         Size = UDim2.fromScale(1, 1),
         Position = UDim2.fromOffset(0, 0),
         BorderSizePixel = 0,
-        BackgroundTransparency = 1,         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundTransparency = 1,
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         ZIndex = 5,
 
         Parent = self.main,
     })
 
-            self.glow = window:CreateGlow(self.main, a14(element.neutral), 13, 1)
+    self.glow = window:CreateGlow(self.main, a14(element.neutral), 10, 1)
 
     self.title = window:Create("TextLabel", {
         Text = prefix.t(self.name),
 
-        Size = UDim2.fromOffset(300, 19),
+        Size = UDim2.new(1, if self.icon then -30 else 0, 0, 16),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
-        TextSize = 19,
+        TextSize = 15,
         TextXAlignment = Enum.TextXAlignment.Left,
-        TextWrapped = true,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         LayoutOrder = 1,
         ZIndex = 10,
 
@@ -14277,7 +14402,7 @@ function state:_buildFull()
     if self.icon then
         self.iconLabel = window:Create("ImageLabel", {
             Image = self.icon,
-            Size = UDim2.fromOffset(32, 32),
+            Size = UDim2.fromOffset(22, 22),
             BorderSizePixel = 0,
             BackgroundTransparency = 1,
             ZIndex = 10,
@@ -14297,10 +14422,10 @@ function state:_buildFull()
         Parent = self.titleContainer,
     })
 
-        self.valueHost = window:Create("Frame", {
+    self.valueHost = window:Create("Frame", {
         AnchorPoint = Vector2.new(0, 1),
-        Position = UDim2.new(0, 20, 1, -15 - (self._descriptionExtra or 0)),
-        Size = UDim2.fromOffset(200, 20),
+        Position = UDim2.new(0, 15, 1, -12),
+        Size = UDim2.new(0.5, -20, 0, 18),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ZIndex = 10,
@@ -14310,8 +14435,8 @@ function state:_buildFull()
 
     self.changeHost = window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 1),
-        Position = UDim2.new(1, -20, 1, -15 - (self._descriptionExtra or 0)),
-        Size = UDim2.fromOffset(200, 15),
+        Position = UDim2.new(1, -15, 1, -12),
+        Size = UDim2.new(0.5, -20, 0, 14),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ZIndex = 10,
@@ -14320,13 +14445,14 @@ function state:_buildFull()
     })
 
     self.valueOdo = props.new(window, self.valueHost, {
-        textSize = 20,
+        textSize = 17,
         alignment = Enum.HorizontalAlignment.Left,
-        transparency = 1,     })
+        transparency = 1,
+    })
     self.valueOdo:snap(self:_formatValue(self.value))
 
     self.changeOdo = props.new(window, self.changeHost, {
-        textSize = 15,
+        textSize = 13,
         alignment = Enum.HorizontalAlignment.Right,
         transparency = 1,
     })
@@ -14338,7 +14464,7 @@ end
 function state:_buildCompact()
     local window = self.window
 
-        local a26 = self.tab.compact or false
+    local a26 = self.tab.compact or false
 
     self.main = window:Create("Frame", {
         Name = self.name,
@@ -14357,7 +14483,8 @@ function state:_buildCompact()
     }, { CornerRadius = "ElementCornerRadius" })
 
     self.stroke = window:Create("UIStroke", {
-        Transparency = 1,         Color = Color3.fromRGB(255, 255, 255),
+        Transparency = 1,
+        Color = Color3.fromRGB(255, 255, 255),
 
         Parent = self.main,
     }, { Transparency = "ElementStrokeTransparency" })
@@ -14386,7 +14513,7 @@ function state:_buildCompact()
         Parent = self.main,
     })
 
-        self.card = window:Create("Frame", {
+    self.card = window:Create("Frame", {
         AutomaticSize = Enum.AutomaticSize.X,
         Size = UDim2.fromOffset(0, valueLabel),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
@@ -14411,8 +14538,8 @@ function state:_buildCompact()
     })
 
     window:Create("UIPadding", {
-        PaddingLeft = UDim.new(0, 15),
-        PaddingRight = UDim.new(0, 15),
+        PaddingLeft = UDim.new(0, 12),
+        PaddingRight = UDim.new(0, 12),
 
         Parent = self.card,
     })
@@ -14421,14 +14548,14 @@ function state:_buildCompact()
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalFlex = Enum.UIFlexAlignment.SpaceBetween,
-        Padding = UDim.new(0, 10),
+        Padding = UDim.new(0, 8),
 
         Parent = self.card,
     })
 
-        self.titleContainer = window:Create("Frame", {
+    self.titleContainer = window:Create("Frame", {
         AutomaticSize = Enum.AutomaticSize.X,
-        Size = UDim2.fromOffset(0, 16),
+        Size = UDim2.fromOffset(0, 15),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         LayoutOrder = 0,
@@ -14437,7 +14564,7 @@ function state:_buildCompact()
         Parent = self.card,
     })
 
-        window:Create("UIFlexItem", {
+    window:Create("UIFlexItem", {
         FlexMode = Enum.UIFlexMode.Shrink,
         Parent = self.titleContainer,
     })
@@ -14455,7 +14582,8 @@ function state:_buildCompact()
     if self.icon then
         self.iconLabel = window:Create("ImageLabel", {
             Image = self.icon,
-            Size = UDim2.fromOffset(20, 20),             BorderSizePixel = 0,
+            Size = UDim2.fromOffset(18, 18),
+            BorderSizePixel = 0,
             BackgroundTransparency = 1,
             LayoutOrder = 0,
             ZIndex = 6,
@@ -14467,11 +14595,11 @@ function state:_buildCompact()
 
     self.title = window:Create("TextLabel", {
         Text = prefix.t(self.name),
-        Size = UDim2.fromOffset(0, 16),
+        Size = UDim2.fromOffset(0, 15),
         AutomaticSize = Enum.AutomaticSize.X,
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
-        TextSize = 16,
+        TextSize = 15,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextTruncate = Enum.TextTruncate.AtEnd,
         LayoutOrder = 1,
@@ -14480,14 +14608,14 @@ function state:_buildCompact()
         TextTransparency = 1,
         Parent = self.titleContainer,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
-        window:Create("UIFlexItem", {
+    window:Create("UIFlexItem", {
         FlexMode = Enum.UIFlexMode.Shrink,
         Parent = self.title,
     })
 
-        self.readoutHost = window:Create("Frame", {
+    self.readoutHost = window:Create("Frame", {
         AutomaticSize = Enum.AutomaticSize.X,
-        Size = UDim2.fromOffset(0, 18),
+        Size = UDim2.fromOffset(0, 16),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         LayoutOrder = 1,
@@ -14497,7 +14625,7 @@ function state:_buildCompact()
     })
 
     self.readoutOdo = props.new(window, self.readoutHost, {
-        textSize = 17,
+        textSize = 15,
         alignment = Enum.HorizontalAlignment.Right,
         transparency = 1,
     })
@@ -14682,11 +14810,13 @@ function state:_setShown(a66, a67)
 end
 
 function state:_minWidth()
-    local w = 30 + 10     if self.icon then
-        w += 26     end
-        w += tab.textWidth(self.window.theme.Font, 16, prefix.resolve(self.name))
+    local w = 24 + 8
+    if self.icon then
+        w += 24
+    end
+    w += tab.textWidth(self.window.theme.Font, 15, prefix.resolve(self.name))
     local a68 = if self.display == "change" then self:_formatChange(0) else self:_formatValue(self.value)
-    w += tab.textWidth(self.window.theme.Font, 17, a68)
+    w += tab.textWidth(self.window.theme.Font, 15, a68)
     return w
 end
 
@@ -15118,7 +15248,7 @@ function state.new(window, element)
         icon = window:ResolveIcon(element.icon or element.Icon),
     }, state)
 
-            if window.layout.mode ~= "sidebar" then
+    if window.layout.mode ~= "sidebar" then
         if not window._warnedTabSection then
             window._warnedTabSection = true
             TabSection.warn("Astra: Window:CreateSection needs the sidebar layout; it does nothing on the top strip.")
@@ -15127,7 +15257,7 @@ function state.new(window, element)
         return self
     end
 
-        self.main = window:Create("Frame", {
+    self.main = window:Create("Frame", {
         Name = self.name,
         Size = UDim2.new(1, -tab * 2, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
@@ -15163,7 +15293,7 @@ function state.new(window, element)
             BorderSizePixel = 0,
             LayoutOrder = 0,
 
-                        ImageTransparency = 1,
+            ImageTransparency = 1,
             Parent = self.main,
         }, { ImageColor3 = "ContentColor" })
     end
@@ -15171,17 +15301,16 @@ function state.new(window, element)
     self.title = window:Create("TextLabel", {
         Text = constants.t(self.name),
 
-        Size = UDim2.fromOffset(0, 15),
-        AutomaticSize = Enum.AutomaticSize.X,
-        BackgroundTransparency = 1,
+        Size = UDim2.new(1, if self.icon then -22 else 0, 0, 15),
         BorderSizePixel = 0,
+        BackgroundTransparency = 1,
         TextSize = 15,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Bottom,
-        TextWrapped = true,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         LayoutOrder = 1,
 
-                TextTransparency = 1,
+        TextTransparency = 1,
         Parent = self.main,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
@@ -15190,7 +15319,8 @@ end
 
 function state:_setShown(frame, a10)
     if not self.main then
-        return     end
+        return
+    end
     local w = self.window
     w:_reveal(self.title, { TextTransparency = if frame then 0.6 else 1 }, a10)
     if self.iconLabel then
@@ -15548,7 +15678,6 @@ local name = require(constants.lockable)
 local flag = require(constants.locale)
 local value = require(constants.HapticEngine)
 local callback = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-local description = require(script.Parent.description)
 
 -- [[Switch metrics, in one place. The track and the knob are both pills and
 -- [[the knob keeps the same clearance on every side it can see (`switchInset`
@@ -15581,8 +15710,8 @@ function state.new(tab, element)
         window = tab.window,
         name = element.name or element.Name or "Switch",
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
-        description = element.description or element.Description,
-        forgetState = element.forgetState or element.ForgetState or tab.forgetState,         compact = tab.compact or false,
+        forgetState = element.forgetState or element.ForgetState or tab.forgetState,
+        compact = tab.compact or false,
         flag = element.flag
             or element.Flag
             or (
@@ -15596,7 +15725,7 @@ function state.new(tab, element)
         value = if (element.value or element.Value) ~= nil then (element.value or element.Value) else false,
     }, state)
 
-        self.window:_registerControl(self)
+    self.window:_registerControl(self)
 
     if self.compact then
         self:_buildCompact()
@@ -15619,14 +15748,13 @@ function state:_buildSwitch(frame)
     }, { BackgroundColor3 = "ToggleTrack" })
 
     window:Create("UICorner", {
-        -- [[A true pill at any height, instead of a radius that happened to
-        -- [[match the old 21px track.]]
         CornerRadius = UDim.new(1, 0),
         Parent = self.functionContainer,
     })
 
     self.containerStroke = window:Create("UIStroke", {
-        Transparency = 1,         Parent = self.functionContainer,
+        Transparency = 1,
+        Parent = self.functionContainer,
     }, { Color = "SurfaceStroke" })
 
     self.indicator = window:Create("Frame", {
@@ -15634,10 +15762,6 @@ function state:_buildSwitch(frame)
         Size = UDim2.fromOffset(switchKnobWidth, switchKnobHeight),
         Position = if self.value then switchKnobActive else switchKnobRest,
         AnchorPoint = Vector2.new(0, 0.5),
-        -- [[Above the track's sheen overlay (ZIndex 1): the sheen belongs to
-        -- [[the track, and at equal ZIndex the later sibling drew it straight
-        -- [[over the knob, washing the knob's lower half and leaving it with
-        -- [[an uneven rim.]]
         ZIndex = 2,
         BackgroundColor3 = self.value and self.window.theme.AccentColor or self.window.theme.ToggleKnobOff,
 
@@ -15652,21 +15776,16 @@ function state:_buildSwitch(frame)
 
     self.indicatorStroke = window:Create("UIStroke", {
         Color = self.value and self.window.theme.AccentStroke or Color3.fromRGB(255, 255, 255),
-        Transparency = 1,         Parent = self.indicator,
+        Transparency = 1,
+        Parent = self.indicator,
     })
 
-        -- [[The glow is only ever visible while the switch is on, so it is
-        -- [[built by _indicatorGlow() the first time that matters: an off
-        -- [[switch carries no shadow instance at all.]]
-
-        self.overlay = window:Create("Frame", {
+    self.overlay = window:Create("Frame", {
         BorderSizePixel = 0,
         Size = UDim2.fromScale(1, 1),
         Position = UDim2.fromScale(0, 0),
         AnchorPoint = Vector2.new(0, 0),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        -- [[Under the knob (ZIndex 2) and over the track: the theme's sheen
-        -- [[tints the track, not whatever is parked on it.]]
         ZIndex = 1,
 
         BackgroundTransparency = 1,
@@ -15721,14 +15840,12 @@ function state:_buildFull()
     self.stroke = window:StyleElementBody(self.main)
     self.hoverOverlay = window:CreateHoverOverlay(self.main)
 
-    description.attach(self)
-
     self.container = window:Create("Frame", {
         BorderSizePixel = 0,
 
         Parent = self.main,
-        Size = UDim2.new(0, 170, 0, 16),
-        Position = UDim2.new(0, 20, description.center(self, 41)),
+        Size = UDim2.new(1, -(switchTrackWidth + 45), 0, 16),
+        Position = UDim2.new(0, 20, 0.5, 0),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
     })
@@ -15756,13 +15873,12 @@ function state:_buildFull()
 
     self.title = window:Create("TextLabel", {
         Text = flag.t(self.name),
-        Size = UDim2.fromOffset(250, 16),
+        Size = UDim2.new(1, if self.icon then -21 else 0, 0, 16),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 16,
-        AutomaticSize = Enum.AutomaticSize.X,
         TextXAlignment = Enum.TextXAlignment.Left,
-        TextWrapped = true,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         LayoutOrder = 1,
 
         TextTransparency = 1,
@@ -15781,8 +15897,8 @@ function state:_buildFull()
         Parent = self.main,
     })
 
-        self:_buildSwitch(self.main)
-    self.functionContainer.Position = UDim2.new(1, -15, 0, if self.descriptionLabel then 20.5 else 20)
+    self:_buildSwitch(self.main)
+    self.functionContainer.Position = UDim2.new(1, -15, 0.5, 0)
     self.functionContainer.AnchorPoint = Vector2.new(1, 0.5)
 
     self.window:_wireElementHover(self)
@@ -15799,7 +15915,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-                { Size = UDim2.new(1, -26, 0, description.height(self, 41)) }
+                { Size = UDim2.new(1, -26, 0, 41) }
             )
             :Play()
 
@@ -15815,7 +15931,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 TweenInfo.new(0.25, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-                { Size = UDim2.new(1, -20, 0, description.height(self, 41)) }
+                { Size = UDim2.new(1, -20, 0, 41) }
             )
             :Play()
         Toggle.tweenService
@@ -15831,7 +15947,7 @@ end
 function state:_buildCompact()
     local window = self.window
 
-        self.main, self.stroke, self.interact = window:_buildCompactRow(self.tab, self.name, 10)
+    self.main, self.stroke, self.interact = window:_buildCompactRow(self.tab, self.name, 10)
     self.hoverOverlay = self.interact
 
     window:Create("UIPadding", {
@@ -15841,7 +15957,7 @@ function state:_buildCompact()
         Parent = self.interact,
     })
 
-        window:Create("UIListLayout", {
+    window:Create("UIListLayout", {
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalFlex = Enum.UIFlexAlignment.SpaceBetween,
@@ -15860,7 +15976,7 @@ function state:_buildCompact()
         Parent = self.interact,
     })
 
-        window:Create("UIFlexItem", {
+    window:Create("UIFlexItem", {
         FlexMode = Enum.UIFlexMode.Shrink,
         Parent = self.container,
     })
@@ -15902,12 +16018,12 @@ function state:_buildCompact()
         Parent = self.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-        window:Create("UIFlexItem", {
+    window:Create("UIFlexItem", {
         FlexMode = Enum.UIFlexMode.Shrink,
         Parent = self.title,
     })
 
-        self:_buildSwitch(self.interact)
+    self:_buildSwitch(self.interact)
     self.functionContainer.LayoutOrder = 1
 
     self.window:_wireElementHover(self)
@@ -15986,7 +16102,7 @@ function state:_setShown(flag, a16)
     local w = self.window
     if flag then
         w:_revealCommon(self, a16)
-                w:_reveal(self.indicator, {
+        w:_reveal(self.indicator, {
             BackgroundColor3 = self.value and w.theme.AccentColor or w.theme.ToggleKnobOff,
             BackgroundTransparency = self.value and 0 or w.theme.ToggleKnobOffTransparency,
         }, a16, knob)
@@ -16043,11 +16159,11 @@ function state:_refreshTheme()
 end
 
 function state:_minWidth()
-    -- [[The switch column is the track's own width: the compact row sizes its
-    -- [[label column against this, so it has to follow the metrics above.]]
-    local w = 30 + 10 + switchTrackWidth     if self.icon then
-        w += 21     end
-        w += tab.textWidth(self.window.theme.Font, 16, flag.resolve(self.name))
+    local w = 30 + 10 + switchTrackWidth
+    if self.icon then
+        w += 21
+    end
+    w += tab.textWidth(self.window.theme.Font, 16, flag.resolve(self.name))
     return w
 end
 
@@ -16062,9 +16178,10 @@ function state:Set(a18, a19)
         self:_animateIndicator()
     end
 
-        if not a19 then
+    if not a19 then
         self.window:_runGuarded(self, self.callback, self.value)
-        self.window:_persist(self)     end
+        self.window:_persist(self)
+    end
 end
 
 return state
@@ -31499,16 +31616,16 @@ function path.basename(pathValue: unknown): string
 end
 
 function path.stripExtension(nameValue: unknown, extension: string?): string
+    local nameText = tostring(nameValue)
     if extension and extension ~= "" then
-        local nameText = tostring(nameValue)
-        if nameText:sub(-#extension) == extension then
+        if nameText:sub(-#extension):lower() == extension:lower() then
             return nameText:sub(1, -#extension - 1)
         end
         return nameText
     end
 
-    local matchedName = tostring(nameValue):match("^(.+)%.%w+$")
-    return matchedName or tostring(nameValue)
+    local matchedName = nameText:match("^(.+)%.%w+$")
+    return matchedName or nameText
 end
 
 return path
@@ -31742,7 +31859,7 @@ function persistenceConfig.list(window: ConfigWindow): { string }
 
     for _, file in files do
         local baseName = pathUtil.basename(file)
-                        if baseName:sub(-5) == ".rfld" then
+        if baseName:sub(-5):lower() == ".rfld" then
             local configName = pathUtil.stripExtension(baseName, ".rfld")
             if configName and configName ~= "" and not configName:find(" %(Incorrect Format[^%)]*%)$") then
                 table.insert(names, configName)
@@ -32294,104 +32411,104 @@ end)() end,
 local LineOffsets = {
     [2] = 12,
     [3] = 185,
-    [5] = 613,
-    [6] = 648,
-    [7] = 693,
-    [8] = 599,
-    [9] = 810,
-    [10] = 920,
-    [11] = 1164,
-    [12] = 1391,
-    [13] = 1698,
-    [14] = 2416,
-    [15] = 4807,
-    [16] = 5153,
-    [17] = 5214,
-    [18] = 5584,
-    [19] = 5961,
-    [21] = 9256,
-    [22] = 9522,
-    [23] = 9966,
-    [24] = 10283,
-    [25] = 10410,
-    [26] = 10555,
-    [27] = 11920,
-    [28] = 12131,
-    [29] = 12405,
-    [30] = 12962,
-    [31] = 13408,
-    [32] = 13495,
-    [33] = 14082,
-    [34] = 14699,
-    [35] = 15090,
-    [36] = 15220,
-    [37] = 15384,
-    [38] = 15538,
-    [40] = 16099,
-    [41] = 16122,
-    [42] = 16139,
-    [43] = 16172,
-    [44] = 16294,
-    [45] = 16318,
-    [46] = 16367,
-    [47] = 16074,
-    [48] = 16497,
-    [49] = 16800,
-    [50] = 16831,
-    [51] = 16486,
-    [52] = 16874,
-    [53] = 16894,
-    [54] = 16926,
-    [55] = 16856,
-    [56] = 17033,
-    [57] = 17092,
-    [58] = 17152,
-    [60] = 17211,
-    [61] = 17376,
-    [62] = 17196,
-    [63] = 17936,
-    [64] = 18231,
-    [65] = 18887,
-    [66] = 20671,
-    [67] = 21812,
-    [68] = 23332,
-    [69] = 17438,
-    [70] = 28576,
-    [71] = 28638,
-    [72] = 28700,
-    [73] = 28775,
-    [74] = 28857,
-    [75] = 28919,
-    [76] = 28994,
-    [77] = 29069,
-    [78] = 29144,
-    [79] = 29219,
-    [80] = 28470,
-    [81] = 29281,
-    [82] = 29379,
-    [83] = 29557,
-    [84] = 29608,
-    [85] = 29638,
-    [86] = 29889,
-    [87] = 29938,
-    [88] = 30391,
-    [89] = 30409,
-    [90] = 30555,
-    [91] = 30654,
-    [92] = 30676,
-    [93] = 30726,
-    [94] = 31052,
-    [95] = 31088,
-    [96] = 31106,
-    [97] = 31455,
-    [98] = 31467,
-    [99] = 31518,
-    [100] = 31537,
-    [101] = 31779,
-    [102] = 31823,
-    [103] = 32048,
-    [104] = 32076,
-    [105] = 32087,
+    [5] = 604,
+    [6] = 639,
+    [7] = 684,
+    [8] = 590,
+    [9] = 801,
+    [10] = 911,
+    [11] = 1155,
+    [12] = 1382,
+    [13] = 1689,
+    [14] = 2407,
+    [15] = 4798,
+    [16] = 5144,
+    [17] = 5205,
+    [18] = 5575,
+    [19] = 5952,
+    [21] = 9432,
+    [22] = 9695,
+    [23] = 10140,
+    [24] = 10447,
+    [25] = 10574,
+    [26] = 10719,
+    [27] = 12077,
+    [28] = 12288,
+    [29] = 12553,
+    [30] = 13108,
+    [31] = 13550,
+    [32] = 13636,
+    [33] = 14212,
+    [34] = 14829,
+    [35] = 15220,
+    [36] = 15350,
+    [37] = 15514,
+    [38] = 15668,
+    [40] = 16216,
+    [41] = 16239,
+    [42] = 16256,
+    [43] = 16289,
+    [44] = 16411,
+    [45] = 16435,
+    [46] = 16484,
+    [47] = 16191,
+    [48] = 16614,
+    [49] = 16917,
+    [50] = 16948,
+    [51] = 16603,
+    [52] = 16991,
+    [53] = 17011,
+    [54] = 17043,
+    [55] = 16973,
+    [56] = 17150,
+    [57] = 17209,
+    [58] = 17269,
+    [60] = 17328,
+    [61] = 17493,
+    [62] = 17313,
+    [63] = 18053,
+    [64] = 18348,
+    [65] = 19004,
+    [66] = 20788,
+    [67] = 21929,
+    [68] = 23449,
+    [69] = 17555,
+    [70] = 28693,
+    [71] = 28755,
+    [72] = 28817,
+    [73] = 28892,
+    [74] = 28974,
+    [75] = 29036,
+    [76] = 29111,
+    [77] = 29186,
+    [78] = 29261,
+    [79] = 29336,
+    [80] = 28587,
+    [81] = 29398,
+    [82] = 29496,
+    [83] = 29674,
+    [84] = 29725,
+    [85] = 29755,
+    [86] = 30006,
+    [87] = 30055,
+    [88] = 30508,
+    [89] = 30526,
+    [90] = 30672,
+    [91] = 30771,
+    [92] = 30793,
+    [93] = 30843,
+    [94] = 31169,
+    [95] = 31205,
+    [96] = 31223,
+    [97] = 31572,
+    [98] = 31584,
+    [99] = 31635,
+    [100] = 31654,
+    [101] = 31896,
+    [102] = 31940,
+    [103] = 32165,
+    [104] = 32193,
+    [105] = 32204,
 }
 
 -- [[Misc AOT variable imports]]

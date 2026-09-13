@@ -287,6 +287,7 @@ function Changelog:_renderEntry(entry: ChangelogEntry, index: number)
         self:_makeLabel(header, "Title", heading, 15, 0, 1, { TextColor3 = "TitlingColor", FontFace = "TitleFont" })
     title.Size = UDim2.new(1, -100, 1, 0)
     title.AutomaticSize = Enum.AutomaticSize.None
+    title.TextTruncate = Enum.TextTruncate.AtEnd
     title.TextYAlignment = Enum.TextYAlignment.Center
     local date = self.window:Create("TextLabel", {
         Name = "Date",

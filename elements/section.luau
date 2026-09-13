@@ -15,7 +15,7 @@ function state.new(tab, element)
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
     }, state)
 
-            local props = if #self.tab.elements == 0 then 0 else 13
+    local props = if #self.tab.elements == 0 then 0 else 13
 
     self.main = self.window:Create("Frame", {
         Size = UDim2.new(1, -40, 0, 20 + props),
@@ -47,24 +47,23 @@ function state.new(tab, element)
             BorderSizePixel = 0,
             BackgroundTransparency = 1,
 
-                        ImageTransparency = 1,
+            ImageTransparency = 1,
             Parent = self.main,
         }, { ImageColor3 = "ContentColor" })
     end
 
     self.title = self.window:Create("TextLabel", {
-                Text = Section.t(self.name),
+        Text = Section.t(self.name),
 
-        Size = UDim2.fromOffset(0, 16),
+        Size = UDim2.new(1, if self.icon then -22 else 0, 0, 16),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 15,
-        AutomaticSize = Enum.AutomaticSize.X,
         TextXAlignment = Enum.TextXAlignment.Left,
-        TextWrapped = true,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         LayoutOrder = 1,
 
-                TextTransparency = 1,
+        TextTransparency = 1,
         Parent = self.main,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 

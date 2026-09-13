@@ -1625,80 +1625,197 @@ function Window:_buildSettingsUI()
     end
     self._settingsUIBuilt = true
     local appearance = self:CreateTab({ name = "Appearance", icon = "palette", customOrder = 1002, forgetState = true, isSettingsTab = true })
-    local behavior = self:CreateTab({ name = "Behavior", icon = "shield-check", customOrder = 1003, forgetState = true, isSettingsTab = true })
-    local performance = self:CreateTab({ name = "Performance", icon = "gauge", customOrder = 1004, forgetState = true, isSettingsTab = true })
-    local persistence = self:CreateTab({ name = "Persistence", icon = "save", customOrder = 1005, forgetState = true, isSettingsTab = true })
-    local about = self:CreateTab({ name = "About", icon = "info", customOrder = 1006, forgetState = true, isSettingsTab = true })
-    for _, tab in { appearance, behavior, performance, persistence, about } do
+    local persistence = self:CreateTab({ name = "Persistence", icon = "save", customOrder = 1003, forgetState = true, isSettingsTab = true })
+    local about = self:CreateTab({ name = "About", icon = "info", customOrder = 1004, forgetState = true, isSettingsTab = true })
+    for _, tab in { appearance, persistence, about } do
         tab._isSettingsTab = true
         table.insert(self._settingsTabs, tab)
     end
 
     -- [[The settings shells are created on first settings access.]]
-    -- [[Each tab's elements]]
-    -- [[are created the first time that tab is opened (see]]
-    -- [[_buildSettingsContent), so opening the window stays fast. The]]
+    -- [[Each tab's elements are created the first time that tab is opened]]
+    -- [[(see _buildSettingsContent), so opening the window stays fast. The]]
     -- [[builders run at most once, in the original creation order.]]
     self._settingsContentBuilt = self._settingsContentBuilt or {}
 
     local function buildAbout()
-    about:CreateSection({ name = "Rayfield Gen2" })
-    about:CreateText({
-        name = "About Rayfield Gen2",
-        text = "Rayfield Gen2 is a ground-up rebuild of the Rayfield Interface Suite, built entirely in code for a faster, more stable, and more consistent experience.",
+    about:CreateCollapsibleGroup({
+        name = "Rayfield Gen2",
+        icon = "info",
+        elements = {
+            {
+                type = "Text",
+                name = "About Rayfield Gen2",
+                text = "Rayfield Gen2 is a ground-up rebuild of the Rayfield Interface Suite, built entirely in code for a faster, more stable, and more consistent experience.",
+            },
+            {
+                type = "Text",
+                name = "Highlights",
+                text = "State can persist between sessions, themes can change at runtime, labels can be translated, and the interface is designed for both desktop and mobile.",
+            },
+        },
     })
-    about:CreateText({
-        name = "Highlights",
-        text = "State can persist between sessions, themes can change at runtime, labels can be translated, and the interface is designed for both desktop and mobile.",
+    about:CreateCollapsibleGroup({
+        name = "Astra",
+        icon = "sparkles",
+        elements = {
+            {
+                type = "Text",
+                name = "Our Story",
+                text = "Astra began from Rayfield Gen2 and was reshaped into a distinct interface library with its own visual language, behavior, and features.",
+            },
+            {
+                type = "Text",
+                name = "What Astra Provides",
+                text = "A responsive, customizable interface with persistent settings, runtime themes, localization support, animated window transitions, and a growing set of reusable elements.",
+            },
+            {
+                type = "Text",
+                name = "Customized by Haijo",
+                text = "Originally from Rayfield, Astra is customized, refined, and maintained by Haijo.",
+            },
+        },
     })
-    about:CreateSection({ name = "Astra" })
-    about:CreateText({
-        name = "Our Story",
-        text = "Astra began from Rayfield Gen2 and was reshaped into a distinct interface library with its own visual language, behavior, and features.",
-    })
-    about:CreateText({
-        name = "What Astra Provides",
-        text = "A responsive, customizable interface with persistent settings, runtime themes, localization support, animated window transitions, and a growing set of reusable elements.",
-    })
-    about:CreateText({
-        name = "Customized by Haijo",
-        text = "Originally from Rayfield, Astra is customized, refined, and maintained by Haijo.",
-    })
-    about:CreateSection({ name = "Links" })
-    about:CreateText({
-        name = "Documentation",
-        text = "https://docs.sirius.menu/rayfield-gen2",
+    about:CreateCollapsibleGroup({
+        name = "Links",
+        icon = "link",
+        elements = {
+            {
+                type = "Text",
+                name = "Documentation",
+                text = "https://docs.sirius.menu/rayfield-gen2",
+            },
+        },
     })
     end
     about._settingsContentBuilder = buildAbout
 
     local function buildGeneral()
-    self.rfSettings:CreateSection({ name = "General" })
-    self.rfSettings:CreateKeybind({
-        name = "Toggle Keybind", description = "Type one letter. Extra characters are removed automatically.", icon = constants.icons.search, value = self.settings.toggleKeybind, editable = true,
-        isMenuToggle = true, onChanged = function(value)
-            self.settings.toggleKeybind = value
-            self:SaveSettings()
-        end,
-    })
-    self.rfSettings:CreateToggle({
-        name = "Unlock cursor while open",
-        description = "Unlocks the cursor while the menu is open so you can configure in FPS games that lock it.",
-        value = self.settings.mouseOverride,
-        callback = function(value) self.settings.mouseOverride = value; self:SaveSettings() end,
-    })
-    self.rfSettings:CreateToggle({
-        name = "Welcome toast",
-        description = "Shows a 'Signed in as' toast the first time you open the menu on a new account.",
-        value = self.settings.welcomeToast,
-        callback = function(value) self.settings.welcomeToast = value; self:SaveSettings() end,
+    self.rfSettings:CreateCollapsibleGroup({
+        name = "General Controls",
+        icon = constants.icons.settings,
+        elements = {
+            {
+                type = "Keybind",
+                name = "Toggle Keybind",
+                icon = constants.icons.search,
+                value = self.settings.toggleKeybind,
+                editable = true,
+                isMenuToggle = true,
+                onChanged = function(value)
+                    self.settings.toggleKeybind = value
+                    self:SaveSettings()
+                end,
+            },
+            {
+                type = "Toggle",
+                name = "Unlock cursor while open",
+                value = self.settings.mouseOverride,
+                callback = function(value)
+                    self.settings.mouseOverride = value
+                    self:SaveSettings()
+                end,
+            },
+            {
+                type = "Toggle",
+                name = "Welcome toast",
+                value = self.settings.welcomeToast,
+                callback = function(value)
+                    self.settings.welcomeToast = value
+                    self:SaveSettings()
+                end,
+            },
+        },
     })
 
+    self.rfSettings:CreateCollapsibleGroup({
+        name = "Window Behavior",
+        icon = "layout",
+        elements = {
+            {
+                type = "Toggle",
+                name = "Prevent duplicate windows",
+                value = self.settings.antiWindowDuplicate,
+                callback = function(value)
+                    self.settings.antiWindowDuplicate = value
+                    self:SaveSettings()
+                end,
+            },
+            {
+                type = "Toggle",
+                name = "Keep window on screen",
+                value = self.settings.keepOnScreen,
+                callback = function(value)
+                    self.settings.keepOnScreen = value
+                    self:SaveSettings()
+                end,
+            },
+            {
+                type = "Toggle",
+                name = "Draggable capsule",
+                value = self.settings.dragMinimisedBar,
+                callback = function(value)
+                    self.settings.dragMinimisedBar = value == true
+                    self:SaveSettings()
+                end,
+            },
+            {
+                type = "Button",
+                name = "Reset Window Position",
+                callback = function()
+                    self:_recenterForProfile(true)
+                end,
+            },
+            {
+                type = "Button",
+                name = "Reset Capsule Position",
+                callback = function()
+                    self:_resetCapsulePosition()
+                end,
+            },
+        },
+    })
+
+    local motionLabels = { relaxed = "Relaxed", normal = "Normal", snappy = "Snappy", instant = "Instant" }
+    local motionOptions = { "Relaxed", "Normal", "Snappy", "Instant" }
+    local motionProfiles = { Relaxed = "relaxed", Normal = "normal", Snappy = "snappy", Instant = "instant" }
+    local currentMotion = motionLabels[self.settings.motionSpeed] or motionLabels.normal
+
+    self.rfSettings:CreateCollapsibleGroup({
+        name = "Performance & Motion",
+        icon = "gauge",
+        elements = {
+            {
+                type = "Toggle",
+                name = "Haptics",
+                value = self.settings.haptics,
+                callback = function(value)
+                    self.settings.haptics = value
+                    haptic.setEnabled(value)
+                    self:SaveSettings()
+                end,
+            },
+            {
+                type = "Dropdown",
+                name = "Animation speed",
+                options = motionOptions,
+                value = currentMotion,
+                callback = function(value)
+                    local profile = motionProfiles[value]
+                    if not profile or profile == self.settings.motionSpeed then
+                        return
+                    end
+                    self.settings.motionSpeed = profile
+                    self:_applyMotionSetting()
+                    self:SaveSettings()
+                end,
+            },
+        },
+    })
     end
     self.rfSettings._settingsContentBuilder = buildGeneral
 
     local function buildAppearance()
-    appearance:CreateSection({ name = "Theme" })
     local themes = {
         default = "Default",
         amethyst = "Amethyst",
@@ -1718,252 +1835,320 @@ function Window:_buildSettingsUI()
     if not themes[selectedTheme] then
         selectedTheme = "default"
     end
-    appearance:CreateDropdown({
+
+    appearance:CreateCollapsibleGroup({
         name = "Theme",
-        description = "Choose a built-in theme to preview and apply.",
-        options = { "Default", "Amethyst", "Cobalt", "Crimson", "Ember", "Emerald", "Frost", "Gold", "Onyx", "Rose" },
-        value = themeLabel(selectedTheme),
-        callback = function(value)
-            for key, label in themes do
-                if value == label then
-                    selectedTheme = key
-                    break
-                end
-            end
-        end,
-    })
-    appearance:CreateButton({
-        name = "Apply theme",
-        description = "Confirm the selected theme before changing the window.",
-        callback = function()
-            if selectedTheme == self.settings.theme then
-                self:Notify({ title = "Theme", content = "The " .. themeLabel(selectedTheme) .. " theme is already active." })
-                return
-            end
-            self:Popup({
-                title = "Apply theme?",
-                content = "Apply the " .. themeLabel(selectedTheme) .. " theme to this window?",
-                options = {
-                    { text = "Cancel" },
-                    { text = "Apply", style = "primary", callback = function()
-                        self.settings.theme = selectedTheme
-                        self:ChangeTheme(selectedTheme)
-                        self:SaveSettings()
-                        self:Notify({ title = "Theme applied", subtitle = themeLabel(selectedTheme) })
-                    end },
-                },
-            })
-        end,
+        icon = "palette",
+        elements = {
+            {
+                type = "Dropdown",
+                name = "Theme",
+                options = { "Default", "Amethyst", "Cobalt", "Crimson", "Ember", "Emerald", "Frost", "Gold", "Onyx", "Rose" },
+                value = themeLabel(selectedTheme),
+                callback = function(value)
+                    for key, label in themes do
+                        if value == label then
+                            selectedTheme = key
+                            break
+                        end
+                    end
+                end,
+            },
+            {
+                type = "Button",
+                name = "Apply theme",
+                callback = function()
+                    if selectedTheme == self.settings.theme then
+                        self:Notify({ title = "Theme", content = "The " .. themeLabel(selectedTheme) .. " theme is already active." })
+                        return
+                    end
+                    self:Popup({
+                        title = "Apply theme?",
+                        content = "Apply the " .. themeLabel(selectedTheme) .. " theme to this window?",
+                        options = {
+                            { text = "Cancel" },
+                            { text = "Apply", style = "primary", callback = function()
+                                self.settings.theme = selectedTheme
+                                self:ChangeTheme(selectedTheme)
+                                self:SaveSettings()
+                                self:Notify({ title = "Theme applied", subtitle = themeLabel(selectedTheme) })
+                            end },
+                        },
+                    })
+                end,
+            },
+        },
     })
 
-    appearance:CreateSection({ name = "Layout" })
     local layouts = { top = "Default Topbar", sidebar = "Sidebar (Responsive)", collapsedSidebar = "Collapsed Sidebar" }
     local layoutDropdown
     local currentLayout = self.settings.layoutMode or self.layout.mode
-    layoutDropdown = appearance:CreateDropdown({
-        name = "Bar Layout",
-        description = "Choose Default Topbar, responsive Sidebar, or an automatic compact Collapsed Sidebar for desktop and mobile.",
-        options = { layouts.top, layouts.sidebar, layouts.collapsedSidebar },
-        value = layouts[currentLayout],
-        callback = function(choice)
-            local requested
-            for key, label in layouts do if choice == label then requested = key break end end
-            if not requested then return end
-            local active = layoutKey(self.layout)
-            if requested == active then
-                self:Notify({ title = "Bar layout", content = "The " .. choice .. " layout is already active." })
-                layoutDropdown:Set(layouts[active], true)
-                return
-            end
-            layoutDropdown:Set(layouts[active], true)
-            self:Popup({
-                title = "Apply bar layout?",
-                content = "Are you sure you want to change the layout to " .. choice .. "?",
-                options = {
-                    { text = "Cancel" },
-                    { text = "Apply", style = "primary", callback = function()
-                        if self:_setLayoutMode(requested) then
-                            currentLayout = requested
-                            self.settings.layoutMode = requested
-                            self:SaveSettings()
-                            layoutDropdown:Set(layouts[requested], true)
-                            self:Notify({ title = "Bar layout changed", content = "Switched to the " .. layouts[requested] .. " layout." })
-                        else
-                            currentLayout = layoutKey(self.layout)
-                            layoutDropdown:Set(layouts[currentLayout], true)
-                            self:Notify({ title = "Bar layout", content = "The selected bar layout could not be applied right now." })
-                        end
-                    end },
-                },
-            })
-        end,
-    })
-    appearance:CreateSection({ name = "Profile" })
-    -- [[Forward declaration: the "Show profile" callback rolls the reveal]]
-    -- [[switch back when the card goes away, and that switch is created]]
-    -- [[after this one.]]
-    local revealToggle
-    appearance:CreateToggle({
-        name = "Show profile", description = "Shows your account profile in a panel beside the window. The window and the card recentre together, and \"Reveal profile details\" needs this on.", value = self.settings.showProfile,
-        callback = function(value)
-            local revealCleared = profilePanel.setEnabled(self, value)
-            if revealCleared and revealToggle then
-                -- [[Silent: setEnabled already cleared the setting and said]]
-                -- [[why, this only rolls the switch back so the row tells]]
-                -- [[the truth.]]
-                revealToggle:Set(false, true)
-            end
-            self:SaveSettings()
-        end,
-    })
-    appearance:CreateDropdown({
-        name = "Profile side", description = "Which side of the window the profile panel sits on. The window recentres so it and the panel stay centred together.",
-        options = { "Right", "Left" },
-        value = if (self.settings.profileSide or "right") == "left" then "Left" else "Right",
-        callback = function(choice)
-            local side = if choice == "Left" then "left" else "right"
-            if (self.settings.profileSide or "right") == side then
-                return
-            end
-            profilePanel.setSide(self, side)
-            self:SaveSettings()
-        end,
-    })
-    revealToggle = appearance:CreateToggle({
-        name = "Reveal profile details", description = "Reveals your display name, username, user ID, place ID, job ID and license key on the profile card. Off keeps them all masked. Needs \"Show profile\" to be on.", value = self.settings.showFullUsername,
-        callback = function(value)
-            -- [[The card carries the values this unmasks, so the switch is]]
-            -- [[refused while "Show profile" is off: setReveal keeps the]]
-            -- [[setting off, re-masks the card and raises the notification]]
-            -- [[that says what is required. Rolling the switch back is]]
-            -- [[silent because the work is already done.]]
-            if not profilePanel.setReveal(self, value) and revealToggle then
-                revealToggle:Set(false, true)
-            end
-            self:SaveSettings()
-        end,
-    })
 
-    appearance:CreateSection({ name = "Window" })
-    appearance:CreateToggle({
-        name = "Keep window on screen", description = "Stops the window being dragged off the edge of the screen and lost.", value = self.settings.keepOnScreen,
-        callback = function(value) self.settings.keepOnScreen = value; self:SaveSettings() end,
+    local layoutGroup = appearance:CreateCollapsibleGroup({
+        name = "Layout",
+        icon = "panel-left",
+        elements = {
+            {
+                type = "Dropdown",
+                name = "Bar Layout",
+                options = { layouts.top, layouts.sidebar, layouts.collapsedSidebar },
+                value = layouts[currentLayout],
+                callback = function(choice)
+                    local requested
+                    for key, label in layouts do
+                        if choice == label then
+                            requested = key
+                            break
+                        end
+                    end
+                    if not requested then
+                        return
+                    end
+                    local active = layoutKey(self.layout)
+                    if requested == active then
+                        self:Notify({ title = "Bar layout", content = "The " .. choice .. " layout is already active." })
+                        if layoutDropdown then
+                            layoutDropdown:Set(layouts[active], true)
+                        end
+                        return
+                    end
+                    if layoutDropdown then
+                        layoutDropdown:Set(layouts[active], true)
+                    end
+                    self:Popup({
+                        title = "Apply bar layout?",
+                        content = "Are you sure you want to change the layout to " .. choice .. "?",
+                        options = {
+                            { text = "Cancel" },
+                            { text = "Apply", style = "primary", callback = function()
+                                if self:_setLayoutMode(requested) then
+                                    currentLayout = requested
+                                    self.settings.layoutMode = requested
+                                    self:SaveSettings()
+                                    if layoutDropdown then
+                                        layoutDropdown:Set(layouts[requested], true)
+                                    end
+                                    self:Notify({ title = "Bar layout changed", content = "Switched to the " .. layouts[requested] .. " layout." })
+                                else
+                                    currentLayout = layoutKey(self.layout)
+                                    if layoutDropdown then
+                                        layoutDropdown:Set(layouts[currentLayout], true)
+                                    end
+                                    self:Notify({ title = "Bar layout", content = "The selected bar layout could not be applied right now." })
+                                end
+                            end },
+                        },
+                    })
+                end,
+            },
+        },
     })
-    appearance:CreateToggle({
-        name = "Draggable capsule", description = "Allows the minimized capsule to be dragged to a new position. When off, it stays where it was left.", value = self.settings.dragMinimisedBar,
-        callback = function(value) self.settings.dragMinimisedBar = value == true; self:SaveSettings() end,
+    layoutDropdown = layoutGroup.elements[1]
+
+    local revealToggle
+    local profileGroup = appearance:CreateCollapsibleGroup({
+        name = "Profile",
+        icon = "user",
+        elements = {
+            {
+                type = "Toggle",
+                name = "Show profile",
+                value = self.settings.showProfile,
+                callback = function(value)
+                    local revealCleared = profilePanel.setEnabled(self, value)
+                    if revealCleared and revealToggle then
+                        revealToggle:Set(false, true)
+                    end
+                    self:SaveSettings()
+                end,
+            },
+            {
+                type = "Dropdown",
+                name = "Profile side",
+                options = { "Right", "Left" },
+                value = if (self.settings.profileSide or "right") == "left" then "Left" else "Right",
+                callback = function(choice)
+                    local side = if choice == "Left" then "left" else "right"
+                    if (self.settings.profileSide or "right") == side then
+                        return
+                    end
+                    profilePanel.setSide(self, side)
+                    self:SaveSettings()
+                end,
+            },
+            {
+                type = "Toggle",
+                name = "Reveal profile details",
+                value = self.settings.showFullUsername,
+                callback = function(value)
+                    if not profilePanel.setReveal(self, value) and revealToggle then
+                        revealToggle:Set(false, true)
+                    end
+                    self:SaveSettings()
+                end,
+            },
+        },
     })
-    appearance:CreateButton({
-        name = "Reset Window Position", callback = function()
-            self:_recenterForProfile(true)
-        end,
-    })
-    appearance:CreateButton({
-        name = "Reset Capsule Position",
-        description = "Returns the minimized capsule to its default top-center position without moving the open window.",
-        callback = function()
-            self:_resetCapsulePosition()
-        end,
-    })
+    revealToggle = profileGroup.elements[3]
     end
     appearance._settingsContentBuilder = buildAppearance
 
-    local function buildBehavior()
-    behavior:CreateSection({ name = "Window behavior" })
-    behavior:CreateToggle({
-        name = "Prevent duplicate windows", description = "Prevents Astra from creating another window while this window is active.", value = self.settings.antiWindowDuplicate,
-        callback = function(value) self.settings.antiWindowDuplicate = value; self:SaveSettings() end,
-    })
-    end
-    behavior._settingsContentBuilder = buildBehavior
-
-    local function buildPerformance()
-    performance:CreateSection({ name = "Performance" })
-    performance:CreateToggle({
-        name = "Haptics", description = "A subtle tap as you interact, on devices that support haptics.", value = self.settings.haptics,
-        callback = function(value) self.settings.haptics = value; haptic.setEnabled(value); self:SaveSettings() end,
-    })
-
-    -- [[Animation speed. Every prompt names a profile of the motion service
-    -- (utilities/motion.luau); the labels are the display names for them.]]
-    performance:CreateSection({ name = "Motion" })
-    local motionLabels = { relaxed = "Relaxed", normal = "Normal", snappy = "Snappy", instant = "Instant" }
-    local motionOptions = { "Relaxed", "Normal", "Snappy", "Instant" }
-    local motionProfiles = { Relaxed = "relaxed", Normal = "normal", Snappy = "snappy", Instant = "instant" }
-    local currentMotion = motionLabels[self.settings.motionSpeed] or motionLabels.normal
-    performance:CreateDropdown({
-        name = "Animation speed",
-        description = "How long transitions take. Relaxed is slower and softer, Snappy is quicker, Instant switches animation off and applies every change on the spot (easiest on low-end devices).",
-        options = motionOptions,
-        value = currentMotion,
-        callback = function(value)
-            local profile = motionProfiles[value]
-            if not profile or profile == self.settings.motionSpeed then
-                return
-            end
-            self.settings.motionSpeed = profile
-            self:_applyMotionSetting()
-            self:SaveSettings()
-        end,
-    })
-    end
-    performance._settingsContentBuilder = buildPerformance
-
     local function buildPersistence()
-    -- Saving preferences are independent of saved control values. Named
-    -- presets remain available without exposing the hidden default filename.
-    persistence:CreateSection({ name = "Configurations" })
-    persistence:CreateToggle({
-        name = "Auto Save Config",
-        description = "Automatically saves control changes. Turning this off does not delete saved configurations.",
-        value = self.settings.autoSaveConfig,
-        callback = function(value)
-            self.settings.autoSaveConfig = value
-            self.configuration.autoSave = value
-            self:SaveSettings()
-        end,
+    persistence:CreateCollapsibleGroup({
+        name = "Auto Save & Load",
+        icon = "save",
+        elements = {
+            {
+                type = "Toggle",
+                name = "Auto Save Config",
+                value = self.settings.autoSaveConfig,
+                callback = function(value)
+                    self.settings.autoSaveConfig = value
+                    self.configuration.autoSave = value
+                    self:SaveSettings()
+                end,
+            },
+            {
+                type = "Toggle",
+                name = "Auto Load Config",
+                value = self.settings.autoLoadConfig,
+                callback = function(value)
+                    self.settings.autoLoadConfig = value
+                    self.configuration.autoLoad = value
+                    self:SaveSettings()
+                end,
+            },
+        },
     })
-    persistence:CreateToggle({
-        name = "Auto Load Config",
-        description = "Restores saved controls on the next window startup.",
-        value = self.settings.autoLoadConfig,
-        callback = function(value)
-            self.settings.autoLoadConfig = value
-            self.configuration.autoLoad = value
-            self:SaveSettings()
-        end,
-    })
+
     local function namedConfigs()
-        local names = {}
-        for _, name in ipairs(self:ListConfigs()) do
-            if name ~= self.configuration.fileName then table.insert(names, name) end
-        end
-        return names
+        return self:ListConfigs()
     end
     local selected = namedConfigs()[1]
     local configDropdown, configName
     local function refresh()
-        local configs = namedConfigs(); configDropdown:Refresh(configs)
-        if selected and not table.find(configs, selected) then selected = configs[1] end
-        if selected then configDropdown:Set(selected, true) end
+        local configs = namedConfigs()
+        if configDropdown then
+            configDropdown:Refresh(configs)
+            if selected and not table.find(configs, selected) then
+                selected = configs[1]
+            elseif not selected and #configs > 0 then
+                selected = configs[1]
+            end
+            if selected then
+                configDropdown:Set(selected, true)
+            else
+                configDropdown:Set(nil, true)
+            end
+        end
     end
-    configDropdown = persistence:CreateDropdown({ name = "Saved Configurations", icon = constants.icons.config, options = namedConfigs(), value = selected, placeholder = "No saved configurations", callback = function(value) selected = value end })
-    configName = persistence:CreateInput({ name = "Configuration Name", description = "Name a new configuration, or leave blank to overwrite the selected one.", placeholder = "e.g. PvP Loadout", clearOnFocus = false })
-    local group = persistence:CreateGroup()
-    group:CreateButton({ name = "Save", icon = constants.icons.config, callback = function()
-        local name = configName.value; if name == "" then name = selected end
-        if not name or name == "" then self:Toast({ title = locale.resolve("Name your configuration first") }); return end
-        if self:Save(name) then configName:Set(""); selected = name; refresh(); self:Toast({ title = locale.resolve("Saved configuration"), subtitle = name, icon = constants.icons.config }) else self:Toast({ title = locale.resolve("Couldn't save configuration"), subtitle = name }) end
-    end })
-    group:CreateButton({ name = "Load", callback = function()
-        if not selected or selected == "" then self:Toast({ title = locale.resolve("Pick a configuration to load") }); return end
-        if self:_applyNamedConfig(selected) then self:Toast({ title = locale.resolve("Loaded configuration"), subtitle = selected }) else self:Toast({ title = locale.resolve("Couldn't load configuration"), subtitle = selected }) end
-    end })
-    group:CreateButton({ name = "Delete", callback = function()
-        local name = selected
-        if not name or name == "" then self:Toast({ title = locale.resolve("Pick a configuration to delete") }); return end
-        if self:DeleteConfig(name) then refresh(); self:Toast({ title = locale.resolve("Deleted configuration"), subtitle = name }) else self:Toast({ title = locale.resolve("Couldn't delete configuration"), subtitle = name }) end
-    end })
+
+    local configGroup = persistence:CreateCollapsibleGroup({
+        name = "Configurations",
+        icon = constants.icons.config,
+        elements = {
+            {
+                type = "Dropdown",
+                name = "Saved Configurations",
+                icon = constants.icons.config,
+                options = namedConfigs(),
+                value = selected,
+                placeholder = "No saved configurations",
+                callback = function(value)
+                    selected = value
+                end,
+            },
+            {
+                type = "Input",
+                name = "Configuration Name",
+                placeholder = "e.g. PvP Loadout",
+                clearOnFocus = false,
+            },
+            {
+                type = "Group",
+                elements = {
+                    {
+                        type = "Button",
+                        name = "Save",
+                        icon = constants.icons.config,
+                        callback = function()
+                            local name = if configName then configName.value else ""
+                            if name == "" then
+                                name = selected
+                            end
+                            if not name or name == "" then
+                                name = self.configuration.fileName or "Configuration"
+                            end
+                            if self:Save(name) then
+                                if configName then
+                                    configName:Set("")
+                                end
+                                selected = name
+                                refresh()
+                                self:Toast({
+                                    title = locale.resolve("Saved configuration"),
+                                    subtitle = name,
+                                    icon = constants.icons.config,
+                                })
+                            else
+                                self:Toast({
+                                    title = locale.resolve("Couldn't save configuration"),
+                                    subtitle = name,
+                                })
+                            end
+                        end,
+                    },
+                    {
+                        type = "Button",
+                        name = "Load",
+                        callback = function()
+                            if not selected or selected == "" then
+                                self:Toast({ title = locale.resolve("Pick a configuration to load") })
+                                return
+                            end
+                            if self:_applyNamedConfig(selected) then
+                                self:Toast({
+                                    title = locale.resolve("Loaded configuration"),
+                                    subtitle = selected,
+                                })
+                            else
+                                self:Toast({
+                                    title = locale.resolve("Couldn't load configuration"),
+                                    subtitle = selected,
+                                })
+                            end
+                        end,
+                    },
+                    {
+                        type = "Button",
+                        name = "Delete",
+                        callback = function()
+                            local name = selected
+                            if not name or name == "" then
+                                self:Toast({ title = locale.resolve("Pick a configuration to delete") })
+                                return
+                            end
+                            if self:DeleteConfig(name) then
+                                selected = nil
+                                refresh()
+                                self:Toast({
+                                    title = locale.resolve("Deleted configuration"),
+                                    subtitle = name,
+                                })
+                            else
+                                self:Toast({
+                                    title = locale.resolve("Couldn't delete configuration"),
+                                    subtitle = name,
+                                })
+                            end
+                        end,
+                    },
+                },
+            },
+        },
+    })
+    configDropdown = configGroup.elements[1]
+    configName = configGroup.elements[2]
     end
     persistence._settingsContentBuilder = buildPersistence
 end

@@ -29,7 +29,7 @@ function state.new(window, element)
         icon = window:ResolveIcon(element.icon or element.Icon),
     }, state)
 
-            if window.layout.mode ~= "sidebar" then
+    if window.layout.mode ~= "sidebar" then
         if not window._warnedTabSection then
             window._warnedTabSection = true
             TabSection.warn("Astra: Window:CreateSection needs the sidebar layout; it does nothing on the top strip.")
@@ -38,7 +38,7 @@ function state.new(window, element)
         return self
     end
 
-        self.main = window:Create("Frame", {
+    self.main = window:Create("Frame", {
         Name = self.name,
         Size = UDim2.new(1, -tab * 2, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
@@ -74,7 +74,7 @@ function state.new(window, element)
             BorderSizePixel = 0,
             LayoutOrder = 0,
 
-                        ImageTransparency = 1,
+            ImageTransparency = 1,
             Parent = self.main,
         }, { ImageColor3 = "ContentColor" })
     end
@@ -82,17 +82,16 @@ function state.new(window, element)
     self.title = window:Create("TextLabel", {
         Text = constants.t(self.name),
 
-        Size = UDim2.fromOffset(0, 15),
-        AutomaticSize = Enum.AutomaticSize.X,
-        BackgroundTransparency = 1,
+        Size = UDim2.new(1, if self.icon then -22 else 0, 0, 15),
         BorderSizePixel = 0,
+        BackgroundTransparency = 1,
         TextSize = 15,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Bottom,
-        TextWrapped = true,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         LayoutOrder = 1,
 
-                TextTransparency = 1,
+        TextTransparency = 1,
         Parent = self.main,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
@@ -101,7 +100,8 @@ end
 
 function state:_setShown(frame, a10)
     if not self.main then
-        return     end
+        return
+    end
     local w = self.window
     w:_reveal(self.title, { TextTransparency = if frame then 0.6 else 1 }, a10)
     if self.iconLabel then

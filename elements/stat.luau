@@ -8,7 +8,6 @@ local Stat = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
 local props = require(constants.odometer)
 local name = require(constants.moveable)
-local description = require(script.Parent.description)
 local value = require(constants.constants)
 local prefix = require(constants.locale)
 local suffix = require(constants.log)
@@ -20,7 +19,7 @@ local frame = NumberSequence.new({
     NumberSequenceKeypoint.new(1, 0),
 })
 
-local valueLabel = 41
+local valueLabel = 38
 
 local baseline = TweenInfo.new(0.6, Enum.EasingStyle.Exponential)
 
@@ -70,7 +69,6 @@ function state.new(tab, a25)
         window = tab.window,
         name = a25.name or a25.Name or "Statistic",
         icon = tab.window:ResolveIcon(a25.icon or a25.Icon),
-        description = a25.description or a25.Description,
 
         value = if (a25.value or a25.Value) ~= nil then (a25.value or a25.Value) else 0,
                         _hasValue = (a25.value or a25.Value) ~= nil,
@@ -99,9 +97,6 @@ function state.new(tab, a25)
         self:_buildFull()
     end
 
-    if self.description and self.compact then
-        suffix.warn(`Astra: a compact stat has no room for a description, ignoring it on '{self.name}'.`)
-    end
 
     return self
 end
@@ -110,7 +105,7 @@ function state:_buildFull()
     local window = self.window
 
     self.main = window:Create("Frame", {
-        Size = UDim2.new(1, -20, 0, 90),
+        Size = UDim2.new(1, -20, 0, 70),
         BorderSizePixel = 0,
         Name = self.name,
         ZIndex = 5,
@@ -125,7 +120,8 @@ function state:_buildFull()
     }, { CornerRadius = "ElementCornerRadius" })
 
     self.stroke = window:Create("UIStroke", {
-        Transparency = 1,         Color = Color3.fromRGB(255, 255, 255),
+        Transparency = 1,
+        Color = Color3.fromRGB(255, 255, 255),
 
         Parent = self.main,
     }, { Transparency = "ElementStrokeTransparency" })
@@ -139,11 +135,9 @@ function state:_buildFull()
         Parent = self.stroke,
     })
 
-    description.attach(self)
-
     self.titleContainer = window:Create("Frame", {
-        Size = UDim2.new(1, -40, 0, 32),
-        Position = UDim2.fromOffset(20, 15),
+        Size = UDim2.new(1, -30, 0, 22),
+        Position = UDim2.fromOffset(15, 12),
         BorderSizePixel = 0,
         LayoutOrder = -1,
         BackgroundTransparency = 1,
@@ -156,23 +150,24 @@ function state:_buildFull()
         Size = UDim2.fromScale(1, 1),
         Position = UDim2.fromOffset(0, 0),
         BorderSizePixel = 0,
-        BackgroundTransparency = 1,         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundTransparency = 1,
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         ZIndex = 5,
 
         Parent = self.main,
     })
 
-            self.glow = window:CreateGlow(self.main, a14(element.neutral), 13, 1)
+    self.glow = window:CreateGlow(self.main, a14(element.neutral), 10, 1)
 
     self.title = window:Create("TextLabel", {
         Text = prefix.t(self.name),
 
-        Size = UDim2.fromOffset(300, 19),
+        Size = UDim2.new(1, if self.icon then -30 else 0, 0, 16),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
-        TextSize = 19,
+        TextSize = 15,
         TextXAlignment = Enum.TextXAlignment.Left,
-        TextWrapped = true,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         LayoutOrder = 1,
         ZIndex = 10,
 
@@ -196,7 +191,7 @@ function state:_buildFull()
     if self.icon then
         self.iconLabel = window:Create("ImageLabel", {
             Image = self.icon,
-            Size = UDim2.fromOffset(32, 32),
+            Size = UDim2.fromOffset(22, 22),
             BorderSizePixel = 0,
             BackgroundTransparency = 1,
             ZIndex = 10,
@@ -216,10 +211,10 @@ function state:_buildFull()
         Parent = self.titleContainer,
     })
 
-        self.valueHost = window:Create("Frame", {
+    self.valueHost = window:Create("Frame", {
         AnchorPoint = Vector2.new(0, 1),
-        Position = UDim2.new(0, 20, 1, -15 - (self._descriptionExtra or 0)),
-        Size = UDim2.fromOffset(200, 20),
+        Position = UDim2.new(0, 15, 1, -12),
+        Size = UDim2.new(0.5, -20, 0, 18),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ZIndex = 10,
@@ -229,8 +224,8 @@ function state:_buildFull()
 
     self.changeHost = window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 1),
-        Position = UDim2.new(1, -20, 1, -15 - (self._descriptionExtra or 0)),
-        Size = UDim2.fromOffset(200, 15),
+        Position = UDim2.new(1, -15, 1, -12),
+        Size = UDim2.new(0.5, -20, 0, 14),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ZIndex = 10,
@@ -239,13 +234,14 @@ function state:_buildFull()
     })
 
     self.valueOdo = props.new(window, self.valueHost, {
-        textSize = 20,
+        textSize = 17,
         alignment = Enum.HorizontalAlignment.Left,
-        transparency = 1,     })
+        transparency = 1,
+    })
     self.valueOdo:snap(self:_formatValue(self.value))
 
     self.changeOdo = props.new(window, self.changeHost, {
-        textSize = 15,
+        textSize = 13,
         alignment = Enum.HorizontalAlignment.Right,
         transparency = 1,
     })
@@ -257,7 +253,7 @@ end
 function state:_buildCompact()
     local window = self.window
 
-        local a26 = self.tab.compact or false
+    local a26 = self.tab.compact or false
 
     self.main = window:Create("Frame", {
         Name = self.name,
@@ -276,7 +272,8 @@ function state:_buildCompact()
     }, { CornerRadius = "ElementCornerRadius" })
 
     self.stroke = window:Create("UIStroke", {
-        Transparency = 1,         Color = Color3.fromRGB(255, 255, 255),
+        Transparency = 1,
+        Color = Color3.fromRGB(255, 255, 255),
 
         Parent = self.main,
     }, { Transparency = "ElementStrokeTransparency" })
@@ -305,7 +302,7 @@ function state:_buildCompact()
         Parent = self.main,
     })
 
-        self.card = window:Create("Frame", {
+    self.card = window:Create("Frame", {
         AutomaticSize = Enum.AutomaticSize.X,
         Size = UDim2.fromOffset(0, valueLabel),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
@@ -330,8 +327,8 @@ function state:_buildCompact()
     })
 
     window:Create("UIPadding", {
-        PaddingLeft = UDim.new(0, 15),
-        PaddingRight = UDim.new(0, 15),
+        PaddingLeft = UDim.new(0, 12),
+        PaddingRight = UDim.new(0, 12),
 
         Parent = self.card,
     })
@@ -340,14 +337,14 @@ function state:_buildCompact()
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalFlex = Enum.UIFlexAlignment.SpaceBetween,
-        Padding = UDim.new(0, 10),
+        Padding = UDim.new(0, 8),
 
         Parent = self.card,
     })
 
-        self.titleContainer = window:Create("Frame", {
+    self.titleContainer = window:Create("Frame", {
         AutomaticSize = Enum.AutomaticSize.X,
-        Size = UDim2.fromOffset(0, 16),
+        Size = UDim2.fromOffset(0, 15),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         LayoutOrder = 0,
@@ -356,7 +353,7 @@ function state:_buildCompact()
         Parent = self.card,
     })
 
-        window:Create("UIFlexItem", {
+    window:Create("UIFlexItem", {
         FlexMode = Enum.UIFlexMode.Shrink,
         Parent = self.titleContainer,
     })
@@ -374,7 +371,8 @@ function state:_buildCompact()
     if self.icon then
         self.iconLabel = window:Create("ImageLabel", {
             Image = self.icon,
-            Size = UDim2.fromOffset(20, 20),             BorderSizePixel = 0,
+            Size = UDim2.fromOffset(18, 18),
+            BorderSizePixel = 0,
             BackgroundTransparency = 1,
             LayoutOrder = 0,
             ZIndex = 6,
@@ -386,11 +384,11 @@ function state:_buildCompact()
 
     self.title = window:Create("TextLabel", {
         Text = prefix.t(self.name),
-        Size = UDim2.fromOffset(0, 16),
+        Size = UDim2.fromOffset(0, 15),
         AutomaticSize = Enum.AutomaticSize.X,
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
-        TextSize = 16,
+        TextSize = 15,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextTruncate = Enum.TextTruncate.AtEnd,
         LayoutOrder = 1,
@@ -399,14 +397,14 @@ function state:_buildCompact()
         TextTransparency = 1,
         Parent = self.titleContainer,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
-        window:Create("UIFlexItem", {
+    window:Create("UIFlexItem", {
         FlexMode = Enum.UIFlexMode.Shrink,
         Parent = self.title,
     })
 
-        self.readoutHost = window:Create("Frame", {
+    self.readoutHost = window:Create("Frame", {
         AutomaticSize = Enum.AutomaticSize.X,
-        Size = UDim2.fromOffset(0, 18),
+        Size = UDim2.fromOffset(0, 16),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         LayoutOrder = 1,
@@ -416,7 +414,7 @@ function state:_buildCompact()
     })
 
     self.readoutOdo = props.new(window, self.readoutHost, {
-        textSize = 17,
+        textSize = 15,
         alignment = Enum.HorizontalAlignment.Right,
         transparency = 1,
     })
@@ -601,11 +599,13 @@ function state:_setShown(a66, a67)
 end
 
 function state:_minWidth()
-    local w = 30 + 10     if self.icon then
-        w += 26     end
-        w += tab.textWidth(self.window.theme.Font, 16, prefix.resolve(self.name))
+    local w = 24 + 8
+    if self.icon then
+        w += 24
+    end
+    w += tab.textWidth(self.window.theme.Font, 15, prefix.resolve(self.name))
     local a68 = if self.display == "change" then self:_formatChange(0) else self:_formatValue(self.value)
-    w += tab.textWidth(self.window.theme.Font, 17, a68)
+    w += tab.textWidth(self.window.theme.Font, 15, a68)
     return w
 end
 

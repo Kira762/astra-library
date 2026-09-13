@@ -64,11 +64,21 @@ local function findSettingsElement(targetWindow, tabName, elementName)
 		if tab.name == tabName then
 			tab:Select()
 			TestPump(0.15)
-			for _, element in tab.elements do
-				if element.name == elementName then
-					return element
+			local function scan(elements)
+				for _, element in elements do
+					if element.name == elementName then
+						return element
+					end
+					if element.elements then
+						local found = scan(element.elements)
+						if found then
+							return found
+						end
+					end
 				end
+				return nil
 			end
+			return scan(tab.elements)
 		end
 	end
 	return nil

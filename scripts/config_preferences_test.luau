@@ -15,7 +15,13 @@ local function settings(window)
             tab:Select()
             TestPump(0.4)
             local found = {}
-            for _, element in tab.elements do if element.name then found[element.name] = element end end
+            local function collect(elements)
+                for _, element in elements do
+                    if element.name then found[element.name] = element end
+                    if element.elements then collect(element.elements) end
+                end
+            end
+            collect(tab.elements)
             return found
         end
     end
@@ -39,7 +45,7 @@ assert(writes == 1, "Autosave coalesces bursts of changes")
 assert(isfile(path), "Autosave writes the default config")
 local controls = settings(window)
 assert(controls["Auto Save Config"] and controls["Auto Load Config"], "Both switches are in Persistence")
-assert(not table.find(controls["Saved Configurations"].options, "Astra-Hub"), "Hidden default filename is not exposed in Settings")
+assert(table.find(controls["Saved Configurations"].options, "Astra-Hub"), "Saved configuration is exposed in Settings")
 local savedData = readfile(path)
 controls["Auto Save Config"]:Set(false)
 controls["Auto Load Config"]:Set(false)

@@ -167,7 +167,7 @@ near(progress.track.Position.Y.Scale, 1, "I9 the track stays bottom-anchored")
 near(progress.track.Position.Y.Offset, -36, "I9 the track's bottom offset clears the description line")
 
 -- ===== I10: the stat's value labels ride up above the line ================
-near(stat.main.Size.Y.Offset, 110, "I10 the stat card is 90 + 20 with a description")
+near(stat.main.Size.Y.Offset, 90, "I10 the stat card is 70 + 20 with a description")
 
 -- ===== I11: the line is locale-bound and the card re-measures =============
 window:RegisterTranslations({ fr = { ["Ping me."] = "Tenez-moi au courant des notifications." } })

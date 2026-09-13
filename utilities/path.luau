@@ -33,16 +33,16 @@ function path.basename(pathValue: unknown): string
 end
 
 function path.stripExtension(nameValue: unknown, extension: string?): string
+    local nameText = tostring(nameValue)
     if extension and extension ~= "" then
-        local nameText = tostring(nameValue)
-        if nameText:sub(-#extension) == extension then
+        if nameText:sub(-#extension):lower() == extension:lower() then
             return nameText:sub(1, -#extension - 1)
         end
         return nameText
     end
 
-    local matchedName = tostring(nameValue):match("^(.+)%.%w+$")
-    return matchedName or tostring(nameValue)
+    local matchedName = nameText:match("^(.+)%.%w+$")
+    return matchedName or nameText
 end
 
 return path

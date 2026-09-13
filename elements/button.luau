@@ -10,8 +10,8 @@ local props = require(constants.moveable)
 local name = require(constants.lockable)
 local icon = require(constants.locale)
 local callback = require(constants.HapticEngine)
+local baseCard = require(script.Parent.baseCard)
 local element = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-local description = require(script.Parent.description)
 
 function state.new(tab, frame)
     frame = if typeof(frame) == "table" then frame else {}
@@ -21,7 +21,6 @@ function state.new(tab, frame)
         window = tab.window,
         name = frame.name or frame.Name or "Button",
         icon = tab.window:ResolveIcon(frame.icon or frame.Icon),
-        description = frame.description or frame.Description,
         compact = tab.compact or false,
         callback = frame.callback or frame.Callback or function() end,
     }, state)
@@ -32,7 +31,7 @@ function state.new(tab, frame)
         self:_buildFull()
     end
 
-        return self
+    return self
 end
 
 function state:_runCallback()
@@ -40,67 +39,11 @@ function state:_runCallback()
 end
 
 function state:_buildFull()
-    self.main = self.window:Create("Frame", {
-        Size = UDim2.new(1, -20, 0, 43),
-        BorderSizePixel = 0,
-        Name = self.name,
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-
-                BackgroundTransparency = 1,
-        Parent = self.tab.tabPage,
-    }, { BackgroundTransparency = "ElementTransparency" })
-
-    self.stroke = self.window:StyleElementBody(self.main)
-    self.hoverOverlay = self.window:CreateHoverOverlay(self.main)
-
-    description.attach(self)
-
-    self.container = self.window:Create("Frame", {
-        BorderSizePixel = 0,
-
-        Parent = self.main,
-        Size = UDim2.new(0, 170, 0, 16),
-        Position = UDim2.new(0, 20, description.center(self, 43)),
-        AnchorPoint = Vector2.new(0, 0.5),
-        BackgroundTransparency = 1,
+    baseCard.buildFull(self, {
+        height = 43,
+        rightPadding = 40,
+        titleText = icon.t(self.name),
     })
-
-    self.containerLayout = self.window:Create("UIListLayout", {
-        Padding = UDim.new(0, 5),
-        FillDirection = Enum.FillDirection.Horizontal,
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        HorizontalAlignment = Enum.HorizontalAlignment.Left,
-
-        Parent = self.container,
-    })
-
-    if self.icon then
-        self.iconLabel = self.window:Create("ImageLabel", {
-            Image = self.icon,
-            Size = UDim2.fromOffset(16, 16),
-            BorderSizePixel = 0,
-            BackgroundTransparency = 1,
-
-                        ImageTransparency = 1,
-            Parent = self.container,
-        }, { ImageColor3 = "ContentColor" })
-    end
-
-    self.title = self.window:Create("TextLabel", {
-        Text = icon.t(self.name),
-
-        Size = UDim2.fromOffset(250, 16),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        TextSize = 16,
-        AutomaticSize = Enum.AutomaticSize.X,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextWrapped = true,
-        LayoutOrder = 1,
-
-                TextTransparency = 1,
-        Parent = self.container,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
     self.interact = self.window:Create("TextButton", {
         BackgroundTransparency = 1,
@@ -115,7 +58,7 @@ function state:_buildFull()
 
     self.window:_wireElementHover(self)
 
-        self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
+    self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
         callback.click()
         Button.tweenService
             :Create(
@@ -128,7 +71,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-                { Size = UDim2.new(1, -26, 0, description.height(self, 43)) }
+                { Size = UDim2.new(1, -26, 0, 43) }
             )
             :Play()
 
@@ -144,7 +87,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 TweenInfo.new(0.25, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-                { Size = UDim2.new(1, -20, 0, description.height(self, 43)) }
+                { Size = UDim2.new(1, -20, 0, 43) }
             )
             :Play()
         Button.tweenService
@@ -207,14 +150,14 @@ function state:_buildCompact()
         Parent = self.interact,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-        window:Create("UIFlexItem", {
+    window:Create("UIFlexItem", {
         FlexMode = Enum.UIFlexMode.Shrink,
         Parent = self.title,
     })
 
     self.window:_wireElementHover(self)
 
-        self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
+    self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
         callback.click()
         Button.tweenService
             :Create(
@@ -251,9 +194,11 @@ function state:_setShown(stroke, hoverOverlay)
 end
 
 function state:_minWidth()
-    local w = 32     if self.icon then
-        w += 22     end
-        w += tab.textWidth(self.window.theme.Font, 16, icon.resolve(self.name))
+    local w = 32
+    if self.icon then
+        w += 22
+    end
+    w += tab.textWidth(self.window.theme.Font, 16, icon.resolve(self.name))
     return w
 end
 

@@ -236,8 +236,8 @@ do
 	table.sort(rows, function(a, b)
 		return a.order < b.order
 	end)
-	local names = { rows[1] and rows[1].name, rows[2] and rows[2].name, rows[3] and rows[3].name, rows[4] and rows[4].name, rows[5] and rows[5].name, rows[6] and rows[6].name }
-	if #rows ~= 6 or names[1] ~= "General" or names[2] ~= "Appearance" or names[3] ~= "Behavior" or names[4] ~= "Performance" or names[5] ~= "Persistence" or names[6] ~= "About" then
+	local names = { rows[1] and rows[1].name, rows[2] and rows[2].name, rows[3] and rows[3].name, rows[4] and rows[4].name }
+	if #rows ~= 4 or names[1] ~= "General" or names[2] ~= "Appearance" or names[3] ~= "Persistence" or names[4] ~= "About" then
 		error("SMOKE FAIL: T9a settings rail order (got " .. table.concat(names, ", ") .. ")", 0)
 	end
 end
@@ -256,7 +256,7 @@ eq(#persistenceTab.elements, 0, "T9b settings content is lazy before first open"
 persistenceTab:Select()
 TestPump(0.2)
 expect(
-	#persistenceTab.elements >= 4,
+	#persistenceTab.elements >= 2,
 	"T9b Persistence tab builds its content without a configuration prop (got " .. tostring(#persistenceTab.elements) .. " elements)"
 )
 local builtOnce = #persistenceTab.elements
@@ -269,8 +269,6 @@ TestPump(0.2)
 local settingsRail = math.max(
 	naturalRail("General", true),
 	naturalRail("Appearance", true),
-	naturalRail("Behavior", true),
-	naturalRail("Performance", true),
 	naturalRail("Persistence", true),
 	naturalRail("About", true)
 )
@@ -291,20 +289,16 @@ expect(
 	"T9c the content area shows General's page when settings opens"
 )
 expect(
-	#window.rfSettings.elements >= 4,
+	#window.rfSettings.elements >= 3,
 	"T9c opening settings builds General's lazy content (got " .. tostring(#window.rfSettings.elements) .. " elements)"
 )
 
 -- T9d: every settings tab opens with its full content on its own page.
--- Performance gained its "Motion" section and the "Animation speed" dropdown
--- (the control that drives utilities/motion.luau), hence 4 rather than 2.
 local expectedSettingsContent = {
-    General = 4,
-    Appearance = 14,
-    Behavior = 2,
-    Performance = 4,
-    Persistence = 6,
-    About = 9,
+    General = 3,
+    Appearance = 3,
+    Persistence = 2,
+    About = 3,
 }
 for name, wanted in expectedSettingsContent do
 	for _, tab in window._settingsTabs do

@@ -6,7 +6,6 @@ local constants = script.Parent.Parent.utilities
 
 local Progress = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
-local description = require(script.Parent.description)
 local props = require(constants.moveable)
 local name = require(constants.locale)
 
@@ -56,7 +55,6 @@ function state.new(tab, a22)
         window = tab.window,
         name = a22.name or a22.Name or "Progress",
         icon = tab.window:ResolveIcon(a22.icon or a22.Icon),
-        description = a22.description or a22.Description,
 
         min = a25,
         max = a26,
@@ -121,10 +119,9 @@ function state:_build()
 
     self.stroke = self.window:StyleElementBody(self.main)
 
-    description.attach(self)
 
         self.container = self.window:Create("Frame", {
-        Size = UDim2.new(0, 170, 0, fill),
+        Size = UDim2.new(1, -110, 0, fill),
         Position = UDim2.new(0, text, 0, 20),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
@@ -158,16 +155,15 @@ function state:_build()
     self.title = self.window:Create("TextLabel", {
         Text = name.t(self.name),
 
-        Size = UDim2.fromOffset(250, fill),
+        Size = UDim2.new(1, if self.icon then -22 else 0, 0, fill),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = fill,
-        AutomaticSize = Enum.AutomaticSize.X,
         TextXAlignment = Enum.TextXAlignment.Left,
-        TextWrapped = true,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         LayoutOrder = 1,
 
-                TextTransparency = 1,
+        TextTransparency = 1,
         Parent = self.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
@@ -195,7 +191,7 @@ function state:_build()
 
                 self.track = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0.5, 1),
-        Position = UDim2.new(0.5, 0, 1, -16 - (self._descriptionExtra or 0)),
+        Position = UDim2.new(0.5, 0, 1, -16),
         Size = UDim2.new(1, -text * 2, 0, value),
         BorderSizePixel = 0,
 
@@ -247,7 +243,7 @@ function state:_buildSteps()
 
     self.track = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0.5, 1),
-        Position = UDim2.new(0.5, 0, 1, -17 - (self._descriptionExtra or 0)),
+        Position = UDim2.new(0.5, 0, 1, -17),
         Size = UDim2.new(1, -text * 2, 0, element),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,

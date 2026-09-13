@@ -175,7 +175,7 @@ Groups support: `CreateButton`, `CreateToggle`/`CreateSwitch`, `CreateSlider`, `
 
 ### Elements
 
-Every element supports `Moveable` (`:MoveTo`, `:MoveToTop`, `:MoveToBottom`, `:MoveUp`, `:MoveDown`) and most support `Lockable` (`:Lock`, `:Unlock`, `:IsLocked`). Most element props also accept `description` (helper text under the name, rendered inside the element's own card) and `icon`.
+Every element supports `Moveable` (`:MoveTo`, `:MoveToTop`, `:MoveToBottom`, `:MoveUp`, `:MoveDown`) and most support `Lockable` (`:Lock`, `:Unlock`, `:IsLocked`). Most element props also accept `icon`.
 
 ```lua
 tab:CreateButton({ name = "Click Me", icon = "play", callback = function() end })
@@ -189,7 +189,6 @@ tab:CreateKeybind({ name = "Toggle Panel", value = Enum.KeyCode.F3, isMenuToggle
 ```lua
 tab:CreateButton({
     name = "Click Me", icon = "play",
-    description = "Optional helper text",
     callback = function() print("clicked") end,
 })
 ```
@@ -326,17 +325,10 @@ The settings tabs are:
 
 | Tab | Contents |
 |---|---|
-| **General** | Toggle keybind (show/hide), unlock-cursor toggle, welcome toast toggle. |
-| **Appearance** | Theme dropdown + Apply (popup confirm), Bar Layout dropdown (Default Topbar / Sidebar / Collapsed Sidebar), Show profile / Profile side / Reveal profile details (unmasks the display name, username, user ID, place ID, job ID and license key on the profile card, and only works while **Show profile** is on — flipping it on with the card off raises a "Show profile is required" notification and leaves it off, and hiding the card switches it off with it), Keep window on screen (keeps the window **and** its card in view), Draggable capsule, Reset Window Position, Reset Capsule Position (restores the default top-center capsule location without moving the open window). |
-| **Behavior** | Prevent duplicate windows. |
-| **Performance** | Haptics. |
-| **Persistence** | Auto Save Config / Auto Load Config toggles (default on); Saved-configurations dropdown + name input + Save/Load/Delete. Only present when `configuration` was passed to `CreateWindow`. |
+| **General** | Menu Toggle keybind, unlock-cursor toggle, welcome toast toggle, Window Behavior (prevent duplicate windows, keep window on screen, draggable capsule, reset window & capsule positions), and Performance & Motion (haptics, animation speed). |
+| **Appearance** | Theme dropdown + Apply (popup confirm), Bar Layout dropdown (Default Topbar / Sidebar / Collapsed Sidebar), and Profile card controls (Show profile / Profile side / Reveal profile details). |
+| **Persistence** | Auto Save Config / Auto Load Config toggles; Saved-configurations dropdown + name input + Save/Load/Delete. |
 | **About** | Library info and links. |
-
-The card's layout (masked and revealed) is checked into
-`assets/profile-panel-preview.png` / `assets/profile-panel-preview-revealed.png`;
-`sh scripts/profile_panel_preview.sh` re-renders them offline from the real
-panel code whenever the card changes.
 
 The window and its profile card (a compact 260x420 card — the default
 window's height) are centred as one unit: with the card on, the window rests
@@ -521,7 +513,6 @@ local tab = window:CreateTab({ name = "Player", icon = "user-round" })
 local playerControls = tab:CreateCollapsibleGroup({
     name = "LocalPlayer",
     icon = "user-round", -- optional; may be from any icon pack
-    description = "Movement and character settings", -- optional
     elements = {
         {
             type = "Toggle",
@@ -565,8 +556,7 @@ local playerControls = tab:CreateCollapsibleGroup({
 **Supported types:** `Button`, `Toggle`, `Switch`, `Slider`, `Dropdown`, `Input`,
 `Keybind`, `Stat`, `Progress`, `Section`, `Text`, `Changelog`, `Divider`,
 and ordinary `Group`. Each uses the same properties and implementation as its
-normal `Create…` method. Descriptions supplied to child elements keep their normal
-behavior. `elements` can be omitted for an empty header.
+normal `Create…` method. `elements` can be omitted for an empty header.
 
 An ordinary Group retains its compact row layout when its children support it.
 Use `direction = "column"` for a vertical Group; the declarative builder also

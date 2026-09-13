@@ -10,8 +10,8 @@ local props = require(constants.moveable)
 local name = require(constants.lockable)
 local flag = require(constants.locale)
 local value = require(constants.HapticEngine)
+local baseCard = require(script.Parent.baseCard)
 local callback = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-local description = require(script.Parent.description)
 
 -- [[Switch metrics, in one place. The track and the knob are both pills and
 -- [[the knob keeps the same clearance on every side it can see (`switchInset`
@@ -44,8 +44,8 @@ function state.new(tab, element)
         window = tab.window,
         name = element.name or element.Name or "Switch",
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
-        description = element.description or element.Description,
-        forgetState = element.forgetState or element.ForgetState or tab.forgetState,         compact = tab.compact or false,
+        forgetState = element.forgetState or element.ForgetState or tab.forgetState,
+        compact = tab.compact or false,
         flag = element.flag
             or element.Flag
             or (
@@ -59,7 +59,7 @@ function state.new(tab, element)
         value = if (element.value or element.Value) ~= nil then (element.value or element.Value) else false,
     }, state)
 
-        self.window:_registerControl(self)
+    self.window:_registerControl(self)
 
     if self.compact then
         self:_buildCompact()
@@ -82,14 +82,13 @@ function state:_buildSwitch(frame)
     }, { BackgroundColor3 = "ToggleTrack" })
 
     window:Create("UICorner", {
-        -- [[A true pill at any height, instead of a radius that happened to
-        -- [[match the old 21px track.]]
         CornerRadius = UDim.new(1, 0),
         Parent = self.functionContainer,
     })
 
     self.containerStroke = window:Create("UIStroke", {
-        Transparency = 1,         Parent = self.functionContainer,
+        Transparency = 1,
+        Parent = self.functionContainer,
     }, { Color = "SurfaceStroke" })
 
     self.indicator = window:Create("Frame", {
@@ -97,10 +96,6 @@ function state:_buildSwitch(frame)
         Size = UDim2.fromOffset(switchKnobWidth, switchKnobHeight),
         Position = if self.value then switchKnobActive else switchKnobRest,
         AnchorPoint = Vector2.new(0, 0.5),
-        -- [[Above the track's sheen overlay (ZIndex 1): the sheen belongs to
-        -- [[the track, and at equal ZIndex the later sibling drew it straight
-        -- [[over the knob, washing the knob's lower half and leaving it with
-        -- [[an uneven rim.]]
         ZIndex = 2,
         BackgroundColor3 = self.value and self.window.theme.AccentColor or self.window.theme.ToggleKnobOff,
 
@@ -115,21 +110,16 @@ function state:_buildSwitch(frame)
 
     self.indicatorStroke = window:Create("UIStroke", {
         Color = self.value and self.window.theme.AccentStroke or Color3.fromRGB(255, 255, 255),
-        Transparency = 1,         Parent = self.indicator,
+        Transparency = 1,
+        Parent = self.indicator,
     })
 
-        -- [[The glow is only ever visible while the switch is on, so it is
-        -- [[built by _indicatorGlow() the first time that matters: an off
-        -- [[switch carries no shadow instance at all.]]
-
-        self.overlay = window:Create("Frame", {
+    self.overlay = window:Create("Frame", {
         BorderSizePixel = 0,
         Size = UDim2.fromScale(1, 1),
         Position = UDim2.fromScale(0, 0),
         AnchorPoint = Vector2.new(0, 0),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        -- [[Under the knob (ZIndex 2) and over the track: the theme's sheen
-        -- [[tints the track, not whatever is parked on it.]]
         ZIndex = 1,
 
         BackgroundTransparency = 1,
@@ -170,67 +160,11 @@ end
 function state:_buildFull()
     local window = self.window
 
-    self.main = window:Create("Frame", {
-        Size = UDim2.new(1, -20, 0, 41),
-        BorderSizePixel = 0,
-        Name = self.name,
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-
-        BackgroundTransparency = 1,
-
-        Parent = self.tab.tabPage,
-    }, { BackgroundTransparency = "ElementTransparency" })
-
-    self.stroke = window:StyleElementBody(self.main)
-    self.hoverOverlay = window:CreateHoverOverlay(self.main)
-
-    description.attach(self)
-
-    self.container = window:Create("Frame", {
-        BorderSizePixel = 0,
-
-        Parent = self.main,
-        Size = UDim2.new(0, 170, 0, 16),
-        Position = UDim2.new(0, 20, description.center(self, 41)),
-        AnchorPoint = Vector2.new(0, 0.5),
-        BackgroundTransparency = 1,
+    baseCard.buildFull(self, {
+        height = 41,
+        rightPadding = switchTrackWidth + 45,
+        titleText = flag.t(self.name),
     })
-
-    self.containerLayout = window:Create("UIListLayout", {
-        Padding = UDim.new(0, 5),
-        FillDirection = Enum.FillDirection.Horizontal,
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        HorizontalAlignment = Enum.HorizontalAlignment.Left,
-
-        Parent = self.container,
-    })
-
-    if self.icon then
-        self.iconLabel = window:Create("ImageLabel", {
-            Image = self.icon,
-            Size = UDim2.fromOffset(16, 16),
-            BorderSizePixel = 0,
-            BackgroundTransparency = 1,
-
-            ImageTransparency = 1,
-            Parent = self.container,
-        }, { ImageColor3 = "ContentColor" })
-    end
-
-    self.title = window:Create("TextLabel", {
-        Text = flag.t(self.name),
-        Size = UDim2.fromOffset(250, 16),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        TextSize = 16,
-        AutomaticSize = Enum.AutomaticSize.X,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextWrapped = true,
-        LayoutOrder = 1,
-
-        TextTransparency = 1,
-        Parent = self.container,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
     self.interact = window:Create("TextButton", {
         BackgroundTransparency = 1,
@@ -244,8 +178,8 @@ function state:_buildFull()
         Parent = self.main,
     })
 
-        self:_buildSwitch(self.main)
-    self.functionContainer.Position = UDim2.new(1, -15, 0, if self.descriptionLabel then 20.5 else 20)
+    self:_buildSwitch(self.main)
+    self.functionContainer.Position = UDim2.new(1, -15, 0.5, 0)
     self.functionContainer.AnchorPoint = Vector2.new(1, 0.5)
 
     self.window:_wireElementHover(self)
@@ -262,7 +196,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-                { Size = UDim2.new(1, -26, 0, description.height(self, 41)) }
+                { Size = UDim2.new(1, -26, 0, 41) }
             )
             :Play()
 
@@ -278,7 +212,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 TweenInfo.new(0.25, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-                { Size = UDim2.new(1, -20, 0, description.height(self, 41)) }
+                { Size = UDim2.new(1, -20, 0, 41) }
             )
             :Play()
         Toggle.tweenService
@@ -294,7 +228,7 @@ end
 function state:_buildCompact()
     local window = self.window
 
-        self.main, self.stroke, self.interact = window:_buildCompactRow(self.tab, self.name, 10)
+    self.main, self.stroke, self.interact = window:_buildCompactRow(self.tab, self.name, 10)
     self.hoverOverlay = self.interact
 
     window:Create("UIPadding", {
@@ -304,7 +238,7 @@ function state:_buildCompact()
         Parent = self.interact,
     })
 
-        window:Create("UIListLayout", {
+    window:Create("UIListLayout", {
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalFlex = Enum.UIFlexAlignment.SpaceBetween,
@@ -323,7 +257,7 @@ function state:_buildCompact()
         Parent = self.interact,
     })
 
-        window:Create("UIFlexItem", {
+    window:Create("UIFlexItem", {
         FlexMode = Enum.UIFlexMode.Shrink,
         Parent = self.container,
     })
@@ -365,12 +299,12 @@ function state:_buildCompact()
         Parent = self.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-        window:Create("UIFlexItem", {
+    window:Create("UIFlexItem", {
         FlexMode = Enum.UIFlexMode.Shrink,
         Parent = self.title,
     })
 
-        self:_buildSwitch(self.interact)
+    self:_buildSwitch(self.interact)
     self.functionContainer.LayoutOrder = 1
 
     self.window:_wireElementHover(self)
@@ -449,7 +383,7 @@ function state:_setShown(flag, a16)
     local w = self.window
     if flag then
         w:_revealCommon(self, a16)
-                w:_reveal(self.indicator, {
+        w:_reveal(self.indicator, {
             BackgroundColor3 = self.value and w.theme.AccentColor or w.theme.ToggleKnobOff,
             BackgroundTransparency = self.value and 0 or w.theme.ToggleKnobOffTransparency,
         }, a16, knob)
@@ -506,11 +440,11 @@ function state:_refreshTheme()
 end
 
 function state:_minWidth()
-    -- [[The switch column is the track's own width: the compact row sizes its
-    -- [[label column against this, so it has to follow the metrics above.]]
-    local w = 30 + 10 + switchTrackWidth     if self.icon then
-        w += 21     end
-        w += tab.textWidth(self.window.theme.Font, 16, flag.resolve(self.name))
+    local w = 30 + 10 + switchTrackWidth
+    if self.icon then
+        w += 21
+    end
+    w += tab.textWidth(self.window.theme.Font, 16, flag.resolve(self.name))
     return w
 end
 
@@ -525,9 +459,10 @@ function state:Set(a18, a19)
         self:_animateIndicator()
     end
 
-        if not a19 then
+    if not a19 then
         self.window:_runGuarded(self, self.callback, self.value)
-        self.window:_persist(self)     end
+        self.window:_persist(self)
+    end
 end
 
 return state

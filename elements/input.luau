@@ -6,7 +6,6 @@ local constants = script.Parent.Parent.utilities
 
 local Input = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
-local description = require(script.Parent.description)
 local props = require(constants.moveable)
 local name = require(constants.lockable)
 local placeholder = require(constants.locale)
@@ -35,10 +34,10 @@ function state.new(tab, placeholderLabel)
         window = tab.window,
         name = placeholderLabel.name or placeholderLabel.Name or "Input",
         icon = tab.window:ResolveIcon(placeholderLabel.icon or placeholderLabel.Icon),
-        description = placeholderLabel.description or placeholderLabel.Description,
         forgetState = placeholderLabel.forgetState or placeholderLabel.ForgetState or tab.forgetState,
         placeholder = placeholderLabel.placeholder or placeholderLabel.Placeholder or "",
-        numeric = placeholderLabel.numeric or placeholderLabel.Numeric or false,         clearOnFocus = placeholderLabel.clearOnFocus or placeholderLabel.ClearOnFocus or false,
+        numeric = placeholderLabel.numeric or placeholderLabel.Numeric or false,
+        clearOnFocus = placeholderLabel.clearOnFocus or placeholderLabel.ClearOnFocus or false,
 
         callback = placeholderLabel.callback or placeholderLabel.Callback or function() end,
     }, state)
@@ -64,11 +63,9 @@ function state.new(tab, placeholderLabel)
     self.stroke = self.window:StyleElementBody(self.main)
     self.hoverOverlay = self.window:CreateHoverOverlay(self.main)
 
-    description.attach(self)
-
-        self.container = self.window:Create("Frame", {
-        Size = UDim2.new(0, 170, 0, 16),
-        Position = UDim2.new(0, 20, description.center(self, 41)),
+    self.container = self.window:Create("Frame", {
+        Size = UDim2.new(1, -115, 0, 16),
+        Position = UDim2.new(0, 20, 0.5, 0),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -100,12 +97,12 @@ function state.new(tab, placeholderLabel)
 
     self.title = self.window:Create("TextLabel", {
         Text = placeholder.t(self.name),
-        Size = UDim2.fromOffset(150, 16),
-        AutomaticSize = Enum.AutomaticSize.X,
+        Size = UDim2.new(1, if self.icon then -21 else 0, 0, 16),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 16,
         TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         LayoutOrder = 1,
         ZIndex = 5,
 
@@ -113,9 +110,9 @@ function state.new(tab, placeholderLabel)
         Parent = self.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-        self.box = self.window:Create("Frame", {
+    self.box = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -7, 0, if self.descriptionLabel then 20.5 else 20),
+        Position = UDim2.new(1, -7, 0.5, 0),
         Size = UDim2.fromOffset(85, 30),
         BorderSizePixel = 0,
 
@@ -123,12 +120,6 @@ function state.new(tab, placeholderLabel)
         Parent = self.main,
     }, { BackgroundColor3 = "FieldBackground" })
 
-    -- [[The field takes the same corner every other element surface wears
-    -- [[(the theme's ElementCornerRadius) instead of a capsule of its own:
-    -- [[notifications, toasts, tab rows and the Text card all read their
-    -- [[roundness off a theme token, so the box reads as a smaller member of
-    -- [[the same family — and a theme that rounds elements tighter or softer
-    -- [[moves the field with them.]]
     self.window:Create("UICorner", {
         Parent = self.box,
     }, { CornerRadius = "ElementCornerRadius" })
@@ -138,9 +129,6 @@ function state.new(tab, placeholderLabel)
         Parent = self.box,
     }, { Color = "SurfaceStroke" })
 
-        -- [[The field glow is the validation flash, and its idle transparency
-        -- [[is 1 (invisible): it is built by _fieldGlow() the first time the
-        -- [[field has a result to flash.]]
     self._glowIdle = 1
     self.input = self.window:Create("TextBox", {
         Text = self.value,
@@ -159,28 +147,30 @@ function state.new(tab, placeholderLabel)
         Parent = self.box,
     }, { TextColor3 = "ContentColor", FontFace = "Font", PlaceholderColor3 = "PlaceholderColor" })
 
-        self.window:ConnectFor(self, self.input:GetPropertyChangedSignal("Text"), function()
+    self.window:ConnectFor(self, self.input:GetPropertyChangedSignal("Text"), function()
         if self.numeric then
             local a15 = (self.input.Text:gsub("[^%d%.%-eE%^]", ""))
             if a15 ~= self.input.Text then
                 self.input.Text = a15
-                return             end
+                return
+            end
         end
         self:_sizeBox(true)
     end)
 
-        self.window:ConnectFor(self, self.input.Focused, function()
+    self.window:ConnectFor(self, self.input.Focused, function()
         Input.tweenService:Create(self.input, element, { TextTransparency = 0 }):Play()
     end)
 
-        self.window:ConnectFor(self, self.input.FocusLost, function()
+    self.window:ConnectFor(self, self.input.FocusLost, function()
         Input.tweenService:Create(self.input, element, { TextTransparency = 0.6 }):Play()
-                        if self.clearOnFocus and self.input.Text == "" and self.value ~= "" then
+        if self.clearOnFocus and self.input.Text == "" and self.value ~= "" then
             self.input.Text = self.value
             return
         end
         if self.input.Text == self.value then
-            return         end
+            return
+        end
         self:_commit(self.input.Text)
     end)
 
@@ -193,6 +183,7 @@ end
 function state:_sizeBox(a16)
     local a17 = self.input.Text ~= "" and self.input.Text or self.placeholder
     local a18 = math.clamp(tab.textWidth(self.window.theme.Font, 15, a17) + 30, 70, 220)
+    self.container.Size = UDim2.new(1, -(a18 + 35), 0, 16)
     if a16 then
         Input.tweenService:Create(self.box, callback, { Size = UDim2.fromOffset(a18, 30) }):Play()
     else
@@ -205,7 +196,7 @@ function state:_commit(a19, a20)
     if self.numeric then
         local n = frame(a19)
         if not n or n ~= n or n == math.huge or n == -math.huge then
-                        if self.input.Text ~= self.value then
+            if self.input.Text ~= self.value then
                 self.input.Text = self.value
             end
             return
@@ -222,7 +213,7 @@ function state:_commit(a19, a20)
     if not a20 then
         self.window:_runGuarded(self, self.callback, a19)
         self.window:_persist(self)
-                        if a21 and not self.window._loading then
+        if a21 and not self.window._loading then
             clearOnFocus.click()
             self.window:_flashResult(self, true)
         end

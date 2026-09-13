@@ -6,7 +6,6 @@ local constants = script.Parent.Parent.utilities
 
 local Keybind = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
-local description = require(script.Parent.description)
 local props = require(constants.moveable)
 local name = require(constants.lockable)
 local flag = require(constants.locale)
@@ -60,7 +59,6 @@ function state.new(tab, a22)
         window = tab.window,
         name = a22.name or a22.Name or "Keybind",
         icon = tab.window:ResolveIcon(a22.icon or a22.Icon),
-        description = a22.description or a22.Description,
         forgetState = a22.forgetState or a22.ForgetState or tab.forgetState,
         editable = a22.editable or a22.Editable or false,
 
@@ -95,11 +93,10 @@ function state.new(tab, a22)
     self.stroke = self.window:StyleElementBody(self.main)
     self.hoverOverlay = self.window:CreateHoverOverlay(self.main)
 
-    description.attach(self)
 
         self.container = self.window:Create("Frame", {
-        Size = UDim2.new(0, 170, 0, 16),
-        Position = UDim2.new(0, 20, description.center(self, 41)),
+        Size = UDim2.new(1, -115, 0, 16),
+        Position = UDim2.new(0, 20, 0.5, 0),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -131,12 +128,12 @@ function state.new(tab, a22)
 
     self.title = self.window:Create("TextLabel", {
         Text = flag.t(self.name),
-        Size = UDim2.fromOffset(150, 16),
-        AutomaticSize = Enum.AutomaticSize.X,
+        Size = UDim2.new(1, if self.icon then -21 else 0, 0, 16),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 16,
         TextXAlignment = Enum.TextXAlignment.Left,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         LayoutOrder = 1,
         ZIndex = 5,
 
@@ -146,7 +143,7 @@ function state.new(tab, a22)
 
         self.box = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -7, 0, if self.descriptionLabel then 20.5 else 20),
+        Position = UDim2.new(1, -7, 0.5, 0),
         Size = UDim2.fromOffset(40, 30),
         BorderSizePixel = 0,
 
@@ -293,6 +290,7 @@ end
 
 function state:_sizeBox(a25)
     local a26 = math.clamp(tab.textWidth(self.window.theme.Font, 15, self.keyLabel.Text) + 28, 40, 200)
+    self.container.Size = UDim2.new(1, -(a26 + 35), 0, 16)
     if a25 then
         Keybind.tweenService:Create(self.box, callback, { Size = UDim2.fromOffset(a26, 30) }):Play()
     else

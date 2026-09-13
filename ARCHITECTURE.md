@@ -105,12 +105,20 @@ shell and `components/window.luau` follows it:
   daysLeft | expiresAt } }`) for the license rows and the tier pill; omitted
   fields clear to the placeholder. Astra ships no key store, so those two
   rows stay `—` until a host supplies them.
-- Reveal now unmasks the server ID and the license key as well; the settings
+- Reveal now unmasks the job ID (the row reads "Job ID" — it shows
+  `DataModel.JobId`) and the license key as well; the settings
   copy (`components/window.luau`, `settings/registry.luau`) and `USAGE.md`
   say so. The card's off-centre rest shift follows the new width (`(260 +
   12) / 2 = 136px`).
+- The card's surface is no longer a copy of the window's background styling:
+  `Window:StyleWindowSurface(frame)` owns it (base colour, `WindowColor`
+  gradient token, rotation/offset, opacity) and both the window frame and the
+  card's plate are built through it, so a theme change and the theme's live
+  gradient animation move the two together instead of leaving the card a shade
+  behind. The card also resolves its icons against the window's active pack,
+  so no icon (tier pill included) depends on the pack shipping the lucide name.
 - Bundle regenerated: `node scripts/generate_bundle.js` (100 modules).
-  Suites: `scripts/profile_{compact,centering,reveal,details}_test.sh`,
+  Suites: `scripts/profile_{compact,centering,reveal,details,ui}_test.sh`,
   `scripts/sidebar_tab_sizing_test.sh`, `scripts/smoke_test_bundle.sh`,
   `scripts/check_requires.py` and `scripts/check_instance_fields.py` all
   green.

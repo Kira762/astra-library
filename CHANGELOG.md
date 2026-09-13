@@ -2,6 +2,40 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-13 — Profile card: window-backed surface, copy feedback, Job ID row, tier icon fix
+
+- **The card's background is the window's background, not a lookalike.**
+  `Window:StyleWindowSurface(frame)` now owns the window's own surface — base
+  colour, the `WindowColor` theme token, gradient rotation/offset and the
+  opacity the frame shows at — and both the window frame and the card's plate
+  are built through it, so there is one definition instead of two copies that
+  can drift. The card is the window's height and top-aligned with it, so the
+  shared gradient also lands on the same shade at the same row: a theme change
+  and the theme's live gradient animation (`LiveAnimation`) move the two
+  together, and the plate now fades with the window on show/hide instead of
+  sitting solid beside a half-faded frame. A card rebuilt mid-animation picks
+  up the window's current gradient state.
+- **Copy buttons confirm in words as well as in the icon.** The press still
+  writes through the executor clipboard and swaps the glyph for the green
+  `Success` check for ~1.2s; the button now also carries its own accessible
+  label and hover tooltip — "Copy Place ID" / "Copy Job ID" / "Copy User ID"
+  while idle, "Copied" while the check is up — both resolved through the locale
+  layer. A repeat press cancels the pending restore and restarts the flash, so
+  one button never has two timers racing for its icon.
+- **The server row is labelled "Job ID".** The value is `DataModel.JobId`, so
+  the row, its copy label and the tooltips say so; `window.profileServerIdValue`
+  and the `ServerId` row name are unchanged for hosts and saved state.
+- **The tier pill's icon renders in every icon pack.** The pill asked for
+  lucide-only names, so FREEMIUM drew a word with a blank square beside it on
+  every other pack and PREMIUM lost its crown on heroicons/feather/material. The
+  card now resolves its icons against the window's active pack (crown, else
+  star; badge-check, else check-badge / seal-check / verified, else award), and
+  every other icon on the card resolves the same way. The default pack's icons
+  are unchanged.
+- Suites: the new `scripts/profile_ui_test.sh` pins all four (window-matched
+  surface, copy feedback and its timer, the `Job ID` wording and the absence of
+  "Server ID", and the tier icon on all six packs in both states).
+
 ## 2026-09-12 — Profile card: window-matched styling, real game name, tier pill, clipboard feedback
 
 - **The card now speaks the window's visual language verbatim.** Section

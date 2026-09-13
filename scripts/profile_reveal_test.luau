@@ -80,7 +80,7 @@ local function assertMasked(message)
 	eq(window.profileUserIdValue.Text, MASKED_ID, message .. ": user ID masked")
 	eq(window.profileCopyUserId.Visible, false, message .. ": COPY hidden while the user ID is masked")
 	eq(window.profilePlaceId.Text, MASKED_ID, message .. ": place ID masked")
-	eq(window.profileServerIdValue.Text, MASKED_ID, message .. ": server ID masked")
+	eq(window.profileServerIdValue.Text, MASKED_ID, message .. ": job ID masked")
 end
 
 local function assertRevealed(message)
@@ -89,7 +89,7 @@ local function assertRevealed(message)
 	eq(window.profileUserIdValue.Text, tostring(USER_ID), message .. ": user ID revealed")
 	eq(window.profileCopyUserId.Visible, true, message .. ": COPY available once the user ID is revealed")
 	eq(window.profilePlaceId.Text, tostring(PLACE_ID), message .. ": place ID revealed")
-	eq(window.profileServerIdValue.Text, "astra-reveal-server", message .. ": server ID revealed")
+	eq(window.profileServerIdValue.Text, "astra-reveal-server", message .. ": job ID revealed")
 end
 
 -- P1: the card is on screen by default, with everything masked.

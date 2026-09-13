@@ -35,6 +35,17 @@ local toastWidth = 320
 
 local compactRowHeight = 41
 
+-- [[The window's own surface, defined once. Everything that has to read as
+-- [["the window background" — the frame itself and the profile card beside it —
+-- [[is styled through Window:StyleWindowSurface, so the two can never drift
+-- [[into near-miss shades of each other: same base colour, same WindowColor
+-- [[gradient (theme token + the same rotation/offset, so a theme change moves
+-- [[both together) and the same opacity once shown.]]
+local windowSurfaceColor = Color3.fromRGB(255, 255, 255)
+local windowSurfaceTransparency = 0
+local windowSurfaceGradientRotation = 270
+local windowSurfaceGradientOffset = Vector2.new(0, -0.1)
+
 local lockScrimTransparency = 0.55
 local lockedTextTransparency = 0.55
 
@@ -216,7 +227,6 @@ function Window.new(props)
         Parent = state.guiContainer,
     })
         self.main = self:Create("Frame", {
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         Name = self.name,
         ZIndex = 1,
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -238,12 +248,7 @@ function Window.new(props)
         Parent = self.main,
     }, { Color = "SurfaceStroke" })
 
-    self.windowGradient = self:Create("UIGradient", {
-        Rotation = 270,
-        Offset = Vector2.new(0, -0.1),
-
-        Parent = self.main,
-    }, { Color = { "WindowColor", functions.toColorSequence } })
+    self.windowGradient = self:StyleWindowSurface(self.main)
 
                 self.bottomFade = self:Create("Frame", {
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
@@ -610,19 +615,34 @@ function Window:_syncLiveAnimation()
         local liveTweenInfo = TweenInfo.new(10, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
         while self._liveGeneration == generation and self._liveAnimating and not self.unloaded do
-            local tween = state.tweenService:Create(self.windowGradient, liveTweenInfo, {
-                Offset = Vector2.new(if forward then 0.4 else -0.2, 0),
-                Rotation = (if forward then 220 else 280),
-            })
+            -- [[The card beside the window is the same surface, so it rides the
+            -- [[same animation: a static card next to a live window would show
+            -- [[two different shades of the same gradient. It is read fresh
+            -- [[each cycle because the card is rebuilt from scratch whenever
+            -- [[the layout or the theme changes.]]
+            local liveTargets = { self.windowGradient }
+            local panelGradient = self.profilePanelGradient
+            if panelGradient then
+                table.insert(liveTargets, panelGradient)
+            end
 
-            self._liveTween = tween
-            tween:Play()
-            tween.Completed:Wait()
+            local tweens = {}
+            for _, gradient in liveTargets do
+                local tween = state.tweenService:Create(gradient, liveTweenInfo, {
+                    Offset = Vector2.new(if forward then 0.4 else -0.2, 0),
+                    Rotation = (if forward then 220 else 280),
+                })
+                table.insert(tweens, tween)
+                tween:Play()
+            end
+
+            self._liveTweens = tweens
+            tweens[1].Completed:Wait()
             forward = not forward
         end
         if self._liveGeneration == generation then
             self._liveAnimating = false
-            self._liveTween = nil
+            self._liveTweens = nil
         end
     end)
 end
@@ -1725,7 +1745,7 @@ function Window:_buildSettingsUI()
         end,
     })
     revealToggle = appearance:CreateToggle({
-        name = "Reveal profile details", description = "Reveals your display name, username, user ID, place ID, server ID and license key on the profile card. Off keeps them all masked. Needs \"Show profile\" to be on.", value = self.settings.showFullUsername,
+        name = "Reveal profile details", description = "Reveals your display name, username, user ID, place ID, job ID and license key on the profile card. Off keeps them all masked. Needs \"Show profile\" to be on.", value = self.settings.showFullUsername,
         callback = function(value)
             -- [[The card carries the values this unmasks, so the switch is]]
             -- [[refused while "Show profile" is off: setReveal keeps the]]
@@ -2258,7 +2278,7 @@ function Window:_quickRestore()
     local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
     self.main.ClipsDescendants = true
-    self.main.BackgroundTransparency = 0
+    self.main.BackgroundTransparency = windowSurfaceTransparency
     self.topbar.Visible = true
     self:_setContentVisible(true)
     self:_setTabSectionsVisible(true)
@@ -2383,7 +2403,7 @@ function Window:_firstShow()
     end
     self:_fadeSurfaces(true, tweenInfo)
     local tween = state.tweenService:Create(self.main, tweenInfo, {
-        BackgroundTransparency = 0,
+        BackgroundTransparency = windowSurfaceTransparency,
         Size = self.size,
     })
     tween.Completed:Connect(function()
@@ -2546,6 +2566,29 @@ end
 function Window:RegisterTranslations(translations)
     locale.register(translations)
     self:SetLocale(locale.current)
+end
+
+-- [[The window's own background, applied to any frame: the base colour the
+-- [[WindowColor gradient is laid over, and the gradient itself (same theme
+-- [[token, rotation and offset as the frame the window is built from). The
+-- [[profile card beside the window calls this too, so "the card is the window
+-- [[in miniature" is enforced by construction instead of by two copies of the
+-- [[same numbers that can drift apart. Returns the gradient so callers can
+-- [[keep it in step with the window's own (see _syncLiveAnimation).]]
+function Window:StyleWindowSurface(frame): UIGradient
+    frame.BackgroundColor3 = windowSurfaceColor
+    return self:Create("UIGradient", {
+        Rotation = windowSurfaceGradientRotation,
+        Offset = windowSurfaceGradientOffset,
+
+        Parent = frame,
+    }, { Color = { "WindowColor", functions.toColorSequence } })
+end
+
+-- [[The window's own opacity once it is on screen. Kept beside the surface
+-- [[style so the card can state the same value without guessing.]]
+function Window:WindowSurfaceTransparency(): number
+    return windowSurfaceTransparency
 end
 
 function Window:CreateGlow(parent, color, blurRadius, transparency)
@@ -2998,9 +3041,10 @@ function Window:Unload()
     self.unloaded = true
             haptic.teardown()
     haptic.releaseContainer(self.screenGui)
-    if self._liveTween then
-        self._liveTween:Cancel()         self._liveTween = nil
+    for _, liveTween in self._liveTweens or {} do
+        liveTween:Cancel()
     end
+    self._liveTweens = nil
     for i = #self.connections, 1, -1 do
         self.connections[i]:Disconnect()
     end

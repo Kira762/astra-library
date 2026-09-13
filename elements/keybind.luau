@@ -187,7 +187,9 @@ function state.new(tab, a22)
     end)
 
                     self.window:ConnectFor(self, Keybind.userInputService.InputBegan, function(a23, a24)
-        if a24 then
+        -- A game may mark the input as processed, but recording must still
+        -- receive it so rebinding does not immediately fall back to the old key.
+        if a24 and not self.recording then
             return
         end
         if self.recording then

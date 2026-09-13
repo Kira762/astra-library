@@ -121,8 +121,12 @@ function Collapsible.new(tab, props)
     })
     self.header = w:Create("Frame", {
         Name = "Header", Size = UDim2.new(1, 0, 0, self.headerHeight),
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
-    }, { BackgroundColor3 = "ElementSurface" })
+    }, { BackgroundTransparency = "ElementTransparency" })
+    -- StyleElementBody paints the ElementGradient over a white base, exactly
+    -- like every other element surface; binding the base to ElementSurface
+    -- here multiplied the gradient and drew the header almost black.
     self.stroke = w:StyleElementBody(self.header)
     self.hoverOverlay = w:CreateHoverOverlay(self.header)
     local textX = if self.icon then 43 else 20

@@ -348,7 +348,7 @@ Per-element specifics:
 - `slider.luau` — fill frame, handle, drag math locals (`a1..a12`: range min/max, step, value normalization).
 - `dropdown.luau` — button, list frame, option rows (built on first open, `_materialiseOptions`/`_buildOptionAt`), highlight, search filter.
 - `input.luau` — TextBox, placeholder/focus locals, validation callback.
-- `keybind.luau` — listening state flag, input connection.
+- `keybind.luau` — listening state flag, input connection. Editable fields keep the current key selected, accept exactly one letter (extras are truncated, non-letters dropped), unbind on backspace while staying focused for the next key, and restore the bound key's display on focus loss; capture mode is unchanged.
 - `collapsibleGroup.luau` — optional declarative container for all tab element
   types and ordinary Groups. Validates definitions, rejects nested collapsibles,
   animates measured content height through the motion service, and keeps child

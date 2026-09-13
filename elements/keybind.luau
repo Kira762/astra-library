@@ -187,9 +187,14 @@ function state.new(tab, a22)
         end
         isMenuToggle.click()
         if self.editable then
-            self._editing = true
-            self.keyLabel.Text = ""
-            self._editing = false
+            -- Keep the current key visible and selected: the next typed letter
+            -- replaces the binding, Backspace clears it, and the field never
+            -- blanks itself just because it was focused.
+            self._fieldActive = true
+            local shown = tostring(self.keyLabel.Text or "")
+            self.keyLabel.SelectionStart = 1
+            self.keyLabel.CursorPosition = #shown + 1
+            Keybind.tweenService:Create(self.keyLabel, onChanged, { TextTransparency = 0 }):Play()
         else
             self:_startRecording()
         end
@@ -198,36 +203,59 @@ function state.new(tab, a22)
     self.window:ConnectFor(self, self.keyLabel.FocusLost, function()
         if self.recording then
             self:_stopRecording()
-        elseif not self.editable then
+            return
+        end
+        if self.editable then
+            -- The edit session is over: show the bound key again, including
+            -- "None" when the field was left empty after a backspace.
+            self._fieldActive = false
+            self._editing = true
+            self.keyLabel.Text = frame(self.value)
+            self._editing = false
+            self:_sizeBox(true)
+            Keybind.tweenService:Create(self.keyLabel, onChanged, { TextTransparency = 0.6 }):Play()
+        else
             self.keyLabel.Text = frame(self.value)
         end
     end)
 
     self.window:ConnectFor(self, self.keyLabel:GetPropertyChangedSignal("Text"), function()
-        if not self.editable or self._editing then
+        -- Only typed text is parsed, and only while the field is focused.
+        -- Every display write (Set, focus restore, stop-recording) happens
+        -- outside an edit session or behind the _editing guard, so a
+        -- programmatic "None" can never be mistaken for a typed "N".
+        if not self.editable or not self._fieldActive or self._editing then
             return
         end
         local text = tostring(self.keyLabel.Text or "")
         if text == "" then
+            -- Backspace cleared the field: unbind now, but keep the field
+            -- focused and empty so the next typed letter can rebind it.
             if self.value ~= Enum.KeyCode.Unknown then
-                self:_bind(Enum.KeyCode.Unknown)
+                self:_commitEdit(Enum.KeyCode.Unknown)
             end
             return
         end
         local first = string.upper(text:sub(1, 1))
         local nextValue = connection(first)
         if not first:match("%a") or nextValue == Enum.KeyCode.Unknown then
+            -- Non-letters never become bindings; drop them and keep waiting.
             self._editing = true
-            self.keyLabel.Text = frame(self.value)
+            self.keyLabel.Text = ""
             self._editing = false
             return
         end
-        self._editing = true
-        self.keyLabel.Text = first
-        self._editing = false
-        if nextValue ~= self.value then
-            self:_bind(nextValue)
+        if text ~= first then
+            self._editing = true
+            self.keyLabel.Text = first
+            self._editing = false
         end
+        if nextValue ~= self.value then
+            self:_commitEdit(nextValue)
+        end
+        -- Re-select the letter so the next key replaces it: one letter, ever.
+        self.keyLabel.SelectionStart = 1
+        self.keyLabel.CursorPosition = 2
     end)
 
                     self.window:ConnectFor(self, Keybind.userInputService.InputBegan, function(a23, a24)
@@ -356,6 +384,18 @@ function state:_capture(a28)
     self:_bind(a29)
 end
 
+function state:_commitEdit(a48)
+    -- Editable-field commits keep the field focused: recording shutdown
+    -- (which releases focus and rewrites the label) belongs to capture mode,
+    -- so a typed letter does not end the edit session and Backspace stays
+    -- available for the next change.
+    self.value = a48
+    self:_sizeBox(true)
+    self.window:_runGuarded(self, self.onChanged, a48)
+    self.window:_persist(self)
+
+    self.window:_flashResult(self, true) end
+
 function state:_bind(a31)
     self.value = a31
     self:_stopRecording()
@@ -447,7 +487,11 @@ function state:Set(a41, a42)
     self.value = a43
     if self.recording then
         self:_stopRecording()     else
+        -- Suppress the display write: while the field is being edited, a
+        -- programmatic label such as "None" must not parse as a typed "N".
+        self._editing = true
         self.keyLabel.Text = frame(self.value)
+        self._editing = false
         self:_sizeBox(true)
     end
 

@@ -21,16 +21,23 @@ binding.keyLabel.ReleaseFocus = function()
 end
 local saves = 0
 window.SaveSettings = function() saves += 1 end
-local textChanged = binding.keyLabel:GetPropertyChangedSignal("Text")
+-- The stub fires TextChanged on assignment, like the engine, so typing is
+-- just a property write: no extra manual fire (a second fire would make a
+-- dropped "7" indistinguishable from a real backspace).
 local function focus()
     focused = true
+    local shown = binding.keyLabel.Text
     binding.keyLabel.Focused:Fire()
     assert(not binding.recording, "Focus must not start recording")
+    assert(binding.keyLabel.Text == shown, "Focus keeps the current binding visible to replace")
 end
 local function typeText(text)
     binding.keyLabel.Text = text
-    textChanged:Fire()
     TestPump(0.1)
+end
+local function stillEditing()
+    assert(focused, "Editing must keep the field focused")
+    assert(not binding.recording, "Editable input must never record")
 end
 
 -- The first letter is kept, uppercased, and persisted; all extra text is removed.
@@ -40,24 +47,45 @@ assert(binding.value == Enum.KeyCode.P, "First typed letter must become the bind
 assert(binding.keyLabel.Text == "P", "Extra typed letters must be removed")
 assert(window.settings.toggleKeybind == Enum.KeyCode.P, "Settings must update")
 assert(saves == 1, "Changed binding must be saved")
-assert(not binding.recording, "Editable input must never record")
+stillEditing()
 
--- Replacing the value works without reopening a recording session.
+-- Replacing the value works with one letter, without leaving the field.
 typeText("q2")
 assert(binding.value == Enum.KeyCode.Q and binding.keyLabel.Text == "Q", "Binding must be replaceable with one letter")
 assert(saves == 2, "Replacement must be saved")
+stillEditing()
 
--- Empty text clears the binding and persists the cleared value.
+-- Backspacing clears the binding but leaves the field ready for the next key.
 typeText("")
-assert(binding.value == Enum.KeyCode.Unknown, "Empty text must clear the binding")
+assert(binding.value == Enum.KeyCode.Unknown, "Backspace must clear the binding")
 assert(window.settings.toggleKeybind == Enum.KeyCode.Unknown, "Cleared binding must update Settings")
 assert(saves == 3, "Cleared binding must be saved")
+assert(binding.keyLabel.Text == "", "Backspace must leave an empty field, not a stray label")
+stillEditing()
 
--- Non-letters are rejected without replacing the current value.
+-- A letter typed after the backspace becomes the new binding.
+typeText("j")
+assert(binding.value == Enum.KeyCode.J and binding.keyLabel.Text == "J", "A letter typed after backspacing must rebind")
+assert(saves == 4, "Rebinding after backspace must be saved")
+stillEditing()
+
+-- Non-letters are dropped without replacing or clearing the current value.
 typeText("7")
-assert(binding.value == Enum.KeyCode.Unknown and binding.keyLabel.Text == "None", "Non-letter input must be rejected")
+assert(binding.value == Enum.KeyCode.J, "Non-letter input must not change the binding")
+assert(binding.keyLabel.Text == "", "Non-letter input must be dropped, not bound")
+assert(saves == 4, "Rejected input must not be saved")
+stillEditing()
 
+-- Leaving the field restores the bound key's display.
 binding.keyLabel:ReleaseFocus()
 TestPump(0.1)
 assert(not binding.recording, "Focus loss must not leave a recording session")
+assert(binding.keyLabel.Text == "J", "Focus loss must show the bound key again")
+
+-- Reopening the field still replaces the binding in one letter.
+focus()
+typeText("k")
+assert(binding.value == Enum.KeyCode.K and binding.keyLabel.Text == "K", "A refocused field must rebind with one letter")
+binding.keyLabel:ReleaseFocus()
+TestPump(0.1)
 print("Editable one-letter Settings keybind and persistence passed")

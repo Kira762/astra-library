@@ -35,6 +35,20 @@ assert(not group.elements[16].compact, "Noncompact elements in ordinary Groups b
 assert(not group._expanded and not group.body.Visible, "Starts collapsed without a usage option")
 assert(window:Get("active") == true and window:Get("speed") == 50, "Collapsed controls register their values")
 
+-- The header must use the standard element surface recipe: a white base under
+-- StyleElementBody's ElementGradient, exactly like every other element. A
+-- themed base color would be multiplied by the gradient and draw nearly black.
+local toggle = group.elements[2]
+local base = group.header.BackgroundColor3
+assert(base.R == 1 and base.G == 1 and base.B == 1, "Header keeps the plain white gradient base")
+local function gradientOf(frame)
+    for _, child in frame:GetChildren() do
+        if child.ClassName == "UIGradient" then return child end
+    end
+    return nil
+end
+assert(gradientOf(group.header) and gradientOf(group.header).Color == gradientOf(toggle.main).Color, "Header gradient matches element surfaces")
+
 -- The stub does not simulate UIListLayout measurement; drive its engine signal.
 group.contentLayout.AbsoluteContentSize = Vector2.new(400, 900)
 group.interact.Activated:Fire()

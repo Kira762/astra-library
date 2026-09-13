@@ -306,12 +306,12 @@ eq(userIdEntry.button.Visible, true, "E8 the copy button shows once the value is
 userIdEntry.button.Activated:Fire()
 TestPump(0.1)
 eq(copied[1], tostring(player.UserId), "E8 the copy wrote the user ID through setclipboard")
-eq(userIdEntry.icon.Image, window:ResolveIcon("check"), "E8 a successful copy swaps in the check icon")
+eq(userIdEntry.icon.Image, TestImageUri(window:ResolveIcon("check")), "E8 a successful copy swaps in the check icon")
 eq(tostring(userIdEntry.icon.ImageColor3.R), tostring(theme.Success.R), "E8 the check reads in the success green")
 eq(tostring(userIdEntry.icon.ImageColor3.G), tostring(theme.Success.G), "E8 the check reads in the success green")
 
 TestPump(1.4)
-eq(userIdEntry.icon.Image, window:ResolveIcon("copy"), "E8 the copy icon returns after the flash")
+eq(userIdEntry.icon.Image, TestImageUri(window:ResolveIcon("copy")), "E8 the copy icon returns after the flash")
 eq(tostring(userIdEntry.icon.ImageColor3.R), tostring(theme.ActionColor.R), "E8 and so does its colour")
 
 -- [[Every identifier row carries its own copy action.]]

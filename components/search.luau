@@ -140,6 +140,8 @@ function search.open(window)
     if window._searching or window.minimised or not window:_interactive() then
         return
     end
+    search.buildContent(window)
+    window:_applyRailWidth()
     window._searching = true
 
     collectElements(window)
@@ -210,8 +212,10 @@ function search.railWidth(window, railWidth)
     end
 end
 
-function search.build(window)
-    window._searching = false
+function search.buildContent(window)
+    if window.searchPage then
+        return
+    end
 
     window.searchPage = window:Create("ScrollingFrame", {
         Name = "Search",
@@ -326,6 +330,10 @@ function search.build(window)
         end
     end)
 
+end
+
+function search.build(window)
+    window._searching = false
     window.searchAction = actionComponent.new(window, {
         name = "Search",
         icon = constants.icons.search,

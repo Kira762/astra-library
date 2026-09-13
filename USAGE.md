@@ -324,7 +324,7 @@ The settings tabs are:
 | Tab | Contents |
 |---|---|
 | **General** | Toggle keybind (show/hide), unlock-cursor toggle, welcome toast toggle. |
-| **Appearance** | Theme dropdown + Apply (popup confirm), Bar Layout dropdown (Default Topbar / Sidebar / Collapsed Sidebar), Show profile / Profile side / Reveal profile details (unmasks the display name, username, user ID, place ID, job ID and license key on the profile card, and only works while **Show profile** is on — flipping it on with the card off raises a "Show profile is required" notification and leaves it off, and hiding the card switches it off with it), Keep window on screen (keeps the window **and** its card in view), Draggable capsule, Reset Window Position. |
+| **Appearance** | Theme dropdown + Apply (popup confirm), Bar Layout dropdown (Default Topbar / Sidebar / Collapsed Sidebar), Show profile / Profile side / Reveal profile details (unmasks the display name, username, user ID, place ID, job ID and license key on the profile card, and only works while **Show profile** is on — flipping it on with the card off raises a "Show profile is required" notification and leaves it off, and hiding the card switches it off with it), Keep window on screen (keeps the window **and** its card in view), Draggable capsule, Reset Window Position, Reset Capsule Position (restores the default top-center capsule location without moving the open window). |
 | **Behavior** | Prevent duplicate windows. |
 | **Performance** | Haptics. |
 | **Persistence** | Saved-configurations dropdown + name input + Save/Load/Delete. Only present when `configuration` was passed to `CreateWindow`. |
@@ -491,3 +491,20 @@ local window = Astra:CreateWindow({
 })
 ```
 Layout is **not** a CreateWindow prop — switch it in **Settings → Appearance → Bar Layout**.
+
+### Startup performance
+
+Window construction is staged across frames. Large initial batches of `CreateTab`
+and `Create…` calls yield at completed-control boundaries after roughly 4 ms of
+work or 120 new instances. These are cooperative limits, not a hard frame-time
+cap: a single expensive control can exceed them. Calls still return fully built
+objects, but may yield while creating the initial UI.
+
+Automatic show waits for a quiet construction frame so large scripts do not
+reveal a half-built menu. `window:Hide()` before the first reveal cancels auto-show;
+`window:Show()` can still be called explicitly.
+
+Search controls are created the first time search opens. Additional built-in
+settings tabs are created on first settings access, and their controls remain lazy
+until each tab is selected. Controls added to inactive tabs wait until that tab is
+shown before running their reveal animations.

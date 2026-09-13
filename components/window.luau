@@ -471,6 +471,8 @@ function Window.new(props)
         Parent = self.actionContainer,
     })
 
+    self:_constructionCheckpoint(true)
+
     self.rfSettings = self:CreateTab({
         name = "General",
         icon = "sliders-horizontal",
@@ -544,6 +546,14 @@ function Window.new(props)
         self:_setLayoutMode(self.settings.layoutMode)
     end
 
+    haptic.setContainer(self.screenGui)     haptic.setEnabled(self.settings.haptics)     chrome.buildCollapsedFace(self)
+
+    self:_constructionCheckpoint(true)
+    profilePanel.build(self)
+    profilePanel.setSubtitle(self, self.profileText)
+    if profilePanel.isEnabled(self) then
+        self.main.Position = self:_profileCenterPosition()
+    end
     task.defer(function()
         if self.unloaded or state.localPlayer or not self.profilePanel then
             return
@@ -578,18 +588,10 @@ function Window.new(props)
         -- [[profile" on.]]
         table.insert(self.connections, connection)
     end)
-    haptic.setContainer(self.screenGui)     haptic.setEnabled(self.settings.haptics)     chrome.buildCollapsedFace(self)
-
-    profilePanel.build(self)
-    profilePanel.setSubtitle(self, self.profileText)
-    if profilePanel.isEnabled(self) then
-        self.main.Position = self:_profileCenterPosition()
-    end
     self:_bindKeybind()
     self:_bindMouseOverride()
     self:_bindTopbarDrag()
     self:_watchViewport()
-    self:_buildSettingsUI()
     self:_updateWindowTitle()
 
     self:_applyMotionSetting()
@@ -601,6 +603,29 @@ function Window.new(props)
     self._constructed = true
 
     return self
+end
+
+-- Yield only at completed construction boundaries, never halfway through a
+-- control. Limit startup batches by both CPU time and instance count. The
+-- synchronous API is preserved: callers resume with fully usable objects.
+function Window:_constructionCheckpoint(force)
+    if self.hasShownOnce or (not force and not self._constructed) then
+        return
+    end
+    self._constructionRevision = (self._constructionRevision or 0) + 1
+    local now = os.clock()
+    local last = self._constructionClock or now
+    local count = #self.instances
+    if force or now - last >= 0.004 or count - (self._constructionInstances or 0) >= 120 then
+        self._constructionBusy = (self._constructionBusy or 0) + 1
+        task.wait() -- next Heartbeat, not another deferred task in this frame
+        self._constructionBusy -= 1
+        assert(not self.unloaded, "Window unloaded during construction")
+        self._constructionClock = os.clock()
+        self._constructionInstances = #self.instances
+    else
+        self._constructionClock = last
+    end
 end
 
 -- [[The "Animation speed" setting owns the motion service's time scale. It is
@@ -739,6 +764,7 @@ function Window:CreateTab(props)
         self:_applySettingsLayout(self._settingsMode)
     end
 
+    self:_constructionCheckpoint(false)
     return tab
 end
 
@@ -976,12 +1002,11 @@ function Window:Close()
 end
 
 function Window:Hide()
-            if self.animating or self.hidden then
+    -- Cancel pending startup reveal even while the window is still hidden.
+    self._autoShowCancelled = true
+    if self.animating or self.hidden then
         return
     end
-
-    -- [[Cancel the one-tick-late auto-show, if it has not run yet.]]
-    self._autoShowCancelled = true
 
             if self._searching then
         search.close(self, { showTabs = false, jumpTo = self.selectedTab and self.selectedTab.tabPage })
@@ -1584,6 +1609,10 @@ function Window:_bindTopbarDrag()
 end
 
 function Window:_buildSettingsUI()
+    if self._settingsUIBuilt then
+        return
+    end
+    self._settingsUIBuilt = true
     local appearance = self:CreateTab({ name = "Appearance", icon = "palette", customOrder = 1002, forgetState = true, isSettingsTab = true })
     local behavior = self:CreateTab({ name = "Behavior", icon = "shield-check", customOrder = 1003, forgetState = true, isSettingsTab = true })
     local performance = self:CreateTab({ name = "Performance", icon = "gauge", customOrder = 1004, forgetState = true, isSettingsTab = true })
@@ -1594,8 +1623,8 @@ function Window:_buildSettingsUI()
         table.insert(self._settingsTabs, tab)
     end
 
-    -- [[The settings content is built lazily: window construction only]]
-    -- [[creates the tab shells (rows + pages), and each tab's elements]]
+    -- [[The settings shells are created on first settings access.]]
+    -- [[Each tab's elements]]
     -- [[are created the first time that tab is opened (see]]
     -- [[_buildSettingsContent), so opening the window stays fast. The]]
     -- [[builders run at most once, in the original creation order.]]
@@ -1818,6 +1847,13 @@ function Window:_buildSettingsUI()
             self:_recenterForProfile(true)
         end,
     })
+    appearance:CreateButton({
+        name = "Reset Capsule Position",
+        description = "Returns the minimized capsule to its default top-center position without moving the open window.",
+        callback = function()
+            self:_resetCapsulePosition()
+        end,
+    })
     end
     appearance._settingsContentBuilder = buildAppearance
 
@@ -1897,6 +1933,7 @@ function Window:_buildSettingsUI()
 end
 
 function Window:_buildSettingsContent(tab)
+    self:_buildSettingsUI()
     -- [[Lazy settings content: a tab's elements are created the first]]
     -- [[time it is opened, keeping window construction fast. The pcall]]
     -- [[keeps one bad element from taking the whole window down.]]
@@ -2173,6 +2210,9 @@ end
 
 function Window:_setSettingsMode(active)
     active = active == true
+    if active and self._constructed then
+        self:_buildSettingsUI()
+    end
     self._settingsMode = active
     if active and self._previousTab == nil and self.selectedTab and not self.selectedTab._isSettingsTab then
         self._previousTab = self.selectedTab
@@ -2328,6 +2368,12 @@ function Window:Show()
         if not ok then
             log.warn("Astra: Failed to load configuration - " .. tostring(err))
         end
+    end
+
+    -- A window with no host tabs starts on General: it is genuinely being
+    -- viewed now, so populate it just as selecting Settings would.
+    if self.selectedTab and self.selectedTab._isSettingsTab then
+        self:_buildSettingsContent(self.selectedTab)
     end
 
     self.hidden = false
@@ -3012,6 +3058,19 @@ function Window:_hideCommon(element, animate)
     end
     if element.descriptor then
         self:_reveal(element.descriptor.titleLabel, { TextTransparency = 1 }, animate)
+    end
+end
+
+function Window:_resetCapsulePosition()
+    if self.unloaded then
+        return
+    end
+    -- Forget the drag override. The next collapse uses the default rectangle
+    -- for the current capsule style; the expanded window's position is untouched.
+    self._collapsedPosition = nil
+    if self._collapsedShown and not self.animating then
+        local position = self:_collapsedRect()
+        motion.tween(self.main, { Position = position }, tweenStyle)
     end
 end
 

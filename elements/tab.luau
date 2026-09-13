@@ -248,7 +248,7 @@ function state:_register(element)
     window(element, #self.elements * 10)
     self.window:_restoreLate(element)
 
-    if not self.window.hidden then
+    if not self.window.hidden and not self.window.minimised and self.window.selectedTab == self then
         element:_setShown(true, false)
     else
         -- [[The element stayed hidden with the window: remember that this tab
@@ -256,6 +256,7 @@ function state:_register(element)
         self._elementsPending = true
     end
 
+    self.window:_constructionCheckpoint(false)
     return element
 end
 

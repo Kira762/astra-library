@@ -59,6 +59,7 @@ local window = Astra:CreateWindow({ name = "Profile Reveal Test" })
 TestPump(0.6)
 
 local function findSettingsElement(targetWindow, tabName, elementName)
+	targetWindow:_buildSettingsUI() -- settings shells are now lazy too
 	for _, tab in targetWindow._settingsTabs do
 		if tab.name == tabName then
 			tab:Select()

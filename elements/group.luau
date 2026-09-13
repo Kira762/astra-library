@@ -82,9 +82,16 @@ function state:_add(a13, a14)
         self:_wrapChild(element)
     end
     self:_reflowRow()
-            if not self.window.hidden then
-        element:_setShown(true, true)
+    local ownerTab = self.tab
+    while ownerTab.tab do
+        ownerTab = ownerTab.tab
     end
+    if not self.window.hidden and not self.window.minimised and self.window.selectedTab == ownerTab then
+        element:_setShown(true, true)
+    else
+        ownerTab._elementsPending = true
+    end
+    self.window:_constructionCheckpoint(false)
 
     return element
 end

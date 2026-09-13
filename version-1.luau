@@ -159,14 +159,18 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 	end
 
 	if not window.unloaded then
-		-- [[Defer the auto-show by one tick so a script that builds its]]
-		-- [[tabs synchronously right after CreateWindow can finish]]
-		-- [[first: the window then appears once, fully populated, instead]]
-		-- [[of empty and filling in. An explicit Hide() cancels it.]]
+		-- Wait for a quiet frame. Construction may yield in large scripts;
+		-- don't auto-show a half-populated window at one of those boundaries.
 		task.defer(function()
-			if not window.unloaded and not window._autoShowCancelled then
-				window:Show()
-			end
+			local revision
+			repeat
+				revision = window._constructionRevision
+				task.wait()
+				if window.unloaded or window._autoShowCancelled then
+					return
+				end
+			until (window._constructionBusy or 0) == 0 and revision == window._constructionRevision
+			window:Show()
 		end)
 	end
 
@@ -2438,7 +2442,7 @@ local network = require(utilities.network)
 --     details  a vertically scrolling column of sections, each a window-style
 --              section heading above an element-style plate of compact
 --              label/value rows:
---                Account       user ID (+ COPY), join date, account age,
+--                Account       user ID (+ COPY), account created, elapsed time,
 --                              key (+ COPY), whitelist
 --                Current Game  thumbnail, game name, place ID (+ COPY)
 --                Server        players, job ID (+ COPY)
@@ -2753,29 +2757,18 @@ local function formatDate(unixSeconds: number?): string
     return `{d} {month} {y}`
 end
 
--- [[Account age in days -> the card's short readable form.]]
-local function formatAccountAge(days: number?): string
-    if type(days) ~= "number" or days ~= days or days < 0 then
+-- Elapsed time since creation, in the largest useful unit.
+local function formatAccountAge(seconds: number?): string
+    if type(seconds) ~= "number" or seconds ~= seconds or seconds < 0 then
         return fallbackValue
     end
-    local total = math.floor(days)
-    if total < 1 then
-        return "Today"
+    for _, unit in { { 31557600, "year" }, { 2629800, "month" }, { 86400, "day" }, { 3600, "hour" } } do
+        local count = math.floor(seconds / unit[1])
+        if count >= 1 then
+            return `{count} {unit[2]}{if count == 1 then "" else "s"} ago`
+        end
     end
-    if total < 31 then
-        return if total == 1 then "1 day" else `{total} days`
-    end
-    local years = math.floor(total / 365.25)
-    if years < 1 then
-        local months = math.floor(total / 30.44)
-        return if months <= 1 then "1 month" else `{months} months`
-    end
-    local remainder = math.floor((total - years * 365.25) / 30.44)
-    local yearText = if years == 1 then "1 year" else `{years} years`
-    if remainder < 1 then
-        return yearText
-    end
-    return `{yearText} {remainder}mo`
+    return "Less than an hour ago"
 end
 
 local function nowSeconds(): number?
@@ -2886,7 +2879,8 @@ end
 --                                      Window:SetProfile, else
 --                                      LocalPlayer.MembershipType
 --                                      (PREMIUM / FREEMIUM)
---   join date / account age            LocalPlayer.AccountAge (days)
+--   account created / elapsed time     users.roblox.com creation timestamp
+--                                      (AccountAge gives an approximate elapsed fallback)
 --   game name                          Roblox's official two-step API:
 --                                      place id -> universe id -> the games
 --                                      list's "name" (DataModel.Name until
@@ -3035,6 +3029,50 @@ local function requestJson(url: string, callback: (any?) -> ())
             end
         end
         callback(decoded)
+    end)
+end
+
+-- Fetch once per player/window; never infer an exact date from rounded AccountAge.
+function profilePanel.applyAccountCreated(window)
+    if window.unloaded or not window.profileJoinDateValue then
+        return
+    end
+    local player = state.localPlayer
+    local userId = player and player.UserId
+    if window.profileAccountUserId ~= userId then
+        window.profileAccountUserId = userId
+        window.profileAccountCreatedAt = nil
+        window.profileAccountRequested = false
+    end
+    local created = window.profileAccountCreatedAt
+    local now = nowSeconds()
+    local age = player and player.AccountAge
+    setText(window.profileJoinDateValue, formatDate(created))
+    local elapsed = if created and now then formatAccountAge(now - created)
+        elseif type(age) == "number" and age >= 0 then
+            (if age == 0 then "Less than a day ago" else "~ " .. formatAccountAge(age * 86400))
+        else fallbackValue
+    setText(window.profileAccountAgeValue, elapsed)
+
+    if type(userId) ~= "number" or userId <= 0 or window.profileAccountRequested then
+        return
+    end
+    window.profileAccountRequested = true
+    requestJson(`https://users.roblox.com/v1/users/{userId}`, function(parsed)
+        if window.unloaded or window.profileAccountUserId ~= userId then
+            return
+        end
+        local ok, timestamp = pcall(function()
+            if type(parsed) ~= "table" or type(parsed.created) ~= "string" then
+                return nil
+            end
+            return DateTime.fromIsoDate(parsed.created).UnixTimestamp
+        end)
+        local currentTime = nowSeconds()
+        if ok and type(timestamp) == "number" and timestamp > 0 and currentTime and timestamp <= currentTime then
+            window.profileAccountCreatedAt = timestamp
+            profilePanel.applyAccountCreated(window)
+        end
     end)
 end
 
@@ -3345,8 +3383,10 @@ function profilePanel.applyTier(window)
     -- [[states a tier, so it must never render as a word with a blank square
     -- [[beside it.]]
     local wantedIcon = cardIcon(window, if premium then "crown" else "badge-check")
-    if icon.Image ~= wantedIcon then
-        icon.Image = wantedIcon
+    if window.profileTierIconSource ~= wantedIcon or window.profileTierIconTarget ~= icon then
+        window.profileTierIconTarget = icon
+        window.profileTierIconSource = wantedIcon
+        image.assign(icon, "Image", wantedIcon)
     end
     -- [[A fixed box measured from its own label, so the pill only ever grows]]
     -- [[as wide as its word needs.]]
@@ -3435,7 +3475,7 @@ function profilePanel.flashCopied(window, name: string)
     if not entry or not entry.icon or not entry.icon.Parent then
         return
     end
-    entry.icon.Image = cardIcon(window, "check")
+    image.assign(entry.icon, "Image", cardIcon(window, "check"))
     entry.icon.ImageColor3 = window.theme.Success
     cancelTimer(entry.flashThread)
     entry.flashStamp = (entry.flashStamp or 0) + 1
@@ -3445,7 +3485,7 @@ function profilePanel.flashCopied(window, name: string)
             return
         end
         entry.flashThread = nil
-        entry.icon.Image = cardIcon(window, "copy")
+        image.assign(entry.icon, "Image", cardIcon(window, "copy"))
         entry.icon.ImageColor3 = window.theme.ActionColor
         profilePanel.setCopyStatus(window, name, false)
     end)
@@ -3583,15 +3623,7 @@ function profilePanel.applyIdentity(window)
         end
     end
 
-    if window.profileJoinDateValue then
-        local accountAge = if player and type(player.AccountAge) == "number" then player.AccountAge else nil
-        local now = nowSeconds()
-        setText(
-            window.profileJoinDateValue,
-            if accountAge and now then formatDate(now - accountAge * 86400) else fallbackValue
-        )
-        setText(window.profileAccountAgeValue, formatAccountAge(accountAge))
-    end
+    profilePanel.applyAccountCreated(window)
 
     profilePanel.applyLicense(window)
 end
@@ -3610,6 +3642,7 @@ function profilePanel.applyLive(window)
     )
 
     setText(window.profileSessionValue, formatDuration(sessionSeconds()))
+    profilePanel.applyAccountCreated(window)
 
     -- [[A whitelist entry that expires at a timestamp counts down here too.]]
     profilePanel.applyLicense(window)
@@ -4003,7 +4036,8 @@ function profilePanel.build(window)
     }, { Color = "ElementStroke" })
     local premiumIcon = window:Create("ImageLabel", {
         Name = "Crown",
-        Image = window:ResolveIcon("crown"),
+        -- applyTier selects the correct icon; do not start a competing crown load.
+        Image = "",
         Position = UDim2.fromOffset(tierPaddingLeft, (tierHeight - tierIconSize) / 2),
         Size = UDim2.fromOffset(tierIconSize, tierIconSize),
         BackgroundTransparency = 1,
@@ -4158,6 +4192,10 @@ function profilePanel.build(window)
 
     local y = 0
 
+    if not window._constructed then
+        window:_constructionCheckpoint(true)
+    end
+
     -- ===== ACCOUNT =====
 
     local accountRows = {
@@ -4171,8 +4209,8 @@ function profilePanel.build(window)
                 return if current and current.UserId then tostring(current.UserId) else nil
             end,
         },
-        { name = "JoinDate", label = "Join date", icon = "calendar-days" },
-        { name = "AccountAge", label = "Account age", icon = "hourglass" },
+        { name = "JoinDate", label = "Account created", icon = "calendar-days", labelWidth = 88, valueSize = 11 },
+        { name = "AccountAge", label = "Elapsed", icon = "hourglass" },
         {
             name = "Key",
             label = "Key",
@@ -4914,6 +4952,8 @@ function search.open(window)
     if window._searching or window.minimised or not window:_interactive() then
         return
     end
+    search.buildContent(window)
+    window:_applyRailWidth()
     window._searching = true
 
     collectElements(window)
@@ -4984,8 +5024,10 @@ function search.railWidth(window, railWidth)
     end
 end
 
-function search.build(window)
-    window._searching = false
+function search.buildContent(window)
+    if window.searchPage then
+        return
+    end
 
     window.searchPage = window:Create("ScrollingFrame", {
         Name = "Search",
@@ -5100,6 +5142,10 @@ function search.build(window)
         end
     end)
 
+end
+
+function search.build(window)
+    window._searching = false
     window.searchAction = actionComponent.new(window, {
         name = "Search",
         icon = constants.icons.search,
@@ -6398,6 +6444,8 @@ function Window.new(props)
         Parent = self.actionContainer,
     })
 
+    self:_constructionCheckpoint(true)
+
     self.rfSettings = self:CreateTab({
         name = "General",
         icon = "sliders-horizontal",
@@ -6471,6 +6519,14 @@ function Window.new(props)
         self:_setLayoutMode(self.settings.layoutMode)
     end
 
+    haptic.setContainer(self.screenGui)     haptic.setEnabled(self.settings.haptics)     chrome.buildCollapsedFace(self)
+
+    self:_constructionCheckpoint(true)
+    profilePanel.build(self)
+    profilePanel.setSubtitle(self, self.profileText)
+    if profilePanel.isEnabled(self) then
+        self.main.Position = self:_profileCenterPosition()
+    end
     task.defer(function()
         if self.unloaded or state.localPlayer or not self.profilePanel then
             return
@@ -6505,18 +6561,10 @@ function Window.new(props)
         -- [[profile" on.]]
         table.insert(self.connections, connection)
     end)
-    haptic.setContainer(self.screenGui)     haptic.setEnabled(self.settings.haptics)     chrome.buildCollapsedFace(self)
-
-    profilePanel.build(self)
-    profilePanel.setSubtitle(self, self.profileText)
-    if profilePanel.isEnabled(self) then
-        self.main.Position = self:_profileCenterPosition()
-    end
     self:_bindKeybind()
     self:_bindMouseOverride()
     self:_bindTopbarDrag()
     self:_watchViewport()
-    self:_buildSettingsUI()
     self:_updateWindowTitle()
 
     self:_applyMotionSetting()
@@ -6528,6 +6576,29 @@ function Window.new(props)
     self._constructed = true
 
     return self
+end
+
+-- Yield only at completed construction boundaries, never halfway through a
+-- control. Limit startup batches by both CPU time and instance count. The
+-- synchronous API is preserved: callers resume with fully usable objects.
+function Window:_constructionCheckpoint(force)
+    if self.hasShownOnce or (not force and not self._constructed) then
+        return
+    end
+    self._constructionRevision = (self._constructionRevision or 0) + 1
+    local now = os.clock()
+    local last = self._constructionClock or now
+    local count = #self.instances
+    if force or now - last >= 0.004 or count - (self._constructionInstances or 0) >= 120 then
+        self._constructionBusy = (self._constructionBusy or 0) + 1
+        task.wait() -- next Heartbeat, not another deferred task in this frame
+        self._constructionBusy -= 1
+        assert(not self.unloaded, "Window unloaded during construction")
+        self._constructionClock = os.clock()
+        self._constructionInstances = #self.instances
+    else
+        self._constructionClock = last
+    end
 end
 
 -- [[The "Animation speed" setting owns the motion service's time scale. It is
@@ -6666,6 +6737,7 @@ function Window:CreateTab(props)
         self:_applySettingsLayout(self._settingsMode)
     end
 
+    self:_constructionCheckpoint(false)
     return tab
 end
 
@@ -6903,12 +6975,11 @@ function Window:Close()
 end
 
 function Window:Hide()
-            if self.animating or self.hidden then
+    -- Cancel pending startup reveal even while the window is still hidden.
+    self._autoShowCancelled = true
+    if self.animating or self.hidden then
         return
     end
-
-    -- [[Cancel the one-tick-late auto-show, if it has not run yet.]]
-    self._autoShowCancelled = true
 
             if self._searching then
         search.close(self, { showTabs = false, jumpTo = self.selectedTab and self.selectedTab.tabPage })
@@ -7511,6 +7582,10 @@ function Window:_bindTopbarDrag()
 end
 
 function Window:_buildSettingsUI()
+    if self._settingsUIBuilt then
+        return
+    end
+    self._settingsUIBuilt = true
     local appearance = self:CreateTab({ name = "Appearance", icon = "palette", customOrder = 1002, forgetState = true, isSettingsTab = true })
     local behavior = self:CreateTab({ name = "Behavior", icon = "shield-check", customOrder = 1003, forgetState = true, isSettingsTab = true })
     local performance = self:CreateTab({ name = "Performance", icon = "gauge", customOrder = 1004, forgetState = true, isSettingsTab = true })
@@ -7521,8 +7596,8 @@ function Window:_buildSettingsUI()
         table.insert(self._settingsTabs, tab)
     end
 
-    -- [[The settings content is built lazily: window construction only]]
-    -- [[creates the tab shells (rows + pages), and each tab's elements]]
+    -- [[The settings shells are created on first settings access.]]
+    -- [[Each tab's elements]]
     -- [[are created the first time that tab is opened (see]]
     -- [[_buildSettingsContent), so opening the window stays fast. The]]
     -- [[builders run at most once, in the original creation order.]]
@@ -7745,6 +7820,13 @@ function Window:_buildSettingsUI()
             self:_recenterForProfile(true)
         end,
     })
+    appearance:CreateButton({
+        name = "Reset Capsule Position",
+        description = "Returns the minimized capsule to its default top-center position without moving the open window.",
+        callback = function()
+            self:_resetCapsulePosition()
+        end,
+    })
     end
     appearance._settingsContentBuilder = buildAppearance
 
@@ -7824,6 +7906,7 @@ function Window:_buildSettingsUI()
 end
 
 function Window:_buildSettingsContent(tab)
+    self:_buildSettingsUI()
     -- [[Lazy settings content: a tab's elements are created the first]]
     -- [[time it is opened, keeping window construction fast. The pcall]]
     -- [[keeps one bad element from taking the whole window down.]]
@@ -8100,6 +8183,9 @@ end
 
 function Window:_setSettingsMode(active)
     active = active == true
+    if active and self._constructed then
+        self:_buildSettingsUI()
+    end
     self._settingsMode = active
     if active and self._previousTab == nil and self.selectedTab and not self.selectedTab._isSettingsTab then
         self._previousTab = self.selectedTab
@@ -8255,6 +8341,12 @@ function Window:Show()
         if not ok then
             log.warn("Astra: Failed to load configuration - " .. tostring(err))
         end
+    end
+
+    -- A window with no host tabs starts on General: it is genuinely being
+    -- viewed now, so populate it just as selecting Settings would.
+    if self.selectedTab and self.selectedTab._isSettingsTab then
+        self:_buildSettingsContent(self.selectedTab)
     end
 
     self.hidden = false
@@ -8939,6 +9031,19 @@ function Window:_hideCommon(element, animate)
     end
     if element.descriptor then
         self:_reveal(element.descriptor.titleLabel, { TextTransparency = 1 }, animate)
+    end
+end
+
+function Window:_resetCapsulePosition()
+    if self.unloaded then
+        return
+    end
+    -- Forget the drag override. The next collapse uses the default rectangle
+    -- for the current capsule style; the expanded window's position is untouched.
+    self._collapsedPosition = nil
+    if self._collapsedShown and not self.animating then
+        local position = self:_collapsedRect()
+        motion.tween(self.main, { Position = position }, tweenStyle)
     end
 end
 
@@ -11811,9 +11916,16 @@ function state:_add(a13, a14)
         self:_wrapChild(element)
     end
     self:_reflowRow()
-            if not self.window.hidden then
-        element:_setShown(true, true)
+    local ownerTab = self.tab
+    while ownerTab.tab do
+        ownerTab = ownerTab.tab
     end
+    if not self.window.hidden and not self.window.minimised and self.window.selectedTab == ownerTab then
+        element:_setShown(true, true)
+    else
+        ownerTab._elementsPending = true
+    end
+    self.window:_constructionCheckpoint(false)
 
     return element
 end
@@ -14647,7 +14759,7 @@ function state:_register(element)
     window(element, #self.elements * 10)
     self.window:_restoreLate(element)
 
-    if not self.window.hidden then
+    if not self.window.hidden and not self.window.minimised and self.window.selectedTab == self then
         element:_setShown(true, false)
     else
         -- [[The element stayed hidden with the window: remember that this tab
@@ -14655,6 +14767,7 @@ function state:_register(element)
         self._elementsPending = true
     end
 
+    self.window:_constructionCheckpoint(false)
     return element
 end
 
@@ -31976,105 +32089,105 @@ end)() end,
 
 local LineOffsets = {
     [2] = 12,
-    [3] = 180,
-    [5] = 604,
-    [6] = 639,
-    [7] = 684,
-    [8] = 590,
-    [9] = 801,
-    [10] = 911,
-    [11] = 1155,
-    [12] = 1382,
-    [13] = 1689,
-    [14] = 2407,
-    [15] = 4775,
-    [16] = 5120,
-    [17] = 5181,
-    [18] = 5551,
-    [19] = 5928,
-    [21] = 9113,
-    [22] = 9380,
-    [23] = 9824,
-    [24] = 10158,
-    [25] = 10219,
-    [26] = 10364,
-    [27] = 11730,
-    [28] = 11932,
-    [29] = 12202,
-    [30] = 12680,
-    [31] = 13130,
-    [32] = 13217,
-    [33] = 13782,
-    [34] = 14400,
-    [35] = 14790,
-    [36] = 14920,
-    [37] = 15084,
-    [38] = 15238,
-    [40] = 15800,
-    [41] = 15823,
-    [42] = 15840,
-    [43] = 15871,
-    [44] = 15993,
-    [45] = 16017,
-    [46] = 16066,
-    [47] = 15775,
-    [48] = 16188,
-    [49] = 16491,
-    [50] = 16522,
-    [51] = 16177,
-    [52] = 16565,
-    [53] = 16585,
-    [54] = 16617,
-    [55] = 16547,
-    [56] = 16724,
-    [57] = 16783,
-    [58] = 16843,
-    [60] = 16902,
-    [61] = 17067,
-    [62] = 16887,
-    [63] = 17627,
-    [64] = 17922,
-    [65] = 18578,
-    [66] = 20362,
-    [67] = 21503,
-    [68] = 23023,
-    [69] = 17129,
-    [70] = 28267,
-    [71] = 28329,
-    [72] = 28391,
-    [73] = 28466,
-    [74] = 28548,
-    [75] = 28610,
-    [76] = 28685,
-    [77] = 28760,
-    [78] = 28835,
-    [79] = 28910,
-    [80] = 28161,
-    [81] = 28972,
-    [82] = 29070,
-    [83] = 29248,
-    [84] = 29299,
-    [85] = 29329,
-    [86] = 29580,
-    [87] = 29629,
-    [88] = 30082,
-    [89] = 30100,
-    [90] = 30246,
-    [91] = 30345,
-    [92] = 30367,
-    [93] = 30417,
-    [94] = 30743,
-    [95] = 30779,
-    [96] = 30797,
-    [97] = 31146,
-    [98] = 31162,
-    [99] = 31213,
-    [100] = 31232,
-    [101] = 31474,
-    [102] = 31518,
-    [103] = 31731,
-    [104] = 31759,
-    [105] = 31770,
+    [3] = 184,
+    [5] = 608,
+    [6] = 643,
+    [7] = 688,
+    [8] = 594,
+    [9] = 805,
+    [10] = 915,
+    [11] = 1159,
+    [12] = 1386,
+    [13] = 1693,
+    [14] = 2411,
+    [15] = 4813,
+    [16] = 5166,
+    [17] = 5227,
+    [18] = 5597,
+    [19] = 5974,
+    [21] = 9218,
+    [22] = 9485,
+    [23] = 9929,
+    [24] = 10263,
+    [25] = 10324,
+    [26] = 10469,
+    [27] = 11835,
+    [28] = 12044,
+    [29] = 12314,
+    [30] = 12792,
+    [31] = 13242,
+    [32] = 13329,
+    [33] = 13894,
+    [34] = 14512,
+    [35] = 14903,
+    [36] = 15033,
+    [37] = 15197,
+    [38] = 15351,
+    [40] = 15913,
+    [41] = 15936,
+    [42] = 15953,
+    [43] = 15984,
+    [44] = 16106,
+    [45] = 16130,
+    [46] = 16179,
+    [47] = 15888,
+    [48] = 16301,
+    [49] = 16604,
+    [50] = 16635,
+    [51] = 16290,
+    [52] = 16678,
+    [53] = 16698,
+    [54] = 16730,
+    [55] = 16660,
+    [56] = 16837,
+    [57] = 16896,
+    [58] = 16956,
+    [60] = 17015,
+    [61] = 17180,
+    [62] = 17000,
+    [63] = 17740,
+    [64] = 18035,
+    [65] = 18691,
+    [66] = 20475,
+    [67] = 21616,
+    [68] = 23136,
+    [69] = 17242,
+    [70] = 28380,
+    [71] = 28442,
+    [72] = 28504,
+    [73] = 28579,
+    [74] = 28661,
+    [75] = 28723,
+    [76] = 28798,
+    [77] = 28873,
+    [78] = 28948,
+    [79] = 29023,
+    [80] = 28274,
+    [81] = 29085,
+    [82] = 29183,
+    [83] = 29361,
+    [84] = 29412,
+    [85] = 29442,
+    [86] = 29693,
+    [87] = 29742,
+    [88] = 30195,
+    [89] = 30213,
+    [90] = 30359,
+    [91] = 30458,
+    [92] = 30480,
+    [93] = 30530,
+    [94] = 30856,
+    [95] = 30892,
+    [96] = 30910,
+    [97] = 31259,
+    [98] = 31275,
+    [99] = 31326,
+    [100] = 31345,
+    [101] = 31587,
+    [102] = 31631,
+    [103] = 31844,
+    [104] = 31872,
+    [105] = 31883,
 }
 
 -- [[Misc AOT variable imports]]

@@ -148,14 +148,18 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 	end
 
 	if not window.unloaded then
-		-- [[Defer the auto-show by one tick so a script that builds its]]
-		-- [[tabs synchronously right after CreateWindow can finish]]
-		-- [[first: the window then appears once, fully populated, instead]]
-		-- [[of empty and filling in. An explicit Hide() cancels it.]]
+		-- Wait for a quiet frame. Construction may yield in large scripts;
+		-- don't auto-show a half-populated window at one of those boundaries.
 		task.defer(function()
-			if not window.unloaded and not window._autoShowCancelled then
-				window:Show()
-			end
+			local revision
+			repeat
+				revision = window._constructionRevision
+				task.wait()
+				if window.unloaded or window._autoShowCancelled then
+					return
+				end
+			until (window._constructionBusy or 0) == 0 and revision == window._constructionRevision
+			window:Show()
 		end)
 	end
 

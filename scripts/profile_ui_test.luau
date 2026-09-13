@@ -243,17 +243,17 @@ placeEntry.button.Activated:Fire()
 TestPump(0.1)
 eq(#copied, 1, "G2 one press copies once")
 eq(copied[1], tostring(game.PlaceId), "G2 the Place ID button copies the place ID")
-eq(placeEntry.icon.Image, window:ResolveIcon("check"), "G2 a successful copy swaps in the check icon")
+eq(placeEntry.icon.Image, TestImageUri(window:ResolveIcon("check")), "G2 a successful copy swaps in the check icon")
 eq(placeEntry.icon.ImageColor3, theme.Success, "G2 the check is drawn in the success green")
 eq(placeEntry.button.Text, "Copied", "G2 the button states the success")
 eq(window.profileTooltipLabel.Text, "Copied", "G2 ... and so does the open tooltip")
-expect(placeEntry.icon.Image ~= window:ResolveIcon("copy"), "G2 the copy glyph is gone while the check is up")
+expect(placeEntry.icon.Image ~= TestImageUri(window:ResolveIcon("copy")), "G2 the copy glyph is gone while the check is up")
 
 -- [[The job ID row copies its own value, not the place ID.]]
 jobEntry.button.Activated:Fire()
 TestPump(0.1)
 eq(copied[#copied], game.JobId, "G2 the job ID button copies the server's job ID")
-eq(jobEntry.icon.Image, window:ResolveIcon("check"), "G2 the job ID button flashes its own check")
+eq(jobEntry.icon.Image, TestImageUri(window:ResolveIcon("check")), "G2 the job ID button flashes its own check")
 
 -- [[Repeated presses: the flash restarts rather than stacking, so no earlier
 -- [[timer may restore the icon while a newer one is still running.]]
@@ -263,11 +263,11 @@ placeEntry.button.Activated:Fire()
 TestPump(0.5)
 eq(
 	placeEntry.icon.Image,
-	window:ResolveIcon("check"),
+	TestImageUri(window:ResolveIcon("check")),
 	"G2 a superseded timer never restores the icon early"
 )
 TestPump(1.0)
-eq(placeEntry.icon.Image, window:ResolveIcon("copy"), "G2 the copy glyph returns after the last flash")
+eq(placeEntry.icon.Image, TestImageUri(window:ResolveIcon("copy")), "G2 the copy glyph returns after the last flash")
 eq(placeEntry.icon.ImageColor3, theme.ActionColor, "G2 ... in the action colour")
 eq(placeEntry.button.Text, "Copy Place ID", "G2 the button goes back to naming the action")
 eq(window.profileTooltipLabel.Text, "Copy Place ID", "G2 ... and the open tooltip follows")
@@ -292,7 +292,7 @@ TestPump(0.3)
 placeEntry.button.Activated:Fire()
 TestPump(0.1)
 eq(placeEntry.button.Text, "Copiado", "G2 the success word follows the locale too")
-eq(window.profileCopyButtons.PlaceId.icon.Image, window:ResolveIcon("check"), "G2 the flash still runs under a locale")
+eq(window.profileCopyButtons.PlaceId.icon.Image, TestImageUri(window:ResolveIcon("check")), "G2 the flash still runs under a locale")
 TestPump(1.4)
 eq(placeEntry.button.Text, "Copiar ID del lugar", "G2 the idle word returns in the locale")
 window:SetLocale("en")
@@ -342,10 +342,7 @@ eq(placeLabel.Text, "Place ID", "G3 the place ID row keeps its label")
 -- [[resolved one is a real asset path inside the pack.
 -- [[A window replaced the previous one here: CreateWindow unloads the window
 -- [[that was active (anti-duplicate), so this runs last.
--- [[The image is re-applied through SetProfile once the images layer has
--- [[settled: in the harness there is no getcustomasset, so the deferred
--- [["remote image failed" answer clears the property that was set while the
--- [[card was being built.]]
+-- Cached HTTP images must become local Roblox asset URIs.
 local packIcons = {
 	{ pack = "lucide", premium = "lucideCrown", free = "lucideBadgeCheck" },
 	{ pack = "tabler", premium = "tablerCrown", free = "tablerBadge" },
@@ -367,8 +364,9 @@ for _, entry in packIcons do
 	packed:SetProfile({})
 	TestPump(0.2)
 	local premiumIcon = packed.profileTierIcon.Image
+	eq(premiumIcon, TestImageUri(packed.profileIconCache.crown), "G4 crown must use image loader")
 	expect(
-		string.find(premiumIcon, entry.premium .. ".png") ~= nil,
+		string.find(packed.profileIconCache.crown, entry.premium .. ".png") ~= nil,
 		"G4 the PREMIUM icon is the pack's own asset with "
 			.. pack
 			.. " (got "
@@ -386,8 +384,9 @@ for _, entry in packIcons do
 	TestPump(0.2)
 	eq(packed.profileTierLabel.Text, "FREEMIUM", "G4 a free account reads FREEMIUM with " .. pack)
 	local freeIcon = packed.profileTierIcon.Image
+	eq(freeIcon, TestImageUri(packed.profileIconCache["badge-check"]), "G4 badge must use image loader")
 	expect(
-		string.find(freeIcon, entry.free .. ".png") ~= nil,
+		string.find(packed.profileIconCache["badge-check"], entry.free .. ".png") ~= nil,
 		"G4 the FREEMIUM icon is the pack's own asset with "
 			.. pack
 			.. " (got "

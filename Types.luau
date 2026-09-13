@@ -361,11 +361,17 @@ export type IconCatalog = {
     Phosphor: IconPack,
     Heroicons: IconPack,
     Feather: IconPack,
+    -- [[`name` may be a bare icon name (searched in every pack, in priority]]
+    -- [[order) or a pack-qualified `"pack:name"`; `pack` addresses one pack.]]
     get: (name: string, pack: IconPack?) -> string?,
     getByPack: (pack: IconPack, name: string) -> string?,
     list: (pack: IconPack?) -> { string },
     packs: () -> { string },
     count: (pack: IconPack?) -> number,
+    isPack: (pack: string?) -> boolean,
+    priority: () -> { string },
+    loaded: () -> { string },
+    refreshCustom: () -> number,
     resolve: (value: (string | number)?, pack: IconPack?) -> (string | number)?,
 }
 

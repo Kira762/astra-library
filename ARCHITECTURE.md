@@ -32,7 +32,9 @@ Since the v1.1 patch set, the tree has changed in the following ways
 - `icons/init.luau` — pack entries are repo-relative PNG paths
   (`assets/icons/<pack>-pack/…`) mapped onto the repo's raw-GitHub base URL
   at resolve time, with an executor `getcustomasset` override; no `rbxassetid`
-  lookups.
+  lookups. A bare name searches the packs in priority order (lazily),
+  `"pack:name"` addresses one pack exactly, and the executor's `custom_asset`
+  folder is indexed once and checked before any pack.
 - `library_entrypoint.luau` — the active-window / anti-duplicate guard is
   backed by a `getgenv()`-backed global store in addition to the module
   local; in secure mode `CreateWindow` preloads window images and swaps in
@@ -257,8 +259,17 @@ consumed by the window UI; it is not a UI element itself.
 ## Phase 6 icon architecture
 
 - `icons/init.luau` — public API surface (`get`, `resolve`, `getByPack`,
-  `list`, `packs`, `count`, `isPack`, pack name constants) — API-compatible
-  with the old `utilities/icons.luau`.
+  `list`, `packs`, `count`, `isPack`, `priority`, `loaded`, `refreshCustom`,
+  pack name constants) — API-compatible with the old `utilities/icons.luau`.
+- Lookup rules: a bare name walks `PACK_ORDER` (lucide, material, tabler,
+  phosphor, heroicons, feather) and stops at the first pack that has it;
+  `"pack:name"` and the `pack` argument are strict (an explicit pack is never
+  overruled by the order, which is what the profile card's alias chain
+  depends on); names and pack names are case-sensitive and never corrected.
+- Custom assets are a folder (`custom_asset/`), read once with `listfiles`
+  and looked up by key (probe fallback with memoised misses where the
+  executor has no listing), subfolders allowed, one `getcustomasset` per used
+  path; `refreshCustom()` re-reads it.
 - `icons/lucide.luau`, `icons/material.luau`, … — one module per pack, each a
   pure data table. Packs are required lazily: the catalog loads on first
   lookup for that pack, then stays cached (module-level require cache).

@@ -2,6 +2,43 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-13 — Icon resolver: name-only lookup across every pack, qualified names, indexed custom assets
+
+- **A bare icon name is searched in every built-in pack.** `Astra.Icons.get("home")`
+  used to answer from lucide alone and returned nil when lucide did not have
+  the name (lucide spells it `house`); it now walks a fixed priority order —
+  lucide, material, tabler, phosphor, heroicons, feather — and the first pack
+  that has the name wins, so `get`, `resolve` and `window:ResolveIcon` work
+  without picking a pack. The search stays lazy: `get("house")` reads the
+  lucide table and stops, and `Icons.loaded()` shows exactly which packs a
+  session has read (the new suite asserts one lucide name loads one pack).
+- **`"pack:name"` addresses one pack exactly**, for the cases where it has to
+  be the pack you asked for: `Astra.Icons.get("material:home")`,
+  `resolve("tabler:home")`, `window:ResolveIcon("lucide:house")`. Names and
+  pack names stay case-sensitive — `Home`, `HOME` and `Lucide:house` resolve
+  to nothing rather than to a corrected name or a neighbouring pack — and an
+  unknown pack warns once, not once per lookup, instead of substituting.
+- **An explicit pack is never overruled.** `resolve(name, pack)`, `get(name, pack)`
+  and the window's own `ResolveIcon` answer from that pack or not at all,
+  which is the behaviour the profile card's alias chain relies on (its tier
+  pill keeps drawing the active pack's glyph); the cross-pack search is the
+  no-pack form.
+- **Custom assets are indexed, not probed.** `custom_asset/` is read once with
+  `listfiles` and looked up by key (subfolders included), so a name with no
+  file there costs nothing: a realistic 16-element page went from 110
+  `getcustomasset` calls to 0 when the folder is absent and 1 when a file is
+  used, and a used file is imported once per path. Executors without
+  `listfiles` keep the historic extension probe (png, jpg, jpeg, webp, then
+  the bare name) with hits *and* misses memoised; `Icons.refreshCustom()`
+  re-reads the folder after files change at runtime.
+- **Everything that worked before still works**: the optional `pack`
+  argument, `getByPack`, `list`, `packs`, `count`, `isPack`, the
+  `Icons.Lucide`… constants, direct pack tables (`Astra.Icons.lucide`),
+  `resolve` passing asset ids / `rbx*://` / `http(s)://` through untouched,
+  and the pre-existing fallback (an unresolved value comes back unchanged).
+- Suite: `scripts/icons_test.sh` pins all of the above; `Types.luau` gains
+  the new surface (`isPack`, `priority`, `loaded`, `refreshCustom`).
+
 ## 2026-09-13 — Opening the menu touches only the tab you are looking at
 
 - **Tabs nobody has opened are no longer walked.** `_revealElements`,

@@ -363,17 +363,59 @@ window:ChangeTheme({
 ### Icons
 
 ```lua
-Astra.Icons.get("house")
-Astra.Icons.get("play", "material")
+Astra.Icons.get("house")                -- searched in every pack, priority order
+Astra.Icons.get("material:home")        -- exactly this pack (`pack:name`)
+Astra.Icons.get("home", "tabler")       -- the optional pack argument does the same
 Astra.Icons.getByPack("tabler", "home")
+Astra.Icons.resolve("house")            -- a URL / asset id, ready for an Image
 Astra.Icons.list("lucide")
-Astra.Icons.packs() Astra.Icons.count()
-Astra.Icons.isPack("feather")
-window:ResolveIcon("house")
+Astra.Icons.packs() Astra.Icons.count() Astra.Icons.isPack("feather")
+Astra.Icons.priority() Astra.Icons.loaded()      -- the search order / packs read so far
+Astra.Icons.refreshCustom()                      -- re-read custom_asset/
+window:ResolveIcon("house")             -- resolves inside the window's own iconPack
 ```
 `iconPack`: `"lucide" | "material" | "tabler" | "phosphor" | "heroicons" | "feather"`.
 
-Icon names resolve to 48x48 PNGs that ship in this repo under `assets/icons/<pack>/`; the resolver maps them to the repo's raw GitHub URL (or your executor's `getcustomasset` if provided), so no `rbxassetid` lookups are needed. See `assets/icons/feather-pack.md` and `assets/icons/tabler-pack.md` for pack details.
+**Name-only lookup.** A bare name is searched in every pack, in a fixed order —
+lucide, material, tabler, phosphor, heroicons, feather (`Astra.Icons.priority()`) —
+and the first pack that has it wins. Nothing to pick, nothing to configure: lucide
+spells the home glyph `house`, material has no `house` but has `home`, so both
+`get("house")` and `get("home")` work, the latter from material. A name that exists
+in several packs always answers from the earlier pack. The search is lazy: a pack's
+table is read on first lookup, and only the packs up to the hit are read, so a lucide
+name costs one pack. `Astra.Icons.loaded()` tells you which packs a session has read.
+
+**Qualified names.** When it has to be a specific pack, qualify it —
+`get("tabler:home")`, `resolve("lucide:house")`, `window:ResolveIcon("material:home")`
+— or pass the pack as the second argument. An explicit pack is never overruled by the
+order: if that pack has no such icon the request resolves to nothing (and `resolve`
+hands back the value it was given). Names, pack names and the `pack:` prefix are
+matched exactly as written; `Home`, `HOME` and `Lucide:house` are not `home`, and no
+lookup is lowercased, corrected or fuzzed. An unknown pack name warns once per pack
+and answers nothing, rather than substituting a pack you did not ask for.
+
+**The window helper stays pack-scoped.** `window:ResolveIcon(name)` and
+`ResolveIcon(name, pack)` answer from the window's own `iconPack` (or the pack you
+pass) or not at all — UI that draws per-pack glyphs keeps its old behaviour. For the
+cross-pack search call `Astra.Icons.get` / `Astra.Icons.resolve`.
+
+Icon names resolve to 48x48 PNGs that ship in this repo under
+`assets/icons/<pack>-pack/`; the resolver maps them onto the repo's raw-GitHub URL
+(or your executor's `getcustomasset` override when one is provided), so no
+`rbxassetid` lookups are needed. Values already usable as-is — numbers,
+`rbxassetid://…`, `rbxasset://…`, `rbxthumb://…`, `http(s)://…` — pass through
+untouched, and an unresolved value comes back unchanged. See
+`assets/icons/feather-pack.md` and `assets/icons/tabler-pack.md` for pack details.
+
+**Custom assets.** A `custom_asset/` folder next to your script takes precedence
+over the packs at resolve time: one file per icon name, in `.png`, `.jpg`, `.jpeg`,
+`.webp` (tried in that order) or with no extension, subfolders allowed —
+`custom_asset/brand/house.png` is asked for as `get("brand/house")`. With an executor
+that provides `listfiles` the folder is indexed once and looked up by name, so names
+you have no file for cost nothing; without it the resolver keeps the historic
+extension probe. Either way a file is imported at most once per runtime, misses are
+remembered, and `Astra.Icons.refreshCustom()` re-reads the folder after you add or
+remove files. Qualified names are never shadowed by the folder.
 
 ### Motion (animation)
 

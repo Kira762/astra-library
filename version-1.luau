@@ -540,11 +540,17 @@ export type IconCatalog = {
     Phosphor: IconPack,
     Heroicons: IconPack,
     Feather: IconPack,
+    -- [[`name` may be a bare icon name (searched in every pack, in priority]]
+    -- [[order) or a pack-qualified `"pack:name"`; `pack` addresses one pack.]]
     get: (name: string, pack: IconPack?) -> string?,
     getByPack: (pack: IconPack, name: string) -> string?,
     list: (pack: IconPack?) -> { string },
     packs: () -> { string },
     count: (pack: IconPack?) -> number,
+    isPack: (pack: string?) -> boolean,
+    priority: () -> { string },
+    loaded: () -> { string },
+    refreshCustom: () -> number,
     resolve: (value: (string | number)?, pack: IconPack?) -> (string | number)?,
 }
 
@@ -17108,21 +17114,36 @@ end)() end,
 -- [[]]
 -- [[Public API is compatible with the previous single-module catalog:]]
 -- [[local Icons = require(path.to.icons)]]
--- [[Icons.get("arrow-down")            -- defaults to the lucide pack]]
--- [[Icons.get("arrow-down", "lucide")  -- explicit pack]]
+-- [[Icons.get("arrow-down")            -- searches every pack in priority order]]
+-- [[Icons.get("arrow-down", "lucide")  -- one pack only]]
+-- [[Icons.get("material:home")         -- pack-qualified: that pack, exactly]]
 -- [[Icons.getByPack("material", "add")]]
 -- [[Icons.resolve(value, pack)]]
 -- [[Icons.list(pack) / Icons.packs() / Icons.count(pack) / Icons.isPack(pack)]]
+-- [[Icons.priority() / Icons.loaded() / Icons.refreshCustom()]]
 -- [[Icons.Lucide == "lucide" (and the other pack name constants)]]
 -- [[]]
 -- [[Packs are lazy: each pack's data table lives in its own module and is]]
 -- [[required on first lookup for that pack only, then kept cached. No HTTP]]
 -- [[requests happen between internal modules; pack data is static.]]
+-- [[]]
+-- [[Lookups are exact. Icon names and pack names are case-sensitive: nothing]]
+-- [[is lowercased, corrected or fuzzy-matched, so a miss is a miss. A name]]
+-- [[that exists in several packs resolves to the first pack listed by]]
+-- [[`Icons.priority()` (lucide, material, tabler, phosphor, heroicons,]]
+-- [[feather); an explicit pack - `get(name, pack)` or the `"pack:name"` form -]]
+-- [[is never overridden by that order, and an unknown or mis-cased pack name]]
+-- [[resolves to nothing rather than to some other pack.]]
 
 local icons = {}
 
 -- [[Raw GitHub base URL for all icons (kept for API compatibility).]]
 icons.BASE = "https://raw.githubusercontent.com/Haijo12/sisys_ididh/main"
+
+-- [[Pack priority for a bare name. Deterministic, and also the order packs]]
+-- [[load in: the search stops at the first pack that has the name, so a lucide]]
+-- [[icon never pulls in the other five tables.]]
+local PACK_ORDER = { "lucide", "material", "tabler", "phosphor", "heroicons", "feather" }
 
 -- [[Pack registry: pack name -> lazy loader. Each loader requires the pack]]
 -- [[module on demand; require() itself caches the module table afterwards.]]
@@ -17195,30 +17216,336 @@ function icons.isPack(pack: string?): boolean
     return pack ~= nil and type(pack) == "string" and packLoaders[pack] ~= nil
 end
 
+-- [[The order a bare name is searched in (a copy: callers cannot reorder it).]]
+function icons.priority(): { string }
+    local order = table.create(#PACK_ORDER)
+    for index, pack in ipairs(PACK_ORDER) do
+        order[index] = pack
+    end
+    return order
+end
+
+-- [[Which packs have been loaded so far. Laziness is part of the contract]]
+-- [[(startup must not read 10.6k lines of tables to show one icon), so it is]]
+-- [[observable: a suite asserts that one lucide name loads one pack.]]
+function icons.loaded(): { string }
+    local names = {}
+    for pack in loadedPacks do
+        table.insert(names, pack)
+    end
+    table.sort(names)
+    return names
+end
+
 local namedAssets = {
     Astra = "assets/Astra.png",
     Sirius = "assets/Sirius.png",
 }
 
--- [[Get icon URL by name (defaults to lucide pack)]]
-function icons.get(name: string, pack: string?): string?
-    if namedAssets[name] then
-        return namedAssets[name]
+local function environment(): any
+    return (getfenv and getfenv()) or _G
+end
+
+-- [[Warnings are once per unknown pack name: a typo in a hot path must not]]
+-- [[spam the console every frame, but the first occurrence has to be findable.]]
+local warnedPacks: { [string]: boolean } = {}
+
+local function report(message: string)
+    local env = environment()
+    if type(env.warn) == "function" then
+        pcall(env.warn, message)
     end
-    pack = pack or "lucide"
+end
+
+local function warnUnknownPack(pack: string, request: string)
+    if warnedPacks[pack] then
+        return
+    end
+    warnedPacks[pack] = true
+    report(`[Icons] Unknown icon pack "{pack}" in "{request}": pack names are case-sensitive ({table.concat(PACK_ORDER, ", ")})`)
+end
+
+-- [[`"pack:name"` -> pack, name. Split on the first colon only, so an icon]]
+-- [[name that itself contains a colon is still addressable. No pack prefix]]
+-- [[means "search every pack".]]
+local function splitRequest(value: string): (string?, string)
+    local colon = string.find(value, ":", 1, true)
+    if not colon then
+        return nil, value
+    end
+    return string.sub(value, 1, colon - 1), string.sub(value, colon + 1)
+end
+
+local function findInPack(pack: string, name: string): string?
     local data = packTable(pack)
     if not data then
-        warn("[Icons] Unknown pack: " .. pack)
         return nil
     end
     return data[name]
 end
 
-local customAssetFolder = "custom_asset"
 local assetBase = "https://raw.githubusercontent.com/Kira762/astra-version-1/main/"
-local customAssetCache: { [string]: string } = {}
 
--- [[Resolve a component icon. Checks custom_asset folder first, then icon packs, then passes through existing URLs.]]
+local function prefixed(resolved: string?): string?
+    if type(resolved) == "string" and string.sub(resolved, 1, 7) == "assets/" then
+        return assetBase .. resolved
+    end
+    return resolved
+end
+
+-- =========================================================================
+-- Custom assets
+-- =========================================================================
+-- [[User files under `custom_asset/` win over every pack. The folder is]]
+-- [[indexed once with the executor's `listfiles` instead of being probed per]]
+-- [[lookup: a name that has no file there costs nothing after the first]]
+-- [[search (a 16-element page used to spend 195 getcustomasset calls on]]
+-- [[misses alone), and a file that is used is imported once per path.]]
+-- [[]]
+-- [[Executors without `listfiles` keep the historic per-name probe, now]]
+-- [[memoised - including the misses, which is what repeats do not re-run.]]
+-- [[]]
+-- [[Files may live in subfolders (`custom_asset/brand/house.png` is looked up]]
+-- [[as `"brand/house"`). Extensions keep the historic set and preference]]
+-- [[order: png, jpg, jpeg, webp, then a bare filename with no extension.]]
+
+local customAssetFolder = "custom_asset"
+local customExtensions = { ".png", ".jpg", ".jpeg", ".webp" }
+
+local customIndex: { [string]: string }? = nil
+local customIndexBuilt = false
+local customProbed: { [string]: string? } = {}
+local customUris: { [string]: string? } = {}
+local resolved: { [string]: string? } = {}
+
+-- [[A custom file's lookup key (its path inside the folder, without the]]
+-- [[extension) and the rank of that extension. Files with an unknown]]
+-- [[extension are not indexed; a bare filename ranks last, as it always did.]]
+local function customKey(path: string): (string?, number?)
+    local lower = string.lower(path)
+    for rank, ext in ipairs(customExtensions) do
+        if string.sub(lower, -#ext) == ext then
+            return string.sub(path, 1, #path - #ext), rank
+        end
+    end
+    local base = string.match(lower, "[^/]*$") or lower
+    if not string.find(base, ".", 1, true) then
+        return path, #customExtensions + 1
+    end
+    return nil, nil
+end
+
+local function buildCustomIndex(): { [string]: string }?
+    local env = environment()
+    if type(env.listfiles) ~= "function" then
+        return nil
+    end
+    local ok, entries = pcall(env.listfiles, customAssetFolder)
+    if not ok or type(entries) ~= "table" then
+        -- [[No folder (or no listing support right now): an empty index, so]]
+        -- [[every later lookup is a table miss instead of a filesystem probe.]]
+        return {}
+    end
+    local index: { [string]: string } = {}
+    local ranks: { [string]: number } = {}
+    for _, entry in ipairs(entries) do
+        if type(entry) == "string" and entry ~= "" then
+            local key, rank = customKey(entry)
+            if key then
+                local prefix = customAssetFolder .. "/"
+                if string.sub(key, 1, #prefix) == prefix then
+                    key = string.sub(key, #prefix + 1)
+                end
+                local previous = ranks[key]
+                if previous == nil or rank < previous then
+                    index[key] = entry
+                    ranks[key] = rank
+                end
+            end
+        end
+    end
+    return index
+end
+
+local function customFile(value: string): string?
+    if not customIndexBuilt then
+        customIndex = buildCustomIndex()
+        customIndexBuilt = true
+    end
+    local index = customIndex
+    if index then
+        return index[value]
+    end
+    local probed = customProbed[value]
+    if probed ~= nil then
+        return probed or nil
+    end
+    local env = environment()
+    if type(env.getcustomasset) ~= "function" then
+        customProbed[value] = false
+        return nil
+    end
+    for _, ext in ipairs(customExtensions) do
+        local path = customAssetFolder .. "/" .. value .. ext
+        local ok, uri = pcall(env.getcustomasset, path)
+        if ok and type(uri) == "string" and uri ~= "" then
+            customProbed[value] = path
+            customUris[path] = uri
+            return path
+        end
+    end
+    -- [[A file with no extension is the last accepted form (historic).]]
+    local bare = customAssetFolder .. "/" .. value
+    local ok, uri = pcall(env.getcustomasset, bare)
+    if ok and type(uri) == "string" and uri ~= "" then
+        customProbed[value] = bare
+        customUris[bare] = uri
+        return bare
+    end
+    customProbed[value] = false
+    return nil
+end
+
+local function customUri(value: string): string?
+    local path = customFile(value)
+    if not path then
+        return nil
+    end
+    local cached = customUris[path]
+    if cached ~= nil then
+        return cached or nil
+    end
+    local env = environment()
+    local ok, uri = pcall(env.getcustomasset, path)
+    if ok and type(uri) == "string" and uri ~= "" then
+        customUris[path] = uri
+        return uri
+    end
+    customUris[path] = false
+    return nil
+end
+
+-- [[Re-read the custom asset folder and drop every memo that depended on it]]
+-- [[(including resolved icons). Call it after adding or replacing files at]]
+-- [[runtime. Returns how many files the listing found; 0 means the executor]]
+-- [[has no listfiles and lookups fall back to the per-name probe.]]
+function icons.refreshCustom(): number
+    customIndex = buildCustomIndex()
+    customIndexBuilt = true
+    table.clear(customProbed)
+    table.clear(customUris)
+    table.clear(resolved)
+    local count = 0
+    for _ in customIndex or {} do
+        count += 1
+    end
+    return count
+end
+
+-- =========================================================================
+-- Lookup
+-- =========================================================================
+
+-- [[Get icon path by name. Without a pack, every pack is searched in]]
+-- [[`icons.priority()` order and the first match wins.]]
+function icons.get(name: string, pack: string?): string?
+    if type(name) ~= "string" or name == "" then
+        return nil
+    end
+    if namedAssets[name] then
+        return namedAssets[name]
+    end
+    local qualifiedPack, qualifiedName = splitRequest(name)
+    if qualifiedPack ~= nil then
+        if not packLoaders[qualifiedPack] then
+            warnUnknownPack(qualifiedPack, name)
+            return nil
+        end
+        if qualifiedName == "" then
+            return nil
+        end
+        return findInPack(qualifiedPack, qualifiedName)
+    end
+    if pack ~= nil then
+        if type(pack) ~= "string" or not packLoaders[pack] then
+            warnUnknownPack(tostring(pack), name)
+            return nil
+        end
+        return findInPack(pack, name)
+    end
+    for _, candidate in ipairs(PACK_ORDER) do
+        local hit = findInPack(candidate, name)
+        if hit then
+            return hit
+        end
+    end
+    return nil
+end
+
+-- [[Get icon URL by pack and name (a pack-qualified `get`).]]
+function icons.getByPack(pack: string, name: string): string?
+    return icons.get(name, pack)
+end
+
+-- [[The loadable form of one request, or nil when nothing matched.]]
+local function lookup(value: string, pack: string?): string?
+    if namedAssets[value] then
+        return prefixed(namedAssets[value])
+    end
+    local qualifiedPack, qualifiedName = splitRequest(value)
+    if qualifiedPack ~= nil then
+        if not packLoaders[qualifiedPack] then
+            warnUnknownPack(qualifiedPack, value)
+            return nil
+        end
+        if qualifiedName == "" then
+            return nil
+        end
+        return prefixed(findInPack(qualifiedPack, qualifiedName))
+    end
+    if pack ~= nil then
+        -- [[An explicit pack is exactly that: `resolve(name, "material")` and
+        -- [[`window:ResolveIcon` (which passes the window's pack) answer from
+        -- [[that pack or not at all. Falling back here would quietly overrule
+        -- [[the pack a host picked, and it is what the profile card's alias
+        -- [[chain relies on: a name the active pack does not have has to come
+        -- [[back unresolved so the next candidate is tried.]]
+        if type(pack) ~= "string" or not packLoaders[pack] then
+            warnUnknownPack(tostring(pack), value)
+            return nil
+        end
+        return prefixed(findInPack(pack, value))
+    end
+    for _, candidate in ipairs(PACK_ORDER) do
+        local hit = prefixed(findInPack(candidate, value))
+        if hit then
+            return hit
+        end
+    end
+    return nil
+end
+
+local function isLoadable(value: string): boolean
+    return string.match(value, "^rbxassetid://") ~= nil
+        or string.match(value, "^rbxasset://") ~= nil
+        or string.match(value, "^rbxthumb://") ~= nil
+        or string.match(value, "^https?://") ~= nil
+end
+
+-- [[Resolve a component icon.]]
+-- [[]]
+-- [[  1. values that are already loadable pass through untouched,]]
+-- [[  2. a file in the custom asset folder wins over every pack,]]
+-- [[  3. `"pack:name"` is exact - that pack or nothing,]]
+-- [[  4. with no pack, a bare name is looked up in `icons.priority()` order]]
+-- [[     and the first pack that has it wins; with a pack, that pack answers]]
+-- [[     or the request stays unresolved (explicit packs are never overruled),]]
+-- [[  5. nothing matches: the value comes back unchanged, which is the]]
+-- [[     fallback the UI has always used.]]
+-- [[]]
+-- [[Results are memoised per (request, pack): repeated resolves of the same]]
+-- [[icon - and every element that asks for it - reuse one answer, and a]]
+-- [[custom file's imported URI is taken from the executor once.]]
 function icons.resolve(value: (string | number)?, pack: string?): (string | number)?
     if value == nil or value == 0 or value == "" then
         return value
@@ -17226,40 +17553,17 @@ function icons.resolve(value: (string | number)?, pack: string?): (string | numb
     if type(value) ~= "string" then
         return value
     end
-    if string.match(value, "^rbxassetid://")
-        or string.match(value, "^rbxasset://")
-        or string.match(value, "^rbxthumb://")
-        or string.match(value, "^https?://")
-    then
+    if isLoadable(value) then
         return value
     end
-    -- [[Check custom_asset folder]]
-    local cached = customAssetCache[value]
-    if cached then
-        return cached
+    local key = (if type(pack) == "string" then pack else "") .. "\0" .. value
+    local cached = resolved[key]
+    if cached ~= nil then
+        return if cached == false then value else cached
     end
-    local env = getfenv and getfenv() or _G
-    if type(env.getcustomasset) == "function" then
-        local exts = { ".png", ".jpg", ".jpeg", ".webp", "" }
-        for _, ext in exts do
-            local filePath = customAssetFolder .. "/" .. value .. ext
-            local ok, uri = pcall(env.getcustomasset, filePath)
-            if ok and type(uri) == "string" and uri ~= "" then
-                customAssetCache[value] = uri
-                return uri
-            end
-        end
-    end
-    local resolved = icons.get(value, pack)
-    if type(resolved) == "string" and string.sub(resolved, 1, 7) == "assets/" then
-        return assetBase .. resolved
-    end
-    return resolved or value
-end
-
--- [[Get icon URL by pack and name]]
-function icons.getByPack(pack: string, name: string): string?
-    return icons.get(name, pack)
+    local hit = customUri(value) or lookup(value, pack)
+    resolved[key] = hit or false
+    return hit or value
 end
 
 -- [[List all available icon names in a pack]]
@@ -17279,7 +17583,11 @@ end
 
 -- [[List all available packs]]
 function icons.packs(): { string }
-    return { "lucide", "material", "tabler", "phosphor", "heroicons", "feather" }
+    local names = table.create(#PACK_ORDER)
+    for index, pack in ipairs(PACK_ORDER) do
+        names[index] = pack
+    end
+    return names
 end
 
 -- [[Count icons in a pack (loads that pack on demand)]]
@@ -31653,104 +31961,104 @@ end)() end,
 local LineOffsets = {
     [2] = 12,
     [3] = 180,
-    [5] = 598,
-    [6] = 633,
-    [7] = 678,
-    [8] = 584,
-    [9] = 795,
-    [10] = 905,
-    [11] = 1149,
-    [12] = 1376,
-    [13] = 1683,
-    [14] = 2401,
-    [15] = 4769,
-    [16] = 5114,
-    [17] = 5175,
-    [18] = 5545,
-    [19] = 5922,
-    [21] = 9107,
-    [22] = 9374,
-    [23] = 9818,
-    [24] = 10152,
-    [25] = 10213,
-    [26] = 10358,
-    [27] = 11724,
-    [28] = 11926,
-    [29] = 12196,
-    [30] = 12658,
-    [31] = 13108,
-    [32] = 13195,
-    [33] = 13760,
-    [34] = 14378,
-    [35] = 14768,
-    [36] = 14898,
-    [37] = 15062,
-    [38] = 15216,
-    [40] = 15778,
-    [41] = 15801,
-    [42] = 15818,
-    [43] = 15849,
-    [44] = 15971,
-    [45] = 15995,
-    [46] = 16044,
-    [47] = 15753,
-    [48] = 16166,
-    [49] = 16469,
-    [50] = 16500,
-    [51] = 16155,
-    [52] = 16543,
-    [53] = 16563,
-    [54] = 16595,
-    [55] = 16525,
-    [56] = 16702,
-    [57] = 16761,
-    [58] = 16821,
-    [60] = 16880,
-    [61] = 17045,
-    [62] = 16865,
-    [63] = 17303,
-    [64] = 17598,
-    [65] = 18254,
-    [66] = 20038,
-    [67] = 21179,
-    [68] = 22699,
-    [69] = 17107,
-    [70] = 27943,
-    [71] = 28005,
-    [72] = 28067,
-    [73] = 28142,
-    [74] = 28224,
-    [75] = 28286,
-    [76] = 28361,
-    [77] = 28436,
-    [78] = 28511,
-    [79] = 28586,
-    [80] = 27837,
-    [81] = 28648,
-    [82] = 28746,
-    [83] = 28924,
-    [84] = 28975,
-    [85] = 29005,
-    [86] = 29256,
-    [87] = 29305,
-    [88] = 29758,
-    [89] = 29776,
-    [90] = 29922,
-    [91] = 30021,
-    [92] = 30043,
-    [93] = 30093,
-    [94] = 30419,
-    [95] = 30455,
-    [96] = 30473,
-    [97] = 30822,
-    [98] = 30838,
-    [99] = 30889,
-    [100] = 30908,
-    [101] = 31150,
-    [102] = 31194,
-    [103] = 31407,
-    [104] = 31435,
-    [105] = 31446,
+    [5] = 604,
+    [6] = 639,
+    [7] = 684,
+    [8] = 590,
+    [9] = 801,
+    [10] = 911,
+    [11] = 1155,
+    [12] = 1382,
+    [13] = 1689,
+    [14] = 2407,
+    [15] = 4775,
+    [16] = 5120,
+    [17] = 5181,
+    [18] = 5551,
+    [19] = 5928,
+    [21] = 9113,
+    [22] = 9380,
+    [23] = 9824,
+    [24] = 10158,
+    [25] = 10219,
+    [26] = 10364,
+    [27] = 11730,
+    [28] = 11932,
+    [29] = 12202,
+    [30] = 12664,
+    [31] = 13114,
+    [32] = 13201,
+    [33] = 13766,
+    [34] = 14384,
+    [35] = 14774,
+    [36] = 14904,
+    [37] = 15068,
+    [38] = 15222,
+    [40] = 15784,
+    [41] = 15807,
+    [42] = 15824,
+    [43] = 15855,
+    [44] = 15977,
+    [45] = 16001,
+    [46] = 16050,
+    [47] = 15759,
+    [48] = 16172,
+    [49] = 16475,
+    [50] = 16506,
+    [51] = 16161,
+    [52] = 16549,
+    [53] = 16569,
+    [54] = 16601,
+    [55] = 16531,
+    [56] = 16708,
+    [57] = 16767,
+    [58] = 16827,
+    [60] = 16886,
+    [61] = 17051,
+    [62] = 16871,
+    [63] = 17611,
+    [64] = 17906,
+    [65] = 18562,
+    [66] = 20346,
+    [67] = 21487,
+    [68] = 23007,
+    [69] = 17113,
+    [70] = 28251,
+    [71] = 28313,
+    [72] = 28375,
+    [73] = 28450,
+    [74] = 28532,
+    [75] = 28594,
+    [76] = 28669,
+    [77] = 28744,
+    [78] = 28819,
+    [79] = 28894,
+    [80] = 28145,
+    [81] = 28956,
+    [82] = 29054,
+    [83] = 29232,
+    [84] = 29283,
+    [85] = 29313,
+    [86] = 29564,
+    [87] = 29613,
+    [88] = 30066,
+    [89] = 30084,
+    [90] = 30230,
+    [91] = 30329,
+    [92] = 30351,
+    [93] = 30401,
+    [94] = 30727,
+    [95] = 30763,
+    [96] = 30781,
+    [97] = 31130,
+    [98] = 31146,
+    [99] = 31197,
+    [100] = 31216,
+    [101] = 31458,
+    [102] = 31502,
+    [103] = 31715,
+    [104] = 31743,
+    [105] = 31754,
 }
 
 -- [[Misc AOT variable imports]]

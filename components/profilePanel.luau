@@ -35,7 +35,7 @@ local network = require(utilities.network)
 --                Account       user ID (+ COPY), join date, account age,
 --                              key (+ COPY), whitelist
 --                Current Game  thumbnail, game name, place ID (+ COPY)
---                Server        players, server ID (+ COPY)
+--                Server        players, job ID (+ COPY)
 --                User Session  time in server
 --
 --   Every plate, heading, row and pill on the card is styled with the very
@@ -89,6 +89,12 @@ local refreshInterval = 1
 -- [[How long a copy action keeps its green check before the copy icon]]
 -- [[returns.]]
 local copyFlashDuration = 1.2
+-- [[Copy button wording: the idle label is built from the row's own name]]
+-- [[("Copy " .. "Job ID"), the confirmation stands alone ("Copied"). Both go]]
+-- [[through locale.resolve, so a host can translate them by their source]]
+-- [[strings like every other line on the card.]]
+local copyLabelPrefix = "Copy "
+local copiedLabel = "Copied"
 -- [[Tier pill box: measured from its own label so any tier word fits.]]
 local tierHeight = 16
 local tierPaddingLeft = 6
@@ -218,7 +224,7 @@ end
 
 -- [[The "Reveal profile details" toggle (persisted under the legacy]]
 -- [[`showFullUsername` key). Off = every identifying value on the card is]]
--- [[masked; on = display name, username, user ID, place ID, server ID and]]
+-- [[masked; on = display name, username, user ID, place ID, job ID and]]
 -- [[license key show in full.]]
 function profilePanel.revealEnabled(window): boolean
     return window.settings.showFullUsername == true
@@ -377,6 +383,93 @@ local function nowSeconds(): number?
 end
 
 -- =========================================================================
+-- Card icons
+-- =========================================================================
+-- [[Every icon the card draws, written as the lucide name (the library's
+-- [[default pack) followed by the names the other packs ship for the same
+-- [[idea. A window created with tabler / phosphor / heroicons / feather /
+-- [[material therefore draws the card's icons as well, instead of leaving an
+-- [[empty square wherever the backend pack does not carry the lucide name —
+-- [[which is exactly what the tier pill used to do: its badge is a lucide-only
+-- [[name, so FREEMIUM showed a word with no icon beside it and the pill's
+-- [[crown vanished the same way on the packs without one.
+-- [[The first name the active pack really has wins, and because every list
+-- [[starts with the lucide name the default pack keeps the exact icon it had
+-- [[before this table existed.]]
+local iconAliases = {
+    ["id-card"] = {
+        "id-card",
+        "id-badge",
+        "identification-card",
+        "identification-badge",
+        "identification",
+        "credit-card",
+        "account_box",
+        "user-square",
+    },
+    ["calendar-days"] = { "calendar-days", "calendar", "date_range", "calendar_month", "calendar-today" },
+    hourglass = { "hourglass", "hourglass-empty", "hourglass_empty", "timer", "clock" },
+    ["key-round"] = { "key-round", "key", "vpn_key", "keyhole", "lock" },
+    ["shield-check"] = { "shield-check", "verified_user", "security", "shield" },
+    ["user-round"] = { "user-round", "user", "person", "account_circle", "account-box" },
+    ["gamepad-2"] = {
+        "gamepad-2",
+        "gamepad",
+        "device-gamepad-2",
+        "device-gamepad",
+        "game-controller",
+        "sports_esports",
+        "cube",
+        "globe",
+    },
+    users = { "users", "users-alt", "user-group", "group", "people", "person" },
+    server = { "server", "dns", "database", "storage", "hard-drive", "cloud" },
+    activity = { "activity", "pulse", "bolt", "timeline", "show_chart", "history" },
+    clock = { "clock", "access_time", "schedule", "timer" },
+    -- [[Tier pill: the crown for a paid membership, a badge for a free one.]]
+    crown = { "crown", "star", "award", "medal" },
+    ["badge-check"] = {
+        "badge-check",
+        "check-badge",
+        "seal-check",
+        "verified_user",
+        "badge",
+        "award",
+        "star",
+    },
+    -- [[Copy actions: the copy glyph and the check it flashes on success.]]
+    copy = { "copy", "content_copy", "clipboard", "clipboard-copy", "file_copy", "document-duplicate" },
+    check = { "check", "done", "circle-check", "check-circle" },
+}
+
+-- [[Resolve one of those names against the window's active pack. The resolver
+-- [[hands an unknown name straight back, so the first candidate that comes
+-- [[back changed is the one the pack actually ships; the answer is cached per
+-- [[window because a window's pack never changes.]]
+local function cardIcon(window, name: string): string?
+    local cache = window.profileIconCache
+    if not cache then
+        cache = {}
+        window.profileIconCache = cache
+    end
+    local cached = cache[name]
+    if cached ~= nil then
+        return cached
+    end
+    local resolved = nil
+    for _, candidate in iconAliases[name] or { name } do
+        local value = window:ResolveIcon(candidate)
+        if type(value) == "string" and value ~= "" and value ~= candidate then
+            resolved = value
+            break
+        end
+    end
+    resolved = resolved or window:ResolveIcon(name)
+    cache[name] = resolved
+    return resolved
+end
+
+-- =========================================================================
 -- Data sources
 -- =========================================================================
 -- [[Every value on the card comes from one of these, with a neutral fallback]]
@@ -395,7 +488,7 @@ end
 --   place ID                           DataModel.PlaceId
 --   game thumbnail                     thumbnails.roblox.com (universe id)
 --   players                            Players:GetPlayers() / Players.MaxPlayers
---   server ID                          DataModel.JobId
+--   job ID                             DataModel.JobId
 --   session time                       os.clock() since the client loaded
 --   key / whitelist                    supplied by the host through
 --                                      Window:SetProfile — no built-in store
@@ -842,7 +935,10 @@ function profilePanel.applyTier(window)
     if icon.ImageColor3 ~= color then
         icon.ImageColor3 = color
     end
-    local wantedIcon = window:ResolveIcon(if premium then "crown" else "badge-check")
+    -- [[Both tier states get an icon the active pack really ships: the pill
+    -- [[states a tier, so it must never render as a word with a blank square
+    -- [[beside it.]]
+    local wantedIcon = cardIcon(window, if premium then "crown" else "badge-check")
     if icon.Image ~= wantedIcon then
         icon.Image = wantedIcon
     end
@@ -885,25 +981,69 @@ local function clipboardSet(text: string): boolean
     return ok
 end
 
+-- [[Drop a scheduled timeout that is still waiting. Executors without
+-- [[`task.cancel` (and the offline test harness) simply skip this: the stamp
+-- [[check below already makes a superseded timer a no-op, so the cancel is
+-- [[belt-and-braces rather than the thing correctness rests on.]]
+local function cancelTimer(thread)
+    if type(thread) ~= "thread" or type(task.cancel) ~= "function" then
+        return
+    end
+    if coroutine.status(thread) == "suspended" then
+        task.cancel(thread)
+    end
+end
+
+-- [[The words a copy button owns: what it will copy while idle ("Copy Job
+-- [[ID"), or the confirmation after a successful press ("Copied"). The button
+-- [[is glyph-only, so the line is never drawn: it is the button's accessible
+-- [[label, and the hover tooltip shows the very same string (read back off the
+-- [[button), so the two can never disagree. It is written through the window's
+-- [[own locale binding, so a host translating "Copy Place ID" / "Copied" gets
+-- [[both, and Window:SetLocale re-states whichever wording is on screen.]]
+function profilePanel.setCopyStatus(window, name: string, copied: boolean)
+    local entry = (window.profileCopyButtons or {})[name]
+    if not entry then
+        return
+    end
+    -- [[The binding stores the *source* wording ("Copy Job ID", "Copied"), so
+    -- [[a locale switch re-resolves the current state instead of freezing the
+    -- [[old language into it; _bindLocale writes the resolved text for us.]]
+    local source = if copied then copiedLabel else copyLabelPrefix .. (entry.label or name)
+    if entry.button and entry.button.Parent and entry.button.Text ~= locale.resolve(source) then
+        window:_bindLocale(entry.button, "Text", source)
+        if entry.hovering then
+            profilePanel.showTooltip(window, entry.button.Text, entry.tooltipY or 0)
+        end
+    end
+end
+
 -- [[Copy feedback: the row's copy icon turns into a green check for a moment]]
--- [[and then the copy icon returns. A repeat click restarts the window; a]]
--- [[rebuilt card (stale entry) is simply ignored by the timer.]]
+-- [[and then the copy icon returns, with the button's status word following]]
+-- [[("Copied" while the check is up, the action's own name after it). Only one
+-- [[restore is ever outstanding per button: a repeat click cancels the pending
+-- [[timer and restarts the window, and a rebuilt card (stale entry) is simply
+-- [[ignored by the timer.]]
 function profilePanel.flashCopied(window, name: string)
     local entry = (window.profileCopyButtons or {})[name]
     if not entry or not entry.icon or not entry.icon.Parent then
         return
     end
-    entry.icon.Image = window:ResolveIcon("check")
+    entry.icon.Image = cardIcon(window, "check")
     entry.icon.ImageColor3 = window.theme.Success
+    cancelTimer(entry.flashThread)
     entry.flashStamp = (entry.flashStamp or 0) + 1
     local stamp = entry.flashStamp
-    task.delay(copyFlashDuration, function()
+    entry.flashThread = task.delay(copyFlashDuration, function()
         if entry.flashStamp ~= stamp or not entry.icon or not entry.icon.Parent then
             return
         end
-        entry.icon.Image = window:ResolveIcon("copy")
+        entry.flashThread = nil
+        entry.icon.Image = cardIcon(window, "copy")
         entry.icon.ImageColor3 = window.theme.ActionColor
+        profilePanel.setCopyStatus(window, name, false)
     end)
+    profilePanel.setCopyStatus(window, name, true)
 end
 
 -- [[Tier pill placement. The reference keeps the pill on the handle row, so
@@ -948,7 +1088,7 @@ end
 
 -- [[Write every identity field on the card from the current player and the]]
 -- [[reveal toggle: display name, @username, premium pill, user ID (with its]]
--- [[COPY action), place ID, server ID and the license rows. nil-safe on both]]
+-- [[COPY action), place ID, job ID and the license rows. nil-safe on both]]
 -- [[the instances and the player, so a missing player leaves placeholders]]
 -- [[rather than erroring.]]
 function profilePanel.applyIdentity(window)
@@ -1095,7 +1235,7 @@ local function addRow(window, card, spec)
     if spec.icon then
         local icon = window:Create("ImageLabel", {
             Name = spec.name .. "Icon",
-            Image = window:ResolveIcon(spec.icon),
+            Image = cardIcon(window, spec.icon),
             Position = UDim2.fromOffset(x, y + (rowHeight - rowIconSize) / 2),
             Size = UDim2.fromOffset(rowIconSize, rowIconSize),
             BackgroundTransparency = 1,
@@ -1143,6 +1283,11 @@ local function addRow(window, card, spec)
     if spec.action == "copy" then
         local button = window:Create("TextButton", {
             Name = "Copy" .. spec.name,
+            -- [[The button is glyph-only: its Text is never drawn (the
+            -- [[transparency above stays 1) and carries the button's own
+            -- [[accessible label instead — "Copy Job ID" while idle, "Copied"
+            -- [[after a successful press. setCopyStatus keeps it in step with
+            -- [[the tooltip.
             Text = "",
             Position = UDim2.new(1, -(cardPaddingX + actionSize), 0, y + (rowHeight - actionSize) / 2),
             Size = UDim2.fromOffset(actionSize, actionSize),
@@ -1152,9 +1297,9 @@ local function addRow(window, card, spec)
             Visible = false,
             Parent = card,
         })
-        local icon = window:Create("ImageLabel", {
+        local iconLabel = window:Create("ImageLabel", {
             Name = "Icon",
-            Image = window:ResolveIcon("copy"),
+            Image = cardIcon(window, "copy"),
             Size = UDim2.fromOffset(13, 13),
             AnchorPoint = Vector2.new(0.5, 0.5),
             Position = UDim2.fromScale(0.5, 0.5),
@@ -1162,14 +1307,39 @@ local function addRow(window, card, spec)
             ImageTransparency = 1,
             Parent = button,
         }, { ImageColor3 = "ActionColor" })
-        fade(icon, "ImageTransparency", 0.15)
+        fade(iconLabel, "ImageTransparency", 0.15)
         window.profileCopyButtons = window.profileCopyButtons or {}
-        window.profileCopyButtons[spec.name] = { button = button, icon = icon }
+        window.profileCopyButtons[spec.name] = {
+            button = button,
+            icon = iconLabel,
+            -- [[What this press copies, for the label and the tooltip.]]
+            label = spec.label,
+            tooltipY = (spec.cardY or 0) + y,
+        }
+        profilePanel.setCopyStatus(window, spec.name, false)
         if spec.name == "UserId" then
             -- [[Legacy handle, kept so hosts and tests that grabbed the]]
             -- [[user ID's copy button still find it.]]
             window.profileCopyUserId = button
         end
+        -- [[Hover help, on the same surface the rows use: the button says what
+        -- [[it will copy, and swaps to "Copied" for as long as the green check
+        -- [[is up (setCopyStatus refreshes the tooltip while it is hovered).]]
+        window:Connect(button.MouseEnter, function()
+            local entry = (window.profileCopyButtons or {})[spec.name]
+            if not entry then
+                return
+            end
+            entry.hovering = true
+            profilePanel.showTooltip(window, entry.button.Text or "", entry.tooltipY or 0)
+        end)
+        window:Connect(button.MouseLeave, function()
+            local entry = (window.profileCopyButtons or {})[spec.name]
+            if entry then
+                entry.hovering = false
+            end
+            profilePanel.hideTooltip(window)
+        end)
         window:Connect(button.Activated, function()
             -- [[The action only exists while the value is revealed: with the]]
             -- [[detail hidden there is nothing meaningful to copy, and the]]
@@ -1277,21 +1447,34 @@ function profilePanel.build(window)
         Parent = window.screenGui,
     })
 
-    -- [[The card surface: a visible themed plate (the gradient supplies]]
-    -- [[the colour; transparency stays 0 so the card actually shows).]]
+    -- [[The card surface: the window's own background, not a lookalike. It is
+    -- [[built by Window:StyleWindowSurface — the very call that builds the
+    -- [[window frame's background — so the card takes the same base colour, the
+    -- [[same WindowColor theme token, the same gradient rotation/offset and the
+    -- [[same opacity the window shows, and a theme change moves both together
+    -- [[(both gradients are registered theme bindings). The card is centred on
+    -- [[the window's own height, so the shared gradient also lands on the same
+    -- [[shade at the same screen row: the two read as one surface, never as a
+    -- [[panel that is nearly the window's colour.]]
     window.profilePanelSurface = window:Create("Frame", {
         Name = "Surface",
         Size = UDim2.fromScale(1, 1),
         BorderSizePixel = 0,
-        BackgroundTransparency = 0,
+        BackgroundTransparency = window:WindowSurfaceTransparency(),
         Parent = window.profilePanel,
     })
 
-    window:Create("UIGradient", {
-        Rotation = 270,
-        Offset = Vector2.new(0, -0.1),
-        Parent = window.profilePanelSurface,
-    }, { Color = { "WindowColor", functions.toColorSequence } })
+    -- [[Kept on the window so the window's live gradient animation can carry
+    -- [[the card with it (see Window:_syncLiveAnimation). A card rebuilt in the
+    -- [[middle of that animation starts from the window's current gradient
+    -- [[state rather than from the resting one, so a rebuild cannot leave the
+    -- [[pair mismatched until the next cycle.]]
+    window.profilePanelGradient = window:StyleWindowSurface(window.profilePanelSurface)
+    local liveGradient = window.windowGradient
+    if liveGradient then
+        window.profilePanelGradient.Rotation = liveGradient.Rotation
+        window.profilePanelGradient.Offset = liveGradient.Offset
+    end
 
     window.profilePanelCorner = window:Create("UICorner", {
         Parent = window.profilePanelSurface,
@@ -1524,7 +1707,7 @@ function profilePanel.build(window)
     local function heading(y: number, title: string, iconName: string): number
         local icon = window:Create("ImageLabel", {
             Name = title .. "Icon",
-            Image = window:ResolveIcon(iconName),
+            Image = cardIcon(window, iconName),
             Position = UDim2.fromOffset(paddingX, y + (headingHeight - headingIconSize) / 2),
             Size = UDim2.fromOffset(headingIconSize, headingIconSize),
             BackgroundTransparency = 1,
@@ -1701,8 +1884,11 @@ function profilePanel.build(window)
     local serverRows = {
         { name = "Players", label = "Players", icon = "users" },
         {
+            -- [[The value is DataModel.JobId, so the row says so: "Job ID".
+            -- [[(The row's internal name stays ServerId — hosts, saved state
+            -- [[and the tests reach it as window.profileServerIdValue.)]]
             name = "ServerId",
-            label = "Server ID",
+            label = "Job ID",
             icon = "server",
             labelWidth = 64,
             action = "copy",
@@ -2011,6 +2197,17 @@ function profilePanel.setShown(window, shown, tweenInfo)
         },
         [stroke] = { Transparency = if shown then idleStrokeTransparency else 1 },
     }
+
+    -- [[The card's own plate fades with the window's: while the window is]]
+    -- [[still fading in its background is part-transparent, so the card beside]]
+    -- [[it must be too — otherwise the card reads as a solid panel floating]]
+    -- [[next to a half-faded window.]]
+    local surface = window.profilePanelSurface
+    if surface then
+        targets[surface] = {
+            BackgroundTransparency = if shown then window:WindowSurfaceTransparency() else 1,
+        }
+    end
 
     if glow then
         targets[glow] = { Transparency = if shown then glowTransparency else 1 }

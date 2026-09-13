@@ -139,10 +139,14 @@ Tab-rail reflow (the profile system moved to `components/profilePanel.luau`):
 ### `components/profilePanel.luau`
 The profile panel — a compact 260x420 companion card floating beside the
 window frame (a sibling in the same ScreenGui), exactly the default window's
-height, replacing the in-window profile. It is built from the same tokens as
-the window itself (WindowColor gradient surface, `CornerRoundness` corners,
-SurfaceStroke, ShadowColor glow) so it reads as part of the shell rather than
-a separate card, and it matches the design mock's structure:
+height, replacing the in-window profile. Its surface is built by
+`Window:StyleWindowSurface` — the same call that builds the window frame's own
+background — so the plate takes the window's base colour, `WindowColor`
+gradient (same rotation/offset), `CornerRoundness` corners, SurfaceStroke and
+ShadowColor glow, shows at the window's own opacity (and fades with it on
+show/hide), and follows the window's live gradient animation when the theme
+turns it on. It reads as part of the shell rather than a separate card, and it
+matches the design mock's structure:
 
 - **Pinned header** — 48px avatar with a presence dot and hairline ring,
   left-aligned display name (`TitlingColor`, 15px) over the `@username`
@@ -160,7 +164,7 @@ a separate card, and it matches the design mock's structure:
   `ElementTransparency`, `ElementCornerRadius`, `ElementStroke` at
   `ElementStrokeTransparency`): User ID (COPY), Join date, Account age,
   Key (COPY) and Whitelist; the game thumbnail, the official game name and
-  Place ID (COPY); Players and Server ID (COPY); and the session timer.
+  Place ID (COPY); Players and Job ID (COPY); and the session timer.
   Row icons/labels/values reuse the element row colours (`ContentColor`,
   muted labels at 0.45). Only this region scrolls — the header never
   moves, the card never grows past the window's height, and the 6px themed
@@ -214,9 +218,13 @@ a separate card, and it matches the design mock's structure:
 - `applyIdentity(window)` — writes every identifying value on the card
   from the local player and that toggle: display name (headline) and
   @username (subtitle) through `sidebar.maskUsername`, user ID, place ID
-  and server ID as a fixed `••••••` block, and drives the COPY buttons
+  and job ID as a fixed `••••••` block, and drives the COPY buttons
   (registered in `window.profileCopyButtons`, each hidden while its value
-  is masked, and each refuses to copy a masked value). An explicit
+  is masked, and each refuses to copy a masked value). A successful copy
+  swaps the glyph for the success check for ~1.2s, states "Copied" on the
+  button's own label and in its hover tooltip, and then restores both; a
+  repeat press cancels the pending timer and restarts the window, so two
+  restores never race for one icon. An explicit
   `Window:SetProfile` subtitle is developer copy, so the toggle leaves it
   alone. Nil-safe on both the instances and the player; runs at the end of
   `build`, so the card never shows an unmasked value first.
@@ -227,17 +235,29 @@ a separate card, and it matches the design mock's structure:
   expiresAt } }` (the host's table, copied, never mutated): the whitelist
   row shows `14 days left`, `1 day left`, `Expired`, a non-"Active" status
   spelled out, or the placeholder.
+- `cardIcon(window, name)` — every icon the card draws, resolved against the
+  window's active icon pack through a name-alias table (`iconAliases`) that
+  starts with the lucide name and lists the other packs' equivalents
+  (`badge-check` -> `check-badge` / `seal-check` / `verified_user` / `award`,
+  `copy` -> `clipboard` / `content_copy`, ...). A window built with any pack
+  therefore draws the card's icons instead of empty squares; the answer is
+  cached per window, and the default pack resolves to exactly the icons it
+  always used.
 - `tierText` / `applyTier` — the header tier pill. A host `tier` (uppercased)
   wins; otherwise `MembershipType` decides PREMIUM vs FREEMIUM, so the pill
   always states a real tier. PREMIUM keeps the accent crown; any other tier
-  reads in the muted placeholder colour with a `badge-check` icon, and the
-  pill width is re-measured from its own label.
-- `flashCopied(window, name)` — copy feedback: the row's copy icon becomes a
-  green (`Success`) check for ~1.2s and then returns to the copy icon; a
-  repeat click restarts the window and a rebuilt card is ignored. The copy
-  itself goes through the executor's clipboard entry point (`setclipboard`
-  and the common aliases), so a missing/failing function means no feedback
-  rather than a false success.
+  reads in the muted placeholder colour with a badge icon, and the pill width
+  is re-measured from its own label. Both icons go through `cardIcon`, so the
+  pill states its tier with an icon on every pack.
+- `flashCopied(window, name)` / `setCopyStatus` — copy feedback: the row's
+  copy icon becomes a green (`Success`) check for ~1.2s and then returns to
+  the copy icon, while the button's own label and hover tooltip say what it
+  copies ("Copy Job ID") and "Copied" while the check is up. A repeat click
+  cancels the pending timer and restarts the window (so two restores never
+  race for one icon) and a rebuilt card is ignored. The copy itself goes
+  through the executor's clipboard entry point (`setclipboard` and the common
+  aliases), so a missing/failing function means no feedback rather than a
+  false success.
 - `fetchUniverseId` / `resolveUniverseId` / `fetchGameName` — the official
   two-step game-name flow: `apis.roblox.com/universes/v1/places/{PlaceId}/
   universe` converts the place to its universe, then
@@ -252,8 +272,9 @@ a separate card, and it matches the design mock's structure:
   (`{ subtitle, key, tier, whitelist }`; omitted fields clear their rows).
   `refreshName` is kept as an alias for `applyIdentity`.
 - `showTooltip` / `hideTooltip` — the card's own hover-help for values
-  that do not fit their row (measured with `functions.textWidth`), shown
-  on the card surface so the scroll region never clips it.
+  that do not fit their row (measured with `functions.textWidth`) and for the
+  copy buttons (which state their action), shown on the card surface so the
+  scroll region never clips it.
 
 The window rests off-centre so window + gap + panel are centred as one unit
 (`Window:_profileCenterPosition` / `Window:_recenterForProfile`): with the

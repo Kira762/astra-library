@@ -220,7 +220,7 @@ expect(
 		or window.profileSessionValue.Text:match("^%d+d %d+h$") ~= nil,
 	"E3 the session row shows a real duration (got " .. tostring(window.profileSessionValue.Text) .. ")"
 )
-eq(window.profileServerIdValue.Text, "••••••", "E3 the server ID is masked while reveal is off")
+eq(window.profileServerIdValue.Text, "••••••", "E3 the job ID is masked while reveal is off")
 
 -- [[A missing source is a neutral placeholder, not a zero.]]
 players.MaxPlayers = nil

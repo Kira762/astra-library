@@ -81,6 +81,7 @@ game.GameId = 123456
 game.JobId = "astra-compact-server"
 
 local function findSettingsElement(targetWindow, tabName, elementName)
+	targetWindow:_buildSettingsUI() -- settings shells are now lazy too
 	for _, tab in targetWindow._settingsTabs do
 		if tab.name == tabName then
 			tab:Select()

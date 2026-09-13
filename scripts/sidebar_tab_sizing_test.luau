@@ -221,6 +221,8 @@ switched = window:_setLayoutMode("sidebar")
 expect(switched == true, "T9 layout switch back to the responsive sidebar")
 TestPump(1.0)
 
+window:_buildSettingsUI() -- first settings access materialises its tab shells
+
 -- T9a: the settings rail order - General must be the first row (the tab the
 -- gear action opens), About the last; the old About customOrder (1000)
 -- sorted it before General, so opening settings highlighted the SECOND row.
@@ -298,10 +300,10 @@ expect(
 -- (the control that drives utilities/motion.luau), hence 4 rather than 2.
 local expectedSettingsContent = {
     General = 4,
-    Appearance = 13,
+    Appearance = 14,
     Behavior = 2,
     Performance = 4,
-    Persistence = 4,
+    Persistence = 6,
     About = 9,
 }
 for name, wanted in expectedSettingsContent do

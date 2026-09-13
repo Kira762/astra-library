@@ -140,12 +140,10 @@ function state.new(tab, a22)
         Parent = self.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-        self.box = self.window:Create("TextButton", {
+        self.box = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -7, 0, 20),
         Size = UDim2.fromOffset(40, 30),
-        AutoButtonColor = false,
-        Text = "",
         BorderSizePixel = 0,
 
         BackgroundTransparency = 1,
@@ -164,8 +162,11 @@ function state.new(tab, a22)
 
         self.glow = self.window:CreateGlow(self.box, "FieldGlow", 20, 1)
     self._glowIdle = 0.9
-    self.keyLabel = self.window:Create("TextLabel", {
+    -- Use a focusable field, like Input, rather than a button under a label.
+    self.keyLabel = self.window:Create("TextBox", {
         Text = frame(self.value),
+        ClearTextOnFocus = false,
+        MultiLine = false,
         Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -177,12 +178,21 @@ function state.new(tab, a22)
         Parent = self.box,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-    self.window:ConnectFor(self, self.box.MouseButton1Click, function()
+    self.window:ConnectFor(self, self.keyLabel.Focused, function()
+        if self.locked or not self.window:_interactive() then
+            self.keyLabel:ReleaseFocus()
+            return
+        end
         isMenuToggle.click()
+        self:_startRecording()
+    end)
+
+    self.window:ConnectFor(self, self.keyLabel.FocusLost, function()
+        -- Clicking away cancels; only captured keys may change the binding.
         if self.recording then
             self:_stopRecording()
         else
-            self:_startRecording()
+            self.keyLabel.Text = frame(self.value)
         end
     end)
 
@@ -233,7 +243,8 @@ function state:_startRecording()
         a27:_stopRecording()
     end
     self.recording = true
-    self.window._recordingKeybind = self     self.keyLabel.Text = flag.resolve("Recording")
+    self.window._recordingKeybind = self
+    self.keyLabel.Text = flag.resolve("Recording")
     self:_sizeBox(true)
     Keybind.tweenService:Create(self.glow, onChanged, { Transparency = 0.7 }):Play()
     Keybind.tweenService:Create(self.keyLabel, onChanged, { TextTransparency = 0 }):Play()
@@ -241,10 +252,13 @@ end
 
 function state:_stopRecording()
     self.recording = false
+    if self.keyLabel:IsFocused() then
+        self.keyLabel:ReleaseFocus()
+    end
                 if self.window._recordingKeybind == self then
         local window = self.window
         task.defer(function()
-            if window._recordingKeybind == self then
+            if window._recordingKeybind == self and not self.recording then
                 window._recordingKeybind = nil
             end
         end)

@@ -325,3 +325,34 @@ end
 
 -- [[Select the first tab explicitly so the example is deterministic on startup.]]
 home:Select()
+
+-- Optional: ordinary controls remain standalone unless explicitly wrapped.
+-- All controls in a Collapsible Group use their normal props and callbacks.
+local collapsibleTab = window:CreateTab({ name = "Collapsible Groups", icon = "panels-top-left" })
+collapsibleTab:CreateCollapsibleGroup({
+    name = "Player Preferences",
+    icon = "user-round",
+    description = "Click to expand. Closing keeps the values and features active.",
+    elements = {
+        { type = "Toggle", name = "Enabled", flag = "collapsibleEnabled", value = true },
+        { type = "Slider", name = "Speed", flag = "collapsibleSpeed", range = { 16, 100 }, value = 16 },
+        { type = "Dropdown", name = "Mode", flag = "collapsibleMode", options = { "Normal", "Sprint" }, value = "Normal" },
+        { type = "Input", name = "Nickname", flag = "collapsibleNickname", placeholder = "Enter a nickname" },
+        {
+            type = "Group",
+            elements = {
+                { type = "Button", name = "Reset Speed", callback = function() window:Set("collapsibleSpeed", 16) end },
+                { type = "Button", name = "Show Speed", callback = function()
+                    window:Notify({ title = "Speed", content = tostring(window:Get("collapsibleSpeed")) })
+                end },
+            },
+        },
+    },
+})
+collapsibleTab:CreateCollapsibleGroup({
+    name = "Information",
+    icon = "feather:info",
+    elements = {
+        { type = "Text", name = "Independent groups", text = "Multiple groups open independently. Search finds their child controls." },
+    },
+})

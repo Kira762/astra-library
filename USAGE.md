@@ -58,20 +58,26 @@ The first visible tab opens on its own, so there is nothing else to wire up. Lay
 
 ---
 
-## Turn on saving
+## Built-in saving preferences
 
-Pass a configuration table and the window remembers every value between sessions. Nothing else is required, and each value restores as its original type.
+Saving no longer needs a `configuration` table in normal window usage. Open
+**Settings → Persistence** to change **Auto Save Config** and **Auto Load Config**.
+Both default to on for a new installation. Your choices are stored separately
+from control values, even while Auto Save Config is off.
 
-```lua
-local window = Astra:CreateWindow({
-    name = "Example Hub",
-    configuration = {
-        autoSave = true,
-        autoLoad = true,
-        fileName = "ExampleHub",
-    },
-})
-```
+- Auto Save Config saves supported control values after a short coalescing delay.
+- Auto Load Config restores the default configuration on the next startup.
+  Turning it on does not replace values in the current session.
+- Turning either off does not delete saved configurations.
+- Stable, unique flags are recommended for controls that should be restored.
+- Ordinary controls and controls inside Collapsible Groups use the same system.
+- File persistence requires a runtime with writable storage.
+
+Default storage identifiers are internal and are not displayed in Settings.
+The default configuration is shared by windows using the defaults; unrelated hubs
+should use separate named presets or legacy configuration overrides to avoid
+sharing values. Existing scripts with a `configuration` table remain accepted for
+compatibility, but saved built-in save/load preferences take precedence.
 
 ### How saving works
 
@@ -91,7 +97,7 @@ window:ListConfigs()
 window:DeleteConfig("Slot2")
 ```
 
-Elements with `forgetState = true` are excluded. Elements without a flag are visual-only.
+Elements with `forgetState = true` are excluded. Controls may derive flags from their names; explicit unique flags make restores stable when labels change.
 
 ---
 
@@ -158,14 +164,14 @@ tab:Select()      -- switch to it
 tab:Deselect()    -- switch away
 tab:Remove()      -- destroy it
 
-local row = window:CreateGroup()                       -- horizontal row
+local row = tab:CreateGroup()                       -- horizontal row
 local col = row:CreateGroup({ direction = "column" }) -- nested column
 col:CreateToggle({ name = "Left 1" })
 ```
 
-Tab methods: `CreateButton`, `CreateToggle`/`CreateSwitch`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateKeybind`, `CreateStat`, `CreateProgress`, `CreateConsole`, `CreateSection`, `CreateText`, `CreateChangelog`, `CreateDivider`, `CreateGroup`.
+Tab methods: `CreateButton`, `CreateToggle`/`CreateSwitch`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateKeybind`, `CreateStat`, `CreateProgress`, `CreateConsole`, `CreateSection`, `CreateText`, `CreateChangelog`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup`.
 
-Groups support: `CreateButton`, `CreateToggle`/`CreateSwitch`, `CreateSlider`, `CreateDropdown`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateGroup`.
+Groups support: `CreateButton`, `CreateToggle`/`CreateSwitch`, `CreateSlider`, `CreateDropdown`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
 
 ### Elements
 
@@ -324,10 +330,10 @@ The settings tabs are:
 | Tab | Contents |
 |---|---|
 | **General** | Toggle keybind (show/hide), unlock-cursor toggle, welcome toast toggle. |
-| **Appearance** | Theme dropdown + Apply (popup confirm), Bar Layout dropdown (Default Topbar / Sidebar / Collapsed Sidebar), Show profile / Profile side / Reveal profile details (unmasks the display name, username, user ID, place ID, job ID and license key on the profile card, and only works while **Show profile** is on — flipping it on with the card off raises a "Show profile is required" notification and leaves it off, and hiding the card switches it off with it), Keep window on screen (keeps the window **and** its card in view), Draggable capsule, Reset Window Position. |
+| **Appearance** | Theme dropdown + Apply (popup confirm), Bar Layout dropdown (Default Topbar / Sidebar / Collapsed Sidebar), Show profile / Profile side / Reveal profile details (unmasks the display name, username, user ID, place ID, job ID and license key on the profile card, and only works while **Show profile** is on — flipping it on with the card off raises a "Show profile is required" notification and leaves it off, and hiding the card switches it off with it), Keep window on screen (keeps the window **and** its card in view), Draggable capsule, Reset Window Position, Reset Capsule Position (restores the default top-center capsule location without moving the open window). |
 | **Behavior** | Prevent duplicate windows. |
 | **Performance** | Haptics. |
-| **Persistence** | Saved-configurations dropdown + name input + Save/Load/Delete. Only present when `configuration` was passed to `CreateWindow`. |
+| **Persistence** | Auto Save Config / Auto Load Config toggles (default on); Saved-configurations dropdown + name input + Save/Load/Delete. Only present when `configuration` was passed to `CreateWindow`. |
 | **About** | Library info and links. |
 
 The card's layout (masked and revealed) is checked into
@@ -372,9 +378,10 @@ Astra.Icons.list("lucide")
 Astra.Icons.packs() Astra.Icons.count() Astra.Icons.isPack("feather")
 Astra.Icons.priority() Astra.Icons.loaded()      -- the search order / packs read so far
 Astra.Icons.refreshCustom()                      -- re-read custom_asset/
-window:ResolveIcon("house")             -- resolves inside the window's own iconPack
+window:ResolveIcon("house")             -- searches all packs
+window:ResolveIcon("feather:home")      -- selects one exact icon
 ```
-`iconPack`: `"lucide" | "material" | "tabler" | "phosphor" | "heroicons" | "feather"`.
+No window-wide `iconPack` option is needed.
 
 **Name-only lookup.** A bare name is searched in every pack, in a fixed order —
 lucide, material, tabler, phosphor, heroicons, feather (`Astra.Icons.priority()`) —
@@ -394,10 +401,10 @@ matched exactly as written; `Home`, `HOME` and `Lucide:house` are not `home`, an
 lookup is lowercased, corrected or fuzzed. An unknown pack name warns once per pack
 and answers nothing, rather than substituting a pack you did not ask for.
 
-**The window helper stays pack-scoped.** `window:ResolveIcon(name)` and
-`ResolveIcon(name, pack)` answer from the window's own `iconPack` (or the pack you
-pass) or not at all — UI that draws per-pack glyphs keeps its old behaviour. For the
-cross-pack search call `Astra.Icons.get` / `Astra.Icons.resolve`.
+**All-pack window lookup.** `window:ResolveIcon(name)` searches every pack, just
+like `Astra.Icons.resolve`. `ResolveIcon(name, pack)` and `pack:name` still select
+one exact pack when desired. Window and element icons can mix packs freely.
+The old window-wide `iconPack` property is no longer used.
 
 Icon names resolve to 48x48 PNGs that ship in this repo under
 `assets/icons/<pack>-pack/`; the resolver maps them onto the repo's raw-GitHub URL
@@ -405,7 +412,7 @@ Icon names resolve to 48x48 PNGs that ship in this repo under
 `rbxassetid` lookups are needed. Values already usable as-is — numbers,
 `rbxassetid://…`, `rbxasset://…`, `rbxthumb://…`, `http(s)://…` — pass through
 untouched, and an unresolved value comes back unchanged. See
-`assets/icons/feather-pack.md` and `assets/icons/tabler-pack.md` for pack details.
+[the visual icon catalog](assets/icons/README.md) for previews and copyable names across all six packs.
 
 **Custom assets.** A `custom_asset/` folder next to your script takes precedence
 over the packs at resolve time: one file per icon name, in `.png`, `.jpg`, `.jpeg`,
@@ -472,22 +479,119 @@ local window = Astra:CreateWindow({
     name = "My UI",              -- title (left side of topbar)
     subtitle = "v1.0",           -- small text next to title
     icon = "house",              -- topbar icon (pack name or asset id)
-    iconPack = "lucide",         -- "lucide" | "material" | "tabler" | "phosphor" | "heroicons" | "feather" (PascalCase alias: IconPack)
     theme = "default",           -- built-in name (10 built-ins, see Themes below) or custom table
-    profile = "Display Name",    -- optional profile (avatar + name)
     showName = "Astra",          -- name shown when the window is minimised to the capsule (default "Astra")
-    showIcon = "house",          -- capsule icon while minimised
     showIconOnly = false,        -- capsule shows only the icon, no name
     fallbackFont = Enum.Font.Gotham,  -- font used when the brand font cannot load
     translator = function(source, localeId) return ... end,  -- optional custom translator
     locale = "en",
     translations = { ... },
-    configuration = {            -- persistence
-        autoSave = true,
-        autoLoad = true,
-        fileName = "MyConfig",
-        customFolder = nil,
-    },
 })
 ```
 Layout is **not** a CreateWindow prop — switch it in **Settings → Appearance → Bar Layout**.
+
+### Startup performance
+
+Window construction is staged across frames. Large initial batches of `CreateTab`
+and `Create…` calls yield at completed-control boundaries after roughly 4 ms of
+work or 120 new instances. These are cooperative limits, not a hard frame-time
+cap: a single expensive control can exceed them. Calls still return fully built
+objects, but may yield while creating the initial UI.
+
+Automatic show waits for a quiet construction frame so large scripts do not
+reveal a half-built menu. `window:Hide()` before the first reveal cancels auto-show;
+`window:Show()` can still be called explicitly.
+
+Search controls are created the first time search opens. Additional built-in
+settings tabs are created on first settings access, and their controls remain lazy
+until each tab is selected. Controls added to inactive tabs wait until that tab is
+shown before running their reveal animations.
+
+### Collapsible Group (optional)
+
+`tab:CreateCollapsibleGroup` groups controls under an animated header. Existing
+standalone elements and ordinary Groups are unchanged; nothing is automatically
+wrapped in a Collapsible Group.
+
+```lua
+local window = Astra:CreateWindow({
+    name = "My Hub",
+    subtitle = "Player tools",
+    icon = "house",
+})
+local tab = window:CreateTab({ name = "Player", icon = "user-round" })
+
+local playerControls = tab:CreateCollapsibleGroup({
+    name = "LocalPlayer",
+    icon = "user-round", -- optional; may be from any icon pack
+    description = "Movement and character settings", -- optional
+    elements = {
+        {
+            type = "Toggle",
+            name = "Infinite Jump",
+            flag = "infiniteJump",
+            value = false,
+            callback = function(enabled)
+                print("Infinite jump:", enabled)
+            end,
+        },
+        {
+            type = "Slider",
+            name = "Walk Speed",
+            flag = "walkSpeed",
+            range = { 16, 100 },
+            value = 16,
+            callback = function(value)
+                print("Walk speed:", value)
+            end,
+        },
+        {
+            type = "Group",
+            elements = {
+                {
+                    type = "Button",
+                    name = "Reset Speed",
+                    icon = "feather:rotate-ccw",
+                    callback = function() window:Set("walkSpeed", 16) end,
+                },
+                {
+                    type = "Button",
+                    name = "Show Speed",
+                    callback = function() print(window:Get("walkSpeed")) end,
+                },
+            },
+        },
+    },
+})
+```
+
+**Supported types:** `Button`, `Toggle`, `Switch`, `Slider`, `Dropdown`, `Input`,
+`Keybind`, `Stat`, `Progress`, `Console`, `Section`, `Text`, `Changelog`, `Divider`,
+and ordinary `Group`. Each uses the same properties and implementation as its
+normal `Create…` method. Descriptions supplied to child elements keep their normal
+behavior. `elements` can be omitted for an empty header.
+
+An ordinary Group retains its compact row layout when its children support it.
+Use `direction = "column"` for a vertical Group; the declarative builder also
+chooses a column automatically if the Group contains noncompact controls, so no
+chosen element is silently discarded. Ordinary Groups may contain ordinary Groups.
+**Collapsible Groups cannot contain Collapsible Groups**, directly or through a
+Group. Invalid types, sparse lists, and cyclic/nested Collapsible Group definitions
+are rejected before creating any UI.
+
+- Every Collapsible Group starts collapsed; there is no `expanded` usage property.
+- Click the header to open/close. Multiple groups operate independently.
+- Expansion uses Astra's motion service, including the instant-motion setting.
+- Values, flags and running features remain active when collapsed. Closing and
+  reopening do not recreate controls, reset them, or rerun their value callbacks.
+- Closing cancels an uncommitted input edit, closes open dropdowns, and ends
+  keybind recording; already committed values remain unchanged.
+- Search includes child names and temporarily expands matching groups. Closing
+  search restores their previous expansion state.
+- All three layouts are supported; the tab supplies scrolling for long contents.
+- `MoveTo`, `MoveToTop`, `MoveToBottom`, `MoveUp`, `MoveDown`, `Lock`, and `Unlock`
+  work on the container. Created child handles are also available in its
+  `elements` array, in definition order, just like an ordinary Group.
+- Controls are built in startup batches even while collapsed, so keybinds and
+  saved flags are usable before the first expansion. The optional feature adds
+  no container instances unless you explicitly create one.

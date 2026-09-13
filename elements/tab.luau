@@ -13,7 +13,7 @@ local flagNames = require(script.Parent.Parent.functions.flagNames)
 
 local function customOrder(window, forgetState)
     for _, element in forgetState do
-        if element.__type == "Group" then
+        if element.__type == "Group" or element.__type == "CollapsibleGroup" then
             customOrder(window, element.elements)
         else
             window:_unregisterControl(element)
@@ -248,7 +248,7 @@ function state:_register(element)
     window(element, #self.elements * 10)
     self.window:_restoreLate(element)
 
-    if not self.window.hidden then
+    if not self.window.hidden and not self.window.minimised and self.window.selectedTab == self then
         element:_setShown(true, false)
     else
         -- [[The element stayed hidden with the window: remember that this tab
@@ -256,6 +256,7 @@ function state:_register(element)
         self._elementsPending = true
     end
 
+    self.window:_constructionCheckpoint(false)
     return element
 end
 
@@ -313,6 +314,10 @@ end
 
 function state:CreateKeybind(a39)
     return self:_register(require(script.Parent.keybind).new(self, a39))
+end
+
+function state:CreateCollapsibleGroup(props)
+    return self:_register(require(script.Parent.collapsibleGroup).new(self, props))
 end
 
 function state:CreateGroup(a41)

@@ -32,7 +32,7 @@ local network = require(utilities.network)
 --     details  a vertically scrolling column of sections, each a window-style
 --              section heading above an element-style plate of compact
 --              label/value rows:
---                Account       user ID (+ COPY), join date, account age,
+--                Account       user ID (+ COPY), account created, elapsed time,
 --                              key (+ COPY), whitelist
 --                Current Game  thumbnail, game name, place ID (+ COPY)
 --                Server        players, job ID (+ COPY)
@@ -347,29 +347,18 @@ local function formatDate(unixSeconds: number?): string
     return `{d} {month} {y}`
 end
 
--- [[Account age in days -> the card's short readable form.]]
-local function formatAccountAge(days: number?): string
-    if type(days) ~= "number" or days ~= days or days < 0 then
+-- Elapsed time since creation, in the largest useful unit.
+local function formatAccountAge(seconds: number?): string
+    if type(seconds) ~= "number" or seconds ~= seconds or seconds < 0 then
         return fallbackValue
     end
-    local total = math.floor(days)
-    if total < 1 then
-        return "Today"
+    for _, unit in { { 31557600, "year" }, { 2629800, "month" }, { 86400, "day" }, { 3600, "hour" } } do
+        local count = math.floor(seconds / unit[1])
+        if count >= 1 then
+            return `{count} {unit[2]}{if count == 1 then "" else "s"} ago`
+        end
     end
-    if total < 31 then
-        return if total == 1 then "1 day" else `{total} days`
-    end
-    local years = math.floor(total / 365.25)
-    if years < 1 then
-        local months = math.floor(total / 30.44)
-        return if months <= 1 then "1 month" else `{months} months`
-    end
-    local remainder = math.floor((total - years * 365.25) / 30.44)
-    local yearText = if years == 1 then "1 year" else `{years} years`
-    if remainder < 1 then
-        return yearText
-    end
-    return `{yearText} {remainder}mo`
+    return "Less than an hour ago"
 end
 
 local function nowSeconds(): number?
@@ -480,7 +469,8 @@ end
 --                                      Window:SetProfile, else
 --                                      LocalPlayer.MembershipType
 --                                      (PREMIUM / FREEMIUM)
---   join date / account age            LocalPlayer.AccountAge (days)
+--   account created / elapsed time     users.roblox.com creation timestamp
+--                                      (AccountAge gives an approximate elapsed fallback)
 --   game name                          Roblox's official two-step API:
 --                                      place id -> universe id -> the games
 --                                      list's "name" (DataModel.Name until
@@ -629,6 +619,50 @@ local function requestJson(url: string, callback: (any?) -> ())
             end
         end
         callback(decoded)
+    end)
+end
+
+-- Fetch once per player/window; never infer an exact date from rounded AccountAge.
+function profilePanel.applyAccountCreated(window)
+    if window.unloaded or not window.profileJoinDateValue then
+        return
+    end
+    local player = state.localPlayer
+    local userId = player and player.UserId
+    if window.profileAccountUserId ~= userId then
+        window.profileAccountUserId = userId
+        window.profileAccountCreatedAt = nil
+        window.profileAccountRequested = false
+    end
+    local created = window.profileAccountCreatedAt
+    local now = nowSeconds()
+    local age = player and player.AccountAge
+    setText(window.profileJoinDateValue, formatDate(created))
+    local elapsed = if created and now then formatAccountAge(now - created)
+        elseif type(age) == "number" and age >= 0 then
+            (if age == 0 then "Less than a day ago" else "~ " .. formatAccountAge(age * 86400))
+        else fallbackValue
+    setText(window.profileAccountAgeValue, elapsed)
+
+    if type(userId) ~= "number" or userId <= 0 or window.profileAccountRequested then
+        return
+    end
+    window.profileAccountRequested = true
+    requestJson(`https://users.roblox.com/v1/users/{userId}`, function(parsed)
+        if window.unloaded or window.profileAccountUserId ~= userId then
+            return
+        end
+        local ok, timestamp = pcall(function()
+            if type(parsed) ~= "table" or type(parsed.created) ~= "string" then
+                return nil
+            end
+            return DateTime.fromIsoDate(parsed.created).UnixTimestamp
+        end)
+        local currentTime = nowSeconds()
+        if ok and type(timestamp) == "number" and timestamp > 0 and currentTime and timestamp <= currentTime then
+            window.profileAccountCreatedAt = timestamp
+            profilePanel.applyAccountCreated(window)
+        end
     end)
 end
 
@@ -939,8 +973,10 @@ function profilePanel.applyTier(window)
     -- [[states a tier, so it must never render as a word with a blank square
     -- [[beside it.]]
     local wantedIcon = cardIcon(window, if premium then "crown" else "badge-check")
-    if icon.Image ~= wantedIcon then
-        icon.Image = wantedIcon
+    if window.profileTierIconSource ~= wantedIcon or window.profileTierIconTarget ~= icon then
+        window.profileTierIconTarget = icon
+        window.profileTierIconSource = wantedIcon
+        image.assign(icon, "Image", wantedIcon)
     end
     -- [[A fixed box measured from its own label, so the pill only ever grows]]
     -- [[as wide as its word needs.]]
@@ -1029,7 +1065,7 @@ function profilePanel.flashCopied(window, name: string)
     if not entry or not entry.icon or not entry.icon.Parent then
         return
     end
-    entry.icon.Image = cardIcon(window, "check")
+    image.assign(entry.icon, "Image", cardIcon(window, "check"))
     entry.icon.ImageColor3 = window.theme.Success
     cancelTimer(entry.flashThread)
     entry.flashStamp = (entry.flashStamp or 0) + 1
@@ -1039,7 +1075,7 @@ function profilePanel.flashCopied(window, name: string)
             return
         end
         entry.flashThread = nil
-        entry.icon.Image = cardIcon(window, "copy")
+        image.assign(entry.icon, "Image", cardIcon(window, "copy"))
         entry.icon.ImageColor3 = window.theme.ActionColor
         profilePanel.setCopyStatus(window, name, false)
     end)
@@ -1177,15 +1213,7 @@ function profilePanel.applyIdentity(window)
         end
     end
 
-    if window.profileJoinDateValue then
-        local accountAge = if player and type(player.AccountAge) == "number" then player.AccountAge else nil
-        local now = nowSeconds()
-        setText(
-            window.profileJoinDateValue,
-            if accountAge and now then formatDate(now - accountAge * 86400) else fallbackValue
-        )
-        setText(window.profileAccountAgeValue, formatAccountAge(accountAge))
-    end
+    profilePanel.applyAccountCreated(window)
 
     profilePanel.applyLicense(window)
 end
@@ -1204,6 +1232,7 @@ function profilePanel.applyLive(window)
     )
 
     setText(window.profileSessionValue, formatDuration(sessionSeconds()))
+    profilePanel.applyAccountCreated(window)
 
     -- [[A whitelist entry that expires at a timestamp counts down here too.]]
     profilePanel.applyLicense(window)
@@ -1597,7 +1626,8 @@ function profilePanel.build(window)
     }, { Color = "ElementStroke" })
     local premiumIcon = window:Create("ImageLabel", {
         Name = "Crown",
-        Image = window:ResolveIcon("crown"),
+        -- applyTier selects the correct icon; do not start a competing crown load.
+        Image = "",
         Position = UDim2.fromOffset(tierPaddingLeft, (tierHeight - tierIconSize) / 2),
         Size = UDim2.fromOffset(tierIconSize, tierIconSize),
         BackgroundTransparency = 1,
@@ -1752,6 +1782,10 @@ function profilePanel.build(window)
 
     local y = 0
 
+    if not window._constructed then
+        window:_constructionCheckpoint(true)
+    end
+
     -- ===== ACCOUNT =====
 
     local accountRows = {
@@ -1765,8 +1799,8 @@ function profilePanel.build(window)
                 return if current and current.UserId then tostring(current.UserId) else nil
             end,
         },
-        { name = "JoinDate", label = "Join date", icon = "calendar-days" },
-        { name = "AccountAge", label = "Account age", icon = "hourglass" },
+        { name = "JoinDate", label = "Account created", icon = "calendar-days", labelWidth = 88, valueSize = 11 },
+        { name = "AccountAge", label = "Elapsed", icon = "hourglass" },
         {
             name = "Key",
             label = "Key",

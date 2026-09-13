@@ -13,6 +13,8 @@ defaults.values = {
     layoutMode = "top",
     activeSubTab = 1,
     motionSpeed = "normal",
+    autoSaveConfig = true,
+    autoLoadConfig = true,
 }
 
 function defaults.clone(overrides: { [string]: any }?): { [string]: any }

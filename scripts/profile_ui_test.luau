@@ -243,17 +243,17 @@ placeEntry.button.Activated:Fire()
 TestPump(0.1)
 eq(#copied, 1, "G2 one press copies once")
 eq(copied[1], tostring(game.PlaceId), "G2 the Place ID button copies the place ID")
-eq(placeEntry.icon.Image, window:ResolveIcon("check"), "G2 a successful copy swaps in the check icon")
+eq(placeEntry.icon.Image, TestImageUri(window:ResolveIcon("check")), "G2 a successful copy swaps in the check icon")
 eq(placeEntry.icon.ImageColor3, theme.Success, "G2 the check is drawn in the success green")
 eq(placeEntry.button.Text, "Copied", "G2 the button states the success")
 eq(window.profileTooltipLabel.Text, "Copied", "G2 ... and so does the open tooltip")
-expect(placeEntry.icon.Image ~= window:ResolveIcon("copy"), "G2 the copy glyph is gone while the check is up")
+expect(placeEntry.icon.Image ~= TestImageUri(window:ResolveIcon("copy")), "G2 the copy glyph is gone while the check is up")
 
 -- [[The job ID row copies its own value, not the place ID.]]
 jobEntry.button.Activated:Fire()
 TestPump(0.1)
 eq(copied[#copied], game.JobId, "G2 the job ID button copies the server's job ID")
-eq(jobEntry.icon.Image, window:ResolveIcon("check"), "G2 the job ID button flashes its own check")
+eq(jobEntry.icon.Image, TestImageUri(window:ResolveIcon("check")), "G2 the job ID button flashes its own check")
 
 -- [[Repeated presses: the flash restarts rather than stacking, so no earlier
 -- [[timer may restore the icon while a newer one is still running.]]
@@ -263,11 +263,11 @@ placeEntry.button.Activated:Fire()
 TestPump(0.5)
 eq(
 	placeEntry.icon.Image,
-	window:ResolveIcon("check"),
+	TestImageUri(window:ResolveIcon("check")),
 	"G2 a superseded timer never restores the icon early"
 )
 TestPump(1.0)
-eq(placeEntry.icon.Image, window:ResolveIcon("copy"), "G2 the copy glyph returns after the last flash")
+eq(placeEntry.icon.Image, TestImageUri(window:ResolveIcon("copy")), "G2 the copy glyph returns after the last flash")
 eq(placeEntry.icon.ImageColor3, theme.ActionColor, "G2 ... in the action colour")
 eq(placeEntry.button.Text, "Copy Place ID", "G2 the button goes back to naming the action")
 eq(window.profileTooltipLabel.Text, "Copy Place ID", "G2 ... and the open tooltip follows")
@@ -292,7 +292,7 @@ TestPump(0.3)
 placeEntry.button.Activated:Fire()
 TestPump(0.1)
 eq(placeEntry.button.Text, "Copiado", "G2 the success word follows the locale too")
-eq(window.profileCopyButtons.PlaceId.icon.Image, window:ResolveIcon("check"), "G2 the flash still runs under a locale")
+eq(window.profileCopyButtons.PlaceId.icon.Image, TestImageUri(window:ResolveIcon("check")), "G2 the flash still runs under a locale")
 TestPump(1.4)
 eq(placeEntry.button.Text, "Copiar ID del lugar", "G2 the idle word returns in the locale")
 window:SetLocale("en")
@@ -333,82 +333,26 @@ local placeLabel = findChild(panel, "PlaceIdLabel")
 expect(placeLabel ~= nil, "G3 the place ID row still exists")
 eq(placeLabel.Text, "Place ID", "G3 the place ID row keeps its label")
 
--- ===== G4: the tier pill draws a real icon in every pack and state =====
-
--- [[What the card promises is an icon for the tier in every state, so the test
--- [[pins the asset each pack is expected to answer with. The window's own
--- [[resolution is read on the tier label's own icon: an unresolved lucide name
--- [[(what a pack without it used to leave behind) comes back verbatim, and a
--- [[resolved one is a real asset path inside the pack.
--- [[A window replaced the previous one here: CreateWindow unloads the window
--- [[that was active (anti-duplicate), so this runs last.
--- [[The image is re-applied through SetProfile once the images layer has
--- [[settled: in the harness there is no getcustomasset, so the deferred
--- [["remote image failed" answer clears the property that was set while the
--- [[card was being built.]]
-local packIcons = {
-	{ pack = "lucide", premium = "lucideCrown", free = "lucideBadgeCheck" },
-	{ pack = "tabler", premium = "tablerCrown", free = "tablerBadge" },
-	{ pack = "phosphor", premium = "phosphorCrown", free = "phosphorSealCheck" },
-	{ pack = "heroicons", premium = "heroiconsStar", free = "heroiconsCheckBadge" },
-	{ pack = "feather", premium = "featherStar", free = "featherAward" },
-	{ pack = "material", premium = "materialStar", free = "materialVerifiedUser" },
-}
-
+-- ===== G4: all-pack lookup keeps native profile badges and real asset URIs =====
 local membership = player.MembershipType
-for _, entry in packIcons do
-	local pack = entry.pack
-	player.MembershipType = Enum.MembershipType.Premium
-	local packed = Astra:CreateWindow({ name = "Tier pill " .. pack, iconPack = pack })
-	TestPump(0.3)
-	eq(packed.iconPack, pack, "G4 the window uses the requested pack (" .. pack .. ")")
-	eq(packed.profileTierLabel.Text, "PREMIUM", "G4 a paid membership reads PREMIUM with " .. pack)
-
-	packed:SetProfile({})
-	TestPump(0.2)
-	local premiumIcon = packed.profileTierIcon.Image
-	expect(
-		string.find(premiumIcon, entry.premium .. ".png") ~= nil,
-		"G4 the PREMIUM icon is the pack's own asset with "
-			.. pack
-			.. " (got "
-			.. tostring(premiumIcon)
-			.. ", want a "
-			.. entry.premium
-			.. " asset)"
-	)
-	eq(packed.profileTierIcon.ImageColor3, packed.theme.AccentColor, "G4 the PREMIUM icon keeps the accent colour")
-
-	-- [[A free account is labelled, not decorated: FREEMIUM, with an icon of
-	-- [[its own rather than the crown or a blank square.]]
-	player.MembershipType = Enum.MembershipType.None
-	packed:SetProfile({})
-	TestPump(0.2)
-	eq(packed.profileTierLabel.Text, "FREEMIUM", "G4 a free account reads FREEMIUM with " .. pack)
-	local freeIcon = packed.profileTierIcon.Image
-	expect(
-		string.find(freeIcon, entry.free .. ".png") ~= nil,
-		"G4 the FREEMIUM icon is the pack's own asset with "
-			.. pack
-			.. " (got "
-			.. tostring(freeIcon)
-			.. ", want a "
-			.. entry.free
-			.. " asset)"
-	)
-	expect(freeIcon ~= premiumIcon, "G4 the two tiers do not share one icon with " .. pack)
-	eq(packed.profileTierIcon.ImageColor3, packed.theme.PlaceholderColor, "G4 the free tier reads in the muted colour")
-	eq(packed.profilePremium.Visible, true, "G4 the pill stays for a free account with " .. pack)
-
-	-- [[The host's own word still wins, and takes the free-tier icon with it.]]
-	packed:SetProfile({ tier = "vip" })
-	TestPump(0.2)
-	eq(packed.profileTierLabel.Text, "VIP", "G4 a host tier overrides the platform tier with " .. pack)
-	expect(packed.profileTierIcon.Image == freeIcon, "G4 a non-premium tier keeps the free-tier icon with " .. pack)
-
-	packed:Unload()
-	TestPump(0.1)
-end
+player.MembershipType = Enum.MembershipType.Premium
+local packed = Astra:CreateWindow({ name = "All-pack profile" })
+TestPump(0.6)
+eq(packed.profileTierLabel.Text, "PREMIUM", "G4 paid tier label")
+eq(packed.profileTierIcon.Image, TestImageUri(packed:ResolveIcon("crown")), "G4 crown uses image loader")
+local premiumIcon = packed.profileTierIcon.Image
+player.MembershipType = Enum.MembershipType.None
+packed:SetProfile({})
+TestPump(0.3)
+eq(packed.profileTierLabel.Text, "FREEMIUM", "G4 free tier label")
+eq(packed.profileTierIcon.Image, TestImageUri(packed:ResolveIcon("badge-check")), "G4 badge uses image loader")
+local freeIcon = packed.profileTierIcon.Image
+expect(freeIcon ~= premiumIcon, "G4 free and premium icons differ")
+eq(packed.profileTierIcon.ImageColor3, packed.theme.PlaceholderColor, "G4 free badge colour")
+packed:SetProfile({ tier = "VIP" })
+TestPump(0.3)
+eq(packed.profileTierIcon.Image, freeIcon, "G4 custom tier retains its badge")
+eq(packed.profileTierLabel.Text, "VIP", "G4 custom label")
+packed:Unload()
 player.MembershipType = membership
-
 print("PROFILE UI: all assertions passed")

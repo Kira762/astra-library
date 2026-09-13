@@ -2,6 +2,27 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-13 — Optional Collapsible Groups, built-in config preferences, all-pack window icons
+
+- Added `Tab:CreateCollapsibleGroup` with one-table child definitions for all tab
+  element types, including ordinary Groups. Multiple groups are independent;
+  nested Collapsible Groups (including indirect nesting) are rejected up front.
+- Containers use native styling and measured, animated height across topbar,
+  sidebar and collapsed-sidebar layouts. No expansion setting is required in
+  usage. Closing/reopening preserves control values, flags and running keybinds.
+- Search finds child controls and temporarily expands their container. Tab
+  cleanup and keybind conflict detection now recurse through containers.
+- Added Auto Save Config and Auto Load Config in Settings → Persistence. Both
+  default on, and their preferences persist separately from control values.
+  Normal window usage no longer needs configuration props. Legacy overrides
+  remain accepted; save writes are coalesced and the final pending edit flushes
+  on unload. Internal defaults are not shown in the named-preset UI.
+- Removed window-wide icon-pack selection. Bare names now use all-pack lookup
+  everywhere; `pack:name` still selects an exact icon. Added generated visual
+  catalogs for all six packs under `assets/icons/README.md`.
+- Updated public types, usage/example scripts and regression tests. Existing
+  standalone controls remain available without Collapsible Group overhead.
+
 ## 2026-09-13 — Icon resolver: name-only lookup across every pack, qualified names, indexed custom assets
 
 - **A bare icon name is searched in every built-in pack.** `Astra.Icons.get("home")`

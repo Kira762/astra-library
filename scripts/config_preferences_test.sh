@@ -1,15 +1,9 @@
 #!/bin/sh
-# Runtime test for the profile card's window-matched surface, its copy-button
-# feedback (green check + "Copied" + one timer per button), the "Job ID" row
-# wording, and the tier pill's icon in every icon pack and both states.
-#
-# Assembles: mini Roblox stubs + bundle (wrapped in a function to keep
-# `local` scoping) + assertions, writes it to a temp file, and runs it under
-# the Luau CLI from PATH if available, else /tmp/luau.
+# Test built-in saving preferences and config restoration.
 set -u
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BUNDLE="$ROOT/version-1.luau"
+BUNDLE="${ASTRA_BUNDLE:-$ROOT/version-1.luau}"
 
 if [ ! -f "$BUNDLE" ]; then
 	echo "bundle missing: $BUNDLE" >&2
@@ -31,7 +25,7 @@ if [ -z "$LUAU_BIN" ]; then
 fi
 
 TMPDIR_LOCAL="${TMPDIR:-/tmp}"
-OUT="$TMPDIR_LOCAL/astra_profile_ui_$$.luau"
+OUT="$TMPDIR_LOCAL/astra_config_preferences_$$.luau"
 trap 'rm -f "$OUT"' EXIT
 
 {
@@ -44,13 +38,13 @@ trap 'rm -f "$OUT"' EXIT
 	echo ""
 	echo "end)()"
 	echo ""
-	cat "$ROOT/scripts/profile_ui_test.luau"
+	cat "$ROOT/scripts/config_preferences_test.luau"
 } > "$OUT"
 
 if "$LUAU_BIN" "$OUT"; then
-	echo "PROFILE UI TEST PASSED"
+	echo "CONFIG PREFERENCES TEST PASSED"
 	exit 0
 else
-	echo "PROFILE UI TEST FAILED (see above)" >&2
+	echo "CONFIG PREFERENCES TEST FAILED (see above)" >&2
 	exit 1
 fi

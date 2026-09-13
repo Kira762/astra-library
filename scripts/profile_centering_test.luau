@@ -76,6 +76,7 @@ local centreX = viewport.X / 2
 local centreY = viewport.Y / 2
 
 local function findSettingsElement(targetWindow, tabName, elementName)
+	targetWindow:_buildSettingsUI() -- settings shells are now lazy too
 	for _, tab in targetWindow._settingsTabs do
 		if tab.name == tabName then
 			tab:Select()

@@ -335,7 +335,7 @@ export type KeybindProps = {
     description: string?,
     icon: (string | number)?,
     flag: string?,
-    value: (EnumItem | string)?,     forgetState: boolean?,
+    value: (EnumItem | string)?,     forgetState: boolean?,     editable: boolean?,
     isMenuToggle: boolean?,     hold: boolean?,     holdThreshold: number?,     callback: ((value: EnumItem | boolean) -> ())?,     onChanged: ((key: EnumItem) -> ())?, }
 
 export type StatProps = {
@@ -7676,7 +7676,7 @@ function Window:_buildSettingsUI()
     local function buildGeneral()
     self.rfSettings:CreateSection({ name = "General" })
     self.rfSettings:CreateKeybind({
-        name = "Toggle Keybind", description = "Click the value, then press the key or mouse button you want to use.", icon = constants.icons.search, value = self.settings.toggleKeybind,
+        name = "Toggle Keybind", description = "Type one letter. Extra characters are removed automatically.", icon = constants.icons.search, value = self.settings.toggleKeybind, editable = true,
         isMenuToggle = true, onChanged = function(value)
             self.settings.toggleKeybind = value
             self:SaveSettings()
@@ -12717,6 +12717,7 @@ function state.new(tab, a22)
         icon = tab.window:ResolveIcon(a22.icon or a22.Icon),
         description = a22.description or a22.Description,
         forgetState = a22.forgetState or a22.ForgetState or tab.forgetState,
+        editable = a22.editable or a22.Editable or false,
 
                         isMenuToggle = a22.isMenuToggle or a22.IsMenuToggle or false,
 
@@ -12822,7 +12823,7 @@ function state.new(tab, a22)
     self.keyLabel = self.window:Create("TextBox", {
         Text = frame(self.value),
         ClearTextOnFocus = false,
-        TextEditable = false,
+        TextEditable = self.editable,
         MultiLine = false,
         Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
@@ -12841,15 +12842,47 @@ function state.new(tab, a22)
             return
         end
         isMenuToggle.click()
-        self:_startRecording()
+        if self.editable then
+            self._editing = true
+            self.keyLabel.Text = ""
+            self._editing = false
+        else
+            self:_startRecording()
+        end
     end)
 
     self.window:ConnectFor(self, self.keyLabel.FocusLost, function()
-        -- Clicking away cancels; only captured keys may change the binding.
         if self.recording then
             self:_stopRecording()
-        else
+        elseif not self.editable then
             self.keyLabel.Text = frame(self.value)
+        end
+    end)
+
+    self.window:ConnectFor(self, self.keyLabel:GetPropertyChangedSignal("Text"), function()
+        if not self.editable or self._editing then
+            return
+        end
+        local text = tostring(self.keyLabel.Text or "")
+        if text == "" then
+            if self.value ~= Enum.KeyCode.Unknown then
+                self:_bind(Enum.KeyCode.Unknown)
+            end
+            return
+        end
+        local first = string.upper(text:sub(1, 1))
+        local nextValue = connection(first)
+        if not first:match("%a") or nextValue == Enum.KeyCode.Unknown then
+            self._editing = true
+            self.keyLabel.Text = frame(self.value)
+            self._editing = false
+            return
+        end
+        self._editing = true
+        self.keyLabel.Text = first
+        self._editing = false
+        if nextValue ~= self.value then
+            self:_bind(nextValue)
         end
     end)
 
@@ -32485,80 +32518,80 @@ local LineOffsets = {
     [28] = 12176,
     [29] = 12387,
     [30] = 12657,
-    [31] = 13136,
-    [32] = 13586,
-    [33] = 13673,
-    [34] = 14238,
-    [35] = 14856,
-    [36] = 15251,
-    [37] = 15381,
-    [38] = 15545,
-    [39] = 15699,
-    [41] = 16261,
-    [42] = 16284,
-    [43] = 16301,
-    [44] = 16334,
-    [45] = 16456,
-    [46] = 16480,
-    [47] = 16529,
-    [48] = 16236,
-    [49] = 16659,
-    [50] = 16962,
-    [51] = 16993,
-    [52] = 16648,
-    [53] = 17036,
-    [54] = 17056,
-    [55] = 17088,
-    [56] = 17018,
-    [57] = 17195,
-    [58] = 17254,
-    [59] = 17314,
-    [61] = 17373,
-    [62] = 17538,
-    [63] = 17358,
-    [64] = 18098,
-    [65] = 18393,
-    [66] = 19049,
-    [67] = 20833,
-    [68] = 21974,
-    [69] = 23494,
-    [70] = 17600,
-    [71] = 28738,
-    [72] = 28800,
-    [73] = 28862,
-    [74] = 28937,
-    [75] = 29019,
-    [76] = 29081,
-    [77] = 29156,
-    [78] = 29231,
-    [79] = 29306,
-    [80] = 29381,
-    [81] = 28632,
-    [82] = 29443,
-    [83] = 29541,
-    [84] = 29719,
-    [85] = 29770,
-    [86] = 29800,
-    [87] = 30051,
-    [88] = 30100,
-    [89] = 30553,
-    [90] = 30571,
-    [91] = 30717,
-    [92] = 30816,
-    [93] = 30838,
-    [94] = 30888,
-    [95] = 31214,
-    [96] = 31250,
-    [97] = 31268,
-    [98] = 31617,
-    [99] = 31633,
-    [100] = 31684,
-    [101] = 31703,
-    [102] = 31945,
-    [103] = 31989,
-    [104] = 32214,
-    [105] = 32242,
-    [106] = 32253,
+    [31] = 13169,
+    [32] = 13619,
+    [33] = 13706,
+    [34] = 14271,
+    [35] = 14889,
+    [36] = 15284,
+    [37] = 15414,
+    [38] = 15578,
+    [39] = 15732,
+    [41] = 16294,
+    [42] = 16317,
+    [43] = 16334,
+    [44] = 16367,
+    [45] = 16489,
+    [46] = 16513,
+    [47] = 16562,
+    [48] = 16269,
+    [49] = 16692,
+    [50] = 16995,
+    [51] = 17026,
+    [52] = 16681,
+    [53] = 17069,
+    [54] = 17089,
+    [55] = 17121,
+    [56] = 17051,
+    [57] = 17228,
+    [58] = 17287,
+    [59] = 17347,
+    [61] = 17406,
+    [62] = 17571,
+    [63] = 17391,
+    [64] = 18131,
+    [65] = 18426,
+    [66] = 19082,
+    [67] = 20866,
+    [68] = 22007,
+    [69] = 23527,
+    [70] = 17633,
+    [71] = 28771,
+    [72] = 28833,
+    [73] = 28895,
+    [74] = 28970,
+    [75] = 29052,
+    [76] = 29114,
+    [77] = 29189,
+    [78] = 29264,
+    [79] = 29339,
+    [80] = 29414,
+    [81] = 28665,
+    [82] = 29476,
+    [83] = 29574,
+    [84] = 29752,
+    [85] = 29803,
+    [86] = 29833,
+    [87] = 30084,
+    [88] = 30133,
+    [89] = 30586,
+    [90] = 30604,
+    [91] = 30750,
+    [92] = 30849,
+    [93] = 30871,
+    [94] = 30921,
+    [95] = 31247,
+    [96] = 31283,
+    [97] = 31301,
+    [98] = 31650,
+    [99] = 31666,
+    [100] = 31717,
+    [101] = 31736,
+    [102] = 31978,
+    [103] = 32022,
+    [104] = 32247,
+    [105] = 32275,
+    [106] = 32286,
 }
 
 -- [[Misc AOT variable imports]]

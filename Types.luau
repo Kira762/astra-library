@@ -149,7 +149,7 @@ export type KeybindProps = {
     description: string?,
     icon: (string | number)?,
     flag: string?,
-    value: (EnumItem | string)?,     forgetState: boolean?,
+    value: (EnumItem | string)?,     forgetState: boolean?,     editable: boolean?,
     isMenuToggle: boolean?,     hold: boolean?,     holdThreshold: number?,     callback: ((value: EnumItem | boolean) -> ())?,     onChanged: ((key: EnumItem) -> ())?, }
 
 export type StatProps = {

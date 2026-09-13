@@ -1675,7 +1675,7 @@ function Window:_buildSettingsUI()
     local function buildGeneral()
     self.rfSettings:CreateSection({ name = "General" })
     self.rfSettings:CreateKeybind({
-        name = "Toggle Keybind", description = "Click the value, then press the key or mouse button you want to use.", icon = constants.icons.search, value = self.settings.toggleKeybind,
+        name = "Toggle Keybind", description = "Type one letter. Extra characters are removed automatically.", icon = constants.icons.search, value = self.settings.toggleKeybind, editable = true,
         isMenuToggle = true, onChanged = function(value)
             self.settings.toggleKeybind = value
             self:SaveSettings()

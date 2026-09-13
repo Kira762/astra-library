@@ -61,6 +61,7 @@ function state.new(tab, a22)
         icon = tab.window:ResolveIcon(a22.icon or a22.Icon),
         description = a22.description or a22.Description,
         forgetState = a22.forgetState or a22.ForgetState or tab.forgetState,
+        editable = a22.editable or a22.Editable or false,
 
                         isMenuToggle = a22.isMenuToggle or a22.IsMenuToggle or false,
 
@@ -166,7 +167,7 @@ function state.new(tab, a22)
     self.keyLabel = self.window:Create("TextBox", {
         Text = frame(self.value),
         ClearTextOnFocus = false,
-        TextEditable = false,
+        TextEditable = self.editable,
         MultiLine = false,
         Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
@@ -185,15 +186,47 @@ function state.new(tab, a22)
             return
         end
         isMenuToggle.click()
-        self:_startRecording()
+        if self.editable then
+            self._editing = true
+            self.keyLabel.Text = ""
+            self._editing = false
+        else
+            self:_startRecording()
+        end
     end)
 
     self.window:ConnectFor(self, self.keyLabel.FocusLost, function()
-        -- Clicking away cancels; only captured keys may change the binding.
         if self.recording then
             self:_stopRecording()
-        else
+        elseif not self.editable then
             self.keyLabel.Text = frame(self.value)
+        end
+    end)
+
+    self.window:ConnectFor(self, self.keyLabel:GetPropertyChangedSignal("Text"), function()
+        if not self.editable or self._editing then
+            return
+        end
+        local text = tostring(self.keyLabel.Text or "")
+        if text == "" then
+            if self.value ~= Enum.KeyCode.Unknown then
+                self:_bind(Enum.KeyCode.Unknown)
+            end
+            return
+        end
+        local first = string.upper(text:sub(1, 1))
+        local nextValue = connection(first)
+        if not first:match("%a") or nextValue == Enum.KeyCode.Unknown then
+            self._editing = true
+            self.keyLabel.Text = frame(self.value)
+            self._editing = false
+            return
+        end
+        self._editing = true
+        self.keyLabel.Text = first
+        self._editing = false
+        if nextValue ~= self.value then
+            self:_bind(nextValue)
         end
     end)
 

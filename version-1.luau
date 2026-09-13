@@ -8873,15 +8873,23 @@ function Window:CreateHoverOverlay(parent)
     return overlay
 end
 
-function Window:_wireElementHover(element)
+function Window:_wireElementHover(element, options)
     local theme = self.theme
+    -- [[Containers may scope the hover to a sub-frame (the collapsible
+    -- header) instead of the whole element, and rest their title on a
+    -- different theme token. Keys, not values, so a runtime theme change
+    -- still flows through: the closures below read the theme live.]]
+    options = if typeof(options) == "table" then options else {}
+    local hoverTarget = options.target or element.main
+    local titleRestKey = options.titleRestKey or "ContentColor"
+    local titleHoverKey = options.titleHoverKey or "ElementTextHoverColor"
 
     -- [[Hover feedback is the single most-repeated animation in the library
     -- (every element, every pointer move across a grid), so it goes through
     -- the motion service: the spec is shared instead of allocated per event,
     -- and an enter/leave pair on the same element can no longer leave two
     -- tweens interpolating the same stroke — the second cancels the first.]]
-    self:ConnectFor(element, element.main.MouseEnter, function()
+    self:ConnectFor(element, hoverTarget.MouseEnter, function()
         if not self:_interactive() then
             return         end
         motion.tween(
@@ -8889,19 +8897,19 @@ function Window:_wireElementHover(element)
             { Transparency = theme.ElementStrokeHoverTransparency, Color = theme.ElementStrokeHover },
             "snappy"
         )
-        motion.tween(element.title, { TextColor3 = theme.ElementTextHoverColor }, "snappy")
+        motion.tween(element.title, { TextColor3 = theme[titleHoverKey] }, "snappy")
         if element.hoverOverlay then
             motion.tween(element.hoverOverlay, { BackgroundTransparency = 0.97 }, "snappy")
         end
     end)
 
-    self:ConnectFor(element, element.main.MouseLeave, function()
+    self:ConnectFor(element, hoverTarget.MouseLeave, function()
         motion.tween(
             element.stroke,
             { Transparency = theme.ElementStrokeTransparency, Color = theme.ElementStroke },
             "snappy"
         )
-        motion.tween(element.title, { TextColor3 = theme.ContentColor }, "snappy")
+        motion.tween(element.title, { TextColor3 = theme[titleRestKey] }, "snappy")
         if element.hoverOverlay then
             motion.tween(element.hoverOverlay, { BackgroundTransparency = 1 }, "snappy")
         end
@@ -10113,10 +10121,17 @@ function Collapsible.new(tab, props)
     }, Collapsible)
     local w = self.window
     self.headerHeight = if self.description then 61 else 41
+    -- The container only reserves layout space: it must not clip. The header
+    -- card fills it edge to edge, and a tight ClipsDescendants parent shaves
+    -- the outer half of its 1px stroke (Border mode straddles the edge) plus
+    -- the corner arcs on all four sides — the flaw that made these corners
+    -- read thinner than every other element. Clipping lives on the body
+    -- frame below, mirroring the dropdown: its expanding panel clips, while
+    -- its stroked top card never sits inside a tight clipper.
     self.main = w:Create("Frame", {
         Name = self.name, Size = UDim2.new(1, -20, 0, self.headerHeight),
         BackgroundTransparency = 1, BorderSizePixel = 0,
-        ClipsDescendants = true, Parent = tab.tabPage,
+        Parent = tab.tabPage,
     })
     self.header = w:Create("Frame", {
         Name = "Header", Size = UDim2.new(1, 0, 0, self.headerHeight),
@@ -10128,7 +10143,9 @@ function Collapsible.new(tab, props)
     -- here multiplied the gradient and drew the header almost black.
     self.stroke = w:StyleElementBody(self.header)
     self.hoverOverlay = w:CreateHoverOverlay(self.header)
-    local textX = if self.icon then 43 else 20
+    -- Header metrics mirror the Text element: 20px gutters, a 6px icon gap,
+    -- a 16px TitlingColor title and a 14px body line at 0.45 transparency.
+    local textX = if self.icon then 42 else 20
     if self.icon then
         self.iconLabel = w:Create("ImageLabel", {
             Image = self.icon, Position = UDim2.fromOffset(20, 12), Size = UDim2.fromOffset(16, 16),
@@ -10137,20 +10154,20 @@ function Collapsible.new(tab, props)
     end
     self.title = w:Create("TextLabel", {
         Text = locale.t(self.name), Position = UDim2.fromOffset(textX, 0),
-        Size = UDim2.new(1, -(textX + 40), 0, 41), BackgroundTransparency = 1,
+        Size = UDim2.new(1, -(textX + 42), 0, 41), BackgroundTransparency = 1,
         TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
         TextTransparency = 1, Parent = self.header,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
+    }, { TextColor3 = "TitlingColor", FontFace = "Font" })
     if self.description then
         self.descriptionLabel = w:Create("TextLabel", {
-            Text = locale.t(self.description), Position = UDim2.fromOffset(textX, 35),
-            Size = UDim2.new(1, -(textX + 20), 0, 20), BackgroundTransparency = 1,
-            TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+            Text = locale.t(self.description), Position = UDim2.fromOffset(textX, 37),
+            Size = UDim2.new(1, -(textX + 20), 0, 18), BackgroundTransparency = 1,
+            TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
             TextTransparency = 1, Parent = self.header,
         }, { TextColor3 = "ContentColor", FontFace = "Font" })
     end
     self.chevron = w:Create("ImageLabel", {
-        Image = w:ResolveIcon("chevron-right"), Position = UDim2.new(1, -30, 0, 12),
+        Image = w:ResolveIcon("chevron-right"), Position = UDim2.new(1, -36, 0, 12),
         Size = UDim2.fromOffset(16, 16), BackgroundTransparency = 1,
         ImageTransparency = 1, Rotation = 0, Parent = self.header,
     }, { ImageColor3 = "ContentColor" })
@@ -10158,10 +10175,25 @@ function Collapsible.new(tab, props)
         Text = "", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
         AutoButtonColor = false, ZIndex = 6, Parent = self.header,
     })
+    -- The clipper is 20px wider than the container (10px of transparent
+    -- bleed each side) so children — which size themselves at UDim2.new(1,
+    -- -20) — land at exactly the header's width instead of compounding the
+    -- container's own -20 into a second, narrower inset. The bleed is
+    -- transparent and `main` no longer clips, so it reads as nothing; the
+    -- only reveal edge is the clipper's own bounds. The content sits 1px
+    -- inside those bounds so the first and last child's stroke keep the same
+    -- breathing room on every side as standalone elements.
+    self.bodyClip = w:Create("Frame", {
+        Name = "ContentsClip",
+        Position = UDim2.new(0, -10, 0, self.headerHeight + 6),
+        Size = UDim2.new(1, 20, 0, 0),
+        BackgroundTransparency = 1, BorderSizePixel = 0,
+        ClipsDescendants = true, Visible = false, Parent = self.main,
+    })
     self.body = w:Create("Frame", {
-        Name = "Contents", Position = UDim2.fromOffset(0, self.headerHeight + 7),
+        Name = "Contents", Position = UDim2.fromOffset(0, 1),
         Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false, Parent = self.main,
+        BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false, Parent = self.bodyClip,
     })
     self.tabPage = self.body
     self.contentLayout = w:Create("UIListLayout", {
@@ -10177,29 +10209,48 @@ function Collapsible.new(tab, props)
         haptic.click()
         self:_setExpanded(not self._expanded, true)
     end)
-    w:_wireElementHover(self)
+    w:_wireElementHover(self, { target = self.header, titleRestKey = "TitlingColor" })
     buildChildren(self, props.elements or {})
     return self
 end
 
 function Collapsible:_resize(animate)
+    -- (The engine always reports an AbsoluteContentSize; the test harness
+    -- only stubs it once content is driven, so an unmeasured layout reads 0.)
+    local measured = self.contentLayout.AbsoluteContentSize
+    local contentHeight = if measured then measured.Y else 0
     local height = self.headerHeight
+    local clipHeight = 0
     if self._expanded then
-        height += 14 + self.contentLayout.AbsoluteContentSize.Y
+        -- 7px of tab rhythm between the header and the first child; the
+        -- container then ends exactly at the last child, with no dead slack.
+        height += 7 + contentHeight
+        -- 1px of stroke breathing room above and below the revealed content.
+        clipHeight = contentHeight + 2
     end
     local size = UDim2.new(1, -20, 0, height)
+    local clipSize = UDim2.new(1, 20, 0, clipHeight)
     self._resizeRevision = (self._resizeRevision or 0) + 1
     local revision = self._resizeRevision
     local function finish()
         if not self.window.unloaded and self.main.Parent and self._resizeRevision == revision and not self._expanded then
             self.body.Visible = false
+            self.bodyClip.Visible = false
         end
     end
     if animate and self._shown then
-        if not motion.tween(self.main, { Size = size }, "snappy", finish) then finish() end
+        -- The layout reservation (main) and the reveal mask (bodyClip) ride
+        -- the same spec so the mask's edge never leads or trails the frame.
+        -- A nil tween means the size is already applied (instant profile, or
+        -- already at target), so the settle path runs directly.
+        local mainTween = motion.tween(self.main, { Size = size }, "snappy", finish)
+        motion.tween(self.bodyClip, { Size = clipSize }, "snappy")
+        if not mainTween then finish() end
     else
         motion.cancel(self.main)
+        motion.cancel(self.bodyClip)
         self.main.Size = size
+        self.bodyClip.Size = clipSize
         finish()
     end
 end
@@ -10209,6 +10260,7 @@ function Collapsible:_setExpanded(expanded, animate)
     self._expanded = expanded
     if expanded then
         self.body.Visible = true
+        self.bodyClip.Visible = true
         for _, child in ipairs(self.elements) do child:_setShown(self._shown, false) end
     else
         -- End transient editing, but never reset values or trigger callbacks.
@@ -10243,7 +10295,7 @@ function Collapsible:_setShown(shown, animate)
     w:_reveal(self.title, { TextTransparency = if shown then 0 else 1 }, animate)
     w:_reveal(self.chevron, { ImageTransparency = if shown then 0.4 else 1 }, animate)
     if self.iconLabel then w:_reveal(self.iconLabel, { ImageTransparency = if shown then 0 else 1 }, animate) end
-    if self.descriptionLabel then w:_reveal(self.descriptionLabel, { TextTransparency = if shown then 0.6 else 1 }, animate) end
+    if self.descriptionLabel then w:_reveal(self.descriptionLabel, { TextTransparency = if shown then 0.45 else 1 }, animate) end
     if self._expanded then
         for _, child in ipairs(self.elements) do child:_setShown(shown, animate) end
     end
@@ -32556,90 +32608,90 @@ local LineOffsets = {
     [17] = 5255,
     [18] = 5625,
     [19] = 6002,
-    [21] = 9289,
-    [22] = 9556,
-    [23] = 10000,
-    [24] = 10274,
-    [25] = 10608,
-    [26] = 10669,
-    [27] = 10814,
-    [28] = 12180,
-    [29] = 12391,
-    [30] = 12661,
-    [31] = 13217,
-    [32] = 13667,
-    [33] = 13754,
-    [34] = 14319,
-    [35] = 14937,
-    [36] = 15332,
-    [37] = 15462,
-    [38] = 15626,
-    [39] = 15780,
-    [41] = 16342,
-    [42] = 16365,
-    [43] = 16382,
-    [44] = 16415,
-    [45] = 16537,
-    [46] = 16561,
-    [47] = 16610,
-    [48] = 16317,
-    [49] = 16740,
-    [50] = 17043,
-    [51] = 17074,
-    [52] = 16729,
-    [53] = 17117,
-    [54] = 17137,
-    [55] = 17169,
-    [56] = 17099,
-    [57] = 17276,
-    [58] = 17335,
-    [59] = 17395,
-    [61] = 17454,
-    [62] = 17619,
-    [63] = 17439,
-    [64] = 18179,
-    [65] = 18474,
-    [66] = 19130,
-    [67] = 20914,
-    [68] = 22055,
-    [69] = 23575,
-    [70] = 17681,
-    [71] = 28819,
-    [72] = 28881,
-    [73] = 28943,
-    [74] = 29018,
-    [75] = 29100,
-    [76] = 29162,
-    [77] = 29237,
-    [78] = 29312,
-    [79] = 29387,
-    [80] = 29462,
-    [81] = 28713,
-    [82] = 29524,
-    [83] = 29622,
-    [84] = 29800,
-    [85] = 29851,
-    [86] = 29881,
-    [87] = 30132,
-    [88] = 30181,
-    [89] = 30634,
-    [90] = 30652,
-    [91] = 30798,
-    [92] = 30897,
-    [93] = 30919,
-    [94] = 30969,
-    [95] = 31295,
-    [96] = 31331,
-    [97] = 31349,
-    [98] = 31698,
-    [99] = 31714,
-    [100] = 31765,
-    [101] = 31784,
-    [102] = 32026,
-    [103] = 32070,
-    [104] = 32295,
-    [105] = 32323,
-    [106] = 32334,
+    [21] = 9297,
+    [22] = 9564,
+    [23] = 10008,
+    [24] = 10326,
+    [25] = 10660,
+    [26] = 10721,
+    [27] = 10866,
+    [28] = 12232,
+    [29] = 12443,
+    [30] = 12713,
+    [31] = 13269,
+    [32] = 13719,
+    [33] = 13806,
+    [34] = 14371,
+    [35] = 14989,
+    [36] = 15384,
+    [37] = 15514,
+    [38] = 15678,
+    [39] = 15832,
+    [41] = 16394,
+    [42] = 16417,
+    [43] = 16434,
+    [44] = 16467,
+    [45] = 16589,
+    [46] = 16613,
+    [47] = 16662,
+    [48] = 16369,
+    [49] = 16792,
+    [50] = 17095,
+    [51] = 17126,
+    [52] = 16781,
+    [53] = 17169,
+    [54] = 17189,
+    [55] = 17221,
+    [56] = 17151,
+    [57] = 17328,
+    [58] = 17387,
+    [59] = 17447,
+    [61] = 17506,
+    [62] = 17671,
+    [63] = 17491,
+    [64] = 18231,
+    [65] = 18526,
+    [66] = 19182,
+    [67] = 20966,
+    [68] = 22107,
+    [69] = 23627,
+    [70] = 17733,
+    [71] = 28871,
+    [72] = 28933,
+    [73] = 28995,
+    [74] = 29070,
+    [75] = 29152,
+    [76] = 29214,
+    [77] = 29289,
+    [78] = 29364,
+    [79] = 29439,
+    [80] = 29514,
+    [81] = 28765,
+    [82] = 29576,
+    [83] = 29674,
+    [84] = 29852,
+    [85] = 29903,
+    [86] = 29933,
+    [87] = 30184,
+    [88] = 30233,
+    [89] = 30686,
+    [90] = 30704,
+    [91] = 30850,
+    [92] = 30949,
+    [93] = 30971,
+    [94] = 31021,
+    [95] = 31347,
+    [96] = 31383,
+    [97] = 31401,
+    [98] = 31750,
+    [99] = 31766,
+    [100] = 31817,
+    [101] = 31836,
+    [102] = 32078,
+    [103] = 32122,
+    [104] = 32347,
+    [105] = 32375,
+    [106] = 32386,
 }
 
 -- [[Misc AOT variable imports]]

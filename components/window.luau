@@ -2872,15 +2872,23 @@ function Window:CreateHoverOverlay(parent)
     return overlay
 end
 
-function Window:_wireElementHover(element)
+function Window:_wireElementHover(element, options)
     local theme = self.theme
+    -- [[Containers may scope the hover to a sub-frame (the collapsible
+    -- header) instead of the whole element, and rest their title on a
+    -- different theme token. Keys, not values, so a runtime theme change
+    -- still flows through: the closures below read the theme live.]]
+    options = if typeof(options) == "table" then options else {}
+    local hoverTarget = options.target or element.main
+    local titleRestKey = options.titleRestKey or "ContentColor"
+    local titleHoverKey = options.titleHoverKey or "ElementTextHoverColor"
 
     -- [[Hover feedback is the single most-repeated animation in the library
     -- (every element, every pointer move across a grid), so it goes through
     -- the motion service: the spec is shared instead of allocated per event,
     -- and an enter/leave pair on the same element can no longer leave two
     -- tweens interpolating the same stroke — the second cancels the first.]]
-    self:ConnectFor(element, element.main.MouseEnter, function()
+    self:ConnectFor(element, hoverTarget.MouseEnter, function()
         if not self:_interactive() then
             return         end
         motion.tween(
@@ -2888,19 +2896,19 @@ function Window:_wireElementHover(element)
             { Transparency = theme.ElementStrokeHoverTransparency, Color = theme.ElementStrokeHover },
             "snappy"
         )
-        motion.tween(element.title, { TextColor3 = theme.ElementTextHoverColor }, "snappy")
+        motion.tween(element.title, { TextColor3 = theme[titleHoverKey] }, "snappy")
         if element.hoverOverlay then
             motion.tween(element.hoverOverlay, { BackgroundTransparency = 0.97 }, "snappy")
         end
     end)
 
-    self:ConnectFor(element, element.main.MouseLeave, function()
+    self:ConnectFor(element, hoverTarget.MouseLeave, function()
         motion.tween(
             element.stroke,
             { Transparency = theme.ElementStrokeTransparency, Color = theme.ElementStroke },
             "snappy"
         )
-        motion.tween(element.title, { TextColor3 = theme.ContentColor }, "snappy")
+        motion.tween(element.title, { TextColor3 = theme[titleRestKey] }, "snappy")
         if element.hoverOverlay then
             motion.tween(element.hoverOverlay, { BackgroundTransparency = 1 }, "snappy")
         end

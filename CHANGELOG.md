@@ -2,6 +2,39 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-13 — Collapsible Group corners, Text-matched header, full-width children
+
+- **The Collapsible Group header's corners rendered thinner and flatter than
+  every other element.** The container carried `ClipsDescendants` while the
+  stroked header card filled it edge to edge, so the outer half of the 1px
+  `UIStroke` (Border mode straddles the edge) and the corner arcs were shaved
+  off on all four sides. The container is now a plain non-clipping layout
+  frame with the Text card's `UDim2.new(1, -20)` footprint, and clipping moved
+  to a dedicated body frame that only masks the expanding content — the same
+  arrangement the dropdown uses (its panel clips, its top card never sits in
+  a tight clipper). The body frame gives the first and last child 1px of
+  stroke breathing room top and bottom, so no stroke is ever cut.
+- **The header now matches the Text element's card spec.** Title uses
+  `TitlingColor` at 16px, the description line is the Text body's 14px at
+  0.45 transparency, the icon-to-text gap is 6px, and the chevron sits on the
+  20px right gutter; the 41/61 header heights are unchanged. The expanded
+  height also drops its 7px of invisible bottom slack (`header + 14 +
+  content` → `header + 7 + content`), so an open group ends exactly at its
+  last child and follows the 7px tab rhythm on both sides.
+- **Children inside a group no longer shrink a second inset.** The body used
+  to match the container width while children sized themselves at
+  `UDim2.new(1, -20)`, compounding the container's own `-20` — inner content
+  rendered 20px narrower than standalone siblings. The body frame is now 20px
+  wider than the container (transparent bleed; the container no longer clips),
+  so children land at exactly header width, while Section/Divider keep their
+  tab-relative `-40` inset and column Groups keep working as full-bleed
+  wrappers. Hover highlight is scoped to the header only via an optional
+  `_wireElementHover` target (existing single-argument callers are unchanged).
+- Suite: `scripts/collapsible_group_test.luau` pins the new `+907` expanded
+  height and asserts the no-clip container, the `+20` clipper, the element
+  corner radius, the Text-parity metrics and the unchanged child width
+  recipes. All suites run against the regenerated standalone bundle.
+
 ## 2026-09-13 — Collapsible Group header rejoins the element surface, editable keybinds survive a backspace
 
 - **The Collapsible Group header drew as a near-black card that matched nothing

@@ -49,16 +49,40 @@ local function gradientOf(frame)
 end
 assert(gradientOf(group.header) and gradientOf(group.header).Color == gradientOf(toggle.main).Color, "Header gradient matches element surfaces")
 
+-- Geometry parity: the container reserves the Text card's footprint without
+-- clipping it (a tight clipper shaved the header stroke's outer half and the
+-- corner arcs on all four sides); only the body clipper masks, and it is 20px
+-- wider so children at UDim2.new(1, -20) land at exactly header width.
+assert(not group.main.ClipsDescendants, "Container must not clip the header card")
+assert(group.bodyClip.ClipsDescendants, "Only the body clipper masks content")
+assert(group.bodyClip.Size.X.Scale == 1 and group.bodyClip.Size.X.Offset == 20, "Clipper bleeds 20px for full-width children")
+assert(group.body.Size.X.Scale == 1 and group.body.Size.X.Offset == 0, "Body spans the clipper")
+assert(group.body.Position.Y.Offset == 1, "Content keeps 1px of stroke breathing room")
+local headerCorner
+for _, child in group.header:GetChildren() do
+    if child.ClassName == "UICorner" then headerCorner = child end
+end
+assert(headerCorner and headerCorner.CornerRadius == window.theme.ElementCornerRadius, "Header keeps the element corner radius")
+-- Header metrics mirror the Text element.
+assert(group.title.TextColor3 == window.theme.TitlingColor, "Title uses the Text title color")
+assert(group.descriptionLabel.TextSize == 14, "Description matches the Text body size")
+assert(group.title.Position.X.Offset == 42, "Icon-to-text gap matches the Text element")
+assert(group.chevron.Position.X.Offset == -36, "Chevron keeps the 20px Text gutter")
+-- Children keep their normal recipes; the clipper compensates, so inner
+-- content resolves to exactly the header's width (no second inset).
+assert(group.elements[12].main.Size.X.Offset == -20, "Text child keeps its normal width recipe")
+assert(group.elements[11].main.Size.X.Offset == -40, "Section child keeps its normal width recipe")
+
 -- The stub does not simulate UIListLayout measurement; drive its engine signal.
 group.contentLayout.AbsoluteContentSize = Vector2.new(400, 900)
 group.interact.Activated:Fire()
 TestPump(0.4)
-assert(group._expanded and group.body.Visible and group.main.Size.Y.Offset == group.headerHeight + 914, "Expand to content height")
+assert(group._expanded and group.body.Visible and group.bodyClip.Visible and group.main.Size.Y.Offset == group.headerHeight + 907, "Expand to content height")
 assert(group.chevron.Rotation == 90, "Chevron animates open")
 assert(not other._expanded, "Sibling expansion is independent")
 group.interact.Activated:Fire()
 TestPump(0.4)
-assert(not group.body.Visible and group.main.Size.Y.Offset == group.headerHeight, "Collapse releases layout height")
+assert(not group.body.Visible and not group.bodyClip.Visible and group.main.Size.Y.Offset == group.headerHeight, "Collapse releases layout height")
 assert(callbacks == 0, "Opening and closing must never run value callbacks")
 Astra.Core.state.userInputService.InputBegan:Fire({ UserInputType = Enum.UserInputType.Keyboard, KeyCode = Enum.KeyCode.P }, false)
 TestPump(0.1)
@@ -108,12 +132,12 @@ group:Unlock()
 -- Fast reversals and instant motion must settle correctly.
 for _ = 1, 5 do group.interact.Activated:Fire() end
 TestPump(0.5)
-assert(not group._expanded and not group.body.Visible, "Rapid clicks settle collapsed")
+assert(not group._expanded and not group.body.Visible and not group.bodyClip.Visible, "Rapid clicks settle collapsed")
 Astra.Motion.setProfile("instant")
 group.interact.Activated:Fire()
-assert(group._expanded and group.body.Visible and group.chevron.Rotation == 90, "Instant animation profile")
+assert(group._expanded and group.body.Visible and group.bodyClip.Visible and group.chevron.Rotation == 90, "Instant animation profile")
 group.interact.Activated:Fire()
-assert(not group.body.Visible, "Instant collapse is synchronous")
+assert(not group.body.Visible and not group.bodyClip.Visible, "Instant collapse is synchronous")
 Astra.Motion.setProfile("normal")
 
 -- Search includes children, temporarily expands matches, then restores state.

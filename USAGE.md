@@ -588,6 +588,8 @@ are rejected before creating any UI.
   keybind recording; already committed values remain unchanged.
 - Search includes child names and temporarily expands matching groups. Closing
   search restores their previous expansion state.
+- Children render at the same width as standalone elements, and the header
+  matches the Text element's card metrics (gutters, title and body styling).
 - All three layouts are supported; the tab supplies scrolling for long contents.
 - `MoveTo`, `MoveToTop`, `MoveToBottom`, `MoveUp`, `MoveDown`, `Lock`, and `Unlock`
   work on the container. Created child handles are also available in its

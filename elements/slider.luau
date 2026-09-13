@@ -6,6 +6,7 @@ local constants = script.Parent.Parent.utilities
 
 local Slider = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
+local description = require(script.Parent.description)
 local props = require(constants.odometer)
 local name = require(constants.moveable)
 local flag = require(constants.lockable)
@@ -106,13 +107,17 @@ function state.new(ownerTab, a31)
     self.stroke = self.window:StyleElementBody(self.main)
     self._lastValue = self.value
 
+    if not self.minimal then
+        description.attach(self)
+    end
+
         if not self.minimal then
         self:_buildLabel()
     end
 
         self.track = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -15, 0.5, 0),
+        Position = UDim2.new(1, -15, description.center(self, 65)),
         Size = UDim2.fromOffset(222, 14),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
@@ -254,10 +259,6 @@ function state.new(ownerTab, a31)
         self:_endDrag()
     end)
 
-    if self.description and not self.minimal then
-        self.descriptor = require(script.Parent.descriptor).new(self.tab, { description = self.description })
-    end
-
             self.window:ConnectFor(self, self.main:GetPropertyChangedSignal("AbsoluteSize"), function()
                                                 if self.window.animating or (self.window.hidden and self.window.hasShownOnce) then
             return
@@ -281,7 +282,7 @@ end
 function state:_buildLabel()
         self.container = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 20, 0.5, 0),
+        Position = UDim2.new(0, 20, description.center(self, 65)),
         Size = UDim2.fromOffset(170, 33),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -372,9 +373,9 @@ end
 
 function state:_setMainHeight(a34)
     if self._widthManaged then
-        self.main.Size = UDim2.new(self.main.Size.X.Scale, self.main.Size.X.Offset, 0, a34)
+        self.main.Size = UDim2.new(self.main.Size.X.Scale, self.main.Size.X.Offset, 0, description.height(self, a34))
     else
-        self.main.Size = UDim2.new(1, -20, 0, a34)
+        self.main.Size = UDim2.new(1, -20, 0, description.height(self, a34))
     end
 end
 
@@ -399,13 +400,13 @@ function state:_applyLayout()
         self.valueHost.Size = UDim2.new(0, 0, 0, 16)
 
         self.track.AnchorPoint = Vector2.new(0.5, 1)
-        self.track.Position = UDim2.new(0.5, 0, 1, -14)
+        self.track.Position = UDim2.new(0.5, 0, 1, -14 - (self._descriptionExtra or 0))
         self.track.Size = UDim2.new(1, -30, 0, 14)
     else
         self:_setMainHeight(65)
 
         self.container.AnchorPoint = Vector2.new(0, 0.5)
-        self.container.Position = UDim2.new(0, 20, 0.5, 0)
+        self.container.Position = UDim2.new(0, 20, description.center(self, 65))
         self.container.Size = UDim2.new(0, 170, 0, 33)
         self.containerLayout.FillDirection = Enum.FillDirection.Vertical
         self.titleFlex.FlexMode = Enum.UIFlexMode.None
@@ -413,7 +414,7 @@ function state:_applyLayout()
         self.valueHost.Size = UDim2.new(1, 0, 0, 16)
 
         self.track.AnchorPoint = Vector2.new(1, 0.5)
-        self.track.Position = UDim2.new(1, -15, 0.5, 0)
+        self.track.Position = UDim2.new(1, -15, description.center(self, 65))
         self.track.Size = UDim2.new(0, 222, 0, 14)
     end
 

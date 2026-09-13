@@ -27,6 +27,7 @@ local selected = 38
 local a19 = 38
 local a20 = 5
 local a21 = 2
+local description = require(script.Parent.description)
 local a22 = 41
 local a23 = 6
 local a24 = 7
@@ -147,6 +148,8 @@ function state.new(tab, a49)
         Parent = self.tab.tabPage,
     })
 
+        description.attach(self)
+
         self.top = self.window:Create("Frame", {
         Size = UDim2.new(1, 0, 0, 41),
         Position = UDim2.fromScale(0, 0),
@@ -256,7 +259,7 @@ function state.new(tab, a49)
                     self.panel = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 1),
         Position = UDim2.new(1, 0, 1, 0),
-        Size = UDim2.new(1, 0, 1, -(a22 + a23)),
+        Size = UDim2.new(1, 0, 1, -(a22 + a23 + (self._descriptionExtra or 0))),
         BorderSizePixel = 0,
         ClipsDescendants = true,
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
@@ -628,10 +631,6 @@ function state.new(tab, a49)
             :Play()
     end)
 
-    if self.description then
-        self.descriptor = require(script.Parent.descriptor).new(self.tab, { description = self.description })
-    end
-
     return self
 end
 
@@ -950,7 +949,7 @@ function state:_openHeight()
     local a110 = self:_pageHeight()
         local a111 = math.min(math.max(n, 1), a27, a104(a110 - a109))
 
-    return math.min(a109 + a102(a111), a110)
+    return math.min(a109 + a102(a111), a110) + (self._descriptionExtra or 0)
 end
 
 -- [[Materialise one row, by option index. Idempotent: the row keeps whatever
@@ -1142,7 +1141,7 @@ function state:_close()
         :Create(
             self.main,
             a32,
-            { Size = UDim2.new(1, -20, 0, 41) }
+            { Size = UDim2.new(1, -20, 0, description.height(self, 41)) }
         )
         :Play()
 end
@@ -1321,8 +1320,8 @@ function state:_setShown(a160, a161)
     if self.iconLabel then
         w:_reveal(self.iconLabel, { ImageTransparency = if a160 then 0 else 1 }, a161)
     end
-    if self.descriptor then
-        w:_reveal(self.descriptor.titleLabel, { TextTransparency = if a160 then 0.7 else 1 }, a161)
+    if self.descriptionLabel then
+        w:_reveal(self.descriptionLabel, { TextTransparency = if a160 then 0.45 else 1 }, a161)
     end
     w:_reveal(self.selectedLabel, { TextTransparency = if a160 then 0.5 else 1 }, a161)
     w:_reveal(self.chevron, { ImageTransparency = if a160 then 0.5 else 1 }, a161)

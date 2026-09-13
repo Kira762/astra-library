@@ -56,7 +56,7 @@ PATH_MAP = [
     (r"require\(script\.Parent\.tabSelector\)", "require(script.Parent.Parent.components.tabSelector)"),
     (r"require\(script\.Parent\.sidebar\)", "require(script.Parent.Parent.components.sidebar)"),
     (r"require\(script\.Parent\.chrome\)", "require(script.Parent.Parent.components.chrome)"),
-    (r"require\(script\.Parent\.descriptor\)", "require(script.Parent.Parent.elements.descriptor)"),
+    (r"require\(script\.Parent\.description\)", "require(script.Parent.Parent.elements.description)"),
     (r"require\(script\.Parent\.popup\)", "require(script.Parent.Parent.components.popup)"),
     (r"require\(script\.Parent\.toast\)", "require(script.Parent.Parent.components.toast)"),
     (r"require\(script\.Parent\.notification\)", "require(script.Parent.Parent.components.notification)"),

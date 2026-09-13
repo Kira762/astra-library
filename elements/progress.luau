@@ -6,6 +6,7 @@ local constants = script.Parent.Parent.utilities
 
 local Progress = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
+local description = require(script.Parent.description)
 local props = require(constants.moveable)
 local name = require(constants.locale)
 
@@ -71,10 +72,6 @@ function state.new(tab, a22)
 
     self:_build()
 
-    if self.description then
-        self.descriptor = require(script.Parent.descriptor).new(self.tab, { description = self.description })
-    end
-
     return self
 end
 
@@ -123,6 +120,8 @@ function state:_build()
     }, { BackgroundTransparency = "ElementTransparency" })
 
     self.stroke = self.window:StyleElementBody(self.main)
+
+    description.attach(self)
 
         self.container = self.window:Create("Frame", {
         Size = UDim2.new(0, 170, 0, fill),
@@ -196,7 +195,7 @@ function state:_build()
 
                 self.track = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0.5, 1),
-        Position = UDim2.new(0.5, 0, 1, -16),
+        Position = UDim2.new(0.5, 0, 1, -16 - (self._descriptionExtra or 0)),
         Size = UDim2.new(1, -text * 2, 0, value),
         BorderSizePixel = 0,
 
@@ -248,7 +247,7 @@ function state:_buildSteps()
 
     self.track = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0.5, 1),
-        Position = UDim2.new(0.5, 0, 1, -17),
+        Position = UDim2.new(0.5, 0, 1, -17 - (self._descriptionExtra or 0)),
         Size = UDim2.new(1, -text * 2, 0, element),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -436,9 +435,6 @@ end
 
 function state:Remove()
     self:_stopSweep()
-    if self.descriptor then
-        self.descriptor:Remove()
-    end
     self.main:Destroy()
 end
 

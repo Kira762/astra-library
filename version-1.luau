@@ -4885,9 +4885,6 @@ local function filterElements(window, query)
         if unit.homeExpanded ~= nil then
             unit.unit:_setExpanded(if query ~= "" and isVisible then true else unit.homeExpanded, false)
         end
-        if unit.unit.descriptor then
-            unit.unit.descriptor.main.Visible = isVisible
-        end
         hasVisible = hasVisible or isVisible
     end
     window.searchEmpty.Visible = not hasVisible and query ~= ""
@@ -4915,17 +4912,11 @@ local function collectElements(window)
             text = string.lower(getElementText(element)),
             homeParent = mainFrame.Parent,
             homeOrder = mainFrame.LayoutOrder,
-            descOrder = element.descriptor and element.descriptor.main.LayoutOrder,
         })
 
         mainFrame.LayoutOrder = order * 10
         mainFrame.Parent = window.searchPage
         mainFrame.Visible = true
-        if element.descriptor then
-            element.descriptor.main.LayoutOrder = order * 10 + 1
-            element.descriptor.main.Parent = window.searchPage
-            element.descriptor.main.Visible = true
-        end
     end
 end
 
@@ -4939,11 +4930,6 @@ local function restoreElements(window)
             element.main.LayoutOrder = unit.homeOrder
             element.main.Parent = unit.homeParent
             element.main.Visible = true
-        end
-        if element.descriptor and element.descriptor.main and element.descriptor.main.Parent then
-            element.descriptor.main.LayoutOrder = unit.descOrder
-            element.descriptor.main.Parent = unit.homeParent
-            element.descriptor.main.Visible = true
         end
     end
     window._searchUnits = {}
@@ -8040,22 +8026,22 @@ function Window:_setElementLocked(element, locked, message)
         end)
     end
 
-        local descriptor = element.descriptor
-    if not descriptor then
+        local label = element.descriptionLabel
+    if not label then
         return
     end
 
     if locked then
-                        element._descriptionBefore = element._descriptionBefore or descriptor.titleLabel.Text
-        descriptor.titleLabel.Text = locale.resolve(message or "This element is locked.")
+                        element._descriptionBefore = element._descriptionBefore or label.Text
+        label.Text = locale.resolve(message or "This element is locked.")
     elseif element._descriptionBefore then
-        descriptor.titleLabel.Text = element._descriptionBefore
+        label.Text = element._descriptionBefore
         element._descriptionBefore = nil
     end
 
     state.tweenService
-        :Create(descriptor.titleLabel, tweenInfo, {
-            TextTransparency = if locked then lockedTextTransparency else 0.7,
+        :Create(label, tweenInfo, {
+            TextTransparency = if locked then lockedTextTransparency else 0.45,
         })
         :Play()
 end
@@ -9064,8 +9050,8 @@ function Window:_revealCommon(element, animate)
     if element.iconLabel then
         self:_reveal(element.iconLabel, { ImageTransparency = 0 }, animate)
     end
-    if element.descriptor then
-        self:_reveal(element.descriptor.titleLabel, { TextTransparency = 0.7 }, animate)
+    if element.descriptionLabel then
+        self:_reveal(element.descriptionLabel, { TextTransparency = 0.45 }, animate)
     end
 end
 
@@ -9076,8 +9062,8 @@ function Window:_hideCommon(element, animate)
     if element.iconLabel then
         self:_reveal(element.iconLabel, { ImageTransparency = 1 }, animate)
     end
-    if element.descriptor then
-        self:_reveal(element.descriptor.titleLabel, { TextTransparency = 1 }, animate)
+    if element.descriptionLabel then
+        self:_reveal(element.descriptionLabel, { TextTransparency = 1 }, animate)
     end
 end
 
@@ -9280,6 +9266,7 @@ local name = require(constants.lockable)
 local icon = require(constants.locale)
 local callback = require(constants.HapticEngine)
 local element = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local description = require(script.Parent.description)
 
 function state.new(tab, frame)
     frame = if typeof(frame) == "table" then frame else {}
@@ -9300,11 +9287,7 @@ function state.new(tab, frame)
         self:_buildFull()
     end
 
-        if self.description and not self.compact then
-        self.descriptor = require(script.Parent.descriptor).new(self.tab, { description = self.description })
-    end
-
-    return self
+        return self
 end
 
 function state:_runCallback()
@@ -9325,12 +9308,14 @@ function state:_buildFull()
     self.stroke = self.window:StyleElementBody(self.main)
     self.hoverOverlay = self.window:CreateHoverOverlay(self.main)
 
+    description.attach(self)
+
     self.container = self.window:Create("Frame", {
         BorderSizePixel = 0,
 
         Parent = self.main,
         Size = UDim2.new(0, 170, 0, 16),
-        Position = UDim2.new(0, 20, 0.5, 0),
+        Position = UDim2.new(0, 20, description.center(self, 43)),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
     })
@@ -9398,7 +9383,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-                { Size = UDim2.new(1, -26, 0, 43) }
+                { Size = UDim2.new(1, -26, 0, description.height(self, 43)) }
             )
             :Play()
 
@@ -9414,7 +9399,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 TweenInfo.new(0.25, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-                { Size = UDim2.new(1, -20, 0, 43) }
+                { Size = UDim2.new(1, -20, 0, description.height(self, 43)) }
             )
             :Play()
         Button.tweenService
@@ -10295,64 +10280,130 @@ return Collapsible
 
 end)() end,
     [24] = function()local wax,script,require=ImportGlobals(24)local ImportGlobals return (function(...)
-local state = {}
-state.__index = state
-state.__type = "Descriptor"
+-- [[The in-card description line. An element with a `description` prop grows
+-- [[its own card by the measured height of this line instead of spawning a
+-- [[standalone row beneath the card: the same recipe the Collapsible Group
+-- [[header uses (a muted 14px ContentColor line under the title, card 41 ->
+-- [[61 for one line), measured with the shared text metrics so wrapped host
+-- [[copy gets the room it needs, and re-measured whenever the card's width
+-- [[changes (layout mode, window resize, the search page). Controls keep
+-- [[centring in the base region the card had before it grew, so the title
+-- [[line never drifts down into the description. The label doubles as the
+-- [[lock-message surface (Window:_setLocked) exactly as the old standalone
+-- [[descriptor did, and it is revealed with the element by _revealCommon.]]
+local description = {}
 
-local constants = require(script.Parent.Parent.utilities.locale)
+local insetX = 20
+local lineSize = 14
+local lineHeight = 17
+local bottomPad = 3
+local topGap = 4
 
-function state.new(tab, Descriptor)
-    Descriptor = if typeof(Descriptor) == "table" then Descriptor else {}
+local functions = require(script.Parent.Parent.functions)
+local locale = require(script.Parent.Parent.utilities.locale)
 
-    local self = setmetatable({
-        tab = assert(tab, "Missing argument #1 (Tab expected)"),
-        window = tab.window,
-        description = Descriptor.description or Descriptor.Description or "",
-    }, state)
-
-    self.main = self.window:Create("Frame", {
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1, -30, 0, 0),
-
-        Parent = self.tab.tabPage,
-    })
-
-    self.window:Create("UIListLayout", {
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = self.main,
-    })
-
-    self.titleLabel = self.window:Create("TextLabel", {
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1,
-        RichText = true,
-        Size = UDim2.new(1, 0, 0, 0),
-        Text = constants.t(self.description),
-        TextSize = 12,
-        TextWrapped = true,
-        TextXAlignment = Enum.TextXAlignment.Left,
-
-                TextTransparency = 1,
-        Parent = self.main,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
-
-        self.window:Create("Frame", {
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        LayoutOrder = 1,
-        Size = UDim2.fromOffset(0, 15),
-        Parent = self.main,
-    })
-
-    return self
+-- [[RichText hosts: measure the words, not the markup.]]
+local function plain(text: string): string
+	return (text:gsub("<[^>]+>", ""))
 end
 
-function state:Remove()
-    self.main:Destroy()
+local function lineCount(self): number
+	local width = self.main.AbsoluteSize.X - insetX * 2
+	if width <= 0 then
+		-- [[Pre-layout guess; the width watcher below re-measures once the
+		-- [[card has a real width.]]
+		width = 260
+	end
+	local font = self.window.theme.Font
+	local count = 1
+	local current = 0
+	for word in plain(tostring(self.descriptionLabel.Text)):gmatch("%S+") do
+		local piece = if current == 0 then word else " " .. word
+		local grown = current + functions.textWidth(font, lineSize, piece)
+		if current > 0 and grown > width then
+			count += 1
+			current = functions.textWidth(font, lineSize, word)
+		else
+			current = grown
+		end
+	end
+	return count
 end
 
-return state
+-- [[Card heights everywhere go through here: writers state their base and
+-- [[the description's measured extra rides along, so hover tweens, layout
+-- [[switches and the dropdown's open height all keep the line's room.]]
+function description.height(self, base: number): number
+	return base + (self._descriptionExtra or 0)
+end
+
+-- [[Y placement for the rows and controls that centre in the card: with a
+-- [[description they centre in the base region, not the grown card.]]
+function description.center(self, base: number): (number, number)
+	if self.descriptionLabel then
+		return 0, base / 2
+	end
+	return 0.5, 0
+end
+
+local function apply(self, count: number)
+	self._descriptionLines = count
+	local extra = count * lineHeight + bottomPad
+	local delta = extra - (self._descriptionExtra or 0)
+	self._descriptionExtra = extra
+	self.descriptionLabel.Size = UDim2.new(1, -insetX * 2, 0, count * lineHeight)
+	local size = self.main.Size
+	self.main.Size = UDim2.new(size.X.Scale, size.X.Offset, size.Y.Scale, size.Y.Offset + delta)
+end
+
+-- [[Call straight after the element's main frame exists (before its centred
+-- [[children are built, so `center` already answers for the grown card).]]
+function description.attach(self)
+	if self.descriptionLabel or not self.description or self.description == "" then
+		return
+	end
+
+	self._baseHeight = self.main.Size.Y.Offset
+	self._descriptionExtra = 0
+
+	self.descriptionLabel = self.window:Create("TextLabel", {
+		Name = "Description",
+		Text = locale.t(self.description),
+		Position = UDim2.fromOffset(insetX, self._baseHeight - topGap),
+		Size = UDim2.new(1, -insetX * 2, 0, lineHeight),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ZIndex = 6,
+		TextSize = lineSize,
+		TextWrapped = true,
+		RichText = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		TextTransparency = 1,
+		Parent = self.main,
+	}, { TextColor3 = "ContentColor", FontFace = "Font" })
+
+	apply(self, lineCount(self))
+
+	self.window:ConnectFor(self, self.main:GetPropertyChangedSignal("AbsoluteSize"), function()
+		local count = lineCount(self)
+		if count ~= self._descriptionLines then
+			apply(self, count)
+		end
+	end)
+
+	-- [[The label's text is locale-bound (SetLocale retypes it) and the lock
+	-- [[message swaps through it; either can rewrap, so the card re-measures
+	-- [[whenever the text changes.]]
+	self.window:ConnectFor(self, self.descriptionLabel:GetPropertyChangedSignal("Text"), function()
+		local count = lineCount(self)
+		if count ~= self._descriptionLines then
+			apply(self, count)
+		end
+	end)
+end
+
+return description
 
 end)() end,
     [25] = function()local wax,script,require=ImportGlobals(25)local ImportGlobals return (function(...)
@@ -10530,6 +10581,7 @@ local selected = 38
 local a19 = 38
 local a20 = 5
 local a21 = 2
+local description = require(script.Parent.description)
 local a22 = 41
 local a23 = 6
 local a24 = 7
@@ -10650,6 +10702,8 @@ function state.new(tab, a49)
         Parent = self.tab.tabPage,
     })
 
+        description.attach(self)
+
         self.top = self.window:Create("Frame", {
         Size = UDim2.new(1, 0, 0, 41),
         Position = UDim2.fromScale(0, 0),
@@ -10759,7 +10813,7 @@ function state.new(tab, a49)
                     self.panel = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 1),
         Position = UDim2.new(1, 0, 1, 0),
-        Size = UDim2.new(1, 0, 1, -(a22 + a23)),
+        Size = UDim2.new(1, 0, 1, -(a22 + a23 + (self._descriptionExtra or 0))),
         BorderSizePixel = 0,
         ClipsDescendants = true,
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
@@ -11131,10 +11185,6 @@ function state.new(tab, a49)
             :Play()
     end)
 
-    if self.description then
-        self.descriptor = require(script.Parent.descriptor).new(self.tab, { description = self.description })
-    end
-
     return self
 end
 
@@ -11453,7 +11503,7 @@ function state:_openHeight()
     local a110 = self:_pageHeight()
         local a111 = math.min(math.max(n, 1), a27, a104(a110 - a109))
 
-    return math.min(a109 + a102(a111), a110)
+    return math.min(a109 + a102(a111), a110) + (self._descriptionExtra or 0)
 end
 
 -- [[Materialise one row, by option index. Idempotent: the row keeps whatever
@@ -11645,7 +11695,7 @@ function state:_close()
         :Create(
             self.main,
             a32,
-            { Size = UDim2.new(1, -20, 0, 41) }
+            { Size = UDim2.new(1, -20, 0, description.height(self, 41)) }
         )
         :Play()
 end
@@ -11824,8 +11874,8 @@ function state:_setShown(a160, a161)
     if self.iconLabel then
         w:_reveal(self.iconLabel, { ImageTransparency = if a160 then 0 else 1 }, a161)
     end
-    if self.descriptor then
-        w:_reveal(self.descriptor.titleLabel, { TextTransparency = if a160 then 0.7 else 1 }, a161)
+    if self.descriptionLabel then
+        w:_reveal(self.descriptionLabel, { TextTransparency = if a160 then 0.45 else 1 }, a161)
     end
     w:_reveal(self.selectedLabel, { TextTransparency = if a160 then 0.5 else 1 }, a161)
     w:_reveal(self.chevron, { ImageTransparency = if a160 then 0.5 else 1 }, a161)
@@ -12086,6 +12136,7 @@ local constants = script.Parent.Parent.utilities
 
 local Input = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
+local description = require(script.Parent.description)
 local props = require(constants.moveable)
 local name = require(constants.lockable)
 local placeholder = require(constants.locale)
@@ -12143,9 +12194,11 @@ function state.new(tab, placeholderLabel)
     self.stroke = self.window:StyleElementBody(self.main)
     self.hoverOverlay = self.window:CreateHoverOverlay(self.main)
 
+    description.attach(self)
+
         self.container = self.window:Create("Frame", {
         Size = UDim2.new(0, 170, 0, 16),
-        Position = UDim2.new(0, 20, 0.5, 0),
+        Position = UDim2.new(0, 20, description.center(self, 41)),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -12192,7 +12245,7 @@ function state.new(tab, placeholderLabel)
 
         self.box = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -7, 0, 20),
+        Position = UDim2.new(1, -7, 0, if self.descriptionLabel then 20.5 else 20),
         Size = UDim2.fromOffset(85, 30),
         BorderSizePixel = 0,
 
@@ -12262,10 +12315,6 @@ function state.new(tab, placeholderLabel)
     end)
 
     self.window:_wireElementHover(self)
-
-    if self.description then
-        self.descriptor = require(script.Parent.descriptor).new(self.tab, { description = self.description })
-    end
 
     self:_sizeBox(false)
     return self
@@ -12361,6 +12410,7 @@ local constants = script.Parent.Parent.utilities
 
 local Keybind = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
+local description = require(script.Parent.description)
 local props = require(constants.moveable)
 local name = require(constants.lockable)
 local flag = require(constants.locale)
@@ -12449,9 +12499,11 @@ function state.new(tab, a22)
     self.stroke = self.window:StyleElementBody(self.main)
     self.hoverOverlay = self.window:CreateHoverOverlay(self.main)
 
+    description.attach(self)
+
         self.container = self.window:Create("Frame", {
         Size = UDim2.new(0, 170, 0, 16),
-        Position = UDim2.new(0, 20, 0.5, 0),
+        Position = UDim2.new(0, 20, description.center(self, 41)),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -12498,7 +12550,7 @@ function state.new(tab, a22)
 
         self.box = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -7, 0, 20),
+        Position = UDim2.new(1, -7, 0, if self.descriptionLabel then 20.5 else 20),
         Size = UDim2.fromOffset(40, 30),
         BorderSizePixel = 0,
 
@@ -12638,10 +12690,6 @@ function state.new(tab, a22)
     end)
 
     self.window:_wireElementHover(self)
-
-    if self.description then
-        self.descriptor = require(script.Parent.descriptor).new(self.tab, { description = self.description })
-    end
 
     self:_sizeBox(false)
     return self
@@ -12919,6 +12967,7 @@ local constants = script.Parent.Parent.utilities
 
 local Progress = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
+local description = require(script.Parent.description)
 local props = require(constants.moveable)
 local name = require(constants.locale)
 
@@ -12984,10 +13033,6 @@ function state.new(tab, a22)
 
     self:_build()
 
-    if self.description then
-        self.descriptor = require(script.Parent.descriptor).new(self.tab, { description = self.description })
-    end
-
     return self
 end
 
@@ -13036,6 +13081,8 @@ function state:_build()
     }, { BackgroundTransparency = "ElementTransparency" })
 
     self.stroke = self.window:StyleElementBody(self.main)
+
+    description.attach(self)
 
         self.container = self.window:Create("Frame", {
         Size = UDim2.new(0, 170, 0, fill),
@@ -13109,7 +13156,7 @@ function state:_build()
 
                 self.track = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0.5, 1),
-        Position = UDim2.new(0.5, 0, 1, -16),
+        Position = UDim2.new(0.5, 0, 1, -16 - (self._descriptionExtra or 0)),
         Size = UDim2.new(1, -text * 2, 0, value),
         BorderSizePixel = 0,
 
@@ -13161,7 +13208,7 @@ function state:_buildSteps()
 
     self.track = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0.5, 1),
-        Position = UDim2.new(0.5, 0, 1, -17),
+        Position = UDim2.new(0.5, 0, 1, -17 - (self._descriptionExtra or 0)),
         Size = UDim2.new(1, -text * 2, 0, element),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -13349,9 +13396,6 @@ end
 
 function state:Remove()
     self:_stopSweep()
-    if self.descriptor then
-        self.descriptor:Remove()
-    end
     self.main:Destroy()
 end
 
@@ -13456,6 +13500,7 @@ local constants = script.Parent.Parent.utilities
 
 local Slider = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
+local description = require(script.Parent.description)
 local props = require(constants.odometer)
 local name = require(constants.moveable)
 local flag = require(constants.lockable)
@@ -13556,13 +13601,17 @@ function state.new(ownerTab, a31)
     self.stroke = self.window:StyleElementBody(self.main)
     self._lastValue = self.value
 
+    if not self.minimal then
+        description.attach(self)
+    end
+
         if not self.minimal then
         self:_buildLabel()
     end
 
         self.track = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -15, 0.5, 0),
+        Position = UDim2.new(1, -15, description.center(self, 65)),
         Size = UDim2.fromOffset(222, 14),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
@@ -13704,10 +13753,6 @@ function state.new(ownerTab, a31)
         self:_endDrag()
     end)
 
-    if self.description and not self.minimal then
-        self.descriptor = require(script.Parent.descriptor).new(self.tab, { description = self.description })
-    end
-
             self.window:ConnectFor(self, self.main:GetPropertyChangedSignal("AbsoluteSize"), function()
                                                 if self.window.animating or (self.window.hidden and self.window.hasShownOnce) then
             return
@@ -13731,7 +13776,7 @@ end
 function state:_buildLabel()
         self.container = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 20, 0.5, 0),
+        Position = UDim2.new(0, 20, description.center(self, 65)),
         Size = UDim2.fromOffset(170, 33),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -13822,9 +13867,9 @@ end
 
 function state:_setMainHeight(a34)
     if self._widthManaged then
-        self.main.Size = UDim2.new(self.main.Size.X.Scale, self.main.Size.X.Offset, 0, a34)
+        self.main.Size = UDim2.new(self.main.Size.X.Scale, self.main.Size.X.Offset, 0, description.height(self, a34))
     else
-        self.main.Size = UDim2.new(1, -20, 0, a34)
+        self.main.Size = UDim2.new(1, -20, 0, description.height(self, a34))
     end
 end
 
@@ -13849,13 +13894,13 @@ function state:_applyLayout()
         self.valueHost.Size = UDim2.new(0, 0, 0, 16)
 
         self.track.AnchorPoint = Vector2.new(0.5, 1)
-        self.track.Position = UDim2.new(0.5, 0, 1, -14)
+        self.track.Position = UDim2.new(0.5, 0, 1, -14 - (self._descriptionExtra or 0))
         self.track.Size = UDim2.new(1, -30, 0, 14)
     else
         self:_setMainHeight(65)
 
         self.container.AnchorPoint = Vector2.new(0, 0.5)
-        self.container.Position = UDim2.new(0, 20, 0.5, 0)
+        self.container.Position = UDim2.new(0, 20, description.center(self, 65))
         self.container.Size = UDim2.new(0, 170, 0, 33)
         self.containerLayout.FillDirection = Enum.FillDirection.Vertical
         self.titleFlex.FlexMode = Enum.UIFlexMode.None
@@ -13863,7 +13908,7 @@ function state:_applyLayout()
         self.valueHost.Size = UDim2.new(1, 0, 0, 16)
 
         self.track.AnchorPoint = Vector2.new(1, 0.5)
-        self.track.Position = UDim2.new(1, -15, 0.5, 0)
+        self.track.Position = UDim2.new(1, -15, description.center(self, 65))
         self.track.Size = UDim2.new(0, 222, 0, 14)
     end
 
@@ -14044,6 +14089,7 @@ local Stat = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
 local props = require(constants.odometer)
 local name = require(constants.moveable)
+local description = require(script.Parent.description)
 local value = require(constants.constants)
 local prefix = require(constants.locale)
 local suffix = require(constants.log)
@@ -14134,12 +14180,8 @@ function state.new(tab, a25)
         self:_buildFull()
     end
 
-    if self.description then
-        if self.compact then
-            suffix.warn(`Astra: a compact stat has no room for a description, ignoring it on '{self.name}'.`)
-        else
-            self.descriptor = require(script.Parent.descriptor).new(self.tab, { description = self.description })
-        end
+    if self.description and self.compact then
+        suffix.warn(`Astra: a compact stat has no room for a description, ignoring it on '{self.name}'.`)
     end
 
     return self
@@ -14177,6 +14219,8 @@ function state:_buildFull()
 
         Parent = self.stroke,
     })
+
+    description.attach(self)
 
     self.titleContainer = window:Create("Frame", {
         Size = UDim2.new(1, -40, 0, 32),
@@ -14255,7 +14299,7 @@ function state:_buildFull()
 
         self.valueHost = window:Create("Frame", {
         AnchorPoint = Vector2.new(0, 1),
-        Position = UDim2.new(0, 20, 1, -15),
+        Position = UDim2.new(0, 20, 1, -15 - (self._descriptionExtra or 0)),
         Size = UDim2.fromOffset(200, 20),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -14266,7 +14310,7 @@ function state:_buildFull()
 
     self.changeHost = window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 1),
-        Position = UDim2.new(1, -20, 1, -15),
+        Position = UDim2.new(1, -20, 1, -15 - (self._descriptionExtra or 0)),
         Size = UDim2.fromOffset(200, 15),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -15504,6 +15548,7 @@ local name = require(constants.lockable)
 local flag = require(constants.locale)
 local value = require(constants.HapticEngine)
 local callback = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local description = require(script.Parent.description)
 
 -- [[Switch metrics, in one place. The track and the knob are both pills and
 -- [[the knob keeps the same clearance on every side it can see (`switchInset`
@@ -15557,10 +15602,6 @@ function state.new(tab, element)
         self:_buildCompact()
     else
         self:_buildFull()
-    end
-
-    if self.description and not self.compact then
-        self.descriptor = require(script.Parent.descriptor).new(self.tab, { description = self.description })
     end
 
     return self
@@ -15680,12 +15721,14 @@ function state:_buildFull()
     self.stroke = window:StyleElementBody(self.main)
     self.hoverOverlay = window:CreateHoverOverlay(self.main)
 
+    description.attach(self)
+
     self.container = window:Create("Frame", {
         BorderSizePixel = 0,
 
         Parent = self.main,
         Size = UDim2.new(0, 170, 0, 16),
-        Position = UDim2.new(0, 20, 0.5, 0),
+        Position = UDim2.new(0, 20, description.center(self, 41)),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
     })
@@ -15739,7 +15782,7 @@ function state:_buildFull()
     })
 
         self:_buildSwitch(self.main)
-    self.functionContainer.Position = UDim2.new(1, -15, 0, 20)
+    self.functionContainer.Position = UDim2.new(1, -15, 0, if self.descriptionLabel then 20.5 else 20)
     self.functionContainer.AnchorPoint = Vector2.new(1, 0.5)
 
     self.window:_wireElementHover(self)
@@ -15756,7 +15799,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-                { Size = UDim2.new(1, -26, 0, 41) }
+                { Size = UDim2.new(1, -26, 0, description.height(self, 41)) }
             )
             :Play()
 
@@ -15772,7 +15815,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 TweenInfo.new(0.25, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-                { Size = UDim2.new(1, -20, 0, 41) }
+                { Size = UDim2.new(1, -20, 0, description.height(self, 41)) }
             )
             :Play()
         Toggle.tweenService
@@ -31411,14 +31454,10 @@ end)() end,
     [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
 type OrderedElement = {
     main: GuiObject,
-    descriptor: { main: GuiObject }?,
 }
 
 local function ordering(element: OrderedElement, order: number)
     element.main.LayoutOrder = order
-    if element.descriptor then
-        element.descriptor.main.LayoutOrder = order + 1
-    end
 end
 
 return ordering
@@ -32266,93 +32305,93 @@ local LineOffsets = {
     [13] = 1698,
     [14] = 2416,
     [15] = 4807,
-    [16] = 5167,
-    [17] = 5228,
-    [18] = 5598,
-    [19] = 5975,
-    [21] = 9270,
-    [22] = 9537,
-    [23] = 9981,
-    [24] = 10298,
-    [25] = 10359,
-    [26] = 10504,
-    [27] = 11870,
-    [28] = 12081,
-    [29] = 12356,
-    [30] = 12914,
-    [31] = 13364,
-    [32] = 13451,
-    [33] = 14037,
-    [34] = 14655,
-    [35] = 15046,
-    [36] = 15176,
-    [37] = 15340,
-    [38] = 15494,
-    [40] = 16056,
-    [41] = 16079,
-    [42] = 16096,
-    [43] = 16129,
-    [44] = 16251,
-    [45] = 16275,
-    [46] = 16324,
-    [47] = 16031,
-    [48] = 16454,
-    [49] = 16757,
-    [50] = 16788,
-    [51] = 16443,
-    [52] = 16831,
-    [53] = 16851,
-    [54] = 16883,
-    [55] = 16813,
-    [56] = 16990,
-    [57] = 17049,
-    [58] = 17109,
-    [60] = 17168,
-    [61] = 17333,
-    [62] = 17153,
-    [63] = 17893,
-    [64] = 18188,
-    [65] = 18844,
-    [66] = 20628,
-    [67] = 21769,
-    [68] = 23289,
-    [69] = 17395,
-    [70] = 28533,
-    [71] = 28595,
-    [72] = 28657,
-    [73] = 28732,
-    [74] = 28814,
-    [75] = 28876,
-    [76] = 28951,
-    [77] = 29026,
-    [78] = 29101,
-    [79] = 29176,
-    [80] = 28427,
-    [81] = 29238,
-    [82] = 29336,
-    [83] = 29514,
-    [84] = 29565,
-    [85] = 29595,
-    [86] = 29846,
-    [87] = 29895,
-    [88] = 30348,
-    [89] = 30366,
-    [90] = 30512,
-    [91] = 30611,
-    [92] = 30633,
-    [93] = 30683,
-    [94] = 31009,
-    [95] = 31045,
-    [96] = 31063,
-    [97] = 31412,
-    [98] = 31428,
-    [99] = 31479,
-    [100] = 31498,
-    [101] = 31740,
-    [102] = 31784,
-    [103] = 32009,
-    [104] = 32037,
-    [105] = 32048,
+    [16] = 5153,
+    [17] = 5214,
+    [18] = 5584,
+    [19] = 5961,
+    [21] = 9256,
+    [22] = 9522,
+    [23] = 9966,
+    [24] = 10283,
+    [25] = 10410,
+    [26] = 10555,
+    [27] = 11920,
+    [28] = 12131,
+    [29] = 12405,
+    [30] = 12962,
+    [31] = 13408,
+    [32] = 13495,
+    [33] = 14082,
+    [34] = 14699,
+    [35] = 15090,
+    [36] = 15220,
+    [37] = 15384,
+    [38] = 15538,
+    [40] = 16099,
+    [41] = 16122,
+    [42] = 16139,
+    [43] = 16172,
+    [44] = 16294,
+    [45] = 16318,
+    [46] = 16367,
+    [47] = 16074,
+    [48] = 16497,
+    [49] = 16800,
+    [50] = 16831,
+    [51] = 16486,
+    [52] = 16874,
+    [53] = 16894,
+    [54] = 16926,
+    [55] = 16856,
+    [56] = 17033,
+    [57] = 17092,
+    [58] = 17152,
+    [60] = 17211,
+    [61] = 17376,
+    [62] = 17196,
+    [63] = 17936,
+    [64] = 18231,
+    [65] = 18887,
+    [66] = 20671,
+    [67] = 21812,
+    [68] = 23332,
+    [69] = 17438,
+    [70] = 28576,
+    [71] = 28638,
+    [72] = 28700,
+    [73] = 28775,
+    [74] = 28857,
+    [75] = 28919,
+    [76] = 28994,
+    [77] = 29069,
+    [78] = 29144,
+    [79] = 29219,
+    [80] = 28470,
+    [81] = 29281,
+    [82] = 29379,
+    [83] = 29557,
+    [84] = 29608,
+    [85] = 29638,
+    [86] = 29889,
+    [87] = 29938,
+    [88] = 30391,
+    [89] = 30409,
+    [90] = 30555,
+    [91] = 30654,
+    [92] = 30676,
+    [93] = 30726,
+    [94] = 31052,
+    [95] = 31088,
+    [96] = 31106,
+    [97] = 31455,
+    [98] = 31467,
+    [99] = 31518,
+    [100] = 31537,
+    [101] = 31779,
+    [102] = 31823,
+    [103] = 32048,
+    [104] = 32076,
+    [105] = 32087,
 }
 
 -- [[Misc AOT variable imports]]
@@ -32537,7 +32576,7 @@ local ObjectTree = {
                         24,
                         2,
                         {
-                            "descriptor",
+                            "description",
                         },
                     },
                     {

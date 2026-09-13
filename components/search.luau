@@ -79,9 +79,6 @@ local function filterElements(window, query)
         if unit.homeExpanded ~= nil then
             unit.unit:_setExpanded(if query ~= "" and isVisible then true else unit.homeExpanded, false)
         end
-        if unit.unit.descriptor then
-            unit.unit.descriptor.main.Visible = isVisible
-        end
         hasVisible = hasVisible or isVisible
     end
     window.searchEmpty.Visible = not hasVisible and query ~= ""
@@ -109,17 +106,11 @@ local function collectElements(window)
             text = string.lower(getElementText(element)),
             homeParent = mainFrame.Parent,
             homeOrder = mainFrame.LayoutOrder,
-            descOrder = element.descriptor and element.descriptor.main.LayoutOrder,
         })
 
         mainFrame.LayoutOrder = order * 10
         mainFrame.Parent = window.searchPage
         mainFrame.Visible = true
-        if element.descriptor then
-            element.descriptor.main.LayoutOrder = order * 10 + 1
-            element.descriptor.main.Parent = window.searchPage
-            element.descriptor.main.Visible = true
-        end
     end
 end
 
@@ -133,11 +124,6 @@ local function restoreElements(window)
             element.main.LayoutOrder = unit.homeOrder
             element.main.Parent = unit.homeParent
             element.main.Visible = true
-        end
-        if element.descriptor and element.descriptor.main and element.descriptor.main.Parent then
-            element.descriptor.main.LayoutOrder = unit.descOrder
-            element.descriptor.main.Parent = unit.homeParent
-            element.descriptor.main.Visible = true
         end
     end
     window._searchUnits = {}

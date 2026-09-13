@@ -2,6 +2,26 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-13 — Descriptions move inside the element cards
+
+- **Descriptions rendered as a standalone row *below* the element card.** The
+  old `descriptor` element sat under the card in the tab page (and search had
+  to shuttle that second frame around). It is gone: every element with a
+  `description` now renders it **inside its own card** — the Collapsible Group
+  header recipe (a muted 14px `ContentColor` line under the title region).
+- **The card grows by the measured line.** `elements/description.luau` counts
+  wrapped lines with the shared text metrics and adds `lines * 17 + 3` px
+  (one line: 41 -> 61), re-measuring whenever the card's width changes
+  (layout mode, window resize, search page) or the text retypes. Title rows
+  and controls keep centring in the base region, bottom-anchored tracks
+  (slider narrow, progress) and labels (stat) ride up above the line, and the
+  dropdown's closed and open heights both include it.
+- **The line stays locale-bound and still carries the lock message** exactly
+  as the old row did — `SetLocale` retypes it (and the card re-measures),
+  and `Lock(message)` swaps it, restoring the description on unlock.
+- Removed `elements/descriptor.luau`; search no longer moves descriptor rows.
+  Test: `scripts/inline_description_test.sh`.
+
 ## 2026-09-13 — Keybind cap joins the element corner; slider knob stops overlapping the card
 
 - **The Keybind element's key cap wore the same capsule as the Input field

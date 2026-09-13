@@ -11,6 +11,7 @@ local name = require(constants.lockable)
 local icon = require(constants.locale)
 local callback = require(constants.HapticEngine)
 local element = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local description = require(script.Parent.description)
 
 function state.new(tab, frame)
     frame = if typeof(frame) == "table" then frame else {}
@@ -31,11 +32,7 @@ function state.new(tab, frame)
         self:_buildFull()
     end
 
-        if self.description and not self.compact then
-        self.descriptor = require(script.Parent.descriptor).new(self.tab, { description = self.description })
-    end
-
-    return self
+        return self
 end
 
 function state:_runCallback()
@@ -56,12 +53,14 @@ function state:_buildFull()
     self.stroke = self.window:StyleElementBody(self.main)
     self.hoverOverlay = self.window:CreateHoverOverlay(self.main)
 
+    description.attach(self)
+
     self.container = self.window:Create("Frame", {
         BorderSizePixel = 0,
 
         Parent = self.main,
         Size = UDim2.new(0, 170, 0, 16),
-        Position = UDim2.new(0, 20, 0.5, 0),
+        Position = UDim2.new(0, 20, description.center(self, 43)),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
     })
@@ -129,7 +128,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-                { Size = UDim2.new(1, -26, 0, 43) }
+                { Size = UDim2.new(1, -26, 0, description.height(self, 43)) }
             )
             :Play()
 
@@ -145,7 +144,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 TweenInfo.new(0.25, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-                { Size = UDim2.new(1, -20, 0, 43) }
+                { Size = UDim2.new(1, -20, 0, description.height(self, 43)) }
             )
             :Play()
         Button.tweenService

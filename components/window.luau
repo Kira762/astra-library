@@ -2066,22 +2066,22 @@ function Window:_setElementLocked(element, locked, message)
         end)
     end
 
-        local descriptor = element.descriptor
-    if not descriptor then
+        local label = element.descriptionLabel
+    if not label then
         return
     end
 
     if locked then
-                        element._descriptionBefore = element._descriptionBefore or descriptor.titleLabel.Text
-        descriptor.titleLabel.Text = locale.resolve(message or "This element is locked.")
+                        element._descriptionBefore = element._descriptionBefore or label.Text
+        label.Text = locale.resolve(message or "This element is locked.")
     elseif element._descriptionBefore then
-        descriptor.titleLabel.Text = element._descriptionBefore
+        label.Text = element._descriptionBefore
         element._descriptionBefore = nil
     end
 
     state.tweenService
-        :Create(descriptor.titleLabel, tweenInfo, {
-            TextTransparency = if locked then lockedTextTransparency else 0.7,
+        :Create(label, tweenInfo, {
+            TextTransparency = if locked then lockedTextTransparency else 0.45,
         })
         :Play()
 end
@@ -3090,8 +3090,8 @@ function Window:_revealCommon(element, animate)
     if element.iconLabel then
         self:_reveal(element.iconLabel, { ImageTransparency = 0 }, animate)
     end
-    if element.descriptor then
-        self:_reveal(element.descriptor.titleLabel, { TextTransparency = 0.7 }, animate)
+    if element.descriptionLabel then
+        self:_reveal(element.descriptionLabel, { TextTransparency = 0.45 }, animate)
     end
 end
 
@@ -3102,8 +3102,8 @@ function Window:_hideCommon(element, animate)
     if element.iconLabel then
         self:_reveal(element.iconLabel, { ImageTransparency = 1 }, animate)
     end
-    if element.descriptor then
-        self:_reveal(element.descriptor.titleLabel, { TextTransparency = 1 }, animate)
+    if element.descriptionLabel then
+        self:_reveal(element.descriptionLabel, { TextTransparency = 1 }, animate)
     end
 end
 

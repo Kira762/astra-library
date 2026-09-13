@@ -166,6 +166,7 @@ function state.new(tab, a22)
     self.keyLabel = self.window:Create("TextBox", {
         Text = frame(self.value),
         ClearTextOnFocus = false,
+        TextEditable = false,
         MultiLine = false,
         Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,

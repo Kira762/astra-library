@@ -10,6 +10,7 @@ for _, control in window.rfSettings.elements do
 end
 assert(binding, "Settings must expose the menu binding")
 assert(binding.keyLabel.ClassName == "TextBox", "Binding must be focusable")
+assert(binding.keyLabel.TextEditable == false, "Binding must capture input instead of accepting text edits")
 
 -- The lightweight GUI stubs don't implement TextBox focus management.
 local focused = false

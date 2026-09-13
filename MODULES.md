@@ -346,10 +346,9 @@ All element classes share the pattern:
 Per-element specifics:
 - `toggle.luau` — track/knob frames, accent tween locals.
 - `slider.luau` — fill frame, handle, drag math locals (`a1..a12`: range min/max, step, value normalization).
-- `dropdown.luau` — button, list frame, option buttons, highlight.
+- `dropdown.luau` — button, list frame, option rows (built on first open, `_materialiseOptions`/`_buildOptionAt`), highlight, search filter.
 - `input.luau` — TextBox, placeholder/focus locals, validation callback.
 - `keybind.luau` — listening state flag, input connection.
-- `colorpicker.luau` — HSV state, drag locals for hue/sv areas.
 - `tab.luau` — tab class: `tabPage` (ScrollingFrame), `_register(element)` pipeline into `window.controls[flag]`, selector button visuals.
 - `group.luau`, `section.luau`, `tabSection.luau` — container classes with UIListLayout locals.
 - `console.luau` — output buffer table, max-lines constant, print hook.
@@ -423,18 +422,26 @@ Per-element specifics:
 ## icons/
 
 - `init.luau` — public surface (`get`, `resolve`, `getByPack`, `list`,
-  `packs`, `count`, `isPack`) with lazy metatables per pack: a pack's data
-  module is required on first lookup, then cached (`packLoaders` /
-  `loadedPacks`). Resolution pipeline: pack values are repo-relative PNG
-  paths under `assets/icons/<pack>-pack/<first-letter>/`; `resolve` maps them
-  onto the repo's raw-GitHub base URL (`assetBase`), honours an executor
-  `getcustomasset` override (cached in `customAssetCache`, folder
-  `custom_asset`), and passes numeric asset ids through unchanged;
-  `namedAssets` covers a few named chrome assets.
+  `packs`, `count`, `isPack`, `priority`, `loaded`, `refreshCustom`) with lazy
+  metatables per pack: a pack's data module is required on first lookup, then
+  cached (`packLoaders` / `loadedPacks`). Name-only lookup walks the packs in
+  `PACK_ORDER` (lucide, material, tabler, phosphor, heroicons, feather) and
+  stops at the first hit, so the search is lazy as well as deterministic;
+  `"pack:name"` (and the `pack` argument) address one pack exactly, and a
+  mis-cased or unknown pack resolves to nothing rather than to a neighbouring
+  pack. Names and pack names are case-sensitive, never normalised. Resolution
+  pipeline: pack values are repo-relative PNG paths under
+  `assets/icons/<pack>-pack/<first-letter>/`; `resolve` maps them onto the
+  repo's raw-GitHub base URL (`assetBase`), checks the executor's
+  `custom_asset` folder first (indexed once with `listfiles`, subfolder keys,
+  extension preference png/jpg/jpeg/webp/none, one `getcustomasset` per used
+  path, misses memoised), passes numeric asset ids and `rbx*://` /
+  `http(s)://` values through unchanged, and memoises each (request, pack)
+  answer; `namedAssets` covers a few named chrome assets.
 - `lucide/feather/material/phosphor/heroicons/tabler.luau` — pure data tables
   `{ [name] = "assets/icons/..." }`. Names are public lookup keys; never
-  renamed. Entry counts: lucide 1776, tabler 5130, phosphor 1512,
-  heroicons 324, feather 287, material 299.
+  renamed. Entry counts: lucide 1776, material 1133, tabler 5130,
+  phosphor 1512, heroicons 648, feather 287.
 
 ---
 
@@ -460,6 +467,14 @@ Per-element specifics:
 ## utilities/ (selected)
 
 - `constants.luau` — static constants incl. `icons` map (with `profileAvatarPlaceholder`).
+- `motion.luau` — the library's animation service: named `TweenInfo` specs
+  created once (`instant`, `fast`, `snappy`, `normal`, `smooth`, `emphasized`,
+  `pop`, `exit`, `spring`, `spin`, `drift`), `motion.tween(instance, props,
+  spec, onCompleted)` which drops already-satisfied properties and cancels an
+  in-flight tween that would fight over the same property, `motion.step(base)`
+  for cascade pacing, and the speed profiles (`relaxed` 1.35x, `normal` 1x,
+  `snappy` 0.7x, `instant` = no animation) behind the window's "Animation
+  speed" setting. Public as `Astra.Motion`.
 - `persistenceSettings.luau` — settings JSON encode/decode; `activeSubTab` round-trips here.
 - `persistenceWrite.luau` — atomic write helper.
 - `persistenceConfig.luau`, `persistencePaths.luau` — window-config serialization and key paths.
@@ -492,6 +507,14 @@ Per-element specifics:
 | `check_instance_fields.py` | Fails on custom-field writes on instances (the `_profileGeneration` crash class). |
 | `profile_{compact,centering,reveal,details}_test.sh` | Profile card suites: geometry/visibility, window-pair centring, the reveal toggle, and the redesigned card (tokens, pinned header + scrolling, live server/session values, license rows, tooltip, no-player case). |
 | `sidebar_tab_sizing_test.sh`, `smoke_test_bundle.sh` | Rail sizing and a bundle smoke run. |
+| `instance_budget_test.sh` | Per-element instance ceilings plus a realistic-page budget — the frame-time proxy guard. |
+| `odometer_test.sh` | Odometer readout: lazy row materialisation, and the resting row still showing the value's digit through plain/wrap/roll-down transitions. |
+| `dropdown_rows_test.sh` | Dropdown option rows: none (and no search bar) while closed whatever the list length, one per option in order on open plus the bar once, the rendered selected/unselected state and corner tiers, reopening reusing the rows, edits and picks made while closed, and the search filter. |
+| `tab_elements_test.sh` | Tab elements: only the selected tab is walked on a show/hide, a tab opened later shows its elements in the same frame and state, the search shows every tab it renders, and a late element shows with its tab. |
+| `toggle_switch_test.sh` | Switch geometry: one set of metrics, mirrored resting states, equal clearance, the sheen under the knob, and the animated positions matching the built ones. |
+| `icons_test.sh` | Icon resolver: name-only lookup across the packs in priority order (and how lazily they load), qualified `pack:name`, case sensitivity, unknown-pack warnings, custom assets (one import per path, memoised misses, the `listfiles` index), cache-key separation, and `window:ResolveIcon`. |
+| `toggle_preview.sh` | Builds both switch states under the mini Roblox stubs, dumps them as JSON and renders `assets/toggle-preview-{off,on}.png` — the fastest way to eyeball the switch without Roblox. |
+| `motion_test.sh` | Motion service: shared specs, time scale + its cache, profiles, tween ownership (cancel-on-overlap vs. unrelated properties), the no-op and animation-off paths, the window's "Animation speed" setting, and hover going through the service. |
 | `profile_panel_preview.sh` | Builds the real card under the mini Roblox stubs, dumps it as JSON and renders `assets/profile-panel-preview{,-revealed}.png` (needs Pillow) — the fastest way to eyeball a layout change without Roblox. |
 
 All of them assemble `scripts/sidebar_sizing_stubs.luau` + `version-1.luau`

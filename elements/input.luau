@@ -130,7 +130,9 @@ function state.new(tab, placeholderLabel)
         Parent = self.box,
     }, { Color = "SurfaceStroke" })
 
-        self.glow = self.window:CreateGlow(self.box, "FieldGlow", 20, 1)
+        -- [[The field glow is the validation flash, and its idle transparency
+        -- [[is 1 (invisible): it is built by _fieldGlow() the first time the
+        -- [[field has a result to flash.]]
     self._glowIdle = 1
     self.input = self.window:Create("TextBox", {
         Text = self.value,
@@ -225,6 +227,13 @@ end
 
 function state:Set(a22, a23)
     self:_commit(a22, a23)
+end
+
+function state:_fieldGlow()
+    if not self.glow then
+        self.glow = self.window:CreateGlow(self.box, "FieldGlow", 20, 1)
+    end
+    return self.glow
 end
 
 function state:_setShown(a24, a25)

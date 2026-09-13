@@ -4,6 +4,7 @@ local icons = require(script.Parent.Parent.icons)
 local functions = require(script.Parent.Parent.functions)
 local persistence = require(utilities.persistence)
 local constants = require(utilities.constants)
+local motion = require(utilities.motion)
 local locale = require(utilities.locale)
 local log = require(utilities.log)
 local haptic = require(utilities.HapticEngine)
@@ -213,6 +214,7 @@ function Window.new(props)
         antiWindowDuplicate = true,
         layoutMode = layout.mode,
         activeSubTab = 1,
+        motionSpeed = "normal",
     }
         self._layoutTransitioning = false
 
@@ -590,6 +592,7 @@ function Window.new(props)
     self:_buildSettingsUI()
     self:_updateWindowTitle()
 
+    self:_applyMotionSetting()
     self:_syncLiveAnimation()
 
     -- [[Construction is complete: settings tab content may now be built]]
@@ -598,6 +601,18 @@ function Window.new(props)
     self._constructed = true
 
     return self
+end
+
+-- [[The "Animation speed" setting owns the motion service's time scale. It is
+-- applied from the window (not only from the settings control) so a window
+-- built from persisted settings, a configuration load and a live change all
+-- reach the same state; an unknown persisted value falls back to `normal`
+-- instead of leaving the library on whatever the last window used.]]
+function Window:_applyMotionSetting()
+    if not motion.setProfile(self.settings.motionSpeed) then
+        self.settings.motionSpeed = "normal"
+        motion.setProfile("normal")
+    end
 end
 
 function Window:_syncLiveAnimation()
@@ -612,7 +627,9 @@ function Window:_syncLiveAnimation()
     local generation = self._liveGeneration
     task.spawn(function()
         local forward = true
-        local liveTweenInfo = TweenInfo.new(10, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+        -- [[Shared spec from the motion service: the ambient drift is long
+        -- enough that re-creating its TweenInfo per cycle was pure waste.]]
+        local liveTweenInfo = motion.spec("drift")
 
         while self._liveGeneration == generation and self._liveAnimating and not self.unloaded do
             -- [[The card beside the window is the same surface, so it rides the
@@ -916,31 +933,46 @@ function Window:Close()
     self.drag.drag.Visible = false
     self:_fadeSurfaces(false, closeTweenInfo)
     if self.title then
-        state.tweenService:Create(self.title, closeTweenInfo, { TextTransparency = 1 }):Play()
+        motion.tween(self.title, { TextTransparency = 1 }, closeTweenInfo)
     end
     if self.subtitle then
-        state.tweenService:Create(self.subtitle, closeTweenInfo, { TextTransparency = 1 }):Play()
+        motion.tween(self.subtitle, { TextTransparency = 1 }, closeTweenInfo)
     end
     if self.topbarIcon then
-        state.tweenService:Create(self.topbarIcon, closeTweenInfo, { ImageTransparency = 1 }):Play()
+        motion.tween(self.topbarIcon, { ImageTransparency = 1 }, closeTweenInfo)
     end
     for _, tag in self.tags do
         tag:_setShown(false, closeTweenInfo)
     end
     self:_fadeSelectedElementsOut()
-    local tween = state.tweenService:Create(self.main, closeTweenInfo, {
+    -- [[The contraction goes through the motion service so the close answers
+    -- the speed setting like the rest of the window. A nil return means
+    -- nothing was animated (motion switched off, or the frame is already
+    -- where the transition was heading): the teardown still has to run, or
+    -- the window would stay alive and invisible.]]
+    local closed = false
+    local function finishClose()
+        if closed or self.unloaded or self._closeTransitionId ~= transitionId then
+            return
+        end
+        closed = true
+        self.drag.drag.Visible = false
+        self:Unload()
+    end
+
+    if not motion.tween(self.main, {
         Size = targetSize,
         Position = originalPosition,
         BackgroundTransparency = 1,
-    })
-    tween.Completed:Connect(function()
-        if not self.unloaded and self._closeTransitionId == transitionId then
-            self.drag.drag.Visible = false
-            self:Unload()
+    }, closeTweenInfo, finishClose) then
+        -- [[Nothing animated, so the teardown just ran and the window's
+        -- instances are gone — the corner below must not be touched.]]
+        finishClose()
+        if self.unloaded then
+            return
         end
-    end)
-    tween:Play()
-    state.tweenService:Create(self.windowCorner, closeTweenInfo, { CornerRadius = UDim.new(1, 0) }):Play()
+    end
+    motion.tween(self.windowCorner, { CornerRadius = UDim.new(1, 0) }, closeTweenInfo)
 end
 
 function Window:Hide()
@@ -992,18 +1024,18 @@ function Window:Hide()
             self:_fadeSurfaces(false, hideTween)
 
     if self.title then
-        state.tweenService:Create(self.title, hideTween, { TextTransparency = 1 }):Play()
+        motion.tween(self.title, { TextTransparency = 1 }, hideTween)
     end
     if self.subtitle then
-        state.tweenService:Create(self.subtitle, hideTween, { TextTransparency = 1 }):Play()
+        motion.tween(self.subtitle, { TextTransparency = 1 }, hideTween)
     end
     if self.topbarIcon then
-        state.tweenService:Create(self.topbarIcon, hideTween, { ImageTransparency = 1 }):Play()
+        motion.tween(self.topbarIcon, { ImageTransparency = 1 }, hideTween)
     end
 
     for _, actionFrame in ipairs(self.actionContainer:GetChildren()) do
         if actionFrame:IsA("Frame") then
-            state.tweenService:Create(actionFrame.ImageLabel, hideTween, { ImageTransparency = 1 }):Play()
+            motion.tween(actionFrame.ImageLabel, { ImageTransparency = 1 }, hideTween)
         end
     end
 
@@ -1020,20 +1052,26 @@ function Window:Hide()
 
     self:_fadeSelectedElementsOut()
 
-            local tween = state.tweenService:Create(self.main, surfaceTween, { Size = collapsedSize, Position = collapsedPos })
-    tween.Completed:Connect(function()
-                        if self.unloaded or not self.hidden or self._hideTransitionId ~= transitionId then
+    -- [[Same contract as the close: settle from the tween's Completed, or
+    -- immediately when there was nothing to animate.]]
+    local collapsed = false
+    local function settleCollapse()
+                        if collapsed or self.unloaded or not self.hidden or self._hideTransitionId ~= transitionId then
             return
         end
+        collapsed = true
 
                         self._collapsedShown = true
         updateToastPosition(self, true)
         self.collapsedInteract.Visible = true
         self.animating = false
         self._revealing = false
-    end)
-    tween:Play()
-    state.tweenService:Create(self.windowCorner, cornerTween, { CornerRadius = UDim.new(1, 0) }):Play()
+    end
+
+    if not motion.tween(self.main, { Size = collapsedSize, Position = collapsedPos }, surfaceTween, settleCollapse) then
+        settleCollapse()
+    end
+    motion.tween(self.windowCorner, { CornerRadius = UDim.new(1, 0) }, cornerTween)
 
     self.topbar.Visible = true
     self:_setContentVisible(false)
@@ -1259,12 +1297,19 @@ function Window:_applyWindowSize()
     local newSize = computeSize(self.layout.mode)
     local sizeChanged = newSize ~= self.size
     self.size = newSize
-    self:_applyRailWidth()
-    if self.hidden or self.minimised or self.animating or self._revealing then
-        self._pendingResize = self._pendingResize or sizeChanged
+    -- [[Nothing moved: no rail write, no layout invalidation. This is the
+    -- [[window's steady state - the viewport poll below calls this every
+    -- [[couple of seconds for the whole session, and the rail write used to
+    -- [[happen before the check.]]
+    if not sizeChanged and not self._pendingResize then
         return
     end
-    if not sizeChanged and not self._pendingResize then
+    -- [[The rail follows the window's size, its layout and its tabs, all of
+    -- [[which are in step by the time this runs: it only has to be written
+    -- [[when one of them moved, which is what this function is for.]]
+    self:_applyRailWidth()
+    if self.hidden or self.minimised or self.animating or self._revealing then
+        self._pendingResize = true
         return
     end
     self._pendingResize = false
@@ -1791,6 +1836,29 @@ function Window:_buildSettingsUI()
         name = "Haptics", description = "A subtle tap as you interact, on devices that support haptics.", value = self.settings.haptics,
         callback = function(value) self.settings.haptics = value; haptic.setEnabled(value); self:SaveSettings() end,
     })
+
+    -- [[Animation speed. Every prompt names a profile of the motion service
+    -- (utilities/motion.luau); the labels are the display names for them.]]
+    performance:CreateSection({ name = "Motion" })
+    local motionLabels = { relaxed = "Relaxed", normal = "Normal", snappy = "Snappy", instant = "Instant" }
+    local motionOptions = { "Relaxed", "Normal", "Snappy", "Instant" }
+    local motionProfiles = { Relaxed = "relaxed", Normal = "normal", Snappy = "snappy", Instant = "instant" }
+    local currentMotion = motionLabels[self.settings.motionSpeed] or motionLabels.normal
+    performance:CreateDropdown({
+        name = "Animation speed",
+        description = "How long transitions take. Relaxed is slower and softer, Snappy is quicker, Instant switches animation off and applies every change on the spot (easiest on low-end devices).",
+        options = motionOptions,
+        value = currentMotion,
+        callback = function(value)
+            local profile = motionProfiles[value]
+            if not profile or profile == self.settings.motionSpeed then
+                return
+            end
+            self.settings.motionSpeed = profile
+            self:_applyMotionSetting()
+            self:SaveSettings()
+        end,
+    })
     end
     performance._settingsContentBuilder = buildPerformance
 
@@ -1861,6 +1929,11 @@ end
 
 function Window:LoadSettings()
     local loaded = persistence.loadSettings(self)
+    -- [[The animation-speed setting lives in the same file, and the motion
+    -- service is a library-wide singleton, so it is re-applied here rather
+    -- than only when the settings control is touched — otherwise a window
+    -- that loaded settings would animate at whatever the last one used.]]
+    self:_applyMotionSetting()
     -- [["Reveal profile details" depends on "Show profile", and a settings]]
     -- [[file written before that rule (or edited by hand) can carry reveal]]
     -- [[= on with the card off. Normalise the pair on the way in, so the]]
@@ -2149,7 +2222,7 @@ function Window:_fadeSurfaces(shown, tweenInfo)
 
     for instance, props in targets do
         if tweenInfo then
-            state.tweenService:Create(instance, tweenInfo, props):Play()
+            motion.tween(instance, props, tweenInfo)
         else
             for prop, value in props do
                 instance[prop] = value
@@ -2162,10 +2235,35 @@ end
 
 function Window:_fadeSelectedElementsOut()
     if self.selectedTab then
+        -- [[These elements are the ones about to be transparent: the tab is
+        -- [[marked so that opening it again shows them (the reveal below
+        -- [[handles the tab that is on screen).]]
+        self:_markTabElementsPending(self.selectedTab)
         for _, element in ipairs(self.selectedTab.elements) do
             element:_setShown(false, true)
         end
     end
+end
+
+-- [[Show every element of one tab (instantly) and clear its pending mark.]]
+function Window:_showTabElements(tab)
+    tab._elementsPending = false
+    for _, element in ipairs(tab.elements) do
+        element:_setShown(true, false)
+    end
+end
+
+-- [[Mark a tab whose elements are hidden and must be shown when it is next
+-- [[seen. Only two things hide an element: the fade above (the tab that was on
+-- [[screen) and being registered while the window is hidden; everything else
+-- [[is shown on the spot. A tab that is not the current page of
+-- [[`self.elements` cannot be looked at (UIPageLayout keeps the other pages
+-- [[out of the render), so the mark is honoured when the player opens the tab
+-- [[(`tab:Select`) or when the search pulls its elements onto its own page -
+-- [[the two moments they can be seen. This replaces walking every tab's
+-- [[elements on every open just to keep the tabs nobody had opened in step.]]
+function Window:_markTabElementsPending(tab)
+    tab._elementsPending = true
 end
 
 function Window:_revealElements(stepDelay, totalDuration, layoutTransitionId)
@@ -2179,16 +2277,6 @@ function Window:_revealElements(stepDelay, totalDuration, layoutTransitionId)
     if not isStillValid() then
         return
     end
-    for _, tab in pairs(self.tabs) do
-        if tab ~= self.selectedTab then
-            for _, element in ipairs(tab.elements) do
-                if not isStillValid() then
-                    return
-                end
-                element:_setShown(true, false)
-            end
-        end
-    end
 
     local tab = self.selectedTab
     if not tab then
@@ -2199,7 +2287,12 @@ function Window:_revealElements(stepDelay, totalDuration, layoutTransitionId)
     local viewTop = page.AbsolutePosition.Y
     local viewBottom = viewTop + page.AbsoluteWindowSize.Y
 
-    local maxReveals = math.floor(totalDuration / stepDelay)
+    -- [[The cascade's pace belongs to the motion service as well: a relaxed
+    -- profile spreads the reveal further, a snappy one tightens it, and with
+    -- animation off (step 0) every element appears on the same frame instead
+    -- of the coroutine yielding a frame per element.]]
+    local step = motion.step(stepDelay)
+    local maxReveals = if step > 0 then math.floor(totalDuration / step) else math.huge
     local revealed = 0
     for _, element in ipairs(tab.elements) do
         if not isStillValid() then
@@ -2210,8 +2303,8 @@ function Window:_revealElements(stepDelay, totalDuration, layoutTransitionId)
         if isVisible then
             element:_setShown(true, true)
             revealed += 1
-            if revealed <= maxReveals then
-                task.wait(stepDelay)
+            if step > 0 and revealed <= maxReveals then
+                task.wait(step)
                 if not isStillValid() then
                     return
                 end
@@ -2288,11 +2381,13 @@ function Window:_quickRestore()
             tab.topbarItem.Visible = true
             tab:_applyVisual(if self.selectedTab == tab then "selected" else "unselected")
         end
-        for _, element in ipairs(tab.elements) do
-            element:_setShown(true, false)
+        if tab == self.selectedTab then
+            self:_showTabElements(tab)
         end
     end
-    -- [[Restore the settings/normal rail split; the loop above shows all tabs.]]
+    -- [[Restore the settings/normal rail split; the loop above shows the
+    -- [[selected tab's elements (the others are either already shown or still
+    -- [[marked to show when they are opened).]]
     self:_applySettingsLayout(self._settingsMode)
     self:_fadeSurfaces(true)
 
@@ -2320,11 +2415,15 @@ function Window:_quickRestore()
     for _, tag in self.tags do
         tag:_setShown(true, false)
     end
-    local tween = state.tweenService:Create(self.main, tweenInfo, { Size = self.size, Position = targetPos })
-    tween.Completed:Connect(function()
-        if self.hidden or self.unloaded then
+    -- [[Same contract as the first show: run the settle path from the tween's
+    -- Completed, or immediately when there is no tween (motion switched off),
+    -- so `animating` is never left set.]]
+    local restored = false
+    local function settle()
+        if restored or self.hidden or self.unloaded then
             return
         end
+        restored = true
         self.main.ClipsDescendants = false
         self._collapsedShown = false
         self:_syncDragBar()
@@ -2332,9 +2431,12 @@ function Window:_quickRestore()
         self.animating = false
         self._revealing = false
         updateToastPosition(self, true)
-    end)
-    tween:Play()
-    state.tweenService:Create(self.windowCorner, tweenInfo, { CornerRadius = self.theme.CornerRoundness }):Play()
+    end
+
+    if not motion.tween(self.main, { Size = self.size, Position = targetPos }, tweenInfo, settle) then
+        settle()
+    end
+    motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, tweenInfo)
 end
 function Window:_firstShow()
     self.drag.drag.Visible = false
@@ -2369,11 +2471,13 @@ function Window:_firstShow()
             tab.topbarItem.Visible = true
             tab:_applyVisual(if self.selectedTab == tab then "selected" else "unselected")
         end
-        for _, element in ipairs(tab.elements) do
-            element:_setShown(true, false)
+        if tab == self.selectedTab then
+            self:_showTabElements(tab)
         end
     end
-    -- [[Restore the settings/normal rail split; the loop above shows all tabs.]]
+    -- [[Restore the settings/normal rail split; the loop above shows the
+    -- [[selected tab's elements (the others are either already shown or still
+    -- [[marked to show when they are opened).]]
     self:_applySettingsLayout(self._settingsMode)
     for _, tag in self.tags do
         tag:_setShown(false, false)
@@ -2381,20 +2485,20 @@ function Window:_firstShow()
     local tweenInfo = TweenInfo.new(0.38, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
     if self.topbarIcon then
         self.topbarIcon.ImageTransparency = 1
-        state.tweenService:Create(self.topbarIcon, tweenInfo, { ImageTransparency = 0 }):Play()
+        motion.tween(self.topbarIcon, { ImageTransparency = 0 }, tweenInfo)
     end
     if self.title then
         self.title.TextTransparency = 1
-        state.tweenService:Create(self.title, tweenInfo, { TextTransparency = 0 }):Play()
+        motion.tween(self.title, { TextTransparency = 0 }, tweenInfo)
     end
     if self.subtitle then
         self.subtitle.TextTransparency = 1
-        state.tweenService:Create(self.subtitle, tweenInfo, { TextTransparency = 0.7 }):Play()
+        motion.tween(self.subtitle, { TextTransparency = 0.7 }, tweenInfo)
     end
     for _, actionFrame in ipairs(self.actionContainer:GetChildren()) do
         if actionFrame:IsA("Frame") and actionFrame.ImageLabel then
             actionFrame.ImageLabel.ImageTransparency = 1
-            state.tweenService:Create(actionFrame.ImageLabel, tweenInfo, { ImageTransparency = 0.6 }):Play()
+            motion.tween(actionFrame.ImageLabel, { ImageTransparency = 0.6 }, tweenInfo)
         end
     end
 
@@ -2402,22 +2506,35 @@ function Window:_firstShow()
         tag:_setShown(true, tweenInfo)
     end
     self:_fadeSurfaces(true, tweenInfo)
-    local tween = state.tweenService:Create(self.main, tweenInfo, {
-        BackgroundTransparency = windowSurfaceTransparency,
-        Size = self.size,
-    })
-    tween.Completed:Connect(function()
-        if self.unloaded then
+
+    -- [[The entrance is the library's hero transition, so the frame lands on
+    -- the motion service's "pop" spec: the same 0.38s as before, but with a
+    -- small Back/Out overshoot, so the window springs the last pixels into
+    -- place instead of easing into them. The corner rides the same spec.
+    --
+    -- The settle path has to run either way: motion.tween returns no tween
+    -- when animation is switched off (the "Instant" speed profile), and a
+    -- window that never animates must not be left with `animating` set.]]
+    local settled = false
+    local function settle()
+        if settled or self.unloaded then
             return
         end
+        settled = true
         self.main.ClipsDescendants = false
         self:_syncDragBar()
         self.drag.drag.Visible = false
         self.animating = false
         self._revealing = false
-    end)
-    tween:Play()
-    state.tweenService:Create(self.windowCorner, tweenInfo, { CornerRadius = self.theme.CornerRoundness }):Play()
+    end
+
+    if not motion.tween(self.main, {
+        BackgroundTransparency = windowSurfaceTransparency,
+        Size = self.size,
+    }, "pop", settle) then
+        settle()
+    end
+    motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, "pop")
 
     local player = state.localPlayer
     if player and self.settings.welcomeToast and chrome.isNewUser() then
@@ -2620,19 +2737,21 @@ function Window:_flashResult(element, ok)
     if not box then
         return
     end
-    local glow = element.glow
+    local glow = if element._fieldGlow then element:_fieldGlow() else element.glow
     local boxStroke = element.boxStroke
     local flashColor = ok and constants.accent.on or self.theme.ErrorColor
     local flashStroke = ok and constants.accent.onStroke or self.theme.ErrorStrokeColor
+    -- [[Hoisted out of the function: these two are fixed, and the flash runs
+    -- on every element callback that reports a result.]]
     local flashTween = TweenInfo.new(0.1, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     local restoreTween = TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
-        state.tweenService:Create(box, flashTween, { BackgroundColor3 = flashColor }):Play()
+    motion.tween(box, { BackgroundColor3 = flashColor }, flashTween)
     if boxStroke then
-        state.tweenService:Create(boxStroke, flashTween, { Color = flashStroke, Transparency = 0.4 }):Play()
+        motion.tween(boxStroke, { Color = flashStroke, Transparency = 0.4 }, flashTween)
     end
     if glow then
-        state.tweenService:Create(glow, flashTween, { Color = flashStroke, Transparency = 0.6 }):Play()
+        motion.tween(glow, { Color = flashStroke, Transparency = 0.6 }, flashTween)
     end
 
         element._flashToken = (element._flashToken or 0) + 1
@@ -2641,16 +2760,12 @@ function Window:_flashResult(element, ok)
         if element._flashToken ~= token then
             return
         end
-        state.tweenService:Create(box, restoreTween, { BackgroundColor3 = self.theme.FieldBackground }):Play()
+        motion.tween(box, { BackgroundColor3 = self.theme.FieldBackground }, restoreTween)
         if boxStroke then
-            state.tweenService
-                :Create(boxStroke, restoreTween, { Color = self.theme.SurfaceStroke, Transparency = 0.85 })
-                :Play()
+            motion.tween(boxStroke, { Color = self.theme.SurfaceStroke, Transparency = 0.85 }, restoreTween)
         end
         if glow then
-            state.tweenService
-                :Create(glow, restoreTween, { Color = self.theme.FieldGlow, Transparency = element._glowIdle or 1 })
-                :Play()
+            motion.tween(glow, { Color = self.theme.FieldGlow, Transparency = element._glowIdle or 1 }, restoreTween)
         end
     end)
 end
@@ -2674,36 +2789,36 @@ function Window:CreateHoverOverlay(parent)
 end
 
 function Window:_wireElementHover(element)
-    local hoverTween = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     local theme = self.theme
 
+    -- [[Hover feedback is the single most-repeated animation in the library
+    -- (every element, every pointer move across a grid), so it goes through
+    -- the motion service: the spec is shared instead of allocated per event,
+    -- and an enter/leave pair on the same element can no longer leave two
+    -- tweens interpolating the same stroke — the second cancels the first.]]
     self:ConnectFor(element, element.main.MouseEnter, function()
         if not self:_interactive() then
             return         end
-        state.tweenService
-            :Create(
-                element.stroke,
-                hoverTween,
-                { Transparency = theme.ElementStrokeHoverTransparency, Color = theme.ElementStrokeHover }
-            )
-            :Play()
-        state.tweenService:Create(element.title, hoverTween, { TextColor3 = theme.ElementTextHoverColor }):Play()
+        motion.tween(
+            element.stroke,
+            { Transparency = theme.ElementStrokeHoverTransparency, Color = theme.ElementStrokeHover },
+            "snappy"
+        )
+        motion.tween(element.title, { TextColor3 = theme.ElementTextHoverColor }, "snappy")
         if element.hoverOverlay then
-            state.tweenService:Create(element.hoverOverlay, hoverTween, { BackgroundTransparency = 0.97 }):Play()
+            motion.tween(element.hoverOverlay, { BackgroundTransparency = 0.97 }, "snappy")
         end
     end)
 
     self:ConnectFor(element, element.main.MouseLeave, function()
-        state.tweenService
-            :Create(
-                element.stroke,
-                hoverTween,
-                { Transparency = theme.ElementStrokeTransparency, Color = theme.ElementStroke }
-            )
-            :Play()
-        state.tweenService:Create(element.title, hoverTween, { TextColor3 = theme.ContentColor }):Play()
+        motion.tween(
+            element.stroke,
+            { Transparency = theme.ElementStrokeTransparency, Color = theme.ElementStroke },
+            "snappy"
+        )
+        motion.tween(element.title, { TextColor3 = theme.ContentColor }, "snappy")
         if element.hoverOverlay then
-            state.tweenService:Create(element.hoverOverlay, hoverTween, { BackgroundTransparency = 1 }):Play()
+            motion.tween(element.hoverOverlay, { BackgroundTransparency = 1 }, "snappy")
         end
     end)
 end
@@ -2725,8 +2840,8 @@ function Window:_runGuarded(element, fn, ...)
 
         local flashTarget = element.flashTarget or element.main
         local errorTween = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-        state.tweenService:Create(flashTarget, errorTween, { BackgroundColor3 = self.theme.ErrorColor }):Play()
-        state.tweenService:Create(element.stroke, errorTween, { Color = self.theme.ErrorStrokeColor }):Play()
+        motion.tween(flashTarget, { BackgroundColor3 = self.theme.ErrorColor }, errorTween)
+        motion.tween(element.stroke, { Color = self.theme.ErrorStrokeColor }, errorTween)
                 if element.title then
             element.title.Text = locale.resolve("Error, log recorded in console.")
         end
@@ -2741,20 +2856,16 @@ function Window:_runGuarded(element, fn, ...)
         if element.title then
             element.title.Text = locale.resolve(element.name)
         end
-        state.tweenService
-            :Create(
-                flashTarget,
-                TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
-                { BackgroundColor3 = Color3.fromRGB(255, 255, 255) }
-            )
-            :Play()
-        state.tweenService
-            :Create(
-                element.stroke,
-                TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-                { Color = self.theme.ElementStroke }
-            )
-            :Play()
+        motion.tween(
+            flashTarget,
+            { BackgroundColor3 = Color3.fromRGB(255, 255, 255) },
+            TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+        )
+        motion.tween(
+            element.stroke,
+            { Color = self.theme.ElementStroke },
+            TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+        )
         element._errored = false
     end)
 end
@@ -2853,6 +2964,9 @@ function Window:_reveal(instance, targets, animate, tweenInfo)
     if not instance then
         return
     end
+    -- [[Skip work when the target state is already applied: the cascade (and
+    -- a window that is shown, hidden and shown again) asks the same elements
+    -- to reveal repeatedly.]]
     local needsUpdate = false
     for prop, value in targets do
         if instance[prop] ~= value then
@@ -2863,8 +2977,13 @@ function Window:_reveal(instance, targets, animate, tweenInfo)
     if not needsUpdate then
         return
     end
+
     if animate then
-        state.tweenService:Create(instance, tweenInfo or revealTween, targets):Play()
+        -- [[The tween goes through the motion service, which shares the spec
+        -- and cancels an in-flight tween on the same property — the cascade
+        -- asks every element on the page to show on one frame, and a
+        -- hidden/reshown window used to stack a second reveal on the first.]]
+        motion.tween(instance, targets, tweenInfo or revealTween)
     else
         for prop, value in targets do
             instance[prop] = value

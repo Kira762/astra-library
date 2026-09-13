@@ -138,15 +138,6 @@ export type KeybindProps = {
     value: (EnumItem | string)?,     forgetState: boolean?,
     isMenuToggle: boolean?,     hold: boolean?,     holdThreshold: number?,     callback: ((value: EnumItem | boolean) -> ())?,     onChanged: ((key: EnumItem) -> ())?, }
 
-export type ColorPickerProps = {
-    name: string?,
-    description: string?,
-    icon: (string | number)?,
-    flag: string?,
-    color: Color3?,     alpha: number?,     forgetState: boolean?,
-    callback: ((value: Color3, alpha: number) -> ())?,
-}
-
 export type StatProps = {
     name: string?,
     description: string?,
@@ -243,13 +234,6 @@ export type Keybind = Moveable & Lockable & {
     Set: (self: Keybind, value: EnumItem | string, skipChanged: boolean?) -> (),
 }
 
-export type ColorPicker = Moveable & Lockable & {
-    value: Color3,
-    alpha: number,
-    Set: (self: ColorPicker, value: Color3 | string, skipCallback: boolean?) -> (),
-    SetAlpha: (self: ColorPicker, alpha: number, skipCallback: boolean?) -> (),
-}
-
 export type Stat = Moveable & {
     value: number,
     Set: (self: Stat, value: number) -> (),
@@ -331,7 +315,6 @@ export type Tab = {
     CreateDropdown: (self: Tab, props: DropdownProps) -> Dropdown,
     CreateInput: (self: Tab, props: InputProps) -> Input,
     CreateKeybind: (self: Tab, props: KeybindProps) -> Keybind,
-    CreateColorPicker: (self: Tab, props: ColorPickerProps) -> ColorPicker,
     CreateStat: (self: Tab, props: StatProps) -> Stat,
     CreateProgress: (self: Tab, props: ProgressProps) -> Progress,
     CreateConsole: (self: Tab, props: ConsoleProps) -> Console,
@@ -378,17 +361,47 @@ export type IconCatalog = {
     Phosphor: IconPack,
     Heroicons: IconPack,
     Feather: IconPack,
+    -- [[`name` may be a bare icon name (searched in every pack, in priority]]
+    -- [[order) or a pack-qualified `"pack:name"`; `pack` addresses one pack.]]
     get: (name: string, pack: IconPack?) -> string?,
     getByPack: (pack: IconPack, name: string) -> string?,
     list: (pack: IconPack?) -> { string },
     packs: () -> { string },
     count: (pack: IconPack?) -> number,
+    isPack: (pack: string?) -> boolean,
+    priority: () -> { string },
+    loaded: () -> { string },
+    refreshCustom: () -> number,
     resolve: (value: (string | number)?, pack: IconPack?) -> (string | number)?,
+}
+
+export type MotionSpec = string | TweenInfo
+
+-- [[The service is a plain table of functions (dot calls, like `Icons`),
+-- [[so the fields carry no `self` - `Astra.Motion.tween(frame, props)`.
+export type MotionService = {
+    enabled: boolean,
+    timeScale: number,
+    profile: string,
+    profiles: { [string]: { timeScale: number?, enabled: boolean? } },
+    specNames: { string },
+    spec: (spec: MotionSpec?) -> TweenInfo,
+    step: (base: number) -> number,
+    setTimeScale: (scale: number) -> number,
+    getTimeScale: () -> number,
+    setEnabled: (enabled: boolean) -> boolean,
+    isEnabled: () -> boolean,
+    setProfile: (name: string) -> boolean,
+    getProfile: () -> string,
+    cancel: (instance: Instance?) -> boolean,
+    tween: (instance: Instance?, props: { [string]: any }, spec: MotionSpec?, onCompleted: (() -> ())?) -> Tween?,
+    set: (instance: Instance?, props: { [string]: any }) -> (),
 }
 
 export type Astra = {
     CreateWindow: (self: Astra, props: WindowProps) -> Window,
     Icons: IconCatalog,
+    Motion: MotionService,
 }
 
 return {}

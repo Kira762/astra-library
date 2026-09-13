@@ -21,6 +21,7 @@ type SettingsWindow = {
         antiWindowDuplicate: boolean,
         layoutMode: string,
         activeSubTab: number,
+        motionSpeed: string,
     },
 }
 
@@ -37,6 +38,7 @@ type DecodedSettings = {
     antiWindowDuplicate: unknown?,
     layoutMode: unknown?,
     activeSubTab: unknown?,
+    motionSpeed: unknown?,
 }
 
 function persistenceSettings.getSettingsPath(): (string, string)
@@ -63,6 +65,7 @@ function persistenceSettings.saveSettings(window: SettingsWindow): boolean
         antiWindowDuplicate = window.settings.antiWindowDuplicate,
         layoutMode = window.settings.layoutMode,
         activeSubTab = window.settings.activeSubTab,
+        motionSpeed = window.settings.motionSpeed,
     }
 
     local ok, encoded = pcall(coreState.httpService.JSONEncode, coreState.httpService, payload)
@@ -189,6 +192,16 @@ function persistenceSettings.loadSettings(window: SettingsWindow): boolean
 
     if type(decodedSettings.activeSubTab) == "number" and decodedSettings.activeSubTab >= 1 then
         window.settings.activeSubTab = math.floor(decodedSettings.activeSubTab)
+    end
+
+    -- [[Motion profiles are validated by the motion service, the same way the
+    -- live setting is, so a hand-edited settings file cannot put the library
+    -- on a profile that does not exist.]]
+    if type(decodedSettings.motionSpeed) == "string" then
+        local motion = require(script.Parent.motion)
+        if motion.profiles[decodedSettings.motionSpeed] then
+            window.settings.motionSpeed = decodedSettings.motionSpeed
+        end
     end
 
     return true

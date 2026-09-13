@@ -294,11 +294,13 @@ expect(
 )
 
 -- T9d: every settings tab opens with its full content on its own page.
+-- Performance gained its "Motion" section and the "Animation speed" dropdown
+-- (the control that drives utilities/motion.luau), hence 4 rather than 2.
 local expectedSettingsContent = {
     General = 4,
     Appearance = 13,
     Behavior = 2,
-    Performance = 2,
+    Performance = 4,
     Persistence = 4,
     About = 9,
 }

@@ -109,26 +109,60 @@ function odometer:_reel(reelIndex)
         Parent = cell,
     })
 
-    for i = 0, reelCells - 1 do
-        self.window:Create("TextLabel", {
-            Text = tostring(i % 10),
-            Position = UDim2.fromOffset(0, i * self.height),
-            Size = UDim2.fromOffset(self.maxWidth, self.height),
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            TextSize = self.textSize,
-            TextXAlignment = Enum.TextXAlignment.Center,
-            TextYAlignment = Enum.TextYAlignment.Center,
-            TextTransparency = self.transparency,
-            ZIndex = self.zIndex,
-
-            Parent = strip,
-        }, { TextColor3 = "ContentColor", FontFace = "Font" })
-    end
-
-    local reel = { cell = cell, strip = strip, digit = 0, target = 0, stripTween = nil, sizeTween = nil }
+    -- [[Rows are created on demand (see _rows): a reel only ever shows the
+    -- [[contiguous band of rows its current transition walks over, so building
+    -- [[all `reelCells` of them upfront left up to 19 clipped, never-visible
+    -- [[TextLabels behind every digit of every readout — the single largest
+    -- [[instance cost in the library (a Stat built 42 text labels for one
+    -- [[value). Positions and glyphs are unchanged, so nothing about the roll
+    -- [[looks different.]]
+    local reel = {
+        cell = cell,
+        strip = strip,
+        digit = 0,
+        target = 0,
+        stripTween = nil,
+        sizeTween = nil,
+        rows = {},
+    }
     slot.reel = reel
     return reel
+end
+
+-- [[Materialises the rows a transition needs, and only those. `rowIndex` is
+-- [[the strip's own row number (0-9 is the digit, 10-19 the repeated digit
+-- [[the downward roll travels through), matching _reelRoll's maths.]]
+function odometer:_row(reel, rowIndex)
+    local label = reel.rows[rowIndex]
+    if label then
+        return label
+    end
+
+    label = self.window:Create("TextLabel", {
+        Text = tostring(rowIndex % 10),
+        Position = UDim2.fromOffset(0, rowIndex * self.height),
+        Size = UDim2.fromOffset(self.maxWidth, self.height),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        TextSize = self.textSize,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        TextTransparency = self.transparency,
+        ZIndex = self.zIndex,
+
+        Parent = reel.strip,
+    }, { TextColor3 = "ContentColor", FontFace = "Font" })
+
+    reel.rows[rowIndex] = label
+    return label
+end
+
+function odometer:_rows(reel, lowRow, highRow)
+    lowRow = math.max(0, lowRow)
+    highRow = math.min(reelCells - 1, highRow)
+    for rowIndex = lowRow, highRow do
+        self:_row(reel, rowIndex)
+    end
 end
 
 function odometer:_static(staticIndex)
@@ -169,6 +203,7 @@ end
 
 function odometer:_reelSnap(snapReel, snapDigit)
     cancelTweens(snapReel)
+    self:_rows(snapReel, snapDigit, snapDigit)
     snapReel.cell.Size = UDim2.fromOffset(self.advance[snapDigit], self.height)
     snapReel.strip.Position = UDim2.new(0.5, 0, 0, -snapDigit * self.height)
     snapReel.digit = snapDigit
@@ -192,6 +227,7 @@ function odometer:_reelRoll(rollReel, rollDigit, up)
         fromRow = currentDigit + 10         toRow = fromRow - (currentDigit - rollDigit) % 10
     end
 
+    self:_rows(rollReel, math.min(fromRow, toRow), math.max(fromRow, toRow))
     rollReel.strip.Position = UDim2.new(0.5, 0, 0, -fromRow * self.height)
     rollReel.target = rollDigit
 

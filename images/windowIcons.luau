@@ -11,7 +11,6 @@ windowIcons.ids = {
     chevron = 88479147175134,
     check = 125626312718314,
     dot = 91452555903853,
-    colorpicker = 91452555903853,
     config = 125823673784681,
 }
 
@@ -24,7 +23,6 @@ windowIcons.roles = {
     chevron = "chevron",
     check = "check",
     dot = "dot",
-    colorpicker = "colorpicker",
     config = "config",
 }
 

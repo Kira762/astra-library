@@ -128,7 +128,9 @@ function state.new(tab, a49)
         ),
 
         _isOpen = false,
+        _searchOpen = false,
         _optionFrames = {},
+        _optionsBuilt = false,
     }, state)
 
             self._desiredValue = self.value
@@ -283,7 +285,8 @@ function state.new(tab, a49)
         Parent = self.panel,
     })
 
-    self:_buildSearch()
+    -- [[The search bar is built with the rows, on the first open: until then
+    -- [[it is behind a closed panel and cannot be reached.]]
     self:_buildActions()
 
     self.list = self.window:Create("ScrollingFrame", {
@@ -581,10 +584,10 @@ function state.new(tab, a49)
 
     self._buildOption = a64
 
-    for _, a76 in self.options do
-        local a77 = a64(a76)
-        table.insert(self._optionFrames, a77)
-    end
+    -- [[Rows are built on the first open, not here: a closed dropdown shows
+    -- [[only its header, so its options cost nothing until the user looks at
+    -- [[them. self.options stays the source of truth, so anything that changes
+    -- [[the list while closed is simply reflected the next time it opens.]]
 
     a63()
     self:_updateCorners()
@@ -950,10 +953,48 @@ function state:_openHeight()
     return math.min(a109 + a102(a111), a110)
 end
 
+-- [[Materialise one row, by option index. Idempotent: the row keeps whatever
+-- [[state it already carries, so this can be called from any path that needs
+-- [[the row to exist.]]
+function state:_buildOptionAt(a: number)
+    local built = self._optionFrames[a]
+    if built then
+        return built
+    end
+
+    local optionFrame = self._buildOption(self.options[a])
+    optionFrame.frame.LayoutOrder = a
+    self._optionFrames[a] = optionFrame
+    return optionFrame
+end
+
+-- [[Build every row the current option list implies. Called when the list is
+-- [[first looked at (opening), which is also the first moment the rows can be
+-- [[seen, measured or hovered.]]
+function state:_materialiseOptions()
+    if self._optionsBuilt then
+        return
+    end
+    self._optionsBuilt = true
+
+    -- [[The bar goes in first, exactly where construction used to put it, so
+    -- [[the panel's child order is what it always was. It is a sibling of the
+    -- [[list (LayoutOrder 1 against the list's 3), not of the rows.]]
+    if not self.searchbar then
+        self:_buildSearch()
+    end
+
+    for a = 1, #self.options do
+        self:_buildOptionAt(a)
+    end
+end
+
 function state:_open()
     if self._isOpen then
         return
     end
+    self:_materialiseOptions()
+    self:_updateCorners()
     self._isOpen = true
 
     if self._outsideClickConn then
@@ -1160,25 +1201,29 @@ function state:Refresh(a140)
 
     local a141 = self:_deriveSelection()
 
-                local a142 = #self._optionFrames
-    local a143 = #self.options
+    -- [[A dropdown that was never opened has no rows to rebind: the new list
+    -- [[is what the rows are built from the first time it is opened.]]
+    if self._optionsBuilt then
+                        local a142 = #self._optionFrames
+        local a143 = #self.options
 
-    for a144 = 1, math.min(a142, a143) do
-        self:_rebindOption(self._optionFrames[a144], self.options[a144], a144)
-    end
+        for a144 = 1, math.min(a142, a143) do
+            self:_rebindOption(self._optionFrames[a144], self.options[a144], a144)
+        end
 
-    for a145 = a142 + 1, a143 do
-        local a146 = self._buildOption(self.options[a145])
-        a146.frame.LayoutOrder = a145
-        table.insert(self._optionFrames, a146)
-    end
+        for a145 = a142 + 1, a143 do
+            local a146 = self._buildOption(self.options[a145])
+            a146.frame.LayoutOrder = a145
+            table.insert(self._optionFrames, a146)
+        end
 
-    if a143 < a142 then
-        self:_destroyOptionsFrom(a143 + 1)
-    end
+        if a143 < a142 then
+            self:_destroyOptionsFrom(a143 + 1)
+        end
 
-                for _, a147 in self._optionFrames do
-        self._renderOptionState(a147, false)
+                    for _, a147 in self._optionFrames do
+            self._renderOptionState(a147, false)
+        end
     end
 
     self._updateSelectedLabel()
@@ -1199,13 +1244,14 @@ function state:Add(a148)
     end
 
     table.insert(self.options, a148)
-    local a149 = self._buildOption(a148)
-    table.insert(self._optionFrames, a149)
+    -- [[While the rows are still unbuilt the option list is the only record;
+    -- [[the new row appears with the rest the first time this dropdown opens.]]
+    local a149 = if self._optionsBuilt then self:_buildOptionAt(#self.options) else nil
 
         local a150 = self:_deriveSelection()
 
-    if self._isOpen then
-        self._renderOptionState(a149, true)
+    if self._isOpen and a149 then
+        self:_renderOptionState(a149, true)
     end
 
             self:_applyFilter(if self._searchOpen then self.searchInput.Text else "")

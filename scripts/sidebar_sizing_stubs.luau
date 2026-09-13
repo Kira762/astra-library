@@ -356,6 +356,12 @@ function instanceMethods:GetPropertyChangedSignal(propName)
 	return cache[propName]
 end
 
+-- [[TextBox focus is a no-op in the harness: the library only uses it to put
+-- [[the caret in the search field, which has no visual state here.]]
+function instanceMethods:CaptureFocus() end
+
+function instanceMethods:ReleaseFocus() end
+
 function instanceMethods:JumpTo(page)
 	-- [[Emulates UIPageLayout: the page must be a visible sibling of the]]
 	-- [[layout (a GuiObject child of the layout's parent). Anything else]]

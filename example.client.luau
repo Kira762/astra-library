@@ -85,11 +85,13 @@ controls:CreateInput({
 -- [[Appearance: use visual elements for colors, dividers, and explanatory text.]]
 local appearance = window:CreateTab({ name = "Appearance", icon = "palette" })
 appearance:CreateSection({ name = "Visual elements" })
-appearance:CreateColorPicker({
-    name = "Accent color",
-    color = Color3.fromRGB(96, 205, 255),
+appearance:CreateSlider({
+    name = "Opacity",
+    range = { 0, 100 },
+    value = 80,
+    suffix = "%",
     callback = function(value)
-        window:Toast({ title = "Accent color updated", subtitle = tostring(value) })
+        window:Toast({ title = "Opacity updated", subtitle = tostring(value) })
     end,
 })
 appearance:CreateDivider()
@@ -299,11 +301,12 @@ for index, details in ipairs(testTabs) do
             end,
             })
         elseif index % 4 == 3 then
-            tab:CreateColorPicker({
-            name = "Color",
-            color = Color3.fromHSV(index / #testTabs, 0.7, 1),
+            tab:CreateSlider({
+            name = "Level",
+            range = { 0, 100 },
+            value = 50,
             callback = function(value)
-                window:Toast({ title = details.name, subtitle = "Color updated: " .. tostring(value) })
+                window:Toast({ title = details.name, subtitle = "Level: " .. tostring(value) })
             end,
             })
             tab:CreateDivider()

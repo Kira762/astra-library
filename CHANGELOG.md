@@ -2,6 +2,22 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-13 — Input field rounds with the element corner, not a capsule
+
+- **The Input element's field box wore its own capsule.** The dark box the
+  text sits in carried `UICorner = UDim.new(1, 0)` — a full pill, half the
+  box's height — while every other surface in the library reads its
+  roundness off a theme token: element cards (and the Text card among them)
+  through `ElementCornerRadius`, notifications and toasts through
+  `CornerRoundness`, tab rows through the layout's row radius. The field now
+  binds its corner to `ElementCornerRadius` like the card it sits inside, so
+  it reads as a smaller member of the same family, and a host theme that
+  rounds elements tighter or softer moves the field with everything else.
+- Suite: new `scripts/input_field_test.sh` pins the recipe — pixel radius
+  equal to the theme token (never a capsule scale), re-stated on a theme
+  switch, and shared with the element card's own corner. It fails against
+  the previous bundle on the capsule scale, so the pin has teeth.
+
 ## 2026-09-13 — Console element removed
 
 - **`Tab:CreateConsole` is gone.** The read-only log panel (line ring buffer,

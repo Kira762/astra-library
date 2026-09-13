@@ -120,10 +120,15 @@ function state.new(tab, placeholderLabel)
         Parent = self.main,
     }, { BackgroundColor3 = "FieldBackground" })
 
+    -- [[The field takes the same corner every other element surface wears
+    -- [[(the theme's ElementCornerRadius) instead of a capsule of its own:
+    -- [[notifications, toasts, tab rows and the Text card all read their
+    -- [[roundness off a theme token, so the box reads as a smaller member of
+    -- [[the same family — and a theme that rounds elements tighter or softer
+    -- [[moves the field with them.]]
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
         Parent = self.box,
-    })
+    }, { CornerRadius = "ElementCornerRadius" })
 
     self.boxStroke = self.window:Create("UIStroke", {
         Transparency = 1,

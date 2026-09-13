@@ -325,17 +325,10 @@ The settings tabs are:
 
 | Tab | Contents |
 |---|---|
-| **General** | Toggle keybind (show/hide), unlock-cursor toggle, welcome toast toggle. |
-| **Appearance** | Theme dropdown + Apply (popup confirm), Bar Layout dropdown (Default Topbar / Sidebar / Collapsed Sidebar), Show profile / Profile side / Reveal profile details (unmasks the display name, username, user ID, place ID, job ID and license key on the profile card, and only works while **Show profile** is on — flipping it on with the card off raises a "Show profile is required" notification and leaves it off, and hiding the card switches it off with it), Keep window on screen (keeps the window **and** its card in view), Draggable capsule, Reset Window Position, Reset Capsule Position (restores the default top-center capsule location without moving the open window). |
-| **Behavior** | Prevent duplicate windows. |
-| **Performance** | Haptics. |
-| **Persistence** | Auto Save Config / Auto Load Config toggles (default on); Saved-configurations dropdown + name input + Save/Load/Delete. Only present when `configuration` was passed to `CreateWindow`. |
+| **General** | Menu Toggle keybind, unlock-cursor toggle, welcome toast toggle, Window Behavior (prevent duplicate windows, keep window on screen, draggable capsule, reset window & capsule positions), and Performance & Motion (haptics, animation speed). |
+| **Appearance** | Theme dropdown + Apply (popup confirm), Bar Layout dropdown (Default Topbar / Sidebar / Collapsed Sidebar), and Profile card controls (Show profile / Profile side / Reveal profile details). |
+| **Persistence** | Auto Save Config / Auto Load Config toggles; Saved-configurations dropdown + name input + Save/Load/Delete. |
 | **About** | Library info and links. |
-
-The card's layout (masked and revealed) is checked into
-`assets/profile-panel-preview.png` / `assets/profile-panel-preview-revealed.png`;
-`sh scripts/profile_panel_preview.sh` re-renders them offline from the real
-panel code whenever the card changes.
 
 The window and its profile card (a compact 260x420 card — the default
 window's height) are centred as one unit: with the card on, the window rests

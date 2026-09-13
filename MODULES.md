@@ -360,8 +360,7 @@ Per-element specifics:
 - `tab.luau` — tab class: `tabPage` (ScrollingFrame), `_register(element)` pipeline into `window.controls[flag]`, selector button visuals.
 - `group.luau`, `section.luau`, `tabSection.luau` — container classes with UIListLayout locals.
 - `changelog.luau` — release-history element (`__type = "Changelog"`): normalizes `ChangelogEntry`/`ChangelogChange` props, maps symbols (`+`/`-`/`~`, or words like "added"/"removed"/"changed") to green/red/amber, fades entries in, supports `Set`/`Refresh`/`Add(entry, prepend?)`/`Clear`.
-- `description.luau` — the in-card description line shared by every element with a `description` prop: measures the wrapped line count with the shared text metrics, grows the card by it (+20px for one line — the Collapsible Group header recipe), re-measures whenever the card's width changes, keeps controls centred in the base region, and doubles as the lock-message surface. Replaced the standalone `descriptor.luau` row that used to render *below* element cards.
-- `divider.luau`, `progress.luau`, `stat.luau`, `tag.luau`, `text.luau`, `button.luau` — simple display/interaction elements.
+- `divider.luau`, `progress.luau`, `stat.luau`, `tag.luau`, `text.luau`, `button.luau` — display and interaction elements.
 
 ---
 
@@ -522,11 +521,8 @@ Per-element specifics:
 | `toggle_switch_test.sh` | Switch geometry: one set of metrics, mirrored resting states, equal clearance, the sheen under the knob, and the animated positions matching the built ones. |
 | `input_field_test.sh` | Field-box corners: the Input field and the Keybind cap round with the theme's `ElementCornerRadius` as theme bindings (pixel radii, never capsule scales), re-stated on a theme switch, and shared with their element cards. |
 | `slider_travel_test.sh` | Slider knob travel: the capsule's centre stays half a knob inside each track end (resting, held and after release), so it never overlaps the track end or card edge at max/min, and the fill ends at the knob's centre. |
-| `inline_description_test.sh` | In-card descriptions: the description label is a child of the element's own card (nothing renders below it), the card grows by the measured line height (one line 41 -> 61), controls keep centring in the base region, dropdown open heights and bottom-anchored tracks/values ride along, the line reveals at 0.45, carries the lock message, and re-measures when SetLocale retypes it. |
 | `icons_test.sh` | Icon resolver: name-only lookup across the packs in priority order (and how lazily they load), qualified `pack:name`, case sensitivity, unknown-pack warnings, custom assets (one import per path, memoised misses, the `listfiles` index), cache-key separation, and `window:ResolveIcon`. |
-| `toggle_preview.sh` | Builds both switch states under the mini Roblox stubs, dumps them as JSON and renders `assets/toggle-preview-{off,on}.png` — the fastest way to eyeball the switch without Roblox. |
 | `motion_test.sh` | Motion service: shared specs, time scale + its cache, profiles, tween ownership (cancel-on-overlap vs. unrelated properties), the no-op and animation-off paths, the window's "Animation speed" setting, and hover going through the service. |
-| `profile_panel_preview.sh` | Builds the real card under the mini Roblox stubs, dumps it as JSON and renders `assets/profile-panel-preview{,-revealed}.png` (needs Pillow) — the fastest way to eyeball a layout change without Roblox. |
 
 All of them assemble `scripts/sidebar_sizing_stubs.luau` + `version-1.luau`
 (so regenerate the bundle after a source edit) and run under the Luau CLI.

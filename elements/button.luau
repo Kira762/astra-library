@@ -10,6 +10,7 @@ local props = require(constants.moveable)
 local name = require(constants.lockable)
 local icon = require(constants.locale)
 local callback = require(constants.HapticEngine)
+local baseCard = require(script.Parent.baseCard)
 local element = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
 function state.new(tab, frame)
@@ -38,64 +39,11 @@ function state:_runCallback()
 end
 
 function state:_buildFull()
-    self.main = self.window:Create("Frame", {
-        Size = UDim2.new(1, -20, 0, 43),
-        BorderSizePixel = 0,
-        Name = self.name,
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-
-        BackgroundTransparency = 1,
-        Parent = self.tab.tabPage,
-    }, { BackgroundTransparency = "ElementTransparency" })
-
-    self.stroke = self.window:StyleElementBody(self.main)
-    self.hoverOverlay = self.window:CreateHoverOverlay(self.main)
-
-    self.container = self.window:Create("Frame", {
-        BorderSizePixel = 0,
-
-        Parent = self.main,
-        Size = UDim2.new(1, -40, 0, 16),
-        Position = UDim2.new(0, 20, 0.5, 0),
-        AnchorPoint = Vector2.new(0, 0.5),
-        BackgroundTransparency = 1,
+    baseCard.buildFull(self, {
+        height = 43,
+        rightPadding = 40,
+        titleText = icon.t(self.name),
     })
-
-    self.containerLayout = self.window:Create("UIListLayout", {
-        Padding = UDim.new(0, 5),
-        FillDirection = Enum.FillDirection.Horizontal,
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        HorizontalAlignment = Enum.HorizontalAlignment.Left,
-
-        Parent = self.container,
-    })
-
-    if self.icon then
-        self.iconLabel = self.window:Create("ImageLabel", {
-            Image = self.icon,
-            Size = UDim2.fromOffset(16, 16),
-            BorderSizePixel = 0,
-            BackgroundTransparency = 1,
-
-            ImageTransparency = 1,
-            Parent = self.container,
-        }, { ImageColor3 = "ContentColor" })
-    end
-
-    self.title = self.window:Create("TextLabel", {
-        Text = icon.t(self.name),
-
-        Size = UDim2.new(1, if self.icon then -21 else 0, 0, 16),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        TextSize = 16,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        LayoutOrder = 1,
-
-        TextTransparency = 1,
-        Parent = self.container,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
     self.interact = self.window:Create("TextButton", {
         BackgroundTransparency = 1,

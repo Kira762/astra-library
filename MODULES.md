@@ -130,6 +130,14 @@ re-clamps for the card that comes back), `_setLayoutMode`, `_toggleSettingsMode`
 (topbar gear), `_registerControl`/`_unregisterControl`/`_persist`,
 `_runGuarded`, `_setElementLocked`/`_buildLockScrim`, `_updateWindowTitle`.
 
+### `components/settings.luau`
+Dedicated settings component providing UI generation and management for Astra's built-in settings tabs (Appearance, Persistence, About, and General controls):
+- `buildUI(window)` — instantiates the settings tab shells on demand.
+- `buildContent(window, tab)` — lazily constructs controls within a given settings tab upon first selection.
+- `toggleSettingsMode(window)` — toggles between user tabs and settings tabs.
+- `setSettingsMode(window, active)` — applies visibility and layout for settings mode.
+- `applySettingsLayout(window, isSettings)` — manages tablist and layout visibility between modes.
+
 ### `components/sidebar.luau`
 Tab-rail reflow (the profile system moved to `components/profilePanel.luau`):
 - `maskUsername(name)` — shared masking helper (first 3 chars + `****`), used by the profile panel.
@@ -361,6 +369,7 @@ Per-element specifics:
 - `group.luau`, `section.luau`, `tabSection.luau` — container classes with UIListLayout locals.
 - `changelog.luau` — release-history element (`__type = "Changelog"`): normalizes `ChangelogEntry`/`ChangelogChange` props, maps symbols (`+`/`-`/`~`, or words like "added"/"removed"/"changed") to green/red/amber, fades entries in, supports `Set`/`Refresh`/`Add(entry, prepend?)`/`Clear`.
 - `divider.luau`, `progress.luau`, `stat.luau`, `tag.luau`, `text.luau`, `button.luau` — display and interaction elements.
+- `baseCard.luau` — shared card container and header layout helper for element modules.
 
 ---
 

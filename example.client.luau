@@ -16,6 +16,12 @@ assert(
 local window = Astra:CreateWindow({
     name = "Astra",
     subtitle = "Multi-tab supported API example",
+    configuration = {
+        fileName = "Astra-Example",
+        customFolder = "AstraExamples",
+        autoSave = true,
+        autoLoad = true,
+    },
 })
 
 -- [[Window tags are rendered beside the window title and remain available in the chrome.]]
@@ -79,6 +85,17 @@ controls:CreateInput({
     placeholder = "Enter a name",
     callback = function(value)
         window:Toast({ title = "Name updated", subtitle = tostring(value) })
+    end,
+})
+controls:CreateSwitch({
+    name = "Compact mode",
+    description = "CreateSwitch is an alias for CreateToggle.",
+    value = false,
+    callback = function(value)
+        window:Toast({
+            title = "Compact mode",
+            subtitle = if value then "Enabled" else "Disabled",
+        })
     end,
 })
 

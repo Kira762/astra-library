@@ -91,11 +91,11 @@ Method map (names preserved through minification). Settings-related:
   Right/Left, Reveal profile details — refused with a "Show profile is
   required" notification while Show profile is off, and switched off with
   the card when Show profile goes off) and window toggles, Reset Window
-  Position (recentres the window + card pair);
+  Position (recentres the window + card pair) and Reset Capsule Position;
   Persistence always hosts saved-config Save/Load/Delete (independent of
-  the `configuration` prop — paths fall back to the window name, and the
-  dropdown shows its "No saved configurations" placeholder when none
-  exist).
+  the `configuration` prop), plus default-on Auto Save Config and Auto Load
+  Config toggles. Storage defaults are internal; the named-preset dropdown
+  does not expose the default config filename. Auto-save writes are coalesced.
 - `settingsAction` (topbar gear, `linkedTab = rfSettings`) — toggles
   settings mode via `_toggleSettingsMode`: entering shows only settings
   tabs and remembers the previous tab; a second click restores it. The
@@ -349,6 +349,10 @@ Per-element specifics:
 - `dropdown.luau` — button, list frame, option rows (built on first open, `_materialiseOptions`/`_buildOptionAt`), highlight, search filter.
 - `input.luau` — TextBox, placeholder/focus locals, validation callback.
 - `keybind.luau` — listening state flag, input connection.
+- `collapsibleGroup.luau` — optional declarative container for all tab element
+  types and ordinary Groups. Validates definitions, rejects nested collapsibles,
+  animates measured content height through the motion service, and keeps child
+  controls alive while hidden. Search and tab removal traverse its descendants.
 - `tab.luau` — tab class: `tabPage` (ScrollingFrame), `_register(element)` pipeline into `window.controls[flag]`, selector button visuals.
 - `group.luau`, `section.luau`, `tabSection.luau` — container classes with UIListLayout locals.
 - `console.luau` — output buffer table, max-lines constant, print hook.

@@ -17,8 +17,6 @@ export type WindowProps = {
     subtitle: string?,
     theme: Theme?,
     icon: (string | number)?,
-    iconPack: IconPack?,
-    IconPack: IconPack?,
     showName: string?,
     showIcon: (string | number)?,
     showIconOnly: boolean?,     profile: string?,     configuration: WindowConfiguration?,
@@ -74,6 +72,22 @@ export type DividerProps = {
 
 export type GroupProps = {
     direction: string?, }
+
+-- Definitions use the corresponding element's normal properties plus `type`.
+-- `elements` is allowed only for ordinary Groups; CollapsibleGroups cannot nest.
+export type CollapsibleElementProps = {
+    type: "Button" | "Toggle" | "Switch" | "Slider" | "Dropdown" | "Input" | "Keybind"
+        | "Stat" | "Progress" | "Console" | "Section" | "Text" | "Changelog" | "Divider" | "Group",
+    elements: { CollapsibleElementProps }?,
+    [string]: any,
+}
+
+export type CollapsibleGroupProps = {
+    name: string?,
+    icon: (string | number)?,
+    description: string?,
+    elements: { CollapsibleElementProps }?,
+}
 
 export type ButtonProps = {
     name: string?,
@@ -304,7 +318,12 @@ export type Group = Moveable & {
     CreateGroup: (self: Group, props: GroupProps?) -> Group,
 }
 
+export type CollapsibleGroup = Moveable & Lockable & {
+    elements: { any },
+}
+
 export type Tab = {
+    CreateCollapsibleGroup: (self: Tab, props: CollapsibleGroupProps) -> CollapsibleGroup,
     Select: (self: Tab, noAnimation: boolean?) -> (),
     Deselect: (self: Tab, noAnimation: boolean?) -> (),
     Remove: (self: Tab) -> (),
@@ -327,7 +346,6 @@ export type Tab = {
 
 export type Window = {
     unloaded: boolean,
-    iconPack: IconPack,
     ResolveIcon: (self: Window, value: (string | number)?, pack: IconPack?) -> (string | number)?,
     Flags: { [string]: any },
     CreateTab: (self: Window, props: TabProps) -> Tab,

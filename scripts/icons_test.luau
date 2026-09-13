@@ -269,16 +269,22 @@ eq(Icons.resolve("material:home"), urlOf(materialHome), "I11 a qualified repeat 
 
 -- ===== I12: window:ResolveIcon =============================================
 
-local window = Astra:CreateWindow({ name = "Icons", iconPack = "feather" })
+local window = Astra:CreateWindow({ name = "Icons" })
 TestPump(0.6)
 
-eq(window:ResolveIcon("bar-chart"), Icons.resolve("bar-chart", "feather"), "I12 the window resolves in its own pack")
-eq(window:ResolveIcon("house"), "house", "I12 a name the window's pack lacks keeps the current fallback")
+eq(window:ResolveIcon("bar-chart"), Icons.resolve("bar-chart"), "I12 the window searches all packs")
+eq(window:ResolveIcon("house"), resolvedHouse, "I12 the window finds icons from other packs")
 eq(window:ResolveIcon("house", "lucide"), resolvedHouse, "I12 an explicit pack argument still resolves")
 eq(window:ResolveIcon("material:home"), urlOf(materialHome), "I12 the window honours a qualified name")
 eq(window:ResolveIcon("rbxassetid://7"), "rbxassetid://7", "I12 the window passes asset ids through")
 eq(window:ResolveIcon("nope-nope"), "nope-nope", "I12 the window keeps the old fallback")
 
+local mixed = window:CreateTab({ name = "Mixed", icon = "tabler:brand-discord" })
+for _, name in { "lucide:house", "material:access_time", "feather:home", "tabler:brand-discord" } do
+    local button = mixed:CreateButton({ name = name, icon = name })
+    eq(button.icon, Icons.resolve(name), "I12 elements in one window can use different packs")
+end
+eq(window:ResolveIcon("brand-discord"), Icons.resolve("tabler:brand-discord"), "I12 bare names find later packs")
 window:Unload()
 TestPump(0.1)
 

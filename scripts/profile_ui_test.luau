@@ -333,81 +333,26 @@ local placeLabel = findChild(panel, "PlaceIdLabel")
 expect(placeLabel ~= nil, "G3 the place ID row still exists")
 eq(placeLabel.Text, "Place ID", "G3 the place ID row keeps its label")
 
--- ===== G4: the tier pill draws a real icon in every pack and state =====
-
--- [[What the card promises is an icon for the tier in every state, so the test
--- [[pins the asset each pack is expected to answer with. The window's own
--- [[resolution is read on the tier label's own icon: an unresolved lucide name
--- [[(what a pack without it used to leave behind) comes back verbatim, and a
--- [[resolved one is a real asset path inside the pack.
--- [[A window replaced the previous one here: CreateWindow unloads the window
--- [[that was active (anti-duplicate), so this runs last.
--- Cached HTTP images must become local Roblox asset URIs.
-local packIcons = {
-	{ pack = "lucide", premium = "lucideCrown", free = "lucideBadgeCheck" },
-	{ pack = "tabler", premium = "tablerCrown", free = "tablerBadge" },
-	{ pack = "phosphor", premium = "phosphorCrown", free = "phosphorSealCheck" },
-	{ pack = "heroicons", premium = "heroiconsStar", free = "heroiconsCheckBadge" },
-	{ pack = "feather", premium = "featherStar", free = "featherAward" },
-	{ pack = "material", premium = "materialStar", free = "materialVerifiedUser" },
-}
-
+-- ===== G4: all-pack lookup keeps native profile badges and real asset URIs =====
 local membership = player.MembershipType
-for _, entry in packIcons do
-	local pack = entry.pack
-	player.MembershipType = Enum.MembershipType.Premium
-	local packed = Astra:CreateWindow({ name = "Tier pill " .. pack, iconPack = pack })
-	TestPump(0.3)
-	eq(packed.iconPack, pack, "G4 the window uses the requested pack (" .. pack .. ")")
-	eq(packed.profileTierLabel.Text, "PREMIUM", "G4 a paid membership reads PREMIUM with " .. pack)
-
-	packed:SetProfile({})
-	TestPump(0.2)
-	local premiumIcon = packed.profileTierIcon.Image
-	eq(premiumIcon, TestImageUri(packed.profileIconCache.crown), "G4 crown must use image loader")
-	expect(
-		string.find(packed.profileIconCache.crown, entry.premium .. ".png") ~= nil,
-		"G4 the PREMIUM icon is the pack's own asset with "
-			.. pack
-			.. " (got "
-			.. tostring(premiumIcon)
-			.. ", want a "
-			.. entry.premium
-			.. " asset)"
-	)
-	eq(packed.profileTierIcon.ImageColor3, packed.theme.AccentColor, "G4 the PREMIUM icon keeps the accent colour")
-
-	-- [[A free account is labelled, not decorated: FREEMIUM, with an icon of
-	-- [[its own rather than the crown or a blank square.]]
-	player.MembershipType = Enum.MembershipType.None
-	packed:SetProfile({})
-	TestPump(0.2)
-	eq(packed.profileTierLabel.Text, "FREEMIUM", "G4 a free account reads FREEMIUM with " .. pack)
-	local freeIcon = packed.profileTierIcon.Image
-	eq(freeIcon, TestImageUri(packed.profileIconCache["badge-check"]), "G4 badge must use image loader")
-	expect(
-		string.find(packed.profileIconCache["badge-check"], entry.free .. ".png") ~= nil,
-		"G4 the FREEMIUM icon is the pack's own asset with "
-			.. pack
-			.. " (got "
-			.. tostring(freeIcon)
-			.. ", want a "
-			.. entry.free
-			.. " asset)"
-	)
-	expect(freeIcon ~= premiumIcon, "G4 the two tiers do not share one icon with " .. pack)
-	eq(packed.profileTierIcon.ImageColor3, packed.theme.PlaceholderColor, "G4 the free tier reads in the muted colour")
-	eq(packed.profilePremium.Visible, true, "G4 the pill stays for a free account with " .. pack)
-
-	-- [[The host's own word still wins, and takes the free-tier icon with it.]]
-	packed:SetProfile({ tier = "vip" })
-	TestPump(0.2)
-	eq(packed.profileTierLabel.Text, "VIP", "G4 a host tier overrides the platform tier with " .. pack)
-	expect(packed.profileTierIcon.Image == freeIcon, "G4 a non-premium tier keeps the free-tier icon with " .. pack)
-
-	packed:Unload()
-	TestPump(0.1)
-end
+player.MembershipType = Enum.MembershipType.Premium
+local packed = Astra:CreateWindow({ name = "All-pack profile" })
+TestPump(0.6)
+eq(packed.profileTierLabel.Text, "PREMIUM", "G4 paid tier label")
+eq(packed.profileTierIcon.Image, TestImageUri(packed:ResolveIcon("crown")), "G4 crown uses image loader")
+local premiumIcon = packed.profileTierIcon.Image
+player.MembershipType = Enum.MembershipType.None
+packed:SetProfile({})
+TestPump(0.3)
+eq(packed.profileTierLabel.Text, "FREEMIUM", "G4 free tier label")
+eq(packed.profileTierIcon.Image, TestImageUri(packed:ResolveIcon("badge-check")), "G4 badge uses image loader")
+local freeIcon = packed.profileTierIcon.Image
+expect(freeIcon ~= premiumIcon, "G4 free and premium icons differ")
+eq(packed.profileTierIcon.ImageColor3, packed.theme.PlaceholderColor, "G4 free badge colour")
+packed:SetProfile({ tier = "VIP" })
+TestPump(0.3)
+eq(packed.profileTierIcon.Image, freeIcon, "G4 custom tier retains its badge")
+eq(packed.profileTierLabel.Text, "VIP", "G4 custom label")
+packed:Unload()
 player.MembershipType = membership
-
 print("PROFILE UI: all assertions passed")

@@ -9,6 +9,14 @@ export type SettingDefinition = {
 }
 
 registry.definitions = {
+    autoSaveConfig = {
+        key = "autoSaveConfig", kind = "boolean", domain = "behavior",
+        description = "Automatically saves control values when they change.",
+    },
+    autoLoadConfig = {
+        key = "autoLoadConfig", kind = "boolean", domain = "behavior",
+        description = "Restores saved control values on the next startup.",
+    },
     toggleKeybind = {
         key = "toggleKeybind",
         kind = "keybind",

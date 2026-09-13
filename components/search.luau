@@ -12,11 +12,11 @@ local defaultTransparency = 0.6
 local hoverTransparency = 0.2
 
 local function getElementText(element)
-    if element.__type == "Group" then
-        local names = {}
+    if element.__type == "Group" or element.__type == "CollapsibleGroup" then
+        local names = { element.name or "" }
         local function collectNames(group)
             for _, child in group.elements do
-                if child.__type == "Group" then
+                if child.__type == "Group" or child.__type == "CollapsibleGroup" then
                     collectNames(child)
                 elseif child.name then
                     table.insert(names, child.name)
@@ -76,6 +76,9 @@ local function filterElements(window, query)
     for _, unit in window._searchUnits do
         local isVisible = query == "" or string.find(unit.text, query, 1, true) ~= nil
         unit.unit.main.Visible = isVisible
+        if unit.homeExpanded ~= nil then
+            unit.unit:_setExpanded(if query ~= "" and isVisible then true else unit.homeExpanded, false)
+        end
         if unit.unit.descriptor then
             unit.unit.descriptor.main.Visible = isVisible
         end
@@ -102,6 +105,7 @@ local function collectElements(window)
         local mainFrame = element.main
         table.insert(window._searchUnits, {
             unit = element,
+            homeExpanded = if element.__type == "CollapsibleGroup" then element._expanded else nil,
             text = string.lower(getElementText(element)),
             homeParent = mainFrame.Parent,
             homeOrder = mainFrame.LayoutOrder,
@@ -122,6 +126,9 @@ end
 local function restoreElements(window)
     for _, unit in window._searchUnits do
         local element = unit.unit
+        if unit.homeExpanded ~= nil then
+            element:_setExpanded(unit.homeExpanded, false)
+        end
         if element.main and element.main.Parent then
             element.main.LayoutOrder = unit.homeOrder
             element.main.Parent = unit.homeParent

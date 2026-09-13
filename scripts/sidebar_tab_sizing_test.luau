@@ -303,7 +303,7 @@ local expectedSettingsContent = {
     Appearance = 14,
     Behavior = 2,
     Performance = 4,
-    Persistence = 4,
+    Persistence = 6,
     About = 9,
 }
 for name, wanted in expectedSettingsContent do

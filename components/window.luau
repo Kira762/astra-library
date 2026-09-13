@@ -104,7 +104,7 @@ local function updateToastPosition(window, animate)
 end
 
 function Window:ResolveIcon(value, pack)
-    return icons.resolve(value, pack or self.iconPack)
+    return icons.resolve(value, pack)
 end
 
 function Window.new(props)
@@ -124,15 +124,6 @@ function Window.new(props)
     end
 
         local layout = layouts.top -- [[layout is controlled via Settings (Astra Settings → Bar Layout); CreateWindow no longer takes sidebarLayout]]
-    local iconPackLower = props.iconPack
-    local iconPackUpper = props.IconPack
-    if iconPackLower ~= nil and iconPackUpper ~= nil then
-        error("Astra: choose exactly one icon pack; provide either iconPack or IconPack, not both.", 2)
-    end
-    local iconPack = iconPackLower or iconPackUpper or icons.Lucide
-    if not icons.isPack(iconPack) then
-        error("Astra: iconPack must be exactly one supported pack: lucide, material, tabler, phosphor, heroicons, or feather.", 2)
-    end
     local providedIcon = props.icon or props.Icon
 
     local self = setmetatable({
@@ -143,10 +134,9 @@ function Window.new(props)
         instances = {},
         connections = {},
 
-        iconPack = iconPack,
-        icon = icons.resolve(providedIcon or "Sirius", iconPack),
+        icon = icons.resolve(providedIcon or "Sirius"),
         showName = props.showName or props.ShowName or "Astra",
-        showIcon = icons.resolve(providedIcon or "Astra", iconPack),
+        showIcon = icons.resolve(providedIcon or "Astra"),
                 showIconOnly = props.showIconOnly or props.ShowIconOnly or false,
                 profileText = nil,
 
@@ -164,15 +154,17 @@ function Window.new(props)
         controls = {},
 
         configuration = (function()
-            local config = props.configuration or props.Configuration
-            if not config then
-                return {}
-            end
+            -- Legacy overrides remain accepted, but normal usage needs no config table.
+            local config = props.configuration or props.Configuration or {}
+            local save = config.autoSave
+            if save == nil then save = config.AutoSave end
+            local load = config.autoLoad
+            if load == nil then load = config.AutoLoad end
             return {
-                autoSave = config.autoSave or config.AutoSave,
-                autoLoad = config.autoLoad or config.AutoLoad,
-                fileName = config.fileName or config.FileName,
-                customFolder = config.customFolder or config.CustomFolder,
+                autoSave = if save == nil then true else save == true,
+                autoLoad = if load == nil then true else load == true,
+                fileName = config.fileName or config.FileName or "Astra-Hub",
+                customFolder = config.customFolder or config.CustomFolder or "AstraConfigs",
             }
         end)(),
     }, Window)
@@ -215,6 +207,8 @@ function Window.new(props)
         layoutMode = layout.mode,
         activeSubTab = 1,
         motionSpeed = "normal",
+        autoSaveConfig = self.configuration.autoSave,
+        autoLoadConfig = self.configuration.autoLoad,
     }
         self._layoutTransitioning = false
 
@@ -830,9 +824,17 @@ function Window:_restoreLate(element)
 end
 
 function Window:_persist(element)
-            if element.flag and not element.forgetState and self.configuration.autoSave and not self._loading then
-        task.spawn(self.Save, self)
+    if not element.flag or element.forgetState or not self.configuration.autoSave or self._loading or self._saveScheduled then
+        return
     end
+    -- Default-on autosave must not write a whole file for every slider tick.
+    self._saveScheduled = true
+    task.delay(0.25, function()
+        self._saveScheduled = false
+        if not self.unloaded and self.configuration.autoSave and not self._loading then
+            self:Save()
+        end
+    end)
 end
 
 function Window:_unregisterControl(element)
@@ -845,12 +847,21 @@ function Window:_keybindUsing(keybind, source)
     if typeof(keybind) ~= "EnumItem" or keybind == Enum.KeyCode.Unknown then
         return nil
     end
-    for _, tab in self.tabs do
-        for _, element in tab.elements do
+    local function find(elements)
+        for _, element in ipairs(elements) do
             if element ~= source and element.__type == "Keybind" and element.value == keybind then
                 return element
             end
+            if element.elements then
+                local match = find(element.elements)
+                if match then return match end
+            end
         end
+        return nil
+    end
+    for _, tab in self.tabs do
+        local match = find(tab.elements)
+        if match then return match end
     end
     return nil
 end
@@ -1899,19 +1910,44 @@ function Window:_buildSettingsUI()
     performance._settingsContentBuilder = buildPerformance
 
     local function buildPersistence()
-    -- [[Built unconditionally like every other settings tab: the]]
-    -- [[configuration save/load system works without a `configuration`]]
-    -- [[prop (paths fall back to the window name), so gating the content]]
-    -- [[on it left the tab empty for windows created without one.]]
+    -- Saving preferences are independent of saved control values. Named
+    -- presets remain available without exposing the hidden default filename.
     persistence:CreateSection({ name = "Configurations" })
-    local selected = self:ListConfigs()[1]
+    persistence:CreateToggle({
+        name = "Auto Save Config",
+        description = "Automatically saves control changes. Turning this off does not delete saved configurations.",
+        value = self.settings.autoSaveConfig,
+        callback = function(value)
+            self.settings.autoSaveConfig = value
+            self.configuration.autoSave = value
+            self:SaveSettings()
+        end,
+    })
+    persistence:CreateToggle({
+        name = "Auto Load Config",
+        description = "Restores saved controls on the next window startup.",
+        value = self.settings.autoLoadConfig,
+        callback = function(value)
+            self.settings.autoLoadConfig = value
+            self.configuration.autoLoad = value
+            self:SaveSettings()
+        end,
+    })
+    local function namedConfigs()
+        local names = {}
+        for _, name in ipairs(self:ListConfigs()) do
+            if name ~= self.configuration.fileName then table.insert(names, name) end
+        end
+        return names
+    end
+    local selected = namedConfigs()[1]
     local configDropdown, configName
     local function refresh()
-        local configs = self:ListConfigs(); configDropdown:Refresh(configs)
+        local configs = namedConfigs(); configDropdown:Refresh(configs)
         if selected and not table.find(configs, selected) then selected = configs[1] end
         if selected then configDropdown:Set(selected, true) end
     end
-    configDropdown = persistence:CreateDropdown({ name = "Saved Configurations", icon = constants.icons.config, options = self:ListConfigs(), value = selected, placeholder = "No saved configurations", callback = function(value) selected = value end })
+    configDropdown = persistence:CreateDropdown({ name = "Saved Configurations", icon = constants.icons.config, options = namedConfigs(), value = selected, placeholder = "No saved configurations", callback = function(value) selected = value end })
     configName = persistence:CreateInput({ name = "Configuration Name", description = "Name a new configuration, or leave blank to overwrite the selected one.", placeholder = "e.g. PvP Loadout", clearOnFocus = false })
     local group = persistence:CreateGroup()
     group:CreateButton({ name = "Save", icon = constants.icons.config, callback = function()
@@ -1966,6 +2002,8 @@ end
 
 function Window:LoadSettings()
     local loaded = persistence.loadSettings(self)
+    self.configuration.autoSave = self.settings.autoSaveConfig
+    self.configuration.autoLoad = self.settings.autoLoadConfig
     -- [[The animation-speed setting lives in the same file, and the motion
     -- service is a library-wide singleton, so it is re-applied here rather
     -- than only when the settings control is touched — otherwise a window
@@ -3216,6 +3254,11 @@ function Window:DestroySubtrees(roots)
 end
 
 function Window:Unload()
+    -- Do not lose the final edit if the window closes inside the save debounce.
+    if not self.unloaded and self._saveScheduled and self.configuration.autoSave and not self._loading then
+        self._saveScheduled = false
+        pcall(self.Save, self)
+    end
     self.unloaded = true
             haptic.teardown()
     haptic.releaseContainer(self.screenGui)

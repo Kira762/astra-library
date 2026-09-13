@@ -22,6 +22,8 @@ type SettingsWindow = {
         layoutMode: string,
         activeSubTab: number,
         motionSpeed: string,
+        autoSaveConfig: boolean,
+        autoLoadConfig: boolean,
     },
 }
 
@@ -39,6 +41,8 @@ type DecodedSettings = {
     layoutMode: unknown?,
     activeSubTab: unknown?,
     motionSpeed: unknown?,
+    autoSaveConfig: unknown?,
+    autoLoadConfig: unknown?,
 }
 
 function persistenceSettings.getSettingsPath(): (string, string)
@@ -66,6 +70,8 @@ function persistenceSettings.saveSettings(window: SettingsWindow): boolean
         layoutMode = window.settings.layoutMode,
         activeSubTab = window.settings.activeSubTab,
         motionSpeed = window.settings.motionSpeed,
+        autoSaveConfig = window.settings.autoSaveConfig,
+        autoLoadConfig = window.settings.autoLoadConfig,
     }
 
     local ok, encoded = pcall(coreState.httpService.JSONEncode, coreState.httpService, payload)
@@ -125,6 +131,12 @@ function persistenceSettings.loadSettings(window: SettingsWindow): boolean
 
     if not decodedSettings then
         return false
+    end
+
+    for _, key in { "autoSaveConfig", "autoLoadConfig" } do
+        if type(decodedSettings[key]) == "boolean" then
+            window.settings[key] = decodedSettings[key]
+        end
     end
 
     if decodedSettings.toggleKeybind then

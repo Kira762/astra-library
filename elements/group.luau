@@ -83,10 +83,12 @@ function state:_add(a13, a14)
     end
     self:_reflowRow()
     local ownerTab = self.tab
+    local contentsVisible = true
     while ownerTab.tab do
+        if ownerTab.__type == "CollapsibleGroup" and not ownerTab._expanded then contentsVisible = false end
         ownerTab = ownerTab.tab
     end
-    if not self.window.hidden and not self.window.minimised and self.window.selectedTab == ownerTab then
+    if contentsVisible and not self.window.hidden and not self.window.minimised and self.window.selectedTab == ownerTab then
         element:_setShown(true, true)
     else
         ownerTab._elementsPending = true

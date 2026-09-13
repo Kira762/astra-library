@@ -341,6 +341,16 @@ longGameName.MouseEnter:Fire()
 TestPump(0.1)
 expect(longWindow.profileTooltip.Visible, "E5 hovering a truncated value raises the tooltip")
 eq(longWindow.profileTooltipLabel.Text, longName, "E5 the tooltip shows the full value")
+
+-- [[The window's ScreenGui stacks by global z-index, so a parent draws over
+-- [[any lower-ranked child: unless the label outranks the surface it sits on,
+-- [[the tooltip renders as an empty box with its text buried underneath.]]
+eq(longWindow.screenGui.ZIndexBehavior, Enum.ZIndexBehavior.Global, "E5 the window stacks by global z-index")
+expect(
+	longWindow.profileTooltipLabel.ZIndex > longWindow.profileTooltip.ZIndex,
+	"E5 ... so the tooltip label outranks its own surface"
+)
+
 longGameName.MouseLeave:Fire()
 TestPump(0.4)
 expect(not longWindow.profileTooltip.Visible, "E5 the tooltip hides again on mouse leave")

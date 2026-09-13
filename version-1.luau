@@ -3464,10 +3464,13 @@ end
 -- [[The words a copy button owns: what it will copy while idle ("Copy Job
 -- [[ID"), or the confirmation after a successful press ("Copied"). The button
 -- [[is glyph-only, so the line is never drawn: it is the button's accessible
--- [[label, and the hover tooltip shows the very same string (read back off the
--- [[button), so the two can never disagree. It is written through the window's
--- [[own locale binding, so a host translating "Copy Place ID" / "Copied" gets
--- [[both, and Window:SetLocale re-states whichever wording is on screen.]]
+-- [[label alone — the press confirms itself with the green check, and no
+-- [[hover surface rides on the button: a tooltip popping over the copy glyph
+-- [[on every hover and press read as stray UI over the row, so the rows' own
+-- [[truncation hover-help stays the only tooltip on the card. It is written
+-- [[through the window's own locale binding, so a host translating
+-- [["Copy Place ID" / "Copied" gets both, and Window:SetLocale re-states
+-- [[whichever wording is on screen.]]
 function profilePanel.setCopyStatus(window, name: string, copied: boolean)
     local entry = (window.profileCopyButtons or {})[name]
     if not entry then
@@ -3479,9 +3482,6 @@ function profilePanel.setCopyStatus(window, name: string, copied: boolean)
     local source = if copied then copiedLabel else copyLabelPrefix .. (entry.label or name)
     if entry.button and entry.button.Parent and entry.button.Text ~= locale.resolve(source) then
         window:_bindLocale(entry.button, "Text", source)
-        if entry.hovering then
-            profilePanel.showTooltip(window, entry.button.Text, entry.tooltipY or 0)
-        end
     end
 end
 
@@ -3746,8 +3746,7 @@ local function addRow(window, card, spec)
             -- [[The button is glyph-only: its Text is never drawn (the
             -- [[transparency above stays 1) and carries the button's own
             -- [[accessible label instead — "Copy Job ID" while idle, "Copied"
-            -- [[after a successful press. setCopyStatus keeps it in step with
-            -- [[the tooltip.
+            -- [[after a successful press; setCopyStatus keeps it in step.
             Text = "",
             Position = UDim2.new(1, -(cardPaddingX + actionSize), 0, y + (rowHeight - actionSize) / 2),
             Size = UDim2.fromOffset(actionSize, actionSize),
@@ -3772,9 +3771,8 @@ local function addRow(window, card, spec)
         window.profileCopyButtons[spec.name] = {
             button = button,
             icon = iconLabel,
-            -- [[What this press copies, for the label and the tooltip.]]
+            -- [[What this press copies, for the label.]]
             label = spec.label,
-            tooltipY = (spec.cardY or 0) + y,
         }
         profilePanel.setCopyStatus(window, spec.name, false)
         if spec.name == "UserId" then
@@ -3782,24 +3780,9 @@ local function addRow(window, card, spec)
             -- [[user ID's copy button still find it.]]
             window.profileCopyUserId = button
         end
-        -- [[Hover help, on the same surface the rows use: the button says what
-        -- [[it will copy, and swaps to "Copied" for as long as the green check
-        -- [[is up (setCopyStatus refreshes the tooltip while it is hovered).]]
-        window:Connect(button.MouseEnter, function()
-            local entry = (window.profileCopyButtons or {})[spec.name]
-            if not entry then
-                return
-            end
-            entry.hovering = true
-            profilePanel.showTooltip(window, entry.button.Text or "", entry.tooltipY or 0)
-        end)
-        window:Connect(button.MouseLeave, function()
-            local entry = (window.profileCopyButtons or {})[spec.name]
-            if entry then
-                entry.hovering = false
-            end
-            profilePanel.hideTooltip(window)
-        end)
+        -- [[No hover surface on the button: the glyph and the green check are
+        -- [[the whole story on press, and the row's own truncation hover-help
+        -- [[below stays the card's only tooltip.]]
         window:Connect(button.Activated, function()
             -- [[The action only exists while the value is revealed: with the]]
             -- [[detail hidden there is nothing meaningful to copy, and the]]
@@ -4411,6 +4394,8 @@ function profilePanel.build(window)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Visible = false,
+        -- [[The window's ScreenGui stacks by Global z-index, so this surface]]
+        -- [[has to outrank the card rows it floats over...]]
         ZIndex = 10,
         Parent = window.profilePanelSurface,
     }, { BackgroundColor3 = "PopupSurface" })
@@ -4439,6 +4424,10 @@ function profilePanel.build(window)
         TextYAlignment = Enum.TextYAlignment.Top,
         TextTruncate = Enum.TextTruncate.AtEnd,
         TextTransparency = 1,
+        -- [[... and under Global stacking a parent draws over any child with
+        -- [[a lower z-index, so the label has to outrank its own surface or
+        -- [[the tooltip shows as an empty box with the text buried under it.
+        ZIndex = 11,
         Parent = tooltip,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
@@ -32603,95 +32592,95 @@ local LineOffsets = {
     [12] = 1407,
     [13] = 1714,
     [14] = 2432,
-    [15] = 4834,
-    [16] = 5194,
-    [17] = 5255,
-    [18] = 5625,
-    [19] = 6002,
-    [21] = 9297,
-    [22] = 9564,
-    [23] = 10008,
-    [24] = 10326,
-    [25] = 10660,
-    [26] = 10721,
-    [27] = 10866,
-    [28] = 12232,
-    [29] = 12443,
-    [30] = 12713,
-    [31] = 13269,
-    [32] = 13719,
-    [33] = 13806,
-    [34] = 14371,
-    [35] = 14989,
-    [36] = 15384,
-    [37] = 15514,
-    [38] = 15678,
-    [39] = 15832,
-    [41] = 16394,
-    [42] = 16417,
-    [43] = 16434,
-    [44] = 16467,
-    [45] = 16589,
-    [46] = 16613,
-    [47] = 16662,
-    [48] = 16369,
-    [49] = 16792,
-    [50] = 17095,
-    [51] = 17126,
-    [52] = 16781,
-    [53] = 17169,
-    [54] = 17189,
-    [55] = 17221,
-    [56] = 17151,
-    [57] = 17328,
-    [58] = 17387,
-    [59] = 17447,
-    [61] = 17506,
-    [62] = 17671,
-    [63] = 17491,
-    [64] = 18231,
-    [65] = 18526,
-    [66] = 19182,
-    [67] = 20966,
-    [68] = 22107,
-    [69] = 23627,
-    [70] = 17733,
-    [71] = 28871,
-    [72] = 28933,
-    [73] = 28995,
-    [74] = 29070,
-    [75] = 29152,
-    [76] = 29214,
-    [77] = 29289,
-    [78] = 29364,
-    [79] = 29439,
-    [80] = 29514,
-    [81] = 28765,
-    [82] = 29576,
-    [83] = 29674,
-    [84] = 29852,
-    [85] = 29903,
-    [86] = 29933,
-    [87] = 30184,
-    [88] = 30233,
-    [89] = 30686,
-    [90] = 30704,
-    [91] = 30850,
-    [92] = 30949,
-    [93] = 30971,
-    [94] = 31021,
-    [95] = 31347,
-    [96] = 31383,
-    [97] = 31401,
-    [98] = 31750,
-    [99] = 31766,
-    [100] = 31817,
-    [101] = 31836,
-    [102] = 32078,
-    [103] = 32122,
-    [104] = 32347,
-    [105] = 32375,
-    [106] = 32386,
+    [15] = 4823,
+    [16] = 5183,
+    [17] = 5244,
+    [18] = 5614,
+    [19] = 5991,
+    [21] = 9286,
+    [22] = 9553,
+    [23] = 9997,
+    [24] = 10315,
+    [25] = 10649,
+    [26] = 10710,
+    [27] = 10855,
+    [28] = 12221,
+    [29] = 12432,
+    [30] = 12702,
+    [31] = 13258,
+    [32] = 13708,
+    [33] = 13795,
+    [34] = 14360,
+    [35] = 14978,
+    [36] = 15373,
+    [37] = 15503,
+    [38] = 15667,
+    [39] = 15821,
+    [41] = 16383,
+    [42] = 16406,
+    [43] = 16423,
+    [44] = 16456,
+    [45] = 16578,
+    [46] = 16602,
+    [47] = 16651,
+    [48] = 16358,
+    [49] = 16781,
+    [50] = 17084,
+    [51] = 17115,
+    [52] = 16770,
+    [53] = 17158,
+    [54] = 17178,
+    [55] = 17210,
+    [56] = 17140,
+    [57] = 17317,
+    [58] = 17376,
+    [59] = 17436,
+    [61] = 17495,
+    [62] = 17660,
+    [63] = 17480,
+    [64] = 18220,
+    [65] = 18515,
+    [66] = 19171,
+    [67] = 20955,
+    [68] = 22096,
+    [69] = 23616,
+    [70] = 17722,
+    [71] = 28860,
+    [72] = 28922,
+    [73] = 28984,
+    [74] = 29059,
+    [75] = 29141,
+    [76] = 29203,
+    [77] = 29278,
+    [78] = 29353,
+    [79] = 29428,
+    [80] = 29503,
+    [81] = 28754,
+    [82] = 29565,
+    [83] = 29663,
+    [84] = 29841,
+    [85] = 29892,
+    [86] = 29922,
+    [87] = 30173,
+    [88] = 30222,
+    [89] = 30675,
+    [90] = 30693,
+    [91] = 30839,
+    [92] = 30938,
+    [93] = 30960,
+    [94] = 31010,
+    [95] = 31336,
+    [96] = 31372,
+    [97] = 31390,
+    [98] = 31739,
+    [99] = 31755,
+    [100] = 31806,
+    [101] = 31825,
+    [102] = 32067,
+    [103] = 32111,
+    [104] = 32336,
+    [105] = 32364,
+    [106] = 32375,
 }
 
 -- [[Misc AOT variable imports]]

@@ -1033,10 +1033,13 @@ end
 -- [[The words a copy button owns: what it will copy while idle ("Copy Job
 -- [[ID"), or the confirmation after a successful press ("Copied"). The button
 -- [[is glyph-only, so the line is never drawn: it is the button's accessible
--- [[label, and the hover tooltip shows the very same string (read back off the
--- [[button), so the two can never disagree. It is written through the window's
--- [[own locale binding, so a host translating "Copy Place ID" / "Copied" gets
--- [[both, and Window:SetLocale re-states whichever wording is on screen.]]
+-- [[label alone — the press confirms itself with the green check, and no
+-- [[hover surface rides on the button: a tooltip popping over the copy glyph
+-- [[on every hover and press read as stray UI over the row, so the rows' own
+-- [[truncation hover-help stays the only tooltip on the card. It is written
+-- [[through the window's own locale binding, so a host translating
+-- [["Copy Place ID" / "Copied" gets both, and Window:SetLocale re-states
+-- [[whichever wording is on screen.]]
 function profilePanel.setCopyStatus(window, name: string, copied: boolean)
     local entry = (window.profileCopyButtons or {})[name]
     if not entry then
@@ -1048,9 +1051,6 @@ function profilePanel.setCopyStatus(window, name: string, copied: boolean)
     local source = if copied then copiedLabel else copyLabelPrefix .. (entry.label or name)
     if entry.button and entry.button.Parent and entry.button.Text ~= locale.resolve(source) then
         window:_bindLocale(entry.button, "Text", source)
-        if entry.hovering then
-            profilePanel.showTooltip(window, entry.button.Text, entry.tooltipY or 0)
-        end
     end
 end
 
@@ -1315,8 +1315,7 @@ local function addRow(window, card, spec)
             -- [[The button is glyph-only: its Text is never drawn (the
             -- [[transparency above stays 1) and carries the button's own
             -- [[accessible label instead — "Copy Job ID" while idle, "Copied"
-            -- [[after a successful press. setCopyStatus keeps it in step with
-            -- [[the tooltip.
+            -- [[after a successful press; setCopyStatus keeps it in step.
             Text = "",
             Position = UDim2.new(1, -(cardPaddingX + actionSize), 0, y + (rowHeight - actionSize) / 2),
             Size = UDim2.fromOffset(actionSize, actionSize),
@@ -1341,9 +1340,8 @@ local function addRow(window, card, spec)
         window.profileCopyButtons[spec.name] = {
             button = button,
             icon = iconLabel,
-            -- [[What this press copies, for the label and the tooltip.]]
+            -- [[What this press copies, for the label.]]
             label = spec.label,
-            tooltipY = (spec.cardY or 0) + y,
         }
         profilePanel.setCopyStatus(window, spec.name, false)
         if spec.name == "UserId" then
@@ -1351,24 +1349,9 @@ local function addRow(window, card, spec)
             -- [[user ID's copy button still find it.]]
             window.profileCopyUserId = button
         end
-        -- [[Hover help, on the same surface the rows use: the button says what
-        -- [[it will copy, and swaps to "Copied" for as long as the green check
-        -- [[is up (setCopyStatus refreshes the tooltip while it is hovered).]]
-        window:Connect(button.MouseEnter, function()
-            local entry = (window.profileCopyButtons or {})[spec.name]
-            if not entry then
-                return
-            end
-            entry.hovering = true
-            profilePanel.showTooltip(window, entry.button.Text or "", entry.tooltipY or 0)
-        end)
-        window:Connect(button.MouseLeave, function()
-            local entry = (window.profileCopyButtons or {})[spec.name]
-            if entry then
-                entry.hovering = false
-            end
-            profilePanel.hideTooltip(window)
-        end)
+        -- [[No hover surface on the button: the glyph and the green check are
+        -- [[the whole story on press, and the row's own truncation hover-help
+        -- [[below stays the card's only tooltip.]]
         window:Connect(button.Activated, function()
             -- [[The action only exists while the value is revealed: with the]]
             -- [[detail hidden there is nothing meaningful to copy, and the]]
@@ -1980,6 +1963,8 @@ function profilePanel.build(window)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Visible = false,
+        -- [[The window's ScreenGui stacks by Global z-index, so this surface]]
+        -- [[has to outrank the card rows it floats over...]]
         ZIndex = 10,
         Parent = window.profilePanelSurface,
     }, { BackgroundColor3 = "PopupSurface" })
@@ -2008,6 +1993,10 @@ function profilePanel.build(window)
         TextYAlignment = Enum.TextYAlignment.Top,
         TextTruncate = Enum.TextTruncate.AtEnd,
         TextTransparency = 1,
+        -- [[... and under Global stacking a parent draws over any child with
+        -- [[a lower z-index, so the label has to outrank its own surface or
+        -- [[the tooltip shows as an empty box with the text buried under it.
+        ZIndex = 11,
         Parent = tooltip,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 

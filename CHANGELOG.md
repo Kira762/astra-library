@@ -2,6 +2,33 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-13 — Profile card: no hover surface on copy buttons, tooltip text stacks above its box
+
+- **Holding or pressing a profile-card copy button no longer pops a stray
+  surface over the row.** The copy glyph carried its own hover tooltip
+  ("Copy Place ID" / "Copy Job ID" / "Copy User ID", "Copied" while the
+  check was up) on the same surface the rows' truncation hover-help uses, so
+  every hover, hold and press raised a wide box over the card. The button's
+  feedback is again just the glyph and its green-check flash; the button
+  keeps its invisible accessible label (the same wording, resolved through
+  the locale layer, `Window:SetLocale` included), so nothing is lost for
+  screen readers or hosts that read the label back. The truncation
+  hover-help for values, the display name and the game name stays the only
+  tooltip on the card.
+- **The tooltips that remain draw their text above their box instead of
+  under it.** The window's ScreenGui stacks with `ZIndexBehavior.Global`, so
+  the tooltip surface (`ZIndex = 10`) drew over its own label (default
+  `ZIndex = 1`): in game every hover-help appeared as an empty rounded box
+  with the text buried beneath the surface. The label now outranks its
+  surface by one (11 over 10), which is what global stacking needs for a
+  child to sit on top of its parent.
+- Suites: `scripts/profile_ui_test.luau` G2 now pins the no-tooltip contract
+  (hover, hold and press leave the surface hidden) while still covering the
+  clipboard write, the check flash, the single restore timer and the
+  locale-bound label; `scripts/profile_details_test.luau` E5 additionally
+  pins the label outranking its surface under global z-index stacking. Both
+  run against the regenerated standalone bundle.
+
 ## 2026-09-13 — Collapsible Group corners, Text-matched header, full-width children
 
 - **The Collapsible Group header's corners rendered thinner and flatter than

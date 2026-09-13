@@ -222,7 +222,8 @@ matches the design mock's structure:
   (registered in `window.profileCopyButtons`, each hidden while its value
   is masked, and each refuses to copy a masked value). A successful copy
   swaps the glyph for the success check for ~1.2s, states "Copied" on the
-  button's own label and in its hover tooltip, and then restores both; a
+  button's own label (the glyph-only button's accessible name; no hover
+  surface rides on the press), and then restores it; a
   repeat press cancels the pending timer and restarts the window, so two
   restores never race for one icon. An explicit
   `Window:SetProfile` subtitle is developer copy, so the toggle leaves it
@@ -251,7 +252,7 @@ matches the design mock's structure:
   pill states its tier with an icon on every pack.
 - `flashCopied(window, name)` / `setCopyStatus` — copy feedback: the row's
   copy icon becomes a green (`Success`) check for ~1.2s and then returns to
-  the copy icon, while the button's own label and hover tooltip say what it
+  the copy icon, while the button's own label says what it
   copies ("Copy Job ID") and "Copied" while the check is up. A repeat click
   cancels the pending timer and restarts the window (so two restores never
   race for one icon) and a rebuilt card is ignored. The copy itself goes
@@ -272,9 +273,12 @@ matches the design mock's structure:
   (`{ subtitle, key, tier, whitelist }`; omitted fields clear their rows).
   `refreshName` is kept as an alias for `applyIdentity`.
 - `showTooltip` / `hideTooltip` — the card's own hover-help for values
-  that do not fit their row (measured with `functions.textWidth`) and for the
-  copy buttons (which state their action), shown on the card surface so the
-  scroll region never clips it.
+  that do not fit their row (measured with `functions.textWidth`), for the
+  display name and for the game name, shown on the card surface so the
+  scroll region never clips it. The label stacks above the surface itself
+  (`ZIndex` 11 over the surface's 10) because the window's ScreenGui stacks
+  by global z-index; copy buttons deliberately raise no tooltip of their
+  own — the glyph and the green check are the whole press feedback.
 
 The window rests off-centre so window + gap + panel are centred as one unit
 (`Window:_profileCenterPosition` / `Window:_recenterForProfile`): with the

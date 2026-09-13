@@ -2,6 +2,44 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-13 — Collapsible Group header rejoins the element surface, editable keybinds survive a backspace
+
+- **The Collapsible Group header drew as a near-black card that matched nothing
+  else in the window.** Every element surface is built the same way: a plain
+  white base frame that `StyleElementBody` covers with the theme's
+  `ElementGradient`. The header instead bound its base to `ElementSurface`, and
+  because a UIGradient multiplies the color underneath it, the header rendered
+  as roughly `ElementSurface × ElementGradient` — about RGB(3, 4, 6) on the
+  default theme — instead of the gradient itself. The header now uses the same
+  white base and `ElementTransparency` binding as Toggle, Button, Keybind and
+  friends, so it picks up the exact surface color, hover stroke and theme
+  changes of every other element. The collapsible suite pins the recipe: white
+  base plus the same `ElementGradient` instance a sibling Toggle carries.
+- **Editing an editable keybind (the Settings toggle binding) rebinds on
+  backspace instead of accepting your next key.** Clearing the field ran the
+  normal capture commit, whose stop-recording step writes the display name
+  back into the TextBox — `"None"` for a cleared binding — and that write
+  re-entered the text parser, whose first-letter rule read the `N` of `"None"`
+  as a freshly typed key and bound it. Backspacing a binding therefore bound
+  it to N, and because the same stop-recording step releases focus, the letter
+  you typed next went nowhere. Typed commits now go through a commit path that
+  keeps the field focused and never rewrites the label, and the parser only
+  runs for text typed while the field is focused, so no programmatic display
+  write (`Set`, focus restore, stop-recording) can ever parse as input.
+- **Editable keybind fields now behave like a one-letter capture field.**
+  Focusing no longer blanks the field: the current key stays visible and
+  selected, so the next typed letter replaces the binding and Backspace clears
+  it while the field stays focused for the next key. Any change is cut to a
+  single uppercased letter (paste included), non-letters are dropped rather
+  than written back as a label, each committed letter is re-selected so the
+  next key replaces it, and leaving the field restores the bound key's display
+  — including `None` when the field was left empty. Capture mode (click, press
+  any key, Backspace unbinds, Escape cancels) is unchanged.
+- Suite: `scripts/keybind_input_test.luau` now drives the full tap → type →
+  backspace → retype → reject → blur cycle against the Settings binding, and
+  `scripts/collapsible_group_test.luau` asserts the header's surface recipe.
+  Both run against the regenerated standalone bundle.
+
 ## 2026-09-13 — Optional Collapsible Groups, built-in config preferences, all-pack window icons
 
 - Added `Tab:CreateCollapsibleGroup` with one-table child definitions for all tab

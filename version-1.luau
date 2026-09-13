@@ -10120,8 +10120,12 @@ function Collapsible.new(tab, props)
     })
     self.header = w:Create("Frame", {
         Name = "Header", Size = UDim2.new(1, 0, 0, self.headerHeight),
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
-    }, { BackgroundColor3 = "ElementSurface" })
+    }, { BackgroundTransparency = "ElementTransparency" })
+    -- StyleElementBody paints the ElementGradient over a white base, exactly
+    -- like every other element surface; binding the base to ElementSurface
+    -- here multiplied the gradient and drew the header almost black.
     self.stroke = w:StyleElementBody(self.header)
     self.hoverOverlay = w:CreateHoverOverlay(self.header)
     local textX = if self.icon then 43 else 20
@@ -12843,9 +12847,14 @@ function state.new(tab, a22)
         end
         isMenuToggle.click()
         if self.editable then
-            self._editing = true
-            self.keyLabel.Text = ""
-            self._editing = false
+            -- Keep the current key visible and selected: the next typed letter
+            -- replaces the binding, Backspace clears it, and the field never
+            -- blanks itself just because it was focused.
+            self._fieldActive = true
+            local shown = tostring(self.keyLabel.Text or "")
+            self.keyLabel.SelectionStart = 1
+            self.keyLabel.CursorPosition = #shown + 1
+            Keybind.tweenService:Create(self.keyLabel, onChanged, { TextTransparency = 0 }):Play()
         else
             self:_startRecording()
         end
@@ -12854,36 +12863,59 @@ function state.new(tab, a22)
     self.window:ConnectFor(self, self.keyLabel.FocusLost, function()
         if self.recording then
             self:_stopRecording()
-        elseif not self.editable then
+            return
+        end
+        if self.editable then
+            -- The edit session is over: show the bound key again, including
+            -- "None" when the field was left empty after a backspace.
+            self._fieldActive = false
+            self._editing = true
+            self.keyLabel.Text = frame(self.value)
+            self._editing = false
+            self:_sizeBox(true)
+            Keybind.tweenService:Create(self.keyLabel, onChanged, { TextTransparency = 0.6 }):Play()
+        else
             self.keyLabel.Text = frame(self.value)
         end
     end)
 
     self.window:ConnectFor(self, self.keyLabel:GetPropertyChangedSignal("Text"), function()
-        if not self.editable or self._editing then
+        -- Only typed text is parsed, and only while the field is focused.
+        -- Every display write (Set, focus restore, stop-recording) happens
+        -- outside an edit session or behind the _editing guard, so a
+        -- programmatic "None" can never be mistaken for a typed "N".
+        if not self.editable or not self._fieldActive or self._editing then
             return
         end
         local text = tostring(self.keyLabel.Text or "")
         if text == "" then
+            -- Backspace cleared the field: unbind now, but keep the field
+            -- focused and empty so the next typed letter can rebind it.
             if self.value ~= Enum.KeyCode.Unknown then
-                self:_bind(Enum.KeyCode.Unknown)
+                self:_commitEdit(Enum.KeyCode.Unknown)
             end
             return
         end
         local first = string.upper(text:sub(1, 1))
         local nextValue = connection(first)
         if not first:match("%a") or nextValue == Enum.KeyCode.Unknown then
+            -- Non-letters never become bindings; drop them and keep waiting.
             self._editing = true
-            self.keyLabel.Text = frame(self.value)
+            self.keyLabel.Text = ""
             self._editing = false
             return
         end
-        self._editing = true
-        self.keyLabel.Text = first
-        self._editing = false
-        if nextValue ~= self.value then
-            self:_bind(nextValue)
+        if text ~= first then
+            self._editing = true
+            self.keyLabel.Text = first
+            self._editing = false
         end
+        if nextValue ~= self.value then
+            self:_commitEdit(nextValue)
+        end
+        -- Re-select the letter so the next key replaces it: one letter, ever.
+        self.keyLabel.SelectionStart = 1
+        self.keyLabel.CursorPosition = 2
     end)
 
                     self.window:ConnectFor(self, Keybind.userInputService.InputBegan, function(a23, a24)
@@ -13012,6 +13044,18 @@ function state:_capture(a28)
     self:_bind(a29)
 end
 
+function state:_commitEdit(a48)
+    -- Editable-field commits keep the field focused: recording shutdown
+    -- (which releases focus and rewrites the label) belongs to capture mode,
+    -- so a typed letter does not end the edit session and Backspace stays
+    -- available for the next change.
+    self.value = a48
+    self:_sizeBox(true)
+    self.window:_runGuarded(self, self.onChanged, a48)
+    self.window:_persist(self)
+
+    self.window:_flashResult(self, true) end
+
 function state:_bind(a31)
     self.value = a31
     self:_stopRecording()
@@ -13103,7 +13147,11 @@ function state:Set(a41, a42)
     self.value = a43
     if self.recording then
         self:_stopRecording()     else
+        -- Suppress the display write: while the field is being edited, a
+        -- programmatic label such as "None" must not parse as a typed "N".
+        self._editing = true
         self.keyLabel.Text = frame(self.value)
+        self._editing = false
         self:_sizeBox(true)
     end
 
@@ -32511,87 +32559,87 @@ local LineOffsets = {
     [21] = 9289,
     [22] = 9556,
     [23] = 10000,
-    [24] = 10270,
-    [25] = 10604,
-    [26] = 10665,
-    [27] = 10810,
-    [28] = 12176,
-    [29] = 12387,
-    [30] = 12657,
-    [31] = 13169,
-    [32] = 13619,
-    [33] = 13706,
-    [34] = 14271,
-    [35] = 14889,
-    [36] = 15284,
-    [37] = 15414,
-    [38] = 15578,
-    [39] = 15732,
-    [41] = 16294,
-    [42] = 16317,
-    [43] = 16334,
-    [44] = 16367,
-    [45] = 16489,
-    [46] = 16513,
-    [47] = 16562,
-    [48] = 16269,
-    [49] = 16692,
-    [50] = 16995,
-    [51] = 17026,
-    [52] = 16681,
-    [53] = 17069,
-    [54] = 17089,
-    [55] = 17121,
-    [56] = 17051,
-    [57] = 17228,
-    [58] = 17287,
-    [59] = 17347,
-    [61] = 17406,
-    [62] = 17571,
-    [63] = 17391,
-    [64] = 18131,
-    [65] = 18426,
-    [66] = 19082,
-    [67] = 20866,
-    [68] = 22007,
-    [69] = 23527,
-    [70] = 17633,
-    [71] = 28771,
-    [72] = 28833,
-    [73] = 28895,
-    [74] = 28970,
-    [75] = 29052,
-    [76] = 29114,
-    [77] = 29189,
-    [78] = 29264,
-    [79] = 29339,
-    [80] = 29414,
-    [81] = 28665,
-    [82] = 29476,
-    [83] = 29574,
-    [84] = 29752,
-    [85] = 29803,
-    [86] = 29833,
-    [87] = 30084,
-    [88] = 30133,
-    [89] = 30586,
-    [90] = 30604,
-    [91] = 30750,
-    [92] = 30849,
-    [93] = 30871,
-    [94] = 30921,
-    [95] = 31247,
-    [96] = 31283,
-    [97] = 31301,
-    [98] = 31650,
-    [99] = 31666,
-    [100] = 31717,
-    [101] = 31736,
-    [102] = 31978,
-    [103] = 32022,
-    [104] = 32247,
-    [105] = 32275,
-    [106] = 32286,
+    [24] = 10274,
+    [25] = 10608,
+    [26] = 10669,
+    [27] = 10814,
+    [28] = 12180,
+    [29] = 12391,
+    [30] = 12661,
+    [31] = 13217,
+    [32] = 13667,
+    [33] = 13754,
+    [34] = 14319,
+    [35] = 14937,
+    [36] = 15332,
+    [37] = 15462,
+    [38] = 15626,
+    [39] = 15780,
+    [41] = 16342,
+    [42] = 16365,
+    [43] = 16382,
+    [44] = 16415,
+    [45] = 16537,
+    [46] = 16561,
+    [47] = 16610,
+    [48] = 16317,
+    [49] = 16740,
+    [50] = 17043,
+    [51] = 17074,
+    [52] = 16729,
+    [53] = 17117,
+    [54] = 17137,
+    [55] = 17169,
+    [56] = 17099,
+    [57] = 17276,
+    [58] = 17335,
+    [59] = 17395,
+    [61] = 17454,
+    [62] = 17619,
+    [63] = 17439,
+    [64] = 18179,
+    [65] = 18474,
+    [66] = 19130,
+    [67] = 20914,
+    [68] = 22055,
+    [69] = 23575,
+    [70] = 17681,
+    [71] = 28819,
+    [72] = 28881,
+    [73] = 28943,
+    [74] = 29018,
+    [75] = 29100,
+    [76] = 29162,
+    [77] = 29237,
+    [78] = 29312,
+    [79] = 29387,
+    [80] = 29462,
+    [81] = 28713,
+    [82] = 29524,
+    [83] = 29622,
+    [84] = 29800,
+    [85] = 29851,
+    [86] = 29881,
+    [87] = 30132,
+    [88] = 30181,
+    [89] = 30634,
+    [90] = 30652,
+    [91] = 30798,
+    [92] = 30897,
+    [93] = 30919,
+    [94] = 30969,
+    [95] = 31295,
+    [96] = 31331,
+    [97] = 31349,
+    [98] = 31698,
+    [99] = 31714,
+    [100] = 31765,
+    [101] = 31784,
+    [102] = 32026,
+    [103] = 32070,
+    [104] = 32295,
+    [105] = 32323,
+    [106] = 32334,
 }
 
 -- [[Misc AOT variable imports]]

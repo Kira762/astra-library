@@ -8,7 +8,10 @@ local layouts = require(utilities.layouts)
 local settingsComponent = {}
 
 local function layoutKey(layout)
-    return if type(layout) == "table" and layout.mode then layout.mode else "top" end
+    if type(layout) == "table" and layout.mode == "sidebar" and layout.forceCollapsed then
+        return "collapsedSidebar"
+    end
+    return if type(layout) == "table" and layout.mode then layout.mode else "top"
 end
 
 function settingsComponent.buildUI(window)

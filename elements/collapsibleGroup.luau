@@ -114,10 +114,17 @@ function Collapsible.new(tab, props)
     }, Collapsible)
     local w = self.window
     self.headerHeight = if self.description then 61 else 41
+    -- The container only reserves layout space: it must not clip. The header
+    -- card fills it edge to edge, and a tight ClipsDescendants parent shaves
+    -- the outer half of its 1px stroke (Border mode straddles the edge) plus
+    -- the corner arcs on all four sides — the flaw that made these corners
+    -- read thinner than every other element. Clipping lives on the body
+    -- frame below, mirroring the dropdown: its expanding panel clips, while
+    -- its stroked top card never sits inside a tight clipper.
     self.main = w:Create("Frame", {
         Name = self.name, Size = UDim2.new(1, -20, 0, self.headerHeight),
         BackgroundTransparency = 1, BorderSizePixel = 0,
-        ClipsDescendants = true, Parent = tab.tabPage,
+        Parent = tab.tabPage,
     })
     self.header = w:Create("Frame", {
         Name = "Header", Size = UDim2.new(1, 0, 0, self.headerHeight),
@@ -129,7 +136,9 @@ function Collapsible.new(tab, props)
     -- here multiplied the gradient and drew the header almost black.
     self.stroke = w:StyleElementBody(self.header)
     self.hoverOverlay = w:CreateHoverOverlay(self.header)
-    local textX = if self.icon then 43 else 20
+    -- Header metrics mirror the Text element: 20px gutters, a 6px icon gap,
+    -- a 16px TitlingColor title and a 14px body line at 0.45 transparency.
+    local textX = if self.icon then 42 else 20
     if self.icon then
         self.iconLabel = w:Create("ImageLabel", {
             Image = self.icon, Position = UDim2.fromOffset(20, 12), Size = UDim2.fromOffset(16, 16),
@@ -138,20 +147,20 @@ function Collapsible.new(tab, props)
     end
     self.title = w:Create("TextLabel", {
         Text = locale.t(self.name), Position = UDim2.fromOffset(textX, 0),
-        Size = UDim2.new(1, -(textX + 40), 0, 41), BackgroundTransparency = 1,
+        Size = UDim2.new(1, -(textX + 42), 0, 41), BackgroundTransparency = 1,
         TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
         TextTransparency = 1, Parent = self.header,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
+    }, { TextColor3 = "TitlingColor", FontFace = "Font" })
     if self.description then
         self.descriptionLabel = w:Create("TextLabel", {
-            Text = locale.t(self.description), Position = UDim2.fromOffset(textX, 35),
-            Size = UDim2.new(1, -(textX + 20), 0, 20), BackgroundTransparency = 1,
-            TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+            Text = locale.t(self.description), Position = UDim2.fromOffset(textX, 37),
+            Size = UDim2.new(1, -(textX + 20), 0, 18), BackgroundTransparency = 1,
+            TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
             TextTransparency = 1, Parent = self.header,
         }, { TextColor3 = "ContentColor", FontFace = "Font" })
     end
     self.chevron = w:Create("ImageLabel", {
-        Image = w:ResolveIcon("chevron-right"), Position = UDim2.new(1, -30, 0, 12),
+        Image = w:ResolveIcon("chevron-right"), Position = UDim2.new(1, -36, 0, 12),
         Size = UDim2.fromOffset(16, 16), BackgroundTransparency = 1,
         ImageTransparency = 1, Rotation = 0, Parent = self.header,
     }, { ImageColor3 = "ContentColor" })
@@ -159,10 +168,25 @@ function Collapsible.new(tab, props)
         Text = "", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
         AutoButtonColor = false, ZIndex = 6, Parent = self.header,
     })
+    -- The clipper is 20px wider than the container (10px of transparent
+    -- bleed each side) so children — which size themselves at UDim2.new(1,
+    -- -20) — land at exactly the header's width instead of compounding the
+    -- container's own -20 into a second, narrower inset. The bleed is
+    -- transparent and `main` no longer clips, so it reads as nothing; the
+    -- only reveal edge is the clipper's own bounds. The content sits 1px
+    -- inside those bounds so the first and last child's stroke keep the same
+    -- breathing room on every side as standalone elements.
+    self.bodyClip = w:Create("Frame", {
+        Name = "ContentsClip",
+        Position = UDim2.new(0, -10, 0, self.headerHeight + 6),
+        Size = UDim2.new(1, 20, 0, 0),
+        BackgroundTransparency = 1, BorderSizePixel = 0,
+        ClipsDescendants = true, Visible = false, Parent = self.main,
+    })
     self.body = w:Create("Frame", {
-        Name = "Contents", Position = UDim2.fromOffset(0, self.headerHeight + 7),
+        Name = "Contents", Position = UDim2.fromOffset(0, 1),
         Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false, Parent = self.main,
+        BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false, Parent = self.bodyClip,
     })
     self.tabPage = self.body
     self.contentLayout = w:Create("UIListLayout", {
@@ -178,29 +202,48 @@ function Collapsible.new(tab, props)
         haptic.click()
         self:_setExpanded(not self._expanded, true)
     end)
-    w:_wireElementHover(self)
+    w:_wireElementHover(self, { target = self.header, titleRestKey = "TitlingColor" })
     buildChildren(self, props.elements or {})
     return self
 end
 
 function Collapsible:_resize(animate)
+    -- (The engine always reports an AbsoluteContentSize; the test harness
+    -- only stubs it once content is driven, so an unmeasured layout reads 0.)
+    local measured = self.contentLayout.AbsoluteContentSize
+    local contentHeight = if measured then measured.Y else 0
     local height = self.headerHeight
+    local clipHeight = 0
     if self._expanded then
-        height += 14 + self.contentLayout.AbsoluteContentSize.Y
+        -- 7px of tab rhythm between the header and the first child; the
+        -- container then ends exactly at the last child, with no dead slack.
+        height += 7 + contentHeight
+        -- 1px of stroke breathing room above and below the revealed content.
+        clipHeight = contentHeight + 2
     end
     local size = UDim2.new(1, -20, 0, height)
+    local clipSize = UDim2.new(1, 20, 0, clipHeight)
     self._resizeRevision = (self._resizeRevision or 0) + 1
     local revision = self._resizeRevision
     local function finish()
         if not self.window.unloaded and self.main.Parent and self._resizeRevision == revision and not self._expanded then
             self.body.Visible = false
+            self.bodyClip.Visible = false
         end
     end
     if animate and self._shown then
-        if not motion.tween(self.main, { Size = size }, "snappy", finish) then finish() end
+        -- The layout reservation (main) and the reveal mask (bodyClip) ride
+        -- the same spec so the mask's edge never leads or trails the frame.
+        -- A nil tween means the size is already applied (instant profile, or
+        -- already at target), so the settle path runs directly.
+        local mainTween = motion.tween(self.main, { Size = size }, "snappy", finish)
+        motion.tween(self.bodyClip, { Size = clipSize }, "snappy")
+        if not mainTween then finish() end
     else
         motion.cancel(self.main)
+        motion.cancel(self.bodyClip)
         self.main.Size = size
+        self.bodyClip.Size = clipSize
         finish()
     end
 end
@@ -210,6 +253,7 @@ function Collapsible:_setExpanded(expanded, animate)
     self._expanded = expanded
     if expanded then
         self.body.Visible = true
+        self.bodyClip.Visible = true
         for _, child in ipairs(self.elements) do child:_setShown(self._shown, false) end
     else
         -- End transient editing, but never reset values or trigger callbacks.
@@ -244,7 +288,7 @@ function Collapsible:_setShown(shown, animate)
     w:_reveal(self.title, { TextTransparency = if shown then 0 else 1 }, animate)
     w:_reveal(self.chevron, { ImageTransparency = if shown then 0.4 else 1 }, animate)
     if self.iconLabel then w:_reveal(self.iconLabel, { ImageTransparency = if shown then 0 else 1 }, animate) end
-    if self.descriptionLabel then w:_reveal(self.descriptionLabel, { TextTransparency = if shown then 0.6 else 1 }, animate) end
+    if self.descriptionLabel then w:_reveal(self.descriptionLabel, { TextTransparency = if shown then 0.45 else 1 }, animate) end
     if self._expanded then
         for _, child in ipairs(self.elements) do child:_setShown(shown, animate) end
     end

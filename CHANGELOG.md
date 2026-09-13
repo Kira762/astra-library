@@ -2,6 +2,28 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-13 — Console element removed
+
+- **`Tab:CreateConsole` is gone.** The read-only log panel (line ring buffer,
+  `follow` tailing, `Set`/`Append`/`Get`/`Clear`/`Copy`/`SetHeight`) earned its
+  instance budget without pulling its weight as a built-in: hosts that want a
+  log view can build one from a `Text`/`ScrollingFrame` of their own, and the
+  element only added a fourteenth surface style to keep in step with every
+  theme, layout and motion change. `elements/console.luau` is deleted and
+  every wiring point goes with it: `Tab:CreateConsole`, the `Console` /
+  `ConsoleProps` types and their entrypoint re-exports, the Collapsible Group
+  constructor entry (its `type` union loses `"Console"` too), and the example
+  script's three consoles plus the two Element Lab buttons that only wrote
+  into one.
+- **Nothing else changed shape.** Remaining element types keep their indices
+  in every registry, so saved configurations, flags and search behaviour are
+  untouched; the standalone bundle regenerates at 100 modules.
+- Suites: `scripts/instance_budget_test.luau` drops the console ceiling and
+  builder; `scripts/collapsible_group_test.luau` drops the console child and
+  re-indexes the child assertions that follow it (the pinned expand height is
+  force-set through `contentLayout.AbsoluteContentSize`, so it is unchanged).
+  All suites run against the regenerated standalone bundle.
+
 ## 2026-09-13 — Profile card: no hover surface on copy buttons, tooltip text stacks above its box
 
 - **Holding or pressing a profile-card copy button no longer pops a stray

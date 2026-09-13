@@ -158,12 +158,6 @@ information:CreateKeybind({
         window:Toast({ title = "Shortcut", subtitle = "Test shortcut activated" })
     end,
 })
-local console = information:CreateConsole({
-    name = "Test console",
-    text = "A console element for displaying diagnostic lines.",
-    height = 90,
-})
-console:Append("Changelog and element tests are ready.")
 local elementGroup = information:CreateGroup({ direction = "column" })
 elementGroup:CreateButton({
     name = "Group action",
@@ -190,7 +184,7 @@ local changelog = changelogTab:CreateChangelog({
             title = "Element Lab coverage",
             description = "Added a dedicated tab for testing runtime element updates and all-pack icons.",
             changes = {
-                { symbol = "+", category = "Added", text = "Added multi-select dropdown, progress, stat, numeric input, console, hold keybind, and runtime mutation examples." },
+                { symbol = "+", category = "Added", text = "Added multi-select dropdown, progress, stat, numeric input, hold keybind, and runtime mutation examples." },
             },
         },
         {
@@ -411,14 +405,6 @@ collapsibleTab:CreateCollapsibleGroup({
         { type = "Progress", name = "Child progress", range = { 0, 100 }, value = 62, steps = 10, suffix = "%" },
         { type = "Divider", text = "Diagnostic children" },
         {
-            type = "Console",
-            name = "Child console",
-            text = "This console is built while its parent remains collapsed.",
-            height = 85,
-            follow = true,
-            maxLines = 20,
-        },
-        {
             type = "Changelog",
             name = "Child changelog",
             description = "Search and scrolling should include this child content.",
@@ -513,28 +499,6 @@ lab:CreateInput({
     clearOnFocus = true,
     callback = function(value)
         window:Toast({ title = "Numeric input", subtitle = tostring(value) })
-    end,
-})
-local labConsole = lab:CreateConsole({
-    name = "Diagnostic console",
-    text = "Console methods: Append, Set, Get, Clear, Copy, SetHeight.",
-    height = 110,
-    follow = true,
-    maxLines = 50,
-})
-labConsole:Append("Element Lab ready.")
-lab:CreateButton({
-    name = "Write diagnostic line",
-    icon = "phosphor:terminal-window",
-    callback = function()
-        labConsole:Append("Diagnostic line written at " .. os.date("%H:%M:%S"))
-    end,
-})
-lab:CreateButton({
-    name = "Clear console",
-    callback = function()
-        labConsole:Clear()
-        labConsole:Append("Console cleared.")
     end,
 })
 lab:CreateKeybind({

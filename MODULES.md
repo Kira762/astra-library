@@ -25,7 +25,7 @@ Exported names (typed surface is `Types.luau`'s `Astra`): `CreateWindow`, `Icons
 `CreateWindow` side effects: enforces the anti-duplicate guard (persisted `antiWindowDuplicate` setting, per-window opt-out via `settings.antiWindowDuplicate`), in secure mode preloads window images (`Image.preload` → failure `Notify`) and swaps in the brand fonts via `ChangeTheme({ Font, TitleFont })` when they load, then auto-`Show()`s the window one tick later (a `task.defer`, so a script that builds its tabs synchronously can finish first and the window appears once, fully populated; an explicit `Hide()` before that tick cancels it via `_autoShowCancelled`).
 
 ### `example.client.luau`
-Usage example (not minified). Loads the bundle with `game:HttpGet` + `loadstring`, then builds a 20-tab window: Home, Controls, Appearance, Information, Changelog, Updates, plus 15 labelled test tabs. Demonstrates window tags, every element type, groups, console, and the `CreateChangelog` element (including a runtime `changelog:Add`), and ends with an explicit `home:Select()`.
+Usage example (not minified). Loads the bundle with `game:HttpGet` + `loadstring`, then builds a 20-tab window: Home, Controls, Appearance, Information, Changelog, Updates, plus 15 labelled test tabs. Demonstrates window tags, every element type, groups, and the `CreateChangelog` element (including a runtime `changelog:Add`), and ends with an explicit `home:Select()`.
 
 ---
 
@@ -359,7 +359,6 @@ Per-element specifics:
   controls alive while hidden. Search and tab removal traverse its descendants.
 - `tab.luau` — tab class: `tabPage` (ScrollingFrame), `_register(element)` pipeline into `window.controls[flag]`, selector button visuals.
 - `group.luau`, `section.luau`, `tabSection.luau` — container classes with UIListLayout locals.
-- `console.luau` — output buffer table, max-lines constant, print hook.
 - `changelog.luau` — release-history element (`__type = "Changelog"`): normalizes `ChangelogEntry`/`ChangelogChange` props, maps symbols (`+`/`-`/`~`, or words like "added"/"removed"/"changed") to green/red/amber, fades entries in, supports `Set`/`Refresh`/`Add(entry, prepend?)`/`Clear`.
 - `descriptor.luau`, `divider.luau`, `progress.luau`, `stat.luau`, `tag.luau`, `text.luau`, `button.luau` — simple display/interaction elements.
 

@@ -22,7 +22,6 @@ local constructors = {
     Keybind = function(parent, props) return require(script.Parent.keybind).new(parent, props) end,
     Stat = function(parent, props) return require(script.Parent.stat).new(parent, props) end,
     Progress = function(parent, props) return require(script.Parent.progress).new(parent, props) end,
-    Console = function(parent, props) return require(script.Parent.console).new(parent, props) end,
     Section = function(parent, props) return require(script.Parent.section).new(parent, props) end,
     Text = function(parent, props) return require(script.Parent.text).new(parent, props) end,
     Changelog = function(parent, props) return require(script.Parent.changelog).new(parent, props) end,

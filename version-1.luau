@@ -15,6 +15,7 @@ local Image = require(script.Parent.images.image)
 local Locale = require(script.Parent.utilities.locale)
 local Constants = require(script.Parent.utilities.constants)
 local Icons = require(script.Parent.icons)
+local Motion = require(script.Parent.utilities.motion)
 local Settings = require(script.Parent.settings)
 local TypesModule = require(script.Parent.Types)
 
@@ -34,7 +35,6 @@ export type SliderProps = types.SliderProps
 export type DropdownProps = types.DropdownProps
 export type InputProps = types.InputProps
 export type KeybindProps = types.KeybindProps
-export type ColorPickerProps = types.ColorPickerProps
 export type StatProps = types.StatProps
 export type ProgressProps = types.ProgressProps
 export type ConsoleProps = types.ConsoleProps
@@ -57,7 +57,6 @@ export type Slider = types.Slider
 export type Dropdown = types.Dropdown
 export type Input = types.Input
 export type Keybind = types.Keybind
-export type ColorPicker = types.ColorPicker
 export type Stat = types.Stat
 export type Progress = types.Progress
 export type Console = types.Console
@@ -86,6 +85,11 @@ end
 local globalStore = getGlobalStore()
 
 Astra.Icons = Icons
+
+-- [[The motion service is public: hosts can animate with the library's own
+-- specs (`Astra.Motion.tween(frame, props, "snappy")`) and steer the whole
+-- interface's timing (`setProfile`, `setTimeScale`, `setEnabled`).]]
+Astra.Motion = Motion
 
 Astra.Core = Core
 Astra.Settings = Settings
@@ -313,15 +317,6 @@ export type KeybindProps = {
     value: (EnumItem | string)?,     forgetState: boolean?,
     isMenuToggle: boolean?,     hold: boolean?,     holdThreshold: number?,     callback: ((value: EnumItem | boolean) -> ())?,     onChanged: ((key: EnumItem) -> ())?, }
 
-export type ColorPickerProps = {
-    name: string?,
-    description: string?,
-    icon: (string | number)?,
-    flag: string?,
-    color: Color3?,     alpha: number?,     forgetState: boolean?,
-    callback: ((value: Color3, alpha: number) -> ())?,
-}
-
 export type StatProps = {
     name: string?,
     description: string?,
@@ -418,13 +413,6 @@ export type Keybind = Moveable & Lockable & {
     Set: (self: Keybind, value: EnumItem | string, skipChanged: boolean?) -> (),
 }
 
-export type ColorPicker = Moveable & Lockable & {
-    value: Color3,
-    alpha: number,
-    Set: (self: ColorPicker, value: Color3 | string, skipCallback: boolean?) -> (),
-    SetAlpha: (self: ColorPicker, alpha: number, skipCallback: boolean?) -> (),
-}
-
 export type Stat = Moveable & {
     value: number,
     Set: (self: Stat, value: number) -> (),
@@ -506,7 +494,6 @@ export type Tab = {
     CreateDropdown: (self: Tab, props: DropdownProps) -> Dropdown,
     CreateInput: (self: Tab, props: InputProps) -> Input,
     CreateKeybind: (self: Tab, props: KeybindProps) -> Keybind,
-    CreateColorPicker: (self: Tab, props: ColorPickerProps) -> ColorPicker,
     CreateStat: (self: Tab, props: StatProps) -> Stat,
     CreateProgress: (self: Tab, props: ProgressProps) -> Progress,
     CreateConsole: (self: Tab, props: ConsoleProps) -> Console,
@@ -561,9 +548,33 @@ export type IconCatalog = {
     resolve: (value: (string | number)?, pack: IconPack?) -> (string | number)?,
 }
 
+export type MotionSpec = string | TweenInfo
+
+-- [[The service is a plain table of functions (dot calls, like `Icons`),
+-- [[so the fields carry no `self` - `Astra.Motion.tween(frame, props)`.
+export type MotionService = {
+    enabled: boolean,
+    timeScale: number,
+    profile: string,
+    profiles: { [string]: { timeScale: number?, enabled: boolean? } },
+    specNames: { string },
+    spec: (spec: MotionSpec?) -> TweenInfo,
+    step: (base: number) -> number,
+    setTimeScale: (scale: number) -> number,
+    getTimeScale: () -> number,
+    setEnabled: (enabled: boolean) -> boolean,
+    isEnabled: () -> boolean,
+    setProfile: (name: string) -> boolean,
+    getProfile: () -> string,
+    cancel: (instance: Instance?) -> boolean,
+    tween: (instance: Instance?, props: { [string]: any }, spec: MotionSpec?, onCompleted: (() -> ())?) -> Tween?,
+    set: (instance: Instance?, props: { [string]: any }) -> (),
+}
+
 export type Astra = {
     CreateWindow: (self: Astra, props: WindowProps) -> Window,
     Icons: IconCatalog,
+    Motion: MotionService,
 }
 
 return {}
@@ -4844,6 +4855,16 @@ end
 local function collectElements(window)
     window._searchUnits = {}
     local order = 0
+
+    -- [[Elements of tabs the player has not opened yet are still hidden (see
+    -- [[`Window:_markTabElementsPending`). The search lays every element out on
+    -- [[its own page, so bring them all in first - exactly the state the old
+    -- [[reveal left them in.]]
+    for _, tab in pairs(window.tabs) do
+        if tab._elementsPending then
+            window:_showTabElements(tab)
+        end
+    end
     for _, element in getAllElements(window) do
         order += 1
         local mainFrame = element.main
@@ -5904,6 +5925,7 @@ local icons = require(script.Parent.Parent.icons)
 local functions = require(script.Parent.Parent.functions)
 local persistence = require(utilities.persistence)
 local constants = require(utilities.constants)
+local motion = require(utilities.motion)
 local locale = require(utilities.locale)
 local log = require(utilities.log)
 local haptic = require(utilities.HapticEngine)
@@ -6113,6 +6135,7 @@ function Window.new(props)
         antiWindowDuplicate = true,
         layoutMode = layout.mode,
         activeSubTab = 1,
+        motionSpeed = "normal",
     }
         self._layoutTransitioning = false
 
@@ -6490,6 +6513,7 @@ function Window.new(props)
     self:_buildSettingsUI()
     self:_updateWindowTitle()
 
+    self:_applyMotionSetting()
     self:_syncLiveAnimation()
 
     -- [[Construction is complete: settings tab content may now be built]]
@@ -6498,6 +6522,18 @@ function Window.new(props)
     self._constructed = true
 
     return self
+end
+
+-- [[The "Animation speed" setting owns the motion service's time scale. It is
+-- applied from the window (not only from the settings control) so a window
+-- built from persisted settings, a configuration load and a live change all
+-- reach the same state; an unknown persisted value falls back to `normal`
+-- instead of leaving the library on whatever the last window used.]]
+function Window:_applyMotionSetting()
+    if not motion.setProfile(self.settings.motionSpeed) then
+        self.settings.motionSpeed = "normal"
+        motion.setProfile("normal")
+    end
 end
 
 function Window:_syncLiveAnimation()
@@ -6512,7 +6548,9 @@ function Window:_syncLiveAnimation()
     local generation = self._liveGeneration
     task.spawn(function()
         local forward = true
-        local liveTweenInfo = TweenInfo.new(10, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+        -- [[Shared spec from the motion service: the ambient drift is long
+        -- enough that re-creating its TweenInfo per cycle was pure waste.]]
+        local liveTweenInfo = motion.spec("drift")
 
         while self._liveGeneration == generation and self._liveAnimating and not self.unloaded do
             -- [[The card beside the window is the same surface, so it rides the
@@ -6816,31 +6854,46 @@ function Window:Close()
     self.drag.drag.Visible = false
     self:_fadeSurfaces(false, closeTweenInfo)
     if self.title then
-        state.tweenService:Create(self.title, closeTweenInfo, { TextTransparency = 1 }):Play()
+        motion.tween(self.title, { TextTransparency = 1 }, closeTweenInfo)
     end
     if self.subtitle then
-        state.tweenService:Create(self.subtitle, closeTweenInfo, { TextTransparency = 1 }):Play()
+        motion.tween(self.subtitle, { TextTransparency = 1 }, closeTweenInfo)
     end
     if self.topbarIcon then
-        state.tweenService:Create(self.topbarIcon, closeTweenInfo, { ImageTransparency = 1 }):Play()
+        motion.tween(self.topbarIcon, { ImageTransparency = 1 }, closeTweenInfo)
     end
     for _, tag in self.tags do
         tag:_setShown(false, closeTweenInfo)
     end
     self:_fadeSelectedElementsOut()
-    local tween = state.tweenService:Create(self.main, closeTweenInfo, {
+    -- [[The contraction goes through the motion service so the close answers
+    -- the speed setting like the rest of the window. A nil return means
+    -- nothing was animated (motion switched off, or the frame is already
+    -- where the transition was heading): the teardown still has to run, or
+    -- the window would stay alive and invisible.]]
+    local closed = false
+    local function finishClose()
+        if closed or self.unloaded or self._closeTransitionId ~= transitionId then
+            return
+        end
+        closed = true
+        self.drag.drag.Visible = false
+        self:Unload()
+    end
+
+    if not motion.tween(self.main, {
         Size = targetSize,
         Position = originalPosition,
         BackgroundTransparency = 1,
-    })
-    tween.Completed:Connect(function()
-        if not self.unloaded and self._closeTransitionId == transitionId then
-            self.drag.drag.Visible = false
-            self:Unload()
+    }, closeTweenInfo, finishClose) then
+        -- [[Nothing animated, so the teardown just ran and the window's
+        -- instances are gone — the corner below must not be touched.]]
+        finishClose()
+        if self.unloaded then
+            return
         end
-    end)
-    tween:Play()
-    state.tweenService:Create(self.windowCorner, closeTweenInfo, { CornerRadius = UDim.new(1, 0) }):Play()
+    end
+    motion.tween(self.windowCorner, { CornerRadius = UDim.new(1, 0) }, closeTweenInfo)
 end
 
 function Window:Hide()
@@ -6892,18 +6945,18 @@ function Window:Hide()
             self:_fadeSurfaces(false, hideTween)
 
     if self.title then
-        state.tweenService:Create(self.title, hideTween, { TextTransparency = 1 }):Play()
+        motion.tween(self.title, { TextTransparency = 1 }, hideTween)
     end
     if self.subtitle then
-        state.tweenService:Create(self.subtitle, hideTween, { TextTransparency = 1 }):Play()
+        motion.tween(self.subtitle, { TextTransparency = 1 }, hideTween)
     end
     if self.topbarIcon then
-        state.tweenService:Create(self.topbarIcon, hideTween, { ImageTransparency = 1 }):Play()
+        motion.tween(self.topbarIcon, { ImageTransparency = 1 }, hideTween)
     end
 
     for _, actionFrame in ipairs(self.actionContainer:GetChildren()) do
         if actionFrame:IsA("Frame") then
-            state.tweenService:Create(actionFrame.ImageLabel, hideTween, { ImageTransparency = 1 }):Play()
+            motion.tween(actionFrame.ImageLabel, { ImageTransparency = 1 }, hideTween)
         end
     end
 
@@ -6920,20 +6973,26 @@ function Window:Hide()
 
     self:_fadeSelectedElementsOut()
 
-            local tween = state.tweenService:Create(self.main, surfaceTween, { Size = collapsedSize, Position = collapsedPos })
-    tween.Completed:Connect(function()
-                        if self.unloaded or not self.hidden or self._hideTransitionId ~= transitionId then
+    -- [[Same contract as the close: settle from the tween's Completed, or
+    -- immediately when there was nothing to animate.]]
+    local collapsed = false
+    local function settleCollapse()
+                        if collapsed or self.unloaded or not self.hidden or self._hideTransitionId ~= transitionId then
             return
         end
+        collapsed = true
 
                         self._collapsedShown = true
         updateToastPosition(self, true)
         self.collapsedInteract.Visible = true
         self.animating = false
         self._revealing = false
-    end)
-    tween:Play()
-    state.tweenService:Create(self.windowCorner, cornerTween, { CornerRadius = UDim.new(1, 0) }):Play()
+    end
+
+    if not motion.tween(self.main, { Size = collapsedSize, Position = collapsedPos }, surfaceTween, settleCollapse) then
+        settleCollapse()
+    end
+    motion.tween(self.windowCorner, { CornerRadius = UDim.new(1, 0) }, cornerTween)
 
     self.topbar.Visible = true
     self:_setContentVisible(false)
@@ -7159,12 +7218,19 @@ function Window:_applyWindowSize()
     local newSize = computeSize(self.layout.mode)
     local sizeChanged = newSize ~= self.size
     self.size = newSize
-    self:_applyRailWidth()
-    if self.hidden or self.minimised or self.animating or self._revealing then
-        self._pendingResize = self._pendingResize or sizeChanged
+    -- [[Nothing moved: no rail write, no layout invalidation. This is the
+    -- [[window's steady state - the viewport poll below calls this every
+    -- [[couple of seconds for the whole session, and the rail write used to
+    -- [[happen before the check.]]
+    if not sizeChanged and not self._pendingResize then
         return
     end
-    if not sizeChanged and not self._pendingResize then
+    -- [[The rail follows the window's size, its layout and its tabs, all of
+    -- [[which are in step by the time this runs: it only has to be written
+    -- [[when one of them moved, which is what this function is for.]]
+    self:_applyRailWidth()
+    if self.hidden or self.minimised or self.animating or self._revealing then
+        self._pendingResize = true
         return
     end
     self._pendingResize = false
@@ -7691,6 +7757,29 @@ function Window:_buildSettingsUI()
         name = "Haptics", description = "A subtle tap as you interact, on devices that support haptics.", value = self.settings.haptics,
         callback = function(value) self.settings.haptics = value; haptic.setEnabled(value); self:SaveSettings() end,
     })
+
+    -- [[Animation speed. Every prompt names a profile of the motion service
+    -- (utilities/motion.luau); the labels are the display names for them.]]
+    performance:CreateSection({ name = "Motion" })
+    local motionLabels = { relaxed = "Relaxed", normal = "Normal", snappy = "Snappy", instant = "Instant" }
+    local motionOptions = { "Relaxed", "Normal", "Snappy", "Instant" }
+    local motionProfiles = { Relaxed = "relaxed", Normal = "normal", Snappy = "snappy", Instant = "instant" }
+    local currentMotion = motionLabels[self.settings.motionSpeed] or motionLabels.normal
+    performance:CreateDropdown({
+        name = "Animation speed",
+        description = "How long transitions take. Relaxed is slower and softer, Snappy is quicker, Instant switches animation off and applies every change on the spot (easiest on low-end devices).",
+        options = motionOptions,
+        value = currentMotion,
+        callback = function(value)
+            local profile = motionProfiles[value]
+            if not profile or profile == self.settings.motionSpeed then
+                return
+            end
+            self.settings.motionSpeed = profile
+            self:_applyMotionSetting()
+            self:SaveSettings()
+        end,
+    })
     end
     performance._settingsContentBuilder = buildPerformance
 
@@ -7761,6 +7850,11 @@ end
 
 function Window:LoadSettings()
     local loaded = persistence.loadSettings(self)
+    -- [[The animation-speed setting lives in the same file, and the motion
+    -- service is a library-wide singleton, so it is re-applied here rather
+    -- than only when the settings control is touched — otherwise a window
+    -- that loaded settings would animate at whatever the last one used.]]
+    self:_applyMotionSetting()
     -- [["Reveal profile details" depends on "Show profile", and a settings]]
     -- [[file written before that rule (or edited by hand) can carry reveal]]
     -- [[= on with the card off. Normalise the pair on the way in, so the]]
@@ -8049,7 +8143,7 @@ function Window:_fadeSurfaces(shown, tweenInfo)
 
     for instance, props in targets do
         if tweenInfo then
-            state.tweenService:Create(instance, tweenInfo, props):Play()
+            motion.tween(instance, props, tweenInfo)
         else
             for prop, value in props do
                 instance[prop] = value
@@ -8062,10 +8156,35 @@ end
 
 function Window:_fadeSelectedElementsOut()
     if self.selectedTab then
+        -- [[These elements are the ones about to be transparent: the tab is
+        -- [[marked so that opening it again shows them (the reveal below
+        -- [[handles the tab that is on screen).]]
+        self:_markTabElementsPending(self.selectedTab)
         for _, element in ipairs(self.selectedTab.elements) do
             element:_setShown(false, true)
         end
     end
+end
+
+-- [[Show every element of one tab (instantly) and clear its pending mark.]]
+function Window:_showTabElements(tab)
+    tab._elementsPending = false
+    for _, element in ipairs(tab.elements) do
+        element:_setShown(true, false)
+    end
+end
+
+-- [[Mark a tab whose elements are hidden and must be shown when it is next
+-- [[seen. Only two things hide an element: the fade above (the tab that was on
+-- [[screen) and being registered while the window is hidden; everything else
+-- [[is shown on the spot. A tab that is not the current page of
+-- [[`self.elements` cannot be looked at (UIPageLayout keeps the other pages
+-- [[out of the render), so the mark is honoured when the player opens the tab
+-- [[(`tab:Select`) or when the search pulls its elements onto its own page -
+-- [[the two moments they can be seen. This replaces walking every tab's
+-- [[elements on every open just to keep the tabs nobody had opened in step.]]
+function Window:_markTabElementsPending(tab)
+    tab._elementsPending = true
 end
 
 function Window:_revealElements(stepDelay, totalDuration, layoutTransitionId)
@@ -8079,16 +8198,6 @@ function Window:_revealElements(stepDelay, totalDuration, layoutTransitionId)
     if not isStillValid() then
         return
     end
-    for _, tab in pairs(self.tabs) do
-        if tab ~= self.selectedTab then
-            for _, element in ipairs(tab.elements) do
-                if not isStillValid() then
-                    return
-                end
-                element:_setShown(true, false)
-            end
-        end
-    end
 
     local tab = self.selectedTab
     if not tab then
@@ -8099,7 +8208,12 @@ function Window:_revealElements(stepDelay, totalDuration, layoutTransitionId)
     local viewTop = page.AbsolutePosition.Y
     local viewBottom = viewTop + page.AbsoluteWindowSize.Y
 
-    local maxReveals = math.floor(totalDuration / stepDelay)
+    -- [[The cascade's pace belongs to the motion service as well: a relaxed
+    -- profile spreads the reveal further, a snappy one tightens it, and with
+    -- animation off (step 0) every element appears on the same frame instead
+    -- of the coroutine yielding a frame per element.]]
+    local step = motion.step(stepDelay)
+    local maxReveals = if step > 0 then math.floor(totalDuration / step) else math.huge
     local revealed = 0
     for _, element in ipairs(tab.elements) do
         if not isStillValid() then
@@ -8110,8 +8224,8 @@ function Window:_revealElements(stepDelay, totalDuration, layoutTransitionId)
         if isVisible then
             element:_setShown(true, true)
             revealed += 1
-            if revealed <= maxReveals then
-                task.wait(stepDelay)
+            if step > 0 and revealed <= maxReveals then
+                task.wait(step)
                 if not isStillValid() then
                     return
                 end
@@ -8188,11 +8302,13 @@ function Window:_quickRestore()
             tab.topbarItem.Visible = true
             tab:_applyVisual(if self.selectedTab == tab then "selected" else "unselected")
         end
-        for _, element in ipairs(tab.elements) do
-            element:_setShown(true, false)
+        if tab == self.selectedTab then
+            self:_showTabElements(tab)
         end
     end
-    -- [[Restore the settings/normal rail split; the loop above shows all tabs.]]
+    -- [[Restore the settings/normal rail split; the loop above shows the
+    -- [[selected tab's elements (the others are either already shown or still
+    -- [[marked to show when they are opened).]]
     self:_applySettingsLayout(self._settingsMode)
     self:_fadeSurfaces(true)
 
@@ -8220,11 +8336,15 @@ function Window:_quickRestore()
     for _, tag in self.tags do
         tag:_setShown(true, false)
     end
-    local tween = state.tweenService:Create(self.main, tweenInfo, { Size = self.size, Position = targetPos })
-    tween.Completed:Connect(function()
-        if self.hidden or self.unloaded then
+    -- [[Same contract as the first show: run the settle path from the tween's
+    -- Completed, or immediately when there is no tween (motion switched off),
+    -- so `animating` is never left set.]]
+    local restored = false
+    local function settle()
+        if restored or self.hidden or self.unloaded then
             return
         end
+        restored = true
         self.main.ClipsDescendants = false
         self._collapsedShown = false
         self:_syncDragBar()
@@ -8232,9 +8352,12 @@ function Window:_quickRestore()
         self.animating = false
         self._revealing = false
         updateToastPosition(self, true)
-    end)
-    tween:Play()
-    state.tweenService:Create(self.windowCorner, tweenInfo, { CornerRadius = self.theme.CornerRoundness }):Play()
+    end
+
+    if not motion.tween(self.main, { Size = self.size, Position = targetPos }, tweenInfo, settle) then
+        settle()
+    end
+    motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, tweenInfo)
 end
 function Window:_firstShow()
     self.drag.drag.Visible = false
@@ -8269,11 +8392,13 @@ function Window:_firstShow()
             tab.topbarItem.Visible = true
             tab:_applyVisual(if self.selectedTab == tab then "selected" else "unselected")
         end
-        for _, element in ipairs(tab.elements) do
-            element:_setShown(true, false)
+        if tab == self.selectedTab then
+            self:_showTabElements(tab)
         end
     end
-    -- [[Restore the settings/normal rail split; the loop above shows all tabs.]]
+    -- [[Restore the settings/normal rail split; the loop above shows the
+    -- [[selected tab's elements (the others are either already shown or still
+    -- [[marked to show when they are opened).]]
     self:_applySettingsLayout(self._settingsMode)
     for _, tag in self.tags do
         tag:_setShown(false, false)
@@ -8281,20 +8406,20 @@ function Window:_firstShow()
     local tweenInfo = TweenInfo.new(0.38, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
     if self.topbarIcon then
         self.topbarIcon.ImageTransparency = 1
-        state.tweenService:Create(self.topbarIcon, tweenInfo, { ImageTransparency = 0 }):Play()
+        motion.tween(self.topbarIcon, { ImageTransparency = 0 }, tweenInfo)
     end
     if self.title then
         self.title.TextTransparency = 1
-        state.tweenService:Create(self.title, tweenInfo, { TextTransparency = 0 }):Play()
+        motion.tween(self.title, { TextTransparency = 0 }, tweenInfo)
     end
     if self.subtitle then
         self.subtitle.TextTransparency = 1
-        state.tweenService:Create(self.subtitle, tweenInfo, { TextTransparency = 0.7 }):Play()
+        motion.tween(self.subtitle, { TextTransparency = 0.7 }, tweenInfo)
     end
     for _, actionFrame in ipairs(self.actionContainer:GetChildren()) do
         if actionFrame:IsA("Frame") and actionFrame.ImageLabel then
             actionFrame.ImageLabel.ImageTransparency = 1
-            state.tweenService:Create(actionFrame.ImageLabel, tweenInfo, { ImageTransparency = 0.6 }):Play()
+            motion.tween(actionFrame.ImageLabel, { ImageTransparency = 0.6 }, tweenInfo)
         end
     end
 
@@ -8302,22 +8427,35 @@ function Window:_firstShow()
         tag:_setShown(true, tweenInfo)
     end
     self:_fadeSurfaces(true, tweenInfo)
-    local tween = state.tweenService:Create(self.main, tweenInfo, {
-        BackgroundTransparency = windowSurfaceTransparency,
-        Size = self.size,
-    })
-    tween.Completed:Connect(function()
-        if self.unloaded then
+
+    -- [[The entrance is the library's hero transition, so the frame lands on
+    -- the motion service's "pop" spec: the same 0.38s as before, but with a
+    -- small Back/Out overshoot, so the window springs the last pixels into
+    -- place instead of easing into them. The corner rides the same spec.
+    --
+    -- The settle path has to run either way: motion.tween returns no tween
+    -- when animation is switched off (the "Instant" speed profile), and a
+    -- window that never animates must not be left with `animating` set.]]
+    local settled = false
+    local function settle()
+        if settled or self.unloaded then
             return
         end
+        settled = true
         self.main.ClipsDescendants = false
         self:_syncDragBar()
         self.drag.drag.Visible = false
         self.animating = false
         self._revealing = false
-    end)
-    tween:Play()
-    state.tweenService:Create(self.windowCorner, tweenInfo, { CornerRadius = self.theme.CornerRoundness }):Play()
+    end
+
+    if not motion.tween(self.main, {
+        BackgroundTransparency = windowSurfaceTransparency,
+        Size = self.size,
+    }, "pop", settle) then
+        settle()
+    end
+    motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, "pop")
 
     local player = state.localPlayer
     if player and self.settings.welcomeToast and chrome.isNewUser() then
@@ -8520,19 +8658,21 @@ function Window:_flashResult(element, ok)
     if not box then
         return
     end
-    local glow = element.glow
+    local glow = if element._fieldGlow then element:_fieldGlow() else element.glow
     local boxStroke = element.boxStroke
     local flashColor = ok and constants.accent.on or self.theme.ErrorColor
     local flashStroke = ok and constants.accent.onStroke or self.theme.ErrorStrokeColor
+    -- [[Hoisted out of the function: these two are fixed, and the flash runs
+    -- on every element callback that reports a result.]]
     local flashTween = TweenInfo.new(0.1, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     local restoreTween = TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
-        state.tweenService:Create(box, flashTween, { BackgroundColor3 = flashColor }):Play()
+    motion.tween(box, { BackgroundColor3 = flashColor }, flashTween)
     if boxStroke then
-        state.tweenService:Create(boxStroke, flashTween, { Color = flashStroke, Transparency = 0.4 }):Play()
+        motion.tween(boxStroke, { Color = flashStroke, Transparency = 0.4 }, flashTween)
     end
     if glow then
-        state.tweenService:Create(glow, flashTween, { Color = flashStroke, Transparency = 0.6 }):Play()
+        motion.tween(glow, { Color = flashStroke, Transparency = 0.6 }, flashTween)
     end
 
         element._flashToken = (element._flashToken or 0) + 1
@@ -8541,16 +8681,12 @@ function Window:_flashResult(element, ok)
         if element._flashToken ~= token then
             return
         end
-        state.tweenService:Create(box, restoreTween, { BackgroundColor3 = self.theme.FieldBackground }):Play()
+        motion.tween(box, { BackgroundColor3 = self.theme.FieldBackground }, restoreTween)
         if boxStroke then
-            state.tweenService
-                :Create(boxStroke, restoreTween, { Color = self.theme.SurfaceStroke, Transparency = 0.85 })
-                :Play()
+            motion.tween(boxStroke, { Color = self.theme.SurfaceStroke, Transparency = 0.85 }, restoreTween)
         end
         if glow then
-            state.tweenService
-                :Create(glow, restoreTween, { Color = self.theme.FieldGlow, Transparency = element._glowIdle or 1 })
-                :Play()
+            motion.tween(glow, { Color = self.theme.FieldGlow, Transparency = element._glowIdle or 1 }, restoreTween)
         end
     end)
 end
@@ -8574,36 +8710,36 @@ function Window:CreateHoverOverlay(parent)
 end
 
 function Window:_wireElementHover(element)
-    local hoverTween = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     local theme = self.theme
 
+    -- [[Hover feedback is the single most-repeated animation in the library
+    -- (every element, every pointer move across a grid), so it goes through
+    -- the motion service: the spec is shared instead of allocated per event,
+    -- and an enter/leave pair on the same element can no longer leave two
+    -- tweens interpolating the same stroke — the second cancels the first.]]
     self:ConnectFor(element, element.main.MouseEnter, function()
         if not self:_interactive() then
             return         end
-        state.tweenService
-            :Create(
-                element.stroke,
-                hoverTween,
-                { Transparency = theme.ElementStrokeHoverTransparency, Color = theme.ElementStrokeHover }
-            )
-            :Play()
-        state.tweenService:Create(element.title, hoverTween, { TextColor3 = theme.ElementTextHoverColor }):Play()
+        motion.tween(
+            element.stroke,
+            { Transparency = theme.ElementStrokeHoverTransparency, Color = theme.ElementStrokeHover },
+            "snappy"
+        )
+        motion.tween(element.title, { TextColor3 = theme.ElementTextHoverColor }, "snappy")
         if element.hoverOverlay then
-            state.tweenService:Create(element.hoverOverlay, hoverTween, { BackgroundTransparency = 0.97 }):Play()
+            motion.tween(element.hoverOverlay, { BackgroundTransparency = 0.97 }, "snappy")
         end
     end)
 
     self:ConnectFor(element, element.main.MouseLeave, function()
-        state.tweenService
-            :Create(
-                element.stroke,
-                hoverTween,
-                { Transparency = theme.ElementStrokeTransparency, Color = theme.ElementStroke }
-            )
-            :Play()
-        state.tweenService:Create(element.title, hoverTween, { TextColor3 = theme.ContentColor }):Play()
+        motion.tween(
+            element.stroke,
+            { Transparency = theme.ElementStrokeTransparency, Color = theme.ElementStroke },
+            "snappy"
+        )
+        motion.tween(element.title, { TextColor3 = theme.ContentColor }, "snappy")
         if element.hoverOverlay then
-            state.tweenService:Create(element.hoverOverlay, hoverTween, { BackgroundTransparency = 1 }):Play()
+            motion.tween(element.hoverOverlay, { BackgroundTransparency = 1 }, "snappy")
         end
     end)
 end
@@ -8625,8 +8761,8 @@ function Window:_runGuarded(element, fn, ...)
 
         local flashTarget = element.flashTarget or element.main
         local errorTween = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-        state.tweenService:Create(flashTarget, errorTween, { BackgroundColor3 = self.theme.ErrorColor }):Play()
-        state.tweenService:Create(element.stroke, errorTween, { Color = self.theme.ErrorStrokeColor }):Play()
+        motion.tween(flashTarget, { BackgroundColor3 = self.theme.ErrorColor }, errorTween)
+        motion.tween(element.stroke, { Color = self.theme.ErrorStrokeColor }, errorTween)
                 if element.title then
             element.title.Text = locale.resolve("Error, log recorded in console.")
         end
@@ -8641,20 +8777,16 @@ function Window:_runGuarded(element, fn, ...)
         if element.title then
             element.title.Text = locale.resolve(element.name)
         end
-        state.tweenService
-            :Create(
-                flashTarget,
-                TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
-                { BackgroundColor3 = Color3.fromRGB(255, 255, 255) }
-            )
-            :Play()
-        state.tweenService
-            :Create(
-                element.stroke,
-                TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-                { Color = self.theme.ElementStroke }
-            )
-            :Play()
+        motion.tween(
+            flashTarget,
+            { BackgroundColor3 = Color3.fromRGB(255, 255, 255) },
+            TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+        )
+        motion.tween(
+            element.stroke,
+            { Color = self.theme.ElementStroke },
+            TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+        )
         element._errored = false
     end)
 end
@@ -8753,6 +8885,9 @@ function Window:_reveal(instance, targets, animate, tweenInfo)
     if not instance then
         return
     end
+    -- [[Skip work when the target state is already applied: the cascade (and
+    -- a window that is shown, hidden and shown again) asks the same elements
+    -- to reveal repeatedly.]]
     local needsUpdate = false
     for prop, value in targets do
         if instance[prop] ~= value then
@@ -8763,8 +8898,13 @@ function Window:_reveal(instance, targets, animate, tweenInfo)
     if not needsUpdate then
         return
     end
+
     if animate then
-        state.tweenService:Create(instance, tweenInfo or revealTween, targets):Play()
+        -- [[The tween goes through the motion service, which shares the spec
+        -- and cancels an in-flight tween on the same property — the cascade
+        -- asks every element on the page to show on one frame, and a
+        -- hidden/reshown window used to stack a second reveal on the first.]]
+        motion.tween(instance, targets, tweenInfo or revealTween)
     else
         for prop, value in targets do
             instance[prop] = value
@@ -9677,1137 +9817,6 @@ end)() end,
     [23] = function()local wax,script,require=ImportGlobals(23)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
-state.__type = "ColorPicker"
-
-local constants = script.Parent.Parent.utilities
-
-local ColorPicker = require(constants.Parent.core.state)
-local tab = require(script.Parent.Parent.functions)
-local props = require(constants.moveable)
-local name = require(constants.lockable)
-local flag = require(constants.constants)
-local color = require(constants.locale)
-local alpha = require(constants.HapticEngine)
-
-local callback = ColorSequence.new({
-    ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 0, 0)),
-    ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255, 255, 0)),
-    ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0, 255, 0)),
-    ColorSequenceKeypoint.new(0.50, Color3.fromRGB(0, 255, 255)),
-    ColorSequenceKeypoint.new(0.67, Color3.fromRGB(0, 0, 255)),
-    ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 0, 255)),
-    ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 0, 0)),
-})
-
-local element = 41
-local frame = 52 local hue = Vector2.new(150, 120)
-local sat = 184 local val = 10
-local isDragging = 214 local connection = 10
-local a18 = 240 local a19 = 62 local a20 = 8
-local a21 = 400
-
-local a22 = {
-    wide = {
-        height = 190,
-        previewPos = UDim2.new(1, -20, 0, frame + 39),
-        previewSize = UDim2.new(1, -(a18 + 20), 0, 78),
-        hexPos = UDim2.new(0, a18, 0, frame + 90),
-        hexSize = UDim2.new(1, -(a18 + 20 + a19 + a20), 0, 30),
-        alphaFieldPos = UDim2.new(1, -(20 + a19), 0, frame + 90),
-        alphaFieldSize = UDim2.new(0, a19, 0, 30),
-    },
-    narrow = {
-        height = 296,
-        previewPos = UDim2.new(1, -20, 0, frame + hue.Y + 40),
-        previewSize = UDim2.new(1, -40, 0, 56),
-        hexPos = UDim2.new(0, 20, 0, frame + hue.Y + 78),
-        hexSize = UDim2.new(1, -(40 + a19 + a20), 0, 30),
-        alphaFieldPos = UDim2.new(1, -(20 + a19), 0, frame + hue.Y + 78),
-        alphaFieldSize = UDim2.new(0, a19, 0, 30),
-    },
-}
-
-local a23 = UDim2.new(1, -16, 0, element / 2)
-local a24 = UDim2.fromOffset(40, 22)
-
-local a25 = TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local a26 = TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-local a27 = TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-local a28 = TweenInfo.new(0.12, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-local a29 = TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-
-local function a30(n)
-    return math.clamp(n, 0, 1)
-end
-
-local function a31(n)
-    return math.clamp(math.round(n), 0, 255)
-end
-
-local a32 = {
-    black = Color3.fromRGB(0, 0, 0),
-    white = Color3.fromRGB(255, 255, 255),
-    red = Color3.fromRGB(255, 0, 0),
-    green = Color3.fromRGB(0, 255, 0),
-    blue = Color3.fromRGB(0, 0, 255),
-    yellow = Color3.fromRGB(255, 255, 0),
-    cyan = Color3.fromRGB(0, 255, 255),
-    magenta = Color3.fromRGB(255, 0, 255),
-    orange = Color3.fromRGB(255, 165, 0),
-    purple = Color3.fromRGB(128, 0, 128),
-    pink = Color3.fromRGB(255, 105, 180),
-    brown = Color3.fromRGB(139, 69, 19),
-    gray = Color3.fromRGB(128, 128, 128),
-    grey = Color3.fromRGB(128, 128, 128),
-}
-
-local function a33(h, s, l)
-    if s <= 0 then
-        return Color3.new(l, l, l)
-    end
-    local function a34(p, q, t)
-        t = t % 1
-        if t < 1 / 6 then
-            return p + (q - p) * 6 * t
-        elseif t < 1 / 2 then
-            return q
-        elseif t < 2 / 3 then
-            return p + (q - p) * (2 / 3 - t) * 6
-        end
-        return p
-    end
-    local q = if l < 0.5 then l * (1 + s) else l + s - l * s
-    local p = 2 * l - q
-    return Color3.new(a34(p, q, h + 1 / 3), a34(p, q, h), a34(p, q, h - 1 / 3))
-end
-
-local function a35(s)
-    local a36 = {}
-    for n in s:gmatch("[%d%.]+") do
-        table.insert(a36, tonumber(n))
-    end
-    return a36
-end
-
-local function a37(a38)
-    if typeof(a38) ~= "string" then
-        return nil
-    end
-    local s = (a38:lower():match("^%s*(.-)%s*$")) or ""
-    if s == "" then
-        return nil
-    end
-
-    if a32[s] then
-        return a32[s]
-    end
-
-    local a39 = s:match("^(%a+)")
-    local a40 = a35(s)
-
-    if (a39 == "hsv" or a39 == "hsb") and #a40 >= 3 then
-        local h = (a40[1] % 360) / 360
-        local a41 = if a40[2] > 1 then a40[2] / 100 else a40[2]
-        local v = if a40[3] > 1 then a40[3] / 100 else a40[3]
-        return Color3.fromHSV(h, a30(a41), a30(v))
-    end
-
-    if a39 == "hsl" and #a40 >= 3 then
-        local h = (a40[1] % 360) / 360
-        local a42 = if a40[2] > 1 then a40[2] / 100 else a40[2]
-        local l = if a40[3] > 1 then a40[3] / 100 else a40[3]
-        return a33(h, a30(a42), a30(l))
-    end
-
-    if (a39 == "rgb" or a39 == "rgba") and #a40 >= 3 then
-        return Color3.fromRGB(a31(a40[1]), a31(a40[2]), a31(a40[3]))
-    end
-
-        local a43 = s:match("^#?(%x%x%x%x%x%x)$") or s:match("^#?(%x%x%x)$") or s:match("^0x(%x%x%x%x%x%x)$")
-    if a43 then
-        local ok, a44 = pcall(Color3.fromHex, a43)
-        if ok then
-            return a44
-        end
-    end
-
-        if #a40 >= 3 and not a39 then
-        if a40[1] <= 1 and a40[2] <= 1 and a40[3] <= 1 then
-            return Color3.new(a30(a40[1]), a30(a40[2]), a30(a40[3]))
-        end
-        return Color3.fromRGB(a31(a40[1]), a31(a40[2]), a31(a40[3]))
-    end
-
-    return nil
-end
-
-local function a45(a46, a47)
-    if typeof(a46) == "Color3" then
-        return a46
-    end
-    if typeof(a46) == "string" then
-        return a37(a46) or a47
-    end
-    return a47
-end
-
-function state.new(tab, a48)
-    a48 = if typeof(a48) == "table" then a48 else {}
-
-    local self = setmetatable({
-        tab = assert(tab, "Missing argument #1 (Tab expected)"),
-        window = tab.window,
-        name = a48.name or a48.Name or "Color Picker",
-        icon = tab.window:ResolveIcon(a48.icon or a48.Icon),
-        description = a48.description or a48.Description,
-        forgetState = a48.forgetState or a48.ForgetState or tab.forgetState,
-
-        callback = a48.callback or a48.Callback or function() end,
-
-        _isOpen = false,
-    }, state)
-
-    self.value = a45(
-        a48.color or a48.Color or a48.value or a48.Value or a48.default,
-        Color3.fromRGB(255, 255, 255)
-    )
-
-            self.hue, self.sat, self.val = self.value:ToHSV()
-
-        local a = a48.alpha or a48.Alpha
-    self.alpha = if type(a) == "number" then a30(a) else 1
-
-    self.flag = a48.flag
-        or a48.Flag
-        or (not self.forgetState and tab.deriveFlagFromName(self.name) or nil)
-    self.window:_registerControl(self)
-
-            self.main = self.window:Create("Frame", {
-        Size = UDim2.new(1, -20, 0, element),
-        BorderSizePixel = 0,
-        Name = self.name,
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 1,
-        Parent = self.tab.tabPage,
-    }, { BackgroundTransparency = "ElementTransparency" })
-
-    self.stroke = self.window:StyleElementBody(self.main)
-    self.hoverOverlay = self.window:CreateHoverOverlay(self.main)
-
-    self:_buildHeader()
-    self:_buildPicker()
-
-    self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
-        alpha.click()
-        if self._isOpen then
-            self:_close()
-        else
-            self:_open()
-        end
-    end)
-
-        self.window:ConnectFor(self, self.main.MouseEnter, function()
-        if self._isOpen or not self.window:_interactive() then
-            return
-        end
-        local a49 = self.window.theme
-        ColorPicker.tweenService
-            :Create(self.stroke, a26, {
-                Transparency = a49.ElementStrokeHoverTransparency,
-                Color = a49.ElementStrokeHover,
-            })
-            :Play()
-        ColorPicker.tweenService:Create(self.title, a26, { TextColor3 = a49.ElementTextHoverColor }):Play()
-        ColorPicker.tweenService:Create(self.hoverOverlay, a26, { BackgroundTransparency = 0.97 }):Play()
-    end)
-
-    self.window:ConnectFor(self, self.main.MouseLeave, function()
-        local a50 = self.window.theme
-        ColorPicker.tweenService
-            :Create(
-                self.stroke,
-                a26,
-                { Transparency = a50.ElementStrokeTransparency, Color = a50.ElementStroke }
-            )
-            :Play()
-        ColorPicker.tweenService:Create(self.title, a26, { TextColor3 = a50.ContentColor }):Play()
-        ColorPicker.tweenService:Create(self.hoverOverlay, a26, { BackgroundTransparency = 1 }):Play()
-    end)
-
-    if self.description then
-        self.descriptor = require(script.Parent.descriptor).new(self.tab, { description = self.description })
-    end
-
-        self:_applyPickerVisibility(false, false)
-    self:_setControlsVisible(false)
-                self.window:ConnectFor(self, self.main:GetPropertyChangedSignal("AbsoluteSize"), function()
-                        if self.window.animating or (self.window.hidden and self.window.hasShownOnce) then
-            return
-        end
-        self:_applyLayout()
-    end)
-    self:_applyLayout()
-
-    self:_render("instant")
-
-    return self
-end
-
-function state:_buildHeader()
-    self.container = self.window:Create("Frame", {
-        Size = UDim2.new(0, 170, 0, 16),
-        Position = UDim2.new(0, 20, 0, element / 2),
-        AnchorPoint = Vector2.new(0, 0.5),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        ZIndex = 5,
-
-        Parent = self.main,
-    })
-
-    self.window:Create("UIListLayout", {
-        Padding = UDim.new(0, 5),
-        FillDirection = Enum.FillDirection.Horizontal,
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-
-        Parent = self.container,
-    })
-
-    if self.icon then
-        self.iconLabel = self.window:Create("ImageLabel", {
-            Image = self.icon,
-            Size = UDim2.fromOffset(16, 16),
-            BorderSizePixel = 0,
-            BackgroundTransparency = 1,
-            ZIndex = 5,
-
-            ImageTransparency = 1,
-            Parent = self.container,
-        }, { ImageColor3 = "ContentColor" })
-    end
-
-    self.title = self.window:Create("TextLabel", {
-        Text = color.t(self.name),
-        Size = UDim2.fromOffset(150, 16),
-        AutomaticSize = Enum.AutomaticSize.X,
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        TextSize = 16,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        LayoutOrder = 1,
-        ZIndex = 5,
-
-        TextTransparency = 1,
-        Parent = self.container,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
-
-            self.preview = self.window:Create("Frame", {
-        AnchorPoint = Vector2.new(1, 0.5),
-        Position = a23,
-        Size = a24,
-        BackgroundColor3 = self.value,
-        BorderSizePixel = 0,
-        ZIndex = 3,
-
-        BackgroundTransparency = 1,
-        Parent = self.main,
-    })
-
-    self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 8),
-        Parent = self.preview,
-    })
-
-            self.previewShadow = self.window:CreateGlow(self.preview, self.value, 20, 1)
-
-            self.invisibleGroup = self.window:Create("Frame", {
-        Size = UDim2.fromScale(1, 1),
-        Position = UDim2.fromScale(0.5, 0.5),
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        ZIndex = 5,
-
-        Parent = self.preview,
-    })
-
-    self.window:Create("UIListLayout", {
-        FillDirection = Enum.FillDirection.Horizontal,
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        HorizontalAlignment = Enum.HorizontalAlignment.Center,
-        Padding = UDim.new(0, 6),
-        SortOrder = Enum.SortOrder.LayoutOrder,
-
-        Parent = self.invisibleGroup,
-    })
-
-    self.invisibleIcon = self.window:Create("ImageLabel", {
-        Image = flag.icons.colorpicker,
-        Size = UDim2.fromOffset(16, 16),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        ZIndex = 5,
-
-        ImageTransparency = 1,
-        Parent = self.invisibleGroup,
-    }, { ImageColor3 = "ContentColor" })
-
-    self.invisibleText = self.window:Create("TextLabel", {
-        Text = color.t("Invisible"),
-        Size = UDim2.fromOffset(0, 16),
-        AutomaticSize = Enum.AutomaticSize.X,
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        TextSize = 15,
-        LayoutOrder = 1,
-        ZIndex = 5,
-
-        TextTransparency = 1,
-        Parent = self.invisibleGroup,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
-
-        self.interact = self.window:Create("TextButton", {
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, element),
-        Position = UDim2.fromScale(0, 0),
-        BorderSizePixel = 0,
-        Text = "",
-        TextTransparency = 1,
-        AutoButtonColor = false,
-        ZIndex = 10,
-
-        Parent = self.main,
-    })
-end
-
-function state:_buildMap()
-    self.map = self.window:Create("Frame", {
-        Position = UDim2.fromOffset(20, frame),
-        Size = UDim2.fromOffset(hue.X, hue.Y),
-        BackgroundColor3 = Color3.fromHSV(self.hue, 1, 1),
-        BorderSizePixel = 0,
-        ZIndex = 2,
-
-        BackgroundTransparency = 1,
-        Parent = self.main,
-    })
-
-    self.window:Create("UICorner", { CornerRadius = UDim.new(0, 8), Parent = self.map })
-
-    self.mapStroke = self.window:Create("UIStroke", {
-        Color = Color3.fromRGB(255, 255, 255),
-        Transparency = 1,
-        Parent = self.map,
-    })
-
-        self.satOverlay = self.window:Create("Frame", {
-        Size = UDim2.fromScale(1, 1),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BorderSizePixel = 0,
-        ZIndex = 3,
-
-        BackgroundTransparency = 1,
-        Parent = self.map,
-    })
-    self.window:Create("UICorner", { CornerRadius = UDim.new(0, 8), Parent = self.satOverlay })
-    self.window:Create("UIGradient", {
-        Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 0),
-            NumberSequenceKeypoint.new(1, 1),
-        }),
-        Parent = self.satOverlay,
-    })
-
-        self.valOverlay = self.window:Create("Frame", {
-        Size = UDim2.fromScale(1, 1),
-        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-        BorderSizePixel = 0,
-        ZIndex = 4,
-
-        BackgroundTransparency = 1,
-        Parent = self.map,
-    })
-    self.window:Create("UICorner", { CornerRadius = UDim.new(0, 8), Parent = self.valOverlay })
-    self.window:Create("UIGradient", {
-        Rotation = 90,
-        Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 1),
-            NumberSequenceKeypoint.new(1, 0),
-        }),
-        Parent = self.valOverlay,
-    })
-end
-
-function state:_buildPicker()
-    self:_buildMap()
-
-    self.satCursor = self.window:Create("Frame", {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Size = UDim2.fromOffset(12, 12),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BorderSizePixel = 0,
-        ZIndex = 6,
-
-        BackgroundTransparency = 1,
-        Parent = self.map,
-    })
-
-    self.window:Create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
-        Parent = self.satCursor,
-    })
-
-    self.satCursorStroke = self.window:Create("UIStroke", {
-        Color = Color3.fromRGB(255, 255, 255),
-        Thickness = 2,
-        Transparency = 1,
-        Parent = self.satCursor,
-    })
-
-    self.mapInteract = self.window:Create("TextButton", {
-        BackgroundTransparency = 1,
-        Size = UDim2.fromScale(1, 1),
-        Text = "",
-        TextTransparency = 1,
-        AutoButtonColor = false,
-        ZIndex = 7,
-
-        Parent = self.map,
-    })
-
-        self.hueBar = self.window:Create("Frame", {
-        Position = UDim2.fromOffset(sat, frame),
-        Size = UDim2.fromOffset(val, hue.Y),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BorderSizePixel = 0,
-        ZIndex = 2,
-
-        BackgroundTransparency = 1,
-        Parent = self.main,
-    })
-
-    self.window:Create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
-        Parent = self.hueBar,
-    })
-
-    self.window:Create("UIGradient", {
-        Color = callback,
-        Rotation = 90,
-
-        Parent = self.hueBar,
-    })
-
-    self.hueHandle = self.window:Create("Frame", {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.new(0.5, 0, 0, 0),
-        Size = UDim2.fromOffset(val + 8, 8),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BorderSizePixel = 0,
-        ZIndex = 4,
-
-        BackgroundTransparency = 1,
-        Parent = self.hueBar,
-    })
-
-    self.window:Create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
-        Parent = self.hueHandle,
-    })
-
-    self.hueHandleStroke = self.window:Create("UIStroke", {
-        Color = Color3.fromRGB(255, 255, 255),
-        Thickness = 2,
-        Transparency = 1,
-        Parent = self.hueHandle,
-    })
-
-    self.hueInteract = self.window:Create("TextButton", {
-        BackgroundTransparency = 1,
-                Size = UDim2.new(1, 16, 1, 8),
-        Position = UDim2.fromScale(0.5, 0.5),
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Text = "",
-        TextTransparency = 1,
-        AutoButtonColor = false,
-        ZIndex = 6,
-
-        Parent = self.hueBar,
-    })
-
-                self.alphaBar = self.window:Create("Frame", {
-        Position = UDim2.fromOffset(isDragging, frame),
-        Size = UDim2.fromOffset(connection, hue.Y),
-        BackgroundColor3 = self.value,
-        BorderSizePixel = 0,
-        ZIndex = 2,
-
-        BackgroundTransparency = 1,
-        Parent = self.main,
-    })
-
-    self.window:Create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
-        Parent = self.alphaBar,
-    })
-
-    self.alphaGradient = self.window:Create("UIGradient", {
-        Rotation = 90,
-        Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 0),
-            NumberSequenceKeypoint.new(1, 1),
-        }),
-        Parent = self.alphaBar,
-    })
-
-    self.alphaHandle = self.window:Create("Frame", {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.new(0.5, 0, 0, 0),
-        Size = UDim2.fromOffset(connection + 8, 8),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BorderSizePixel = 0,
-        ZIndex = 4,
-
-        BackgroundTransparency = 1,
-        Parent = self.alphaBar,
-    })
-
-    self.window:Create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
-        Parent = self.alphaHandle,
-    })
-
-    self.alphaHandleStroke = self.window:Create("UIStroke", {
-        Color = Color3.fromRGB(255, 255, 255),
-        Thickness = 2,
-        Transparency = 1,
-        Parent = self.alphaHandle,
-    })
-
-    self.alphaInteract = self.window:Create("TextButton", {
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1, 16, 1, 8),
-        Position = UDim2.fromScale(0.5, 0.5),
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Text = "",
-        TextTransparency = 1,
-        AutoButtonColor = false,
-        ZIndex = 6,
-
-        Parent = self.alphaBar,
-    })
-
-        self.hexBox = self.window:Create("Frame", {
-        Position = UDim2.new(0, a18, 0, frame + 90),
-        Size = UDim2.new(1, -(a18 + 20), 0, 30),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BorderSizePixel = 0,
-        ZIndex = 2,
-
-        BackgroundTransparency = 1,
-        Parent = self.main,
-    })
-
-    self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 8),
-        Parent = self.hexBox,
-    })
-
-    self.hexBoxStroke = self.window:Create("UIStroke", {
-        Color = Color3.fromRGB(255, 255, 255),
-        Transparency = 1,
-        Parent = self.hexBox,
-    })
-
-    self.hexInput = self.window:Create("TextBox", {
-        Text = "#" .. self.value:ToHex():upper(),
-        PlaceholderText = color.t("Smart Input"),
-        Size = UDim2.new(1, -14, 1, 0),
-        Position = UDim2.fromScale(0.5, 0.5),
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        TextSize = 15,
-        TextXAlignment = Enum.TextXAlignment.Center,
-        ClearTextOnFocus = false,
-        ZIndex = 3,
-
-        TextTransparency = 1,
-        Parent = self.hexBox,
-    }, { TextColor3 = "ContentColor", FontFace = "Font", PlaceholderColor3 = "PlaceholderColor" })
-
-        self.alphaBox = self.window:Create("Frame", {
-        Position = UDim2.new(0, a18, 0, frame + 90),
-        Size = UDim2.fromOffset(a19, 30),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BorderSizePixel = 0,
-        ZIndex = 2,
-
-        BackgroundTransparency = 1,
-        Parent = self.main,
-    })
-
-    self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 8),
-        Parent = self.alphaBox,
-    })
-
-    self.alphaBoxStroke = self.window:Create("UIStroke", {
-        Color = Color3.fromRGB(255, 255, 255),
-        Transparency = 1,
-        Parent = self.alphaBox,
-    })
-
-    self.alphaInput = self.window:Create("TextBox", {
-        Text = tostring(math.round(self.alpha * 100)) .. "%",
-        PlaceholderText = "100%",
-        Size = UDim2.new(1, -10, 1, 0),
-        Position = UDim2.fromScale(0.5, 0.5),
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        TextSize = 15,
-        TextXAlignment = Enum.TextXAlignment.Center,
-        ClearTextOnFocus = false,
-        ZIndex = 3,
-
-        TextTransparency = 1,
-        Parent = self.alphaBox,
-    }, { TextColor3 = "ContentColor", FontFace = "Font", PlaceholderColor3 = "PlaceholderColor" })
-
-    self.window:ConnectFor(self, self.mapInteract.InputBegan, function(a51)
-        if
-            a51.UserInputType == Enum.UserInputType.MouseButton1
-            or a51.UserInputType == Enum.UserInputType.Touch
-        then
-            self:_beginDrag("sat", a51.UserInputType == Enum.UserInputType.MouseButton1)
-        end
-    end)
-
-    self.window:ConnectFor(self, self.hueInteract.InputBegan, function(a52)
-        if
-            a52.UserInputType == Enum.UserInputType.MouseButton1
-            or a52.UserInputType == Enum.UserInputType.Touch
-        then
-            self:_beginDrag("hue", a52.UserInputType == Enum.UserInputType.MouseButton1)
-        end
-    end)
-
-    self.window:ConnectFor(self, self.alphaInteract.InputBegan, function(a53)
-        if
-            a53.UserInputType == Enum.UserInputType.MouseButton1
-            or a53.UserInputType == Enum.UserInputType.Touch
-        then
-            self:_beginDrag("alpha", a53.UserInputType == Enum.UserInputType.MouseButton1)
-        end
-    end)
-
-    self.window:ConnectFor(self, ColorPicker.userInputService.InputEnded, function(a54)
-        if
-            (a54.UserInputType == Enum.UserInputType.MouseButton1 or a54.UserInputType == Enum.UserInputType.Touch)
-            and self._drag
-        then
-            self:_endDrag()
-        end
-    end)
-
-            self.window:ConnectFor(self, self.hexInput.FocusLost, function()
-        local a55 = a37(self.hexInput.Text)
-        if a55 then
-            self:Set(a55)
-        else
-            self.hexInput.Text = "#" .. self.value:ToHex():upper()
-        end
-    end)
-
-        self.window:ConnectFor(self, self.alphaInput.FocusLost, function()
-        local n = tonumber((self.alphaInput.Text:gsub("[^%d%.]", "")))
-        if n then
-            self:SetAlpha(a30(n / 100))
-        else
-            self.alphaInput.Text = tostring(math.round(self.alpha * 100)) .. "%"
-        end
-    end)
-end
-
-function state:_beginDrag(a56, a57)
-            if not self._isOpen then
-        return
-    end
-    self._drag = a56
-    self._dragIsMouse = a57
-    self:_setHeld(a56)
-    self:_pump()
-
-    if self._dragConnection then
-        self._dragConnection:Disconnect()
-        self._dragConnection = nil
-    end
-
-    self._dragConnection = ColorPicker.runService.RenderStepped:Connect(function()
-        local a58 = self._dragIsMouse
-            and not ColorPicker.userInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
-        if self.window.unloaded or not self._drag or a58 then
-            if a58 then
-                self:_endDrag()
-                return
-            end
-            if self._dragConnection then
-                self._dragConnection:Disconnect()
-                self._dragConnection = nil
-            end
-            return
-        end
-        self:_pump()
-    end)
-end
-
-function state:_endDrag()
-    self._drag = nil
-    self:_setHeld(nil)
-    if self._dragConnection then
-        self._dragConnection:Disconnect()
-        self._dragConnection = nil
-    end
-
-    self.window:_persist(self)
-end
-
-function state:_setHeld(a59)
-    local a60 = if a59 == "sat" then UDim2.fromOffset(16, 16) else UDim2.fromOffset(12, 12)
-    local a61 = if a59 == "hue" then UDim2.fromOffset(val + 12, 10) else UDim2.fromOffset(val + 8, 8)
-    local a62 = if a59 == "alpha"
-        then UDim2.fromOffset(connection + 12, 10)
-        else UDim2.fromOffset(connection + 8, 8)
-    ColorPicker.tweenService:Create(self.satCursor, a29, { Size = a60 }):Play()
-    ColorPicker.tweenService:Create(self.hueHandle, a29, { Size = a61 }):Play()
-    ColorPicker.tweenService:Create(self.alphaHandle, a29, { Size = a62 }):Play()
-end
-
-function state:_mouseLocation()
-    local a63 = ColorPicker.userInputService:GetMouseLocation()
-    local a64 = self.window.screenGui
-    if a64 and a64.IgnoreGuiInset then
-        return a63 - ColorPicker.guiService:GetGuiInset()
-    end
-    return a63
-end
-
-function state:_pump()
-        local a65, a66, a67, a68 = self.hue, self.sat, self.val, self.alpha
-
-    if self._drag == "sat" then
-        local a69 = self.map.AbsoluteSize
-        if a69.X <= 0 or a69.Y <= 0 then
-            return
-        end
-        local a70 = self:_mouseLocation()
-        self.sat = a30((a70.X - self.map.AbsolutePosition.X) / a69.X)
-        self.val = 1 - a30((a70.Y - self.map.AbsolutePosition.Y) / a69.Y)
-    elseif self._drag == "hue" then
-        local a71 = self.hueBar.AbsoluteSize.Y
-        if a71 <= 0 then
-            return
-        end
-        local a72 = self:_mouseLocation()
-        self.hue = a30((a72.Y - self.hueBar.AbsolutePosition.Y) / a71)
-    elseif self._drag == "alpha" then
-        local a73 = self.alphaBar.AbsoluteSize.Y
-        if a73 <= 0 then
-            return
-        end
-        local a74 = self:_mouseLocation()
-                self.alpha = 1 - a30((a74.Y - self.alphaBar.AbsolutePosition.Y) / a73)
-    else
-        return
-    end
-
-                if self.hue == a65 and self.sat == a66 and self.val == a67 and self.alpha == a68 then
-        return
-    end
-
-    self.value = Color3.fromHSV(self.hue, self.sat, self.val)
-    self:_render("drag")
-    self:_fireCallback()
-end
-
-function state:_render(a75)
-    local a76 = Color3.fromHSV(self.hue, 1, 1)
-    local a77 = UDim2.new(self.sat, 0, 1 - self.val, 0)
-    local a78 = UDim2.new(0.5, 0, self.hue, 0)
-    local a79 = UDim2.new(0.5, 0, 1 - self.alpha, 0)
-    local a80 = 1 - self.alpha     local a81 = 1 - 0.4 * self.alpha
-    if a75 == "instant" then
-        self.map.BackgroundColor3 = a76
-        self.satCursor.Position, self.satCursor.BackgroundColor3 = a77, self.value
-        self.hueHandle.Position, self.hueHandle.BackgroundColor3 = a78, a76
-        self.alphaBar.BackgroundColor3 = self.value
-        self.alphaHandle.Position, self.alphaHandle.BackgroundColor3 = a79, self.value
-        self.preview.BackgroundColor3 = self.value
-        self.previewShadow.Color = self.value
-        if not self.window.hidden then
-            self.preview.BackgroundTransparency = a80
-            self.previewShadow.Transparency = a81
-        end
-    else
-        local a82 = if a75 == "drag" then a28 else a27
-        ColorPicker.tweenService:Create(self.map, a82, { BackgroundColor3 = a76 }):Play()
-        ColorPicker.tweenService
-            :Create(self.satCursor, a82, { Position = a77, BackgroundColor3 = self.value })
-            :Play()
-        ColorPicker.tweenService:Create(self.hueHandle, a82, { Position = a78, BackgroundColor3 = a76 }):Play()
-        ColorPicker.tweenService
-            :Create(self.alphaHandle, a82, { Position = a79, BackgroundColor3 = self.value })
-            :Play()
-                ColorPicker.tweenService:Create(self.alphaBar, a27, { BackgroundColor3 = self.value }):Play()
-        local a83 = { BackgroundColor3 = self.value }
-        local a84 = { Color = self.value }
-        if not self.window.hidden then
-            a83.BackgroundTransparency = a80
-            a84.Transparency = a81
-        end
-        ColorPicker.tweenService:Create(self.preview, a27, a83):Play()
-        ColorPicker.tweenService:Create(self.previewShadow, a27, a84):Play()
-    end
-
-        if not self.hexInput:IsFocused() then
-        self.hexInput.Text = "#" .. self.value:ToHex():upper()
-    end
-    if not self.alphaInput:IsFocused() then
-        self.alphaInput.Text = tostring(math.round(self.alpha * 100)) .. "%"
-    end
-
-    self:_renderInvisible(a75 ~= "instant")
-end
-
-function state:_renderInvisible(a85)
-    local a86 = 0
-    if self._isOpen and not self.window.hidden then
-        a86 = a30((0.12 - self.alpha) / 0.12)
-    end
-    local t = 1 - a86
-    if a85 then
-        ColorPicker.tweenService:Create(self.invisibleIcon, a26, { ImageTransparency = t }):Play()
-        ColorPicker.tweenService:Create(self.invisibleText, a26, { TextTransparency = t }):Play()
-    else
-        self.invisibleIcon.ImageTransparency = t
-        self.invisibleText.TextTransparency = t
-    end
-end
-
-function state:_renderTooltip(a87)
-    self._renderTooltipState = a87
-end
-
-function state:_fireCallback()
-    self.window:_runGuarded(self, self.callback, self.value, self.alpha)
-end
-
-function state:_open()
-    if self._isOpen then
-        return
-    end
-    self._isOpen = true
-    self:_setControlsVisible(true)
-    if self._outsideClickConn then
-        self.window:Disconnect(self._outsideClickConn)
-    end
-    self._outsideClickConn = self.window:Connect(ColorPicker.userInputService.InputBegan, function(a88)
-        if
-            a88.UserInputType ~= Enum.UserInputType.MouseButton1
-            and a88.UserInputType ~= Enum.UserInputType.Touch
-        then
-            return
-        end
-        local a89 = a88.Position
-        local a90 = self.main.AbsolutePosition
-        local a91 = self.main.AbsoluteSize
-        if
-            a89.X < a90.X
-            or a89.X > a90.X + a91.X
-            or a89.Y < a90.Y
-            or a89.Y > a90.Y + a91.Y
-        then
-            self:_close()
-        end
-    end)
-
-    ColorPicker.tweenService:Create(self.main, a25, { Size = UDim2.new(1, -20, 0, self._openHeight) }):Play()
-        ColorPicker.tweenService
-        :Create(self.preview, a25, { Position = self._previewOpenPos, Size = self._previewOpenSize })
-        :Play()
-    self:_applyPickerVisibility(true, true)
-    self:_renderInvisible(true)
-end
-
-function state:_close()
-    if not self._isOpen then
-        return
-    end
-    self._isOpen = false
-
-    if self._outsideClickConn then
-        self.window:Disconnect(self._outsideClickConn)
-        self._outsideClickConn = nil
-    end
-
-        if self._drag then
-        self:_endDrag()
-    end
-    if self.hexInput:IsFocused() then
-        self.hexInput:ReleaseFocus()
-    end
-    if self.alphaInput:IsFocused() then
-        self.alphaInput:ReleaseFocus()
-    end
-
-    self:_applyPickerVisibility(false, true)
-    self:_renderInvisible(true)
-    ColorPicker.tweenService
-        :Create(self.preview, a25, { Position = a23, Size = a24 })
-        :Play()
-    ColorPicker.tweenService:Create(self.main, a25, { Size = UDim2.new(1, -20, 0, element) }):Play()
-
-            task.delay(a26.Time, function()
-        if not self._isOpen and not self.window.unloaded then
-            self:_setControlsVisible(false)
-        end
-    end)
-end
-
-function state:_applyPickerVisibility(a92, a93)
-    local a94 = {
-        [self.map] = { BackgroundTransparency = if a92 then 0 else 1 },
-        [self.satOverlay] = { BackgroundTransparency = if a92 then 0 else 1 },
-        [self.valOverlay] = { BackgroundTransparency = if a92 then 0 else 1 },
-        [self.mapStroke] = { Transparency = if a92 then 0.9 else 1 },
-        [self.satCursor] = { BackgroundTransparency = if a92 then 0 else 1 },
-        [self.satCursorStroke] = { Transparency = if a92 then 0 else 1 },
-        [self.hueBar] = { BackgroundTransparency = if a92 then 0 else 1 },
-        [self.hueHandle] = { BackgroundTransparency = if a92 then 0 else 1 },
-        [self.hueHandleStroke] = { Transparency = if a92 then 0 else 1 },
-        [self.alphaBar] = { BackgroundTransparency = if a92 then 0 else 1 },
-        [self.alphaHandle] = { BackgroundTransparency = if a92 then 0 else 1 },
-        [self.alphaHandleStroke] = { Transparency = if a92 then 0 else 1 },
-        [self.hexBox] = { BackgroundTransparency = if a92 then 0.9 else 1 },
-        [self.hexBoxStroke] = { Transparency = if a92 then 0.85 else 1 },
-        [self.hexInput] = { TextTransparency = if a92 then 0.4 else 1 },
-        [self.alphaBox] = { BackgroundTransparency = if a92 then 0.9 else 1 },
-        [self.alphaBoxStroke] = { Transparency = if a92 then 0.85 else 1 },
-        [self.alphaInput] = { TextTransparency = if a92 then 0.4 else 1 },
-    }
-
-    for a95, a96 in a94 do
-        if a93 then
-            ColorPicker.tweenService:Create(a95, a26, a96):Play()
-        else
-            for a97, a98 in a96 do
-                a95[a97] = a98
-            end
-        end
-    end
-end
-
-function state:_setControlsVisible(a99)
-    for _, a100 in { self.map, self.hueBar, self.alphaBar, self.hexBox, self.alphaBox } do
-        a100.Visible = a99
-    end
-end
-
-function state:_applyLayout()
-    local a101 = self.main.AbsoluteSize.X
-    local a102 = if a101 > 0 and a101 < a21 then "narrow" else "wide"
-    if a102 == self._layoutMode then
-        return
-    end
-    self._layoutMode = a102
-
-    local l = a22[a102]
-    self._openHeight = l.height
-    self._previewOpenPos = l.previewPos
-    self._previewOpenSize = l.previewSize
-    self.hexBox.Position = l.hexPos
-    self.hexBox.Size = l.hexSize
-    self.alphaBox.Position = l.alphaFieldPos
-    self.alphaBox.Size = l.alphaFieldSize
-
-    if self._isOpen then
-        ColorPicker.tweenService:Create(self.main, a25, { Size = UDim2.new(1, -20, 0, self._openHeight) }):Play()
-        ColorPicker.tweenService
-            :Create(self.preview, a25, { Position = self._previewOpenPos, Size = self._previewOpenSize })
-            :Play()
-    end
-end
-
-function state:Set(a103, a104)
-    self.value = a45(a103, self.value)
-    self.hue, self.sat, self.val = self.value:ToHSV()
-        self:_render(if self._isOpen then "animate" else "instant")
-
-    if not a104 then
-        self:_fireCallback()
-        self.window:_persist(self)
-    end
-end
-
-function state:SetAlpha(a105, a106)
-    self.alpha = a30(if type(a105) == "number" then a105 else self.alpha)
-    self:_render(if self._isOpen then "animate" else "instant")
-
-    if not a106 then
-        self:_fireCallback()
-        self.window:_persist(self)
-    end
-end
-
-function state:_serialize()
-    return self.value:ToHex() .. string.format("%02x", math.clamp(math.round((self.alpha or 1) * 255), 0, 255))
-end
-
-function state:_deserialize(a107)
-    local a108 = tostring(a107)
-    local a109 = nil
-    if #a108 >= 8 then
-        a109 = (tonumber(a108:sub(7, 8), 16) or 255) / 255
-        a108 = a108:sub(1, 6)
-    end
-
-            local ok, a110 = pcall(Color3.fromHex, a108)
-    if not ok then
-        return
-    end
-    if a109 then
-        self:SetAlpha(a109, true)
-    end
-    self:Set(a110)
-end
-
-function state:_setShown(a111, a112)
-    local w = self.window
-    if a111 then
-        w:_revealCommon(self, a112)
-                w:_reveal(self.preview, { BackgroundTransparency = 1 - self.alpha }, a112)
-        w:_reveal(self.previewShadow, { Transparency = 1 - 0.4 * self.alpha }, a112)
-    else
-        w:_hideCommon(self, a112)
-        w:_reveal(self.preview, { BackgroundTransparency = 1 }, a112)
-        w:_reveal(self.previewShadow, { Transparency = 1 }, a112)
-                if self._isOpen then
-            self:_close()
-        end
-    end
-end
-
-props(state)
-name(state)
-
-return state
-
-end)() end,
-    [24] = function()local wax,script,require=ImportGlobals(24)local ImportGlobals return (function(...)
-local state = {}
-state.__index = state
 state.__type = "Console"
 
 local constants = script.Parent.Parent.utilities
@@ -11139,7 +10148,7 @@ Console(state)
 return state
 
 end)() end,
-    [25] = function()local wax,script,require=ImportGlobals(25)local ImportGlobals return (function(...)
+    [24] = function()local wax,script,require=ImportGlobals(24)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Descriptor"
@@ -11200,7 +10209,7 @@ end
 return state
 
 end)() end,
-    [26] = function()local wax,script,require=ImportGlobals(26)local ImportGlobals return (function(...)
+    [25] = function()local wax,script,require=ImportGlobals(25)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Divider"
@@ -11345,7 +10354,7 @@ constants(state)
 return state
 
 end)() end,
-    [27] = function()local wax,script,require=ImportGlobals(27)local ImportGlobals return (function(...)
+    [26] = function()local wax,script,require=ImportGlobals(26)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Dropdown"
@@ -11476,7 +10485,9 @@ function state.new(tab, a49)
         ),
 
         _isOpen = false,
+        _searchOpen = false,
         _optionFrames = {},
+        _optionsBuilt = false,
     }, state)
 
             self._desiredValue = self.value
@@ -11631,7 +10642,8 @@ function state.new(tab, a49)
         Parent = self.panel,
     })
 
-    self:_buildSearch()
+    -- [[The search bar is built with the rows, on the first open: until then
+    -- [[it is behind a closed panel and cannot be reached.]]
     self:_buildActions()
 
     self.list = self.window:Create("ScrollingFrame", {
@@ -11929,10 +10941,10 @@ function state.new(tab, a49)
 
     self._buildOption = a64
 
-    for _, a76 in self.options do
-        local a77 = a64(a76)
-        table.insert(self._optionFrames, a77)
-    end
+    -- [[Rows are built on the first open, not here: a closed dropdown shows
+    -- [[only its header, so its options cost nothing until the user looks at
+    -- [[them. self.options stays the source of truth, so anything that changes
+    -- [[the list while closed is simply reflected the next time it opens.]]
 
     a63()
     self:_updateCorners()
@@ -12298,10 +11310,48 @@ function state:_openHeight()
     return math.min(a109 + a102(a111), a110)
 end
 
+-- [[Materialise one row, by option index. Idempotent: the row keeps whatever
+-- [[state it already carries, so this can be called from any path that needs
+-- [[the row to exist.]]
+function state:_buildOptionAt(a: number)
+    local built = self._optionFrames[a]
+    if built then
+        return built
+    end
+
+    local optionFrame = self._buildOption(self.options[a])
+    optionFrame.frame.LayoutOrder = a
+    self._optionFrames[a] = optionFrame
+    return optionFrame
+end
+
+-- [[Build every row the current option list implies. Called when the list is
+-- [[first looked at (opening), which is also the first moment the rows can be
+-- [[seen, measured or hovered.]]
+function state:_materialiseOptions()
+    if self._optionsBuilt then
+        return
+    end
+    self._optionsBuilt = true
+
+    -- [[The bar goes in first, exactly where construction used to put it, so
+    -- [[the panel's child order is what it always was. It is a sibling of the
+    -- [[list (LayoutOrder 1 against the list's 3), not of the rows.]]
+    if not self.searchbar then
+        self:_buildSearch()
+    end
+
+    for a = 1, #self.options do
+        self:_buildOptionAt(a)
+    end
+end
+
 function state:_open()
     if self._isOpen then
         return
     end
+    self:_materialiseOptions()
+    self:_updateCorners()
     self._isOpen = true
 
     if self._outsideClickConn then
@@ -12508,25 +11558,29 @@ function state:Refresh(a140)
 
     local a141 = self:_deriveSelection()
 
-                local a142 = #self._optionFrames
-    local a143 = #self.options
+    -- [[A dropdown that was never opened has no rows to rebind: the new list
+    -- [[is what the rows are built from the first time it is opened.]]
+    if self._optionsBuilt then
+                        local a142 = #self._optionFrames
+        local a143 = #self.options
 
-    for a144 = 1, math.min(a142, a143) do
-        self:_rebindOption(self._optionFrames[a144], self.options[a144], a144)
-    end
+        for a144 = 1, math.min(a142, a143) do
+            self:_rebindOption(self._optionFrames[a144], self.options[a144], a144)
+        end
 
-    for a145 = a142 + 1, a143 do
-        local a146 = self._buildOption(self.options[a145])
-        a146.frame.LayoutOrder = a145
-        table.insert(self._optionFrames, a146)
-    end
+        for a145 = a142 + 1, a143 do
+            local a146 = self._buildOption(self.options[a145])
+            a146.frame.LayoutOrder = a145
+            table.insert(self._optionFrames, a146)
+        end
 
-    if a143 < a142 then
-        self:_destroyOptionsFrom(a143 + 1)
-    end
+        if a143 < a142 then
+            self:_destroyOptionsFrom(a143 + 1)
+        end
 
-                for _, a147 in self._optionFrames do
-        self._renderOptionState(a147, false)
+                    for _, a147 in self._optionFrames do
+            self._renderOptionState(a147, false)
+        end
     end
 
     self._updateSelectedLabel()
@@ -12547,13 +11601,14 @@ function state:Add(a148)
     end
 
     table.insert(self.options, a148)
-    local a149 = self._buildOption(a148)
-    table.insert(self._optionFrames, a149)
+    -- [[While the rows are still unbuilt the option list is the only record;
+    -- [[the new row appears with the rest the first time this dropdown opens.]]
+    local a149 = if self._optionsBuilt then self:_buildOptionAt(#self.options) else nil
 
         local a150 = self:_deriveSelection()
 
-    if self._isOpen then
-        self._renderOptionState(a149, true)
+    if self._isOpen and a149 then
+        self:_renderOptionState(a149, true)
     end
 
             self:_applyFilter(if self._searchOpen then self.searchInput.Text else "")
@@ -12665,7 +11720,7 @@ multiSelect(state)
 return state
 
 end)() end,
-    [28] = function()local wax,script,require=ImportGlobals(28)local ImportGlobals return (function(...)
+    [27] = function()local wax,script,require=ImportGlobals(27)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Group"
@@ -12867,7 +11922,7 @@ constants(state)
 return state
 
 end)() end,
-    [29] = function()local wax,script,require=ImportGlobals(29)local ImportGlobals return (function(...)
+    [28] = function()local wax,script,require=ImportGlobals(28)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Input"
@@ -13000,7 +12055,9 @@ function state.new(tab, placeholderLabel)
         Parent = self.box,
     }, { Color = "SurfaceStroke" })
 
-        self.glow = self.window:CreateGlow(self.box, "FieldGlow", 20, 1)
+        -- [[The field glow is the validation flash, and its idle transparency
+        -- [[is 1 (invisible): it is built by _fieldGlow() the first time the
+        -- [[field has a result to flash.]]
     self._glowIdle = 1
     self.input = self.window:Create("TextBox", {
         Text = self.value,
@@ -13097,6 +12154,13 @@ function state:Set(a22, a23)
     self:_commit(a22, a23)
 end
 
+function state:_fieldGlow()
+    if not self.glow then
+        self.glow = self.window:CreateGlow(self.box, "FieldGlow", 20, 1)
+    end
+    return self.glow
+end
+
 function state:_setShown(a24, a25)
     local w = self.window
     if a24 then
@@ -13128,7 +12192,7 @@ name(state)
 return state
 
 end)() end,
-    [30] = function()local wax,script,require=ImportGlobals(30)local ImportGlobals return (function(...)
+    [29] = function()local wax,script,require=ImportGlobals(29)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Keybind"
@@ -13590,7 +12654,7 @@ name(state)
 return state
 
 end)() end,
-    [31] = function()local wax,script,require=ImportGlobals(31)local ImportGlobals return (function(...)
+    [30] = function()local wax,script,require=ImportGlobals(30)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Progress"
@@ -14040,7 +13104,7 @@ props(state)
 return state
 
 end)() end,
-    [32] = function()local wax,script,require=ImportGlobals(32)local ImportGlobals return (function(...)
+    [31] = function()local wax,script,require=ImportGlobals(31)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Section"
@@ -14127,7 +13191,7 @@ constants(state)
 return state
 
 end)() end,
-    [33] = function()local wax,script,require=ImportGlobals(33)local ImportGlobals return (function(...)
+    [32] = function()local wax,script,require=ImportGlobals(32)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Slider"
@@ -14692,7 +13756,7 @@ flag(state)
 return state
 
 end)() end,
-    [34] = function()local wax,script,require=ImportGlobals(34)local ImportGlobals return (function(...)
+    [33] = function()local wax,script,require=ImportGlobals(33)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Statistic"
@@ -15310,7 +14374,7 @@ name(state)
 return state
 
 end)() end,
-    [35] = function()local wax,script,require=ImportGlobals(35)local ImportGlobals return (function(...)
+    [34] = function()local wax,script,require=ImportGlobals(34)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Tab"
@@ -15514,6 +14578,14 @@ function state:Select(a24)
     end
     self.window:_jumpTo(self.tabPage)
 
+    -- [[A tab nobody has opened yet still has its elements hidden: its page is
+    -- [[not the current page of window.elements until the line above, so this
+    -- [[is the first frame any of them can be seen. Showing them here is the
+    -- [[same instant show the window's reveal used to run for every tab.]]
+    if self._elementsPending and not self.window.hidden and not self.window.minimised then
+        self.window:_showTabElements(self)
+    end
+
                     local a25 = a24 or not self.window:_interactive()
 
     if not self.neglectSelector and not a25 then
@@ -15555,6 +14627,10 @@ function state:_register(element)
 
     if not self.window.hidden then
         element:_setShown(true, false)
+    else
+        -- [[The element stayed hidden with the window: remember that this tab
+        -- [[has something to show when it is next opened.]]
+        self._elementsPending = true
     end
 
     return element
@@ -15614,10 +14690,6 @@ end
 
 function state:CreateKeybind(a39)
     return self:_register(require(script.Parent.keybind).new(self, a39))
-end
-
-function state:CreateColorPicker(a40)
-    return self:_register(require(script.Parent.colorpicker).new(self, a40))
 end
 
 function state:CreateGroup(a41)
@@ -15692,7 +14764,7 @@ end
 return state
 
 end)() end,
-    [36] = function()local wax,script,require=ImportGlobals(36)local ImportGlobals return (function(...)
+    [35] = function()local wax,script,require=ImportGlobals(35)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "TabSection"
@@ -15822,7 +14894,7 @@ end
 return state
 
 end)() end,
-    [37] = function()local wax,script,require=ImportGlobals(37)local ImportGlobals return (function(...)
+    [36] = function()local wax,script,require=ImportGlobals(36)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Tag"
@@ -15986,7 +15058,7 @@ end
 return state
 
 end)() end,
-    [38] = function()local wax,script,require=ImportGlobals(38)local ImportGlobals return (function(...)
+    [37] = function()local wax,script,require=ImportGlobals(37)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Text"
@@ -16140,7 +15212,7 @@ constants(state)
 return state
 
 end)() end,
-    [39] = function()local wax,script,require=ImportGlobals(39)local ImportGlobals return (function(...)
+    [38] = function()local wax,script,require=ImportGlobals(38)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Toggle"
@@ -16154,6 +15226,29 @@ local name = require(constants.lockable)
 local flag = require(constants.locale)
 local value = require(constants.HapticEngine)
 local callback = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+
+-- [[Switch metrics, in one place. The track and the knob are both pills and
+-- [[the knob keeps the same clearance on every side it can see (`switchInset`
+-- [[at the parked end, the same above and below), so the two resting states
+-- [[are exact mirrors of each other.
+--
+-- [[The track is also deliberately only as wide as the knob plus its travel.
+-- [[With the old 50px track around a 25px knob, "on" parked the knob 3px from
+-- [[the right edge and left 22px of empty track on the left: a ratio of
+-- [[roughly 7:1 at the same moment the knob looked like it floated. Dropping
+-- [[the track to 44px keeps the knob's travel readable while the empty side
+-- [[drops to 14px, so neither state reads as lopsided.
+--
+-- [[Positions are expressed from the track's right edge (scale 1), which is
+-- [[how the knob's AnchorPoint (0, 0.5) resolves against its parent.]]
+local switchTrackWidth = 44
+local switchTrackHeight = 22
+local switchKnobWidth = 26
+local switchKnobHeight = 18
+local switchInset = 2
+
+local switchKnobActive = UDim2.new(1, -(switchKnobWidth + switchInset), 0.5, 0)
+local switchKnobRest = UDim2.new(1, -(switchTrackWidth - switchInset), 0.5, 0)
 
 function state.new(tab, element)
     element = if typeof(element) == "table" then element else {}
@@ -16198,14 +15293,16 @@ function state:_buildSwitch(frame)
 
     self.functionContainer = window:Create("Frame", {
         BorderSizePixel = 0,
-        Size = UDim2.fromOffset(50, 21),
+        Size = UDim2.fromOffset(switchTrackWidth, switchTrackHeight),
 
         BackgroundTransparency = 1,
         Parent = frame,
     }, { BackgroundColor3 = "ToggleTrack" })
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 15),
+        -- [[A true pill at any height, instead of a radius that happened to
+        -- [[match the old 21px track.]]
+        CornerRadius = UDim.new(1, 0),
         Parent = self.functionContainer,
     })
 
@@ -16215,9 +15312,14 @@ function state:_buildSwitch(frame)
 
     self.indicator = window:Create("Frame", {
         BorderSizePixel = 0,
-        Size = UDim2.fromOffset(25, 17),
-        Position = self.value and UDim2.new(1, -28, 0.5, 0) or UDim2.new(1, -47, 0.5, 0),
+        Size = UDim2.fromOffset(switchKnobWidth, switchKnobHeight),
+        Position = if self.value then switchKnobActive else switchKnobRest,
         AnchorPoint = Vector2.new(0, 0.5),
+        -- [[Above the track's sheen overlay (ZIndex 1): the sheen belongs to
+        -- [[the track, and at equal ZIndex the later sibling drew it straight
+        -- [[over the knob, washing the knob's lower half and leaving it with
+        -- [[an uneven rim.]]
+        ZIndex = 2,
         BackgroundColor3 = self.value and self.window.theme.AccentColor or self.window.theme.ToggleKnobOff,
 
         BackgroundTransparency = 1,
@@ -16234,7 +15336,9 @@ function state:_buildSwitch(frame)
         Transparency = 1,         Parent = self.indicator,
     })
 
-        self.indicatorGlow = window:CreateGlow(self.indicator, "AccentColor", 20, 1)
+        -- [[The glow is only ever visible while the switch is on, so it is
+        -- [[built by _indicatorGlow() the first time that matters: an off
+        -- [[switch carries no shadow instance at all.]]
 
         self.overlay = window:Create("Frame", {
         BorderSizePixel = 0,
@@ -16242,13 +15346,16 @@ function state:_buildSwitch(frame)
         Position = UDim2.fromScale(0, 0),
         AnchorPoint = Vector2.new(0, 0),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        -- [[Under the knob (ZIndex 2) and over the track: the theme's sheen
+        -- [[tints the track, not whatever is parked on it.]]
+        ZIndex = 1,
 
         BackgroundTransparency = 1,
         Parent = self.functionContainer,
     }, { Visible = "DarkToggleOverlay" })
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 15),
+        CornerRadius = UDim.new(1, 0),
         Parent = self.overlay,
     })
 
@@ -16511,17 +15618,25 @@ function state:_buildCompact()
     end)
 end
 
+function state:_indicatorGlow()
+    if not self.indicatorGlow then
+        self.indicatorGlow = self.window:CreateGlow(self.indicator, "AccentColor", 20, 1)
+    end
+    return self.indicatorGlow
+end
+
 function state:_animateIndicator()
     local track = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-    if self.indicatorGlow then
+    local glow = if self.value then self:_indicatorGlow() else self.indicatorGlow
+    if glow then
         Toggle.tweenService
-            :Create(self.indicatorGlow, track, { Transparency = self.value and self.window.theme.AccentGlow or 1 })
+            :Create(glow, track, { Transparency = self.value and self.window.theme.AccentGlow or 1 })
             :Play()
     end
     if self.value then
         Toggle.tweenService
             :Create(self.indicator, track, {
-                Position = UDim2.new(1, -28, 0.5, 0),
+                Position = switchKnobActive,
                 BackgroundColor3 = self.window.theme.AccentColor,
                 BackgroundTransparency = 0,
             })
@@ -16532,7 +15647,7 @@ function state:_animateIndicator()
     else
         Toggle.tweenService
             :Create(self.indicator, track, {
-                Position = UDim2.new(1, -47, 0.5, 0),
+                Position = switchKnobRest,
                 BackgroundColor3 = self.window.theme.ToggleKnobOff,
                 BackgroundTransparency = self.window.theme.ToggleKnobOffTransparency,
             })
@@ -16558,12 +15673,15 @@ function state:_setShown(flag, a16)
             Color = self.value and w.theme.AccentStroke or Color3.fromRGB(255, 255, 255),
             Transparency = self.value and 0 or 0.7,
         }, a16, knob)
-        w:_reveal(
-            self.indicatorGlow,
-            { Transparency = self.value and w.theme.AccentGlow or 1 },
-            a16,
-            accentTween
-        )
+        local shownGlow = if self.value then self:_indicatorGlow() else self.indicatorGlow
+        if shownGlow then
+            w:_reveal(
+                shownGlow,
+                { Transparency = self.value and w.theme.AccentGlow or 1 },
+                a16,
+                accentTween
+            )
+        end
         w:_reveal(self.overlay, { BackgroundTransparency = 0 }, a16, knob)
         w:_reveal(self.containerStroke, { Transparency = 0.85 }, a16, knob)
         w:_reveal(
@@ -16576,7 +15694,9 @@ function state:_setShown(flag, a16)
         w:_hideCommon(self, a16)
         w:_reveal(self.indicator, { BackgroundTransparency = 1 }, a16, knob)
         w:_reveal(self.indicatorStroke, { Transparency = 1 }, a16, knob)
-        w:_reveal(self.indicatorGlow, { Transparency = 1 }, a16, accentTween)
+        if self.indicatorGlow then
+            w:_reveal(self.indicatorGlow, { Transparency = 1 }, a16, accentTween)
+        end
         w:_reveal(self.overlay, { BackgroundTransparency = 1 }, a16, knob)
         w:_reveal(self.containerStroke, { Transparency = 1 }, a16, knob)
         w:_reveal(self.functionContainer, { BackgroundTransparency = 1 }, a16, knob)
@@ -16595,13 +15715,16 @@ function state:_refreshTheme()
     ts:Create(self.indicatorStroke, a17, {
         Color = self.value and t.AccentStroke or Color3.fromRGB(255, 255, 255),
     }):Play()
-    if self.indicatorGlow then
-        ts:Create(self.indicatorGlow, a17, { Transparency = self.value and t.AccentGlow or 1 }):Play()
+    local glow = if self.value then self:_indicatorGlow() else self.indicatorGlow
+    if glow then
+        ts:Create(glow, a17, { Transparency = self.value and t.AccentGlow or 1 }):Play()
     end
 end
 
 function state:_minWidth()
-    local w = 30 + 10 + 50     if self.icon then
+    -- [[The switch column is the track's own width: the compact row sizes its
+    -- [[label column against this, so it has to follow the metrics above.]]
+    local w = 30 + 10 + switchTrackWidth     if self.icon then
         w += 21     end
         w += tab.textWidth(self.window.theme.Font, 16, flag.resolve(self.name))
     return w
@@ -16626,7 +15749,7 @@ end
 return state
 
 end)() end,
-    [48] = function()local wax,script,require=ImportGlobals(48)local ImportGlobals return (function(...)
+    [47] = function()local wax,script,require=ImportGlobals(47)local ImportGlobals return (function(...)
 
 local managerModule = require(script.manager)
 local registryModule = require(script.registry)
@@ -16651,7 +15774,7 @@ end
 return settings
 
 end)() end,
-    [41] = function()local wax,script,require=ImportGlobals(41)local ImportGlobals return (function(...)
+    [40] = function()local wax,script,require=ImportGlobals(40)local ImportGlobals return (function(...)
 
 local appearance = {}
 
@@ -16674,7 +15797,7 @@ end
 return appearance
 
 end)() end,
-    [42] = function()local wax,script,require=ImportGlobals(42)local ImportGlobals return (function(...)
+    [41] = function()local wax,script,require=ImportGlobals(41)local ImportGlobals return (function(...)
 
 local behavior = {}
 
@@ -16691,7 +15814,7 @@ end
 return behavior
 
 end)() end,
-    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)
+    [42] = function()local wax,script,require=ImportGlobals(42)local ImportGlobals return (function(...)
 
 local defaults = {}
 
@@ -16706,6 +15829,7 @@ defaults.values = {
     antiWindowDuplicate = true,
     layoutMode = "top",
     activeSubTab = 1,
+    motionSpeed = "normal",
 }
 
 function defaults.clone(overrides: { [string]: any }?): { [string]: any }
@@ -16721,7 +15845,7 @@ end
 return defaults
 
 end)() end,
-    [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)
+    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)
 
 local registry = require(script.Parent.registry)
 local defaults = require(script.Parent.defaults)
@@ -16752,8 +15876,14 @@ local domains = {
 }
 
 function SettingsManager.new(overrides: { [string]: any }?): SettingsManager
+    -- [[`values` and `listeners` were never created here, so every method that
+    -- touches them (:get, :set, :save, :load, :onChange) raised "attempt to
+    -- index nil" the first time a host used a manager directly. The window
+    -- keeps its own plain settings table, which is why this went unnoticed.]]
     local self = setmetatable({
         defaults = defaults.clone(overrides),
+        values = defaults.clone(overrides),
+        listeners = {},
         persistence = {},
     }, SettingsManager)
     return self
@@ -16837,7 +15967,9 @@ end
 return SettingsManager
 
 end)() end,
-    [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
+    [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)
+
+local motion = require(script.Parent.Parent.utilities.motion)
 
 local performance = {}
 
@@ -16845,13 +15977,21 @@ function performance.validate(key: string, value: any): (boolean, any)
     if key == "haptics" then
         return type(value) == "boolean", value == true
     end
+    if key == "motionSpeed" then
+        -- [[Validated against the motion service's own profile list, so the
+        -- setting can never name a profile the library does not implement.]]
+        if type(value) == "string" and motion.profiles[value] then
+            return true, value
+        end
+        return false, nil
+    end
     return false, nil
 end
 
 return performance
 
 end)() end,
-    [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
+    [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
 
 local settingsPersistence = require(script.Parent.Parent.utilities.persistenceSettings)
 local settingsCache = require(script.Parent.Parent.cache.persistenceCache)
@@ -16900,7 +16040,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [47] = function()local wax,script,require=ImportGlobals(47)local ImportGlobals return (function(...)
+    [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
 
 local registry = {}
 
@@ -16981,6 +16121,18 @@ registry.definitions = {
         domain = "appearance",
         description = "Index of the currently selected settings sub-tab.",
     },
+    motionSpeed = {
+        key = "motionSpeed",
+        kind = "enum",
+        domain = "performance",
+        -- [[Backed by utilities/motion.luau: relaxed/normal/snappy rescale
+        -- every transition routed through the motion service (the window's
+        -- entrance, the element reveals and hovers, the result flashes), and
+        -- instant switches that animation off - targets are applied on the
+        -- spot - for accessibility and for machines where the UI is competing
+        -- with the game for frame time.]]
+        description = "Animation speed: relaxed, normal, snappy, or instant (no animation).",
+    },
 }
 
 function registry.definition(definitions: string): SettingDefinition?
@@ -16999,7 +16151,7 @@ end
 return registry
 
 end)() end,
-    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
+    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
 
 local imageCache = require(script.moduleCache)
 
@@ -17010,7 +16162,7 @@ local moduleCache = {
 return moduleCache
 
 end)() end,
-    [49] = function()local wax,script,require=ImportGlobals(49)local ImportGlobals return (function(...)
+    [48] = function()local wax,script,require=ImportGlobals(48)local ImportGlobals return (function(...)
 local filesystem = require(script.Parent.Parent.utilities.filesystem)
 local path = require(script.Parent.Parent.utilities.path)
 local variables = require(script.Parent.Parent.core.state)
@@ -17313,7 +16465,7 @@ end
 return imageCache
 
 end)() end,
-    [50] = function()local wax,script,require=ImportGlobals(50)local ImportGlobals return (function(...)
+    [49] = function()local wax,script,require=ImportGlobals(49)local ImportGlobals return (function(...)
 
 local moduleCache = {}
 
@@ -17344,7 +16496,7 @@ end
 return moduleCache
 
 end)() end,
-    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
+    [50] = function()local wax,script,require=ImportGlobals(50)local ImportGlobals return (function(...)
 
 local persistenceCache = {}
 
@@ -17369,7 +16521,7 @@ end
 return persistenceCache
 
 end)() end,
-    [56] = function()local wax,script,require=ImportGlobals(56)local ImportGlobals return (function(...)
+    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
 
 local textMetrics = require(script.textMetrics)
 local colors = require(script.colors)
@@ -17387,7 +16539,7 @@ functions.contrastText = colors.contrastText
 return functions
 
 end)() end,
-    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
+    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
 local colors = {}
 
 function colors.contrastColor(color: Color3): Color3
@@ -17407,7 +16559,7 @@ end
 return colors
 
 end)() end,
-    [54] = function()local wax,script,require=ImportGlobals(54)local ImportGlobals return (function(...)
+    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
 local flagNames = {}
 
 local offsetBasis = 2166136261
@@ -17439,7 +16591,7 @@ end
 return flagNames
 
 end)() end,
-    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
+    [54] = function()local wax,script,require=ImportGlobals(54)local ImportGlobals return (function(...)
 local state = require(script.Parent.Parent.core.state)
 local textService = state.textService
 
@@ -17546,7 +16698,7 @@ end
 return textMetrics
 
 end)() end,
-    [57] = function()local wax,script,require=ImportGlobals(57)local ImportGlobals return (function(...)
+    [56] = function()local wax,script,require=ImportGlobals(56)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local Sidebar = {}
@@ -17605,7 +16757,7 @@ end
 return Sidebar
 
 end)() end,
-    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
+    [57] = function()local wax,script,require=ImportGlobals(57)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local SidebarCollapsed = {}
@@ -17665,7 +16817,7 @@ end
 return SidebarCollapsed
 
 end)() end,
-    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
+    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
 local search = require(script.Parent.Parent.components.search)
 
 local Topbar = {}
@@ -17709,7 +16861,7 @@ end
 return Topbar
 
 end)() end,
-    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
+    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
 
 local image = require(script.image)
 
@@ -17724,7 +16876,7 @@ local windowIcons = {
 return windowIcons
 
 end)() end,
-    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
+    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
 local imageCache = require(script.Parent.Parent.cache.imageCache)
 local variables = require(script.Parent.Parent.core.state)
 
@@ -17889,7 +17041,7 @@ end
 return image
 
 end)() end,
-    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
+    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
 
 local windowIcons = {}
 
@@ -17903,7 +17055,6 @@ windowIcons.ids = {
     chevron = 88479147175134,
     check = 125626312718314,
     dot = 91452555903853,
-    colorpicker = 91452555903853,
     config = 125823673784681,
 }
 
@@ -17916,7 +17067,6 @@ windowIcons.roles = {
     chevron = "chevron",
     check = "check",
     dot = "dot",
-    colorpicker = "colorpicker",
     config = "config",
 }
 
@@ -17953,7 +17103,7 @@ end
 return windowIcons
 
 end)() end,
-    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
+    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
 -- [[Icon resolver service.]]
 -- [[]]
 -- [[Public API is compatible with the previous single-module catalog:]]
@@ -18149,7 +17299,7 @@ end
 return icons
 
 end)() end,
-    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
+    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
 
 local feather = {
     ["activity"] = "assets/icons/feather-pack/a/featherActivity.png",
@@ -18444,7 +17594,7 @@ local feather = {
 return feather
 
 end)() end,
-    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
+    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
 
 local heroicons = {
     ["academic-cap"] = "assets/icons/heroicons-pack/a/heroiconsAcademicCap.png",
@@ -19100,7 +18250,7 @@ local heroicons = {
 return heroicons
 
 end)() end,
-    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
+    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
 
 local lucide = {
     ["a-arrow-down"] = "assets/icons/lucide-pack/a/lucideAArrowDown.png",
@@ -20884,7 +20034,7 @@ local lucide = {
 return lucide
 
 end)() end,
-    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
+    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
 
 local material = {
     ["ac_unit"] = "assets/icons/material-pack/white/a/materialAcUnit.png",
@@ -22025,7 +21175,7 @@ local material = {
 return material
 
 end)() end,
-    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
+    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
 
 local phosphor = {
     ["acorn"] = "assets/icons/phosphor-pack/a/phosphorAcorn.png",
@@ -23545,7 +22695,7 @@ local phosphor = {
 return phosphor
 
 end)() end,
-    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
+    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
 
 local tabler = {
     ["a-b-2"] = "assets/icons/tabler-pack/a/tablerAB2.png",
@@ -28683,7 +27833,7 @@ local tabler = {
 return tabler
 
 end)() end,
-    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
+    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
 -- [[Theme resolution engine (themes/init.luau).]]
 -- [[]]
 -- [[Extracted verbatim from components/window.luau so the window no longer owns]]
@@ -28789,7 +27939,7 @@ end
 return themes
 
 end)() end,
-    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
+    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(16, 13, 24),
@@ -28851,7 +28001,7 @@ return {
 }
 
 end)() end,
-    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
+    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(11, 16, 25),
@@ -28913,7 +28063,7 @@ return {
 }
 
 end)() end,
-    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
+    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
 local crimson = require(script.Parent.Parent.core.state)
 
 return {
@@ -28988,7 +28138,7 @@ return {
 }
 
 end)() end,
-    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
+    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
 local default = require(script.Parent.Parent.core.state)
 
 return {
@@ -29070,7 +28220,7 @@ return {
 }
 
 end)() end,
-    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
+    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(22, 18, 16),
@@ -29132,7 +28282,7 @@ return {
 }
 
 end)() end,
-    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
+    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
 local emerald = require(script.Parent.Parent.core.state)
 
 return {
@@ -29207,7 +28357,7 @@ return {
 }
 
 end)() end,
-    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
+    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
 local frost = require(script.Parent.Parent.core.state)
 
 return {
@@ -29282,7 +28432,7 @@ return {
 }
 
 end)() end,
-    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
+    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
 local gold = require(script.Parent.Parent.core.state)
 
 return {
@@ -29357,7 +28507,7 @@ return {
 }
 
 end)() end,
-    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
+    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
 local onyx = require(script.Parent.Parent.core.state)
 
 return {
@@ -29432,7 +28582,7 @@ return {
 }
 
 end)() end,
-    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
+    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(23, 15, 19),
@@ -29494,7 +28644,7 @@ return {
 }
 
 end)() end,
-    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
+    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 
 local hapticService = {}
@@ -29592,7 +28742,7 @@ end
 return hapticService
 
 end)() end,
-    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
+    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
 local networkUtil = require(script.Parent.network)
 local logger = require(script.Parent.log)
 
@@ -29770,7 +28920,7 @@ end
 return assetResolver
 
 end)() end,
-    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
+    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
 local iconRegistry = require(script.Parent.Parent.images.windowIcons)
 local constants = {}
 
@@ -29821,7 +28971,7 @@ constants.displayOrder = {
 return constants
 
 end)() end,
-    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
+    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
 local enums = {}
 
 function enums.itemFromValue(enumType, value)
@@ -29851,7 +29001,7 @@ end
 return enums
 
 end)() end,
-    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
+    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
 local serviceProvider = require(script.Parent.services)
 local filesystem = {}
 
@@ -30102,7 +29252,7 @@ end
 return filesystem
 
 end)() end,
-    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
+    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 local pathUtil = require(script.Parent.path)
 
@@ -30151,7 +29301,7 @@ end
 return filesystemManager
 
 end)() end,
-    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
+    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
 local fontManager = require(script.Parent.services)
 local a2 = fontManager.getService("HttpService")
 local a3 = fontManager.getService("RunService")
@@ -30604,7 +29754,7 @@ end
 return a16
 
 end)() end,
-    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
+    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
 
 local functions = {}
 
@@ -30622,7 +29772,7 @@ functions.contrastText = textMetrics.contrastText
 return functions
 
 end)() end,
-    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
+    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
 local layouts = {}
 
 local topbarLayout = require(script.Parent.Parent.layouts.Topbar)
@@ -30768,7 +29918,7 @@ end
 return layouts
 
 end)() end,
-    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
+    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local logger = require(script.Parent.log)
 
@@ -30867,7 +30017,7 @@ end
 return locale
 
 end)() end,
-    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
+    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
 local function lockable<T>(element: T): T
     local target = element :: any
 
@@ -30889,7 +30039,7 @@ end
 return lockable
 
 end)() end,
-    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
+    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
 local log = {}
 
 type SuppressPredicate = () -> boolean
@@ -30937,6 +30087,332 @@ function log.print(...)
 end
 
 return log
+
+end)() end,
+    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
+-- [[Astra motion service.
+--
+-- Every animation in the library used to build its own TweenInfo and call
+-- TweenService:Create directly. That has three costs:
+--
+--   1. TweenInfo values are re-created per call, including in hot paths such
+--      as element hover, where the same 0.25s Quint/Out spec is allocated on
+--      every pointer enter and leave.
+--   2. Nothing tracks the tween a component already started on an instance,
+--      so a fast hover in/out leaves two tweens interpolating the same
+--      property. The newer one wins per frame, which is wasted work and the
+--      usual source of "the stroke flickers" jitter.
+--   3. Hosts had no way to slow the interface down or switch animation off
+--      for accessibility or low-end devices.
+--
+-- This module is the one place that answers all three: named specs are
+-- created once, `motion.tween` cancels an in-flight tween when it would fight
+-- over the same property, and everything animated through it answers to a
+-- single time scale (`motion.setProfile`, the "Animation speed" setting).
+-- Sites that still call `TweenService:Create` directly (component-local
+-- flourishes such as the toast queue) keep their own timing until they are
+-- moved over.
+--
+-- Behaviour contract, deliberately conservative:
+--   * `motion.tween` is a drop-in for `TweenService:Create(instance, info,
+--     props):Play()` — same target values, same easing, same duration at the
+--     default profile.
+--   * Properties already equal to their target are dropped from the tween; a
+--     call whose properties all match does not create a tween at all (this is
+--     the same "skip unchanged" rule the window's reveal path already used).
+--   * With motion disabled, or the time scale at zero, the target properties
+--     are assigned directly and no tween is created. Cancelling the previous
+--     tween first keeps a disabled interface from being overwritten by an
+--     animation that was already running.
+--]]
+local coreState = require(script.Parent.Parent.core.state)
+
+local motion = {}
+
+export type MotionSpec = string | TweenInfo
+
+-- [[Named specs: the library's motion vocabulary. Each one is a fixed,
+-- shared TweenInfo, so a site that animates at 0.25s Quint/Out no longer
+-- allocates a new TweenInfo every time it runs. Names are stable API: a host
+-- can use them through `Astra.Motion.tween` to match the window's timing.]]
+local SPECS: { [string]: TweenInfo } = {
+	-- [[One frame's worth of movement: the "no animation" target for hosts
+	-- that want the tween-completed path without a visible transition.]]
+	instant = TweenInfo.new(0.01, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
+
+	-- [[Press/lift feedback.]]
+	fast = TweenInfo.new(0.16, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+
+	-- [[Hover feedback and dropdown rows: the most-used spec in the library.]]
+	snappy = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+
+	-- [[Element reveal: what `Window:_reveal` plays when an element appears.]]
+	normal = TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+
+	-- [[Surface moves: window open/restore, panel reveal.]]
+	smooth = TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+
+	-- [[The window's own entrance and other hero transitions.]]
+	emphasized = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+
+	-- [[Window entrance: the frame's size and corner. Over the same 0.38s the
+	-- entrance always used, with a small overshoot so the window springs into
+	-- place instead of easing into it.]]
+	pop = TweenInfo.new(0.38, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+
+	-- [[Dismissals: slightly quicker than the entrance that mirrored them.]]
+	exit = TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+
+	-- [[Overshoot for drag/pop feedback (the capsule settling back).]]
+	spring = TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+
+	-- [[Tab selection gradient spin.]]
+	spin = TweenInfo.new(0.7, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+
+	-- [[The slow ambient drift of a theme's LiveAnimation gradient.]]
+	drift = TweenInfo.new(10, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+}
+
+local DEFAULT_SPEC = "normal"
+
+-- [[Profiles map the "Animation speed" setting onto the time scale. `instant`
+-- is the reduced-motion / lowest-cost option: nothing tweens, every target is
+-- applied on the spot.]]
+motion.profiles = {
+	relaxed = { timeScale = 1.35 },
+	normal = { timeScale = 1 },
+	snappy = { timeScale = 0.7 },
+	instant = { timeScale = 0, enabled = false },
+}
+
+motion.specNames = {
+	"instant",
+	"fast",
+	"snappy",
+	"normal",
+	"smooth",
+	"emphasized",
+	"pop",
+	"exit",
+	"spring",
+	"spin",
+	"drift",
+}
+
+motion.enabled = true
+motion.timeScale = 1
+motion.profile = "normal"
+
+-- [[Scaled specs are cached per input (a name or a TweenInfo) and dropped
+-- whenever the time scale changes, so the hot paths never allocate.]]
+local scaled: { [any]: TweenInfo } = setmetatable({}, { __mode = "k" })
+
+-- [[The tween this service last started on an instance, with the property set
+-- it targets. Weak keys: a destroyed instance must not be kept alive.]]
+local active: { [any]: { tween: Tween, props: { [string]: any } } } = setmetatable({}, { __mode = "k" })
+
+local function scaleInfo(info: TweenInfo, timeScale: number): TweenInfo
+	return TweenInfo.new(
+		info.Time * timeScale,
+		info.EasingStyle,
+		info.EasingDirection,
+		info.RepeatCount,
+		info.Reverses,
+		info.DelayTime
+	)
+end
+
+-- [[A TweenInfo, recognised structurally rather than through
+-- `typeof(x) == "TweenInfo"`: the library's own test stubs build TweenInfo
+-- values as plain tables, and a spec passed in from a caller must survive
+-- both environments instead of silently collapsing to the default.]]
+local function isInfo(value): boolean
+	return type(value) == "table" and type(value.Time) == "number" and value.EasingStyle ~= nil
+end
+
+-- [[Resolves a spec (name or TweenInfo) to the TweenInfo that should be played
+-- right now, applying the active time scale. At the default scale a named spec
+-- returns the shared table itself, so the common path allocates nothing.]]
+function motion.spec(spec: MotionSpec?): TweenInfo
+	local resolved = spec or DEFAULT_SPEC
+	if type(resolved) == "string" then
+		resolved = SPECS[resolved] or SPECS[DEFAULT_SPEC]
+	elseif not isInfo(resolved) then
+		resolved = SPECS[DEFAULT_SPEC]
+	end
+
+	if motion.timeScale == 1 then
+		return resolved :: TweenInfo
+	end
+
+	local cached = scaled[resolved]
+	if not cached then
+		cached = scaleInfo(resolved :: TweenInfo, motion.timeScale)
+		scaled[resolved] = cached
+	end
+	return cached
+end
+
+-- [[Drops the cached scaled specs. Called whenever the time scale changes.]]
+local function invalidate()
+	scaled = setmetatable({}, { __mode = "k" })
+end
+
+-- [[Seconds between cascade steps, scaled like everything else: a relaxed
+-- profile reveals a page more slowly, `instant` reveals it in one go.]]
+function motion.step(base: number): number
+	if not motion.enabled then
+		return 0
+	end
+	return base * motion.timeScale
+end
+
+function motion.setTimeScale(scale: number): number
+	local previous = motion.timeScale
+	scale = math.max(0, math.min(4, scale or 1))
+	if scale ~= previous then
+		motion.timeScale = scale
+		invalidate()
+	end
+	return previous
+end
+
+function motion.getTimeScale(): number
+	return motion.timeScale
+end
+
+function motion.setEnabled(enabled: boolean): boolean
+	local previous = motion.enabled
+	motion.enabled = enabled ~= false
+	return previous
+end
+
+function motion.isEnabled(): boolean
+	return motion.enabled
+end
+
+-- [[Applies a named profile. Unknown names are ignored (returns false) so a
+-- stale persisted value can never leave the library in a half-configured
+-- state.]]
+function motion.setProfile(name: string): boolean
+	local profile = motion.profiles[name] :: { timeScale: number?, enabled: boolean? }?
+	if not profile then
+		return false
+	end
+	motion.setTimeScale(profile.timeScale or 1)
+	motion.setEnabled(profile.enabled ~= false)
+	motion.profile = name
+	return true
+end
+
+function motion.getProfile(): string
+	return motion.profile
+end
+
+-- [[Stops the tween this service started on the instance, if any. The slot is
+-- cleared so a later call does not try to cancel it twice.]]
+function motion.cancel(instance: Instance?): boolean
+	if not instance then
+		return false
+	end
+	local entry = active[instance]
+	if not entry then
+		return false
+	end
+	active[instance] = nil
+	local ok = pcall(function()
+		entry.tween:Cancel()
+	end)
+	return ok
+end
+
+local function overlaps(entry, props): boolean
+	for key in props do
+		if entry.props[key] ~= nil then
+			return true
+		end
+	end
+	return false
+end
+
+local function assign(instance, props)
+	for key, value in props do
+		instance[key] = value
+	end
+end
+
+-- [[Animate `props` on `instance` with `spec` (a spec name or TweenInfo).
+--
+-- Drops properties that already hold their target value, and skips the tween
+-- entirely when nothing would change. When the new tween would animate a
+-- property the instance is already animating through this service, the older
+-- tween is cancelled first — one writer per property, which is what removes
+-- the double-tween churn on rapid hover in/out.
+--
+-- `onCompleted`, when given, is connected *before* the tween is played, so a
+-- caller that has to run a settle path cannot miss a completion that happens
+-- on the same tick (which is exactly what a test stub's synchronous Play
+-- does). Callers that need that path should treat a nil return as "the work
+-- is already done" and run it themselves.
+--
+-- Returns the tween, or nil when nothing was animated (already at target, or
+-- motion is disabled).]]
+function motion.tween(
+	instance: Instance?,
+	props: { [string]: any },
+	spec: MotionSpec?,
+	onCompleted: (() -> ())?
+): Tween?
+	if not instance or not props then
+		return nil
+	end
+
+	local entry = active[instance]
+	if entry and overlaps(entry, props) then
+		motion.cancel(instance)
+		entry = nil
+	end
+
+	if not motion.enabled or motion.timeScale == 0 then
+		assign(instance, props)
+		return nil
+	end
+
+	-- [[Skip the tween when every property is already where it should be.
+	-- Comparisons are per property, so a partially-satisfied call still
+	-- animates the properties that need it.]]
+	local pending: { [string]: any }? = nil
+	for key, value in props do
+		if instance[key] ~= value then
+			pending = pending or {}
+			pending[key] = value
+		end
+	end
+	if not pending then
+		return nil
+	end
+
+	local info = motion.spec(spec)
+	local tween = coreState.tweenService:Create(instance :: Instance, info, pending)
+	active[instance] = { tween = tween, props = pending } :: any
+	if onCompleted then
+		tween.Completed:Connect(onCompleted)
+	end
+	tween:Play()
+	return tween
+end
+
+-- [[Applies `props` on the spot (cancelling anything this service is running
+-- on the instance) - the state a tween would have settled on, with no
+-- animation. The same target the caller would pass to `motion.tween`.]]
+function motion.set(instance: Instance?, props: { [string]: any }): ()
+	if instance and props then
+		motion.cancel(instance)
+		assign(instance, props)
+	end
+end
+
+return motion
 
 end)() end,
     [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
@@ -31105,26 +30581,60 @@ function odometer:_reel(reelIndex)
         Parent = cell,
     })
 
-    for i = 0, reelCells - 1 do
-        self.window:Create("TextLabel", {
-            Text = tostring(i % 10),
-            Position = UDim2.fromOffset(0, i * self.height),
-            Size = UDim2.fromOffset(self.maxWidth, self.height),
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            TextSize = self.textSize,
-            TextXAlignment = Enum.TextXAlignment.Center,
-            TextYAlignment = Enum.TextYAlignment.Center,
-            TextTransparency = self.transparency,
-            ZIndex = self.zIndex,
-
-            Parent = strip,
-        }, { TextColor3 = "ContentColor", FontFace = "Font" })
-    end
-
-    local reel = { cell = cell, strip = strip, digit = 0, target = 0, stripTween = nil, sizeTween = nil }
+    -- [[Rows are created on demand (see _rows): a reel only ever shows the
+    -- [[contiguous band of rows its current transition walks over, so building
+    -- [[all `reelCells` of them upfront left up to 19 clipped, never-visible
+    -- [[TextLabels behind every digit of every readout — the single largest
+    -- [[instance cost in the library (a Stat built 42 text labels for one
+    -- [[value). Positions and glyphs are unchanged, so nothing about the roll
+    -- [[looks different.]]
+    local reel = {
+        cell = cell,
+        strip = strip,
+        digit = 0,
+        target = 0,
+        stripTween = nil,
+        sizeTween = nil,
+        rows = {},
+    }
     slot.reel = reel
     return reel
+end
+
+-- [[Materialises the rows a transition needs, and only those. `rowIndex` is
+-- [[the strip's own row number (0-9 is the digit, 10-19 the repeated digit
+-- [[the downward roll travels through), matching _reelRoll's maths.]]
+function odometer:_row(reel, rowIndex)
+    local label = reel.rows[rowIndex]
+    if label then
+        return label
+    end
+
+    label = self.window:Create("TextLabel", {
+        Text = tostring(rowIndex % 10),
+        Position = UDim2.fromOffset(0, rowIndex * self.height),
+        Size = UDim2.fromOffset(self.maxWidth, self.height),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        TextSize = self.textSize,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        TextTransparency = self.transparency,
+        ZIndex = self.zIndex,
+
+        Parent = reel.strip,
+    }, { TextColor3 = "ContentColor", FontFace = "Font" })
+
+    reel.rows[rowIndex] = label
+    return label
+end
+
+function odometer:_rows(reel, lowRow, highRow)
+    lowRow = math.max(0, lowRow)
+    highRow = math.min(reelCells - 1, highRow)
+    for rowIndex = lowRow, highRow do
+        self:_row(reel, rowIndex)
+    end
 end
 
 function odometer:_static(staticIndex)
@@ -31165,6 +30675,7 @@ end
 
 function odometer:_reelSnap(snapReel, snapDigit)
     cancelTweens(snapReel)
+    self:_rows(snapReel, snapDigit, snapDigit)
     snapReel.cell.Size = UDim2.fromOffset(self.advance[snapDigit], self.height)
     snapReel.strip.Position = UDim2.new(0.5, 0, 0, -snapDigit * self.height)
     snapReel.digit = snapDigit
@@ -31188,6 +30699,7 @@ function odometer:_reelRoll(rollReel, rollDigit, up)
         fromRow = currentDigit + 10         toRow = fromRow - (currentDigit - rollDigit) % 10
     end
 
+    self:_rows(rollReel, math.min(fromRow, toRow), math.max(fromRow, toRow))
     rollReel.strip.Position = UDim2.new(0.5, 0, 0, -fromRow * self.height)
     rollReel.target = rollDigit
 
@@ -31702,6 +31214,7 @@ type SettingsWindow = {
         antiWindowDuplicate: boolean,
         layoutMode: string,
         activeSubTab: number,
+        motionSpeed: string,
     },
 }
 
@@ -31718,6 +31231,7 @@ type DecodedSettings = {
     antiWindowDuplicate: unknown?,
     layoutMode: unknown?,
     activeSubTab: unknown?,
+    motionSpeed: unknown?,
 }
 
 function persistenceSettings.getSettingsPath(): (string, string)
@@ -31744,6 +31258,7 @@ function persistenceSettings.saveSettings(window: SettingsWindow): boolean
         antiWindowDuplicate = window.settings.antiWindowDuplicate,
         layoutMode = window.settings.layoutMode,
         activeSubTab = window.settings.activeSubTab,
+        motionSpeed = window.settings.motionSpeed,
     }
 
     local ok, encoded = pcall(coreState.httpService.JSONEncode, coreState.httpService, payload)
@@ -31870,6 +31385,16 @@ function persistenceSettings.loadSettings(window: SettingsWindow): boolean
 
     if type(decodedSettings.activeSubTab) == "number" and decodedSettings.activeSubTab >= 1 then
         window.settings.activeSubTab = math.floor(decodedSettings.activeSubTab)
+    end
+
+    -- [[Motion profiles are validated by the motion service, the same way the
+    -- live setting is, so a hand-edited settings file cannot put the library
+    -- on a profile that does not exist.]]
+    if type(decodedSettings.motionSpeed) == "string" then
+        local motion = require(script.Parent.motion)
+        if motion.profiles[decodedSettings.motionSpeed] then
+            window.settings.motionSpeed = decodedSettings.motionSpeed
+        end
     end
 
     return true
@@ -32127,105 +31652,105 @@ end)() end,
 
 local LineOffsets = {
     [2] = 12,
-    [3] = 176,
-    [5] = 587,
-    [6] = 622,
-    [7] = 667,
-    [8] = 573,
-    [9] = 784,
-    [10] = 894,
-    [11] = 1138,
-    [12] = 1365,
-    [13] = 1672,
-    [14] = 2390,
-    [15] = 4758,
-    [16] = 5093,
-    [17] = 5154,
-    [18] = 5524,
-    [19] = 5901,
-    [21] = 8967,
-    [22] = 9234,
-    [23] = 9678,
-    [24] = 10809,
-    [25] = 11143,
-    [26] = 11204,
-    [27] = 11349,
-    [28] = 12669,
-    [29] = 12871,
-    [30] = 13132,
-    [31] = 13594,
-    [32] = 14044,
-    [33] = 14131,
-    [34] = 14696,
-    [35] = 15314,
-    [36] = 15696,
-    [37] = 15826,
-    [38] = 15990,
-    [39] = 16144,
-    [41] = 16655,
-    [42] = 16678,
-    [43] = 16695,
-    [44] = 16725,
-    [45] = 16841,
-    [46] = 16855,
-    [47] = 16904,
-    [48] = 16630,
-    [49] = 17014,
-    [50] = 17317,
-    [51] = 17348,
-    [52] = 17003,
-    [53] = 17391,
-    [54] = 17411,
-    [55] = 17443,
-    [56] = 17373,
-    [57] = 17550,
-    [58] = 17609,
-    [59] = 17669,
-    [61] = 17728,
-    [62] = 17893,
-    [63] = 17713,
-    [64] = 18153,
-    [65] = 18448,
-    [66] = 19104,
-    [67] = 20888,
-    [68] = 22029,
-    [69] = 23549,
-    [70] = 17957,
-    [71] = 28793,
-    [72] = 28855,
-    [73] = 28917,
-    [74] = 28992,
-    [75] = 29074,
-    [76] = 29136,
-    [77] = 29211,
-    [78] = 29286,
-    [79] = 29361,
-    [80] = 29436,
-    [81] = 28687,
-    [82] = 29498,
-    [83] = 29596,
-    [84] = 29774,
-    [85] = 29825,
-    [86] = 29855,
-    [87] = 30106,
-    [88] = 30155,
-    [89] = 30608,
-    [90] = 30626,
-    [91] = 30772,
-    [92] = 30871,
-    [93] = 30893,
-    [94] = 30943,
-    [95] = 30979,
-    [96] = 30997,
-    [97] = 31310,
-    [98] = 31326,
-    [99] = 31377,
-    [100] = 31396,
-    [101] = 31638,
-    [102] = 31682,
-    [103] = 31882,
-    [104] = 31910,
-    [105] = 31921,
+    [3] = 180,
+    [5] = 598,
+    [6] = 633,
+    [7] = 678,
+    [8] = 584,
+    [9] = 795,
+    [10] = 905,
+    [11] = 1149,
+    [12] = 1376,
+    [13] = 1683,
+    [14] = 2401,
+    [15] = 4769,
+    [16] = 5114,
+    [17] = 5175,
+    [18] = 5545,
+    [19] = 5922,
+    [21] = 9107,
+    [22] = 9374,
+    [23] = 9818,
+    [24] = 10152,
+    [25] = 10213,
+    [26] = 10358,
+    [27] = 11724,
+    [28] = 11926,
+    [29] = 12196,
+    [30] = 12658,
+    [31] = 13108,
+    [32] = 13195,
+    [33] = 13760,
+    [34] = 14378,
+    [35] = 14768,
+    [36] = 14898,
+    [37] = 15062,
+    [38] = 15216,
+    [40] = 15778,
+    [41] = 15801,
+    [42] = 15818,
+    [43] = 15849,
+    [44] = 15971,
+    [45] = 15995,
+    [46] = 16044,
+    [47] = 15753,
+    [48] = 16166,
+    [49] = 16469,
+    [50] = 16500,
+    [51] = 16155,
+    [52] = 16543,
+    [53] = 16563,
+    [54] = 16595,
+    [55] = 16525,
+    [56] = 16702,
+    [57] = 16761,
+    [58] = 16821,
+    [60] = 16880,
+    [61] = 17045,
+    [62] = 16865,
+    [63] = 17303,
+    [64] = 17598,
+    [65] = 18254,
+    [66] = 20038,
+    [67] = 21179,
+    [68] = 22699,
+    [69] = 17107,
+    [70] = 27943,
+    [71] = 28005,
+    [72] = 28067,
+    [73] = 28142,
+    [74] = 28224,
+    [75] = 28286,
+    [76] = 28361,
+    [77] = 28436,
+    [78] = 28511,
+    [79] = 28586,
+    [80] = 27837,
+    [81] = 28648,
+    [82] = 28746,
+    [83] = 28924,
+    [84] = 28975,
+    [85] = 29005,
+    [86] = 29256,
+    [87] = 29305,
+    [88] = 29758,
+    [89] = 29776,
+    [90] = 29922,
+    [91] = 30021,
+    [92] = 30043,
+    [93] = 30093,
+    [94] = 30419,
+    [95] = 30455,
+    [96] = 30473,
+    [97] = 30822,
+    [98] = 30838,
+    [99] = 30889,
+    [100] = 30908,
+    [101] = 31150,
+    [102] = 31194,
+    [103] = 31407,
+    [104] = 31435,
+    [105] = 31446,
 }
 
 -- [[Misc AOT variable imports]]
@@ -32379,7 +31904,7 @@ local ObjectTree = {
                 },
             },
             {
-                40,
+                39,
                 1,
                 {
                     "elements",
@@ -32403,116 +31928,109 @@ local ObjectTree = {
                         23,
                         2,
                         {
-                            "colorpicker",
+                            "console",
                         },
                     },
                     {
                         24,
                         2,
                         {
-                            "console",
+                            "descriptor",
                         },
                     },
                     {
                         25,
                         2,
                         {
-                            "descriptor",
+                            "divider",
                         },
                     },
                     {
                         26,
                         2,
                         {
-                            "divider",
+                            "dropdown",
                         },
                     },
                     {
                         27,
                         2,
                         {
-                            "dropdown",
+                            "group",
                         },
                     },
                     {
                         28,
                         2,
                         {
-                            "group",
+                            "input",
                         },
                     },
                     {
                         29,
                         2,
                         {
-                            "input",
+                            "keybind",
                         },
                     },
                     {
                         30,
                         2,
                         {
-                            "keybind",
+                            "progress",
                         },
                     },
                     {
                         31,
                         2,
                         {
-                            "progress",
+                            "section",
                         },
                     },
                     {
                         32,
                         2,
                         {
-                            "section",
+                            "slider",
                         },
                     },
                     {
                         33,
                         2,
                         {
-                            "slider",
+                            "stat",
                         },
                     },
                     {
                         34,
                         2,
                         {
-                            "stat",
+                            "tab",
                         },
                     },
                     {
                         35,
                         2,
                         {
-                            "tab",
+                            "tabSection",
                         },
                     },
                     {
                         36,
                         2,
                         {
-                            "tabSection",
+                            "tag",
                         },
                     },
                     {
                         37,
                         2,
                         {
-                            "tag",
-                        },
-                    },
-                    {
-                        38,
-                        2,
-                        {
                             "text",
                         },
                     },
                     {
-                        39,
+                        38,
                         2,
                         {
                             "toggle",
@@ -32521,56 +32039,56 @@ local ObjectTree = {
                 },
             },
             {
-                48,
+                47,
                 2,
                 {
                     "settings",
                 },
                 {
                     {
-                        41,
+                        40,
                         2,
                         {
                             "appearance",
                         },
                     },
                     {
-                        42,
+                        41,
                         2,
                         {
                             "behavior",
                         },
                     },
                     {
-                        43,
+                        42,
                         2,
                         {
                             "defaults",
                         },
                     },
                     {
-                        44,
+                        43,
                         2,
                         {
                             "manager",
                         },
                     },
                     {
-                        45,
+                        44,
                         2,
                         {
                             "performance",
                         },
                     },
                     {
-                        46,
+                        45,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        47,
+                        46,
                         2,
                         {
                             "registry",
@@ -32579,28 +32097,28 @@ local ObjectTree = {
                 },
             },
             {
-                52,
+                51,
                 2,
                 {
                     "cache",
                 },
                 {
                     {
-                        49,
+                        48,
                         2,
                         {
                             "imageCache",
                         },
                     },
                     {
-                        50,
+                        49,
                         2,
                         {
                             "moduleCache",
                         },
                     },
                     {
-                        51,
+                        50,
                         2,
                         {
                             "persistenceCache",
@@ -32609,28 +32127,28 @@ local ObjectTree = {
                 },
             },
             {
-                56,
+                55,
                 2,
                 {
                     "functions",
                 },
                 {
                     {
-                        53,
+                        52,
                         2,
                         {
                             "colors",
                         },
                     },
                     {
-                        54,
+                        53,
                         2,
                         {
                             "flagNames",
                         },
                     },
                     {
-                        55,
+                        54,
                         2,
                         {
                             "textMetrics",
@@ -32639,28 +32157,28 @@ local ObjectTree = {
                 },
             },
             {
-                60,
+                59,
                 1,
                 {
                     "layouts",
                 },
                 {
                     {
-                        57,
+                        56,
                         2,
                         {
                             "Sidebar",
                         },
                     },
                     {
-                        58,
+                        57,
                         2,
                         {
                             "SidebarCollapsed",
                         },
                     },
                     {
-                        59,
+                        58,
                         2,
                         {
                             "Topbar",
@@ -32669,21 +32187,21 @@ local ObjectTree = {
                 },
             },
             {
-                63,
+                62,
                 2,
                 {
                     "images",
                 },
                 {
                     {
-                        61,
+                        60,
                         2,
                         {
                             "image",
                         },
                     },
                     {
-                        62,
+                        61,
                         2,
                         {
                             "windowIcons",
@@ -32692,49 +32210,49 @@ local ObjectTree = {
                 },
             },
             {
-                70,
+                69,
                 2,
                 {
                     "icons",
                 },
                 {
                     {
-                        64,
+                        63,
                         2,
                         {
                             "feather",
                         },
                     },
                     {
-                        65,
+                        64,
                         2,
                         {
                             "heroicons",
                         },
                     },
                     {
-                        66,
+                        65,
                         2,
                         {
                             "lucide",
                         },
                     },
                     {
-                        67,
+                        66,
                         2,
                         {
                             "material",
                         },
                     },
                     {
-                        68,
+                        67,
                         2,
                         {
                             "phosphor",
                         },
                     },
                     {
-                        69,
+                        68,
                         2,
                         {
                             "tabler",
@@ -32743,77 +32261,77 @@ local ObjectTree = {
                 },
             },
             {
-                81,
+                80,
                 2,
                 {
                     "themes",
                 },
                 {
                     {
-                        71,
+                        70,
                         2,
                         {
                             "amethyst",
                         },
                     },
                     {
-                        72,
+                        71,
                         2,
                         {
                             "cobalt",
                         },
                     },
                     {
-                        73,
+                        72,
                         2,
                         {
                             "crimson",
                         },
                     },
                     {
-                        74,
+                        73,
                         2,
                         {
                             "default",
                         },
                     },
                     {
-                        75,
+                        74,
                         2,
                         {
                             "ember",
                         },
                     },
                     {
-                        76,
+                        75,
                         2,
                         {
                             "emerald",
                         },
                     },
                     {
-                        77,
+                        76,
                         2,
                         {
                             "frost",
                         },
                     },
                     {
-                        78,
+                        77,
                         2,
                         {
                             "gold",
                         },
                     },
                     {
-                        79,
+                        78,
                         2,
                         {
                             "onyx",
                         },
                     },
                     {
-                        80,
+                        79,
                         2,
                         {
                             "rose",
@@ -32829,87 +32347,94 @@ local ObjectTree = {
                 },
                 {
                     {
-                        82,
+                        81,
                         2,
                         {
                             "HapticEngine",
                         },
                     },
                     {
-                        83,
+                        82,
                         2,
                         {
                             "assetResolver",
                         },
                     },
                     {
-                        84,
+                        83,
                         2,
                         {
                             "constants",
                         },
                     },
                     {
-                        85,
+                        84,
                         2,
                         {
                             "enums",
                         },
                     },
                     {
-                        86,
+                        85,
                         2,
                         {
                             "filesystem",
                         },
                     },
                     {
-                        87,
+                        86,
                         2,
                         {
                             "filesystemManager",
                         },
                     },
                     {
-                        88,
+                        87,
                         2,
                         {
                             "fontManager",
                         },
                     },
                     {
-                        89,
+                        88,
                         2,
                         {
                             "functions",
                         },
                     },
                     {
-                        90,
+                        89,
                         2,
                         {
                             "layouts",
                         },
                     },
                     {
-                        91,
+                        90,
                         2,
                         {
                             "locale",
                         },
                     },
                     {
-                        92,
+                        91,
                         2,
                         {
                             "lockable",
                         },
                     },
                     {
-                        93,
+                        92,
                         2,
                         {
                             "log",
+                        },
+                    },
+                    {
+                        93,
+                        2,
+                        {
+                            "motion",
                         },
                     },
                     {

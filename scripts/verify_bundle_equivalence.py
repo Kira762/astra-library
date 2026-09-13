@@ -72,7 +72,6 @@ PATH_MAP = [
     (r"script\.Parent\.ui\.tabSelector", "script.Parent.components.tabSelector"),
     (r"script\.Parent\.ui\.toast", "script.Parent.components.toast"),
     (r"script\.Parent\.ui\.button", "script.Parent.elements.button"),
-    (r"script\.Parent\.ui\.colorpicker", "script.Parent.elements.colorpicker"),
     (r"script\.Parent\.ui\.console", "script.Parent.elements.console"),
     (r"script\.Parent\.ui\.descriptor", "script.Parent.elements.descriptor"),
     (r"script\.Parent\.ui\.divider", "script.Parent.elements.divider"),

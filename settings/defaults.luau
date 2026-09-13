@@ -12,6 +12,7 @@ defaults.values = {
     antiWindowDuplicate = true,
     layoutMode = "top",
     activeSubTab = 1,
+    motionSpeed = "normal",
 }
 
 function defaults.clone(overrides: { [string]: any }?): { [string]: any }

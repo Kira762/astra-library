@@ -163,7 +163,7 @@ local col = row:CreateGroup({ direction = "column" }) -- nested column
 col:CreateToggle({ name = "Left 1" })
 ```
 
-Tab methods: `CreateButton`, `CreateToggle`/`CreateSwitch`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateKeybind`, `CreateColorPicker`, `CreateStat`, `CreateProgress`, `CreateConsole`, `CreateSection`, `CreateText`, `CreateChangelog`, `CreateDivider`, `CreateGroup`.
+Tab methods: `CreateButton`, `CreateToggle`/`CreateSwitch`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateKeybind`, `CreateStat`, `CreateProgress`, `CreateConsole`, `CreateSection`, `CreateText`, `CreateChangelog`, `CreateDivider`, `CreateGroup`.
 
 Groups support: `CreateButton`, `CreateToggle`/`CreateSwitch`, `CreateSlider`, `CreateDropdown`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateGroup`.
 
@@ -177,7 +177,6 @@ tab:CreateSlider({ name = "Sensitivity", range = { 1, 10 }, value = 5, suffix = 
 tab:CreateDropdown({ name = "Preset", options = { "Low", "Medium", "High" }, value = "Medium", multiSelect = true, placeholder = "Pick items", callback = function(s) end })
 tab:CreateInput({ name = "Name", placeholder = "Type here", numeric = true, clearOnFocus = true, callback = function(t) end })
 tab:CreateKeybind({ name = "Toggle Panel", value = Enum.KeyCode.F3, isMenuToggle = true, callback = function(v) end })
-tab:CreateColorPicker({ name = "Accent", color = Color3.fromRGB(96, 205, 255), alpha = 0.8, callback = function(c, a) end })
 ```
 
 ### Button
@@ -238,16 +237,6 @@ tab:CreateKeybind({
     isMenuToggle = true, hold = true, holdThreshold = 0.2,
     callback = function(value) end, onChanged = function(key) end,
 })
-```
-
-### ColorPicker
-```lua
-local c = tab:CreateColorPicker({
-    name = "Accent", color = Color3.fromRGB(96, 205, 255), alpha = 0.8,
-    callback = function(color, alpha) end,
-})
-c:Set(Color3.fromRGB(255, 0, 0))
-c:SetAlpha(0.5)
 ```
 
 ### Stat
@@ -385,6 +374,40 @@ window:ResolveIcon("house")
 `iconPack`: `"lucide" | "material" | "tabler" | "phosphor" | "heroicons" | "feather"`.
 
 Icon names resolve to 48x48 PNGs that ship in this repo under `assets/icons/<pack>/`; the resolver maps them to the repo's raw GitHub URL (or your executor's `getcustomasset` if provided), so no `rbxassetid` lookups are needed. See `assets/icons/feather-pack.md` and `assets/icons/tabler-pack.md` for pack details.
+
+### Motion (animation)
+
+Astra's window transitions — hover, element reveal, the window entrance, the
+result flashes — run through one service, so your own animations can use the
+same timing and answer the same "Animation speed" setting the user picked in
+Performance → Motion. (Component-local flourishes such as the toast queue
+still run on their own specs.)
+
+```lua
+-- Animate with the library's own specs.
+Astra.Motion.tween(frame, { BackgroundTransparency = 0.5 }, "snappy")
+
+-- Specs: instant, fast, snappy, normal, smooth, emphasized, pop, exit,
+-- spring, spin, drift. A TweenInfo works anywhere a name does.
+Astra.Motion.tween(stroke, { Color = Color3.new(1, 1, 1) }, TweenInfo.new(0.3))
+
+-- Settle work after the animation, without racing a synchronous completion.
+Astra.Motion.tween(panel, { Position = target }, "smooth", function()
+    panel.Visible = false
+end)
+
+-- Steer the whole interface.
+Astra.Motion.setProfile("relaxed")     -- relaxed | normal | snappy | instant
+Astra.Motion.setTimeScale(0.8)         -- custom multiplier instead
+Astra.Motion.setEnabled(false)         -- apply targets immediately, no tweens
+Astra.Motion.step(0.035)               -- cascade pacing, scaled like the rest
+Astra.Motion.cancel(frame)             -- stop what the service owns here
+```
+
+`motion.tween` never animates a property that is already at its target (a call
+whose properties are all satisfied creates no tween at all) and cancels an
+in-flight tween it would fight with, so repeated calls from an event handler
+cannot stack competing animations on the same property.
 
 ### Localisation
 

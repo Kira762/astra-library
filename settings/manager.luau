@@ -28,8 +28,14 @@ local domains = {
 }
 
 function SettingsManager.new(overrides: { [string]: any }?): SettingsManager
+    -- [[`values` and `listeners` were never created here, so every method that
+    -- touches them (:get, :set, :save, :load, :onChange) raised "attempt to
+    -- index nil" the first time a host used a manager directly. The window
+    -- keeps its own plain settings table, which is why this went unnoticed.]]
     local self = setmetatable({
         defaults = defaults.clone(overrides),
+        values = defaults.clone(overrides),
+        listeners = {},
         persistence = {},
     }, SettingsManager)
     return self

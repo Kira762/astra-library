@@ -12,6 +12,29 @@ local flag = require(constants.locale)
 local value = require(constants.HapticEngine)
 local callback = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
+-- [[Switch metrics, in one place. The track and the knob are both pills and
+-- [[the knob keeps the same clearance on every side it can see (`switchInset`
+-- [[at the parked end, the same above and below), so the two resting states
+-- [[are exact mirrors of each other.
+--
+-- [[The track is also deliberately only as wide as the knob plus its travel.
+-- [[With the old 50px track around a 25px knob, "on" parked the knob 3px from
+-- [[the right edge and left 22px of empty track on the left: a ratio of
+-- [[roughly 7:1 at the same moment the knob looked like it floated. Dropping
+-- [[the track to 44px keeps the knob's travel readable while the empty side
+-- [[drops to 14px, so neither state reads as lopsided.
+--
+-- [[Positions are expressed from the track's right edge (scale 1), which is
+-- [[how the knob's AnchorPoint (0, 0.5) resolves against its parent.]]
+local switchTrackWidth = 44
+local switchTrackHeight = 22
+local switchKnobWidth = 26
+local switchKnobHeight = 18
+local switchInset = 2
+
+local switchKnobActive = UDim2.new(1, -(switchKnobWidth + switchInset), 0.5, 0)
+local switchKnobRest = UDim2.new(1, -(switchTrackWidth - switchInset), 0.5, 0)
+
 function state.new(tab, element)
     element = if typeof(element) == "table" then element else {}
 
@@ -55,14 +78,16 @@ function state:_buildSwitch(frame)
 
     self.functionContainer = window:Create("Frame", {
         BorderSizePixel = 0,
-        Size = UDim2.fromOffset(50, 21),
+        Size = UDim2.fromOffset(switchTrackWidth, switchTrackHeight),
 
         BackgroundTransparency = 1,
         Parent = frame,
     }, { BackgroundColor3 = "ToggleTrack" })
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 15),
+        -- [[A true pill at any height, instead of a radius that happened to
+        -- [[match the old 21px track.]]
+        CornerRadius = UDim.new(1, 0),
         Parent = self.functionContainer,
     })
 
@@ -72,9 +97,14 @@ function state:_buildSwitch(frame)
 
     self.indicator = window:Create("Frame", {
         BorderSizePixel = 0,
-        Size = UDim2.fromOffset(25, 17),
-        Position = self.value and UDim2.new(1, -28, 0.5, 0) or UDim2.new(1, -47, 0.5, 0),
+        Size = UDim2.fromOffset(switchKnobWidth, switchKnobHeight),
+        Position = if self.value then switchKnobActive else switchKnobRest,
         AnchorPoint = Vector2.new(0, 0.5),
+        -- [[Above the track's sheen overlay (ZIndex 1): the sheen belongs to
+        -- [[the track, and at equal ZIndex the later sibling drew it straight
+        -- [[over the knob, washing the knob's lower half and leaving it with
+        -- [[an uneven rim.]]
+        ZIndex = 2,
         BackgroundColor3 = self.value and self.window.theme.AccentColor or self.window.theme.ToggleKnobOff,
 
         BackgroundTransparency = 1,
@@ -91,7 +121,9 @@ function state:_buildSwitch(frame)
         Transparency = 1,         Parent = self.indicator,
     })
 
-        self.indicatorGlow = window:CreateGlow(self.indicator, "AccentColor", 20, 1)
+        -- [[The glow is only ever visible while the switch is on, so it is
+        -- [[built by _indicatorGlow() the first time that matters: an off
+        -- [[switch carries no shadow instance at all.]]
 
         self.overlay = window:Create("Frame", {
         BorderSizePixel = 0,
@@ -99,13 +131,16 @@ function state:_buildSwitch(frame)
         Position = UDim2.fromScale(0, 0),
         AnchorPoint = Vector2.new(0, 0),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        -- [[Under the knob (ZIndex 2) and over the track: the theme's sheen
+        -- [[tints the track, not whatever is parked on it.]]
+        ZIndex = 1,
 
         BackgroundTransparency = 1,
         Parent = self.functionContainer,
     }, { Visible = "DarkToggleOverlay" })
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 15),
+        CornerRadius = UDim.new(1, 0),
         Parent = self.overlay,
     })
 
@@ -368,17 +403,25 @@ function state:_buildCompact()
     end)
 end
 
+function state:_indicatorGlow()
+    if not self.indicatorGlow then
+        self.indicatorGlow = self.window:CreateGlow(self.indicator, "AccentColor", 20, 1)
+    end
+    return self.indicatorGlow
+end
+
 function state:_animateIndicator()
     local track = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-    if self.indicatorGlow then
+    local glow = if self.value then self:_indicatorGlow() else self.indicatorGlow
+    if glow then
         Toggle.tweenService
-            :Create(self.indicatorGlow, track, { Transparency = self.value and self.window.theme.AccentGlow or 1 })
+            :Create(glow, track, { Transparency = self.value and self.window.theme.AccentGlow or 1 })
             :Play()
     end
     if self.value then
         Toggle.tweenService
             :Create(self.indicator, track, {
-                Position = UDim2.new(1, -28, 0.5, 0),
+                Position = switchKnobActive,
                 BackgroundColor3 = self.window.theme.AccentColor,
                 BackgroundTransparency = 0,
             })
@@ -389,7 +432,7 @@ function state:_animateIndicator()
     else
         Toggle.tweenService
             :Create(self.indicator, track, {
-                Position = UDim2.new(1, -47, 0.5, 0),
+                Position = switchKnobRest,
                 BackgroundColor3 = self.window.theme.ToggleKnobOff,
                 BackgroundTransparency = self.window.theme.ToggleKnobOffTransparency,
             })
@@ -415,12 +458,15 @@ function state:_setShown(flag, a16)
             Color = self.value and w.theme.AccentStroke or Color3.fromRGB(255, 255, 255),
             Transparency = self.value and 0 or 0.7,
         }, a16, knob)
-        w:_reveal(
-            self.indicatorGlow,
-            { Transparency = self.value and w.theme.AccentGlow or 1 },
-            a16,
-            accentTween
-        )
+        local shownGlow = if self.value then self:_indicatorGlow() else self.indicatorGlow
+        if shownGlow then
+            w:_reveal(
+                shownGlow,
+                { Transparency = self.value and w.theme.AccentGlow or 1 },
+                a16,
+                accentTween
+            )
+        end
         w:_reveal(self.overlay, { BackgroundTransparency = 0 }, a16, knob)
         w:_reveal(self.containerStroke, { Transparency = 0.85 }, a16, knob)
         w:_reveal(
@@ -433,7 +479,9 @@ function state:_setShown(flag, a16)
         w:_hideCommon(self, a16)
         w:_reveal(self.indicator, { BackgroundTransparency = 1 }, a16, knob)
         w:_reveal(self.indicatorStroke, { Transparency = 1 }, a16, knob)
-        w:_reveal(self.indicatorGlow, { Transparency = 1 }, a16, accentTween)
+        if self.indicatorGlow then
+            w:_reveal(self.indicatorGlow, { Transparency = 1 }, a16, accentTween)
+        end
         w:_reveal(self.overlay, { BackgroundTransparency = 1 }, a16, knob)
         w:_reveal(self.containerStroke, { Transparency = 1 }, a16, knob)
         w:_reveal(self.functionContainer, { BackgroundTransparency = 1 }, a16, knob)
@@ -452,13 +500,16 @@ function state:_refreshTheme()
     ts:Create(self.indicatorStroke, a17, {
         Color = self.value and t.AccentStroke or Color3.fromRGB(255, 255, 255),
     }):Play()
-    if self.indicatorGlow then
-        ts:Create(self.indicatorGlow, a17, { Transparency = self.value and t.AccentGlow or 1 }):Play()
+    local glow = if self.value then self:_indicatorGlow() else self.indicatorGlow
+    if glow then
+        ts:Create(glow, a17, { Transparency = self.value and t.AccentGlow or 1 }):Play()
     end
 end
 
 function state:_minWidth()
-    local w = 30 + 10 + 50     if self.icon then
+    -- [[The switch column is the track's own width: the compact row sizes its
+    -- [[label column against this, so it has to follow the metrics above.]]
+    local w = 30 + 10 + switchTrackWidth     if self.icon then
         w += 21     end
         w += tab.textWidth(self.window.theme.Font, 16, flag.resolve(self.name))
     return w

@@ -201,6 +201,14 @@ function state:Select(a24)
     end
     self.window:_jumpTo(self.tabPage)
 
+    -- [[A tab nobody has opened yet still has its elements hidden: its page is
+    -- [[not the current page of window.elements until the line above, so this
+    -- [[is the first frame any of them can be seen. Showing them here is the
+    -- [[same instant show the window's reveal used to run for every tab.]]
+    if self._elementsPending and not self.window.hidden and not self.window.minimised then
+        self.window:_showTabElements(self)
+    end
+
                     local a25 = a24 or not self.window:_interactive()
 
     if not self.neglectSelector and not a25 then
@@ -242,6 +250,10 @@ function state:_register(element)
 
     if not self.window.hidden then
         element:_setShown(true, false)
+    else
+        -- [[The element stayed hidden with the window: remember that this tab
+        -- [[has something to show when it is next opened.]]
+        self._elementsPending = true
     end
 
     return element
@@ -301,10 +313,6 @@ end
 
 function state:CreateKeybind(a39)
     return self:_register(require(script.Parent.keybind).new(self, a39))
-end
-
-function state:CreateColorPicker(a40)
-    return self:_register(require(script.Parent.colorpicker).new(self, a40))
 end
 
 function state:CreateGroup(a41)

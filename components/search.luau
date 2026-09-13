@@ -87,6 +87,16 @@ end
 local function collectElements(window)
     window._searchUnits = {}
     local order = 0
+
+    -- [[Elements of tabs the player has not opened yet are still hidden (see
+    -- [[`Window:_markTabElementsPending`). The search lays every element out on
+    -- [[its own page, so bring them all in first - exactly the state the old
+    -- [[reveal left them in.]]
+    for _, tab in pairs(window.tabs) do
+        if tab._elementsPending then
+            window:_showTabElements(tab)
+        end
+    end
     for _, element in getAllElements(window) do
         order += 1
         local mainFrame = element.main

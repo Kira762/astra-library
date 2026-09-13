@@ -2,6 +2,223 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-13 — Opening the menu touches only the tab you are looking at
+
+- **Tabs nobody has opened are no longer walked.** `_revealElements`,
+  `_quickRestore` and `_firstShow` set every element of every tab on every
+  show, so a 5-tab x 6-element window wrote 30 element visibility sets per
+  open and 24 of them were for pages `UIPageLayout` is not rendering. A tab is
+  now marked when its elements are actually hidden (it was the tab on screen
+  when the window hid or the layout faded, or an element was registered while
+  the window was hidden) and `Window:_showTabElements` runs when the player
+  opens the tab (`tab:Select`) or when the search re-parents its elements onto
+  its own page - the two moments they can be seen. Measured: **30 -> 6**
+  visibility sets per show/hide cycle on a 5-tab window, with a dump of every
+  element's visible state (every Transparency, every Visible flag and the page
+  it hangs from) at ten points in the window's life byte-identical between the
+  previous bundle and this one.
+- **Dropdowns build the search bar with the rows.** The bar and its six
+  children (corner, stroke, glow, click button, text box, icon = 7 instances)
+  were built at construction even though the bar is only reachable once the
+  list is open. A closed dropdown is now **25 instances** whether it has 2, 4,
+  8 or 16 options.
+- **Glows for states that cannot be on screen.** A toggle's indicator glow is
+  only ever visible while the switch is on and an input's field glow only ever
+  appears with a validation flash, but both were built with the element. Both
+  are now built on first use (`toggle:_indicatorGlow`, `input:_fieldGlow`, the
+  latter called by `Window:_flashResult`), so an off switch and a fresh field
+  carry no shadow instance.
+- **The viewport poll no longer rewrites the rail.** `_applyWindowSize` called
+  `_applyRailWidth` before asking whether anything had changed, so the 2s poll
+  wrote rail properties (and invalidated layout) for the whole session whether
+  or not the window had moved. The write now sits behind the "did it change?"
+  check. (Not asserted in the suite: the offline harness's `UDim2`/`Vector2`
+  are plain tables, where `~=` is reference inequality, so the engine's value
+  comparison that this early-out depends on cannot be reproduced off-engine.)
+- **New suite.** `scripts/tab_elements_test.sh` (E1-E6) pins the tab rule: the
+  first show walks the selected tab only; opening a tab shows its elements in
+  the same frame and in the state the reveal left the selected tab in;
+  hide/show does not walk the others; the search shows every tab it renders;
+  an element created while the window is hidden shows with its tab; reopening
+  a shown tab costs nothing. It fails on the previous bundle with `E1 the first
+  show walks the selected tab, not all four (used 20)`. `toggle_switch_test.sh`
+  grew `S7` (the glow follows the switch), `dropdown_rows_test.sh` (D1-D7) now
+  also pins the search bar to the same first-open rule, and the budget suites
+  tightened the dropdown ceiling 40 -> 28 and the page budget 305 -> 288.
+
+## 2026-09-13 — Dropdown option rows are built on first open
+
+- **A closed dropdown no longer carries its option rows.** Every option was
+  materialised at construction — 8 instances each (row frame, corner, stroke,
+  click button, title frame, layout, icon, label) — so a 16-option dropdown
+  spent 128 instances on rows nobody could see while the list was shut off.
+  `dropdown:_buildOptionAt/_materialiseOptions` now build the rows when the list
+  is first opened, and the mutators follow the same rule: `Refresh`, `Add`,
+  `Remove` and `Set` keep working while the rows do not exist (the option list
+  is the only record), and the rows are built from it at the next open.
+  Measured: a closed dropdown is a flat **25 instances** with 2, 4, 8 or 16
+  options (it was 48 / 64 / 96 / 160), and opening one adds exactly the 8 rows
+  per option plus the 7-instance search bar the old build created up front, so
+  the open list is unchanged. The realistic 16-element page drops to **281
+  instances** (was 322).
+- **`_open` re-runs `_updateCorners`** after materialising, which is what the
+  old build got from construction-time corner assignment; a dropdown that was
+  never opened skips both.
+- **Same-visual verification.** A dump of every instance and every property of
+  the dropdown subtree at eleven points in its life — closed, opening, row
+  hover, row click, list edited while closed, reopened, closed again,
+  multi-select before/after a pick, and with a search filter applied — is
+  byte-identical to the previous bundle everywhere the list is on screen. The
+  two closed states are identical too once the subtrees that are only visible
+  while the list is open (the rows and the search bar) are removed from the old
+  dump: nothing else about them moved. The one other difference is the search
+  bar and the list swapping places in `GetChildren()` — both carry explicit
+  `LayoutOrder`s (1 and 3) under the panel's `UIListLayout`, so the order the
+  UI lays them out in is unchanged.
+- **New suite.** `scripts/dropdown_rows_test.sh` (D1–D7) pins: no rows and no
+  search bar while closed, one row per option in order on open (plus the bar
+  once), the rows' rendered state (selected vs unselected fills, label/glyph/
+  stroke transparencies, the first/last corner tiers), reopening reusing the
+  same rows, edits and selections made while closed landing on the rows built
+  at open, picking a row still updating the value and the header, and the
+  search bar still filtering the three rows it was built with. It fails on the
+  previous bundle with `D1 a closed dropdown has no rows (got 2)`. The budget
+  suite grew `B4` (a closed dropdown costs the same with 2 and 12 options) and
+  tightened its dropdown ceiling 60 → 40 and its page budget 340 → 305
+  (`B1 dropdown ... (used 56)` on the previous bundle).
+
+## 2026-09-13 — ColorPicker removed, odometer readouts build rows on demand
+
+- **`CreateColorPicker` is gone.** The element (`elements/colorpicker.luau`,
+  1,115 lines, 47 instances each), its factory on `Tab`, its `ColorPickerProps`
+  / `ColorPicker` types, its entry in the window-icon map and both
+  `example.client.luau` usages were removed; the example's two spots now use a
+  Slider. `USAGE.md` and `MODULES.md` no longer list it. Bundle: 1,565,836 →
+  1,549,227 bytes, 101 → 100 modules.
+- **The odometer builds readout rows on demand.** Each digit of a readout is a
+  clipping cell holding a strip of rows; the strip was pre-filled with all
+  `reelCells` (20) TextLabels, of which at most two can ever be inside the cell,
+  so a single-digit Stat carried 22 instances per digit and a Stat with a change
+  readout built **42 text labels for one value**. `odometer:_row/_rows` now
+  materialise only the contiguous band a transition actually travels
+  (`_reelSnap` one row, `_reelRoll` the from/to span), with the same row
+  positions and glyphs, so the roll looks and lands exactly as before.
+  Measured: Stat 59 → 21 instances, compact Stat 38 → 19, Slider 67 → 29 —
+  **-58% on the three heaviest elements**, and -41% for a realistic 16-element
+  page (550 → 322 instances).
+- **New suites.** `scripts/odometer_test.sh` pins the lazy-row rule and the
+  readout itself (the row the strip rests on must carry the value's digit,
+  after a plain change, a wrap 9→1 and a roll down 1→9, with the decimal point,
+  digits and suffix still rendered) — it fails on the previous bundle with
+  `O1 ... (got 40)`. `scripts/instance_budget_test.sh` pins a ceiling per
+  element plus an instance budget for the 16-element page (305 after the
+  dropdown rows became lazy; it was 340), so decoration creep fails in the suite
+  rather than in game; it fails on the previous bundle with
+  `B1 statCompact ... (used 39)`.
+- Both new suites honour `ASTRA_BUNDLE=<path>` to run against an older bundle,
+  which is how the "fails before / passes after" check above was made.
+
+## 2026-09-13 — Switch geometry: mirrored states, one set of metrics, sheen under the knob
+
+- **The knob's clearance is now the same on every side it can see.** The switch
+  was built from loose numbers: a 50px track, a 25x17 knob parked at
+  `1, -47` / `1, -28`, and a 15px corner. Measured from the real build, "on"
+  left 22px of empty track on the left against 3px on the right (and "off" the
+  mirror of that), which is the lopsided gap the screenshot shows. The track
+  and knob are now derived from one set of metrics — 44x22 track, 26x18 knob,
+  a 2px inset at the parked end and the same 2px above and below — so both
+  resting states are exact mirrors: `off.left == on.right == 2` and
+  `on.left == off.right`. The narrower track also cuts the empty slab beside
+  the knob from 22px to 14px, so neither state reads as a knob floating in an
+  oversized pill.
+- **The track's sheen no longer paints over the knob.** The theme's sheen
+  overlay (`DarkToggleOverlay`) is created after the knob at the same ZIndex,
+  so at equal ZIndex the later sibling drew it on top of the knob, washing its
+  lower half (invisible in the screenshot's theme, obvious in the light ones).
+  The sheen now declares ZIndex 1 and the knob ZIndex 2, so the sheen tints the
+  track and only the track.
+- **Both corner radii are pills.** The track and the overlay asked for a fixed
+  15px radius, which only happened to match the old 21px height; both are
+  `UDim.new(1, 0)` now, and the knob's travel is `track - knob - inset`, so a
+  future size change cannot reintroduce an off-centre rim.
+- **Verification:** new suite `scripts/toggle_switch_test.sh` (S1 one set of
+  metrics with equal clearance, S2 mirrored states inside the track, S3 the
+  empty side stays under half the track, S4 the sheen draws under the knob,
+  S5 the animated positions match the built ones, S6 the compact row follows the
+  track width). It fails against the previous bundle as expected:
+  `S2 the parked knob sits off its end by the same 2px inset (got 3)`.
+  Also new offline preview — `scripts/toggle_preview.sh` +
+  `scripts/render_toggle_preview.py` dump and draw both states (with the track's
+  body gradient and sheen) to `assets/toggle-preview-{off,on}.png`, and
+  `assets/toggle-gap-fix.png` is the before/after sheet. Bundle regenerated;
+  the other nine suites and both static checks stay green.
+
+## 2026-09-13 — Motion service: one owner for animation timing, plus a live "Animation speed" setting
+
+- **New `utilities/motion.luau`** — the library's animation timing now lives in
+  one module. Named specs (`instant`, `fast`, `snappy`, `normal`, `smooth`,
+  `emphasized`, `pop`, `exit`, `spring`, `spin`, `drift`) are `TweenInfo`
+  values created once and handed out (`motion.spec`), so call sites stop
+  building their own; `motion.step(base)` scales a cascade's pace, and the
+  speed profiles (`relaxed` 1.35x, `normal`, `snappy` 0.7x, `instant` = no
+  animation) drive the whole interface from one place.
+- **`motion.tween(instance, props, spec, onCompleted)`** is the drop-in for
+  `TweenService:Create(...):Play()`. It drops properties that already hold
+  their target value (a fully-satisfied call creates no tween at all) and
+  cancels an in-flight tween it would fight with — the same property, so
+  unrelated animations are left alone. That is what removes the twin tweens a
+  fast hover in/out used to leave interpolating the same stroke, and the
+  sometimes-flickering result that came with them. `onCompleted` is connected
+  before `Play()`, so a settle path can never miss a completion that lands on
+  the same tick.
+- **Window hot paths moved onto the service.** Element hover (every element,
+  every pointer move), element reveal, the result flash, the callback-failure
+  flash and the theme's ambient gradient drift now animate through
+  `motion.tween`. Hover in/out on the same element is now one writer per
+  property instead of two.
+- **The entrance has a little pop.** The window's first show animates its size
+  and corner on `motion.spec("pop")`: the same 0.38s it always took, with a
+  small `Back/Out` overshoot so the frame springs the last pixels into place
+  instead of easing into them.
+- **New setting: Animation speed** (Performance → Motion; `motionSpeed`, one of
+  `relaxed` / `normal` / `snappy` / `instant`, default `normal`). Relaxed and
+  snappy rescale every transition the motion service owns, including the
+  element reveal cascade; Instant switches animation off entirely — targets are
+  applied on the spot and no tween is created, which is the reduced-motion and
+  low-end-device option. The value round-trips through the settings JSON and is
+  validated against `motion.profiles` both by the live validator and by the
+  loader, so a hand-edited file cannot name a profile that does not exist.
+  `Window:LoadSettings` re-applies it, and an unknown value falls back to
+  `normal`.
+- **`Astra.Motion` is public.** Hosts can animate with the library's own specs
+  (`Astra.Motion.tween(frame, props, "snappy")`), cancel what the service owns
+  (`cancel(instance)`), or steer everything (`setProfile`, `setTimeScale`,
+  `setEnabled`). Typed in `Types.luau` as `MotionService`.
+- **Drive-by fix:** `settings/manager.luau` never created `values` or
+  `listeners`, so `Astra.Settings.newManager()` raised "attempt to index nil"
+  on the first `:set`/`:get`/`:save` a host performed. Both are initialised
+  now. (The new suite is what caught it.)
+- **Verification:** new suite `scripts/motion_test.sh` (specs shared and
+  cached, time scale rescaling + cache invalidation, profiles and rejection of
+  unknown ones, cancel-on-overlap vs. unrelated properties, no-op calls,
+  animation-off applying targets with no tween, the window setting reaching the
+  service, and hover running through it). Every existing suite is unchanged and
+  green: `smoke_test_bundle.sh`, `profile_{centering,compact,details,reveal,ui}_test.sh`,
+  `sidebar_tab_sizing_test.sh` (its Performance-tab element count moved 2 → 4
+  with the new section + dropdown) and `check_requires.py`. Measured on the
+  stub harness against the previous bundle: 720 → 24 tween creations for
+  redundant hover states, 432 overlapping hover tweens cancelled in a rapid
+  in/out sweep that used to let them keep running, 161 cancelled across
+  hide/show round trips. Bundle regenerated with `node scripts/generate_bundle.js`
+  (101 modules); the equivalence check reports only the intended modules
+  changed.
+- Still on the old path (the natural next slice): `components/toast.luau`,
+  `notification.luau`, `popup.luau`, `search.luau`, the window's own
+  open/close/minimise/collapse transitions, and the element-level press and
+  drag tweens in `elements/*.luau` keep their own `TweenInfo`/`TweenService`
+  calls, so they do not yet answer to the speed setting (and are not yet
+  covered by the cancel-on-overlap rule).
+
 ## 2026-09-13 — Profile card: window-backed surface, copy feedback, Job ID row, tier icon fix
 
 - **The card's background is the window's background, not a lookalike.**

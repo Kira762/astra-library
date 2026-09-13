@@ -123,6 +123,88 @@ shell and `components/window.luau` follows it:
   `scripts/check_requires.py` and `scripts/check_instance_fields.py` all
   green.
 
+## v1.3 patch set (motion service + hot-path animation cleanup)
+
+New `utilities/motion.luau` is the single owner of the library's animation
+timing; the window's hot paths now go through it:
+
+- Named specs are created once and shared (`motion.spec`), so a site that
+  animates at 0.25s Quint/Out no longer walks its own `TweenInfo.new`.
+- `motion.tween(instance, props, spec, onCompleted)` drops properties already
+  at their target (no tween at all when every property is satisfied) and
+  cancels an in-flight tween it would fight over the same property — one
+  writer per property, which removes the stray/twin tweens a fast hover in/out
+  used to leave behind. `onCompleted` is connected *before* `Play`, so a
+  synchronous completion (the test stubs) cannot skip a settle path.
+- The window's entrance rides `motion.spec("pop")` (the same 0.38s with a
+  small Back/Out overshoot); hover, element reveal, result flash, guard
+  failure and the ambient gradient drift all moved onto the service.
+- `_revealElements` paces its cascade with `motion.step(stepDelay)`: a relaxed
+  profile spreads the reveal, `instant` reveals every element on one frame.
+- The window's new "Animation speed" setting (`motionSpeed`: relaxed / normal
+  / snappy / instant) drives `motion.setProfile`; the value round-trips through
+  the settings JSON and is validated against `motion.profiles` in both the
+  live validator and the loader. Profile applied on build and on every
+  `LoadSettings`.
+- `Astra.Motion` exposes the service (specs, `tween`, `cancel`, `step`,
+  `setProfile`, `setTimeScale`, `setEnabled`).
+- Drive-by: `settings/manager.luau` never created `values`/`listeners`, so
+  `Astra.Settings.newManager()` raised on first `:set`/`:get`; both are now
+  initialised (found by the new suite).
+- Bundle regenerated (101 modules at that point - motion added a module while
+  the ColorPicker still existed; its removal in the instance-budget pass below
+  takes the tree to 100). Measured against the previous bundle with
+  the stub harness: redundant hover states 720 -> 24 tween creations, rapid
+  hover in/out cancels 432 overlapping tweens that used to keep running,
+  hide/show round trips cancel 161 — with the suite set unchanged and green.
+  Suites: `scripts/motion_test.sh` added; profile/sidebar/smoke suites,
+  `scripts/check_requires.py` and the bundle equivalence check all green.
+
+## Instance budget (frame time)
+
+Instance count is the library's main frame-time lever: Roblox renders and sorts
+every GUI instance it holds, so a page's instance count is the closest offline
+proxy for what the menu costs while it is open. Two rules keep it down:
+
+- **Nothing invisible is built.** The odometer (`utilities/odometer.luau`)
+  materialises reel rows per transition (`_row`/`_rows`) instead of pre-filling
+  all 20 rows of every digit; a readout that shows one digit builds one row. The
+  dropdown (`elements/dropdown.luau`) builds its option rows on the first open
+  (`_materialiseOptions`/`_buildOptionAt`), so a closed list costs nothing
+  however long its option list is; `Refresh`/`Add`/`Remove`/`Set` update the
+  option list while the rows do not exist and the rows are built from it at the
+  next open.
+- **Tabs nobody opened are not walked.** The window marks a tab whose elements
+  are hidden (`Window:_markTabElementsPending`) and shows them when the player
+  opens it (`tab:Select`) or when the search renders them on its own page; a
+  show/hide cycle touches the tab on screen instead of every tab. Element
+  registration does the same for a single element (show it if the window is
+  visible, mark the tab if not).
+- **A closed element does not build the furniture of its open state.** A
+  dropdown builds its option rows and its search bar on the first open, and the
+  glows that only appear in a state a user has to enter (a switch turned on, a
+  field validation flash) are built when that state arrives.
+- **Elements are sized by `scripts/instance_budget_test.sh`**, which fails if an
+  element or a realistic 16-element page grows past its ceiling. Current page:
+  **281 instances** (322 before the lazy dropdown rows, 550 before the odometer
+  change).
+
+`elements/colorpicker.luau` was removed in this pass (unused); `Tab` no longer
+exposes `CreateColorPicker`.
+
+## Switch geometry (toggle element)
+
+`elements/toggle.luau` builds the track and the knob from one block of metrics
+(`switchTrackWidth/Height`, `switchKnobWidth/Height`, `switchInset`) and derives
+the two resting positions from them (`switchKnobActive`, `switchKnobRest`), so
+the "on" and "off" states are exact mirrors and the clearance at the parked end
+equals the clearance above and below. `_animateIndicator` animates to those same
+two values, and `_minWidth` reserves the track's width. The theme's sheen
+overlay draws at ZIndex 1 and the knob at ZIndex 2: at equal ZIndex the sheen
+used to land on top of the knob and wash its lower half. Pinned by
+`scripts/toggle_switch_test.sh`; `scripts/toggle_preview.sh` renders both states
+offline.
+
 ## Phase 1 audit summary
 
 Audit covered every existing `.luau` file (68 source modules + entrypoint +

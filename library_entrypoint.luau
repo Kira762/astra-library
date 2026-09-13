@@ -4,6 +4,7 @@ local Image = require(script.Parent.images.image)
 local Locale = require(script.Parent.utilities.locale)
 local Constants = require(script.Parent.utilities.constants)
 local Icons = require(script.Parent.icons)
+local Motion = require(script.Parent.utilities.motion)
 local Settings = require(script.Parent.settings)
 local TypesModule = require(script.Parent.Types)
 
@@ -23,7 +24,6 @@ export type SliderProps = types.SliderProps
 export type DropdownProps = types.DropdownProps
 export type InputProps = types.InputProps
 export type KeybindProps = types.KeybindProps
-export type ColorPickerProps = types.ColorPickerProps
 export type StatProps = types.StatProps
 export type ProgressProps = types.ProgressProps
 export type ConsoleProps = types.ConsoleProps
@@ -46,7 +46,6 @@ export type Slider = types.Slider
 export type Dropdown = types.Dropdown
 export type Input = types.Input
 export type Keybind = types.Keybind
-export type ColorPicker = types.ColorPicker
 export type Stat = types.Stat
 export type Progress = types.Progress
 export type Console = types.Console
@@ -75,6 +74,11 @@ end
 local globalStore = getGlobalStore()
 
 Astra.Icons = Icons
+
+-- [[The motion service is public: hosts can animate with the library's own
+-- specs (`Astra.Motion.tween(frame, props, "snappy")`) and steer the whole
+-- interface's timing (`setProfile`, `setTimeScale`, `setEnabled`).]]
+Astra.Motion = Motion
 
 Astra.Core = Core
 Astra.Settings = Settings

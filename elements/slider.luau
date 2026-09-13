@@ -38,14 +38,6 @@ local a22 = 300
 local a23 = Vector2.new(35, 20)
 local a24 = Vector2.new(41, 22)
 
-local function a25(a26: number): UDim2
-    return UDim2.new(a26, 0, 1, 0)
-end
-
-local function a27(): UDim2
-    return UDim2.new(1, 0, 0.5, 0)
-end
-
 local function a28(x: number, a29: number, a30: number): number
     return math.clamp((x - a29) / a30, 0, 1)
 end
@@ -163,13 +155,19 @@ function state.new(ownerTab, a31)
 
         self.progressGlow = self.window:CreateGlow(self.progress, "AccentColor", 20, 1)
 
+        -- [[The knob rides the track, not the fill: its centre travels only
+        -- [[within [halfWidth, travel - halfWidth], so the capsule stays
+        -- [[inside the track (and inside the card) at both extremes, and the
+        -- [[fill ends at the knob's centre so the bar never peeks out from
+        -- [[under it. _renderProgress places both from one centre number.]]
         self.handle = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = a27(),         Size = UDim2.fromOffset(a23.X, a23.Y),
+        Position = UDim2.new(0, 0, 0.5, 0),
+        Size = UDim2.fromOffset(a23.X, a23.Y),
         BorderSizePixel = 0,
         ZIndex = 50,
         BackgroundTransparency = 1,
-        Parent = self.progress,
+        Parent = self.track,
     }, { BackgroundColor3 = "SliderHandle" })
 
     self.window:Create("UICorner", {
@@ -184,6 +182,13 @@ function state.new(ownerTab, a31)
         Transparency = 1,
         Parent = self.handle,
     }, { Color = "SliderStroke" })
+
+    -- [[In the narrow layout the track is scale-sized, so a window resize
+    -- [[moves its measured width without a layout-mode switch; re-seat the
+    -- [[fill and knob whenever that happens.]]
+    self.window:ConnectFor(self, self.track:GetPropertyChangedSignal("AbsoluteSize"), function()
+        self:_renderProgress()
+    end)
 
     self.interact = self.window:Create("TextButton", {
         BackgroundTransparency = 1,
@@ -411,6 +416,11 @@ function state:_applyLayout()
         self.track.Position = UDim2.new(1, -15, 0.5, 0)
         self.track.Size = UDim2.new(0, 222, 0, 14)
     end
+
+    -- [[The knob and the fill are placed in pixels off the track's measured
+    -- [[width, so every track resize (first layout, mode switch, window
+    -- [[resize) re-seats them through the same clamp.]]
+    self:_renderProgress()
 end
 
 function state:_format(a37)
@@ -429,11 +439,22 @@ function state:_renderProgress(a39)
     local a40 = self.range[2] - self.range[1]
     local a41 = if a40 ~= 0 then math.clamp((self.value - self.range[1]) / a40, 0, 1) else 0
 
-    local a42 = a25(a41)
+    -- [[One centre number drives both the fill and the knob: the centre sits
+    -- [[half a knob in from each track end at the extremes (so the capsule
+    -- [[never overlaps the card edge or stroke), and the fill's right edge is
+    -- [[exactly that centre, so it stays tucked under the knob. The held
+    -- [[knob is wider than the resting one, so the clamp follows
+    -- [[_handleWidth and a hold re-renders through the same path.]]
+    local half = (self._handleWidth or a23.X) / 2
+    local center = half + a41 * math.max(self:_pillTravel() - half * 2, 0)
+    local fill = UDim2.new(0, center, 1, 0)
+    local at = UDim2.new(0, center, 0.5, 0)
     if a39 then
-        Slider.tweenService:Create(self.progress, a39, { Size = a42 }):Play()
+        Slider.tweenService:Create(self.progress, a39, { Size = fill }):Play()
+        Slider.tweenService:Create(self.handle, a39, { Position = at }):Play()
     else
-        self.progress.Size = a42
+        self.progress.Size = fill
+        self.handle.Position = at
     end
 end
 

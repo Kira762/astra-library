@@ -2,6 +2,30 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-13 — Keybind cap joins the element corner; slider knob stops overlapping the card
+
+- **The Keybind element's key cap wore the same capsule as the Input field
+  did.** It now binds its corner to `ElementCornerRadius` like the input box
+  fixed earlier, so both field boxes read as smaller members of the card
+  family and follow host themes that round elements differently.
+- **The slider knob overlapped the card edge at the top of its range.** The
+  capsule rode the fill's right edge (centre at `scale 1` of the progress
+  bar), so at max its centre sat on the track's end and half of its 35px —
+  41px while held — width hung past it, over the card's right inset, stroke
+  and corner. The knob now rides the track with its centre clamped to
+  `[halfWidth, travel - halfWidth]`, and the fill's right edge is exactly
+  that centre, so the bar stays tucked under the capsule at every value.
+  One number drives both: `_renderProgress` places fill size and knob
+  position from the same clamped centre, re-seated on every track resize
+  (first layout, narrow/wide mode switch, scale-sized track on window
+  resize) and re-clamped for the wider held knob on press and release.
+- Suites: `scripts/input_field_test.sh` gains the keybind cap pin; new
+  `scripts/slider_travel_test.sh` pins the travel in anchor-independent
+  track-local pixels — clamped at max, min and mid, fill ending at the
+  knob's centre, and the clamp holding while held and after release. Both
+  fail against the previous bundle (capsule scale on the cap, knob centre
+  on the track end), so the pins have teeth.
+
 ## 2026-09-13 — Input field rounds with the element corner, not a capsule
 
 - **The Input element's field box wore its own capsule.** The dark box the

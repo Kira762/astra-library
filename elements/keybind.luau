@@ -151,10 +151,12 @@ function state.new(tab, a22)
         Parent = self.main,
     }, { BackgroundColor3 = "FieldBackground" })
 
+    -- [[Same corner as every other element surface (the theme's
+    -- [[ElementCornerRadius), matching the Input element's field box: the
+    -- [[key cap reads as a smaller member of the card family, not a capsule.]]
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
         Parent = self.box,
-    })
+    }, { CornerRadius = "ElementCornerRadius" })
 
     self.boxStroke = self.window:Create("UIStroke", {
         Transparency = 1,

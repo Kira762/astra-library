@@ -12506,10 +12506,12 @@ function state.new(tab, a22)
         Parent = self.main,
     }, { BackgroundColor3 = "FieldBackground" })
 
+    -- [[Same corner as every other element surface (the theme's
+    -- [[ElementCornerRadius), matching the Input element's field box: the
+    -- [[key cap reads as a smaller member of the card family, not a capsule.]]
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
         Parent = self.box,
-    })
+    }, { CornerRadius = "ElementCornerRadius" })
 
     self.boxStroke = self.window:Create("UIStroke", {
         Transparency = 1,
@@ -13486,14 +13488,6 @@ local a22 = 300
 local a23 = Vector2.new(35, 20)
 local a24 = Vector2.new(41, 22)
 
-local function a25(a26: number): UDim2
-    return UDim2.new(a26, 0, 1, 0)
-end
-
-local function a27(): UDim2
-    return UDim2.new(1, 0, 0.5, 0)
-end
-
 local function a28(x: number, a29: number, a30: number): number
     return math.clamp((x - a29) / a30, 0, 1)
 end
@@ -13611,13 +13605,19 @@ function state.new(ownerTab, a31)
 
         self.progressGlow = self.window:CreateGlow(self.progress, "AccentColor", 20, 1)
 
+        -- [[The knob rides the track, not the fill: its centre travels only
+        -- [[within [halfWidth, travel - halfWidth], so the capsule stays
+        -- [[inside the track (and inside the card) at both extremes, and the
+        -- [[fill ends at the knob's centre so the bar never peeks out from
+        -- [[under it. _renderProgress places both from one centre number.]]
         self.handle = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = a27(),         Size = UDim2.fromOffset(a23.X, a23.Y),
+        Position = UDim2.new(0, 0, 0.5, 0),
+        Size = UDim2.fromOffset(a23.X, a23.Y),
         BorderSizePixel = 0,
         ZIndex = 50,
         BackgroundTransparency = 1,
-        Parent = self.progress,
+        Parent = self.track,
     }, { BackgroundColor3 = "SliderHandle" })
 
     self.window:Create("UICorner", {
@@ -13632,6 +13632,13 @@ function state.new(ownerTab, a31)
         Transparency = 1,
         Parent = self.handle,
     }, { Color = "SliderStroke" })
+
+    -- [[In the narrow layout the track is scale-sized, so a window resize
+    -- [[moves its measured width without a layout-mode switch; re-seat the
+    -- [[fill and knob whenever that happens.]]
+    self.window:ConnectFor(self, self.track:GetPropertyChangedSignal("AbsoluteSize"), function()
+        self:_renderProgress()
+    end)
 
     self.interact = self.window:Create("TextButton", {
         BackgroundTransparency = 1,
@@ -13859,6 +13866,11 @@ function state:_applyLayout()
         self.track.Position = UDim2.new(1, -15, 0.5, 0)
         self.track.Size = UDim2.new(0, 222, 0, 14)
     end
+
+    -- [[The knob and the fill are placed in pixels off the track's measured
+    -- [[width, so every track resize (first layout, mode switch, window
+    -- [[resize) re-seats them through the same clamp.]]
+    self:_renderProgress()
 end
 
 function state:_format(a37)
@@ -13877,11 +13889,22 @@ function state:_renderProgress(a39)
     local a40 = self.range[2] - self.range[1]
     local a41 = if a40 ~= 0 then math.clamp((self.value - self.range[1]) / a40, 0, 1) else 0
 
-    local a42 = a25(a41)
+    -- [[One centre number drives both the fill and the knob: the centre sits
+    -- [[half a knob in from each track end at the extremes (so the capsule
+    -- [[never overlaps the card edge or stroke), and the fill's right edge is
+    -- [[exactly that centre, so it stays tucked under the knob. The held
+    -- [[knob is wider than the resting one, so the clamp follows
+    -- [[_handleWidth and a hold re-renders through the same path.]]
+    local half = (self._handleWidth or a23.X) / 2
+    local center = half + a41 * math.max(self:_pillTravel() - half * 2, 0)
+    local fill = UDim2.new(0, center, 1, 0)
+    local at = UDim2.new(0, center, 0.5, 0)
     if a39 then
-        Slider.tweenService:Create(self.progress, a39, { Size = a42 }):Play()
+        Slider.tweenService:Create(self.progress, a39, { Size = fill }):Play()
+        Slider.tweenService:Create(self.handle, a39, { Position = at }):Play()
     else
-        self.progress.Size = a42
+        self.progress.Size = fill
+        self.handle.Position = at
     end
 end
 
@@ -32256,80 +32279,80 @@ local LineOffsets = {
     [27] = 11870,
     [28] = 12081,
     [29] = 12356,
-    [30] = 12912,
-    [31] = 13362,
-    [32] = 13449,
-    [33] = 14014,
-    [34] = 14632,
-    [35] = 15023,
-    [36] = 15153,
-    [37] = 15317,
-    [38] = 15471,
-    [40] = 16033,
-    [41] = 16056,
-    [42] = 16073,
-    [43] = 16106,
-    [44] = 16228,
-    [45] = 16252,
-    [46] = 16301,
-    [47] = 16008,
-    [48] = 16431,
-    [49] = 16734,
-    [50] = 16765,
-    [51] = 16420,
-    [52] = 16808,
-    [53] = 16828,
-    [54] = 16860,
-    [55] = 16790,
-    [56] = 16967,
-    [57] = 17026,
-    [58] = 17086,
-    [60] = 17145,
-    [61] = 17310,
-    [62] = 17130,
-    [63] = 17870,
-    [64] = 18165,
-    [65] = 18821,
-    [66] = 20605,
-    [67] = 21746,
-    [68] = 23266,
-    [69] = 17372,
-    [70] = 28510,
-    [71] = 28572,
-    [72] = 28634,
-    [73] = 28709,
-    [74] = 28791,
-    [75] = 28853,
-    [76] = 28928,
-    [77] = 29003,
-    [78] = 29078,
-    [79] = 29153,
-    [80] = 28404,
-    [81] = 29215,
-    [82] = 29313,
-    [83] = 29491,
-    [84] = 29542,
-    [85] = 29572,
-    [86] = 29823,
-    [87] = 29872,
-    [88] = 30325,
-    [89] = 30343,
-    [90] = 30489,
-    [91] = 30588,
-    [92] = 30610,
-    [93] = 30660,
-    [94] = 30986,
-    [95] = 31022,
-    [96] = 31040,
-    [97] = 31389,
-    [98] = 31405,
-    [99] = 31456,
-    [100] = 31475,
-    [101] = 31717,
-    [102] = 31761,
-    [103] = 31986,
-    [104] = 32014,
-    [105] = 32025,
+    [30] = 12914,
+    [31] = 13364,
+    [32] = 13451,
+    [33] = 14037,
+    [34] = 14655,
+    [35] = 15046,
+    [36] = 15176,
+    [37] = 15340,
+    [38] = 15494,
+    [40] = 16056,
+    [41] = 16079,
+    [42] = 16096,
+    [43] = 16129,
+    [44] = 16251,
+    [45] = 16275,
+    [46] = 16324,
+    [47] = 16031,
+    [48] = 16454,
+    [49] = 16757,
+    [50] = 16788,
+    [51] = 16443,
+    [52] = 16831,
+    [53] = 16851,
+    [54] = 16883,
+    [55] = 16813,
+    [56] = 16990,
+    [57] = 17049,
+    [58] = 17109,
+    [60] = 17168,
+    [61] = 17333,
+    [62] = 17153,
+    [63] = 17893,
+    [64] = 18188,
+    [65] = 18844,
+    [66] = 20628,
+    [67] = 21769,
+    [68] = 23289,
+    [69] = 17395,
+    [70] = 28533,
+    [71] = 28595,
+    [72] = 28657,
+    [73] = 28732,
+    [74] = 28814,
+    [75] = 28876,
+    [76] = 28951,
+    [77] = 29026,
+    [78] = 29101,
+    [79] = 29176,
+    [80] = 28427,
+    [81] = 29238,
+    [82] = 29336,
+    [83] = 29514,
+    [84] = 29565,
+    [85] = 29595,
+    [86] = 29846,
+    [87] = 29895,
+    [88] = 30348,
+    [89] = 30366,
+    [90] = 30512,
+    [91] = 30611,
+    [92] = 30633,
+    [93] = 30683,
+    [94] = 31009,
+    [95] = 31045,
+    [96] = 31063,
+    [97] = 31412,
+    [98] = 31428,
+    [99] = 31479,
+    [100] = 31498,
+    [101] = 31740,
+    [102] = 31784,
+    [103] = 32009,
+    [104] = 32037,
+    [105] = 32048,
 }
 
 -- [[Misc AOT variable imports]]

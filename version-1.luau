@@ -12341,12 +12341,10 @@ function state.new(tab, a22)
         Parent = self.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-        self.box = self.window:Create("TextButton", {
+        self.box = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -7, 0, 20),
         Size = UDim2.fromOffset(40, 30),
-        AutoButtonColor = false,
-        Text = "",
         BorderSizePixel = 0,
 
         BackgroundTransparency = 1,
@@ -12365,8 +12363,11 @@ function state.new(tab, a22)
 
         self.glow = self.window:CreateGlow(self.box, "FieldGlow", 20, 1)
     self._glowIdle = 0.9
-    self.keyLabel = self.window:Create("TextLabel", {
+    -- Use a focusable field, like Input, rather than a button under a label.
+    self.keyLabel = self.window:Create("TextBox", {
         Text = frame(self.value),
+        ClearTextOnFocus = false,
+        MultiLine = false,
         Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -12378,17 +12379,28 @@ function state.new(tab, a22)
         Parent = self.box,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-    self.window:ConnectFor(self, self.box.MouseButton1Click, function()
+    self.window:ConnectFor(self, self.keyLabel.Focused, function()
+        if self.locked or not self.window:_interactive() then
+            self.keyLabel:ReleaseFocus()
+            return
+        end
         isMenuToggle.click()
+        self:_startRecording()
+    end)
+
+    self.window:ConnectFor(self, self.keyLabel.FocusLost, function()
+        -- Clicking away cancels; only captured keys may change the binding.
         if self.recording then
             self:_stopRecording()
         else
-            self:_startRecording()
+            self.keyLabel.Text = frame(self.value)
         end
     end)
 
                     self.window:ConnectFor(self, Keybind.userInputService.InputBegan, function(a23, a24)
-        if a24 then
+        -- A game may mark the input as processed, but recording must still
+        -- receive it so rebinding does not immediately fall back to the old key.
+        if a24 and not self.recording then
             return
         end
         if self.recording then
@@ -12432,7 +12444,8 @@ function state:_startRecording()
         a27:_stopRecording()
     end
     self.recording = true
-    self.window._recordingKeybind = self     self.keyLabel.Text = flag.resolve("Recording")
+    self.window._recordingKeybind = self
+    self.keyLabel.Text = flag.resolve("Recording")
     self:_sizeBox(true)
     Keybind.tweenService:Create(self.glow, onChanged, { Transparency = 0.7 }):Play()
     Keybind.tweenService:Create(self.keyLabel, onChanged, { TextTransparency = 0 }):Play()
@@ -12440,10 +12453,13 @@ end
 
 function state:_stopRecording()
     self.recording = false
+    if self.keyLabel:IsFocused() then
+        self.keyLabel:ReleaseFocus()
+    end
                 if self.window._recordingKeybind == self then
         local window = self.window
         task.defer(function()
-            if window._recordingKeybind == self then
+            if window._recordingKeybind == self and not self.recording then
                 window._recordingKeybind = nil
             end
         end)
@@ -31985,80 +32001,80 @@ local LineOffsets = {
     [27] = 11730,
     [28] = 11932,
     [29] = 12202,
-    [30] = 12664,
-    [31] = 13114,
-    [32] = 13201,
-    [33] = 13766,
-    [34] = 14384,
-    [35] = 14774,
-    [36] = 14904,
-    [37] = 15068,
-    [38] = 15222,
-    [40] = 15784,
-    [41] = 15807,
-    [42] = 15824,
-    [43] = 15855,
-    [44] = 15977,
-    [45] = 16001,
-    [46] = 16050,
-    [47] = 15759,
-    [48] = 16172,
-    [49] = 16475,
-    [50] = 16506,
-    [51] = 16161,
-    [52] = 16549,
-    [53] = 16569,
-    [54] = 16601,
-    [55] = 16531,
-    [56] = 16708,
-    [57] = 16767,
-    [58] = 16827,
-    [60] = 16886,
-    [61] = 17051,
-    [62] = 16871,
-    [63] = 17611,
-    [64] = 17906,
-    [65] = 18562,
-    [66] = 20346,
-    [67] = 21487,
-    [68] = 23007,
-    [69] = 17113,
-    [70] = 28251,
-    [71] = 28313,
-    [72] = 28375,
-    [73] = 28450,
-    [74] = 28532,
-    [75] = 28594,
-    [76] = 28669,
-    [77] = 28744,
-    [78] = 28819,
-    [79] = 28894,
-    [80] = 28145,
-    [81] = 28956,
-    [82] = 29054,
-    [83] = 29232,
-    [84] = 29283,
-    [85] = 29313,
-    [86] = 29564,
-    [87] = 29613,
-    [88] = 30066,
-    [89] = 30084,
-    [90] = 30230,
-    [91] = 30329,
-    [92] = 30351,
-    [93] = 30401,
-    [94] = 30727,
-    [95] = 30763,
-    [96] = 30781,
-    [97] = 31130,
-    [98] = 31146,
-    [99] = 31197,
-    [100] = 31216,
-    [101] = 31458,
-    [102] = 31502,
-    [103] = 31715,
-    [104] = 31743,
-    [105] = 31754,
+    [30] = 12680,
+    [31] = 13130,
+    [32] = 13217,
+    [33] = 13782,
+    [34] = 14400,
+    [35] = 14790,
+    [36] = 14920,
+    [37] = 15084,
+    [38] = 15238,
+    [40] = 15800,
+    [41] = 15823,
+    [42] = 15840,
+    [43] = 15871,
+    [44] = 15993,
+    [45] = 16017,
+    [46] = 16066,
+    [47] = 15775,
+    [48] = 16188,
+    [49] = 16491,
+    [50] = 16522,
+    [51] = 16177,
+    [52] = 16565,
+    [53] = 16585,
+    [54] = 16617,
+    [55] = 16547,
+    [56] = 16724,
+    [57] = 16783,
+    [58] = 16843,
+    [60] = 16902,
+    [61] = 17067,
+    [62] = 16887,
+    [63] = 17627,
+    [64] = 17922,
+    [65] = 18578,
+    [66] = 20362,
+    [67] = 21503,
+    [68] = 23023,
+    [69] = 17129,
+    [70] = 28267,
+    [71] = 28329,
+    [72] = 28391,
+    [73] = 28466,
+    [74] = 28548,
+    [75] = 28610,
+    [76] = 28685,
+    [77] = 28760,
+    [78] = 28835,
+    [79] = 28910,
+    [80] = 28161,
+    [81] = 28972,
+    [82] = 29070,
+    [83] = 29248,
+    [84] = 29299,
+    [85] = 29329,
+    [86] = 29580,
+    [87] = 29629,
+    [88] = 30082,
+    [89] = 30100,
+    [90] = 30246,
+    [91] = 30345,
+    [92] = 30367,
+    [93] = 30417,
+    [94] = 30743,
+    [95] = 30779,
+    [96] = 30797,
+    [97] = 31146,
+    [98] = 31162,
+    [99] = 31213,
+    [100] = 31232,
+    [101] = 31474,
+    [102] = 31518,
+    [103] = 31731,
+    [104] = 31759,
+    [105] = 31770,
 }
 
 -- [[Misc AOT variable imports]]

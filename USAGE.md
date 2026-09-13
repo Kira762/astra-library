@@ -169,13 +169,13 @@ local col = row:CreateGroup({ direction = "column" }) -- nested column
 col:CreateToggle({ name = "Left 1" })
 ```
 
-Tab methods: `CreateButton`, `CreateToggle`/`CreateSwitch`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateKeybind`, `CreateStat`, `CreateProgress`, `CreateConsole`, `CreateSection`, `CreateText`, `CreateChangelog`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup`.
+Tab methods: `CreateButton`, `CreateToggle`/`CreateSwitch`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateKeybind`, `CreateStat`, `CreateProgress`, `CreateSection`, `CreateText`, `CreateChangelog`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup`.
 
 Groups support: `CreateButton`, `CreateToggle`/`CreateSwitch`, `CreateSlider`, `CreateDropdown`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
 
 ### Elements
 
-Every element supports `Moveable` (`:MoveTo`, `:MoveToTop`, `:MoveToBottom`, `:MoveUp`, `:MoveDown`) and most support `Lockable` (`:Lock`, `:Unlock`, `:IsLocked`). Most element props also accept `description` (helper text under the name) and `icon`.
+Every element supports `Moveable` (`:MoveTo`, `:MoveToTop`, `:MoveToBottom`, `:MoveUp`, `:MoveDown`) and most support `Lockable` (`:Lock`, `:Unlock`, `:IsLocked`). Most element props also accept `description` (helper text under the name, rendered inside the element's own card) and `icon`.
 
 ```lua
 tab:CreateButton({ name = "Click Me", icon = "play", callback = function() end })
@@ -266,15 +266,12 @@ p:Remove()
 ```
 Extra props: `steps`, `text`, `format(value, min, max)`, `showValue`, `indeterminate`.
 
-### Text / Divider / Console / Group
+### Text / Divider / Group
 ```lua
 local x = tab:CreateText({ name = "Title", text = "Body text", icon = "info" })
 x:Set("New body") x:SetTitle("New title")
 
 tab:CreateDivider()  tab:CreateDivider({ text = "or" })  tab:CreateDivider({ line = false, spacing = 8 })
-
-local con = tab:CreateConsole({ name = "Log", text = "-- ready", height = 130, follow = true, maxLines = 50 })
-con:Append("hello") con:Set("reset") con:Get() con:Clear() con:Copy() con:SetHeight(200)
 
 local row = tab:CreateGroup()
 local col = row:CreateGroup({ direction = "column" })
@@ -566,7 +563,7 @@ local playerControls = tab:CreateCollapsibleGroup({
 ```
 
 **Supported types:** `Button`, `Toggle`, `Switch`, `Slider`, `Dropdown`, `Input`,
-`Keybind`, `Stat`, `Progress`, `Console`, `Section`, `Text`, `Changelog`, `Divider`,
+`Keybind`, `Stat`, `Progress`, `Section`, `Text`, `Changelog`, `Divider`,
 and ordinary `Group`. Each uses the same properties and implementation as its
 normal `Create…` method. Descriptions supplied to child elements keep their normal
 behavior. `elements` can be omitted for an empty header.

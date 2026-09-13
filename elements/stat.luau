@@ -8,6 +8,7 @@ local Stat = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
 local props = require(constants.odometer)
 local name = require(constants.moveable)
+local description = require(script.Parent.description)
 local value = require(constants.constants)
 local prefix = require(constants.locale)
 local suffix = require(constants.log)
@@ -98,12 +99,8 @@ function state.new(tab, a25)
         self:_buildFull()
     end
 
-    if self.description then
-        if self.compact then
-            suffix.warn(`Astra: a compact stat has no room for a description, ignoring it on '{self.name}'.`)
-        else
-            self.descriptor = require(script.Parent.descriptor).new(self.tab, { description = self.description })
-        end
+    if self.description and self.compact then
+        suffix.warn(`Astra: a compact stat has no room for a description, ignoring it on '{self.name}'.`)
     end
 
     return self
@@ -141,6 +138,8 @@ function state:_buildFull()
 
         Parent = self.stroke,
     })
+
+    description.attach(self)
 
     self.titleContainer = window:Create("Frame", {
         Size = UDim2.new(1, -40, 0, 32),
@@ -219,7 +218,7 @@ function state:_buildFull()
 
         self.valueHost = window:Create("Frame", {
         AnchorPoint = Vector2.new(0, 1),
-        Position = UDim2.new(0, 20, 1, -15),
+        Position = UDim2.new(0, 20, 1, -15 - (self._descriptionExtra or 0)),
         Size = UDim2.fromOffset(200, 20),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -230,7 +229,7 @@ function state:_buildFull()
 
     self.changeHost = window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 1),
-        Position = UDim2.new(1, -20, 1, -15),
+        Position = UDim2.new(1, -20, 1, -15 - (self._descriptionExtra or 0)),
         Size = UDim2.fromOffset(200, 15),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,

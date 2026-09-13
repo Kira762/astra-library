@@ -218,7 +218,7 @@ example + generated bundle). Findings:
 | `Types.luau` | all public types | fine at root | KEEP (root) |
 | `example.client.luau` | usage example | fine at root | KEEP (root) |
 | `ui/window.luau` (2875 ln) | window class **plus** theme resolution, reveal/hide engine, element styling helpers, lock engine, connection lifecycle | doing many unrelated jobs | SPLIT: window → `components/window.luau`; theme resolution → `themes/init.luau`; reveal/styling/lock/connection helpers stay as Window methods (tightly coupled, single consumer graph) |
-| `ui/action, chrome, drag, search, sidebar, tabSelector, descriptor` | window furniture | belong with window | MOVE → `components/` |
+| `ui/action, chrome, drag, search, sidebar, tabSelector` | window furniture | belong with window | MOVE → `components/` |
 | `ui/button … text` (19 files) | elements | fine | MOVE → `elements/` |
 | `ui/notification, toast, popup` | window-level overlays | belong with window | MOVE → `components/` |
 | `utilities/icons.luau` (10625 ln) | 6 icon packs + resolver | **the entire catalog loads eagerly** at startup via `constants`/`window` requires | SPLIT → `icons/` one module per pack, lazy-loaded and cached (Phase 6) |

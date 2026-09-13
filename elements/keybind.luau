@@ -6,6 +6,7 @@ local constants = script.Parent.Parent.utilities
 
 local Keybind = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
+local description = require(script.Parent.description)
 local props = require(constants.moveable)
 local name = require(constants.lockable)
 local flag = require(constants.locale)
@@ -94,9 +95,11 @@ function state.new(tab, a22)
     self.stroke = self.window:StyleElementBody(self.main)
     self.hoverOverlay = self.window:CreateHoverOverlay(self.main)
 
+    description.attach(self)
+
         self.container = self.window:Create("Frame", {
         Size = UDim2.new(0, 170, 0, 16),
-        Position = UDim2.new(0, 20, 0.5, 0),
+        Position = UDim2.new(0, 20, description.center(self, 41)),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -143,7 +146,7 @@ function state.new(tab, a22)
 
         self.box = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -7, 0, 20),
+        Position = UDim2.new(1, -7, 0, if self.descriptionLabel then 20.5 else 20),
         Size = UDim2.fromOffset(40, 30),
         BorderSizePixel = 0,
 
@@ -151,10 +154,12 @@ function state.new(tab, a22)
         Parent = self.main,
     }, { BackgroundColor3 = "FieldBackground" })
 
+    -- [[Same corner as every other element surface (the theme's
+    -- [[ElementCornerRadius), matching the Input element's field box: the
+    -- [[key cap reads as a smaller member of the card family, not a capsule.]]
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
         Parent = self.box,
-    })
+    }, { CornerRadius = "ElementCornerRadius" })
 
     self.boxStroke = self.window:Create("UIStroke", {
         Transparency = 1,
@@ -281,10 +286,6 @@ function state.new(tab, a22)
     end)
 
     self.window:_wireElementHover(self)
-
-    if self.description then
-        self.descriptor = require(script.Parent.descriptor).new(self.tab, { description = self.description })
-    end
 
     self:_sizeBox(false)
     return self

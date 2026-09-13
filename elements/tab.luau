@@ -292,10 +292,6 @@ function state:CreateProgress(a33)
     return self:_register(require(script.Parent.progress).new(self, a33))
 end
 
-function state:CreateConsole(a34)
-    return self:_register(require(script.Parent.console).new(self, a34))
-end
-
 function state:CreateStat(a35)
     return self:_register(require(script.Parent.stat).new(self, a35))
 end

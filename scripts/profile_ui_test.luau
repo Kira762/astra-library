@@ -12,8 +12,9 @@
 --        the window's,
 --   * G2 a copy press writes the row's real value through the executor's
 --        clipboard, swaps the copy glyph for the success check, states "Copied"
---        on the button and in the hover tooltip, restores both when the flash
---        ends, and repeated presses never leave two restores racing,
+--        on the button's own label and restores it when the flash ends, and
+--        repeated presses never leave two restores racing; hovering or holding
+--        the button raises no tooltip surface of its own,
 --   * G3 the server identifier row reads "Job ID" (it shows DataModel.JobId):
 --        "Server ID" no longer appears anywhere on the card, while the
 --        underlying field and the window handles are untouched,
@@ -227,18 +228,21 @@ expect(placeEntry ~= nil, "G2 the Place ID row carries its copy action")
 local jobEntry = window.profileCopyButtons.ServerId
 expect(jobEntry ~= nil, "G2 the job ID row carries its copy action")
 
--- [[Idle wording: the button's own label says what the press will copy, and
--- [[the tooltip reads the same string back off the button.]]
+-- [[Idle wording: the button's own label says what the press will copy. The
+-- [[line is never drawn (its transparency stays 1); it is the accessible name
+-- [[of the glyph-only button.]]
 eq(placeEntry.button.Text, "Copy Place ID", "G2 the Place ID button announces what it copies")
 eq(jobEntry.button.Text, "Copy Job ID", "G2 the job ID button announces what it copies")
 
+-- [[No hover surface rides on the copy button: holding the pointer over the
+-- [[glyph must not raise the card's tooltip — the rows' truncation hover-help
+-- [[is the only tooltip the card shows.]]
 placeEntry.button.MouseEnter:Fire()
 TestPump(0.1)
-eq(window.profileTooltip.Visible, true, "G2 hovering a copy button raises the tooltip")
-eq(window.profileTooltipLabel.Text, "Copy Place ID", "G2 the tooltip names the value")
+eq(window.profileTooltip.Visible, false, "G2 hovering a copy button raises no tooltip")
 
 -- [[The press copies the real identifier, swaps in the green check and states
--- [[the success in both places.]]
+-- [[the success on the button's own label — still with no tooltip.]]
 placeEntry.button.Activated:Fire()
 TestPump(0.1)
 eq(#copied, 1, "G2 one press copies once")
@@ -246,7 +250,7 @@ eq(copied[1], tostring(game.PlaceId), "G2 the Place ID button copies the place I
 eq(placeEntry.icon.Image, TestImageUri(window:ResolveIcon("check")), "G2 a successful copy swaps in the check icon")
 eq(placeEntry.icon.ImageColor3, theme.Success, "G2 the check is drawn in the success green")
 eq(placeEntry.button.Text, "Copied", "G2 the button states the success")
-eq(window.profileTooltipLabel.Text, "Copied", "G2 ... and so does the open tooltip")
+eq(window.profileTooltip.Visible, false, "G2 ... and the press itself raises no tooltip")
 expect(placeEntry.icon.Image ~= TestImageUri(window:ResolveIcon("copy")), "G2 the copy glyph is gone while the check is up")
 
 -- [[The job ID row copies its own value, not the place ID.]]
@@ -270,11 +274,10 @@ TestPump(1.0)
 eq(placeEntry.icon.Image, TestImageUri(window:ResolveIcon("copy")), "G2 the copy glyph returns after the last flash")
 eq(placeEntry.icon.ImageColor3, theme.ActionColor, "G2 ... in the action colour")
 eq(placeEntry.button.Text, "Copy Place ID", "G2 the button goes back to naming the action")
-eq(window.profileTooltipLabel.Text, "Copy Place ID", "G2 ... and the open tooltip follows")
 
 placeEntry.button.MouseLeave:Fire()
 TestPump(0.3)
-eq(window.profileTooltip.Visible, false, "G2 the tooltip closes with the pointer")
+eq(window.profileTooltip.Visible, false, "G2 leaving the button keeps the tooltip down")
 
 -- [[The wording is locale-bound: a host's translation table re-states the
 -- [[label in the locale's own words, in whichever state the button is in.]]
@@ -284,11 +287,6 @@ window:RegisterTranslations({
 window:SetLocale("es")
 TestPump(0.2)
 eq(placeEntry.button.Text, "Copiar ID del lugar", "G2 the copy label follows the locale")
-placeEntry.button.MouseEnter:Fire()
-TestPump(0.1)
-eq(window.profileTooltipLabel.Text, "Copiar ID del lugar", "G2 the tooltip follows the locale with it")
-placeEntry.button.MouseLeave:Fire()
-TestPump(0.3)
 placeEntry.button.Activated:Fire()
 TestPump(0.1)
 eq(placeEntry.button.Text, "Copiado", "G2 the success word follows the locale too")

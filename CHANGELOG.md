@@ -2,6 +2,115 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-13 — Descriptions move inside the element cards
+
+- **Descriptions rendered as a standalone row *below* the element card.** The
+  old `descriptor` element sat under the card in the tab page (and search had
+  to shuttle that second frame around). It is gone: every element with a
+  `description` now renders it **inside its own card** — the Collapsible Group
+  header recipe (a muted 14px `ContentColor` line under the title region).
+- **The card grows by the measured line.** `elements/description.luau` counts
+  wrapped lines with the shared text metrics and adds `lines * 17 + 3` px
+  (one line: 41 -> 61), re-measuring whenever the card's width changes
+  (layout mode, window resize, search page) or the text retypes. Title rows
+  and controls keep centring in the base region, bottom-anchored tracks
+  (slider narrow, progress) and labels (stat) ride up above the line, and the
+  dropdown's closed and open heights both include it.
+- **The line stays locale-bound and still carries the lock message** exactly
+  as the old row did — `SetLocale` retypes it (and the card re-measures),
+  and `Lock(message)` swaps it, restoring the description on unlock.
+- Removed `elements/descriptor.luau`; search no longer moves descriptor rows.
+  Test: `scripts/inline_description_test.sh`.
+
+## 2026-09-13 — Keybind cap joins the element corner; slider knob stops overlapping the card
+
+- **The Keybind element's key cap wore the same capsule as the Input field
+  did.** It now binds its corner to `ElementCornerRadius` like the input box
+  fixed earlier, so both field boxes read as smaller members of the card
+  family and follow host themes that round elements differently.
+- **The slider knob overlapped the card edge at the top of its range.** The
+  capsule rode the fill's right edge (centre at `scale 1` of the progress
+  bar), so at max its centre sat on the track's end and half of its 35px —
+  41px while held — width hung past it, over the card's right inset, stroke
+  and corner. The knob now rides the track with its centre clamped to
+  `[halfWidth, travel - halfWidth]`, and the fill's right edge is exactly
+  that centre, so the bar stays tucked under the capsule at every value.
+  One number drives both: `_renderProgress` places fill size and knob
+  position from the same clamped centre, re-seated on every track resize
+  (first layout, narrow/wide mode switch, scale-sized track on window
+  resize) and re-clamped for the wider held knob on press and release.
+- Suites: `scripts/input_field_test.sh` gains the keybind cap pin; new
+  `scripts/slider_travel_test.sh` pins the travel in anchor-independent
+  track-local pixels — clamped at max, min and mid, fill ending at the
+  knob's centre, and the clamp holding while held and after release. Both
+  fail against the previous bundle (capsule scale on the cap, knob centre
+  on the track end), so the pins have teeth.
+
+## 2026-09-13 — Input field rounds with the element corner, not a capsule
+
+- **The Input element's field box wore its own capsule.** The dark box the
+  text sits in carried `UICorner = UDim.new(1, 0)` — a full pill, half the
+  box's height — while every other surface in the library reads its
+  roundness off a theme token: element cards (and the Text card among them)
+  through `ElementCornerRadius`, notifications and toasts through
+  `CornerRoundness`, tab rows through the layout's row radius. The field now
+  binds its corner to `ElementCornerRadius` like the card it sits inside, so
+  it reads as a smaller member of the same family, and a host theme that
+  rounds elements tighter or softer moves the field with everything else.
+- Suite: new `scripts/input_field_test.sh` pins the recipe — pixel radius
+  equal to the theme token (never a capsule scale), re-stated on a theme
+  switch, and shared with the element card's own corner. It fails against
+  the previous bundle on the capsule scale, so the pin has teeth.
+
+## 2026-09-13 — Console element removed
+
+- **`Tab:CreateConsole` is gone.** The read-only log panel (line ring buffer,
+  `follow` tailing, `Set`/`Append`/`Get`/`Clear`/`Copy`/`SetHeight`) earned its
+  instance budget without pulling its weight as a built-in: hosts that want a
+  log view can build one from a `Text`/`ScrollingFrame` of their own, and the
+  element only added a fourteenth surface style to keep in step with every
+  theme, layout and motion change. `elements/console.luau` is deleted and
+  every wiring point goes with it: `Tab:CreateConsole`, the `Console` /
+  `ConsoleProps` types and their entrypoint re-exports, the Collapsible Group
+  constructor entry (its `type` union loses `"Console"` too), and the example
+  script's three consoles plus the two Element Lab buttons that only wrote
+  into one.
+- **Nothing else changed shape.** Remaining element types keep their indices
+  in every registry, so saved configurations, flags and search behaviour are
+  untouched; the standalone bundle regenerates at 100 modules.
+- Suites: `scripts/instance_budget_test.luau` drops the console ceiling and
+  builder; `scripts/collapsible_group_test.luau` drops the console child and
+  re-indexes the child assertions that follow it (the pinned expand height is
+  force-set through `contentLayout.AbsoluteContentSize`, so it is unchanged).
+  All suites run against the regenerated standalone bundle.
+
+## 2026-09-13 — Profile card: no hover surface on copy buttons, tooltip text stacks above its box
+
+- **Holding or pressing a profile-card copy button no longer pops a stray
+  surface over the row.** The copy glyph carried its own hover tooltip
+  ("Copy Place ID" / "Copy Job ID" / "Copy User ID", "Copied" while the
+  check was up) on the same surface the rows' truncation hover-help uses, so
+  every hover, hold and press raised a wide box over the card. The button's
+  feedback is again just the glyph and its green-check flash; the button
+  keeps its invisible accessible label (the same wording, resolved through
+  the locale layer, `Window:SetLocale` included), so nothing is lost for
+  screen readers or hosts that read the label back. The truncation
+  hover-help for values, the display name and the game name stays the only
+  tooltip on the card.
+- **The tooltips that remain draw their text above their box instead of
+  under it.** The window's ScreenGui stacks with `ZIndexBehavior.Global`, so
+  the tooltip surface (`ZIndex = 10`) drew over its own label (default
+  `ZIndex = 1`): in game every hover-help appeared as an empty rounded box
+  with the text buried beneath the surface. The label now outranks its
+  surface by one (11 over 10), which is what global stacking needs for a
+  child to sit on top of its parent.
+- Suites: `scripts/profile_ui_test.luau` G2 now pins the no-tooltip contract
+  (hover, hold and press leave the surface hidden) while still covering the
+  clipboard write, the check flash, the single restore timer and the
+  locale-bound label; `scripts/profile_details_test.luau` E5 additionally
+  pins the label outranking its surface under global z-index stacking. Both
+  run against the regenerated standalone bundle.
+
 ## 2026-09-13 — Collapsible Group corners, Text-matched header, full-width children
 
 - **The Collapsible Group header's corners rendered thinner and flatter than

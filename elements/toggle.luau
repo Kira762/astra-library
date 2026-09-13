@@ -11,6 +11,7 @@ local name = require(constants.lockable)
 local flag = require(constants.locale)
 local value = require(constants.HapticEngine)
 local callback = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local description = require(script.Parent.description)
 
 -- [[Switch metrics, in one place. The track and the knob are both pills and
 -- [[the knob keeps the same clearance on every side it can see (`switchInset`
@@ -64,10 +65,6 @@ function state.new(tab, element)
         self:_buildCompact()
     else
         self:_buildFull()
-    end
-
-    if self.description and not self.compact then
-        self.descriptor = require(script.Parent.descriptor).new(self.tab, { description = self.description })
     end
 
     return self
@@ -187,12 +184,14 @@ function state:_buildFull()
     self.stroke = window:StyleElementBody(self.main)
     self.hoverOverlay = window:CreateHoverOverlay(self.main)
 
+    description.attach(self)
+
     self.container = window:Create("Frame", {
         BorderSizePixel = 0,
 
         Parent = self.main,
         Size = UDim2.new(0, 170, 0, 16),
-        Position = UDim2.new(0, 20, 0.5, 0),
+        Position = UDim2.new(0, 20, description.center(self, 41)),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
     })
@@ -246,7 +245,7 @@ function state:_buildFull()
     })
 
         self:_buildSwitch(self.main)
-    self.functionContainer.Position = UDim2.new(1, -15, 0, 20)
+    self.functionContainer.Position = UDim2.new(1, -15, 0, if self.descriptionLabel then 20.5 else 20)
     self.functionContainer.AnchorPoint = Vector2.new(1, 0.5)
 
     self.window:_wireElementHover(self)
@@ -263,7 +262,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-                { Size = UDim2.new(1, -26, 0, 41) }
+                { Size = UDim2.new(1, -26, 0, description.height(self, 41)) }
             )
             :Play()
 
@@ -279,7 +278,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 TweenInfo.new(0.25, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-                { Size = UDim2.new(1, -20, 0, 41) }
+                { Size = UDim2.new(1, -20, 0, description.height(self, 41)) }
             )
             :Play()
         Toggle.tweenService

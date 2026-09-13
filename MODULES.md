@@ -25,7 +25,7 @@ Exported names (typed surface is `Types.luau`'s `Astra`): `CreateWindow`, `Icons
 `CreateWindow` side effects: enforces the anti-duplicate guard (persisted `antiWindowDuplicate` setting, per-window opt-out via `settings.antiWindowDuplicate`), in secure mode preloads window images (`Image.preload` → failure `Notify`) and swaps in the brand fonts via `ChangeTheme({ Font, TitleFont })` when they load, then auto-`Show()`s the window one tick later (a `task.defer`, so a script that builds its tabs synchronously can finish first and the window appears once, fully populated; an explicit `Hide()` before that tick cancels it via `_autoShowCancelled`).
 
 ### `example.client.luau`
-Usage example (not minified). Loads the bundle with `game:HttpGet` + `loadstring`, then builds a 20-tab window: Home, Controls, Appearance, Information, Changelog, Updates, plus 15 labelled test tabs. Demonstrates window tags, every element type, groups, console, and the `CreateChangelog` element (including a runtime `changelog:Add`), and ends with an explicit `home:Select()`.
+Usage example (not minified). Loads the bundle with `game:HttpGet` + `loadstring`, then builds a 20-tab window: Home, Controls, Appearance, Information, Changelog, Updates, plus 15 labelled test tabs. Demonstrates window tags, every element type, groups, and the `CreateChangelog` element (including a runtime `changelog:Add`), and ends with an explicit `home:Select()`.
 
 ---
 
@@ -222,7 +222,8 @@ matches the design mock's structure:
   (registered in `window.profileCopyButtons`, each hidden while its value
   is masked, and each refuses to copy a masked value). A successful copy
   swaps the glyph for the success check for ~1.2s, states "Copied" on the
-  button's own label and in its hover tooltip, and then restores both; a
+  button's own label (the glyph-only button's accessible name; no hover
+  surface rides on the press), and then restores it; a
   repeat press cancels the pending timer and restarts the window, so two
   restores never race for one icon. An explicit
   `Window:SetProfile` subtitle is developer copy, so the toggle leaves it
@@ -251,7 +252,7 @@ matches the design mock's structure:
   pill states its tier with an icon on every pack.
 - `flashCopied(window, name)` / `setCopyStatus` — copy feedback: the row's
   copy icon becomes a green (`Success`) check for ~1.2s and then returns to
-  the copy icon, while the button's own label and hover tooltip say what it
+  the copy icon, while the button's own label says what it
   copies ("Copy Job ID") and "Copied" while the check is up. A repeat click
   cancels the pending timer and restarts the window (so two restores never
   race for one icon) and a rebuilt card is ignored. The copy itself goes
@@ -272,9 +273,12 @@ matches the design mock's structure:
   (`{ subtitle, key, tier, whitelist }`; omitted fields clear their rows).
   `refreshName` is kept as an alias for `applyIdentity`.
 - `showTooltip` / `hideTooltip` — the card's own hover-help for values
-  that do not fit their row (measured with `functions.textWidth`) and for the
-  copy buttons (which state their action), shown on the card surface so the
-  scroll region never clips it.
+  that do not fit their row (measured with `functions.textWidth`), for the
+  display name and for the game name, shown on the card surface so the
+  scroll region never clips it. The label stacks above the surface itself
+  (`ZIndex` 11 over the surface's 10) because the window's ScreenGui stacks
+  by global z-index; copy buttons deliberately raise no tooltip of their
+  own — the glyph and the green check are the whole press feedback.
 
 The window rests off-centre so window + gap + panel are centred as one unit
 (`Window:_profileCenterPosition` / `Window:_recenterForProfile`): with the
@@ -355,9 +359,9 @@ Per-element specifics:
   controls alive while hidden. Search and tab removal traverse its descendants.
 - `tab.luau` — tab class: `tabPage` (ScrollingFrame), `_register(element)` pipeline into `window.controls[flag]`, selector button visuals.
 - `group.luau`, `section.luau`, `tabSection.luau` — container classes with UIListLayout locals.
-- `console.luau` — output buffer table, max-lines constant, print hook.
 - `changelog.luau` — release-history element (`__type = "Changelog"`): normalizes `ChangelogEntry`/`ChangelogChange` props, maps symbols (`+`/`-`/`~`, or words like "added"/"removed"/"changed") to green/red/amber, fades entries in, supports `Set`/`Refresh`/`Add(entry, prepend?)`/`Clear`.
-- `descriptor.luau`, `divider.luau`, `progress.luau`, `stat.luau`, `tag.luau`, `text.luau`, `button.luau` — simple display/interaction elements.
+- `description.luau` — the in-card description line shared by every element with a `description` prop: measures the wrapped line count with the shared text metrics, grows the card by it (+20px for one line — the Collapsible Group header recipe), re-measures whenever the card's width changes, keeps controls centred in the base region, and doubles as the lock-message surface. Replaced the standalone `descriptor.luau` row that used to render *below* element cards.
+- `divider.luau`, `progress.luau`, `stat.luau`, `tag.luau`, `text.luau`, `button.luau` — simple display/interaction elements.
 
 ---
 
@@ -516,6 +520,9 @@ Per-element specifics:
 | `dropdown_rows_test.sh` | Dropdown option rows: none (and no search bar) while closed whatever the list length, one per option in order on open plus the bar once, the rendered selected/unselected state and corner tiers, reopening reusing the rows, edits and picks made while closed, and the search filter. |
 | `tab_elements_test.sh` | Tab elements: only the selected tab is walked on a show/hide, a tab opened later shows its elements in the same frame and state, the search shows every tab it renders, and a late element shows with its tab. |
 | `toggle_switch_test.sh` | Switch geometry: one set of metrics, mirrored resting states, equal clearance, the sheen under the knob, and the animated positions matching the built ones. |
+| `input_field_test.sh` | Field-box corners: the Input field and the Keybind cap round with the theme's `ElementCornerRadius` as theme bindings (pixel radii, never capsule scales), re-stated on a theme switch, and shared with their element cards. |
+| `slider_travel_test.sh` | Slider knob travel: the capsule's centre stays half a knob inside each track end (resting, held and after release), so it never overlaps the track end or card edge at max/min, and the fill ends at the knob's centre. |
+| `inline_description_test.sh` | In-card descriptions: the description label is a child of the element's own card (nothing renders below it), the card grows by the measured line height (one line 41 -> 61), controls keep centring in the base region, dropdown open heights and bottom-anchored tracks/values ride along, the line reveals at 0.45, carries the lock message, and re-measures when SetLocale retypes it. |
 | `icons_test.sh` | Icon resolver: name-only lookup across the packs in priority order (and how lazily they load), qualified `pack:name`, case sensitivity, unknown-pack warnings, custom assets (one import per path, memoised misses, the `listfiles` index), cache-key separation, and `window:ResolveIcon`. |
 | `toggle_preview.sh` | Builds both switch states under the mini Roblox stubs, dumps them as JSON and renders `assets/toggle-preview-{off,on}.png` — the fastest way to eyeball the switch without Roblox. |
 | `motion_test.sh` | Motion service: shared specs, time scale + its cache, profiles, tween ownership (cancel-on-overlap vs. unrelated properties), the no-op and animation-off paths, the window's "Animation speed" setting, and hover going through the service. |

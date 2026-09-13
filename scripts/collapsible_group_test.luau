@@ -13,7 +13,6 @@ local defs = {
     { type = "Keybind", name = "Hotkey", value = Enum.KeyCode.P, callback = function() callbacks += 1 end },
     { type = "Stat", name = "Score", value = 10 },
     { type = "Progress", name = "Loading", value = 50 },
-    { type = "Console", name = "Log" },
     { type = "Section", name = "Section" },
     { type = "Text", name = "Help", text = "Contents" },
     { type = "Changelog", name = "Changes", entries = { { version = "1", changes = { { text = "Added" } } } } },
@@ -30,8 +29,8 @@ local group = tab:CreateCollapsibleGroup({ name = "LocalPlayer", icon = "user-ro
 local other = tab:CreateCollapsibleGroup({ name = "Other", elements = { { type = "Text", name = "Independent", text = "text" } } })
 TestPump(1)
 assert(#group.elements == #defs, "Every tab element type must be supported")
-assert(group.elements[15].compact, "Compact ordinary Groups remain rows")
-assert(not group.elements[16].compact, "Noncompact elements in ordinary Groups become columns")
+assert(group.elements[14].compact, "Compact ordinary Groups remain rows")
+assert(not group.elements[15].compact, "Noncompact elements in ordinary Groups become columns")
 assert(not group._expanded and not group.body.Visible, "Starts collapsed without a usage option")
 assert(window:Get("active") == true and window:Get("speed") == 50, "Collapsed controls register their values")
 
@@ -70,8 +69,8 @@ assert(group.title.Position.X.Offset == 42, "Icon-to-text gap matches the Text e
 assert(group.chevron.Position.X.Offset == -36, "Chevron keeps the 20px Text gutter")
 -- Children keep their normal recipes; the clipper compensates, so inner
 -- content resolves to exactly the header's width (no second inset).
-assert(group.elements[12].main.Size.X.Offset == -20, "Text child keeps its normal width recipe")
-assert(group.elements[11].main.Size.X.Offset == -40, "Section child keeps its normal width recipe")
+assert(group.elements[11].main.Size.X.Offset == -20, "Text child keeps its normal width recipe")
+assert(group.elements[10].main.Size.X.Offset == -40, "Section child keeps its normal width recipe")
 
 -- The stub does not simulate UIListLayout measurement; drive its engine signal.
 group.contentLayout.AbsoluteContentSize = Vector2.new(400, 900)

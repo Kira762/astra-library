@@ -77,7 +77,7 @@ export type GroupProps = {
 -- `elements` is allowed only for ordinary Groups; CollapsibleGroups cannot nest.
 export type CollapsibleElementProps = {
     type: "Button" | "Toggle" | "Switch" | "Slider" | "Dropdown" | "Input" | "Keybind"
-        | "Stat" | "Progress" | "Console" | "Section" | "Text" | "Changelog" | "Divider" | "Group",
+        | "Stat" | "Progress" | "Section" | "Text" | "Changelog" | "Divider" | "Group",
     elements: { CollapsibleElementProps }?,
     [string]: any,
 }
@@ -170,11 +170,6 @@ export type ProgressProps = {
     range: { number }?,     value: number?,
     steps: number?,     text: string?,     format: ((value: number, min: number, max: number) -> string)?,     showValue: boolean?,     indeterminate: boolean?, }
 
-export type ConsoleProps = {
-    name: string?,
-    description: string?,
-    text: string?,     height: number?,     follow: boolean?,     maxLines: number?, }
-
 export type NotifyProps = {
     title: string?,
     content: string?,
@@ -263,14 +258,6 @@ export type Progress = Moveable & {
     Remove: (self: Progress) -> (),
 }
 
-export type Console = Moveable & {
-    Set: (self: Console, text: string) -> (),
-    Append: (self: Console, line: string) -> (),     Clear: (self: Console) -> (),
-    Get: (self: Console) -> string,
-    Copy: (self: Console) -> boolean,     SetHeight: (self: Console, height: number) -> (),
-    Remove: (self: Console) -> (),
-}
-
 export type Section = Moveable & {}
 
 export type TabSection = {
@@ -336,7 +323,6 @@ export type Tab = {
     CreateKeybind: (self: Tab, props: KeybindProps) -> Keybind,
     CreateStat: (self: Tab, props: StatProps) -> Stat,
     CreateProgress: (self: Tab, props: ProgressProps) -> Progress,
-    CreateConsole: (self: Tab, props: ConsoleProps) -> Console,
     CreateSection: (self: Tab, props: SectionProps) -> Section,
     CreateText: (self: Tab, props: TextProps) -> Text,
     CreateChangelog: (self: Tab, props: ChangelogProps) -> Changelog,

@@ -30,7 +30,7 @@ function state.new(tab, Descriptor)
         AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1,
         RichText = true,
-        Size = UDim2.new(1, -90, 0, 0),
+        Size = UDim2.new(1, 0, 0, 0),
         Text = constants.t(self.description),
         TextSize = 12,
         TextWrapped = true,

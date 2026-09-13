@@ -185,6 +185,15 @@ local changelog = changelogTab:CreateChangelog({
     description = "Recent Astra changes and fixes.",
     entries = {
         {
+            version = "2026-09-13",
+            date = "2026-09-13",
+            title = "Element Lab coverage",
+            description = "Added a dedicated tab for testing runtime element updates and all-pack icons.",
+            changes = {
+                { symbol = "+", category = "Added", text = "Added multi-select dropdown, progress, stat, numeric input, console, hold keybind, and runtime mutation examples." },
+            },
+        },
+        {
             version = "0.0.35",
             date = "2026-09-11",
             title = "Settings highlight",
@@ -372,4 +381,106 @@ collapsibleTab:CreateCollapsibleGroup({
     elements = {
         { type = "Text", name = "Independent groups", text = "Multiple groups open independently. Search finds their child controls." },
     },
+})
+
+-- [[Element Lab: direct controls for exercising documented mutators and edge cases.]]
+-- [[This tab intentionally uses qualified icon names to test all-pack resolution.]]
+local lab = window:CreateTab({ name = "Element Lab", icon = "material:science" })
+lab:CreateSection({ name = "Runtime mutators" })
+local labText = lab:CreateText({
+    name = "Live text",
+    text = "Use the buttons below to mutate controls after construction.",
+    icon = "tabler:info-circle",
+})
+lab:CreateButton({
+    name = "Update text",
+    icon = "feather:refresh-cw",
+    callback = function()
+        labText:Set("Text updated at runtime: " .. os.date("%H:%M:%S"))
+        labText:SetTitle("Updated text")
+    end,
+})
+lab:CreateDivider({ text = "Dropdown and progress" })
+local labDropdown = lab:CreateDropdown({
+    name = "Multi-select tags",
+    description = "Try searching, selecting multiple rows, and editing the options while closed.",
+    options = { "Combat", "Movement", "Visual" },
+    value = { "Combat" },
+    multiSelect = true,
+    placeholder = "Choose tags",
+    callback = function(value)
+        window:Toast({ title = "Tags", subtitle = tostring(value) })
+    end,
+})
+local labProgress = lab:CreateProgress({
+    name = "Download",
+    range = { 0, 100 },
+    value = 35,
+    text = "Waiting",
+    showValue = true,
+})
+local labStat = lab:CreateStat({
+    name = "Requests",
+    value = 128,
+    suffix = " requests",
+    compact = true,
+    changeMode = "delta",
+    changeBaseline = 100,
+})
+lab:CreateButton({
+    name = "Mutate controls",
+    icon = "lucide:wand-sparkles",
+    callback = function()
+        labDropdown:Add("Automation")
+        labDropdown:Refresh({ "Combat", "Movement", "Visual", "Automation" })
+        labProgress:SetRange(0, 500)
+        labProgress:Set(275)
+        labProgress:SetText("Halfway there")
+        labStat:Set(256)
+        labStat:ResetBaseline(128)
+        window:Notify({ title = "Element Lab", content = "Dropdown, progress, and stat values updated." })
+    end,
+})
+lab:CreateSection({ name = "Input and diagnostics" })
+lab:CreateInput({
+    name = "Numeric input",
+    description = "Only numeric text is accepted.",
+    placeholder = "Enter an amount",
+    numeric = true,
+    clearOnFocus = true,
+    callback = function(value)
+        window:Toast({ title = "Numeric input", subtitle = tostring(value) })
+    end,
+})
+local labConsole = lab:CreateConsole({
+    name = "Diagnostic console",
+    text = "Console methods: Append, Set, Get, Clear, Copy, SetHeight.",
+    height = 110,
+    follow = true,
+    maxLines = 50,
+})
+labConsole:Append("Element Lab ready.")
+lab:CreateButton({
+    name = "Write diagnostic line",
+    icon = "phosphor:terminal-window",
+    callback = function()
+        labConsole:Append("Diagnostic line written at " .. os.date("%H:%M:%S"))
+    end,
+})
+lab:CreateButton({
+    name = "Clear console",
+    callback = function()
+        labConsole:Clear()
+        labConsole:Append("Console cleared.")
+    end,
+})
+lab:CreateKeybind({
+    name = "Hold action",
+    description = "Press and hold the binding to test holdThreshold callbacks.",
+    value = Enum.KeyCode.LeftAlt,
+    hold = true,
+    holdThreshold = 0.2,
+    callback = function(value)
+        window:Toast({ title = "Hold action", subtitle = if value then "Started" else "Released" })
+    end,
 })

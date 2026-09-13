@@ -382,6 +382,69 @@ collapsibleTab:CreateCollapsibleGroup({
         { type = "Text", name = "Independent groups", text = "Multiple groups open independently. Search finds their child controls." },
     },
 })
+collapsibleTab:CreateCollapsibleGroup({
+    name = "All Supported Children",
+    icon = "tabler:layout-grid",
+    description = "Open this group to test every supported child type without nesting another Collapsible Group.",
+    elements = {
+        { type = "Section", name = "State controls" },
+        {
+            type = "Switch",
+            name = "Collapsible switch",
+            description = "Switch is supported as an alias for Toggle.",
+            flag = "collapsibleSwitch",
+            value = false,
+            callback = function(value)
+                window:Toast({ title = "Collapsible switch", subtitle = if value then "On" else "Off" })
+            end,
+        },
+        {
+            type = "Keybind",
+            name = "Collapsible shortcut",
+            flag = "collapsibleShortcut",
+            value = Enum.KeyCode.RightControl,
+            callback = function()
+                window:Toast({ title = "Collapsible shortcut", subtitle = "Activated" })
+            end,
+        },
+        { type = "Stat", name = "Child stat", value = 42, prefix = "#", suffix = " checks" },
+        { type = "Progress", name = "Child progress", range = { 0, 100 }, value = 62, steps = 10, suffix = "%" },
+        { type = "Divider", text = "Diagnostic children" },
+        {
+            type = "Console",
+            name = "Child console",
+            text = "This console is built while its parent remains collapsed.",
+            height = 85,
+            follow = true,
+            maxLines = 20,
+        },
+        {
+            type = "Changelog",
+            name = "Child changelog",
+            description = "Search and scrolling should include this child content.",
+            entries = {
+                {
+                    version = "Test",
+                    date = "Live",
+                    title = "Collapsible child",
+                    changes = {
+                        { symbol = "+", category = "Added", text = "Changelog can be declared inside a Collapsible Group." },
+                    },
+                },
+            },
+        },
+        {
+            type = "Group",
+            direction = "column",
+            elements = {
+                { type = "Text", name = "Nested ordinary group", text = "Ordinary Groups may be nested; Collapsible Groups may not." },
+                { type = "Button", name = "Nested group action", callback = function()
+                    window:Notify({ title = "Nested group", content = "The ordinary Group child is working." })
+                end },
+            },
+        },
+    },
+})
 
 -- [[Element Lab: direct controls for exercising documented mutators and edge cases.]]
 -- [[This tab intentionally uses qualified icon names to test all-pack resolution.]]

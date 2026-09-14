@@ -44,7 +44,7 @@ local function resolveAssetId(asset)
     return asset
 end
 
-function Toast.new(window, props, parent)
+function Toast.new(window, props, parent, release)
     props = if typeof(props) == "table" then props else {}
 
     local self = setmetatable({
@@ -58,6 +58,10 @@ function Toast.new(window, props, parent)
         position = props.position or "Top",
         _hovered = false,
         _dismissed = false,
+        -- [[The entrance queue's slot: released when this toast's entrance is
+        -- committed, which is what lets a burst of them cascade instead of all
+        -- landing on one frame. See `components/overlayQueue.luau`.]]
+        _release = release,
     }, Toast)
 
     self.duration = props.duration or props.Duration or autoDuration(self.title .. (self.subtitle or ""))
@@ -273,8 +277,21 @@ function Toast:_measure()
     return totalWidth, totalHeight
 end
 
+-- [[Hands the entrance slot back to the queue once the toast's entrance is
+-- committed (or once it is dismissed, whichever comes first) so the next
+-- queued overlay can start. Idempotent by design: both paths reach it.]]
+function Toast:_entranceDone()
+    local release = self._release
+    if not release then
+        return
+    end
+    self._release = nil
+    release()
+end
+
 function Toast:_show()
     if self._dismissed or not self.main.Parent then
+        self:_entranceDone()
         return
     end
 
@@ -282,6 +299,7 @@ function Toast:_show()
 
     local width, height = self:_measure()
     if self._dismissed or not self.main.Parent then
+        self:_entranceDone()
         return
     end
     self.main.Size = UDim2.new(0, width, 0, 0)
@@ -295,6 +313,7 @@ function Toast:_show()
 
     task.wait(0.05)
     if self._dismissed or not self.main.Parent then
+        self:_entranceDone()
         return
     end
     if self.iconLabel then
@@ -304,11 +323,16 @@ function Toast:_show()
 
     task.wait(0.05)
     if self._dismissed or not self.main.Parent then
+        self:_entranceDone()
         return
     end
     if self.subtitleLabel then
         state.tweenService:Create(self.subtitleLabel, textFadeTween, { TextTransparency = 0.5 }):Play()
     end
+
+    -- [[Everything still running is the hold time now, not the entrance, so
+    -- the next toast in the queue may take its turn.]]
+    self:_entranceDone()
 
     local elapsed = 0
     while elapsed < self.duration and not self._dismissed and self.main.Parent do
@@ -326,6 +350,10 @@ function Toast:_dismiss()
         return
     end
     self._dismissed = true
+
+    -- [[A toast retired before its entrance finished still owes the queue its
+    -- slot; `_entranceDone` is a no-op once the show path handed it back.]]
+    self:_entranceDone()
 
     local liveList = self._live
     local index = liveList and table.find(liveList, self)

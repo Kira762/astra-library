@@ -2,28 +2,64 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
-## 2026-09-14 — Staged startup, visible window entrance, and overlay queue
+## 2026-09-14 — Startup arrives in stages: overlay entrance queue, staged window entrance
 
-- The window shell now reveals on a predictable one-second deadline instead of
-  waiting for the caller's entire initial tab/control build. Construction keeps
-  yielding at completed-control boundaries after the reveal, so a large script
-  can finish behind a responsive, already-visible window without starving its
-  animation frames.
-- First open now uses a 0.55-second Back/Out `UIScale` entrance at the window's
-  final layout size. This avoids re-laying out every descendant on every size
-  tween step; existing page elements follow with a short stagger, and elements
-  created after the shell appears use their normal reveal animation.
-- Initial General settings content and Auto Load Config restoration now begin
-  only after the shell settles. Saved controls are restored six per frame, so
-  their callbacks can no longer create the long blank pause that previously
-  happened before `main.Visible` and made the opening tween look instantaneous.
-- Notifications and toasts now share one FIFO entrance lane. Requests are cheap
-  prop records until displayed, and their 0.6-second entrances are spaced by a
-  0.65-second cooldown, preventing an execution-time burst from allocating and
-  animating every overlay on the same frame.
-- Startup coverage now pins deadline reveal during an unfinished 100-control
-  build, per-frame allocation bounds, the `UIScale` settle state, staged element
-  reveal, and the shared notification/toast cooldown. Bundle regenerated.
+- **Everything used to land on one frame.** A host that built its UI and fired a
+  notification per loaded module got all of them — plus the welcome toast, the
+  optional-icon warning, the whole first page of controls and the window's own
+  entrance — on the frame after construction went quiet. A 60-notification burst
+  allocated **921 instances on a single frame** under the harness, and the window
+  popped in with no entrance to speak of.
+- **`components/overlayQueue.luau` (new) serialises the overlays.** `Window:Notify`
+  and `Window:Toast` now enqueue: a card is *built* on its own turn rather than on
+  the frame it was asked for, only one entrance is in flight at a time, and a
+  cooldown separates two of them (shortened while a backlog waits, so a burst stays
+  a cascade instead of becoming a slideshow). The same burst peaks at **82
+  instances** in a frame. The waiting list is capped at six: past that, the oldest
+  request that was never built is dropped, the same way `maxVisible` retires cards
+  that are already on screen.
+- **Cards report their own entrance.** `Notification.new`/`Toast.new` take the
+  queue's `release` slot and hand it back through `_entranceDone` once their staged
+  fades are committed — and the dismiss path reaches it too, so a card retired by
+  the visibility cap, a click or an unload can never wedge the queue behind a tween
+  that will not finish. Both classes can still be constructed directly; a card
+  built without the queue behaves exactly as it did.
+- **The window entrance is staged instead of instant.** `_firstShow` (and
+  `_quickRestore`, on the shorter restore timing) animates the shell first — size,
+  surface and corner through the motion service's `pop` spec, topbar copy, tags —
+  and hands the page to the new `Window:_stageContentReveal`, which waits
+  `contentRevealBeat` (0.22s, scaled by the "Animation speed" setting, skipped by
+  the `instant` profile) and then reveals the controls through the same cascade
+  opening a tab uses (`_revealElements`, one control per beat) instead of writing
+  every card on the frame the entrance opens on. `_contentEntranceId` is the
+  generation: a hide, a re-show or a layout switch between the two beats retires
+  the half-finished sequence, and `_revealElements` now owns clearing
+  `_elementsPending` for the page it walks.
+- **Overlays follow the window, not the build.** The queue is gated closed at the
+  end of `Window.new` and opened by the entrance's settle (or the staged reveal,
+  whichever lands last), so anything requested while the script is still loading
+  waits its turn behind the window. `Window:Hide` opens the gate when the auto-show
+  was cancelled, `Window:Unload` closes the queue with the window, and both of the
+  queue's waits are bounded (`gateBudget`, `entranceBudget`) so no path can park it.
+- **One settle beat before the arrival** (`library_entrypoint.luau`): after the
+  construction batches go quiet, the auto-show waits `STARTUP_SETTLE` (0.1s) so the
+  tail of a host's script — config load, image preload, the first layout pass — does
+  not share the frame the entrance opens on. The brand-font swap no longer fires
+  whenever the font finishes loading either: a theme pass over every instance the
+  window owns waits for the entrance to land (`FONT_SETTLE_BUDGET` bounds it).
+- All queue pacing goes through `motion.step`, so **Settings → Performance →
+  Motion** drives it: with animation switched off the cards still arrive one at a
+  time, only with no cooldown between them.
+- New suite `scripts/overlay_queue_test.{luau,sh}` pins Q1 the gate, Q2 one card
+  per frame (per-frame allocation histogram, the way `startup_test` measures), Q3
+  the bounded backlog, Q4 release-on-dismiss, Q5 unload, Q6 the motion-off drain
+  and Q7 the staged page reveal. `scripts/profile_centering_test.luau`'s C2 pump
+  went 0.35 → 0.5 to cover the settle beat, the same way it already covers the
+  settings-page build. Full suite: 22 of 24 scripts green plus the bundle smoke
+  test — the two failures (`collapsible_group_test`, `inline_description_test`) are
+  pre-existing and still assert the `CreateSwitch` alias and the `description` prop
+  that the API-removal entries today retired. Bundle regenerated
+  (`version-1.luau`, 103 modules).
 
 ## 2026-09-14 — Collapsible Group children are visually recessed
 

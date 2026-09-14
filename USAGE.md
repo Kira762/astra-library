@@ -114,8 +114,8 @@ Titles, tags, themes, and every window method.
 | `window:CreateTab({ name, icon })` | Create a tab. Returns a `Tab`. |
 | `window:CreateSection({ name, icon })` | Top-level section — a `TabSection`. |
 | `window:CreateTag({ text, title, icon, color, order })` | Small tag in the window footer. |
-| `window:Notify({ title, content, icon, duration })` | Queue a classic notification. |
-| `window:Toast({ title, subtitle, icon, duration, position, ... })` | Queue a compact toast. Notifications and toasts enter one at a time. |
+| `window:Notify({ title, content, icon, duration })` | Classic notification; opens on the entrance queue (see [Startup performance](#startup-performance)). |
+| `window:Toast({ title, subtitle, icon, duration, position, ... })` | Compact toast; same queue, same one-at-a-time arrivals. |
 | `window:Popup({ title, content, boxes, options, ... })` | Modal popup. Returns `Popup:Close()`. |
 | `window:Navigate(tab)` | Select a tab by name or Tab object. |
 | `window:Show()` / `window:Hide()` / `window:ToggleHide()` | Visibility. |
@@ -415,8 +415,10 @@ remove files. Qualified names are never shadowed by the folder.
 Astra's window transitions — hover, element reveal, the window entrance, the
 result flashes — run through one service, so your own animations can use the
 same timing and answer the same "Animation speed" setting the user picked in
-Performance → Motion. (Component-local flourishes such as the toast queue
-still run on their own specs.)
+Performance → Motion. (The entrance queue that spaces the notification and
+toast arrivals paces itself through `Motion.step`, so it stretches and
+shortens with that setting too; each card's own entrance tweens still run on
+their component-local specs.)
 
 ```lua
 -- Animate with the library's own specs.
@@ -484,9 +486,22 @@ work or 120 new instances. These are cooperative limits, not a hard frame-time
 cap: a single expensive control can exceed them. Calls still return fully built
 objects, but may yield while creating the initial UI.
 
-Automatic show waits for a quiet construction frame so large scripts do not
-reveal a half-built menu. `window:Hide()` before the first reveal cancels auto-show;
-`window:Show()` can still be called explicitly.
+Automatic show waits for a quiet construction frame, then one short settle beat, so
+large scripts do not reveal a half-built menu and the tail of the build does not
+share a frame with the entrance. `window:Hide()` before the first reveal cancels
+auto-show; `window:Show()` can still be called explicitly.
+
+The arrival itself is staged rather than instant: the window's shell (frame, surface,
+corner, topbar) animates in first, the page's controls cascade in one control per beat
+a beat later, and overlays follow the content. `window:Notify` and `window:Toast` are
+therefore queued — the card is *built* on its own turn, one entrance at a time, with a
+cooldown between two of them — instead of all landing on the frame the window opens
+on. A backlog stays bounded: past six waiting requests the oldest one that has not
+been built yet is dropped. Nothing else about the two calls changed (they still accept
+the same props and their cards still dismiss on click, on timeout, and on the visible
+cap), and with the speed profile set to **Instant** the queue keeps the order but drops
+the pauses, so a host that fires a notification per loaded module gets a cascade
+instead of a freeze either way.
 
 Search controls are created the first time search opens. Additional built-in
 settings tabs are created on first settings access, and their controls remain lazy

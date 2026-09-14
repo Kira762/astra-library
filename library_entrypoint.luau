@@ -65,6 +65,16 @@ local activeWindow: types.Window? = nil
 local ACTIVE_WINDOW_KEY = "__ASTRA_ACTIVE_WINDOW_V1"
 local STARTUP_REVEAL_DELAY = 1
 
+-- [[Beats of the arrival sequence, in seconds: how long the window waits after
+-- the host's build goes quiet before it shows itself, and how long a font
+-- download waits for that entrance before it triggers its own full theme pass.
+-- Both are cooldowns between *parts* of startup, not extra work: neither makes
+-- the interface take longer to be usable, they stop several expensive steps
+-- from all taking the same frame. The settle stays inside one or two frames on
+-- purpose — the entrance and everything after it are where the slack belongs.]]
+local STARTUP_SETTLE = 0.1
+local FONT_SETTLE_BUDGET = 3
+
 local function getGlobalStore(): { [string]: any }
 	local globalEnv = _G :: any
 	local ok, genvResult = pcall(function()
@@ -147,11 +157,26 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 				and mediumFont
 				and semiBoldFont
 				and mediumFont ~= State.fallbackFont
-				and semiBoldFont ~= State.fallbackFont
-			then
+			and semiBoldFont ~= State.fallbackFont
+		then
+			-- [[A font swap is a theme pass over every instance the window
+			-- owns, so running it while the window is still arriving puts that
+			-- pass on the frames the entrance needs. It waits for the window to
+			-- land instead — bounded, because a host that never shows the
+			-- window must still end up with its font.]]
+			local waited = 0
+			while
+				waited < FONT_SETTLE_BUDGET
+				and not window.unloaded
+				and (not window.hasShownOnce or window.animating)
+			do
+				waited += task.wait()
+			end
+			if not window.unloaded then
 				window:ChangeTheme({ Font = mediumFont, TitleFont = semiBoldFont })
 			end
-		end)
+		end
+	end)
 	end
 
 	if not window.unloaded then
@@ -190,10 +215,33 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 				else
 					stableFrames = 0
 				end
+			until (window._constructionBusy or 0) == 0 and revision == window._constructionRevision
+
+			-- [[One beat of slack between the last batch of the build and the
+			-- entrance. The tail of a host's script — a configuration read, an
+			-- image preloading, the first frames of layout settling — used to
+			-- land on the same frame the window opened on, which is what made a
+			-- long load end in a stutter instead of an arrival. The window is
+			-- still handed the next frames to itself, and everything the script
+			-- queued (toasts, notifications, the profile card) follows it.]]
+			local settled = 0
+			while settled < STARTUP_SETTLE do
+				if window.unloaded or window._autoShowCancelled then
+					return
+				end
+				settled += task.wait()
+				-- [[A host that carries on building from a delayed callback
+				-- keeps the entrance parked until it goes quiet again: showing
+				-- mid-batch is exactly the thing this loop exists to avoid.]]
+				while (window._constructionBusy or 0) > 0 do
+					if window.unloaded or window._autoShowCancelled then
+						return
+					end
+					settled += task.wait()
+				end
 			end
-			if not window.unloaded then
-				window._startupComplete = true
-			end
+
+			window:Show()
 		end)
 	end
 

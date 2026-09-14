@@ -22,7 +22,7 @@ Public API singleton. Key top-level locals:
 - Requires — `core` (state/registry/loader), `core.state`, `images.image`, `utilities.locale`, `utilities.constants`, `icons`, `settings`, `Types`.
 - Singleton bookkeeping: existing-window guard backed by a module-local `activeWindow` **and** a `getgenv()`-backed global store (key `__ASTRA_ACTIVE_WINDOW_V1`) so the anti-duplicate guard survives across `loadstring`ed instances; the `CreateWindow` dispatcher (pcall around `components.window.new`, re-throws on failure); the export table.
 Exported names (typed surface is `Types.luau`'s `Astra`): `CreateWindow`, `Icons`; `Core` and `Settings` are also assigned on the table at runtime. There is no top-level `ChangeTheme`/`SetLocale`/`SetTranslator`/`RegisterTranslations`/`Unload` — those are window methods.
-`CreateWindow` side effects: enforces the anti-duplicate guard (persisted `antiWindowDuplicate` setting, per-window opt-out via `settings.antiWindowDuplicate`), in secure mode preloads window images (`Image.preload` → failure `Notify`) and swaps in the brand fonts via `ChangeTheme({ Font, TitleFont })` when they load, then auto-`Show()`s the window one tick later (a `task.defer`, so a script that builds its tabs synchronously can finish first and the window appears once, fully populated; an explicit `Hide()` before that tick cancels it via `_autoShowCancelled`).
+`CreateWindow` side effects: enforces the anti-duplicate guard (persisted `antiWindowDuplicate` setting, per-window opt-out via `settings.antiWindowDuplicate`), in secure mode preloads window images (`Image.preload` → failure `Notify`) and swaps in the brand fonts via `ChangeTheme({ Font, TitleFont })` once the entrance has landed (a theme pass over every instance the window owns is not something to spend while the window is still arriving; `FONT_SETTLE_BUDGET` bounds the wait so a window that never shows still gets its font), then auto-`Show()`s the window once the construction batches go quiet plus one settle beat `STARTUP_SETTLE` (a `task.defer`, so a script that builds its tabs synchronously can finish first and the window appears once, fully populated; an explicit `Hide()` before that tick cancels it via `_autoShowCancelled`).
 
 ### `example.client.luau`
 Usage example (not minified). Loads the bundle with `game:HttpGet` + `loadstring`, then builds a 20-tab window: Home, Controls, Appearance, Information, Changelog, Updates, plus 15 labelled test tabs. Demonstrates window tags, every element type, groups, and the `CreateChangelog` element (including a runtime `changelog:Add`), and ends with an explicit `home:Select()`.
@@ -109,8 +109,9 @@ Public surface:
   property recording (`themeProperties`), locale-token binding
   (`_bindLocale`), image-guessed property assignment; tracks every instance
   for `Unload`.
-- `ChangeTheme`, `CreateTab`/`CreateSection`/`CreateTag`, `Notify`/`Toast`/
-  `Popup`, `Show`/`Hide`/`ToggleHide`/`ToggleMinimise`, `Close` (animated
+- `ChangeTheme`, `CreateTab`/`CreateSection`/`CreateTag`, `Notify`/`Toast`
+  (both construct their card on the entrance queue's turn, see
+  `components/overlayQueue.luau`)/`Popup`, `Show`/`Hide`/`ToggleHide`/`ToggleMinimise`, `Close` (animated
   close → `Unload`), `Save`/`Load`/`ListConfigs`/`DeleteConfig`/`GetPath`,
   `Get`/`Set`, `Navigate`, `SetLocale`/`SetTranslator`/
   `RegisterTranslations`, `ResolveIcon`, `SetProfile`, `Unload`.
@@ -119,7 +120,11 @@ Public surface:
   `CreateHoverOverlay`, `StyleElementBody`/`StyleElementPanel` (element
   gradient/corner/stroke styling), `_buildCompactRow` (settings-mode tab row).
 Internal: `_reveal*`/`_fadeSurfaces`/`_firstShow`/`_quickRestore` (reveal
-engine), `_bindTopbarDrag`/`_bindKeybind`/`_bindMouseOverride`,
+engine — both entrances animate the shell first and hand the page to
+`_stageContentReveal`, which waits `contentRevealBeat`, runs `_revealElements`
+one control per beat, and then opens the overlay gate; `_contentEntranceId` is
+the generation that keeps a superseded entrance from touching the page, and
+`_revealElements` owns clearing `_elementsPending` for the tab it walks), `_bindTopbarDrag`/`_bindKeybind`/`_bindMouseOverride`,
 `_applyWindowSize`/`_applyRailWidth`/`_clampToScreen`/`_watchViewport`,
 `_clampedPosition` (keep-on-screen clamp — measures the window + profile-card
 pair through `profilePanel.pairHalfSize`, so neither half can be dragged off
@@ -323,8 +328,34 @@ changes, tab removal), `Tab:Remove`, `Window:SetLocale` and
 (`railCollapsedWidth`), so a content-sized rail narrower than the old fixed
 219px still shows titles.
 
+### `components/overlayQueue.luau`
+The entrance queue shared by every window-level overlay: `pending` (requests
+waiting for a turn), `running` (one pump per window), `paused` (the gate held
+closed while the window's own entrance is up), `closed` (the window is gone).
+`OverlayQueue.request(window, build)` enqueues, `OverlayQueue.pause`/
+`OverlayQueue.resume` open and close the gate (`Window.new` closes it,
+`_firstShow`'s settle and `Window:_stageContentReveal` open it; `Window:Hide`
+re-opens it when the entrance was cancelled before it ran), and
+`OverlayQueue.close` is called from `Window:Unload`. A card takes its turn with
+`build(release)` and calls `release()` when its entrance is committed — the
+constructor does that through `_entranceDone`, which the dismiss path also
+reaches so a retired card cannot wedge the queue. Locals: `entranceGap` /
+`backlogGap` / `backlogSize` (the cooldown between two cards, shortened while a
+backlog waits), `entranceBudget` / `gateBudget` (bounded waits, so neither a
+card that never reports back nor a gate nobody opens can park the pump),
+`maxQueued` (six waiting requests, oldest dropped past that). Every wait is
+accumulated from `task.wait()` deltas and the gaps go through `motion.step`,
+so the queue answers the "Animation speed" setting instead of the wall clock.
+
 ### `components/notification.luau`, `toast.luau`, `popup.luau`
 Overlay queues: `a1..a4` — container frame, TweenInfo presets, queue table, active-instance guard.
+`Notification.new(window, props, release)` and `Toast.new(window, props, parent,
+release)` take the entrance slot from `components/overlayQueue.luau` and hand it
+back from `_entranceDone` when their staged fades are committed (icon, then
+description/subtitle); `Window:Notify`/`Window:Toast` build the layer
+immediately but construct the card only on its turn, so a burst at load time
+costs one card per frame instead of all of them at once. `Popup` is modal and
+stays outside the queue.
 
 ### `components/search.luau`
 Fuzzy search overlay: locals for candidate list, scoring weights, debounce connection.

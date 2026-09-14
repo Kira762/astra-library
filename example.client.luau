@@ -1,5 +1,6 @@
--- [[Astra multi-tab supported-usage example.]]
--- [[This example loads the current bundle with remote icon asset resolution.]]
+-- [[Astra element-coverage example.]]
+-- [[Everything lives in one tab so startup pacing and every element type can be
+-- [[tested without navigating through a collection of duplicate demo tabs.]]
 
 local bundleSource = game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau")
 local compile = loadstring or load
@@ -14,8 +15,8 @@ assert(
 )
 
 local window = Astra:CreateWindow({
-    name = "Astra",
-    subtitle = "Multi-tab supported API example",
+    name = "Astra Element Test",
+    subtitle = "All elements in one paced tab",
     configuration = {
         fileName = "Astra-Example",
         customFolder = "AstraExamples",
@@ -24,388 +25,169 @@ local window = Astra:CreateWindow({
     },
 })
 
--- [[Window tags are rendered beside the window title and remain available in the chrome.]]
 window:CreateTag({
-    icon = "tag",
-    text = "0.0.35",
+    icon = "flask-conical",
+    text = "Element Test",
     color = Color3.fromRGB(88, 70, 170),
 })
 window:CreateTag({
-    icon = "badge-check",
-    text = "Beta",
+    icon = "gauge",
+    text = "Paced startup",
     color = Color3.fromRGB(190, 55, 125),
 })
 
--- [[Home: use a tab for overview content and simple state controls.]]
-local home = window:CreateTab({ name = "Home", icon = "house" })
-home:CreateSection({ name = "Overview" })
-home:CreateText({
-    name = "Welcome",
-    text = "Create tabs from the Window, then create elements from each Tab.",
-})
-home:CreateButton({
-    name = "Say hello",
-    callback = function()
-        window:Notify({ title = "Hello", content = "The Home tab is working." })
-    end,
-})
-home:CreateToggle({
-    name = "Enable feature",
-    value = true,
-    callback = function(value)
-        window:Notify({
-            title = "Feature",
-            content = if value then "Feature enabled." else "Feature disabled.",
-        })
-    end,
+-- [[One tab intentionally contains every supported element type.]]
+local elements = window:CreateTab({ name = "Element Test", icon = "flask-conical" })
+
+elements:CreateSection({ name = "Basic elements" })
+elements:CreateText({
+    name = "Text",
+    text = "This single tab builds every Astra element so startup batching and layout pacing are easy to observe.",
 })
 
--- [[Controls: use input elements for values, choices, and user text.]]
-local controls = window:CreateTab({ name = "Controls", icon = "sliders-horizontal" })
-controls:CreateSection({ name = "Input elements" })
-controls:CreateSlider({
-    name = "Volume",
-    range = { 0, 100 },
-    value = 50,
-    increment = 1,
-    callback = function(value)
-        window:Toast({ title = "Volume", subtitle = tostring(value) })
-    end,
-})
-controls:CreateDropdown({
-    name = "Mode",
-    options = { "Default", "Performance", "Visual" },
-    value = "Default",
-    callback = function(value)
-        window:Notify({ title = "Mode changed", content = tostring(value) })
-    end,
-})
-controls:CreateInput({
-    name = "Display name",
-    placeholder = "Enter a name",
-    callback = function(value)
-        window:Toast({ title = "Name updated", subtitle = tostring(value) })
-    end,
-})
-controls:CreateToggle({
-    name = "Compact mode",
-    value = false,
-    callback = function(value)
-        window:Toast({
-            title = "Compact mode",
-            subtitle = if value then "Enabled" else "Disabled",
-        })
-    end,
-})
-
--- [[Appearance: use visual elements for colors, dividers, and explanatory text.]]
-local appearance = window:CreateTab({ name = "Appearance", icon = "palette" })
-appearance:CreateSection({ name = "Visual elements" })
-appearance:CreateSlider({
-    name = "Opacity",
-    range = { 0, 100 },
-    value = 80,
-    suffix = "%",
-    callback = function(value)
-        window:Toast({ title = "Opacity updated", subtitle = tostring(value) })
-    end,
-})
-appearance:CreateDivider()
-appearance:CreateText({
-    name = "Layout",
-    text = "Use this tab for visual and theme-related controls.",
-})
-
--- [[Information: document the Window, Tab, and element creation pattern.]]
-local information = window:CreateTab({ name = "Information", icon = "info" })
-information:CreateSection({ name = "Usage" })
-information:CreateText({
-    name = "Create a tab",
-    text = 'local tab = window:CreateTab({ name = "Settings", icon = "settings" })',
-})
-information:CreateText({
-    name = "Create an element",
-    text = 'tab:CreateButton({ name = "Action", callback = function() end })',
-})
-information:CreateText({
-    name = "Select a tab",
-    text = "Call tab:Select() to display a tab. This example selects Home on startup.",
-})
-information:CreateButton({
-    name = "Show notification",
-    callback = function()
-        window:Toast({ title = "Astra", subtitle = "All example tabs are available." })
-    end,
-})
-information:CreateSection({ name = "Additional elements" })
-information:CreateProgress({
+local progress = elements:CreateProgress({
     name = "Progress",
     range = { 0, 100 },
-    value = 68,
+    value = 42,
     steps = 10,
     suffix = "%",
+    showValue = true,
 })
-information:CreateStat({
-    name = "Active tests",
-    value = 20,
-    suffix = " tabs",
+
+local stat = elements:CreateStat({
+    name = "Stat",
+    value = 128,
+    suffix = " requests",
+    compact = true,
+    changeMode = "delta",
+    changeBaseline = 100,
 })
-information:CreateKeybind({
-    name = "Test shortcut",
-    value = Enum.KeyCode.RightShift,
+
+elements:CreateDivider({ text = "Interactive elements" })
+
+elements:CreateButton({
+    name = "Button",
+    icon = "hand-tap",
     callback = function()
-        window:Toast({ title = "Shortcut", subtitle = "Test shortcut activated" })
+        progress:Set(math.random(0, 100))
+        stat:Set(stat.value + 1)
+        window:Notify({ title = "Button", content = "Progress and stat were updated." })
     end,
 })
-local elementGroup = information:CreateGroup({ direction = "column" })
-elementGroup:CreateButton({
-    name = "Group action",
-    callback = function()
-        window:Toast({ title = "Group", subtitle = "Grouped element action completed" })
-    end,
-})
-elementGroup:CreateToggle({
-    name = "Grouped toggle",
+
+elements:CreateToggle({
+    name = "Toggle",
     value = true,
     callback = function(value)
-        window:Toast({ title = "Grouped toggle", subtitle = if value then "Enabled" else "Disabled" })
+        window:Toast({ title = "Toggle", subtitle = if value then "Enabled" else "Disabled" })
     end,
 })
 
-local changelogTab = window:CreateTab({ name = "Changelog", icon = "history" })
-local changelog = changelogTab:CreateChangelog({
-    name = "Release history",
+elements:CreateSlider({
+    name = "Slider",
+    range = { 0, 100 },
+    value = 50,
+    increment = 5,
+    suffix = "%",
+    callback = function(value)
+        progress:Set(value)
+    end,
+})
+
+elements:CreateDropdown({
+    name = "Dropdown",
+    options = { "Low", "Medium", "High" },
+    value = "Medium",
+    callback = function(value)
+        window:Toast({ title = "Dropdown", subtitle = tostring(value) })
+    end,
+})
+
+elements:CreateDropdown({
+    name = "Multi-select dropdown",
+    options = { "Combat", "Movement", "Visual" },
+    value = { "Combat" },
+    multiSelect = true,
+    placeholder = "Choose tags",
+})
+
+elements:CreateInput({
+    name = "Input",
+    placeholder = "Type something",
+    callback = function(value)
+        window:Toast({ title = "Input", subtitle = tostring(value) })
+    end,
+})
+
+elements:CreateInput({
+    name = "Numeric input",
+    placeholder = "Enter a number",
+    numeric = true,
+    clearOnFocus = true,
+})
+
+elements:CreateKeybind({
+    name = "Keybind",
+    value = Enum.KeyCode.RightShift,
+    callback = function()
+        window:Toast({ title = "Keybind", subtitle = "Shortcut activated" })
+    end,
+})
+
+elements:CreateChangelog({
+    name = "Changelog",
     entries = {
         {
-            version = "2026-09-13",
-            date = "2026-09-13",
-            title = "Element Lab coverage",
-            changes = {
-                { symbol = "+", category = "Added", text = "Added multi-select dropdown, progress, stat, numeric input, hold keybind, and runtime mutation examples." },
-            },
-        },
-        {
-            version = "0.0.35",
-            date = "2026-09-11",
-            title = "Settings highlight",
-            changes = {
-                { symbol = "~", category = "Fixed", text = "Settings now stays highlighted while its tab is active." },
-            },
-        },
-        {
-            version = "0.0.34",
-            date = "2026-09-11",
-            title = "Example tab coverage",
-            changes = {
-                { symbol = "+", category = "Added", text = "Added more tabs for layout and element testing." },
-            },
-        },
-    },
-})
-changelogTab:CreateButton({
-    name = "Add test entry",
-    callback = function()
-        changelog:Add({
-            version = "Test",
+            version = "Element Test",
             date = "Live",
-            title = "Runtime update",
+            title = "All supported elements",
             changes = {
-                { symbol = "+", text = "This changelog entry was added at runtime." },
+                { symbol = "+", category = "Added", text = "This changelog is part of the single-tab startup test." },
             },
-        })
-        window:Toast({ title = "Changelog", subtitle = "New entry added" })
-    end,
+        },
+    },
 })
 
--- [[Updates: use standard elements so release information is always visible.]]
-local updatesTab = window:CreateTab({ name = "Updates", icon = "megaphone" })
-updatesTab:CreateSection({ name = "Recent changes" })
-updatesTab:CreateText({
-    name = "0.0.35",
-    text = "Improved bundle-loader diagnostics and settings navigation feedback.",
-})
-updatesTab:CreateText({
-    name = "0.0.34",
-    text = "Added a safeguard that keeps example tabs available when optional test elements fail.",
-})
-updatesTab:CreateText({
-    name = "Beta preview",
-    text = "This example is a Beta preview of the multi-tab Astra API.",
-})
-updatesTab:CreateButton({
-    name = "Show update notice",
+-- [[A normal Group is an element too. Its children use the compact row layout.]]
+local group = elements:CreateGroup({ direction = "column" })
+group:CreateSection({ name = "Group" })
+group:CreateButton({
+    name = "Grouped button",
     callback = function()
-        window:Toast({ title = "Updates", subtitle = "The replacement Updates tab is working." })
+        window:Notify({ title = "Group", content = "The ordinary Group child is working." })
     end,
 })
+group:CreateToggle({ name = "Grouped toggle", value = false })
 
--- [[Additional test tabs: twenty main-window tabs with varied elements.]]
-local testTabs = {
-    { name = "Dashboard", icon = "layout-dashboard" },
-    { name = "Analytics", icon = "chart-no-axes-combined" },
-    { name = "Profile", icon = "user-round" },
-    { name = "Security", icon = "shield" },
-    { name = "Network", icon = "wifi" },
-    { name = "Audio", icon = "volume-2" },
-    { name = "Display", icon = "monitor" },
-    { name = "Shortcuts", icon = "keyboard" },
-    { name = "Notifications", icon = "bell" },
-    { name = "Storage", icon = "hard-drive" },
-    { name = "Automation", icon = "bot" },
-    { name = "Advanced", icon = "wrench" },
-    { name = "Debug", icon = "bug" },
-    { name = "Logs", icon = "scroll-text" },
-    { name = "Experiments", icon = "flask-conical" },
-}
-
-for index, details in ipairs(testTabs) do
-    assert(
-        type(details.name) == "string"
-            and details.name ~= ""
-            and type(details.icon) == "string"
-            and details.icon ~= "",
-        "Each example tab must define both a name and an icon."
-    )
-    local tab = window:CreateTab({ name = details.name, icon = details.icon })
-    -- [[Keep the tab selector registered even if an optional element has an]]
-    -- [[environment-specific constructor issue; this lets the remaining tabs load.]]
-    local ok = pcall(function()
-        tab:CreateSection({ name = "Test elements" })
-        tab:CreateText({
-            name = "Test tab " .. tostring(index),
-            text = "This tab is part of the twenty-tab loading and layout test.",
-        })
-        tab:CreateButton({
-            name = "Run test action",
-            callback = function()
-                window:Toast({ title = details.name, subtitle = "Action completed" })
-            end,
-        })
-
-        if index % 4 == 1 then
-            tab:CreateToggle({
-            name = "Enabled",
-            value = index % 3 == 0,
-            callback = function(value)
-                window:Toast({ title = details.name, subtitle = if value then "Enabled" else "Disabled" })
-            end,
-            })
-            tab:CreateSlider({
-            name = "Intensity",
-            range = { 0, 100 },
-            value = index * 5,
-            increment = 5,
-            callback = function(value)
-                window:Toast({ title = details.name, subtitle = "Intensity: " .. tostring(value) })
-            end,
-            })
-        elseif index % 4 == 2 then
-            tab:CreateDropdown({
-            name = "Preset",
-            options = { "Low", "Medium", "High" },
-            value = "Medium",
-            callback = function(value)
-                window:Toast({ title = details.name, subtitle = "Preset: " .. tostring(value) })
-            end,
-            })
-            tab:CreateInput({
-            name = "Label",
-            placeholder = "Test input",
-            callback = function(value)
-                window:Toast({ title = details.name, subtitle = "Label: " .. tostring(value) })
-            end,
-            })
-        elseif index % 4 == 3 then
-            tab:CreateSlider({
-            name = "Level",
-            range = { 0, 100 },
-            value = 50,
-            callback = function(value)
-                window:Toast({ title = details.name, subtitle = "Level: " .. tostring(value) })
-            end,
-            })
-            tab:CreateDivider()
-        else
-            tab:CreateText({ name = "Status", text = "Ready for testing." })
-            tab:CreateToggle({
-            name = "Experimental mode",
-            value = false,
-            callback = function(value)
-                window:Toast({ title = details.name, subtitle = if value then "Experimental mode on" else "Experimental mode off" })
-            end,
-            })
-        end
-    end)
-end
-
--- [[Select the first tab explicitly so the example is deterministic on startup.]]
-home:Select()
-
--- Optional: ordinary controls remain standalone unless explicitly wrapped.
--- All controls in a Collapsible Group use their normal props and callbacks.
-local collapsibleTab = window:CreateTab({ name = "Collapsible Groups", icon = "panels-top-left" })
-collapsibleTab:CreateCollapsibleGroup({
-    name = "Player Preferences",
-    icon = "user-round",
+-- [[The declarative group exercises the CollapsibleGroup path and every child
+-- [[constructor, including the Switch alias used by declarative definitions.]]
+elements:CreateCollapsibleGroup({
+    name = "Collapsible Group",
+    icon = "panels-top-left",
+    description = "Expand this card to inspect every declarative child type.",
     elements = {
-        { type = "Toggle", name = "Enabled", flag = "collapsibleEnabled", value = true },
-        { type = "Slider", name = "Speed", flag = "collapsibleSpeed", range = { 16, 100 }, value = 16 },
-        { type = "Dropdown", name = "Mode", flag = "collapsibleMode", options = { "Normal", "Sprint" }, value = "Normal" },
-        { type = "Input", name = "Nickname", flag = "collapsibleNickname", placeholder = "Enter a nickname" },
-        {
-            type = "Group",
-            elements = {
-                { type = "Button", name = "Reset Speed", callback = function() window:Set("collapsibleSpeed", 16) end },
-                { type = "Button", name = "Show Speed", callback = function()
-                    window:Notify({ title = "Speed", content = tostring(window:Get("collapsibleSpeed")) })
-                end },
-            },
-        },
-    },
-})
-collapsibleTab:CreateCollapsibleGroup({
-    name = "Information",
-    icon = "feather:info",
-    elements = {
-        { type = "Text", name = "Independent groups", text = "Multiple groups open independently. Search finds their child controls." },
-    },
-})
-collapsibleTab:CreateCollapsibleGroup({
-    name = "All Supported Children",
-    icon = "tabler:layout-grid",
-    elements = {
-        { type = "Section", name = "State controls" },
-        {
-            type = "Toggle",
-            name = "Collapsible toggle",
-            flag = "collapsibleToggle",
-            value = false,
-            callback = function(value)
-                window:Toast({ title = "Collapsible toggle", subtitle = if value then "On" else "Off" })
-            end,
-        },
-        {
-            type = "Keybind",
-            name = "Collapsible shortcut",
-            flag = "collapsibleShortcut",
-            value = Enum.KeyCode.RightControl,
-            callback = function()
-                window:Toast({ title = "Collapsible shortcut", subtitle = "Activated" })
-            end,
-        },
-        { type = "Stat", name = "Child stat", value = 42, prefix = "#", suffix = " checks" },
-        { type = "Progress", name = "Child progress", range = { 0, 100 }, value = 62, steps = 10, suffix = "%" },
-        { type = "Divider", text = "Diagnostic children" },
+        { type = "Section", name = "Declarative children" },
+        { type = "Text", name = "Text child", text = "All child controls are constructed while the group is collapsed." },
+        { type = "Button", name = "Button child", callback = function() window:Toast({ title = "Child button", subtitle = "Clicked" }) end },
+        { type = "Toggle", name = "Toggle child", value = true },
+        { type = "Switch", name = "Switch alias child", value = false },
+        { type = "Slider", name = "Slider child", range = { 0, 100 }, value = 25 },
+        { type = "Dropdown", name = "Dropdown child", options = { "One", "Two" }, value = "One" },
+        { type = "Input", name = "Input child", placeholder = "Child input" },
+        { type = "Keybind", name = "Keybind child", value = Enum.KeyCode.RightControl },
+        { type = "Stat", name = "Stat child", value = 42, suffix = " checks" },
+        { type = "Progress", name = "Progress child", range = { 0, 100 }, value = 62, steps = 10, suffix = "%" },
+        { type = "Divider", text = "Nested diagnostics" },
         {
             type = "Changelog",
-            name = "Child changelog",
+            name = "Changelog child",
             entries = {
                 {
                     version = "Test",
                     date = "Live",
-                    title = "Collapsible child",
+                    title = "Nested changelog",
                     changes = {
-                        { symbol = "+", category = "Added", text = "Changelog can be declared inside a Collapsible Group." },
+                        { symbol = "+", text = "Changelog works inside a Collapsible Group." },
                     },
                 },
             },
@@ -414,88 +196,12 @@ collapsibleTab:CreateCollapsibleGroup({
             type = "Group",
             direction = "column",
             elements = {
-                { type = "Text", name = "Nested ordinary group", text = "Ordinary Groups may be nested; Collapsible Groups may not." },
-                { type = "Button", name = "Nested group action", callback = function()
-                    window:Notify({ title = "Nested group", content = "The ordinary Group child is working." })
-                end },
+                { type = "Text", name = "Nested Group", text = "Ordinary Groups may be nested." },
+                { type = "Button", name = "Nested action", callback = function() window:Notify({ title = "Nested Group", content = "The nested action works." }) end },
             },
         },
     },
 })
 
--- [[Element Lab: direct controls for exercising documented mutators and edge cases.]]
--- [[This tab intentionally uses qualified icon names to test all-pack resolution.]]
-local lab = window:CreateTab({ name = "Element Lab", icon = "material:science" })
-lab:CreateSection({ name = "Runtime mutators" })
-local labText = lab:CreateText({
-    name = "Live text",
-    text = "Use the buttons below to mutate controls after construction.",
-    icon = "tabler:info-circle",
-})
-lab:CreateButton({
-    name = "Update text",
-    icon = "feather:refresh-cw",
-    callback = function()
-        labText:Set("Text updated at runtime: " .. os.date("%H:%M:%S"))
-        labText:SetTitle("Updated text")
-    end,
-})
-lab:CreateDivider({ text = "Dropdown and progress" })
-local labDropdown = lab:CreateDropdown({
-    name = "Multi-select tags",
-    options = { "Combat", "Movement", "Visual" },
-    value = { "Combat" },
-    multiSelect = true,
-    placeholder = "Choose tags",
-    callback = function(value)
-        window:Toast({ title = "Tags", subtitle = tostring(value) })
-    end,
-})
-local labProgress = lab:CreateProgress({
-    name = "Download",
-    range = { 0, 100 },
-    value = 35,
-    text = "Waiting",
-    showValue = true,
-})
-local labStat = lab:CreateStat({
-    name = "Requests",
-    value = 128,
-    suffix = " requests",
-    compact = true,
-    changeMode = "delta",
-    changeBaseline = 100,
-})
-lab:CreateButton({
-    name = "Mutate controls",
-    icon = "lucide:wand-sparkles",
-    callback = function()
-        labDropdown:Add("Automation")
-        labDropdown:Refresh({ "Combat", "Movement", "Visual", "Automation" })
-        labProgress:SetRange(0, 500)
-        labProgress:Set(275)
-        labProgress:SetText("Halfway there")
-        labStat:Set(256)
-        labStat:ResetBaseline(128)
-        window:Notify({ title = "Element Lab", content = "Dropdown, progress, and stat values updated." })
-    end,
-})
-lab:CreateSection({ name = "Input and diagnostics" })
-lab:CreateInput({
-    name = "Numeric input",
-    placeholder = "Enter an amount",
-    numeric = true,
-    clearOnFocus = true,
-    callback = function(value)
-        window:Toast({ title = "Numeric input", subtitle = tostring(value) })
-    end,
-})
-lab:CreateKeybind({
-    name = "Hold action",
-    value = Enum.KeyCode.LeftAlt,
-    hold = true,
-    holdThreshold = 0.2,
-    callback = function(value)
-        window:Toast({ title = "Hold action", subtitle = if value then "Started" else "Released" })
-    end,
-})
+-- [[Select the only user tab explicitly so the example is deterministic.]]
+elements:Select()

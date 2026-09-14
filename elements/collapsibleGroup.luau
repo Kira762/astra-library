@@ -131,12 +131,11 @@ function Collapsible.new(tab, props)
     }, { BackgroundTransparency = "ElementTransparency" })
     w:Create("UIGradient", { Rotation = 270, Parent = self.main }, { Color = "WindowColor" })
     w:Create("UICorner", { Parent = self.main }, { CornerRadius = "ElementCornerRadius" })
-    -- [[The container clips its own descendants to the rounded silhouette, so
-    -- [[the outer stroke rides fully inside the bounds (Interior): its own
-    -- [[clip can never shave the stroke, the flaw straddling strokes had when
-    -- [[a tight parent masked them.
+    -- [[The container clips its own descendants to the rounded silhouette.]]
+    -- [[UIStroke supports Border/Contextual modes, not Interior; Border keeps
+    -- [[the outline on the container without reading an invalid enum member.]]
     self.stroke = w:Create("UIStroke", {
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Interior, Transparency = 1, Parent = self.main,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Transparency = 1, Parent = self.main,
     }, { Color = "ElementStroke", Transparency = "ElementStrokeTransparency" })
     self.headerSurface = w:Create("Frame", {
         Name = "HeaderSurface", Size = UDim2.new(1, 0, 0, self.headerHeight),

@@ -960,6 +960,16 @@ function Window:_copyOverlayProps(props)
     return copy
 end
 
+-- Public notification API. Keep the queueing implementation private so all
+-- callers, including settings and secure-mode diagnostics, use the same
+-- bounded entrance lane.
+function Window:Notify(props)
+    if self.unloaded then
+        return
+    end
+    return self:_showNotification(props)
+end
+
 function Window:_showNotification(props)
     if not self.notifications then
         self.notifications = self:Create("Frame", {
@@ -1768,7 +1778,7 @@ function Window:SaveSettings()
 end
 
 function Window:LoadSettings()
-    local loaded = persistence.loadSettings(self)
+    local loaded, migrated = persistence.loadSettings(self)
     self.configuration.autoSave = self.settings.autoSaveConfig
     self.configuration.autoLoad = self.settings.autoLoadConfig
     -- [[The animation-speed setting lives in the same file, and the motion
@@ -1782,6 +1792,11 @@ function Window:LoadSettings()
     -- [[card never unmasks identity data while it is hidden and the toggle]]
     -- [[is built showing the truth.]]
     profilePanel.syncReveal(self)
+    if migrated then
+        -- [[Persist the normalized legacy profile state once. This keeps the
+        -- [[default off without overriding a deliberate choice on later boots.]]
+        self:SaveSettings()
+    end
     return loaded
 end
 

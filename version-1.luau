@@ -7941,6 +7941,16 @@ function Window:_copyOverlayProps(props)
     return copy
 end
 
+-- Public notification API. Keep the queueing implementation private so all
+-- callers, including settings and secure-mode diagnostics, use the same
+-- bounded entrance lane.
+function Window:Notify(props)
+    if self.unloaded then
+        return
+    end
+    return self:_showNotification(props)
+end
+
 function Window:_showNotification(props)
     if not self.notifications then
         self.notifications = self:Create("Frame", {
@@ -8749,7 +8759,7 @@ function Window:SaveSettings()
 end
 
 function Window:LoadSettings()
-    local loaded = persistence.loadSettings(self)
+    local loaded, migrated = persistence.loadSettings(self)
     self.configuration.autoSave = self.settings.autoSaveConfig
     self.configuration.autoLoad = self.settings.autoLoadConfig
     -- [[The animation-speed setting lives in the same file, and the motion
@@ -8763,6 +8773,11 @@ function Window:LoadSettings()
     -- [[card never unmasks identity data while it is hidden and the toggle]]
     -- [[is built showing the truth.]]
     profilePanel.syncReveal(self)
+    if migrated then
+        -- [[Persist the normalized legacy profile state once. This keeps the
+        -- [[default off without overriding a deliberate choice on later boots.]]
+        self:SaveSettings()
+    end
     return loaded
 end
 
@@ -11120,12 +11135,11 @@ function Collapsible.new(tab, props)
     }, { BackgroundTransparency = "ElementTransparency" })
     w:Create("UIGradient", { Rotation = 270, Parent = self.main }, { Color = "WindowColor" })
     w:Create("UICorner", { Parent = self.main }, { CornerRadius = "ElementCornerRadius" })
-    -- [[The container clips its own descendants to the rounded silhouette, so
-    -- [[the outer stroke rides fully inside the bounds (Interior): its own
-    -- [[clip can never shave the stroke, the flaw straddling strokes had when
-    -- [[a tight parent masked them.
+    -- [[The container clips its own descendants to the rounded silhouette.]]
+    -- [[UIStroke supports Border/Contextual modes, not Interior; Border keeps
+    -- [[the outline on the container without reading an invalid enum member.]]
     self.stroke = w:Create("UIStroke", {
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Interior, Transparency = 1, Parent = self.main,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Transparency = 1, Parent = self.main,
     }, { Color = "ElementStroke", Transparency = "ElementStrokeTransparency" })
     self.headerSurface = w:Create("Frame", {
         Name = "HeaderSurface", Size = UDim2.new(1, 0, 0, self.headerHeight),
@@ -33060,6 +33074,12 @@ local enumHelper = require(script.Parent.enums)
 
 local persistenceSettings = {}
 
+-- [[Settings files written before profile visibility was explicitly kept off
+-- [[did not carry a schema marker. Treat those files as legacy once, clear the
+-- [[profile visibility pair, and write the marker back so a user can still turn
+-- [[the profile on intentionally afterward.]]
+local SETTINGS_VERSION = 1
+
 type SettingsWindow = {
     settings: {
         toggleKeybind: EnumItem,
@@ -33082,6 +33102,7 @@ type SettingsWindow = {
 }
 
 type DecodedSettings = {
+    settingsVersion: unknown?,
     toggleKeybind: { [number]: unknown }?,
     theme: unknown?,
     mouseOverride: unknown?,
@@ -33107,6 +33128,7 @@ function persistenceSettings.saveSettings(window: SettingsWindow): boolean
     local folder, filePath = persistenceSettings.getSettingsPath()
 
     local payload: { [string]: unknown } = {
+        settingsVersion = SETTINGS_VERSION,
         toggleKeybind = {
             tostring(window.settings.toggleKeybind.EnumType),
             window.settings.toggleKeybind.Value,
@@ -33180,11 +33202,21 @@ local function readWithFallback(): DecodedSettings?
     return nil
 end
 
-function persistenceSettings.loadSettings(window: SettingsWindow): boolean
+function persistenceSettings.loadSettings(window: SettingsWindow): (boolean, boolean)
     local decodedSettings = readWithFallback()
 
     if not decodedSettings then
-        return false
+        return false, false
+    end
+
+    local storedVersion = tonumber(decodedSettings.settingsVersion) or 0
+    local migrated = storedVersion < SETTINGS_VERSION
+    if migrated then
+        -- [[A legacy profile preference may have been saved as true. Clear it
+        -- [[only during the one-time migration; after this file is rewritten,
+        -- [[users can enable the profile normally and keep that choice.]]
+        decodedSettings.showProfile = false
+        decodedSettings.showFullUsername = false
     end
 
     for _, key in { "autoSaveConfig", "autoLoadConfig" } do
@@ -33270,7 +33302,7 @@ function persistenceSettings.loadSettings(window: SettingsWindow): boolean
         end
     end
 
-    return true
+    return true, migrated
 end
 
 return persistenceSettings
@@ -33543,90 +33575,90 @@ local LineOffsets = {
     [19] = 6194,
     [20] = 6577,
     [21] = 6982,
-    [23] = 10175,
-    [24] = 10261,
-    [25] = 10569,
-    [26] = 10990,
-    [27] = 11330,
-    [28] = 11500,
-    [29] = 11645,
-    [30] = 13020,
-    [31] = 13239,
-    [32] = 13511,
-    [33] = 14072,
-    [34] = 14520,
-    [35] = 14606,
-    [36] = 15193,
-    [37] = 15817,
-    [38] = 16213,
-    [39] = 16343,
-    [40] = 16507,
-    [41] = 16661,
-    [43] = 17161,
-    [44] = 17184,
-    [45] = 17201,
-    [46] = 17234,
-    [47] = 17356,
-    [48] = 17380,
-    [49] = 17429,
-    [50] = 17136,
-    [51] = 17559,
-    [52] = 17862,
-    [53] = 17893,
-    [54] = 17548,
-    [55] = 17936,
-    [56] = 17956,
-    [57] = 17988,
-    [58] = 17918,
-    [59] = 18095,
-    [60] = 18154,
-    [61] = 18214,
-    [63] = 18340,
-    [64] = 18505,
-    [65] = 18325,
-    [66] = 19065,
-    [67] = 19368,
-    [68] = 20032,
-    [69] = 21824,
-    [70] = 22973,
-    [71] = 24501,
-    [72] = 18567,
-    [73] = 29753,
-    [74] = 29819,
-    [75] = 29885,
-    [76] = 29960,
-    [77] = 30066,
-    [78] = 30132,
-    [79] = 30207,
-    [80] = 30282,
-    [81] = 30357,
-    [82] = 30432,
-    [83] = 29647,
-    [84] = 30498,
-    [85] = 30596,
-    [86] = 30774,
-    [87] = 30826,
-    [88] = 30856,
-    [89] = 31107,
-    [90] = 31156,
-    [91] = 31609,
-    [92] = 31627,
-    [93] = 31779,
-    [94] = 31878,
-    [95] = 31900,
-    [96] = 31950,
-    [97] = 32275,
-    [98] = 32311,
-    [99] = 32329,
-    [100] = 32678,
-    [101] = 32690,
-    [102] = 32741,
-    [103] = 32760,
-    [104] = 33011,
-    [105] = 33055,
-    [106] = 33280,
-    [107] = 33308,
-    [108] = 33319,
+    [23] = 10190,
+    [24] = 10276,
+    [25] = 10584,
+    [26] = 11005,
+    [27] = 11344,
+    [28] = 11514,
+    [29] = 11659,
+    [30] = 13034,
+    [31] = 13253,
+    [32] = 13525,
+    [33] = 14086,
+    [34] = 14534,
+    [35] = 14620,
+    [36] = 15207,
+    [37] = 15831,
+    [38] = 16227,
+    [39] = 16357,
+    [40] = 16521,
+    [41] = 16675,
+    [43] = 17175,
+    [44] = 17198,
+    [45] = 17215,
+    [46] = 17248,
+    [47] = 17370,
+    [48] = 17394,
+    [49] = 17443,
+    [50] = 17150,
+    [51] = 17573,
+    [52] = 17876,
+    [53] = 17907,
+    [54] = 17562,
+    [55] = 17950,
+    [56] = 17970,
+    [57] = 18002,
+    [58] = 17932,
+    [59] = 18109,
+    [60] = 18168,
+    [61] = 18228,
+    [63] = 18354,
+    [64] = 18519,
+    [65] = 18339,
+    [66] = 19079,
+    [67] = 19382,
+    [68] = 20046,
+    [69] = 21838,
+    [70] = 22987,
+    [71] = 24515,
+    [72] = 18581,
+    [73] = 29767,
+    [74] = 29833,
+    [75] = 29899,
+    [76] = 29974,
+    [77] = 30080,
+    [78] = 30146,
+    [79] = 30221,
+    [80] = 30296,
+    [81] = 30371,
+    [82] = 30446,
+    [83] = 29661,
+    [84] = 30512,
+    [85] = 30610,
+    [86] = 30788,
+    [87] = 30840,
+    [88] = 30870,
+    [89] = 31121,
+    [90] = 31170,
+    [91] = 31623,
+    [92] = 31641,
+    [93] = 31793,
+    [94] = 31892,
+    [95] = 31914,
+    [96] = 31964,
+    [97] = 32289,
+    [98] = 32325,
+    [99] = 32343,
+    [100] = 32692,
+    [101] = 32704,
+    [102] = 32755,
+    [103] = 32774,
+    [104] = 33025,
+    [105] = 33069,
+    [106] = 33312,
+    [107] = 33340,
+    [108] = 33351,
 }
 
 -- [[Misc AOT variable imports]]

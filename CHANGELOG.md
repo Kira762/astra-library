@@ -17,8 +17,9 @@ alias and `description` props that the "Toggle-only API" entry had retired
 - **One container, two surfaces.** `main` is a single rounded, stroked frame
   that clips its descendants; the header band rides the standard element
   gradient over the darker window surface of the body, split by a 1px
-  stroke-colored divider. The outer stroke uses `ApplyStrokeMode = Interior`
-  so the container's own clip can never shave it.
+  stroke-colored divider. The outer stroke uses the supported
+  `ApplyStrokeMode = Border` mode so the container's own clip can never shave
+  it.
 - **Children are crisp inset cards.** The reveal mask spans the container and
   rides its bottom edge; child cards keep their normal width recipes and land
   one 10px gutter inside the container on every side with 10px gaps — defined

@@ -67,11 +67,14 @@ return {
     LiveAnimation = false,
     DarkToggleOverlay = true,
     ElementTransparency = 0,
-    CollapsibleChildElementTransparency = 0.75,
+    -- [[Grouped children render as defined cards — a surface a shade under the
+    -- [[header band and a visible stroke — the crisp rows the design
+    -- [[reference shows, not 75%-faded ghosts without strokes.
+    CollapsibleChildElementTransparency = 0.35,
     ElementStrokeTransparency = 0,
-    CollapsibleChildElementStrokeTransparency = 1,
+    CollapsibleChildElementStrokeTransparency = 0,
     ElementStrokeHoverTransparency = 0,
-    CollapsibleChildElementStrokeHoverTransparency = 1,
+    CollapsibleChildElementStrokeHoverTransparency = 0,
     ElementStrokeHover = Color3.fromRGB(82, 82, 82),
     ElementCornerRadius = UDim.new(0, 12),
     ElementTextHoverColor = Color3.fromRGB(255, 255, 255),

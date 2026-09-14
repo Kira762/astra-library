@@ -11,6 +11,7 @@ local props = 8
 local direction = {
     button = true,
     toggle = true,
+    switch = true,
     stat = true,
     slider = true,
 }
@@ -66,6 +67,10 @@ function state.new(tab, element)
 end
 
 function state:_add(a13, a14)
+    -- "Switch" is the declarative alias of the toggle control.
+    if a13 == "switch" then
+        a13 = "toggle"
+    end
     if self.compact and not direction[a13] then
         Group.warn(
             `Astra: a row only holds compact elements (button/toggle/stat/slider), ignoring '{a13}'. Use a column for it.`

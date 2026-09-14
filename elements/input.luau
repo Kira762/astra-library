@@ -35,6 +35,7 @@ function state.new(tab, placeholderLabel)
         window = tab.window,
         name = placeholderLabel.name or placeholderLabel.Name or "Input",
         icon = tab.window:ResolveIcon(placeholderLabel.icon or placeholderLabel.Icon),
+        description = placeholderLabel.description or placeholderLabel.Description,
         forgetState = placeholderLabel.forgetState or placeholderLabel.ForgetState or tab.forgetState,
         placeholder = placeholderLabel.placeholder or placeholderLabel.Placeholder or "",
         numeric = placeholderLabel.numeric or placeholderLabel.Numeric or false,

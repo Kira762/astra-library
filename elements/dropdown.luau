@@ -108,6 +108,7 @@ function state.new(tab, a49)
         window = tab.window,
         name = a49.name or a49.Name or "Dropdown",
         icon = tab.window:ResolveIcon(a49.icon or a49.Icon),
+        description = a49.description or a49.Description,
         forgetState = a49.forgetState or a49.ForgetState or tab.forgetState,
         flag = a49.flag
             or a49.Flag

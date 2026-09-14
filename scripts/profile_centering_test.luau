@@ -162,8 +162,10 @@ state.localPlayer = player
 -- [[The first show now also builds the initial settings page, and that build]]
 -- [[is batched over a couple of extra frames by the construction pacing, so]]
 -- [[give the reveal the frames it legitimately costs (was 0.15 when a shown]]
--- [[window had no settings content to build).]]
-TestPump(0.35)
+-- [[window had no settings content to build). It costs a beat more since the]]
+-- [[auto-show waits one settle after the build goes quiet, so the entrance]]
+-- [[does not share a frame with the tail of the script that built the UI.]]
+TestPump(0.5)
 eq(lateWindow.profilePanel.Visible, true, "C2 the card shows on the first show")
 eqUDim2(
 	lateWindow.main.Position,

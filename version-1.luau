@@ -75,6 +75,16 @@ local Astra = {} :: Astra
 local activeWindow: types.Window? = nil
 local ACTIVE_WINDOW_KEY = "__ASTRA_ACTIVE_WINDOW_V1"
 
+-- [[Beats of the arrival sequence, in seconds: how long the window waits after
+-- the host's build goes quiet before it shows itself, and how long a font
+-- download waits for that entrance before it triggers its own full theme pass.
+-- Both are cooldowns between *parts* of startup, not extra work: neither makes
+-- the interface take longer to be usable, they stop several expensive steps
+-- from all taking the same frame. The settle stays inside one or two frames on
+-- purpose — the entrance and everything after it are where the slack belongs.]]
+local STARTUP_SETTLE = 0.1
+local FONT_SETTLE_BUDGET = 3
+
 local function getGlobalStore(): { [string]: any }
 	local globalEnv = _G :: any
 	local ok, genvResult = pcall(function()
@@ -152,11 +162,26 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 				and mediumFont
 				and semiBoldFont
 				and mediumFont ~= State.fallbackFont
-				and semiBoldFont ~= State.fallbackFont
-			then
+			and semiBoldFont ~= State.fallbackFont
+		then
+			-- [[A font swap is a theme pass over every instance the window
+			-- owns, so running it while the window is still arriving puts that
+			-- pass on the frames the entrance needs. It waits for the window to
+			-- land instead — bounded, because a host that never shows the
+			-- window must still end up with its font.]]
+			local waited = 0
+			while
+				waited < FONT_SETTLE_BUDGET
+				and not window.unloaded
+				and (not window.hasShownOnce or window.animating)
+			do
+				waited += task.wait()
+			end
+			if not window.unloaded then
 				window:ChangeTheme({ Font = mediumFont, TitleFont = semiBoldFont })
 			end
-		end)
+		end
+	end)
 	end
 
 	if not window.unloaded then
@@ -171,6 +196,31 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 					return
 				end
 			until (window._constructionBusy or 0) == 0 and revision == window._constructionRevision
+
+			-- [[One beat of slack between the last batch of the build and the
+			-- entrance. The tail of a host's script — a configuration read, an
+			-- image preloading, the first frames of layout settling — used to
+			-- land on the same frame the window opened on, which is what made a
+			-- long load end in a stutter instead of an arrival. The window is
+			-- still handed the next frames to itself, and everything the script
+			-- queued (toasts, notifications, the profile card) follows it.]]
+			local settled = 0
+			while settled < STARTUP_SETTLE do
+				if window.unloaded or window._autoShowCancelled then
+					return
+				end
+				settled += task.wait()
+				-- [[A host that carries on building from a delayed callback
+				-- keeps the entrance parked until it goes quiet again: showing
+				-- mid-batch is exactly the thing this loop exists to avoid.]]
+				while (window._constructionBusy or 0) > 0 do
+					if window.unloaded or window._autoShowCancelled then
+						return
+					end
+					settled += task.wait()
+				end
+			end
+
 			window:Show()
 		end)
 	end
@@ -1404,7 +1454,7 @@ local function autoDuration(content)
     return math.clamp(#content * 0.06 + 3, 3, 9)
 end
 
-function Notification.new(window, props)
+function Notification.new(window, props, release)
     props = if typeof(props) == "table" then props else {}
 
     local self = setmetatable({
@@ -1414,6 +1464,11 @@ function Notification.new(window, props)
         icon = window:ResolveIcon(props.icon or props.Icon),
         _hovered = false,
         _dismissed = false,
+        -- [[Handed over by the entrance queue when this card was queued: the
+        -- next overlay does not start until this one releases the slot, which
+        -- is what turns the burst a host fires at load time into a cascade. Nil
+        -- for a card built directly, which then owns its own timing.]]
+        _release = release,
     }, Notification)
 
     self.duration = props.duration or props.Duration or autoDuration(self.content)
@@ -1590,9 +1645,24 @@ function Notification:_measure()
     return math.max(textHeight, self.iconLabel and 24 or 0) + 28
 end
 
+-- [[Hand the entrance slot back to the queue. Fires when the last piece of the
+-- entrance has been committed, and also on any early exit: a card that is
+-- dismissed before it opens (the visibility cap, a click, an unload) must not
+-- leave the next one waiting for a tween that will never finish. Idempotent,
+-- because the show path and the dismiss path can both reach it.]]
+function Notification:_entranceDone()
+    local release = self._release
+    if not release then
+        return
+    end
+    self._release = nil
+    release()
+end
+
 function Notification:_show()
     local totalHeight = self:_measure() + padding
     if self._dismissed or not self.main.Parent then
+        self:_entranceDone()
         return
     end
 
@@ -1607,6 +1677,7 @@ function Notification:_show()
 
     task.wait(0.05)
     if self._dismissed or not self.main.Parent then
+        self:_entranceDone()
         return
     end
     if self.iconLabel then
@@ -1615,11 +1686,16 @@ function Notification:_show()
 
     task.wait(0.05)
     if self._dismissed or not self.main.Parent then
+        self:_entranceDone()
         return
     end
     if self.descriptionLabel then
         state.tweenService:Create(self.descriptionLabel, textFadeTween, { TextTransparency = 0.35 }):Play()
     end
+
+    -- [[The card is fully on screen from here: everything that is still
+    -- running is its hold time, not its entrance, so the next one may start.]]
+    self:_entranceDone()
 
     local elapsed = 0
     while elapsed < self.duration and not self._dismissed and self.main.Parent do
@@ -1637,6 +1713,10 @@ function Notification:_dismiss()
         return
     end
     self._dismissed = true
+
+    -- [[A card retired before its entrance finished still owes the queue its
+    -- slot; `_entranceDone` is a no-op once the show path has handed it back.]]
+    self:_entranceDone()
 
     local liveNotifications = self.window._liveNotifications
     local index = liveNotifications and table.find(liveNotifications, self)
@@ -1683,6 +1763,213 @@ return Notification
 
 end)() end,
     [13] = function()local wax,script,require=ImportGlobals(13)local ImportGlobals return (function(...)
+-- [[Astra overlay entrance queue.
+--
+-- Notifications and toasts are the cheapest thing in the interface to look at
+-- and the most expensive thing to build on a cold start: a host that fires
+-- twenty of them while it boots — one per module it loaded — builds twenty
+-- cards on the same frame the window's own entrance lands, and every card is
+-- a dozen instances plus its full set of entrance tweens. The frame spikes,
+-- the entrance stutters, and the whole interface pops in at once.
+--
+-- The queue turns that burst into a cascade:
+--   * an overlay is *built* on its own turn rather than on the frame it was
+--     asked for, so the construction cost is spread over frames instead of
+--     stacked onto one;
+--   * only one entrance is in flight at a time, and the next turn starts
+--     after a cooldown, so the cards arrive one at a time;
+--   * the gate holds every turn while the window is busy with its own
+--     entrance, so the window arrives first and the overlays follow it;
+--   * a backlog is bounded: past `maxQueued` pending requests the oldest one
+--     that has not been built yet gives up its slot, the same way
+--     `maxVisible` retires cards that are already on screen.
+--
+-- The queue owns no timing of its own beyond the cooldown: an overlay keeps
+-- its entrance and simply calls `release()` when the last piece of it is
+-- committed, which is what hands the slot to the next card. The cooldown
+-- answers to the motion service, so the "Instant" speed profile (or animation
+-- switched off) drains the queue one overlay per frame instead of one per
+-- cooldown — ordered, but never slow. The gate is polled a frame at a time
+-- rather than slept through, because the thing it waits for is another
+-- coroutine's completion, not a duration.
+-- ]]
+local utilities = script.Parent.Parent.utilities
+
+local motion = require(utilities.motion)
+local log = require(utilities.log)
+
+local OverlayQueue = {}
+
+-- [[Cooldown between two overlays landing, and the shorter one used while a
+-- backlog is still waiting so a long queue drains instead of crawling. Both
+-- are beats for the *next* card to start on: the entrance itself belongs to
+-- the overlay.]]
+local entranceGap = 0.18
+local backlogGap = 0.06
+local backlogSize = 3
+
+-- [[Safety budgets, in seconds of waiting rather than in frames: an entrance
+-- that never reports back (a card dismissed mid-flight by the visibility cap,
+-- say) must not strand the queue behind it, and a gate nobody opens must not
+-- strand it either.]]
+local entranceBudget = 1.2
+local gateBudget = 2.5
+
+-- [[Pending requests kept during a burst. Anything past this is dropped
+-- before it is ever built, which is the whole point.]]
+local maxQueued = 6
+
+local function queueFor(window): { [string]: any }
+    local queue = window._overlayQueue
+    if not queue then
+        queue = {
+            pending = {},
+            running = false,
+            paused = false,
+            closed = false,
+        }
+        window._overlayQueue = queue
+    end
+    return queue
+end
+
+-- [[Suspend the queue. Called when the window starts a transition that should
+-- read as the main event — its own entrance — and paired with
+-- `OverlayQueue.resume` when that transition is over.]]
+function OverlayQueue.pause(window)
+    local queue = queueFor(window)
+    queue.paused = true
+end
+
+function OverlayQueue.resume(window)
+    local queue = window._overlayQueue
+    if not queue or not queue.paused then
+        return
+    end
+    queue.paused = false
+    -- [[A pump that gave up on a gate nobody opened (gateBudget) leaves the
+    -- backlog parked until the next request, so wake it here too.]]
+    if not queue.running and #queue.pending > 0 and not window.unloaded then
+        OverlayQueue.pump(window, queue)
+    end
+end
+
+-- [[Give up the slot for a cooldown. A wait expressed in seconds rather than
+-- `task.wait(seconds)`, because a frame that is already over must not be
+-- charged against the beat: the queue should never run *ahead* of the clock it
+-- is pacing itself against.]]
+local function waitSeconds(seconds)
+    local waited = 0
+    while waited < seconds do
+        waited += task.wait()
+    end
+end
+
+-- [[Drain the pending list one overlay at a time. One pump per window at any
+-- moment: a request that arrives while the queue is running is picked up by
+-- the loop that is already going.]]
+function OverlayQueue.pump(window, queue)
+    if queue.running then
+        return
+    end
+    queue.running = true
+
+    task.spawn(function()
+        while #queue.pending > 0 do
+            if window.unloaded or queue.closed then
+                table.clear(queue.pending)
+                break
+            end
+
+            local entry = table.remove(queue.pending, 1)
+
+            -- [[Wait out the window's own entrance before taking the turn. The
+            -- budget keeps a gate nobody opened from parking the queue: worst
+            -- case the overlay arrives on its own instead of with the window.]]
+            if queue.paused then
+                local gateWaited = 0
+                while queue.paused and gateWaited < gateBudget and not window.unloaded do
+                    gateWaited += task.wait()
+                end
+            end
+
+            if window.unloaded or queue.closed then
+                table.clear(queue.pending)
+                break
+            end
+
+            -- [[The overlay reports back when its entrance is committed. A
+            -- build that errors out has already reported nothing, so the
+            -- budget below moves the queue along regardless.]]
+            local released = false
+            local function release()
+                released = true
+            end
+
+            local ok, err = pcall(entry.build, release)
+            if not ok then
+                log.warn("Astra: an overlay failed to open - " .. tostring(err))
+            end
+
+            local entranceWaited = 0
+            while not released and entranceWaited < entranceBudget and not window.unloaded do
+                entranceWaited += task.wait()
+            end
+
+            if window.unloaded or queue.closed then
+                table.clear(queue.pending)
+                break
+            end
+
+            -- [[The cooldown between two cards. A short one when the queue is
+            -- still long, so a burst stays a cascade and does not turn into a
+            -- slideshow.]]
+            local gap = if #queue.pending > backlogSize then backlogGap else entranceGap
+            waitSeconds(motion.step(gap))
+        end
+
+        queue.running = false
+    end)
+end
+
+-- [[Ask for an overlay. `build(release)` constructs it on this overlay's turn —
+-- never on the frame the request was made on — and the overlay calls
+-- `release()` when its entrance is committed. Returns true when the request was
+-- accepted, which is false only for a window that is already gone.]]
+function OverlayQueue.request(window, build): boolean
+    if window.unloaded or (window._overlayQueue ~= nil and window._overlayQueue.closed) then
+        return false
+    end
+
+    local queue = queueFor(window)
+
+    -- [[A burst stays bounded: the oldest request that was never built is
+    -- dropped for the newest one, which is the one the host still cares about.]]
+    while #queue.pending >= maxQueued do
+        table.remove(queue.pending, 1)
+    end
+
+    table.insert(queue.pending, { build = build })
+
+    OverlayQueue.pump(window, queue)
+    return true
+end
+
+-- [[Stops the pump and drops everything that never got built. Called from
+-- `Window:Unload`, where the whole overlay layer is going away anyway.]]
+function OverlayQueue.close(window)
+    local queue = window._overlayQueue
+    if not queue then
+        return
+    end
+    queue.closed = true
+    table.clear(queue.pending)
+end
+
+return OverlayQueue
+
+end)() end,
+    [14] = function()local wax,script,require=ImportGlobals(14)local ImportGlobals return (function(...)
 local Popup = {}
 Popup.__index = Popup
 Popup.__type = "Popup"
@@ -2400,7 +2687,7 @@ end
 return Popup
 
 end)() end,
-    [14] = function()local wax,script,require=ImportGlobals(14)local ImportGlobals return (function(...)
+    [15] = function()local wax,script,require=ImportGlobals(15)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local state = require(utilities.Parent.core.state)
 local services = require(utilities.services)
@@ -4791,7 +5078,7 @@ end
 return profilePanel
 
 end)() end,
-    [15] = function()local wax,script,require=ImportGlobals(15)local ImportGlobals return (function(...)
+    [16] = function()local wax,script,require=ImportGlobals(16)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local state = require(utilities.Parent.core.state)
 local constants = require(utilities.constants)
@@ -5137,7 +5424,7 @@ end
 return search
 
 end)() end,
-    [16] = function()local wax,script,require=ImportGlobals(16)local ImportGlobals return (function(...)
+    [17] = function()local wax,script,require=ImportGlobals(17)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local constants = require(utilities.constants)
 local locale = require(utilities.locale)
@@ -5776,7 +6063,7 @@ end
 return settingsComponent
 
 end)() end,
-    [17] = function()local wax,script,require=ImportGlobals(17)local ImportGlobals return (function(...)
+    [18] = function()local wax,script,require=ImportGlobals(18)local ImportGlobals return (function(...)
 local tabSelector = require(script.Parent.tabSelector)
 local search = require(script.Parent.search)
 
@@ -5837,7 +6124,7 @@ end
 return sidebar
 
 end)() end,
-    [18] = function()local wax,script,require=ImportGlobals(18)local ImportGlobals return (function(...)
+    [19] = function()local wax,script,require=ImportGlobals(19)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local state = require(utilities.Parent.core.state)
 local functions = require(script.Parent.Parent.functions)
@@ -6207,7 +6494,7 @@ end
 return tabSelector
 
 end)() end,
-    [19] = function()local wax,script,require=ImportGlobals(19)local ImportGlobals return (function(...)
+    [20] = function()local wax,script,require=ImportGlobals(20)local ImportGlobals return (function(...)
 local Toast = {}
 Toast.__index = Toast
 Toast.__type = "Toast"
@@ -6254,7 +6541,7 @@ local function resolveAssetId(asset)
     return asset
 end
 
-function Toast.new(window, props, parent)
+function Toast.new(window, props, parent, release)
     props = if typeof(props) == "table" then props else {}
 
     local self = setmetatable({
@@ -6268,6 +6555,10 @@ function Toast.new(window, props, parent)
         position = props.position or "Top",
         _hovered = false,
         _dismissed = false,
+        -- [[The entrance queue's slot: released when this toast's entrance is
+        -- committed, which is what lets a burst of them cascade instead of all
+        -- landing on one frame. See `components/overlayQueue.luau`.]]
+        _release = release,
     }, Toast)
 
     self.duration = props.duration or props.Duration or autoDuration(self.title .. (self.subtitle or ""))
@@ -6483,8 +6774,21 @@ function Toast:_measure()
     return totalWidth, totalHeight
 end
 
+-- [[Hands the entrance slot back to the queue once the toast's entrance is
+-- committed (or once it is dismissed, whichever comes first) so the next
+-- queued overlay can start. Idempotent by design: both paths reach it.]]
+function Toast:_entranceDone()
+    local release = self._release
+    if not release then
+        return
+    end
+    self._release = nil
+    release()
+end
+
 function Toast:_show()
     if self._dismissed or not self.main.Parent then
+        self:_entranceDone()
         return
     end
 
@@ -6492,6 +6796,7 @@ function Toast:_show()
 
     local width, height = self:_measure()
     if self._dismissed or not self.main.Parent then
+        self:_entranceDone()
         return
     end
     self.main.Size = UDim2.new(0, width, 0, 0)
@@ -6505,6 +6810,7 @@ function Toast:_show()
 
     task.wait(0.05)
     if self._dismissed or not self.main.Parent then
+        self:_entranceDone()
         return
     end
     if self.iconLabel then
@@ -6514,11 +6820,16 @@ function Toast:_show()
 
     task.wait(0.05)
     if self._dismissed or not self.main.Parent then
+        self:_entranceDone()
         return
     end
     if self.subtitleLabel then
         state.tweenService:Create(self.subtitleLabel, textFadeTween, { TextTransparency = 0.5 }):Play()
     end
+
+    -- [[Everything still running is the hold time now, not the entrance, so
+    -- the next toast in the queue may take its turn.]]
+    self:_entranceDone()
 
     local elapsed = 0
     while elapsed < self.duration and not self._dismissed and self.main.Parent do
@@ -6536,6 +6847,10 @@ function Toast:_dismiss()
         return
     end
     self._dismissed = true
+
+    -- [[A toast retired before its entrance finished still owes the queue its
+    -- slot; `_entranceDone` is a no-op once the show path handed it back.]]
+    self:_entranceDone()
 
     local liveList = self._live
     local index = liveList and table.find(liveList, self)
@@ -6584,7 +6899,7 @@ end
 return Toast
 
 end)() end,
-    [20] = function()local wax,script,require=ImportGlobals(20)local ImportGlobals return (function(...)
+    [21] = function()local wax,script,require=ImportGlobals(21)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local image = require(script.Parent.Parent.images.image)
 local icons = require(script.Parent.Parent.icons)
@@ -6602,6 +6917,7 @@ local search = require(script.Parent.search)
 local tabSelector = require(script.Parent.tabSelector)
 local profilePanel = require(script.Parent.profilePanel)
 local settingsComponent = require(script.Parent.settings)
+local overlayQueue = require(script.Parent.overlayQueue)
 
 local state = require(utilities.Parent.core.state)
 
@@ -6612,6 +6928,13 @@ Window.__index = Window
 
 local revealTween = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
 local tweenStyle = TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+
+-- [[The beat between the window's shell landing and its page coming in. Long
+-- enough that the two read as one entrance in the right order — frame, then
+-- content — and short enough that nothing looks like it is waiting for the
+-- next thing to happen. Scaled by the motion service, and skipped entirely
+-- when animation is switched off.]]
+local contentRevealBeat = 0.22
 
 local collapsedWideSize = UDim2.fromOffset(185, 50)
 local collapsedIconOnlySize = UDim2.fromOffset(50, 50)
@@ -7184,6 +7507,13 @@ function Window.new(props)
     -- [[being constructed, e.g. by the first-tab auto-select).]]
     self._constructed = true
 
+    -- [[Overlays wait for the window's own entrance before any of them starts]]
+    -- [[building: the gate opens when that entrance lands (in `_firstShow`,]]
+    -- [[after its settle and the reveal cascade that follows it). A host that]]
+    -- [[fires a toast between CreateWindow and the first show still gets it —]]
+    -- [[just behind the window instead of on top of it.]]
+    overlayQueue.pause(self)
+
     return self
 end
 
@@ -7488,7 +7818,17 @@ function Window:Notify(props)
         })
     end
 
-    return require(script.Parent.Parent.components.notification).new(self, props)
+    -- [[The card is built on the queue's turn rather than right here: a host
+    -- that fires a notification for every module it loaded used to pay for
+    -- twenty frames' worth of instances and tweens on one. The layer itself is
+    -- created up front, so the first notification's own turn only builds the
+    -- card. See `components/overlayQueue.luau`. The props are snapshotted for
+    -- the same reason: a host that reuses one table between queued calls must
+    -- not have its last write end up on every card.]]
+    local snapshot = if typeof(props) == "table" then table.clone(props) else props
+    overlayQueue.request(self, function(release)
+        require(script.Parent.Parent.components.notification).new(self, snapshot, release)
+    end)
 end
 
 function Window:Toast(props)
@@ -7496,7 +7836,12 @@ function Window:Toast(props)
         return
     end
 
-        props = if typeof(props) == "table" then props else {}
+        -- [[Cloned before anything is read off it: the card is built on the
+    -- [[queue's turn (see `Window:Notify`), and the resolved `position` below
+    -- [[belongs to this call rather than to the table the host handed in —
+    -- [[which also means the call no longer writes through to the caller's
+    -- [[props.]]
+    props = if typeof(props) == "table" then table.clone(props) else {}
     local position = props.position or props.Position or "Top"
     local isTop = typeof(position) ~= "string" or position:lower() ~= "bottom"
     props.position = if isTop then "Top" else "Bottom"
@@ -7532,7 +7877,12 @@ function Window:Toast(props)
         end
     end
 
-    return require(script.Parent.Parent.components.toast).new(self, props, container)
+    -- [[Queued with the notifications rather than beside them: the two overlay
+    -- kinds share one turn at a time, because the cost being spread is the same
+    -- one — a card's instances and its entrance tweens landing on one frame.]]
+    overlayQueue.request(self, function(release)
+        require(script.Parent.Parent.components.toast).new(self, props, container, release)
+    end)
 end
 
 function Window:Popup(props)
@@ -7614,6 +7964,12 @@ end
 function Window:Hide()
     -- Cancel pending startup reveal even while the window is still hidden.
     self._autoShowCancelled = true
+    -- [[A window whose entrance is never going to happen (the cancelled
+    -- [[auto-show above) must not keep the overlays it was already asked for
+    -- [[parked behind an entrance that will not arrive.]]
+    if not self.hasShownOnce then
+        overlayQueue.resume(self)
+    end
     if self.animating or self.hidden then
         return
     end
@@ -8638,6 +8994,12 @@ function Window:_revealElements(stepDelay, totalDuration, layoutTransitionId)
         return
     end
 
+    -- [[The cascade is the moment this page's elements are being looked at, so]]
+    -- [[it owns the pending mark `_showTabElements` would otherwise clear in]]
+    -- [[one frame: dropping the mark up front keeps a tab that is opened,]]
+    -- [[hidden and opened again from queuing a second reveal behind this one.]]
+    tab._elementsPending = false
+
     local page = tab.tabPage
     local viewTop = page.AbsolutePosition.Y
     local viewBottom = viewTop + page.AbsoluteWindowSize.Y
@@ -8667,6 +9029,33 @@ function Window:_revealElements(stepDelay, totalDuration, layoutTransitionId)
         else
             element:_setShown(true, false)         end
     end
+end
+
+-- [[The content half of an entrance, and the beat that keeps it out of the
+-- [[shell's way. The frame, its surface, the corner and the topbar copy animate
+-- [[first; the page's controls come in one cooldown later, as a cascade rather
+-- [[than on a single frame, and the overlay queue is opened once that has been
+-- [[committed. `entranceId` is the entrance generation: a window that is hidden
+-- [[or shown again in the meantime drops the half-finished sequence and lets
+-- [[the newer entrance own the page.]]
+function Window:_stageContentReveal(beat, stepDelay, totalDuration, entranceId)
+    task.spawn(function()
+        if beat > 0 then
+            task.wait(beat)
+        end
+        if self.unloaded or self._contentEntranceId ~= entranceId then
+            return
+        end
+
+        self:_revealElements(stepDelay, totalDuration)
+
+        -- [[Runs even when the cascade above bailed out (a hide, a minimise):
+        -- [[overlays belong to the screen layer, not to the page, so nothing
+        -- [[here may leave the queue parked on an entrance that never finished.
+        -- [[`_firstShow`'s settle opens it as well; this is the later of the
+        -- [[two, which is what makes the cards arrive behind the content.]]
+        overlayQueue.resume(self)
+    end)
 end
 
 function Window:Show()
@@ -8737,18 +9126,24 @@ function Window:_quickRestore()
     self:_setContentVisible(true)
     self:_setTabSectionsVisible(true)
     self:_setTabSectionsShown(true)
+    -- [[Same two-beat structure as the first show, on the shorter restore
+    -- [[timing: the card comes back first and the page follows it, instead of
+    -- [[every control on the page being rewritten on the frame the restore
+    -- [[starts on.]]
+    self._contentEntranceId = (self._contentEntranceId or 0) + 1
+    local entranceId = self._contentEntranceId
     for _, tab in pairs(self.tabs) do
         if not tab.neglectSelector and tab.topbarItem then
             tab.topbarItem.Visible = true
             tab:_applyVisual(if self.selectedTab == tab then "selected" else "unselected")
         end
         if tab == self.selectedTab then
-            self:_showTabElements(tab)
+            self:_markTabElementsPending(tab)
         end
     end
-    -- [[Restore the settings/normal rail split; the loop above shows the
-    -- [[selected tab's elements (the others are either already shown or still
-    -- [[marked to show when they are opened).]]
+    -- [[Restore the settings/normal rail split. The loop above leaves the
+    -- [[selected tab marked: the staged reveal at the end of this function
+    -- [[walks it one card per beat, the same way opening a tab does.]]
     self:_applySettingsLayout(self._settingsMode)
     self:_fadeSurfaces(true)
 
@@ -8792,12 +9187,18 @@ function Window:_quickRestore()
         self.animating = false
         self._revealing = false
         updateToastPosition(self, true)
+        -- [[The overlay gate opens with the shell, exactly as on the first
+        -- [[show, and the staged reveal below re-opens it after the page has
+        -- [[committed: whichever lands last is the one that lets a waiting
+        -- [[card through, so the queue can never be left parked on a restore.]]
+        overlayQueue.resume(self)
     end
 
     if not motion.tween(self.main, { Size = self.size, Position = targetPos }, tweenInfo, settle) then
         settle()
     end
     motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, tweenInfo)
+    self:_stageContentReveal(motion.step(contentRevealBeat * 0.6), 0.02, 0.4, entranceId)
 end
 function Window:_firstShow()
     self.drag.drag.Visible = false
@@ -8825,6 +9226,11 @@ function Window:_firstShow()
     self.main.Size = openingSize
     -- [[Entrance starts as a capsule (theme pill) then opens to CornerRoundness.]]
     self.windowCorner.CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0)
+    -- [[Which entrance owns the staged content reveal below. A hide, a repeat
+    -- [[show or a layout switch between now and then replaces it, and the
+    -- [[older sequence stops instead of fighting the newer one for the page.]]
+    self._contentEntranceId = (self._contentEntranceId or 0) + 1
+    local entranceId = self._contentEntranceId
     self:_setContentVisible(true)
     self:_setTabSectionsVisible(true)
     self:_setTabSectionsShown(true)
@@ -8834,12 +9240,18 @@ function Window:_firstShow()
             tab:_applyVisual(if self.selectedTab == tab then "selected" else "unselected")
         end
         if tab == self.selectedTab then
-            self:_showTabElements(tab)
+            -- [[The page's controls are deliberately not shown here: writing
+            -- [[every card on the frame the entrance opens on is what made the
+            -- [[first show look instant and cost a hitch on pages with a lot on
+            -- [[them. The mark stays on, and the staged reveal below clears it
+            -- [[as it walks the page.]]
+            self:_markTabElementsPending(tab)
         end
     end
-    -- [[Restore the settings/normal rail split; the loop above shows the
-    -- [[selected tab's elements (the others are either already shown or still
-    -- [[marked to show when they are opened).]]
+    -- [[Restore the settings/normal rail split. The loop above leaves the
+    -- [[selected tab marked and every other tab either shown or still marked
+    -- [[for when it is opened; the staged reveal below walks the page that is
+    -- [[actually on screen, one control per beat.]]
     self:_applySettingsLayout(self._settingsMode)
     for _, tag in self.tags do
         tag:_setShown(false, false)
@@ -8894,6 +9306,11 @@ function Window:_firstShow()
         -- [[window to 88%, which clamped CanvasPosition along the way).]]
         self:_scrollSelectedTabIntoView(false)
         self:_refreshTabStripChrome()
+        -- [[The shell has landed, so the entrance is over as far as the
+        -- [[overlay queue is concerned. The staged reveal below opens the same
+        -- [[gate again when it has committed the page; whichever of the two
+        -- [[happens last is what lets a waiting toast through.]]
+        overlayQueue.resume(self)
     end
 
     if not motion.tween(self.main, {
@@ -8903,6 +9320,14 @@ function Window:_firstShow()
         settle()
     end
     motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, "pop")
+
+    -- [[Second beat of the entrance: the page's controls cascade in once the
+    -- [[frame is close to its resting size, and only then do the queued
+    -- [[notifications and toasts start arriving one at a time. Everything after
+    -- [[`CreateWindow` — the welcome toast, a host's "loaded N modules"
+    -- [[notifications, the optional-icon warning — rides that queue instead of
+    -- [[sharing the frame the window itself opens on.]]
+    self:_stageContentReveal(motion.step(contentRevealBeat), 0.02, 0.5, entranceId)
 
     local player = state.localPlayer
     if player and self.settings.welcomeToast and chrome.isNewUser() then
@@ -9571,6 +9996,10 @@ function Window:Unload()
         pcall(self.Save, self)
     end
     self.unloaded = true
+    -- [[Stop the entrance queue with the window: an overlay that had not taken
+    -- [[its turn yet has no layer to be built into any more, and the pump must
+    -- [[not wake up on a window whose instances are about to be destroyed.]]
+    overlayQueue.close(self)
             haptic.teardown()
     haptic.releaseContainer(self.screenGui)
     for _, liveTween in self._liveTweens or {} do
@@ -9595,7 +10024,7 @@ end
 return Window
 
 end)() end,
-    [22] = function()local wax,script,require=ImportGlobals(22)local ImportGlobals return (function(...)
+    [23] = function()local wax,script,require=ImportGlobals(23)local ImportGlobals return (function(...)
 -- [[Shared base card layout and styling for Astra UI elements.]]
 -- [[Handles standard background frame, theme strokes, hover overlay,]]
 -- [[content container, icon, and title label.]]
@@ -9681,7 +10110,7 @@ end
 return baseCard
 
 end)() end,
-    [23] = function()local wax,script,require=ImportGlobals(23)local ImportGlobals return (function(...)
+    [24] = function()local wax,script,require=ImportGlobals(24)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Button"
@@ -9893,7 +10322,7 @@ name(state)
 return state
 
 end)() end,
-    [24] = function()local wax,script,require=ImportGlobals(24)local ImportGlobals return (function(...)
+    [25] = function()local wax,script,require=ImportGlobals(25)local ImportGlobals return (function(...)
 local Changelog = {}
 Changelog.__index = Changelog
 Changelog.__type = "Changelog"
@@ -10314,7 +10743,7 @@ moveable(Changelog)
 return Changelog
 
 end)() end,
-    [25] = function()local wax,script,require=ImportGlobals(25)local ImportGlobals return (function(...)
+    [26] = function()local wax,script,require=ImportGlobals(26)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local motion = require(utilities.motion)
 local locale = require(utilities.locale)
@@ -10636,7 +11065,7 @@ lockable(Collapsible)
 return Collapsible
 
 end)() end,
-    [26] = function()local wax,script,require=ImportGlobals(26)local ImportGlobals return (function(...)
+    [27] = function()local wax,script,require=ImportGlobals(27)local ImportGlobals return (function(...)
 -- [[The in-card description line. An element created with a `description` prop
 -- [[grows its own card by the measured height of this line instead of spawning
 -- [[a standalone row beneath the card, so the description can never sit on top
@@ -10806,7 +11235,7 @@ end
 return description
 
 end)() end,
-    [27] = function()local wax,script,require=ImportGlobals(27)local ImportGlobals return (function(...)
+    [28] = function()local wax,script,require=ImportGlobals(28)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Divider"
@@ -10951,7 +11380,7 @@ constants(state)
 return state
 
 end)() end,
-    [28] = function()local wax,script,require=ImportGlobals(28)local ImportGlobals return (function(...)
+    [29] = function()local wax,script,require=ImportGlobals(29)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Dropdown"
@@ -12325,7 +12754,7 @@ multiSelect(state)
 return state
 
 end)() end,
-    [29] = function()local wax,script,require=ImportGlobals(29)local ImportGlobals return (function(...)
+    [30] = function()local wax,script,require=ImportGlobals(30)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Group"
@@ -12539,7 +12968,7 @@ constants(state)
 return state
 
 end)() end,
-    [30] = function()local wax,script,require=ImportGlobals(30)local ImportGlobals return (function(...)
+    [31] = function()local wax,script,require=ImportGlobals(31)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Input"
@@ -12810,7 +13239,7 @@ name(state)
 return state
 
 end)() end,
-    [31] = function()local wax,script,require=ImportGlobals(31)local ImportGlobals return (function(...)
+    [32] = function()local wax,script,require=ImportGlobals(32)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Keybind"
@@ -13370,7 +13799,7 @@ name(state)
 return state
 
 end)() end,
-    [32] = function()local wax,script,require=ImportGlobals(32)local ImportGlobals return (function(...)
+    [33] = function()local wax,script,require=ImportGlobals(33)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Progress"
@@ -13817,7 +14246,7 @@ props(state)
 return state
 
 end)() end,
-    [33] = function()local wax,script,require=ImportGlobals(33)local ImportGlobals return (function(...)
+    [34] = function()local wax,script,require=ImportGlobals(34)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Section"
@@ -13903,7 +14332,7 @@ constants(state)
 return state
 
 end)() end,
-    [34] = function()local wax,script,require=ImportGlobals(34)local ImportGlobals return (function(...)
+    [35] = function()local wax,script,require=ImportGlobals(35)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Slider"
@@ -14489,7 +14918,7 @@ flag(state)
 return state
 
 end)() end,
-    [35] = function()local wax,script,require=ImportGlobals(35)local ImportGlobals return (function(...)
+    [36] = function()local wax,script,require=ImportGlobals(36)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Statistic"
@@ -15112,7 +15541,7 @@ name(state)
 return state
 
 end)() end,
-    [36] = function()local wax,script,require=ImportGlobals(36)local ImportGlobals return (function(...)
+    [37] = function()local wax,script,require=ImportGlobals(37)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Tab"
@@ -15504,7 +15933,7 @@ end
 return state
 
 end)() end,
-    [37] = function()local wax,script,require=ImportGlobals(37)local ImportGlobals return (function(...)
+    [38] = function()local wax,script,require=ImportGlobals(38)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "TabSection"
@@ -15634,7 +16063,7 @@ end
 return state
 
 end)() end,
-    [38] = function()local wax,script,require=ImportGlobals(38)local ImportGlobals return (function(...)
+    [39] = function()local wax,script,require=ImportGlobals(39)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Tag"
@@ -15798,7 +16227,7 @@ end
 return state
 
 end)() end,
-    [39] = function()local wax,script,require=ImportGlobals(39)local ImportGlobals return (function(...)
+    [40] = function()local wax,script,require=ImportGlobals(40)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Text"
@@ -15952,7 +16381,7 @@ constants(state)
 return state
 
 end)() end,
-    [40] = function()local wax,script,require=ImportGlobals(40)local ImportGlobals return (function(...)
+    [41] = function()local wax,script,require=ImportGlobals(41)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Toggle"
@@ -16426,7 +16855,7 @@ end
 return state
 
 end)() end,
-    [49] = function()local wax,script,require=ImportGlobals(49)local ImportGlobals return (function(...)
+    [50] = function()local wax,script,require=ImportGlobals(50)local ImportGlobals return (function(...)
 
 local managerModule = require(script.manager)
 local registryModule = require(script.registry)
@@ -16451,7 +16880,7 @@ end
 return settings
 
 end)() end,
-    [42] = function()local wax,script,require=ImportGlobals(42)local ImportGlobals return (function(...)
+    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)
 
 local appearance = {}
 
@@ -16474,7 +16903,7 @@ end
 return appearance
 
 end)() end,
-    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)
+    [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)
 
 local behavior = {}
 
@@ -16491,7 +16920,7 @@ end
 return behavior
 
 end)() end,
-    [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)
+    [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
 
 local defaults = {}
 
@@ -16524,7 +16953,7 @@ end
 return defaults
 
 end)() end,
-    [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
+    [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
 
 local registry = require(script.Parent.registry)
 local defaults = require(script.Parent.defaults)
@@ -16646,7 +17075,7 @@ end
 return SettingsManager
 
 end)() end,
-    [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
+    [47] = function()local wax,script,require=ImportGlobals(47)local ImportGlobals return (function(...)
 
 local motion = require(script.Parent.Parent.utilities.motion)
 
@@ -16670,7 +17099,7 @@ end
 return performance
 
 end)() end,
-    [47] = function()local wax,script,require=ImportGlobals(47)local ImportGlobals return (function(...)
+    [48] = function()local wax,script,require=ImportGlobals(48)local ImportGlobals return (function(...)
 
 local settingsPersistence = require(script.Parent.Parent.utilities.persistenceSettings)
 local settingsCache = require(script.Parent.Parent.cache.persistenceCache)
@@ -16719,7 +17148,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [48] = function()local wax,script,require=ImportGlobals(48)local ImportGlobals return (function(...)
+    [49] = function()local wax,script,require=ImportGlobals(49)local ImportGlobals return (function(...)
 
 local registry = {}
 
@@ -16838,7 +17267,7 @@ end
 return registry
 
 end)() end,
-    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
+    [54] = function()local wax,script,require=ImportGlobals(54)local ImportGlobals return (function(...)
 
 local imageCache = require(script.moduleCache)
 
@@ -16849,7 +17278,7 @@ local moduleCache = {
 return moduleCache
 
 end)() end,
-    [50] = function()local wax,script,require=ImportGlobals(50)local ImportGlobals return (function(...)
+    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
 local filesystem = require(script.Parent.Parent.utilities.filesystem)
 local path = require(script.Parent.Parent.utilities.path)
 local variables = require(script.Parent.Parent.core.state)
@@ -17152,7 +17581,7 @@ end
 return imageCache
 
 end)() end,
-    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
+    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
 
 local moduleCache = {}
 
@@ -17183,7 +17612,7 @@ end
 return moduleCache
 
 end)() end,
-    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
+    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
 
 local persistenceCache = {}
 
@@ -17208,7 +17637,7 @@ end
 return persistenceCache
 
 end)() end,
-    [57] = function()local wax,script,require=ImportGlobals(57)local ImportGlobals return (function(...)
+    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
 
 local textMetrics = require(script.textMetrics)
 local colors = require(script.colors)
@@ -17226,7 +17655,7 @@ functions.contrastText = colors.contrastText
 return functions
 
 end)() end,
-    [54] = function()local wax,script,require=ImportGlobals(54)local ImportGlobals return (function(...)
+    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
 local colors = {}
 
 function colors.contrastColor(color: Color3): Color3
@@ -17246,7 +17675,7 @@ end
 return colors
 
 end)() end,
-    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
+    [56] = function()local wax,script,require=ImportGlobals(56)local ImportGlobals return (function(...)
 local flagNames = {}
 
 local offsetBasis = 2166136261
@@ -17278,7 +17707,7 @@ end
 return flagNames
 
 end)() end,
-    [56] = function()local wax,script,require=ImportGlobals(56)local ImportGlobals return (function(...)
+    [57] = function()local wax,script,require=ImportGlobals(57)local ImportGlobals return (function(...)
 local state = require(script.Parent.Parent.core.state)
 local textService = state.textService
 
@@ -17385,7 +17814,7 @@ end
 return textMetrics
 
 end)() end,
-    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
+    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local Sidebar = {}
@@ -17444,7 +17873,7 @@ end
 return Sidebar
 
 end)() end,
-    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
+    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local SidebarCollapsed = {}
@@ -17504,7 +17933,7 @@ end
 return SidebarCollapsed
 
 end)() end,
-    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
+    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
 local search = require(script.Parent.Parent.components.search)
 local functions = require(script.Parent.Parent.functions)
 local utilities = script.Parent.Parent.utilities
@@ -17615,7 +18044,7 @@ end
 return Topbar
 
 end)() end,
-    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
+    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
 
 local image = require(script.image)
 
@@ -17630,7 +18059,7 @@ local windowIcons = {
 return windowIcons
 
 end)() end,
-    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
+    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
 local imageCache = require(script.Parent.Parent.cache.imageCache)
 local variables = require(script.Parent.Parent.core.state)
 
@@ -17795,7 +18224,7 @@ end
 return image
 
 end)() end,
-    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
+    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
 
 local windowIcons = {}
 
@@ -17857,7 +18286,7 @@ end
 return windowIcons
 
 end)() end,
-    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
+    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
 -- [[Icon resolver service.]]
 -- [[]]
 -- [[Public API is compatible with the previous single-module catalog:]]
@@ -18355,7 +18784,7 @@ end
 return icons
 
 end)() end,
-    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
+    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
 local function expand(prefix: string, pack: string, raw: { [string]: string }): { [string]: string }
     local t = {}
     for k, name in raw do
@@ -18658,7 +19087,7 @@ local feather = expand("assets/icons/feather-pack/", "feather", {
 return feather
 
 end)() end,
-    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
+    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
 local function expand(prefix: string, pack: string, raw: { [string]: string }): { [string]: string }
     local t = {}
     for k, name in raw do
@@ -19322,7 +19751,7 @@ local heroicons = expand("assets/icons/heroicons-pack/", "heroicons", {
 return heroicons
 
 end)() end,
-    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
+    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
 local function expand(prefix: string, pack: string, raw: { [string]: string }): { [string]: string }
     local t = {}
     for k, name in raw do
@@ -21114,7 +21543,7 @@ local lucide = expand("assets/icons/lucide-pack/", "lucide", {
 return lucide
 
 end)() end,
-    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
+    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
 local function expand(prefix: string, pack: string, raw: { [string]: string }): { [string]: string }
     local t = {}
     for k, name in raw do
@@ -22263,7 +22692,7 @@ local material = expand("assets/icons/material-pack/white/", "material", {
 return material
 
 end)() end,
-    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
+    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
 local function expand(prefix: string, pack: string, raw: { [string]: string }): { [string]: string }
     local t = {}
     for k, name in raw do
@@ -23791,7 +24220,7 @@ local phosphor = expand("assets/icons/phosphor-pack/", "phosphor", {
 return phosphor
 
 end)() end,
-    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
+    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
 local function expand(prefix: string, pack: string, raw: { [string]: string }): { [string]: string }
     local t = {}
     for k, name in raw do
@@ -28937,7 +29366,7 @@ local tabler = expand("assets/icons/tabler-pack/", "tabler", {
 return tabler
 
 end)() end,
-    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
+    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
 -- [[Theme resolution engine (themes/init.luau).]]
 -- [[]]
 -- [[Extracted verbatim from components/window.luau so the window no longer owns]]
@@ -29043,7 +29472,7 @@ end
 return themes
 
 end)() end,
-    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
+    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(16, 13, 24),
@@ -29109,7 +29538,7 @@ return {
 }
 
 end)() end,
-    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
+    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(11, 16, 25),
@@ -29175,7 +29604,7 @@ return {
 }
 
 end)() end,
-    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
+    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
 local crimson = require(script.Parent.Parent.core.state)
 
 return {
@@ -29250,7 +29679,7 @@ return {
 }
 
 end)() end,
-    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
+    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
 local default = require(script.Parent.Parent.core.state)
 
 -- [[Rayfield Gen2 default palette, ported 1:1 for shared keys. Astra-only
@@ -29353,7 +29782,7 @@ return {
 }
 
 end)() end,
-    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
+    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(22, 18, 16),
@@ -29419,7 +29848,7 @@ return {
 }
 
 end)() end,
-    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
+    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
 local emerald = require(script.Parent.Parent.core.state)
 
 return {
@@ -29494,7 +29923,7 @@ return {
 }
 
 end)() end,
-    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
+    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
 local frost = require(script.Parent.Parent.core.state)
 
 return {
@@ -29569,7 +29998,7 @@ return {
 }
 
 end)() end,
-    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
+    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
 local gold = require(script.Parent.Parent.core.state)
 
 return {
@@ -29644,7 +30073,7 @@ return {
 }
 
 end)() end,
-    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
+    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
 local onyx = require(script.Parent.Parent.core.state)
 
 return {
@@ -29719,7 +30148,7 @@ return {
 }
 
 end)() end,
-    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
+    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(23, 15, 19),
@@ -29785,7 +30214,7 @@ return {
 }
 
 end)() end,
-    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
+    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 
 local hapticService = {}
@@ -29883,7 +30312,7 @@ end
 return hapticService
 
 end)() end,
-    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
+    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
 local networkUtil = require(script.Parent.network)
 local logger = require(script.Parent.log)
 
@@ -30061,7 +30490,7 @@ end
 return assetResolver
 
 end)() end,
-    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
+    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
 local iconRegistry = require(script.Parent.Parent.images.windowIcons)
 local constants = {}
 
@@ -30113,7 +30542,7 @@ constants.displayOrder = {
 return constants
 
 end)() end,
-    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
+    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
 local enums = {}
 
 function enums.itemFromValue(enumType, value)
@@ -30143,7 +30572,7 @@ end
 return enums
 
 end)() end,
-    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
+    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
 local serviceProvider = require(script.Parent.services)
 local filesystem = {}
 
@@ -30394,7 +30823,7 @@ end
 return filesystem
 
 end)() end,
-    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
+    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 local pathUtil = require(script.Parent.path)
 
@@ -30443,7 +30872,7 @@ end
 return filesystemManager
 
 end)() end,
-    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
+    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
 local fontManager = require(script.Parent.services)
 local a2 = fontManager.getService("HttpService")
 local a3 = fontManager.getService("RunService")
@@ -30896,7 +31325,7 @@ end
 return a16
 
 end)() end,
-    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
+    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
 
 local functions = {}
 
@@ -30914,7 +31343,7 @@ functions.contrastText = textMetrics.contrastText
 return functions
 
 end)() end,
-    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
+    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
 local layouts = {}
 
 local topbarLayout = require(script.Parent.Parent.layouts.Topbar)
@@ -31066,7 +31495,7 @@ end
 return layouts
 
 end)() end,
-    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
+    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local logger = require(script.Parent.log)
 
@@ -31165,7 +31594,7 @@ end
 return locale
 
 end)() end,
-    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
+    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
 local function lockable<T>(element: T): T
     local target = element :: any
 
@@ -31187,7 +31616,7 @@ end
 return lockable
 
 end)() end,
-    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
+    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
 local log = {}
 
 type SuppressPredicate = () -> boolean
@@ -31237,7 +31666,7 @@ end
 return log
 
 end)() end,
-    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
+    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
 -- [[Astra motion service.
 --
 -- Every animation in the library used to build its own TweenInfo and call
@@ -31563,7 +31992,7 @@ end
 return motion
 
 end)() end,
-    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
+    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
 local function moveable<T>(dragState: T): T
     local target = dragState :: any
 
@@ -31599,7 +32028,7 @@ end
 return moveable
 
 end)() end,
-    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
+    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
 local network = {}
 network.__index = network
 
@@ -31617,7 +32046,7 @@ end
 return network
 
 end)() end,
-    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
+    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local textService = coreState.textService
 
@@ -31966,7 +32395,7 @@ end
 return odometer
 
 end)() end,
-    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
+    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
 type OrderedElement = {
     main: GuiObject,
 }
@@ -31978,7 +32407,7 @@ end
 return ordering
 
 end)() end,
-    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
+    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
 local path = {}
 
 function path.join(base: string, suffix: string?): string
@@ -32029,7 +32458,7 @@ end
 return path
 
 end)() end,
-    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
+    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
 local persistence = {}
 
 local configPersistence = require(script.Parent.persistenceConfig)
@@ -32048,7 +32477,7 @@ persistence.loadSettings = settingsPersistence.loadSettings
 return persistence
 
 end)() end,
-    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
+    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local logger = require(script.Parent.log)
@@ -32290,7 +32719,7 @@ end
 return persistenceConfig
 
 end)() end,
-    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
+    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local pathUtil = require(script.Parent.path)
 
@@ -32334,7 +32763,7 @@ end
 return persistencePaths
 
 end)() end,
-    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
+    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local paths = require(script.Parent.persistencePaths)
@@ -32559,7 +32988,7 @@ end
 return persistenceSettings
 
 end)() end,
-    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
+    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 
 local persistenceWrite = {}
@@ -32587,7 +33016,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
+    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
 local services = {}
 
 function services.getService(serviceName)
@@ -32598,7 +33027,7 @@ end
 return services
 
 end)() end,
-    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
+    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
 local layoutMetrics = require(script.Parent.layouts)
 local coreState = require(script.Parent.Parent.core.state)
 
@@ -32808,107 +33237,108 @@ end)() end,
 
 local LineOffsets = {
     [2] = 12,
-    [3] = 185,
-    [5] = 600,
-    [6] = 635,
-    [7] = 680,
-    [8] = 586,
-    [9] = 797,
-    [10] = 907,
-    [11] = 1152,
-    [12] = 1379,
-    [13] = 1686,
-    [14] = 2404,
-    [15] = 4795,
-    [16] = 5141,
-    [17] = 5780,
-    [18] = 5841,
-    [19] = 6211,
-    [20] = 6588,
-    [22] = 9599,
-    [23] = 9685,
-    [24] = 9897,
-    [25] = 10318,
-    [26] = 10640,
-    [27] = 10810,
-    [28] = 10955,
-    [29] = 12329,
-    [30] = 12543,
-    [31] = 12814,
-    [32] = 13374,
-    [33] = 13821,
-    [34] = 13907,
-    [35] = 14493,
-    [36] = 15116,
-    [37] = 15508,
-    [38] = 15638,
-    [39] = 15802,
-    [40] = 15956,
-    [42] = 16455,
-    [43] = 16478,
-    [44] = 16495,
-    [45] = 16528,
-    [46] = 16650,
-    [47] = 16674,
-    [48] = 16723,
-    [49] = 16430,
-    [50] = 16853,
-    [51] = 17156,
-    [52] = 17187,
-    [53] = 16842,
-    [54] = 17230,
-    [55] = 17250,
-    [56] = 17282,
-    [57] = 17212,
-    [58] = 17389,
-    [59] = 17448,
-    [60] = 17508,
-    [62] = 17634,
-    [63] = 17799,
-    [64] = 17619,
-    [65] = 18359,
-    [66] = 18662,
-    [67] = 19326,
-    [68] = 21118,
-    [69] = 22267,
-    [70] = 23795,
-    [71] = 17861,
-    [72] = 29047,
-    [73] = 29113,
-    [74] = 29179,
-    [75] = 29254,
-    [76] = 29357,
-    [77] = 29423,
-    [78] = 29498,
-    [79] = 29573,
-    [80] = 29648,
-    [81] = 29723,
-    [82] = 28941,
-    [83] = 29789,
-    [84] = 29887,
-    [85] = 30065,
-    [86] = 30117,
-    [87] = 30147,
-    [88] = 30398,
-    [89] = 30447,
-    [90] = 30900,
-    [91] = 30918,
-    [92] = 31070,
-    [93] = 31169,
-    [94] = 31191,
-    [95] = 31241,
-    [96] = 31567,
-    [97] = 31603,
-    [98] = 31621,
-    [99] = 31970,
-    [100] = 31982,
-    [101] = 32033,
-    [102] = 32052,
-    [103] = 32294,
-    [104] = 32338,
-    [105] = 32563,
-    [106] = 32591,
-    [107] = 32602,
+    [3] = 235,
+    [5] = 650,
+    [6] = 685,
+    [7] = 730,
+    [8] = 636,
+    [9] = 847,
+    [10] = 957,
+    [11] = 1202,
+    [12] = 1429,
+    [13] = 1766,
+    [14] = 1973,
+    [15] = 2691,
+    [16] = 5082,
+    [17] = 5428,
+    [18] = 6067,
+    [19] = 6128,
+    [20] = 6498,
+    [21] = 6903,
+    [23] = 10028,
+    [24] = 10114,
+    [25] = 10326,
+    [26] = 10747,
+    [27] = 11069,
+    [28] = 11239,
+    [29] = 11384,
+    [30] = 12758,
+    [31] = 12972,
+    [32] = 13243,
+    [33] = 13803,
+    [34] = 14250,
+    [35] = 14336,
+    [36] = 14922,
+    [37] = 15545,
+    [38] = 15937,
+    [39] = 16067,
+    [40] = 16231,
+    [41] = 16385,
+    [43] = 16884,
+    [44] = 16907,
+    [45] = 16924,
+    [46] = 16957,
+    [47] = 17079,
+    [48] = 17103,
+    [49] = 17152,
+    [50] = 16859,
+    [51] = 17282,
+    [52] = 17585,
+    [53] = 17616,
+    [54] = 17271,
+    [55] = 17659,
+    [56] = 17679,
+    [57] = 17711,
+    [58] = 17641,
+    [59] = 17818,
+    [60] = 17877,
+    [61] = 17937,
+    [63] = 18063,
+    [64] = 18228,
+    [65] = 18048,
+    [66] = 18788,
+    [67] = 19091,
+    [68] = 19755,
+    [69] = 21547,
+    [70] = 22696,
+    [71] = 24224,
+    [72] = 18290,
+    [73] = 29476,
+    [74] = 29542,
+    [75] = 29608,
+    [76] = 29683,
+    [77] = 29786,
+    [78] = 29852,
+    [79] = 29927,
+    [80] = 30002,
+    [81] = 30077,
+    [82] = 30152,
+    [83] = 29370,
+    [84] = 30218,
+    [85] = 30316,
+    [86] = 30494,
+    [87] = 30546,
+    [88] = 30576,
+    [89] = 30827,
+    [90] = 30876,
+    [91] = 31329,
+    [92] = 31347,
+    [93] = 31499,
+    [94] = 31598,
+    [95] = 31620,
+    [96] = 31670,
+    [97] = 31996,
+    [98] = 32032,
+    [99] = 32050,
+    [100] = 32399,
+    [101] = 32411,
+    [102] = 32462,
+    [103] = 32481,
+    [104] = 32723,
+    [105] = 32767,
+    [106] = 32992,
+    [107] = 33020,
+    [108] = 33031,
 }
 
 -- [[Misc AOT variable imports]]
@@ -32976,7 +33406,7 @@ local ObjectTree = {
                 },
             },
             {
-                21,
+                22,
                 1,
                 {
                     "components",
@@ -33014,53 +33444,60 @@ local ObjectTree = {
                         13,
                         2,
                         {
-                            "popup",
+                            "overlayQueue",
                         },
                     },
                     {
                         14,
                         2,
                         {
-                            "profilePanel",
+                            "popup",
                         },
                     },
                     {
                         15,
                         2,
                         {
-                            "search",
+                            "profilePanel",
                         },
                     },
                     {
                         16,
                         2,
                         {
-                            "settings",
+                            "search",
                         },
                     },
                     {
                         17,
                         2,
                         {
-                            "sidebar",
+                            "settings",
                         },
                     },
                     {
                         18,
                         2,
                         {
-                            "tabSelector",
+                            "sidebar",
                         },
                     },
                     {
                         19,
                         2,
                         {
-                            "toast",
+                            "tabSelector",
                         },
                     },
                     {
                         20,
+                        2,
+                        {
+                            "toast",
+                        },
+                    },
+                    {
+                        21,
                         2,
                         {
                             "window",
@@ -33069,140 +33506,140 @@ local ObjectTree = {
                 },
             },
             {
-                41,
+                42,
                 1,
                 {
                     "elements",
                 },
                 {
                     {
-                        22,
+                        23,
                         2,
                         {
                             "baseCard",
                         },
                     },
                     {
-                        23,
+                        24,
                         2,
                         {
                             "button",
                         },
                     },
                     {
-                        24,
+                        25,
                         2,
                         {
                             "changelog",
                         },
                     },
                     {
-                        25,
+                        26,
                         2,
                         {
                             "collapsibleGroup",
                         },
                     },
                     {
-                        26,
+                        27,
                         2,
                         {
                             "description",
                         },
                     },
                     {
-                        27,
+                        28,
                         2,
                         {
                             "divider",
                         },
                     },
                     {
-                        28,
+                        29,
                         2,
                         {
                             "dropdown",
                         },
                     },
                     {
-                        29,
+                        30,
                         2,
                         {
                             "group",
                         },
                     },
                     {
-                        30,
+                        31,
                         2,
                         {
                             "input",
                         },
                     },
                     {
-                        31,
+                        32,
                         2,
                         {
                             "keybind",
                         },
                     },
                     {
-                        32,
+                        33,
                         2,
                         {
                             "progress",
                         },
                     },
                     {
-                        33,
+                        34,
                         2,
                         {
                             "section",
                         },
                     },
                     {
-                        34,
+                        35,
                         2,
                         {
                             "slider",
                         },
                     },
                     {
-                        35,
+                        36,
                         2,
                         {
                             "stat",
                         },
                     },
                     {
-                        36,
+                        37,
                         2,
                         {
                             "tab",
                         },
                     },
                     {
-                        37,
+                        38,
                         2,
                         {
                             "tabSection",
                         },
                     },
                     {
-                        38,
+                        39,
                         2,
                         {
                             "tag",
                         },
                     },
                     {
-                        39,
+                        40,
                         2,
                         {
                             "text",
                         },
                     },
                     {
-                        40,
+                        41,
                         2,
                         {
                             "toggle",
@@ -33211,56 +33648,56 @@ local ObjectTree = {
                 },
             },
             {
-                49,
+                50,
                 2,
                 {
                     "settings",
                 },
                 {
                     {
-                        42,
+                        43,
                         2,
                         {
                             "appearance",
                         },
                     },
                     {
-                        43,
+                        44,
                         2,
                         {
                             "behavior",
                         },
                     },
                     {
-                        44,
+                        45,
                         2,
                         {
                             "defaults",
                         },
                     },
                     {
-                        45,
+                        46,
                         2,
                         {
                             "manager",
                         },
                     },
                     {
-                        46,
+                        47,
                         2,
                         {
                             "performance",
                         },
                     },
                     {
-                        47,
+                        48,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        48,
+                        49,
                         2,
                         {
                             "registry",
@@ -33269,28 +33706,28 @@ local ObjectTree = {
                 },
             },
             {
-                53,
+                54,
                 2,
                 {
                     "cache",
                 },
                 {
                     {
-                        50,
+                        51,
                         2,
                         {
                             "imageCache",
                         },
                     },
                     {
-                        51,
+                        52,
                         2,
                         {
                             "moduleCache",
                         },
                     },
                     {
-                        52,
+                        53,
                         2,
                         {
                             "persistenceCache",
@@ -33299,28 +33736,28 @@ local ObjectTree = {
                 },
             },
             {
-                57,
+                58,
                 2,
                 {
                     "functions",
                 },
                 {
                     {
-                        54,
+                        55,
                         2,
                         {
                             "colors",
                         },
                     },
                     {
-                        55,
+                        56,
                         2,
                         {
                             "flagNames",
                         },
                     },
                     {
-                        56,
+                        57,
                         2,
                         {
                             "textMetrics",
@@ -33329,28 +33766,28 @@ local ObjectTree = {
                 },
             },
             {
-                61,
+                62,
                 1,
                 {
                     "layouts",
                 },
                 {
                     {
-                        58,
+                        59,
                         2,
                         {
                             "Sidebar",
                         },
                     },
                     {
-                        59,
+                        60,
                         2,
                         {
                             "SidebarCollapsed",
                         },
                     },
                     {
-                        60,
+                        61,
                         2,
                         {
                             "Topbar",
@@ -33359,21 +33796,21 @@ local ObjectTree = {
                 },
             },
             {
-                64,
+                65,
                 2,
                 {
                     "images",
                 },
                 {
                     {
-                        62,
+                        63,
                         2,
                         {
                             "image",
                         },
                     },
                     {
-                        63,
+                        64,
                         2,
                         {
                             "windowIcons",
@@ -33382,49 +33819,49 @@ local ObjectTree = {
                 },
             },
             {
-                71,
+                72,
                 2,
                 {
                     "icons",
                 },
                 {
                     {
-                        65,
+                        66,
                         2,
                         {
                             "feather",
                         },
                     },
                     {
-                        66,
+                        67,
                         2,
                         {
                             "heroicons",
                         },
                     },
                     {
-                        67,
+                        68,
                         2,
                         {
                             "lucide",
                         },
                     },
                     {
-                        68,
+                        69,
                         2,
                         {
                             "material",
                         },
                     },
                     {
-                        69,
+                        70,
                         2,
                         {
                             "phosphor",
                         },
                     },
                     {
-                        70,
+                        71,
                         2,
                         {
                             "tabler",
@@ -33433,77 +33870,77 @@ local ObjectTree = {
                 },
             },
             {
-                82,
+                83,
                 2,
                 {
                     "themes",
                 },
                 {
                     {
-                        72,
+                        73,
                         2,
                         {
                             "amethyst",
                         },
                     },
                     {
-                        73,
+                        74,
                         2,
                         {
                             "cobalt",
                         },
                     },
                     {
-                        74,
+                        75,
                         2,
                         {
                             "crimson",
                         },
                     },
                     {
-                        75,
+                        76,
                         2,
                         {
                             "default",
                         },
                     },
                     {
-                        76,
+                        77,
                         2,
                         {
                             "ember",
                         },
                     },
                     {
-                        77,
+                        78,
                         2,
                         {
                             "emerald",
                         },
                     },
                     {
-                        78,
+                        79,
                         2,
                         {
                             "frost",
                         },
                     },
                     {
-                        79,
+                        80,
                         2,
                         {
                             "gold",
                         },
                     },
                     {
-                        80,
+                        81,
                         2,
                         {
                             "onyx",
                         },
                     },
                     {
-                        81,
+                        82,
                         2,
                         {
                             "rose",
@@ -33512,182 +33949,182 @@ local ObjectTree = {
                 },
             },
             {
-                108,
+                109,
                 1,
                 {
                     "utilities",
                 },
                 {
                     {
-                        83,
+                        84,
                         2,
                         {
                             "HapticEngine",
                         },
                     },
                     {
-                        84,
+                        85,
                         2,
                         {
                             "assetResolver",
                         },
                     },
                     {
-                        85,
+                        86,
                         2,
                         {
                             "constants",
                         },
                     },
                     {
-                        86,
+                        87,
                         2,
                         {
                             "enums",
                         },
                     },
                     {
-                        87,
+                        88,
                         2,
                         {
                             "filesystem",
                         },
                     },
                     {
-                        88,
+                        89,
                         2,
                         {
                             "filesystemManager",
                         },
                     },
                     {
-                        89,
+                        90,
                         2,
                         {
                             "fontManager",
                         },
                     },
                     {
-                        90,
+                        91,
                         2,
                         {
                             "functions",
                         },
                     },
                     {
-                        91,
+                        92,
                         2,
                         {
                             "layouts",
                         },
                     },
                     {
-                        92,
+                        93,
                         2,
                         {
                             "locale",
                         },
                     },
                     {
-                        93,
+                        94,
                         2,
                         {
                             "lockable",
                         },
                     },
                     {
-                        94,
+                        95,
                         2,
                         {
                             "log",
                         },
                     },
                     {
-                        95,
+                        96,
                         2,
                         {
                             "motion",
                         },
                     },
                     {
-                        96,
+                        97,
                         2,
                         {
                             "moveable",
                         },
                     },
                     {
-                        97,
+                        98,
                         2,
                         {
                             "network",
                         },
                     },
                     {
-                        98,
+                        99,
                         2,
                         {
                             "odometer",
                         },
                     },
                     {
-                        99,
+                        100,
                         2,
                         {
                             "ordering",
                         },
                     },
                     {
-                        100,
+                        101,
                         2,
                         {
                             "path",
                         },
                     },
                     {
-                        101,
+                        102,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        102,
+                        103,
                         2,
                         {
                             "persistenceConfig",
                         },
                     },
                     {
-                        103,
+                        104,
                         2,
                         {
                             "persistencePaths",
                         },
                     },
                     {
-                        104,
+                        105,
                         2,
                         {
                             "persistenceSettings",
                         },
                     },
                     {
-                        105,
+                        106,
                         2,
                         {
                             "persistenceWrite",
                         },
                     },
                     {
-                        106,
+                        107,
                         2,
                         {
                             "services",
                         },
                     },
                     {
-                        107,
+                        108,
                         2,
                         {
                             "windowSizing",

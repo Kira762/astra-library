@@ -15,6 +15,7 @@ local search = require(script.Parent.search)
 local tabSelector = require(script.Parent.tabSelector)
 local profilePanel = require(script.Parent.profilePanel)
 local settingsComponent = require(script.Parent.settings)
+local overlayQueue = require(script.Parent.overlayQueue)
 
 local state = require(utilities.Parent.core.state)
 
@@ -25,6 +26,13 @@ Window.__index = Window
 
 local revealTween = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
 local tweenStyle = TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+
+-- [[The beat between the window's shell landing and its page coming in. Long
+-- enough that the two read as one entrance in the right order — frame, then
+-- content — and short enough that nothing looks like it is waiting for the
+-- next thing to happen. Scaled by the motion service, and skipped entirely
+-- when animation is switched off.]]
+local contentRevealBeat = 0.22
 
 local collapsedWideSize = UDim2.fromOffset(185, 50)
 local collapsedIconOnlySize = UDim2.fromOffset(50, 50)
@@ -597,6 +605,13 @@ function Window.new(props)
     -- [[being constructed, e.g. by the first-tab auto-select).]]
     self._constructed = true
 
+    -- [[Overlays wait for the window's own entrance before any of them starts]]
+    -- [[building: the gate opens when that entrance lands (in `_firstShow`,]]
+    -- [[after its settle and the reveal cascade that follows it). A host that]]
+    -- [[fires a toast between CreateWindow and the first show still gets it —]]
+    -- [[just behind the window instead of on top of it.]]
+    overlayQueue.pause(self)
+
     return self
 end
 
@@ -901,7 +916,17 @@ function Window:Notify(props)
         })
     end
 
-    return require(script.Parent.Parent.components.notification).new(self, props)
+    -- [[The card is built on the queue's turn rather than right here: a host
+    -- that fires a notification for every module it loaded used to pay for
+    -- twenty frames' worth of instances and tweens on one. The layer itself is
+    -- created up front, so the first notification's own turn only builds the
+    -- card. See `components/overlayQueue.luau`. The props are snapshotted for
+    -- the same reason: a host that reuses one table between queued calls must
+    -- not have its last write end up on every card.]]
+    local snapshot = if typeof(props) == "table" then table.clone(props) else props
+    overlayQueue.request(self, function(release)
+        require(script.Parent.Parent.components.notification).new(self, snapshot, release)
+    end)
 end
 
 function Window:Toast(props)
@@ -909,7 +934,12 @@ function Window:Toast(props)
         return
     end
 
-        props = if typeof(props) == "table" then props else {}
+        -- [[Cloned before anything is read off it: the card is built on the
+    -- [[queue's turn (see `Window:Notify`), and the resolved `position` below
+    -- [[belongs to this call rather than to the table the host handed in —
+    -- [[which also means the call no longer writes through to the caller's
+    -- [[props.]]
+    props = if typeof(props) == "table" then table.clone(props) else {}
     local position = props.position or props.Position or "Top"
     local isTop = typeof(position) ~= "string" or position:lower() ~= "bottom"
     props.position = if isTop then "Top" else "Bottom"
@@ -945,7 +975,12 @@ function Window:Toast(props)
         end
     end
 
-    return require(script.Parent.Parent.components.toast).new(self, props, container)
+    -- [[Queued with the notifications rather than beside them: the two overlay
+    -- kinds share one turn at a time, because the cost being spread is the same
+    -- one — a card's instances and its entrance tweens landing on one frame.]]
+    overlayQueue.request(self, function(release)
+        require(script.Parent.Parent.components.toast).new(self, props, container, release)
+    end)
 end
 
 function Window:Popup(props)
@@ -1027,6 +1062,12 @@ end
 function Window:Hide()
     -- Cancel pending startup reveal even while the window is still hidden.
     self._autoShowCancelled = true
+    -- [[A window whose entrance is never going to happen (the cancelled
+    -- [[auto-show above) must not keep the overlays it was already asked for
+    -- [[parked behind an entrance that will not arrive.]]
+    if not self.hasShownOnce then
+        overlayQueue.resume(self)
+    end
     if self.animating or self.hidden then
         return
     end
@@ -2051,6 +2092,12 @@ function Window:_revealElements(stepDelay, totalDuration, layoutTransitionId)
         return
     end
 
+    -- [[The cascade is the moment this page's elements are being looked at, so]]
+    -- [[it owns the pending mark `_showTabElements` would otherwise clear in]]
+    -- [[one frame: dropping the mark up front keeps a tab that is opened,]]
+    -- [[hidden and opened again from queuing a second reveal behind this one.]]
+    tab._elementsPending = false
+
     local page = tab.tabPage
     local viewTop = page.AbsolutePosition.Y
     local viewBottom = viewTop + page.AbsoluteWindowSize.Y
@@ -2080,6 +2127,33 @@ function Window:_revealElements(stepDelay, totalDuration, layoutTransitionId)
         else
             element:_setShown(true, false)         end
     end
+end
+
+-- [[The content half of an entrance, and the beat that keeps it out of the
+-- [[shell's way. The frame, its surface, the corner and the topbar copy animate
+-- [[first; the page's controls come in one cooldown later, as a cascade rather
+-- [[than on a single frame, and the overlay queue is opened once that has been
+-- [[committed. `entranceId` is the entrance generation: a window that is hidden
+-- [[or shown again in the meantime drops the half-finished sequence and lets
+-- [[the newer entrance own the page.]]
+function Window:_stageContentReveal(beat, stepDelay, totalDuration, entranceId)
+    task.spawn(function()
+        if beat > 0 then
+            task.wait(beat)
+        end
+        if self.unloaded or self._contentEntranceId ~= entranceId then
+            return
+        end
+
+        self:_revealElements(stepDelay, totalDuration)
+
+        -- [[Runs even when the cascade above bailed out (a hide, a minimise):
+        -- [[overlays belong to the screen layer, not to the page, so nothing
+        -- [[here may leave the queue parked on an entrance that never finished.
+        -- [[`_firstShow`'s settle opens it as well; this is the later of the
+        -- [[two, which is what makes the cards arrive behind the content.]]
+        overlayQueue.resume(self)
+    end)
 end
 
 function Window:Show()
@@ -2150,18 +2224,24 @@ function Window:_quickRestore()
     self:_setContentVisible(true)
     self:_setTabSectionsVisible(true)
     self:_setTabSectionsShown(true)
+    -- [[Same two-beat structure as the first show, on the shorter restore
+    -- [[timing: the card comes back first and the page follows it, instead of
+    -- [[every control on the page being rewritten on the frame the restore
+    -- [[starts on.]]
+    self._contentEntranceId = (self._contentEntranceId or 0) + 1
+    local entranceId = self._contentEntranceId
     for _, tab in pairs(self.tabs) do
         if not tab.neglectSelector and tab.topbarItem then
             tab.topbarItem.Visible = true
             tab:_applyVisual(if self.selectedTab == tab then "selected" else "unselected")
         end
         if tab == self.selectedTab then
-            self:_showTabElements(tab)
+            self:_markTabElementsPending(tab)
         end
     end
-    -- [[Restore the settings/normal rail split; the loop above shows the
-    -- [[selected tab's elements (the others are either already shown or still
-    -- [[marked to show when they are opened).]]
+    -- [[Restore the settings/normal rail split. The loop above leaves the
+    -- [[selected tab marked: the staged reveal at the end of this function
+    -- [[walks it one card per beat, the same way opening a tab does.]]
     self:_applySettingsLayout(self._settingsMode)
     self:_fadeSurfaces(true)
 
@@ -2205,12 +2285,18 @@ function Window:_quickRestore()
         self.animating = false
         self._revealing = false
         updateToastPosition(self, true)
+        -- [[The overlay gate opens with the shell, exactly as on the first
+        -- [[show, and the staged reveal below re-opens it after the page has
+        -- [[committed: whichever lands last is the one that lets a waiting
+        -- [[card through, so the queue can never be left parked on a restore.]]
+        overlayQueue.resume(self)
     end
 
     if not motion.tween(self.main, { Size = self.size, Position = targetPos }, tweenInfo, settle) then
         settle()
     end
     motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, tweenInfo)
+    self:_stageContentReveal(motion.step(contentRevealBeat * 0.6), 0.02, 0.4, entranceId)
 end
 function Window:_firstShow()
     self.drag.drag.Visible = false
@@ -2238,6 +2324,11 @@ function Window:_firstShow()
     self.main.Size = openingSize
     -- [[Entrance starts as a capsule (theme pill) then opens to CornerRoundness.]]
     self.windowCorner.CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0)
+    -- [[Which entrance owns the staged content reveal below. A hide, a repeat
+    -- [[show or a layout switch between now and then replaces it, and the
+    -- [[older sequence stops instead of fighting the newer one for the page.]]
+    self._contentEntranceId = (self._contentEntranceId or 0) + 1
+    local entranceId = self._contentEntranceId
     self:_setContentVisible(true)
     self:_setTabSectionsVisible(true)
     self:_setTabSectionsShown(true)
@@ -2247,12 +2338,18 @@ function Window:_firstShow()
             tab:_applyVisual(if self.selectedTab == tab then "selected" else "unselected")
         end
         if tab == self.selectedTab then
-            self:_showTabElements(tab)
+            -- [[The page's controls are deliberately not shown here: writing
+            -- [[every card on the frame the entrance opens on is what made the
+            -- [[first show look instant and cost a hitch on pages with a lot on
+            -- [[them. The mark stays on, and the staged reveal below clears it
+            -- [[as it walks the page.]]
+            self:_markTabElementsPending(tab)
         end
     end
-    -- [[Restore the settings/normal rail split; the loop above shows the
-    -- [[selected tab's elements (the others are either already shown or still
-    -- [[marked to show when they are opened).]]
+    -- [[Restore the settings/normal rail split. The loop above leaves the
+    -- [[selected tab marked and every other tab either shown or still marked
+    -- [[for when it is opened; the staged reveal below walks the page that is
+    -- [[actually on screen, one control per beat.]]
     self:_applySettingsLayout(self._settingsMode)
     for _, tag in self.tags do
         tag:_setShown(false, false)
@@ -2307,6 +2404,11 @@ function Window:_firstShow()
         -- [[window to 88%, which clamped CanvasPosition along the way).]]
         self:_scrollSelectedTabIntoView(false)
         self:_refreshTabStripChrome()
+        -- [[The shell has landed, so the entrance is over as far as the
+        -- [[overlay queue is concerned. The staged reveal below opens the same
+        -- [[gate again when it has committed the page; whichever of the two
+        -- [[happens last is what lets a waiting toast through.]]
+        overlayQueue.resume(self)
     end
 
     if not motion.tween(self.main, {
@@ -2316,6 +2418,14 @@ function Window:_firstShow()
         settle()
     end
     motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, "pop")
+
+    -- [[Second beat of the entrance: the page's controls cascade in once the
+    -- [[frame is close to its resting size, and only then do the queued
+    -- [[notifications and toasts start arriving one at a time. Everything after
+    -- [[`CreateWindow` — the welcome toast, a host's "loaded N modules"
+    -- [[notifications, the optional-icon warning — rides that queue instead of
+    -- [[sharing the frame the window itself opens on.]]
+    self:_stageContentReveal(motion.step(contentRevealBeat), 0.02, 0.5, entranceId)
 
     local player = state.localPlayer
     if player and self.settings.welcomeToast and chrome.isNewUser() then
@@ -2984,6 +3094,10 @@ function Window:Unload()
         pcall(self.Save, self)
     end
     self.unloaded = true
+    -- [[Stop the entrance queue with the window: an overlay that had not taken
+    -- [[its turn yet has no layer to be built into any more, and the pump must
+    -- [[not wake up on a window whose instances are about to be destroyed.]]
+    overlayQueue.close(self)
             haptic.teardown()
     haptic.releaseContainer(self.screenGui)
     for _, liveTween in self._liveTweens or {} do

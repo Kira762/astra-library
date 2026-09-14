@@ -26,7 +26,7 @@ local function autoDuration(content)
     return math.clamp(#content * 0.06 + 3, 3, 9)
 end
 
-function Notification.new(window, props)
+function Notification.new(window, props, release)
     props = if typeof(props) == "table" then props else {}
 
     local self = setmetatable({
@@ -36,6 +36,11 @@ function Notification.new(window, props)
         icon = window:ResolveIcon(props.icon or props.Icon),
         _hovered = false,
         _dismissed = false,
+        -- [[Handed over by the entrance queue when this card was queued: the
+        -- next overlay does not start until this one releases the slot, which
+        -- is what turns the burst a host fires at load time into a cascade. Nil
+        -- for a card built directly, which then owns its own timing.]]
+        _release = release,
     }, Notification)
 
     self.duration = props.duration or props.Duration or autoDuration(self.content)
@@ -212,9 +217,24 @@ function Notification:_measure()
     return math.max(textHeight, self.iconLabel and 24 or 0) + 28
 end
 
+-- [[Hand the entrance slot back to the queue. Fires when the last piece of the
+-- entrance has been committed, and also on any early exit: a card that is
+-- dismissed before it opens (the visibility cap, a click, an unload) must not
+-- leave the next one waiting for a tween that will never finish. Idempotent,
+-- because the show path and the dismiss path can both reach it.]]
+function Notification:_entranceDone()
+    local release = self._release
+    if not release then
+        return
+    end
+    self._release = nil
+    release()
+end
+
 function Notification:_show()
     local totalHeight = self:_measure() + padding
     if self._dismissed or not self.main.Parent then
+        self:_entranceDone()
         return
     end
 
@@ -229,6 +249,7 @@ function Notification:_show()
 
     task.wait(0.05)
     if self._dismissed or not self.main.Parent then
+        self:_entranceDone()
         return
     end
     if self.iconLabel then
@@ -237,11 +258,16 @@ function Notification:_show()
 
     task.wait(0.05)
     if self._dismissed or not self.main.Parent then
+        self:_entranceDone()
         return
     end
     if self.descriptionLabel then
         state.tweenService:Create(self.descriptionLabel, textFadeTween, { TextTransparency = 0.35 }):Play()
     end
+
+    -- [[The card is fully on screen from here: everything that is still
+    -- running is its hold time, not its entrance, so the next one may start.]]
+    self:_entranceDone()
 
     local elapsed = 0
     while elapsed < self.duration and not self._dismissed and self.main.Parent do
@@ -259,6 +285,10 @@ function Notification:_dismiss()
         return
     end
     self._dismissed = true
+
+    -- [[A card retired before its entrance finished still owes the queue its
+    -- slot; `_entranceDone` is a no-op once the show path has handed it back.]]
+    self:_entranceDone()
 
     local liveNotifications = self.window._liveNotifications
     local index = liveNotifications and table.find(liveNotifications, self)

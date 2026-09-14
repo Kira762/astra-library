@@ -8384,7 +8384,7 @@ function Window:_scrollSelectedTabIntoView(tweened)
     local inset = self.layout.tabStripInset or 22
     local viewport = strip.AbsoluteWindowSize.X
     local maxScroll = math.max(0, strip.AbsoluteCanvasSize.X - viewport)
-    local left = item.Position.X
+    local left = item.Position.X.Offset
     local right = left + item.AbsoluteSize.X
     local pos = strip.CanvasPosition.X
 

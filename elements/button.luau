@@ -21,7 +21,6 @@ function state.new(tab, frame)
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = frame.name or frame.Name or "Button",
-        description = frame.description or frame.Description,
         icon = tab.window:ResolveIcon(frame.icon or frame.Icon),
         compact = tab.compact or false,
         callback = frame.callback or frame.Callback or function() end,
@@ -96,7 +95,7 @@ function state:_buildFull()
             :Create(
                 self.stroke,
                 element,
-                { Transparency = self.window.theme.ElementStrokeTransparency }
+                { Transparency = self.window:_elementStrokeTransparency(self, false) }
             )
             :Play()
     end)
@@ -181,7 +180,7 @@ function state:_buildCompact()
             :Create(
                 self.stroke,
                 element,
-                { Transparency = self.window.theme.ElementStrokeTransparency }
+                { Transparency = self.window:_elementStrokeTransparency(self, false) }
             )
             :Play()
     end)

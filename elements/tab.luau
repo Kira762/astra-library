@@ -272,9 +272,6 @@ function state:CreateToggle(a28)
     return self:_register(require(script.Parent.toggle).new(self, a28))
 end
 
-function state:CreateSwitch(a29)
-    return self:CreateToggle(a29)
-end
 
 function state:CreateSection(a30)
     return self:_register(require(script.Parent.section).new(self, a30))

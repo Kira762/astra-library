@@ -56,13 +56,11 @@ export type ChangelogEntry = {
     game: string?,
     gameId: string?,
     title: string?,
-    description: string?,
     changes: { ChangelogChange }?,
 }
 
 export type ChangelogProps = {
     name: string?,
-    description: string?,
     emptyText: string?,
     entries: { ChangelogEntry }?,
 }
@@ -76,7 +74,7 @@ export type GroupProps = {
 -- Definitions use the corresponding element's normal properties plus `type`.
 -- `elements` is allowed only for ordinary Groups; CollapsibleGroups cannot nest.
 export type CollapsibleElementProps = {
-    type: "Button" | "Toggle" | "Switch" | "Slider" | "Dropdown" | "Input" | "Keybind"
+    type: "Button" | "Toggle" | "Slider" | "Dropdown" | "Input" | "Keybind"
         | "Stat" | "Progress" | "Section" | "Text" | "Changelog" | "Divider" | "Group",
     elements: { CollapsibleElementProps }?,
     [string]: any,
@@ -84,21 +82,18 @@ export type CollapsibleElementProps = {
 
 export type CollapsibleGroupProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     elements: { CollapsibleElementProps }?,
 }
 
 export type ButtonProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     callback: (() -> ())?,
 }
 
 export type ToggleProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     flag: string?,
     value: boolean?,
@@ -108,7 +103,6 @@ export type ToggleProps = {
 
 export type SliderProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     flag: string?,
     range: { number }?,     increment: number?,
@@ -120,7 +114,6 @@ export type SliderProps = {
 
 export type DropdownProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     flag: string?,
     options: { string }?,
@@ -133,7 +126,6 @@ export type DropdownProps = {
 
 export type InputProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     flag: string?,
     value: string?,
@@ -146,7 +138,6 @@ export type InputProps = {
 
 export type KeybindProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     flag: string?,
     value: (EnumItem | string)?,     forgetState: boolean?,     editable: boolean?,
@@ -154,7 +145,6 @@ export type KeybindProps = {
 
 export type StatProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     prefix: string?,
     suffix: string?,
@@ -165,7 +155,6 @@ export type StatProps = {
 
 export type ProgressProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     range: { number }?,     value: number?,
     steps: number?,     text: string?,     format: ((value: number, min: number, max: number) -> string)?,     showValue: boolean?,     indeterminate: boolean?, }
@@ -295,7 +284,6 @@ export type Popup = {
 export type Group = Moveable & {
     CreateButton: (self: Group, props: ButtonProps) -> Button,
     CreateToggle: (self: Group, props: ToggleProps) -> Toggle,
-    CreateSwitch: (self: Group, props: ToggleProps) -> Toggle,
     CreateStat: (self: Group, props: StatProps) -> Stat,
     CreateSlider: (self: Group, props: SliderProps) -> Slider,
         CreateDropdown: (self: Group, props: DropdownProps) -> Dropdown?,
@@ -316,7 +304,6 @@ export type Tab = {
     Remove: (self: Tab) -> (),
     CreateButton: (self: Tab, props: ButtonProps) -> Button,
     CreateToggle: (self: Tab, props: ToggleProps) -> Toggle,
-    CreateSwitch: (self: Tab, props: ToggleProps) -> Toggle,
     CreateSlider: (self: Tab, props: SliderProps) -> Slider,
     CreateDropdown: (self: Tab, props: DropdownProps) -> Dropdown,
     CreateInput: (self: Tab, props: InputProps) -> Input,

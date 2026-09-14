@@ -34,7 +34,6 @@ function state.new(tab, placeholderLabel)
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = placeholderLabel.name or placeholderLabel.Name or "Input",
-        description = placeholderLabel.description or placeholderLabel.Description,
         icon = tab.window:ResolveIcon(placeholderLabel.icon or placeholderLabel.Icon),
         forgetState = placeholderLabel.forgetState or placeholderLabel.ForgetState or tab.forgetState,
         placeholder = placeholderLabel.placeholder or placeholderLabel.Placeholder or "",

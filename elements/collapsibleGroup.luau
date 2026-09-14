@@ -15,7 +15,6 @@ Collapsible.__type = "CollapsibleGroup"
 local constructors = {
     Button = function(parent, props) return require(script.Parent.button).new(parent, props) end,
     Toggle = function(parent, props) return require(script.Parent.toggle).new(parent, props) end,
-    Switch = function(parent, props) return require(script.Parent.toggle).new(parent, props) end,
     Slider = function(parent, props) return require(script.Parent.slider).new(parent, props) end,
     Dropdown = function(parent, props) return require(script.Parent.dropdown).new(parent, props) end,
     Input = function(parent, props) return require(script.Parent.input).new(parent, props) end,
@@ -28,7 +27,7 @@ local constructors = {
     Divider = function(parent, props) return require(script.Parent.divider).new(parent, props) end,
     Group = function(parent, props) return require(script.Parent.group).new(parent, props) end,
 }
-local compactTypes = { Button = true, Toggle = true, Switch = true, Slider = true, Stat = true, Group = true }
+local compactTypes = { Button = true, Toggle = true, Slider = true, Stat = true, Group = true }
 
 local function validate(definitions, path, ancestors, depth)
     assert(type(definitions) == "table", path .. " must be an array")
@@ -76,10 +75,11 @@ local function buildChildren(parent, definitions)
             if kind == "Group" then
                 child = parent:CreateGroup(groupProps(spec))
             else
-                child = parent:_add(string.lower(if kind == "Switch" then "Toggle" else kind), spec)
+                child = parent:_add(string.lower(kind), spec)
             end
         else
             child = constructors[kind](parent, if kind == "Group" then groupProps(spec) else spec)
+            child._collapsibleChild = true
             table.insert(parent.elements, child)
             ordering(child, #parent.elements * 10)
             parent.window:_restoreLate(child)
@@ -105,7 +105,6 @@ function Collapsible.new(tab, props)
     local self = setmetatable({
         tab = tab, window = tab.window, elements = {}, connections = {},
         name = props.name or props.Name or "Collapsible Group",
-        description = props.description or props.Description,
         icon = tab.window:ResolveIcon(props.icon or props.Icon),
         deriveFlagFromName = tab.deriveFlagFromName,
         forgetState = props.forgetState or tab.forgetState,

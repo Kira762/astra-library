@@ -50,7 +50,6 @@ function state.new(ownerTab, a31)
         tab = assert(ownerTab, "Missing argument #1 (Tab expected)"),
         window = ownerTab.window,
         name = a31.name or a31.Name or "Slider",
-        description = a31.description or a31.Description,
         icon = ownerTab.window:ResolveIcon(a31.icon or a31.Icon),
         forgetState = a31.forgetState or a31.ForgetState or ownerTab.forgetState,
 

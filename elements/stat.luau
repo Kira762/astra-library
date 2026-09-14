@@ -69,7 +69,6 @@ function state.new(tab, a25)
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = a25.name or a25.Name or "Statistic",
-        description = a25.description or a25.Description,
         icon = tab.window:ResolveIcon(a25.icon or a25.Icon),
 
         value = if (a25.value or a25.Value) ~= nil then (a25.value or a25.Value) else 0,
@@ -573,12 +572,12 @@ function state:_setShown(a66, a67)
     if self.compact then
         w:_reveal(
             self.main,
-            { BackgroundTransparency = if a66 then (self.window.theme.ElementTransparency or 0) else 1 },
+            { BackgroundTransparency = if a66 then (self.window:_elementBackgroundTransparency(self)) else 1 },
             a67
         )
         w:_reveal(
             self.stroke,
-            { Transparency = if a66 then self.window.theme.ElementStrokeTransparency else 1 },
+            { Transparency = if a66 then self.window:_elementStrokeTransparency(self, false) else 1 },
             a67
         )
         w:_reveal(self.card, { BackgroundTransparency = if a66 then 0 else 1 }, a67)

@@ -74,6 +74,9 @@ function state:_add(a13, a14)
     end
 
     local element = require(script.Parent[a13]).new(self, a14)
+    if self._collapsibleChild then
+        element._collapsibleChild = true
+    end
     table.insert(self.elements, element)
     tab(element, #self.elements * 10)
     self.window:_restoreLate(element)
@@ -133,9 +136,6 @@ end
 function state:CreateToggle(a18)
     return self:_add("toggle", a18)
 end
-function state:CreateSwitch(a19)
-    return self:_add("toggle", a19)
-end
 function state:CreateStat(a20)
     return self:_add("stat", a20)
 end
@@ -166,6 +166,9 @@ function state:_addGroup(a26)
     end
 
     local a27 = state.new(self, a26)
+    if self._collapsibleChild then
+        a27._collapsibleChild = true
+    end
     table.insert(self.elements, a27)
     a27.main.LayoutOrder = #self.elements * 10
     self:_reflowRow()

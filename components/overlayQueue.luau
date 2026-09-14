@@ -54,15 +54,31 @@ local gateBudget = 2.5
 -- before it is ever built, which is the whole point.]]
 local maxQueued = 6
 
+-- [[The queue table lives on the window, but the window is allowed to hold a
+-- placeholder for it: `Window.new` pre-seeds `_overlayQueue` so `Window:Unload`
+-- always has something to clear, and a host that assigns its own table lands
+-- here too. A placeholder is not a queue — it has no `pending` list to pump —
+-- so the shape is completed rather than trusted. Every entry point into the
+-- queue comes through here, which is what lets the rest of the module read
+-- `queue.pending` unconditionally.]]
 local function queueFor(window): { [string]: any }
     local queue = window._overlayQueue
-    if not queue then
+    if type(queue) ~= "table" or type(queue.pending) ~= "table" then
+        local previous = if type(queue) == "table" then queue else nil
         queue = {
             pending = {},
             running = false,
             paused = false,
             closed = false,
         }
+        -- [[A placeholder is the queue's *initial* state: a window paused
+        -- before its first request has to stay paused through the upgrade, or
+        -- the entrance gate would open on the very thing that made it wait.]]
+        if previous then
+            queue.running = previous.running == true
+            queue.paused = previous.paused == true
+            queue.closed = previous.closed == true
+        end
         window._overlayQueue = queue
     end
     return queue
@@ -76,9 +92,12 @@ function OverlayQueue.pause(window)
     queue.paused = true
 end
 
+-- [[Open the gate. A window that never queued anything has a placeholder or no
+-- queue at all, so there is nothing to wake: read the shape through
+-- `queueFor` and the `paused` test below does the rest of the work.]]
 function OverlayQueue.resume(window)
-    local queue = window._overlayQueue
-    if not queue or not queue.paused then
+    local queue = queueFor(window)
+    if not queue.paused then
         return
     end
     queue.paused = false
@@ -104,6 +123,7 @@ end
 -- moment: a request that arrives while the queue is running is picked up by
 -- the loop that is already going.]]
 function OverlayQueue.pump(window, queue)
+    queue = queue or queueFor(window)
     if queue.running then
         return
     end
@@ -172,11 +192,14 @@ end
 -- `release()` when its entrance is committed. Returns true when the request was
 -- accepted, which is false only for a window that is already gone.]]
 function OverlayQueue.request(window, build): boolean
-    if window.unloaded or (window._overlayQueue ~= nil and window._overlayQueue.closed) then
+    if window.unloaded then
         return false
     end
 
     local queue = queueFor(window)
+    if queue.closed then
+        return false
+    end
 
     -- [[A burst stays bounded: the oldest request that was never built is
     -- dropped for the newest one, which is the one the host still cares about.]]
@@ -191,14 +214,24 @@ function OverlayQueue.request(window, build): boolean
 end
 
 -- [[Stops the pump and drops everything that never got built. Called from
--- `Window:Unload`, where the whole overlay layer is going away anyway.]]
+-- `Window:Unload`, where the whole overlay layer is going away anyway. A
+-- window that never queued an overlay only has the placeholder, which is
+-- already empty — `queueFor` gives the flag somewhere to live either way.]]
 function OverlayQueue.close(window)
-    local queue = window._overlayQueue
+    -- [[A window that never had a queue at all has nothing to stop; a
+    -- placeholder only has to be given somewhere to record the flag.]]
+    local queue = if window._overlayQueue then queueFor(window) else nil
     if not queue then
         return
     end
     queue.closed = true
+    -- [[`Window:Unload` clears the queue table whole afterwards, so *every*
+    -- field has to be left at its placeholder value: a caller that reads the
+    -- queue after the unload — the entrance coroutines still winding down do —
+    -- must find an empty list, never a missing one.]]
     table.clear(queue.pending)
+    queue.running = false
+    queue.paused = false
 end
 
 return OverlayQueue

@@ -1852,15 +1852,31 @@ local gateBudget = 2.5
 -- before it is ever built, which is the whole point.]]
 local maxQueued = 6
 
+-- [[The queue table lives on the window, but the window is allowed to hold a
+-- placeholder for it: `Window.new` pre-seeds `_overlayQueue` so `Window:Unload`
+-- always has something to clear, and a host that assigns its own table lands
+-- here too. A placeholder is not a queue — it has no `pending` list to pump —
+-- so the shape is completed rather than trusted. Every entry point into the
+-- queue comes through here, which is what lets the rest of the module read
+-- `queue.pending` unconditionally.]]
 local function queueFor(window): { [string]: any }
     local queue = window._overlayQueue
-    if not queue then
+    if type(queue) ~= "table" or type(queue.pending) ~= "table" then
+        local previous = if type(queue) == "table" then queue else nil
         queue = {
             pending = {},
             running = false,
             paused = false,
             closed = false,
         }
+        -- [[A placeholder is the queue's *initial* state: a window paused
+        -- before its first request has to stay paused through the upgrade, or
+        -- the entrance gate would open on the very thing that made it wait.]]
+        if previous then
+            queue.running = previous.running == true
+            queue.paused = previous.paused == true
+            queue.closed = previous.closed == true
+        end
         window._overlayQueue = queue
     end
     return queue
@@ -1874,9 +1890,12 @@ function OverlayQueue.pause(window)
     queue.paused = true
 end
 
+-- [[Open the gate. A window that never queued anything has a placeholder or no
+-- queue at all, so there is nothing to wake: read the shape through
+-- `queueFor` and the `paused` test below does the rest of the work.]]
 function OverlayQueue.resume(window)
-    local queue = window._overlayQueue
-    if not queue or not queue.paused then
+    local queue = queueFor(window)
+    if not queue.paused then
         return
     end
     queue.paused = false
@@ -1902,6 +1921,7 @@ end
 -- moment: a request that arrives while the queue is running is picked up by
 -- the loop that is already going.]]
 function OverlayQueue.pump(window, queue)
+    queue = queue or queueFor(window)
     if queue.running then
         return
     end
@@ -1970,11 +1990,14 @@ end
 -- `release()` when its entrance is committed. Returns true when the request was
 -- accepted, which is false only for a window that is already gone.]]
 function OverlayQueue.request(window, build): boolean
-    if window.unloaded or (window._overlayQueue ~= nil and window._overlayQueue.closed) then
+    if window.unloaded then
         return false
     end
 
     local queue = queueFor(window)
+    if queue.closed then
+        return false
+    end
 
     -- [[A burst stays bounded: the oldest request that was never built is
     -- dropped for the newest one, which is the one the host still cares about.]]
@@ -1989,14 +2012,24 @@ function OverlayQueue.request(window, build): boolean
 end
 
 -- [[Stops the pump and drops everything that never got built. Called from
--- `Window:Unload`, where the whole overlay layer is going away anyway.]]
+-- `Window:Unload`, where the whole overlay layer is going away anyway. A
+-- window that never queued an overlay only has the placeholder, which is
+-- already empty — `queueFor` gives the flag somewhere to live either way.]]
 function OverlayQueue.close(window)
-    local queue = window._overlayQueue
+    -- [[A window that never had a queue at all has nothing to stop; a
+    -- placeholder only has to be given somewhere to record the flag.]]
+    local queue = if window._overlayQueue then queueFor(window) else nil
     if not queue then
         return
     end
     queue.closed = true
+    -- [[`Window:Unload` clears the queue table whole afterwards, so *every*
+    -- field has to be left at its placeholder value: a caller that reads the
+    -- queue after the unload — the entrance coroutines still winding down do —
+    -- must find an empty list, never a missing one.]]
     table.clear(queue.pending)
+    queue.running = false
+    queue.paused = false
 end
 
 return OverlayQueue
@@ -7114,6 +7147,11 @@ function Window.new(props)
         -- has been quiet for two frames. Checkpoints continue after the window
         -- appears so the remaining controls cannot freeze its entrance.
         _startupComplete = false,
+        -- [[Placeholder for the entrance queue: the queue's own shape (pending
+        -- list, gate flags) is completed by `queueFor` in
+        -- `components/overlayQueue.luau` on first use, so what lives here is
+        -- only "the window has somewhere to put its overlays", which is what
+        -- lets `Unload` clear it unconditionally.]]
         _overlayQueue = {},
         _overlayQueueRunning = false,
 
@@ -9167,7 +9205,10 @@ function Window:_stageContentReveal(beat, stepDelay, totalDuration, entranceId)
 end
 
 function Window:Show()
-        if self.animating or not self.hidden then
+        -- [[An unload retires every instance the window owns, including the ones
+        -- [[the entrance tweens next, and a window closed before its deferred
+        -- [[startup reveal ran still has that reveal queued (`library_entrypoint`).]]
+        if self.animating or self.unloaded or not self.hidden then
         return
     end
     self.animating = true
@@ -33481,98 +33522,98 @@ local LineOffsets = {
     [11] = 1235,
     [12] = 1462,
     [13] = 1799,
-    [14] = 2006,
-    [15] = 2724,
-    [16] = 5115,
-    [17] = 5461,
-    [18] = 6100,
-    [19] = 6161,
-    [20] = 6544,
-    [21] = 6949,
-    [23] = 10134,
-    [24] = 10220,
-    [25] = 10527,
-    [26] = 10948,
-    [27] = 11291,
-    [28] = 11461,
-    [29] = 11606,
-    [30] = 12980,
-    [31] = 13194,
-    [32] = 13465,
-    [33] = 14025,
-    [34] = 14472,
-    [35] = 14558,
-    [36] = 15144,
-    [37] = 15767,
-    [38] = 16163,
-    [39] = 16293,
-    [40] = 16457,
-    [41] = 16611,
-    [43] = 17110,
-    [44] = 17133,
-    [45] = 17150,
-    [46] = 17183,
-    [47] = 17305,
-    [48] = 17329,
-    [49] = 17378,
-    [50] = 17085,
-    [51] = 17508,
-    [52] = 17811,
-    [53] = 17842,
-    [54] = 17497,
-    [55] = 17885,
-    [56] = 17905,
-    [57] = 17937,
-    [58] = 17867,
-    [59] = 18044,
-    [60] = 18103,
-    [61] = 18163,
-    [63] = 18289,
-    [64] = 18454,
-    [65] = 18274,
-    [66] = 19014,
-    [67] = 19317,
-    [68] = 19981,
-    [69] = 21773,
-    [70] = 22922,
-    [71] = 24450,
-    [72] = 18516,
-    [73] = 29702,
-    [74] = 29768,
-    [75] = 29834,
-    [76] = 29909,
-    [77] = 30012,
-    [78] = 30078,
-    [79] = 30153,
-    [80] = 30228,
-    [81] = 30303,
-    [82] = 30378,
-    [83] = 29596,
-    [84] = 30444,
-    [85] = 30542,
-    [86] = 30720,
-    [87] = 30772,
-    [88] = 30802,
-    [89] = 31053,
-    [90] = 31102,
-    [91] = 31555,
-    [92] = 31573,
-    [93] = 31725,
-    [94] = 31824,
-    [95] = 31846,
-    [96] = 31896,
-    [97] = 32221,
-    [98] = 32257,
-    [99] = 32275,
-    [100] = 32624,
-    [101] = 32636,
-    [102] = 32687,
-    [103] = 32706,
-    [104] = 32957,
-    [105] = 33001,
-    [106] = 33226,
-    [107] = 33254,
-    [108] = 33265,
+    [14] = 2039,
+    [15] = 2757,
+    [16] = 5148,
+    [17] = 5494,
+    [18] = 6133,
+    [19] = 6194,
+    [20] = 6577,
+    [21] = 6982,
+    [23] = 10175,
+    [24] = 10261,
+    [25] = 10568,
+    [26] = 10989,
+    [27] = 11332,
+    [28] = 11502,
+    [29] = 11647,
+    [30] = 13021,
+    [31] = 13235,
+    [32] = 13506,
+    [33] = 14066,
+    [34] = 14513,
+    [35] = 14599,
+    [36] = 15185,
+    [37] = 15808,
+    [38] = 16204,
+    [39] = 16334,
+    [40] = 16498,
+    [41] = 16652,
+    [43] = 17151,
+    [44] = 17174,
+    [45] = 17191,
+    [46] = 17224,
+    [47] = 17346,
+    [48] = 17370,
+    [49] = 17419,
+    [50] = 17126,
+    [51] = 17549,
+    [52] = 17852,
+    [53] = 17883,
+    [54] = 17538,
+    [55] = 17926,
+    [56] = 17946,
+    [57] = 17978,
+    [58] = 17908,
+    [59] = 18085,
+    [60] = 18144,
+    [61] = 18204,
+    [63] = 18330,
+    [64] = 18495,
+    [65] = 18315,
+    [66] = 19055,
+    [67] = 19358,
+    [68] = 20022,
+    [69] = 21814,
+    [70] = 22963,
+    [71] = 24491,
+    [72] = 18557,
+    [73] = 29743,
+    [74] = 29809,
+    [75] = 29875,
+    [76] = 29950,
+    [77] = 30053,
+    [78] = 30119,
+    [79] = 30194,
+    [80] = 30269,
+    [81] = 30344,
+    [82] = 30419,
+    [83] = 29637,
+    [84] = 30485,
+    [85] = 30583,
+    [86] = 30761,
+    [87] = 30813,
+    [88] = 30843,
+    [89] = 31094,
+    [90] = 31143,
+    [91] = 31596,
+    [92] = 31614,
+    [93] = 31766,
+    [94] = 31865,
+    [95] = 31887,
+    [96] = 31937,
+    [97] = 32262,
+    [98] = 32298,
+    [99] = 32316,
+    [100] = 32665,
+    [101] = 32677,
+    [102] = 32728,
+    [103] = 32747,
+    [104] = 32998,
+    [105] = 33042,
+    [106] = 33267,
+    [107] = 33295,
+    [108] = 33306,
 }
 
 -- [[Misc AOT variable imports]]

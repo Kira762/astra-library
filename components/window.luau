@@ -166,6 +166,11 @@ function Window.new(props)
         -- has been quiet for two frames. Checkpoints continue after the window
         -- appears so the remaining controls cannot freeze its entrance.
         _startupComplete = false,
+        -- [[Placeholder for the entrance queue: the queue's own shape (pending
+        -- list, gate flags) is completed by `queueFor` in
+        -- `components/overlayQueue.luau` on first use, so what lives here is
+        -- only "the window has somewhere to put its overlays", which is what
+        -- lets `Unload` clear it unconditionally.]]
         _overlayQueue = {},
         _overlayQueueRunning = false,
 
@@ -2219,7 +2224,10 @@ function Window:_stageContentReveal(beat, stepDelay, totalDuration, entranceId)
 end
 
 function Window:Show()
-        if self.animating or not self.hidden then
+        -- [[An unload retires every instance the window owns, including the ones
+        -- [[the entrance tweens next, and a window closed before its deferred
+        -- [[startup reveal ran still has that reveal queued (`library_entrypoint`).]]
+        if self.animating or self.unloaded or not self.hidden then
         return
     end
     self.animating = true

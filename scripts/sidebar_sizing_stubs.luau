@@ -409,8 +409,23 @@ local function newInstance(className)
 			if instanceMethods[key] then
 				return instanceMethods[key]
 			end
-			if key == "AbsoluteSize" or key == "AbsoluteWindowSize" then
+			if key == "AbsoluteSize" then
 				return absoluteSize(self)
+			end
+			-- [[ScrollingFrame-only members. The engine raises "X is not a]]
+			-- [[valid member of Frame" when anything else is indexed for]]
+			-- [[them; modelling that keeps a group body (a plain Frame) or]]
+			-- [[any other non-scroll surface from silently reading like a]]
+			-- [[scroll page in tests, which is how the dropdown's]]
+			-- [[_bringIntoView crash reached a real session unnoticed.]]
+			if key == "AbsoluteWindowSize" or key == "CanvasPosition" or key == "AbsoluteCanvasSize" then
+				if props.ClassName ~= "ScrollingFrame" then
+					error(key .. " is not a valid member of " .. tostring(props.ClassName), 2)
+				end
+				if key == "AbsoluteWindowSize" then
+					return absoluteSize(self)
+				end
+				return props[key]
 			end
 			if key == "AbsolutePosition" then
 				return absolutePosition(self)

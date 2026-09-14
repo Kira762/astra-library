@@ -20,7 +20,10 @@
 --   * D5 Add/Remove/Refresh while closed are reflected the next time it opens,
 --   * D6 picking a row still updates the value, the header and the list state,
 --   * D7 the search bar still filters the rows, and collapsing it brings them
---     all back.
+--     all back,
+--   * D8 a dropdown inside a Collapsible Group opens cleanly: its open-time
+--     scroll resolves the owner chain up to the tab's ScrollingFrame instead
+--     of reading scroll members off the group's plain body frame.
 
 local function expect(cond, message)
 	if not cond then
@@ -244,6 +247,37 @@ search.searchIcon.MouseButton1Click:Fire()
 TestPump(0.3)
 eq(search._searchOpen, false, "D7 collapsing the search clears the filter")
 eq(search._optionFrames[1].frame.Visible, true, "D7 every row is back")
+
+-- ===== D8: a dropdown inside a Collapsible Group scrolls the tab page =====
+-- [[Grouped controls receive the group as their `tab` (that is what parents]]
+-- [[them into the group body), and the group body is a plain Frame. The]]
+-- [[open-time scroll used to read ScrollingFrame-only members off whatever]]
+-- [[`tabPage` it found, which the engine rejects ("AbsoluteWindowSize is not]]
+-- [[a valid member of Frame") the first time a grouped dropdown opens; the]]
+-- [[stub models that strictness, so this pin fails on the old code path.]]
+
+local groupedTab = window:CreateTab({ name = "Grouped" })
+local group = groupedTab:CreateCollapsibleGroup({
+    name = "Nested controls",
+    elements = {
+        { type = "Dropdown", name = "Inner", options = { "One", "Two", "Three" }, value = "One" },
+    },
+})
+groupedTab:Select()
+TestPump(0.3)
+group.interact.Activated:Fire()
+TestPump(0.4)
+eq(group._expanded, true, "D8 the group expands")
+local inner = group.elements[1]
+eq(inner.tab, group, "D8 a grouped control's owner is the group")
+openDropdown(inner)
+eq(inner._isOpen, true, "D8 a grouped dropdown opens without reading scroll members off the group body")
+local host = inner.tab
+while host and host.__type ~= "Tab" do
+    host = host.tab
+end
+eq(host, groupedTab, "D8 ... and its owner chain ends at the tab that owns the scroll page")
+closeDropdown(inner)
 
 window:Unload()
 TestPump(0.1)

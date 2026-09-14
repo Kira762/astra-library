@@ -5,9 +5,23 @@ window:Show()
 TestPump(0.6)
 window:_buildSettingsContent(window.rfSettings)
 local binding
-for _, control in window.rfSettings.elements do
-    if control.isMenuToggle then binding = control; break end
+-- [[Settings controls live inside Collapsible Groups now, so the menu]]
+-- [[binding is one level below the tab's top-level elements.]]
+local function scan(elements)
+    for _, control in elements do
+        if control.isMenuToggle then
+            return control
+        end
+        if control.elements then
+            local found = scan(control.elements)
+            if found then
+                return found
+            end
+        end
+    end
+    return nil
 end
+binding = scan(window.rfSettings.elements)
 assert(binding, "Settings must expose the menu binding")
 assert(binding.keyLabel.ClassName == "TextBox", "Binding must be focusable")
 assert(binding.keyLabel.TextEditable == true, "Settings binding must remain editable")

@@ -1764,7 +1764,7 @@ function Window:_refreshTabStripChrome()
         return
     end
 
-    local rightClipped = strip.CanvasSize.X > strip.AbsoluteWindowSize.X + 0.5
+    local rightClipped = strip.AbsoluteCanvasSize.X > strip.AbsoluteWindowSize.X + 0.5
     if fadeRight and fadeRight.Parent and fadeRight.Visible ~= rightClipped then
         fadeRight.Visible = rightClipped
     end
@@ -1793,7 +1793,7 @@ function Window:_scrollSelectedTabIntoView(tweened)
 
     local inset = self.layout.tabStripInset or 22
     local viewport = strip.AbsoluteWindowSize.X
-    local maxScroll = math.max(0, strip.CanvasSize.X - viewport)
+    local maxScroll = math.max(0, strip.AbsoluteCanvasSize.X - viewport)
     local left = item.Position.X
     local right = left + item.AbsoluteSize.X
     local pos = strip.CanvasPosition.X

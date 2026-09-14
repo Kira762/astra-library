@@ -223,10 +223,10 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 				task.wait()
 				if (window._constructionBusy or 0) == 0 and revision == window._constructionRevision then
 					stableFrames += 1
-				else
-					stableFrames = 0
+					else
+						stableFrames = 0
+					end
 				end
-			until (window._constructionBusy or 0) == 0 and revision == window._constructionRevision
 
 			-- [[One beat of slack between the last batch of the build and the
 			-- entrance. The tail of a host's script — a configuration read, an

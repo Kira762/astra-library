@@ -169,13 +169,13 @@ local col = row:CreateGroup({ direction = "column" }) -- nested column
 col:CreateToggle({ name = "Left 1" })
 ```
 
-Tab methods: `CreateButton`, `CreateToggle`/`CreateSwitch`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateKeybind`, `CreateStat`, `CreateProgress`, `CreateSection`, `CreateText`, `CreateChangelog`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup`.
+Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateKeybind`, `CreateStat`, `CreateProgress`, `CreateSection`, `CreateText`, `CreateChangelog`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup`.
 
-Groups support: `CreateButton`, `CreateToggle`/`CreateSwitch`, `CreateSlider`, `CreateDropdown`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
+Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
 
 ### Elements
 
-Every element supports `Moveable` (`:MoveTo`, `:MoveToTop`, `:MoveToBottom`, `:MoveUp`, `:MoveDown`) and most support `Lockable` (`:Lock`, `:Unlock`, `:IsLocked`). Most element props also accept `description` (helper text under the name, rendered inside the element's own card — the card grows by the measured wrapped height, so the line never covers the control) and `icon`.
+Every element supports `Moveable` (`:MoveTo`, `:MoveToTop`, `:MoveToBottom`, `:MoveUp`, `:MoveDown`) and most support `Lockable` (`:Lock`, `:Unlock`, `:IsLocked`). Most element props also accept `icon`.
 
 ```lua
 tab:CreateButton({ name = "Click Me", icon = "play", callback = function() end })
@@ -193,7 +193,7 @@ tab:CreateButton({
 })
 ```
 
-### Toggle / Switch
+### Toggle
 ```lua
 local t = tab:CreateToggle({
     name = "Auto Sprint", flag = "autoSprint", value = true,
@@ -202,7 +202,6 @@ local t = tab:CreateToggle({
 t:Set(false)          -- fires callback unless skipCallback
 t:Set(false, true)    -- silent
 ```
-`CreateSwitch` is an alias.
 
 ### Slider
 ```lua
@@ -284,7 +283,6 @@ Scrollable release-history element with `+` (added), `-` (removed) and `~` (chan
 ```lua
 local log = tab:CreateChangelog({
     name = "Release history",
-    description = "Recent changes and fixes.",
     emptyText = "No entries yet.",   -- optional
     entries = {
         {
@@ -292,7 +290,6 @@ local log = tab:CreateChangelog({
             date = "2026-09-11",
             game = "Game Name",      -- optional, game = "..." or gameId = number
             title = "Settings highlight",
-            description = "Improved the built-in Settings active state.",
             changes = {
                 { symbol = "~", category = "Fixed", text = "Settings stays highlighted while its tab is active." },
                 { symbol = "+", text = "Added the Changelog element." },
@@ -553,7 +550,7 @@ local playerControls = tab:CreateCollapsibleGroup({
 })
 ```
 
-**Supported types:** `Button`, `Toggle`, `Switch`, `Slider`, `Dropdown`, `Input`,
+**Supported types:** `Button`, `Toggle`, `Slider`, `Dropdown`, `Input`,
 `Keybind`, `Stat`, `Progress`, `Section`, `Text`, `Changelog`, `Divider`,
 and ordinary `Group`. Each uses the same properties and implementation as its
 normal `Create…` method. `elements` can be omitted for an empty header.

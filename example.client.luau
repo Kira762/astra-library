@@ -51,7 +51,6 @@ home:CreateButton({
 })
 home:CreateToggle({
     name = "Enable feature",
-    description = "Runs the example's feature hook on toggle.",
     value = true,
     callback = function(value)
         window:Notify({
@@ -66,7 +65,6 @@ local controls = window:CreateTab({ name = "Controls", icon = "sliders-horizonta
 controls:CreateSection({ name = "Input elements" })
 controls:CreateSlider({
     name = "Volume",
-    description = "Master output level. The description sits inside the card.",
     range = { 0, 100 },
     value = 50,
     increment = 1,
@@ -76,7 +74,6 @@ controls:CreateSlider({
 })
 controls:CreateDropdown({
     name = "Mode",
-    description = "Applies the selected mode immediately.",
     options = { "Default", "Performance", "Visual" },
     value = "Default",
     callback = function(value)
@@ -85,15 +82,13 @@ controls:CreateDropdown({
 })
 controls:CreateInput({
     name = "Display name",
-    description = "Shown on the window and in notifications.",
     placeholder = "Enter a name",
     callback = function(value)
         window:Toast({ title = "Name updated", subtitle = tostring(value) })
     end,
 })
-controls:CreateSwitch({
+controls:CreateToggle({
     name = "Compact mode",
-    description = "Keeps elements on one row where the space allows.",
     value = false,
     callback = function(value)
         window:Toast({
@@ -108,7 +103,6 @@ local appearance = window:CreateTab({ name = "Appearance", icon = "palette" })
 appearance:CreateSection({ name = "Visual elements" })
 appearance:CreateSlider({
     name = "Opacity",
-    description = "Long copy wraps instead of overlapping: the card grows by the measured line count, so a description this size still keeps the title row, the slider and the card's edge clear.",
     range = { 0, 100 },
     value = 80,
     suffix = "%",
@@ -146,7 +140,6 @@ information:CreateButton({
 information:CreateSection({ name = "Additional elements" })
 information:CreateProgress({
     name = "Progress",
-    description = "The bar and its readout ride above this line.",
     range = { 0, 100 },
     value = 68,
     steps = 10,
@@ -154,13 +147,11 @@ information:CreateProgress({
 })
 information:CreateStat({
     name = "Active tests",
-    description = "Counted from the last sweep.",
     value = 20,
     suffix = " tabs",
 })
 information:CreateKeybind({
     name = "Test shortcut",
-    description = "Click the cap, then press a single key.",
     value = Enum.KeyCode.RightShift,
     callback = function()
         window:Toast({ title = "Shortcut", subtitle = "Test shortcut activated" })
@@ -184,13 +175,11 @@ elementGroup:CreateToggle({
 local changelogTab = window:CreateTab({ name = "Changelog", icon = "history" })
 local changelog = changelogTab:CreateChangelog({
     name = "Release history",
-    description = "Recent Astra changes and fixes.",
     entries = {
         {
             version = "2026-09-13",
             date = "2026-09-13",
             title = "Element Lab coverage",
-            description = "Added a dedicated tab for testing runtime element updates and all-pack icons.",
             changes = {
                 { symbol = "+", category = "Added", text = "Added multi-select dropdown, progress, stat, numeric input, hold keybind, and runtime mutation examples." },
             },
@@ -199,7 +188,6 @@ local changelog = changelogTab:CreateChangelog({
             version = "0.0.35",
             date = "2026-09-11",
             title = "Settings highlight",
-            description = "Improved the built-in Settings active state.",
             changes = {
                 { symbol = "~", category = "Fixed", text = "Settings now stays highlighted while its tab is active." },
             },
@@ -208,7 +196,6 @@ local changelog = changelogTab:CreateChangelog({
             version = "0.0.34",
             date = "2026-09-11",
             title = "Example tab coverage",
-            description = "Expanded the example with named and icon-backed tabs.",
             changes = {
                 { symbol = "+", category = "Added", text = "Added more tabs for layout and element testing." },
             },
@@ -359,7 +346,6 @@ home:Select()
 local collapsibleTab = window:CreateTab({ name = "Collapsible Groups", icon = "panels-top-left" })
 collapsibleTab:CreateCollapsibleGroup({
     name = "Player Preferences",
-    description = "Click the header to expand. Closing keeps these values active.",
     icon = "user-round",
     elements = {
         { type = "Toggle", name = "Enabled", flag = "collapsibleEnabled", value = true },
@@ -390,12 +376,12 @@ collapsibleTab:CreateCollapsibleGroup({
     elements = {
         { type = "Section", name = "State controls" },
         {
-            type = "Switch",
-            name = "Collapsible switch",
-            flag = "collapsibleSwitch",
+            type = "Toggle",
+            name = "Collapsible toggle",
+            flag = "collapsibleToggle",
             value = false,
             callback = function(value)
-                window:Toast({ title = "Collapsible switch", subtitle = if value then "On" else "Off" })
+                window:Toast({ title = "Collapsible toggle", subtitle = if value then "On" else "Off" })
             end,
         },
         {
@@ -413,7 +399,6 @@ collapsibleTab:CreateCollapsibleGroup({
         {
             type = "Changelog",
             name = "Child changelog",
-            description = "Search and scrolling should include this child content.",
             entries = {
                 {
                     version = "Test",

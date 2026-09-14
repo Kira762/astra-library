@@ -13,7 +13,6 @@ export type ChangelogEntry = {
     game: string?,
     gameId: string?,
     title: string?,
-    description: string?,
     changes: { ChangelogChange },
 }
 type FadeItem = {
@@ -104,14 +103,12 @@ local function normalizeEntry(raw): ChangelogEntry
         gameId = read(properties, "placeId", "PlaceId")
     end
     local title = read(properties, "title", "Title")
-    local description = read(properties, "description", "Description")
     return {
         version = tostring(version or ""),
         date = tostring(date or ""),
         game = if game ~= nil and tostring(game) ~= "" then tostring(game) else nil,
         gameId = if gameId ~= nil and tostring(gameId) ~= "" then tostring(gameId) else nil,
         title = if title ~= nil and tostring(title) ~= "" then tostring(title) else nil,
-        description = if description ~= nil and tostring(description) ~= "" then tostring(description) else nil,
         changes = changes,
     }
 end
@@ -144,7 +141,6 @@ function Changelog.new(tab, properties)
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = tostring(read(properties, "name", "Name") or "Changelog"),
-        description = tostring(read(properties, "description", "Description") or ""),
         emptyText = tostring(read(properties, "emptyText", "EmptyText") or "No changelog entries yet."),
         entries = entries,
         _entryFrames = {},
@@ -190,22 +186,6 @@ function Changelog.new(tab, properties)
         Parent = self.main,
     }, { TextColor3 = "TitlingColor", FontFace = "TitleFont" })
     self.window:_bindLocale(self.title, "Text", self.name)
-    self.descriptionLabel = self.window:Create("TextLabel", {
-        Name = "Description",
-        Size = UDim2.new(1, 0, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        RichText = true,
-        TextSize = 12,
-        TextWrapped = true,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        LayoutOrder = 2,
-        TextTransparency = 1,
-        Visible = self.description ~= "",
-        Parent = self.main,
-    }, { TextColor3 = "PlaceholderColor", FontFace = "Font" })
-    self.window:_bindLocale(self.descriptionLabel, "Text", self.description)
     self.history = self.window:Create("Frame", {
         Name = "History",
         Size = UDim2.new(1, 0, 0, 0),
@@ -221,7 +201,6 @@ function Changelog.new(tab, properties)
         Parent = self.history,
     })
     table.insert(self._fadeItems, { instance = self.title, property = "TextTransparency", shownValue = 0 })
-    table.insert(self._fadeItems, { instance = self.descriptionLabel, property = "TextTransparency", shownValue = 0.7 })
     self:_render()
     return self
 end
@@ -272,8 +251,8 @@ function Changelog:_renderEntry(entry: ChangelogEntry, index: number)
         SortOrder = Enum.SortOrder.LayoutOrder,
         Parent = card,
     })
-    self:_addFade(card, "BackgroundTransparency", self.window.theme.ElementTransparency or 0)
-    self:_addFade(stroke, "Transparency", self.window.theme.ElementStrokeTransparency or 0)
+    self:_addFade(card, "BackgroundTransparency", self.window:_elementBackgroundTransparency(self))
+    self:_addFade(stroke, "Transparency", self.window:_elementStrokeTransparency(self, false))
     local header = self.window:Create("Frame", {
         Name = "Header",
         Size = UDim2.new(1, 0, 0, 22),
@@ -307,9 +286,6 @@ function Changelog:_renderEntry(entry: ChangelogEntry, index: number)
     local metadata = formatMetadata(entry)
     if metadata ~= "" then
         self:_makeLabel(card, "Metadata", metadata, 11, 0.55, 2)
-    end
-    if entry.description then
-        self:_makeLabel(card, "Description", entry.description, 12, 0.7, 3)
     end
     local changesFrame = self.window:Create("Frame", {
         Name = "Changes",
@@ -388,7 +364,7 @@ function Changelog:_render()
     table.clear(self._dynamicFrames)
     local rootFadeItems = {}
     for _, item in ipairs(self._fadeItems) do
-        if item.instance == self.title or item.instance == self.descriptionLabel then
+        if item.instance == self.title then
             table.insert(rootFadeItems, item)
         end
     end

@@ -43,8 +43,7 @@ function state.new(tab, element)
     local self = setmetatable({
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
-        name = element.name or element.Name or "Switch",
-        description = element.description or element.Description,
+        name = element.name or element.Name or "Toggle",
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
         forgetState = element.forgetState or element.ForgetState or tab.forgetState,
         compact = tab.compact or false,
@@ -52,7 +51,7 @@ function state.new(tab, element)
             or element.Flag
             or (
                 not (element.forgetState or element.ForgetState or tab.forgetState)
-                    and tab.deriveFlagFromName(element.name or element.Name or "Switch")
+                    and tab.deriveFlagFromName(element.name or element.Name or "Toggle")
                 or nil
             ),
 
@@ -223,7 +222,7 @@ function state:_buildFull()
             :Create(
                 self.stroke,
                 callback,
-                { Transparency = self.window.theme.ElementStrokeTransparency }
+                { Transparency = self.window:_elementStrokeTransparency(self, false) }
             )
             :Play()
     end)
@@ -334,7 +333,7 @@ function state:_buildCompact()
             :Create(
                 self.stroke,
                 callback,
-                { Transparency = self.window.theme.ElementStrokeTransparency }
+                { Transparency = self.window:_elementStrokeTransparency(self, false) }
             )
             :Play()
     end)

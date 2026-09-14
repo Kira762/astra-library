@@ -107,7 +107,6 @@ function state.new(tab, a49)
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = a49.name or a49.Name or "Dropdown",
-        description = a49.description or a49.Description,
         icon = tab.window:ResolveIcon(a49.icon or a49.Icon),
         forgetState = a49.forgetState or a49.ForgetState or tab.forgetState,
         flag = a49.flag
@@ -617,7 +616,7 @@ function state.new(tab, a49)
         Dropdown.tweenService:Create(self.hoverOverlay, a30, { BackgroundTransparency = 0.97 }):Play()
         Dropdown.tweenService
             :Create(self.stroke, a30, {
-                Transparency = self.window.theme.ElementStrokeHoverTransparency,
+                Transparency = self.window:_elementStrokeTransparency(self, true),
                 Color = self.window.theme.ElementStrokeHover,
             })
             :Play()
@@ -628,7 +627,7 @@ function state.new(tab, a49)
         Dropdown.tweenService:Create(self.hoverOverlay, a30, { BackgroundTransparency = 1 }):Play()
         Dropdown.tweenService
             :Create(self.stroke, a30, {
-                Transparency = self.window.theme.ElementStrokeTransparency,
+                Transparency = self.window:_elementStrokeTransparency(self, false),
                 Color = self.window.theme.ElementStroke,
             })
             :Play()
@@ -1041,14 +1040,14 @@ function state:_open()
         :Create(
             self.panel,
             a31,
-            { BackgroundTransparency = self.window.theme.ElementTransparency or 0 }
+            { BackgroundTransparency = self.window:_elementBackgroundTransparency(self) }
         )
         :Play()
     Dropdown.tweenService
         :Create(
             self.panelStroke,
             a31,
-            { Transparency = self.window.theme.ElementStrokeTransparency }
+            { Transparency = self.window:_elementStrokeTransparency(self, false) }
         )
         :Play()
     Dropdown.tweenService
@@ -1327,9 +1326,9 @@ end
 
 function state:_setShown(a160, a161)
             local w = self.window
-    w:_reveal(self.stroke, { Transparency = if a160 then w.theme.ElementStrokeTransparency else 1 }, a161)
+    w:_reveal(self.stroke, { Transparency = if a160 then w:_elementStrokeTransparency(self, false) else 1 }, a161)
     w:_reveal(self.title, { TextTransparency = if a160 then 0 else 1 }, a161)
-    w:_reveal(self.top, { BackgroundTransparency = if a160 then (w.theme.ElementTransparency or 0) else 1 }, a161)
+    w:_reveal(self.top, { BackgroundTransparency = if a160 then (w:_elementBackgroundTransparency(self)) else 1 }, a161)
     if self.iconLabel then
         w:_reveal(self.iconLabel, { ImageTransparency = if a160 then 0 else 1 }, a161)
     end

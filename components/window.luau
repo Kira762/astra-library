@@ -2569,6 +2569,25 @@ function Window:CreateHoverOverlay(parent)
     return overlay
 end
 
+function Window:_elementBackgroundTransparency(element)
+    if element and element._collapsibleChild then
+        return self.theme.CollapsibleChildElementTransparency or 0.75
+    end
+    return self.theme.ElementTransparency or 0
+end
+
+function Window:_elementStrokeTransparency(element, hover)
+    if element and element._collapsibleChild then
+        if hover then
+            return self.theme.CollapsibleChildElementStrokeHoverTransparency
+                or self.theme.CollapsibleChildElementStrokeTransparency
+                or 1
+        end
+        return self.theme.CollapsibleChildElementStrokeTransparency or 1
+    end
+    return if hover then self.theme.ElementStrokeHoverTransparency else self.theme.ElementStrokeTransparency
+end
+
 function Window:_wireElementHover(element, options)
     local theme = self.theme
     -- [[Containers may scope the hover to a sub-frame (the collapsible
@@ -2590,7 +2609,7 @@ function Window:_wireElementHover(element, options)
             return         end
         motion.tween(
             element.stroke,
-            { Transparency = theme.ElementStrokeHoverTransparency, Color = theme.ElementStrokeHover },
+            { Transparency = self:_elementStrokeTransparency(element, true), Color = theme.ElementStrokeHover },
             "snappy"
         )
         motion.tween(element.title, { TextColor3 = theme[titleHoverKey] }, "snappy")
@@ -2602,7 +2621,7 @@ function Window:_wireElementHover(element, options)
     self:ConnectFor(element, hoverTarget.MouseLeave, function()
         motion.tween(
             element.stroke,
-            { Transparency = theme.ElementStrokeTransparency, Color = theme.ElementStroke },
+            { Transparency = self:_elementStrokeTransparency(element, false), Color = theme.ElementStroke },
             "snappy"
         )
         motion.tween(element.title, { TextColor3 = theme[titleRestKey] }, "snappy")
@@ -2781,9 +2800,9 @@ function Window:_reveal(instance, targets, animate, tweenInfo)
 end
 
 function Window:_revealCommon(element, animate)
-    self:_reveal(element.stroke, { Transparency = self.theme.ElementStrokeTransparency }, animate)
+    self:_reveal(element.stroke, { Transparency = self:_elementStrokeTransparency(element, false) }, animate)
     self:_reveal(element.title, { TextTransparency = 0 }, animate)
-    self:_reveal(element.main, { BackgroundTransparency = self.theme.ElementTransparency or 0 }, animate)
+    self:_reveal(element.main, { BackgroundTransparency = self:_elementBackgroundTransparency(element) }, animate)
     if element.iconLabel then
         self:_reveal(element.iconLabel, { ImageTransparency = 0 }, animate)
     end

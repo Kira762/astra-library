@@ -2,6 +2,18 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-14 — Collapsible Group children are visually recessed
+
+- Elements rendered inside a Collapsible Group are now marked as nested content.
+- Nested children use 75% card background transparency and fully hidden card strokes, including hover/reveal states and dropdown panels, so the group header remains the visible container boundary.
+- Added default theme tokens for nested child transparency/strokes while preserving normal outlines for standalone elements.
+
+## 2026-09-14 — Toggle-only API and element helper descriptions removed
+
+- Removed the `CreateSwitch` alias from tabs, groups, typings, docs and the bundled build. Use `CreateToggle` for that control.
+- Element constructors now ignore `description`/`Description` helper props, so buttons, toggles, sliders, dropdowns, inputs, keybinds, stats, progress cards, changelogs and collapsible groups render without the extra helper line.
+- Updated the example and usage docs to show the simplified API.
+
 ## 2026-09-14 — Element descriptions render inside the cards again (no overlap)
 
 - **`description` was a dead prop.** The settings refactor (`df2a3e9`, PR #28)

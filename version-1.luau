@@ -240,13 +240,11 @@ export type ChangelogEntry = {
     game: string?,
     gameId: string?,
     title: string?,
-    description: string?,
     changes: { ChangelogChange }?,
 }
 
 export type ChangelogProps = {
     name: string?,
-    description: string?,
     emptyText: string?,
     entries: { ChangelogEntry }?,
 }
@@ -260,7 +258,7 @@ export type GroupProps = {
 -- Definitions use the corresponding element's normal properties plus `type`.
 -- `elements` is allowed only for ordinary Groups; CollapsibleGroups cannot nest.
 export type CollapsibleElementProps = {
-    type: "Button" | "Toggle" | "Switch" | "Slider" | "Dropdown" | "Input" | "Keybind"
+    type: "Button" | "Toggle" | "Slider" | "Dropdown" | "Input" | "Keybind"
         | "Stat" | "Progress" | "Section" | "Text" | "Changelog" | "Divider" | "Group",
     elements: { CollapsibleElementProps }?,
     [string]: any,
@@ -268,21 +266,18 @@ export type CollapsibleElementProps = {
 
 export type CollapsibleGroupProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     elements: { CollapsibleElementProps }?,
 }
 
 export type ButtonProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     callback: (() -> ())?,
 }
 
 export type ToggleProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     flag: string?,
     value: boolean?,
@@ -292,7 +287,6 @@ export type ToggleProps = {
 
 export type SliderProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     flag: string?,
     range: { number }?,     increment: number?,
@@ -304,7 +298,6 @@ export type SliderProps = {
 
 export type DropdownProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     flag: string?,
     options: { string }?,
@@ -317,7 +310,6 @@ export type DropdownProps = {
 
 export type InputProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     flag: string?,
     value: string?,
@@ -330,7 +322,6 @@ export type InputProps = {
 
 export type KeybindProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     flag: string?,
     value: (EnumItem | string)?,     forgetState: boolean?,     editable: boolean?,
@@ -338,7 +329,6 @@ export type KeybindProps = {
 
 export type StatProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     prefix: string?,
     suffix: string?,
@@ -349,7 +339,6 @@ export type StatProps = {
 
 export type ProgressProps = {
     name: string?,
-    description: string?,
     icon: (string | number)?,
     range: { number }?,     value: number?,
     steps: number?,     text: string?,     format: ((value: number, min: number, max: number) -> string)?,     showValue: boolean?,     indeterminate: boolean?, }
@@ -479,7 +468,6 @@ export type Popup = {
 export type Group = Moveable & {
     CreateButton: (self: Group, props: ButtonProps) -> Button,
     CreateToggle: (self: Group, props: ToggleProps) -> Toggle,
-    CreateSwitch: (self: Group, props: ToggleProps) -> Toggle,
     CreateStat: (self: Group, props: StatProps) -> Stat,
     CreateSlider: (self: Group, props: SliderProps) -> Slider,
         CreateDropdown: (self: Group, props: DropdownProps) -> Dropdown?,
@@ -500,7 +488,6 @@ export type Tab = {
     Remove: (self: Tab) -> (),
     CreateButton: (self: Tab, props: ButtonProps) -> Button,
     CreateToggle: (self: Tab, props: ToggleProps) -> Toggle,
-    CreateSwitch: (self: Tab, props: ToggleProps) -> Toggle,
     CreateSlider: (self: Tab, props: SliderProps) -> Slider,
     CreateDropdown: (self: Tab, props: DropdownProps) -> Dropdown,
     CreateInput: (self: Tab, props: InputProps) -> Input,
@@ -9169,6 +9156,25 @@ function Window:CreateHoverOverlay(parent)
     return overlay
 end
 
+function Window:_elementBackgroundTransparency(element)
+    if element and element._collapsibleChild then
+        return self.theme.CollapsibleChildElementTransparency or 0.75
+    end
+    return self.theme.ElementTransparency or 0
+end
+
+function Window:_elementStrokeTransparency(element, hover)
+    if element and element._collapsibleChild then
+        if hover then
+            return self.theme.CollapsibleChildElementStrokeHoverTransparency
+                or self.theme.CollapsibleChildElementStrokeTransparency
+                or 1
+        end
+        return self.theme.CollapsibleChildElementStrokeTransparency or 1
+    end
+    return if hover then self.theme.ElementStrokeHoverTransparency else self.theme.ElementStrokeTransparency
+end
+
 function Window:_wireElementHover(element, options)
     local theme = self.theme
     -- [[Containers may scope the hover to a sub-frame (the collapsible
@@ -9190,7 +9196,7 @@ function Window:_wireElementHover(element, options)
             return         end
         motion.tween(
             element.stroke,
-            { Transparency = theme.ElementStrokeHoverTransparency, Color = theme.ElementStrokeHover },
+            { Transparency = self:_elementStrokeTransparency(element, true), Color = theme.ElementStrokeHover },
             "snappy"
         )
         motion.tween(element.title, { TextColor3 = theme[titleHoverKey] }, "snappy")
@@ -9202,7 +9208,7 @@ function Window:_wireElementHover(element, options)
     self:ConnectFor(element, hoverTarget.MouseLeave, function()
         motion.tween(
             element.stroke,
-            { Transparency = theme.ElementStrokeTransparency, Color = theme.ElementStroke },
+            { Transparency = self:_elementStrokeTransparency(element, false), Color = theme.ElementStroke },
             "snappy"
         )
         motion.tween(element.title, { TextColor3 = theme[titleRestKey] }, "snappy")
@@ -9381,9 +9387,9 @@ function Window:_reveal(instance, targets, animate, tweenInfo)
 end
 
 function Window:_revealCommon(element, animate)
-    self:_reveal(element.stroke, { Transparency = self.theme.ElementStrokeTransparency }, animate)
+    self:_reveal(element.stroke, { Transparency = self:_elementStrokeTransparency(element, false) }, animate)
     self:_reveal(element.title, { TextTransparency = 0 }, animate)
-    self:_reveal(element.main, { BackgroundTransparency = self.theme.ElementTransparency or 0 }, animate)
+    self:_reveal(element.main, { BackgroundTransparency = self:_elementBackgroundTransparency(element) }, animate)
     if element.iconLabel then
         self:_reveal(element.iconLabel, { ImageTransparency = 0 }, animate)
     end
@@ -9699,7 +9705,6 @@ function state.new(tab, frame)
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = frame.name or frame.Name or "Button",
-        description = frame.description or frame.Description,
         icon = tab.window:ResolveIcon(frame.icon or frame.Icon),
         compact = tab.compact or false,
         callback = frame.callback or frame.Callback or function() end,
@@ -9774,7 +9779,7 @@ function state:_buildFull()
             :Create(
                 self.stroke,
                 element,
-                { Transparency = self.window.theme.ElementStrokeTransparency }
+                { Transparency = self.window:_elementStrokeTransparency(self, false) }
             )
             :Play()
     end)
@@ -9859,7 +9864,7 @@ function state:_buildCompact()
             :Create(
                 self.stroke,
                 element,
-                { Transparency = self.window.theme.ElementStrokeTransparency }
+                { Transparency = self.window:_elementStrokeTransparency(self, false) }
             )
             :Play()
     end)
@@ -9904,7 +9909,6 @@ export type ChangelogEntry = {
     game: string?,
     gameId: string?,
     title: string?,
-    description: string?,
     changes: { ChangelogChange },
 }
 type FadeItem = {
@@ -9995,14 +9999,12 @@ local function normalizeEntry(raw): ChangelogEntry
         gameId = read(properties, "placeId", "PlaceId")
     end
     local title = read(properties, "title", "Title")
-    local description = read(properties, "description", "Description")
     return {
         version = tostring(version or ""),
         date = tostring(date or ""),
         game = if game ~= nil and tostring(game) ~= "" then tostring(game) else nil,
         gameId = if gameId ~= nil and tostring(gameId) ~= "" then tostring(gameId) else nil,
         title = if title ~= nil and tostring(title) ~= "" then tostring(title) else nil,
-        description = if description ~= nil and tostring(description) ~= "" then tostring(description) else nil,
         changes = changes,
     }
 end
@@ -10035,7 +10037,6 @@ function Changelog.new(tab, properties)
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = tostring(read(properties, "name", "Name") or "Changelog"),
-        description = tostring(read(properties, "description", "Description") or ""),
         emptyText = tostring(read(properties, "emptyText", "EmptyText") or "No changelog entries yet."),
         entries = entries,
         _entryFrames = {},
@@ -10081,22 +10082,6 @@ function Changelog.new(tab, properties)
         Parent = self.main,
     }, { TextColor3 = "TitlingColor", FontFace = "TitleFont" })
     self.window:_bindLocale(self.title, "Text", self.name)
-    self.descriptionLabel = self.window:Create("TextLabel", {
-        Name = "Description",
-        Size = UDim2.new(1, 0, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        RichText = true,
-        TextSize = 12,
-        TextWrapped = true,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        LayoutOrder = 2,
-        TextTransparency = 1,
-        Visible = self.description ~= "",
-        Parent = self.main,
-    }, { TextColor3 = "PlaceholderColor", FontFace = "Font" })
-    self.window:_bindLocale(self.descriptionLabel, "Text", self.description)
     self.history = self.window:Create("Frame", {
         Name = "History",
         Size = UDim2.new(1, 0, 0, 0),
@@ -10112,7 +10097,6 @@ function Changelog.new(tab, properties)
         Parent = self.history,
     })
     table.insert(self._fadeItems, { instance = self.title, property = "TextTransparency", shownValue = 0 })
-    table.insert(self._fadeItems, { instance = self.descriptionLabel, property = "TextTransparency", shownValue = 0.7 })
     self:_render()
     return self
 end
@@ -10163,8 +10147,8 @@ function Changelog:_renderEntry(entry: ChangelogEntry, index: number)
         SortOrder = Enum.SortOrder.LayoutOrder,
         Parent = card,
     })
-    self:_addFade(card, "BackgroundTransparency", self.window.theme.ElementTransparency or 0)
-    self:_addFade(stroke, "Transparency", self.window.theme.ElementStrokeTransparency or 0)
+    self:_addFade(card, "BackgroundTransparency", self.window:_elementBackgroundTransparency(self))
+    self:_addFade(stroke, "Transparency", self.window:_elementStrokeTransparency(self, false))
     local header = self.window:Create("Frame", {
         Name = "Header",
         Size = UDim2.new(1, 0, 0, 22),
@@ -10198,9 +10182,6 @@ function Changelog:_renderEntry(entry: ChangelogEntry, index: number)
     local metadata = formatMetadata(entry)
     if metadata ~= "" then
         self:_makeLabel(card, "Metadata", metadata, 11, 0.55, 2)
-    end
-    if entry.description then
-        self:_makeLabel(card, "Description", entry.description, 12, 0.7, 3)
     end
     local changesFrame = self.window:Create("Frame", {
         Name = "Changes",
@@ -10279,7 +10260,7 @@ function Changelog:_render()
     table.clear(self._dynamicFrames)
     local rootFadeItems = {}
     for _, item in ipairs(self._fadeItems) do
-        if item.instance == self.title or item.instance == self.descriptionLabel then
+        if item.instance == self.title then
             table.insert(rootFadeItems, item)
         end
     end
@@ -10351,7 +10332,6 @@ Collapsible.__type = "CollapsibleGroup"
 local constructors = {
     Button = function(parent, props) return require(script.Parent.button).new(parent, props) end,
     Toggle = function(parent, props) return require(script.Parent.toggle).new(parent, props) end,
-    Switch = function(parent, props) return require(script.Parent.toggle).new(parent, props) end,
     Slider = function(parent, props) return require(script.Parent.slider).new(parent, props) end,
     Dropdown = function(parent, props) return require(script.Parent.dropdown).new(parent, props) end,
     Input = function(parent, props) return require(script.Parent.input).new(parent, props) end,
@@ -10364,7 +10344,7 @@ local constructors = {
     Divider = function(parent, props) return require(script.Parent.divider).new(parent, props) end,
     Group = function(parent, props) return require(script.Parent.group).new(parent, props) end,
 }
-local compactTypes = { Button = true, Toggle = true, Switch = true, Slider = true, Stat = true, Group = true }
+local compactTypes = { Button = true, Toggle = true, Slider = true, Stat = true, Group = true }
 
 local function validate(definitions, path, ancestors, depth)
     assert(type(definitions) == "table", path .. " must be an array")
@@ -10412,10 +10392,11 @@ local function buildChildren(parent, definitions)
             if kind == "Group" then
                 child = parent:CreateGroup(groupProps(spec))
             else
-                child = parent:_add(string.lower(if kind == "Switch" then "Toggle" else kind), spec)
+                child = parent:_add(string.lower(kind), spec)
             end
         else
             child = constructors[kind](parent, if kind == "Group" then groupProps(spec) else spec)
+            child._collapsibleChild = true
             table.insert(parent.elements, child)
             ordering(child, #parent.elements * 10)
             parent.window:_restoreLate(child)
@@ -10441,7 +10422,6 @@ function Collapsible.new(tab, props)
     local self = setmetatable({
         tab = tab, window = tab.window, elements = {}, connections = {},
         name = props.name or props.Name or "Collapsible Group",
-        description = props.description or props.Description,
         icon = tab.window:ResolveIcon(props.icon or props.Icon),
         deriveFlagFromName = tab.deriveFlagFromName,
         forgetState = props.forgetState or tab.forgetState,
@@ -11081,7 +11061,6 @@ function state.new(tab, a49)
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = a49.name or a49.Name or "Dropdown",
-        description = a49.description or a49.Description,
         icon = tab.window:ResolveIcon(a49.icon or a49.Icon),
         forgetState = a49.forgetState or a49.ForgetState or tab.forgetState,
         flag = a49.flag
@@ -11591,7 +11570,7 @@ function state.new(tab, a49)
         Dropdown.tweenService:Create(self.hoverOverlay, a30, { BackgroundTransparency = 0.97 }):Play()
         Dropdown.tweenService
             :Create(self.stroke, a30, {
-                Transparency = self.window.theme.ElementStrokeHoverTransparency,
+                Transparency = self.window:_elementStrokeTransparency(self, true),
                 Color = self.window.theme.ElementStrokeHover,
             })
             :Play()
@@ -11602,7 +11581,7 @@ function state.new(tab, a49)
         Dropdown.tweenService:Create(self.hoverOverlay, a30, { BackgroundTransparency = 1 }):Play()
         Dropdown.tweenService
             :Create(self.stroke, a30, {
-                Transparency = self.window.theme.ElementStrokeTransparency,
+                Transparency = self.window:_elementStrokeTransparency(self, false),
                 Color = self.window.theme.ElementStroke,
             })
             :Play()
@@ -12015,14 +11994,14 @@ function state:_open()
         :Create(
             self.panel,
             a31,
-            { BackgroundTransparency = self.window.theme.ElementTransparency or 0 }
+            { BackgroundTransparency = self.window:_elementBackgroundTransparency(self) }
         )
         :Play()
     Dropdown.tweenService
         :Create(
             self.panelStroke,
             a31,
-            { Transparency = self.window.theme.ElementStrokeTransparency }
+            { Transparency = self.window:_elementStrokeTransparency(self, false) }
         )
         :Play()
     Dropdown.tweenService
@@ -12301,9 +12280,9 @@ end
 
 function state:_setShown(a160, a161)
             local w = self.window
-    w:_reveal(self.stroke, { Transparency = if a160 then w.theme.ElementStrokeTransparency else 1 }, a161)
+    w:_reveal(self.stroke, { Transparency = if a160 then w:_elementStrokeTransparency(self, false) else 1 }, a161)
     w:_reveal(self.title, { TextTransparency = if a160 then 0 else 1 }, a161)
-    w:_reveal(self.top, { BackgroundTransparency = if a160 then (w.theme.ElementTransparency or 0) else 1 }, a161)
+    w:_reveal(self.top, { BackgroundTransparency = if a160 then (w:_elementBackgroundTransparency(self)) else 1 }, a161)
     if self.iconLabel then
         w:_reveal(self.iconLabel, { ImageTransparency = if a160 then 0 else 1 }, a161)
     end
@@ -12423,6 +12402,9 @@ function state:_add(a13, a14)
     end
 
     local element = require(script.Parent[a13]).new(self, a14)
+    if self._collapsibleChild then
+        element._collapsibleChild = true
+    end
     table.insert(self.elements, element)
     tab(element, #self.elements * 10)
     self.window:_restoreLate(element)
@@ -12482,9 +12464,6 @@ end
 function state:CreateToggle(a18)
     return self:_add("toggle", a18)
 end
-function state:CreateSwitch(a19)
-    return self:_add("toggle", a19)
-end
 function state:CreateStat(a20)
     return self:_add("stat", a20)
 end
@@ -12515,6 +12494,9 @@ function state:_addGroup(a26)
     end
 
     local a27 = state.new(self, a26)
+    if self._collapsibleChild then
+        a27._collapsibleChild = true
+    end
     table.insert(self.elements, a27)
     a27.main.LayoutOrder = #self.elements * 10
     self:_reflowRow()
@@ -12594,7 +12576,6 @@ function state.new(tab, placeholderLabel)
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = placeholderLabel.name or placeholderLabel.Name or "Input",
-        description = placeholderLabel.description or placeholderLabel.Description,
         icon = tab.window:ResolveIcon(placeholderLabel.icon or placeholderLabel.Icon),
         forgetState = placeholderLabel.forgetState or placeholderLabel.ForgetState or tab.forgetState,
         placeholder = placeholderLabel.placeholder or placeholderLabel.Placeholder or "",
@@ -12891,7 +12872,6 @@ function state.new(tab, a22)
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = a22.name or a22.Name or "Keybind",
-        description = a22.description or a22.Description,
         icon = tab.window:ResolveIcon(a22.icon or a22.Icon),
         forgetState = a22.forgetState or a22.ForgetState or tab.forgetState,
         editable = a22.editable or a22.Editable or false,
@@ -13448,7 +13428,6 @@ function state.new(tab, a22)
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = a22.name or a22.Name or "Progress",
-        description = a22.description or a22.Description,
         icon = tab.window:ResolveIcon(a22.icon or a22.Icon),
 
         min = a25,
@@ -13977,7 +13956,6 @@ function state.new(ownerTab, a31)
         tab = assert(ownerTab, "Missing argument #1 (Tab expected)"),
         window = ownerTab.window,
         name = a31.name or a31.Name or "Slider",
-        description = a31.description or a31.Description,
         icon = ownerTab.window:ResolveIcon(a31.icon or a31.Icon),
         forgetState = a31.forgetState or a31.ForgetState or ownerTab.forgetState,
 
@@ -14583,7 +14561,6 @@ function state.new(tab, a25)
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = a25.name or a25.Name or "Statistic",
-        description = a25.description or a25.Description,
         icon = tab.window:ResolveIcon(a25.icon or a25.Icon),
 
         value = if (a25.value or a25.Value) ~= nil then (a25.value or a25.Value) else 0,
@@ -15087,12 +15064,12 @@ function state:_setShown(a66, a67)
     if self.compact then
         w:_reveal(
             self.main,
-            { BackgroundTransparency = if a66 then (self.window.theme.ElementTransparency or 0) else 1 },
+            { BackgroundTransparency = if a66 then (self.window:_elementBackgroundTransparency(self)) else 1 },
             a67
         )
         w:_reveal(
             self.stroke,
-            { Transparency = if a66 then self.window.theme.ElementStrokeTransparency else 1 },
+            { Transparency = if a66 then self.window:_elementStrokeTransparency(self, false) else 1 },
             a67
         )
         w:_reveal(self.card, { BackgroundTransparency = if a66 then 0 else 1 }, a67)
@@ -15410,9 +15387,6 @@ function state:CreateToggle(a28)
     return self:_register(require(script.Parent.toggle).new(self, a28))
 end
 
-function state:CreateSwitch(a29)
-    return self:CreateToggle(a29)
-end
 
 function state:CreateSection(a30)
     return self:_register(require(script.Parent.section).new(self, a30))
@@ -16024,8 +15998,7 @@ function state.new(tab, element)
     local self = setmetatable({
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
-        name = element.name or element.Name or "Switch",
-        description = element.description or element.Description,
+        name = element.name or element.Name or "Toggle",
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
         forgetState = element.forgetState or element.ForgetState or tab.forgetState,
         compact = tab.compact or false,
@@ -16033,7 +16006,7 @@ function state.new(tab, element)
             or element.Flag
             or (
                 not (element.forgetState or element.ForgetState or tab.forgetState)
-                    and tab.deriveFlagFromName(element.name or element.Name or "Switch")
+                    and tab.deriveFlagFromName(element.name or element.Name or "Toggle")
                 or nil
             ),
 
@@ -16204,7 +16177,7 @@ function state:_buildFull()
             :Create(
                 self.stroke,
                 callback,
-                { Transparency = self.window.theme.ElementStrokeTransparency }
+                { Transparency = self.window:_elementStrokeTransparency(self, false) }
             )
             :Play()
     end)
@@ -16315,7 +16288,7 @@ function state:_buildCompact()
             :Create(
                 self.stroke,
                 callback,
-                { Transparency = self.window.theme.ElementStrokeTransparency }
+                { Transparency = self.window:_elementStrokeTransparency(self, false) }
             )
             :Play()
     end)
@@ -29296,8 +29269,8 @@ return {
     ElementHover = Color3.fromRGB(40, 40, 40),
     ElementPressed = Color3.fromRGB(22, 22, 22),
     SecondaryElement = Color3.fromRGB(25, 25, 25),
-    Stroke = Color3.fromRGB(48, 48, 48),
-    SecondaryStroke = Color3.fromRGB(35, 35, 35),
+    Stroke = Color3.fromRGB(64, 64, 64),
+    SecondaryStroke = Color3.fromRGB(48, 48, 48),
     PrimaryText = Color3.fromRGB(255, 255, 255),
     SecondaryText = Color3.fromRGB(200, 200, 200),
     MutedText = Color3.fromRGB(178, 178, 178),
@@ -29321,7 +29294,7 @@ return {
         ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 35, 35)),
     }),
     ShadowColor = Color3.fromRGB(20, 20, 20),
-    ElementStroke = Color3.fromRGB(35, 35, 35),
+    ElementStroke = Color3.fromRGB(58, 58, 58),
     CardSurface = Color3.fromRGB(30, 30, 30),
     ElementGradient = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 30, 30)),
@@ -29329,9 +29302,9 @@ return {
         ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 35, 35)),
     }),
     ElementStrokeGradient = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(48, 48, 48)),
-        ColorSequenceKeypoint.new(0.9999, Color3.fromRGB(58, 58, 58)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(48, 48, 48)),
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(56, 56, 56)),
+        ColorSequenceKeypoint.new(0.9999, Color3.fromRGB(72, 72, 72)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(56, 56, 56)),
     }),
     TabColor = Color3.fromRGB(255, 255, 255),
     TabBackground = ColorSequence.new(Color3.fromRGB(50, 50, 50), Color3.fromRGB(35, 35, 35)),
@@ -29347,9 +29320,12 @@ return {
     LiveAnimation = false,
     DarkToggleOverlay = true,
     ElementTransparency = 0,
+    CollapsibleChildElementTransparency = 0.75,
     ElementStrokeTransparency = 0,
+    CollapsibleChildElementStrokeTransparency = 1,
     ElementStrokeHoverTransparency = 0,
-    ElementStrokeHover = Color3.fromRGB(50, 50, 50),
+    CollapsibleChildElementStrokeHoverTransparency = 1,
+    ElementStrokeHover = Color3.fromRGB(82, 82, 82),
     ElementCornerRadius = UDim.new(0, 12),
     ElementTextHoverColor = Color3.fromRGB(255, 255, 255),
     TitlingColor = Color3.fromRGB(255, 255, 255),
@@ -29368,7 +29344,7 @@ return {
     FieldTransparency = 0.9,
     FieldGlow = Color3.fromRGB(255, 255, 255),
     PlaceholderColor = Color3.fromRGB(178, 178, 178),
-    SurfaceStroke = Color3.fromRGB(255, 255, 255),
+    SurfaceStroke = Color3.fromRGB(72, 72, 72),
     NeutralButton = Color3.fromRGB(38, 38, 38),
     NeutralButtonHover = Color3.fromRGB(54, 54, 54),
     NeutralButtonStroke = Color3.fromRGB(255, 255, 255),
@@ -32833,106 +32809,106 @@ end)() end,
 local LineOffsets = {
     [2] = 12,
     [3] = 185,
-    [5] = 613,
-    [6] = 648,
-    [7] = 693,
-    [8] = 599,
-    [9] = 810,
-    [10] = 920,
-    [11] = 1165,
-    [12] = 1392,
-    [13] = 1699,
-    [14] = 2417,
-    [15] = 4808,
-    [16] = 5154,
-    [17] = 5793,
-    [18] = 5854,
-    [19] = 6224,
-    [20] = 6601,
-    [22] = 9593,
-    [23] = 9679,
-    [24] = 9892,
-    [25] = 10337,
-    [26] = 10660,
-    [27] = 10830,
-    [28] = 10975,
-    [29] = 12350,
-    [30] = 12561,
-    [31] = 12833,
-    [32] = 13394,
-    [33] = 13842,
-    [34] = 13928,
-    [35] = 14515,
-    [36] = 15139,
-    [37] = 15534,
-    [38] = 15664,
-    [39] = 15828,
-    [40] = 15982,
-    [42] = 16482,
-    [43] = 16505,
-    [44] = 16522,
-    [45] = 16555,
-    [46] = 16677,
-    [47] = 16701,
-    [48] = 16750,
-    [49] = 16457,
-    [50] = 16880,
-    [51] = 17183,
-    [52] = 17214,
-    [53] = 16869,
-    [54] = 17257,
-    [55] = 17277,
-    [56] = 17309,
-    [57] = 17239,
-    [58] = 17416,
-    [59] = 17475,
-    [60] = 17535,
-    [62] = 17661,
-    [63] = 17826,
-    [64] = 17646,
-    [65] = 18386,
-    [66] = 18689,
-    [67] = 19353,
-    [68] = 21145,
-    [69] = 22294,
-    [70] = 23822,
-    [71] = 17888,
-    [72] = 29074,
-    [73] = 29140,
-    [74] = 29206,
-    [75] = 29281,
-    [76] = 29381,
-    [77] = 29447,
-    [78] = 29522,
-    [79] = 29597,
-    [80] = 29672,
-    [81] = 29747,
-    [82] = 28968,
-    [83] = 29813,
-    [84] = 29911,
-    [85] = 30089,
-    [86] = 30141,
-    [87] = 30171,
-    [88] = 30422,
-    [89] = 30471,
-    [90] = 30924,
-    [91] = 30942,
-    [92] = 31094,
-    [93] = 31193,
-    [94] = 31215,
-    [95] = 31265,
-    [96] = 31591,
-    [97] = 31627,
-    [98] = 31645,
-    [99] = 31994,
-    [100] = 32006,
-    [101] = 32057,
-    [102] = 32076,
-    [103] = 32318,
-    [104] = 32362,
-    [105] = 32587,
-    [106] = 32615,
-    [107] = 32626,
+    [5] = 600,
+    [6] = 635,
+    [7] = 680,
+    [8] = 586,
+    [9] = 797,
+    [10] = 907,
+    [11] = 1152,
+    [12] = 1379,
+    [13] = 1686,
+    [14] = 2404,
+    [15] = 4795,
+    [16] = 5141,
+    [17] = 5780,
+    [18] = 5841,
+    [19] = 6211,
+    [20] = 6588,
+    [22] = 9599,
+    [23] = 9685,
+    [24] = 9897,
+    [25] = 10318,
+    [26] = 10640,
+    [27] = 10810,
+    [28] = 10955,
+    [29] = 12329,
+    [30] = 12543,
+    [31] = 12814,
+    [32] = 13374,
+    [33] = 13821,
+    [34] = 13907,
+    [35] = 14493,
+    [36] = 15116,
+    [37] = 15508,
+    [38] = 15638,
+    [39] = 15802,
+    [40] = 15956,
+    [42] = 16455,
+    [43] = 16478,
+    [44] = 16495,
+    [45] = 16528,
+    [46] = 16650,
+    [47] = 16674,
+    [48] = 16723,
+    [49] = 16430,
+    [50] = 16853,
+    [51] = 17156,
+    [52] = 17187,
+    [53] = 16842,
+    [54] = 17230,
+    [55] = 17250,
+    [56] = 17282,
+    [57] = 17212,
+    [58] = 17389,
+    [59] = 17448,
+    [60] = 17508,
+    [62] = 17634,
+    [63] = 17799,
+    [64] = 17619,
+    [65] = 18359,
+    [66] = 18662,
+    [67] = 19326,
+    [68] = 21118,
+    [69] = 22267,
+    [70] = 23795,
+    [71] = 17861,
+    [72] = 29047,
+    [73] = 29113,
+    [74] = 29179,
+    [75] = 29254,
+    [76] = 29357,
+    [77] = 29423,
+    [78] = 29498,
+    [79] = 29573,
+    [80] = 29648,
+    [81] = 29723,
+    [82] = 28941,
+    [83] = 29789,
+    [84] = 29887,
+    [85] = 30065,
+    [86] = 30117,
+    [87] = 30147,
+    [88] = 30398,
+    [89] = 30447,
+    [90] = 30900,
+    [91] = 30918,
+    [92] = 31070,
+    [93] = 31169,
+    [94] = 31191,
+    [95] = 31241,
+    [96] = 31567,
+    [97] = 31603,
+    [98] = 31621,
+    [99] = 31970,
+    [100] = 31982,
+    [101] = 32033,
+    [102] = 32052,
+    [103] = 32294,
+    [104] = 32338,
+    [105] = 32563,
+    [106] = 32591,
+    [107] = 32602,
 }
 
 -- [[Misc AOT variable imports]]

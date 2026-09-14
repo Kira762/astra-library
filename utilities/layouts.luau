@@ -26,6 +26,7 @@ export type Layout = {
 
         tabStripTop: number?,
     tabStripHeight: number?,
+    tabStripInset: number?,
 
         railWidth: number?,
     railCollapsedWidth: number?,
@@ -53,6 +54,11 @@ layouts.top = {
 
     tabStripTop = tabStripTopOffset,
     tabStripHeight = tabStripRowHeight,
+
+    -- [[Margin between the window edge and the tab strip. The strip's]]
+    -- [[ScrollingFrame is inset by this much on each side, so overflowing]]
+    -- [[tabs clip inside the window instead of running into its border.]]
+    tabStripInset = 22,
 
     pageDirection = Enum.FillDirection.Horizontal,
 

@@ -215,6 +215,10 @@ function state:Select(a24)
         self:_applyVisual("selected", element)
     end
 
+    -- [[Topbar mode only (a no-op on the sidebar): the selected pill]]
+    -- [[must stay in view as the user moves through a long strip.]]
+    self.window:_scrollSelectedTabIntoView(not a25)
+
     for _, tab in self.window.tabs do
         if tab ~= self.window.selectedTab then
             tab:Deselect(a25)

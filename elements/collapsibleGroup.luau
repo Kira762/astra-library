@@ -185,6 +185,18 @@ function Collapsible.new(tab, props)
         BackgroundTransparency = 1, BorderSizePixel = 0,
         ClipsDescendants = true, Visible = false, Parent = self.main,
     })
+    -- [[The expanded content sits on a connected inner surface rather than
+    -- [[floating directly on the page. It follows the same measured height as
+    -- [[the clipper, so the background grows with the number and size of the
+    -- [[children. It is created before the content frame so controls paint
+    -- [[above the panel's gradient and stroke.]]
+    self.bodyPanel = w:Create("Frame", {
+        Name = "ContentsPanel", Position = UDim2.fromOffset(0, 0),
+        Size = UDim2.new(1, 0, 0, 0), BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false,
+        Parent = self.bodyClip,
+    }, { BackgroundTransparency = "ElementTransparency" })
+    self.bodyPanelStroke = w:StyleElementPanel(self.bodyPanel)
     self.body = w:Create("Frame", {
         Name = "Contents", Position = UDim2.fromOffset(0, 1),
         Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
@@ -225,12 +237,14 @@ function Collapsible:_resize(animate)
     end
     local size = UDim2.new(1, -20, 0, height)
     local clipSize = UDim2.new(1, 20, 0, clipHeight)
+    local panelSize = UDim2.new(1, 0, 0, clipHeight)
     self._resizeRevision = (self._resizeRevision or 0) + 1
     local revision = self._resizeRevision
     local function finish()
         if not self.window.unloaded and self.main.Parent and self._resizeRevision == revision and not self._expanded then
             self.body.Visible = false
             self.bodyClip.Visible = false
+            self.bodyPanel.Visible = false
         end
     end
     if animate and self._shown then
@@ -240,12 +254,14 @@ function Collapsible:_resize(animate)
         -- already at target), so the settle path runs directly.
         local mainTween = motion.tween(self.main, { Size = size }, "snappy", finish)
         motion.tween(self.bodyClip, { Size = clipSize }, "snappy")
+        motion.tween(self.bodyPanel, { Size = panelSize }, "snappy")
         if not mainTween then finish() end
     else
         motion.cancel(self.main)
         motion.cancel(self.bodyClip)
         self.main.Size = size
         self.bodyClip.Size = clipSize
+        self.bodyPanel.Size = panelSize
         finish()
     end
 end
@@ -256,6 +272,9 @@ function Collapsible:_setExpanded(expanded, animate)
     if expanded then
         self.body.Visible = true
         self.bodyClip.Visible = true
+        self.bodyPanel.Visible = true
+        self.bodyPanel.BackgroundTransparency = if self._shown then self.window.theme.ElementTransparency or 0 else 1
+        self.bodyPanelStroke.Transparency = if self._shown then self.window.theme.ElementStrokeTransparency else 1
         for _, child in ipairs(self.elements) do child:_setShown(self._shown, false) end
     else
         -- End transient editing, but never reset values or trigger callbacks.
@@ -293,6 +312,8 @@ function Collapsible:_setShown(shown, animate)
     if self.descriptionLabel then
         w:_reveal(self.descriptionLabel, { TextTransparency = if shown then 0.45 else 1 }, animate)
     end
+    w:_reveal(self.bodyPanel, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
+    w:_reveal(self.bodyPanelStroke, { Transparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
     if self._expanded then
         for _, child in ipairs(self.elements) do child:_setShown(shown, animate) end
     end

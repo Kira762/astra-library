@@ -57,6 +57,7 @@ assert(group.bodyClip.ClipsDescendants, "Only the body clipper masks content")
 assert(group.bodyClip.Size.X.Scale == 1 and group.bodyClip.Size.X.Offset == 20, "Clipper bleeds 20px for full-width children")
 assert(group.body.Size.X.Scale == 1 and group.body.Size.X.Offset == 0, "Body spans the clipper")
 assert(group.body.Position.Y.Offset == 1, "Content keeps 1px of stroke breathing room")
+assert(not group.bodyPanel.Visible and group.bodyPanelStroke ~= nil, "Inner content panel starts hidden with its styled stroke")
 local headerCorner
 for _, child in group.header:GetChildren() do
     if child.ClassName == "UICorner" then headerCorner = child end
@@ -76,6 +77,8 @@ group.contentLayout.AbsoluteContentSize = Vector2.new(400, 900)
 group.interact.Activated:Fire()
 TestPump(0.4)
 assert(group._expanded and group.body.Visible and group.bodyClip.Visible and group.main.Size.Y.Offset == group.headerHeight + 907, "Expand to content height")
+assert(group.bodyPanel.Visible and group.bodyPanel.Size.Y.Offset == 902, "Inner panel expands to the measured content height plus breathing room")
+assert(group.bodyPanel.Size.X.Scale == 1 and group.bodyPanel.Size.X.Offset == 0, "Inner panel spans the content surface")
 assert(group.chevron.Rotation == 90, "Chevron animates open")
 assert(not other._expanded, "Sibling expansion is independent")
 group.interact.Activated:Fire()

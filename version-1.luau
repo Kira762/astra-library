@@ -11119,6 +11119,18 @@ function Collapsible.new(tab, props)
         BackgroundTransparency = 1, BorderSizePixel = 0,
         ClipsDescendants = true, Visible = false, Parent = self.main,
     })
+    -- [[The expanded content sits on a connected inner surface rather than
+    -- [[floating directly on the page. It follows the same measured height as
+    -- [[the clipper, so the background grows with the number and size of the
+    -- [[children. It is created before the content frame so controls paint
+    -- [[above the panel's gradient and stroke.]]
+    self.bodyPanel = w:Create("Frame", {
+        Name = "ContentsPanel", Position = UDim2.fromOffset(0, 0),
+        Size = UDim2.new(1, 0, 0, 0), BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false,
+        Parent = self.bodyClip,
+    }, { BackgroundTransparency = "ElementTransparency" })
+    self.bodyPanelStroke = w:StyleElementPanel(self.bodyPanel)
     self.body = w:Create("Frame", {
         Name = "Contents", Position = UDim2.fromOffset(0, 1),
         Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
@@ -11159,12 +11171,14 @@ function Collapsible:_resize(animate)
     end
     local size = UDim2.new(1, -20, 0, height)
     local clipSize = UDim2.new(1, 20, 0, clipHeight)
+    local panelSize = UDim2.new(1, 0, 0, clipHeight)
     self._resizeRevision = (self._resizeRevision or 0) + 1
     local revision = self._resizeRevision
     local function finish()
         if not self.window.unloaded and self.main.Parent and self._resizeRevision == revision and not self._expanded then
             self.body.Visible = false
             self.bodyClip.Visible = false
+            self.bodyPanel.Visible = false
         end
     end
     if animate and self._shown then
@@ -11174,12 +11188,14 @@ function Collapsible:_resize(animate)
         -- already at target), so the settle path runs directly.
         local mainTween = motion.tween(self.main, { Size = size }, "snappy", finish)
         motion.tween(self.bodyClip, { Size = clipSize }, "snappy")
+        motion.tween(self.bodyPanel, { Size = panelSize }, "snappy")
         if not mainTween then finish() end
     else
         motion.cancel(self.main)
         motion.cancel(self.bodyClip)
         self.main.Size = size
         self.bodyClip.Size = clipSize
+        self.bodyPanel.Size = panelSize
         finish()
     end
 end
@@ -11190,6 +11206,9 @@ function Collapsible:_setExpanded(expanded, animate)
     if expanded then
         self.body.Visible = true
         self.bodyClip.Visible = true
+        self.bodyPanel.Visible = true
+        self.bodyPanel.BackgroundTransparency = if self._shown then self.window.theme.ElementTransparency or 0 else 1
+        self.bodyPanelStroke.Transparency = if self._shown then self.window.theme.ElementStrokeTransparency else 1
         for _, child in ipairs(self.elements) do child:_setShown(self._shown, false) end
     else
         -- End transient editing, but never reset values or trigger callbacks.
@@ -11227,6 +11246,8 @@ function Collapsible:_setShown(shown, animate)
     if self.descriptionLabel then
         w:_reveal(self.descriptionLabel, { TextTransparency = if shown then 0.45 else 1 }, animate)
     end
+    w:_reveal(self.bodyPanel, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
+    w:_reveal(self.bodyPanelStroke, { Transparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
     if self._expanded then
         for _, child in ipairs(self.elements) do child:_setShown(shown, animate) end
     end
@@ -33459,86 +33480,86 @@ local LineOffsets = {
     [24] = 10207,
     [25] = 10514,
     [26] = 10935,
-    [27] = 11257,
-    [28] = 11427,
-    [29] = 11572,
-    [30] = 12946,
-    [31] = 13160,
-    [32] = 13431,
-    [33] = 13991,
-    [34] = 14438,
-    [35] = 14524,
-    [36] = 15110,
-    [37] = 15733,
-    [38] = 16129,
-    [39] = 16259,
-    [40] = 16423,
-    [41] = 16577,
-    [43] = 17076,
-    [44] = 17099,
-    [45] = 17116,
-    [46] = 17149,
-    [47] = 17271,
-    [48] = 17295,
-    [49] = 17344,
-    [50] = 17051,
-    [51] = 17474,
-    [52] = 17777,
-    [53] = 17808,
-    [54] = 17463,
-    [55] = 17851,
-    [56] = 17871,
-    [57] = 17903,
-    [58] = 17833,
-    [59] = 18010,
-    [60] = 18069,
-    [61] = 18129,
-    [63] = 18255,
-    [64] = 18420,
-    [65] = 18240,
-    [66] = 18980,
-    [67] = 19283,
-    [68] = 19947,
-    [69] = 21739,
-    [70] = 22888,
-    [71] = 24416,
-    [72] = 18482,
-    [73] = 29668,
-    [74] = 29734,
-    [75] = 29800,
-    [76] = 29875,
-    [77] = 29978,
-    [78] = 30044,
-    [79] = 30119,
-    [80] = 30194,
-    [81] = 30269,
-    [82] = 30344,
-    [83] = 29562,
-    [84] = 30410,
-    [85] = 30508,
-    [86] = 30686,
-    [87] = 30738,
-    [88] = 30768,
-    [89] = 31019,
-    [90] = 31068,
-    [91] = 31521,
-    [92] = 31539,
-    [93] = 31691,
-    [94] = 31790,
-    [95] = 31812,
-    [96] = 31862,
-    [97] = 32187,
-    [98] = 32223,
-    [99] = 32241,
-    [100] = 32590,
-    [101] = 32602,
-    [102] = 32653,
-    [103] = 32672,
-    [104] = 32923,
-    [105] = 32967,
-    [106] = 33192,
-    [107] = 33220,
-    [108] = 33231,
+    [27] = 11278,
+    [28] = 11448,
+    [29] = 11593,
+    [30] = 12967,
+    [31] = 13181,
+    [32] = 13452,
+    [33] = 14012,
+    [34] = 14459,
+    [35] = 14545,
+    [36] = 15131,
+    [37] = 15754,
+    [38] = 16150,
+    [39] = 16280,
+    [40] = 16444,
+    [41] = 16598,
+    [43] = 17097,
+    [44] = 17120,
+    [45] = 17137,
+    [46] = 17170,
+    [47] = 17292,
+    [48] = 17316,
+    [49] = 17365,
+    [50] = 17072,
+    [51] = 17495,
+    [52] = 17798,
+    [53] = 17829,
+    [54] = 17484,
+    [55] = 17872,
+    [56] = 17892,
+    [57] = 17924,
+    [58] = 17854,
+    [59] = 18031,
+    [60] = 18090,
+    [61] = 18150,
+    [63] = 18276,
+    [64] = 18441,
+    [65] = 18261,
+    [66] = 19001,
+    [67] = 19304,
+    [68] = 19968,
+    [69] = 21760,
+    [70] = 22909,
+    [71] = 24437,
+    [72] = 18503,
+    [73] = 29689,
+    [74] = 29755,
+    [75] = 29821,
+    [76] = 29896,
+    [77] = 29999,
+    [78] = 30065,
+    [79] = 30140,
+    [80] = 30215,
+    [81] = 30290,
+    [82] = 30365,
+    [83] = 29583,
+    [84] = 30431,
+    [85] = 30529,
+    [86] = 30707,
+    [87] = 30759,
+    [88] = 30789,
+    [89] = 31040,
+    [90] = 31089,
+    [91] = 31542,
+    [92] = 31560,
+    [93] = 31712,
+    [94] = 31811,
+    [95] = 31833,
+    [96] = 31883,
+    [97] = 32208,
+    [98] = 32244,
+    [99] = 32262,
+    [100] = 32611,
+    [101] = 32623,
+    [102] = 32674,
+    [103] = 32693,
+    [104] = 32944,
+    [105] = 32988,
+    [106] = 33213,
+    [107] = 33241,
+    [108] = 33252,
 }
 
 -- [[Misc AOT variable imports]]

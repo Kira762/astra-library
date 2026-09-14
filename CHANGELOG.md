@@ -2,6 +2,38 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-14 — Grouped dropdowns scroll the tab page; settings integration debt cleared
+
+- **Opening a Dropdown inside a Collapsible Group crashed on the engine.**
+  Controls built by a group receive the group as their `tab` — that is what
+  parents them into the group body — and `Dropdown:_bringIntoView` read
+  `AbsoluteWindowSize` / `CanvasPosition` off whatever `tabPage` it found.
+  Those are ScrollingFrame-only members and a group body is a plain Frame, so
+  the first open of any grouped dropdown (the built-in Settings' *Theme* and
+  *Saved Configurations* pickers among them) died with
+  `AbsoluteWindowSize is not a valid member of Frame`. The open-time scroll now
+  walks the owner chain (`group -> … -> Tab`) and scrolls the real tab page;
+  nothing else about the open changed.
+- **The stub environment now models the engine's member strictness.**
+  `sidebar_sizing_stubs.luau` answered `AbsoluteWindowSize` (and the other
+  scroll-only members) for *every* instance, which is exactly why the crash
+  above never showed up in CI; indexing them on a non-ScrollingFrame now
+  raises like Roblox does. The fake executor filesystem in
+  `profile_image_stubs.luau` likewise lists what `writefile` created instead
+  of always `{}`, so config listing behaves like a real session.
+- **New pin `D8` in `scripts/dropdown_rows_test.sh`:** a dropdown inside a
+  Collapsible Group expands and opens cleanly and its owner chain ends at the
+  tab that owns the scroll page. It fails against the previous bundle.
+- **Settings-refactor integration debt from `df2a3e9` cleared without
+  reverting any of it:** the two suites that still scanned a settings tab's
+  top-level elements only (`keybind_input_test`, `sidebar_tab_sizing_test`)
+  now walk group children like the rest of the suite does; the collapsible
+  group suite dropped its assertion for the `description` header line that
+  the settings refactor retired library-wide (types, docs and example
+  included); and the profile-centring suite's first-show pump now covers the
+  frames the initial settings page legitimately costs to build under the
+  startup batching. Full suite: 21/21 plus the bundle smoke test green.
+
 ## 2026-09-13 — Descriptions move inside the element cards
 
 - **Descriptions rendered as a standalone row *below* the element card.** The

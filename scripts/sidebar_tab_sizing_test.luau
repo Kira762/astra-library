@@ -413,13 +413,21 @@ for _, tab in window._settingsTabs do
     end
 end
 expect(appearanceTab ~= nil, "T15 the Appearance settings tab exists")
-for _, el in appearanceTab.elements do
-    if el.name == "Profile side" then
-        sideDropdown = el
-    elseif el.name == "Show profile" then
-        showProfileToggle = el
+-- [[The Profile controls sit inside the Profile collapsible group now, so]]
+-- [[walk group children as well as the tab's top-level elements.]]
+local function scan(elements)
+    for _, el in elements do
+        if el.name == "Profile side" then
+            sideDropdown = el
+        elseif el.name == "Show profile" then
+            showProfileToggle = el
+        end
+        if el.elements then
+            scan(el.elements)
+        end
     end
 end
+scan(appearanceTab.elements)
 expect(sideDropdown ~= nil, "T15 the Profile side option exists")
 expect(showProfileToggle ~= nil, "T15 the Show profile toggle exists")
 

@@ -1061,7 +1061,17 @@ function state:_open()
 end
 
 function state:_bringIntoView()
-    local a117 = self.tab and self.tab.tabPage
+    -- [[Controls built inside a Collapsible Group receive the group as their]]
+    -- [[`tab` (that is what parents them into the group body), and an ordinary]]
+    -- [[Group nests one link deeper still. Only the real Tab's tabPage is a]]
+    -- [[ScrollingFrame: the group's body is a plain Frame, so reading]]
+    -- [[AbsoluteWindowSize/CanvasPosition off it throws on the engine. Walk]]
+    -- [[the owner chain up to the Tab before touching scroll members.]]
+    local host = self.tab
+    while host and host.__type ~= "Tab" do
+        host = host.tab
+    end
+    local a117 = host and host.tabPage
     if not a117 then
         return
     end

@@ -25,7 +25,7 @@ local defs = {
         { type = "Group", elements = { { type = "Toggle", name = "Nested toggle", value = true } } },
     } },
 }
-local group = tab:CreateCollapsibleGroup({ name = "LocalPlayer", icon = "user-round", description = "Player controls", elements = defs })
+local group = tab:CreateCollapsibleGroup({ name = "LocalPlayer", icon = "user-round", elements = defs })
 local other = tab:CreateCollapsibleGroup({ name = "Other", elements = { { type = "Text", name = "Independent", text = "text" } } })
 TestPump(1)
 assert(#group.elements == #defs, "Every tab element type must be supported")
@@ -64,7 +64,6 @@ end
 assert(headerCorner and headerCorner.CornerRadius == window.theme.ElementCornerRadius, "Header keeps the element corner radius")
 -- Header metrics mirror the Text element.
 assert(group.title.TextColor3 == window.theme.TitlingColor, "Title uses the Text title color")
-assert(group.descriptionLabel.TextSize == 14, "Description matches the Text body size")
 assert(group.title.Position.X.Offset == 42, "Icon-to-text gap matches the Text element")
 assert(group.chevron.Position.X.Offset == -36, "Chevron keeps the 20px Text gutter")
 -- Children keep their normal recipes; the clipper compensates, so inner

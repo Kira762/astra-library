@@ -15,6 +15,7 @@ Collapsible.__type = "CollapsibleGroup"
 local constructors = {
     Button = function(parent, props) return require(script.Parent.button).new(parent, props) end,
     Toggle = function(parent, props) return require(script.Parent.toggle).new(parent, props) end,
+    Switch = function(parent, props) return require(script.Parent.toggle).new(parent, props) end,
     Slider = function(parent, props) return require(script.Parent.slider).new(parent, props) end,
     Dropdown = function(parent, props) return require(script.Parent.dropdown).new(parent, props) end,
     Input = function(parent, props) return require(script.Parent.input).new(parent, props) end,
@@ -27,7 +28,7 @@ local constructors = {
     Divider = function(parent, props) return require(script.Parent.divider).new(parent, props) end,
     Group = function(parent, props) return require(script.Parent.group).new(parent, props) end,
 }
-local compactTypes = { Button = true, Toggle = true, Slider = true, Stat = true, Group = true }
+local compactTypes = { Button = true, Toggle = true, Switch = true, Slider = true, Stat = true, Group = true }
 
 local function validate(definitions, path, ancestors, depth)
     assert(type(definitions) == "table", path .. " must be an array")
@@ -106,6 +107,7 @@ function Collapsible.new(tab, props)
         tab = tab, window = tab.window, elements = {}, connections = {},
         name = props.name or props.Name or "Collapsible Group",
         icon = tab.window:ResolveIcon(props.icon or props.Icon),
+        description = props.description or props.Description,
         deriveFlagFromName = tab.deriveFlagFromName,
         forgetState = props.forgetState or tab.forgetState,
         _expanded = false, _shown = false,
@@ -115,27 +117,44 @@ function Collapsible.new(tab, props)
     -- [[recipe: the header grows by the line's 20px band (41 -> 61) instead of
     -- [[letting the line run into the title row or the first child.]]
     self.headerHeight = if self.description then 61 else 41
-    -- The container only reserves layout space: it must not clip. The header
-    -- card fills it edge to edge, and a tight ClipsDescendants parent shaves
-    -- the outer half of its 1px stroke (Border mode straddles the edge) plus
-    -- the corner arcs on all four sides — the flaw that made these corners
-    -- read thinner than every other element. Clipping lives on the body
-    -- frame below, mirroring the dropdown: its expanding panel clips, while
-    -- its stroked top card never sits inside a tight clipper.
+    -- [[One connected card, two surfaces: the header band rides the standard
+    -- [[element gradient, the revealed body sits on the darker window surface
+    -- [[and a 1px stroke-colored divider separates them — the unified
+    -- [[container the design reference shows, instead of a header card and a
+    -- [[detached panel floating a gap apart.
+    self.bodyPad = 10
     self.main = w:Create("Frame", {
         Name = self.name, Size = UDim2.new(1, -20, 0, self.headerHeight),
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BackgroundTransparency = 1, BorderSizePixel = 0,
-        Parent = tab.tabPage,
-    })
-    self.header = w:Create("Frame", {
-        Name = "Header", Size = UDim2.new(1, 0, 0, self.headerHeight),
+        ClipsDescendants = true, Parent = tab.tabPage,
+    }, { BackgroundTransparency = "ElementTransparency" })
+    w:Create("UIGradient", { Rotation = 270, Parent = self.main }, { Color = "WindowColor" })
+    w:Create("UICorner", { Parent = self.main }, { CornerRadius = "ElementCornerRadius" })
+    -- [[The container clips its own descendants to the rounded silhouette, so
+    -- [[the outer stroke rides fully inside the bounds (Interior): its own
+    -- [[clip can never shave the stroke, the flaw straddling strokes had when
+    -- [[a tight parent masked them.
+    self.stroke = w:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Interior, Transparency = 1, Parent = self.main,
+    }, { Color = "ElementStroke", Transparency = "ElementStrokeTransparency" })
+    self.headerSurface = w:Create("Frame", {
+        Name = "HeaderSurface", Size = UDim2.new(1, 0, 0, self.headerHeight),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
     }, { BackgroundTransparency = "ElementTransparency" })
-    -- StyleElementBody paints the ElementGradient over a white base, exactly
-    -- like every other element surface; binding the base to ElementSurface
-    -- here multiplied the gradient and drew the header almost black.
-    self.stroke = w:StyleElementBody(self.header)
+    -- [[The plain white base under the ElementGradient is the standard element
+    -- [[surface recipe; a themed base would multiply the gradient near-black.
+    w:Create("UIGradient", { Rotation = 270, Parent = self.headerSurface }, { Color = "ElementGradient" })
+    self.divider = w:Create("Frame", {
+        Name = "HeaderDivider", Position = UDim2.fromOffset(0, self.headerHeight),
+        Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0,
+        BackgroundTransparency = 1, Visible = false, Parent = self.main,
+    }, { BackgroundColor3 = "ElementStroke", BackgroundTransparency = "ElementStrokeTransparency" })
+    self.header = w:Create("Frame", {
+        Name = "Header", Size = UDim2.new(1, 0, 0, self.headerHeight),
+        BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
+    })
     self.hoverOverlay = w:CreateHoverOverlay(self.header)
     -- Header metrics mirror the Text element: 20px gutters, a 6px icon gap,
     -- a 16px TitlingColor title and a 14px body line at 0.45 transparency.
@@ -170,41 +189,30 @@ function Collapsible.new(tab, props)
         Text = "", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
         AutoButtonColor = false, ZIndex = 6, Parent = self.header,
     })
-    -- The clipper is 20px wider than the container (10px of transparent
-    -- bleed each side) so children — which size themselves at UDim2.new(1,
-    -- -20) — land at exactly the header's width instead of compounding the
-    -- container's own -20 into a second, narrower inset. The bleed is
-    -- transparent and `main` no longer clips, so it reads as nothing; the
-    -- only reveal edge is the clipper's own bounds. The content sits 1px
-    -- inside those bounds so the first and last child's stroke keep the same
-    -- breathing room on every side as standalone elements.
+    -- [[The reveal mask spans the container edge to edge and rides its bottom
+    -- [[edge, so the mask's floor always matches the container's own corner
+    -- [[arcs. Children keep their normal width recipes — a card at
+    -- [[UDim2.new(1, -20) of this full-width body lands exactly one gutter
+    -- [[inside the container on each side, the inset the reference shows,
+    -- [[instead of running edge to edge against the container stroke.
     self.bodyClip = w:Create("Frame", {
         Name = "ContentsClip",
-        Position = UDim2.new(0, -10, 0, self.headerHeight + 6),
-        Size = UDim2.new(1, 20, 0, 0),
+        Position = UDim2.fromOffset(0, self.headerHeight + 1),
+        Size = UDim2.new(1, 0, 1, -(self.headerHeight + 1)),
         BackgroundTransparency = 1, BorderSizePixel = 0,
         ClipsDescendants = true, Visible = false, Parent = self.main,
     })
-    -- [[The expanded content sits on a connected inner surface rather than
-    -- [[floating directly on the page. It follows the same measured height as
-    -- [[the clipper, so the background grows with the number and size of the
-    -- [[children. It is created before the content frame so controls paint
-    -- [[above the panel's gradient and stroke.]]
-    self.bodyPanel = w:Create("Frame", {
-        Name = "ContentsPanel", Position = UDim2.fromOffset(0, 0),
-        Size = UDim2.new(1, 0, 0, 0), BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false,
-        Parent = self.bodyClip,
-    }, { BackgroundTransparency = "ElementTransparency" })
-    self.bodyPanelStroke = w:StyleElementPanel(self.bodyPanel)
+    w:Create("UICorner", { Parent = self.bodyClip }, { CornerRadius = "ElementCornerRadius" })
+    -- [[body lives inside the clipper, which already starts under the divider,
+    -- [[so only the top pad offsets it here.
     self.body = w:Create("Frame", {
-        Name = "Contents", Position = UDim2.fromOffset(0, 1),
+        Name = "Contents", Position = UDim2.fromOffset(0, self.bodyPad),
         Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false, Parent = self.bodyClip,
     })
     self.tabPage = self.body
     self.contentLayout = w:Create("UIListLayout", {
-        Padding = UDim.new(0, 7), FillDirection = Enum.FillDirection.Vertical,
+        Padding = UDim.new(0, self.bodyPad), FillDirection = Enum.FillDirection.Vertical,
         HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder,
         Parent = self.body,
     })
@@ -227,41 +235,32 @@ function Collapsible:_resize(animate)
     local measured = self.contentLayout.AbsoluteContentSize
     local contentHeight = if measured then measured.Y else 0
     local height = self.headerHeight
-    local clipHeight = 0
     if self._expanded then
-        -- 7px of tab rhythm between the header and the first child; the
-        -- container then ends exactly at the last child, with no dead slack.
-        height += 7 + contentHeight
-        -- 1px of stroke breathing room above and below the revealed content.
-        clipHeight = contentHeight + 2
+        -- divider + top pad + content + bottom pad: the container ends one
+        -- gutter under the last child card, the same inset its sides keep,
+        -- with no dead slack.
+        height += 1 + self.bodyPad + contentHeight + self.bodyPad
     end
     local size = UDim2.new(1, -20, 0, height)
-    local clipSize = UDim2.new(1, 20, 0, clipHeight)
-    local panelSize = UDim2.new(1, 0, 0, clipHeight)
     self._resizeRevision = (self._resizeRevision or 0) + 1
     local revision = self._resizeRevision
     local function finish()
         if not self.window.unloaded and self.main.Parent and self._resizeRevision == revision and not self._expanded then
             self.body.Visible = false
             self.bodyClip.Visible = false
-            self.bodyPanel.Visible = false
+            self.divider.Visible = false
         end
     end
     if animate and self._shown then
-        -- The layout reservation (main) and the reveal mask (bodyClip) ride
-        -- the same spec so the mask's edge never leads or trails the frame.
-        -- A nil tween means the size is already applied (instant profile, or
-        -- already at target), so the settle path runs directly.
+        -- The reveal mask derives its bounds from the container, so a single
+        -- tween grows both in lockstep; the mask's edge never leads or trails
+        -- the frame. A nil tween means the size is already applied (instant
+        -- profile, or already at target), so the settle path runs directly.
         local mainTween = motion.tween(self.main, { Size = size }, "snappy", finish)
-        motion.tween(self.bodyClip, { Size = clipSize }, "snappy")
-        motion.tween(self.bodyPanel, { Size = panelSize }, "snappy")
         if not mainTween then finish() end
     else
         motion.cancel(self.main)
-        motion.cancel(self.bodyClip)
         self.main.Size = size
-        self.bodyClip.Size = clipSize
-        self.bodyPanel.Size = panelSize
         finish()
     end
 end
@@ -272,9 +271,7 @@ function Collapsible:_setExpanded(expanded, animate)
     if expanded then
         self.body.Visible = true
         self.bodyClip.Visible = true
-        self.bodyPanel.Visible = true
-        self.bodyPanel.BackgroundTransparency = if self._shown then self.window.theme.ElementTransparency or 0 else 1
-        self.bodyPanelStroke.Transparency = if self._shown then self.window.theme.ElementStrokeTransparency else 1
+        self.divider.Visible = true
         for _, child in ipairs(self.elements) do child:_setShown(self._shown, false) end
     else
         -- End transient editing, but never reset values or trigger callbacks.
@@ -304,16 +301,16 @@ end
 function Collapsible:_setShown(shown, animate)
     self._shown = shown
     local w = self.window
-    w:_reveal(self.header, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
+    w:_reveal(self.main, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
+    w:_reveal(self.headerSurface, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
     w:_reveal(self.stroke, { Transparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
+    w:_reveal(self.divider, { BackgroundTransparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
     w:_reveal(self.title, { TextTransparency = if shown then 0 else 1 }, animate)
     w:_reveal(self.chevron, { ImageTransparency = if shown then 0.4 else 1 }, animate)
     if self.iconLabel then w:_reveal(self.iconLabel, { ImageTransparency = if shown then 0 else 1 }, animate) end
     if self.descriptionLabel then
         w:_reveal(self.descriptionLabel, { TextTransparency = if shown then 0.45 else 1 }, animate)
     end
-    w:_reveal(self.bodyPanel, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
-    w:_reveal(self.bodyPanelStroke, { Transparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
     if self._expanded then
         for _, child in ipairs(self.elements) do child:_setShown(shown, animate) end
     end

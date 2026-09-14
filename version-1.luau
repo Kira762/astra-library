@@ -339,7 +339,7 @@ export type GroupProps = {
 -- Definitions use the corresponding element's normal properties plus `type`.
 -- `elements` is allowed only for ordinary Groups; CollapsibleGroups cannot nest.
 export type CollapsibleElementProps = {
-    type: "Button" | "Toggle" | "Slider" | "Dropdown" | "Input" | "Keybind"
+    type: "Button" | "Toggle" | "Switch" | "Slider" | "Dropdown" | "Input" | "Keybind"
         | "Stat" | "Progress" | "Section" | "Text" | "Changelog" | "Divider" | "Group",
     elements: { CollapsibleElementProps }?,
     [string]: any,
@@ -10304,6 +10304,7 @@ function state.new(tab, frame)
         window = tab.window,
         name = frame.name or frame.Name or "Button",
         icon = tab.window:ResolveIcon(frame.icon or frame.Icon),
+        description = frame.description or frame.Description,
         compact = tab.compact or false,
         callback = frame.callback or frame.Callback or function() end,
     }, state)
@@ -11003,6 +11004,7 @@ Collapsible.__type = "CollapsibleGroup"
 local constructors = {
     Button = function(parent, props) return require(script.Parent.button).new(parent, props) end,
     Toggle = function(parent, props) return require(script.Parent.toggle).new(parent, props) end,
+    Switch = function(parent, props) return require(script.Parent.toggle).new(parent, props) end,
     Slider = function(parent, props) return require(script.Parent.slider).new(parent, props) end,
     Dropdown = function(parent, props) return require(script.Parent.dropdown).new(parent, props) end,
     Input = function(parent, props) return require(script.Parent.input).new(parent, props) end,
@@ -11015,7 +11017,7 @@ local constructors = {
     Divider = function(parent, props) return require(script.Parent.divider).new(parent, props) end,
     Group = function(parent, props) return require(script.Parent.group).new(parent, props) end,
 }
-local compactTypes = { Button = true, Toggle = true, Slider = true, Stat = true, Group = true }
+local compactTypes = { Button = true, Toggle = true, Switch = true, Slider = true, Stat = true, Group = true }
 
 local function validate(definitions, path, ancestors, depth)
     assert(type(definitions) == "table", path .. " must be an array")
@@ -11094,6 +11096,7 @@ function Collapsible.new(tab, props)
         tab = tab, window = tab.window, elements = {}, connections = {},
         name = props.name or props.Name or "Collapsible Group",
         icon = tab.window:ResolveIcon(props.icon or props.Icon),
+        description = props.description or props.Description,
         deriveFlagFromName = tab.deriveFlagFromName,
         forgetState = props.forgetState or tab.forgetState,
         _expanded = false, _shown = false,
@@ -11103,27 +11106,44 @@ function Collapsible.new(tab, props)
     -- [[recipe: the header grows by the line's 20px band (41 -> 61) instead of
     -- [[letting the line run into the title row or the first child.]]
     self.headerHeight = if self.description then 61 else 41
-    -- The container only reserves layout space: it must not clip. The header
-    -- card fills it edge to edge, and a tight ClipsDescendants parent shaves
-    -- the outer half of its 1px stroke (Border mode straddles the edge) plus
-    -- the corner arcs on all four sides — the flaw that made these corners
-    -- read thinner than every other element. Clipping lives on the body
-    -- frame below, mirroring the dropdown: its expanding panel clips, while
-    -- its stroked top card never sits inside a tight clipper.
+    -- [[One connected card, two surfaces: the header band rides the standard
+    -- [[element gradient, the revealed body sits on the darker window surface
+    -- [[and a 1px stroke-colored divider separates them — the unified
+    -- [[container the design reference shows, instead of a header card and a
+    -- [[detached panel floating a gap apart.
+    self.bodyPad = 10
     self.main = w:Create("Frame", {
         Name = self.name, Size = UDim2.new(1, -20, 0, self.headerHeight),
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BackgroundTransparency = 1, BorderSizePixel = 0,
-        Parent = tab.tabPage,
-    })
-    self.header = w:Create("Frame", {
-        Name = "Header", Size = UDim2.new(1, 0, 0, self.headerHeight),
+        ClipsDescendants = true, Parent = tab.tabPage,
+    }, { BackgroundTransparency = "ElementTransparency" })
+    w:Create("UIGradient", { Rotation = 270, Parent = self.main }, { Color = "WindowColor" })
+    w:Create("UICorner", { Parent = self.main }, { CornerRadius = "ElementCornerRadius" })
+    -- [[The container clips its own descendants to the rounded silhouette, so
+    -- [[the outer stroke rides fully inside the bounds (Interior): its own
+    -- [[clip can never shave the stroke, the flaw straddling strokes had when
+    -- [[a tight parent masked them.
+    self.stroke = w:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Interior, Transparency = 1, Parent = self.main,
+    }, { Color = "ElementStroke", Transparency = "ElementStrokeTransparency" })
+    self.headerSurface = w:Create("Frame", {
+        Name = "HeaderSurface", Size = UDim2.new(1, 0, 0, self.headerHeight),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
     }, { BackgroundTransparency = "ElementTransparency" })
-    -- StyleElementBody paints the ElementGradient over a white base, exactly
-    -- like every other element surface; binding the base to ElementSurface
-    -- here multiplied the gradient and drew the header almost black.
-    self.stroke = w:StyleElementBody(self.header)
+    -- [[The plain white base under the ElementGradient is the standard element
+    -- [[surface recipe; a themed base would multiply the gradient near-black.
+    w:Create("UIGradient", { Rotation = 270, Parent = self.headerSurface }, { Color = "ElementGradient" })
+    self.divider = w:Create("Frame", {
+        Name = "HeaderDivider", Position = UDim2.fromOffset(0, self.headerHeight),
+        Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0,
+        BackgroundTransparency = 1, Visible = false, Parent = self.main,
+    }, { BackgroundColor3 = "ElementStroke", BackgroundTransparency = "ElementStrokeTransparency" })
+    self.header = w:Create("Frame", {
+        Name = "Header", Size = UDim2.new(1, 0, 0, self.headerHeight),
+        BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
+    })
     self.hoverOverlay = w:CreateHoverOverlay(self.header)
     -- Header metrics mirror the Text element: 20px gutters, a 6px icon gap,
     -- a 16px TitlingColor title and a 14px body line at 0.45 transparency.
@@ -11158,41 +11178,30 @@ function Collapsible.new(tab, props)
         Text = "", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
         AutoButtonColor = false, ZIndex = 6, Parent = self.header,
     })
-    -- The clipper is 20px wider than the container (10px of transparent
-    -- bleed each side) so children — which size themselves at UDim2.new(1,
-    -- -20) — land at exactly the header's width instead of compounding the
-    -- container's own -20 into a second, narrower inset. The bleed is
-    -- transparent and `main` no longer clips, so it reads as nothing; the
-    -- only reveal edge is the clipper's own bounds. The content sits 1px
-    -- inside those bounds so the first and last child's stroke keep the same
-    -- breathing room on every side as standalone elements.
+    -- [[The reveal mask spans the container edge to edge and rides its bottom
+    -- [[edge, so the mask's floor always matches the container's own corner
+    -- [[arcs. Children keep their normal width recipes — a card at
+    -- [[UDim2.new(1, -20) of this full-width body lands exactly one gutter
+    -- [[inside the container on each side, the inset the reference shows,
+    -- [[instead of running edge to edge against the container stroke.
     self.bodyClip = w:Create("Frame", {
         Name = "ContentsClip",
-        Position = UDim2.new(0, -10, 0, self.headerHeight + 6),
-        Size = UDim2.new(1, 20, 0, 0),
+        Position = UDim2.fromOffset(0, self.headerHeight + 1),
+        Size = UDim2.new(1, 0, 1, -(self.headerHeight + 1)),
         BackgroundTransparency = 1, BorderSizePixel = 0,
         ClipsDescendants = true, Visible = false, Parent = self.main,
     })
-    -- [[The expanded content sits on a connected inner surface rather than
-    -- [[floating directly on the page. It follows the same measured height as
-    -- [[the clipper, so the background grows with the number and size of the
-    -- [[children. It is created before the content frame so controls paint
-    -- [[above the panel's gradient and stroke.]]
-    self.bodyPanel = w:Create("Frame", {
-        Name = "ContentsPanel", Position = UDim2.fromOffset(0, 0),
-        Size = UDim2.new(1, 0, 0, 0), BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false,
-        Parent = self.bodyClip,
-    }, { BackgroundTransparency = "ElementTransparency" })
-    self.bodyPanelStroke = w:StyleElementPanel(self.bodyPanel)
+    w:Create("UICorner", { Parent = self.bodyClip }, { CornerRadius = "ElementCornerRadius" })
+    -- [[body lives inside the clipper, which already starts under the divider,
+    -- [[so only the top pad offsets it here.
     self.body = w:Create("Frame", {
-        Name = "Contents", Position = UDim2.fromOffset(0, 1),
+        Name = "Contents", Position = UDim2.fromOffset(0, self.bodyPad),
         Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false, Parent = self.bodyClip,
     })
     self.tabPage = self.body
     self.contentLayout = w:Create("UIListLayout", {
-        Padding = UDim.new(0, 7), FillDirection = Enum.FillDirection.Vertical,
+        Padding = UDim.new(0, self.bodyPad), FillDirection = Enum.FillDirection.Vertical,
         HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder,
         Parent = self.body,
     })
@@ -11215,41 +11224,32 @@ function Collapsible:_resize(animate)
     local measured = self.contentLayout.AbsoluteContentSize
     local contentHeight = if measured then measured.Y else 0
     local height = self.headerHeight
-    local clipHeight = 0
     if self._expanded then
-        -- 7px of tab rhythm between the header and the first child; the
-        -- container then ends exactly at the last child, with no dead slack.
-        height += 7 + contentHeight
-        -- 1px of stroke breathing room above and below the revealed content.
-        clipHeight = contentHeight + 2
+        -- divider + top pad + content + bottom pad: the container ends one
+        -- gutter under the last child card, the same inset its sides keep,
+        -- with no dead slack.
+        height += 1 + self.bodyPad + contentHeight + self.bodyPad
     end
     local size = UDim2.new(1, -20, 0, height)
-    local clipSize = UDim2.new(1, 20, 0, clipHeight)
-    local panelSize = UDim2.new(1, 0, 0, clipHeight)
     self._resizeRevision = (self._resizeRevision or 0) + 1
     local revision = self._resizeRevision
     local function finish()
         if not self.window.unloaded and self.main.Parent and self._resizeRevision == revision and not self._expanded then
             self.body.Visible = false
             self.bodyClip.Visible = false
-            self.bodyPanel.Visible = false
+            self.divider.Visible = false
         end
     end
     if animate and self._shown then
-        -- The layout reservation (main) and the reveal mask (bodyClip) ride
-        -- the same spec so the mask's edge never leads or trails the frame.
-        -- A nil tween means the size is already applied (instant profile, or
-        -- already at target), so the settle path runs directly.
+        -- The reveal mask derives its bounds from the container, so a single
+        -- tween grows both in lockstep; the mask's edge never leads or trails
+        -- the frame. A nil tween means the size is already applied (instant
+        -- profile, or already at target), so the settle path runs directly.
         local mainTween = motion.tween(self.main, { Size = size }, "snappy", finish)
-        motion.tween(self.bodyClip, { Size = clipSize }, "snappy")
-        motion.tween(self.bodyPanel, { Size = panelSize }, "snappy")
         if not mainTween then finish() end
     else
         motion.cancel(self.main)
-        motion.cancel(self.bodyClip)
         self.main.Size = size
-        self.bodyClip.Size = clipSize
-        self.bodyPanel.Size = panelSize
         finish()
     end
 end
@@ -11260,9 +11260,7 @@ function Collapsible:_setExpanded(expanded, animate)
     if expanded then
         self.body.Visible = true
         self.bodyClip.Visible = true
-        self.bodyPanel.Visible = true
-        self.bodyPanel.BackgroundTransparency = if self._shown then self.window.theme.ElementTransparency or 0 else 1
-        self.bodyPanelStroke.Transparency = if self._shown then self.window.theme.ElementStrokeTransparency else 1
+        self.divider.Visible = true
         for _, child in ipairs(self.elements) do child:_setShown(self._shown, false) end
     else
         -- End transient editing, but never reset values or trigger callbacks.
@@ -11292,16 +11290,16 @@ end
 function Collapsible:_setShown(shown, animate)
     self._shown = shown
     local w = self.window
-    w:_reveal(self.header, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
+    w:_reveal(self.main, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
+    w:_reveal(self.headerSurface, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
     w:_reveal(self.stroke, { Transparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
+    w:_reveal(self.divider, { BackgroundTransparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
     w:_reveal(self.title, { TextTransparency = if shown then 0 else 1 }, animate)
     w:_reveal(self.chevron, { ImageTransparency = if shown then 0.4 else 1 }, animate)
     if self.iconLabel then w:_reveal(self.iconLabel, { ImageTransparency = if shown then 0 else 1 }, animate) end
     if self.descriptionLabel then
         w:_reveal(self.descriptionLabel, { TextTransparency = if shown then 0.45 else 1 }, animate)
     end
-    w:_reveal(self.bodyPanel, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
-    w:_reveal(self.bodyPanelStroke, { Transparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
     if self._expanded then
         for _, child in ipairs(self.elements) do child:_setShown(shown, animate) end
     end
@@ -11754,6 +11752,7 @@ function state.new(tab, a49)
         window = tab.window,
         name = a49.name or a49.Name or "Dropdown",
         icon = tab.window:ResolveIcon(a49.icon or a49.Icon),
+        description = a49.description or a49.Description,
         forgetState = a49.forgetState or a49.ForgetState or tab.forgetState,
         flag = a49.flag
             or a49.Flag
@@ -13031,6 +13030,7 @@ local props = 8
 local direction = {
     button = true,
     toggle = true,
+    switch = true,
     stat = true,
     slider = true,
 }
@@ -13086,6 +13086,10 @@ function state.new(tab, element)
 end
 
 function state:_add(a13, a14)
+    -- "Switch" is the declarative alias of the toggle control.
+    if a13 == "switch" then
+        a13 = "toggle"
+    end
     if self.compact and not direction[a13] then
         Group.warn(
             `Astra: a row only holds compact elements (button/toggle/stat/slider), ignoring '{a13}'. Use a column for it.`
@@ -13269,6 +13273,7 @@ function state.new(tab, placeholderLabel)
         window = tab.window,
         name = placeholderLabel.name or placeholderLabel.Name or "Input",
         icon = tab.window:ResolveIcon(placeholderLabel.icon or placeholderLabel.Icon),
+        description = placeholderLabel.description or placeholderLabel.Description,
         forgetState = placeholderLabel.forgetState or placeholderLabel.ForgetState or tab.forgetState,
         placeholder = placeholderLabel.placeholder or placeholderLabel.Placeholder or "",
         numeric = placeholderLabel.numeric or placeholderLabel.Numeric or false,
@@ -13565,6 +13570,7 @@ function state.new(tab, a22)
         window = tab.window,
         name = a22.name or a22.Name or "Keybind",
         icon = tab.window:ResolveIcon(a22.icon or a22.Icon),
+        description = a22.description or a22.Description,
         forgetState = a22.forgetState or a22.ForgetState or tab.forgetState,
         editable = a22.editable or a22.Editable or false,
 
@@ -14121,6 +14127,7 @@ function state.new(tab, a22)
         window = tab.window,
         name = a22.name or a22.Name or "Progress",
         icon = tab.window:ResolveIcon(a22.icon or a22.Icon),
+        description = a22.description or a22.Description,
 
         min = a25,
         max = a26,
@@ -14649,6 +14656,7 @@ function state.new(ownerTab, a31)
         window = ownerTab.window,
         name = a31.name or a31.Name or "Slider",
         icon = ownerTab.window:ResolveIcon(a31.icon or a31.Icon),
+        description = a31.description or a31.Description,
         forgetState = a31.forgetState or a31.ForgetState or ownerTab.forgetState,
 
         range = a31.range or a31.Range or { 0, 100 },
@@ -15254,6 +15262,7 @@ function state.new(tab, a25)
         window = tab.window,
         name = a25.name or a25.Name or "Statistic",
         icon = tab.window:ResolveIcon(a25.icon or a25.Icon),
+        description = a25.description or a25.Description,
 
         value = if (a25.value or a25.Value) ~= nil then (a25.value or a25.Value) else 0,
                         _hasValue = (a25.value or a25.Value) ~= nil,
@@ -16696,6 +16705,7 @@ function state.new(tab, element)
         window = tab.window,
         name = element.name or element.Name or "Toggle",
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
+        description = element.description or element.Description,
         forgetState = element.forgetState or element.ForgetState or tab.forgetState,
         compact = tab.compact or false,
         flag = element.flag
@@ -30016,11 +30026,14 @@ return {
     LiveAnimation = false,
     DarkToggleOverlay = true,
     ElementTransparency = 0,
-    CollapsibleChildElementTransparency = 0.75,
+    -- [[Grouped children render as defined cards — a surface a shade under the
+    -- [[header band and a visible stroke — the crisp rows the design
+    -- [[reference shows, not 75%-faded ghosts without strokes.
+    CollapsibleChildElementTransparency = 0.35,
     ElementStrokeTransparency = 0,
-    CollapsibleChildElementStrokeTransparency = 1,
+    CollapsibleChildElementStrokeTransparency = 0,
     ElementStrokeHoverTransparency = 0,
-    CollapsibleChildElementStrokeHoverTransparency = 1,
+    CollapsibleChildElementStrokeHoverTransparency = 0,
     ElementStrokeHover = Color3.fromRGB(82, 82, 82),
     ElementCornerRadius = UDim.new(0, 12),
     ElementTextHoverColor = Color3.fromRGB(255, 255, 255),
@@ -33532,88 +33545,88 @@ local LineOffsets = {
     [21] = 6982,
     [23] = 10175,
     [24] = 10261,
-    [25] = 10568,
-    [26] = 10989,
-    [27] = 11332,
-    [28] = 11502,
-    [29] = 11647,
-    [30] = 13021,
-    [31] = 13235,
-    [32] = 13506,
-    [33] = 14066,
-    [34] = 14513,
-    [35] = 14599,
-    [36] = 15185,
-    [37] = 15808,
-    [38] = 16204,
-    [39] = 16334,
-    [40] = 16498,
-    [41] = 16652,
-    [43] = 17151,
-    [44] = 17174,
-    [45] = 17191,
-    [46] = 17224,
-    [47] = 17346,
-    [48] = 17370,
-    [49] = 17419,
-    [50] = 17126,
-    [51] = 17549,
-    [52] = 17852,
-    [53] = 17883,
-    [54] = 17538,
-    [55] = 17926,
-    [56] = 17946,
-    [57] = 17978,
-    [58] = 17908,
-    [59] = 18085,
-    [60] = 18144,
-    [61] = 18204,
-    [63] = 18330,
-    [64] = 18495,
-    [65] = 18315,
-    [66] = 19055,
-    [67] = 19358,
-    [68] = 20022,
-    [69] = 21814,
-    [70] = 22963,
-    [71] = 24491,
-    [72] = 18557,
-    [73] = 29743,
-    [74] = 29809,
-    [75] = 29875,
-    [76] = 29950,
-    [77] = 30053,
-    [78] = 30119,
-    [79] = 30194,
-    [80] = 30269,
-    [81] = 30344,
-    [82] = 30419,
-    [83] = 29637,
-    [84] = 30485,
-    [85] = 30583,
-    [86] = 30761,
-    [87] = 30813,
-    [88] = 30843,
-    [89] = 31094,
-    [90] = 31143,
-    [91] = 31596,
-    [92] = 31614,
-    [93] = 31766,
-    [94] = 31865,
-    [95] = 31887,
-    [96] = 31937,
-    [97] = 32262,
-    [98] = 32298,
-    [99] = 32316,
-    [100] = 32665,
-    [101] = 32677,
-    [102] = 32728,
-    [103] = 32747,
-    [104] = 32998,
-    [105] = 33042,
-    [106] = 33267,
-    [107] = 33295,
-    [108] = 33306,
+    [25] = 10569,
+    [26] = 10990,
+    [27] = 11330,
+    [28] = 11500,
+    [29] = 11645,
+    [30] = 13020,
+    [31] = 13239,
+    [32] = 13511,
+    [33] = 14072,
+    [34] = 14520,
+    [35] = 14606,
+    [36] = 15193,
+    [37] = 15817,
+    [38] = 16213,
+    [39] = 16343,
+    [40] = 16507,
+    [41] = 16661,
+    [43] = 17161,
+    [44] = 17184,
+    [45] = 17201,
+    [46] = 17234,
+    [47] = 17356,
+    [48] = 17380,
+    [49] = 17429,
+    [50] = 17136,
+    [51] = 17559,
+    [52] = 17862,
+    [53] = 17893,
+    [54] = 17548,
+    [55] = 17936,
+    [56] = 17956,
+    [57] = 17988,
+    [58] = 17918,
+    [59] = 18095,
+    [60] = 18154,
+    [61] = 18214,
+    [63] = 18340,
+    [64] = 18505,
+    [65] = 18325,
+    [66] = 19065,
+    [67] = 19368,
+    [68] = 20032,
+    [69] = 21824,
+    [70] = 22973,
+    [71] = 24501,
+    [72] = 18567,
+    [73] = 29753,
+    [74] = 29819,
+    [75] = 29885,
+    [76] = 29960,
+    [77] = 30066,
+    [78] = 30132,
+    [79] = 30207,
+    [80] = 30282,
+    [81] = 30357,
+    [82] = 30432,
+    [83] = 29647,
+    [84] = 30498,
+    [85] = 30596,
+    [86] = 30774,
+    [87] = 30826,
+    [88] = 30856,
+    [89] = 31107,
+    [90] = 31156,
+    [91] = 31609,
+    [92] = 31627,
+    [93] = 31779,
+    [94] = 31878,
+    [95] = 31900,
+    [96] = 31950,
+    [97] = 32275,
+    [98] = 32311,
+    [99] = 32329,
+    [100] = 32678,
+    [101] = 32690,
+    [102] = 32741,
+    [103] = 32760,
+    [104] = 33011,
+    [105] = 33055,
+    [106] = 33280,
+    [107] = 33308,
+    [108] = 33319,
 }
 
 -- [[Misc AOT variable imports]]

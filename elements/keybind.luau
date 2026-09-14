@@ -60,6 +60,7 @@ function state.new(tab, a22)
         window = tab.window,
         name = a22.name or a22.Name or "Keybind",
         icon = tab.window:ResolveIcon(a22.icon or a22.Icon),
+        description = a22.description or a22.Description,
         forgetState = a22.forgetState or a22.ForgetState or tab.forgetState,
         editable = a22.editable or a22.Editable or false,
 

@@ -38,7 +38,7 @@ assert(window:Get("active") == true and window:Get("speed") == 50, "Collapsed co
 -- StyleElementBody's ElementGradient, exactly like every other element. A
 -- themed base color would be multiplied by the gradient and draw nearly black.
 local toggle = group.elements[2]
-local base = group.header.BackgroundColor3
+local base = group.headerSurface.BackgroundColor3
 assert(base.R == 1 and base.G == 1 and base.B == 1, "Header keeps the plain white gradient base")
 local function gradientOf(frame)
     for _, child in frame:GetChildren() do
@@ -46,23 +46,30 @@ local function gradientOf(frame)
     end
     return nil
 end
-assert(gradientOf(group.header) and gradientOf(group.header).Color == gradientOf(toggle.main).Color, "Header gradient matches element surfaces")
+assert(gradientOf(group.headerSurface) and gradientOf(group.headerSurface).Color == gradientOf(toggle.main).Color, "Header gradient matches element surfaces")
 
--- Geometry parity: the container reserves the Text card's footprint without
--- clipping it (a tight clipper shaved the header stroke's outer half and the
--- corner arcs on all four sides); only the body clipper masks, and it is 20px
--- wider so children at UDim2.new(1, -20) land at exactly header width.
-assert(not group.main.ClipsDescendants, "Container must not clip the header card")
+-- One connected card: the container clips its surfaces to the rounded
+-- silhouette with an interior stroke, the header band rides the element
+-- gradient over the darker body surface, and a 1px divider separates them.
+-- The reveal mask spans the container and rides its bottom edge; children at
+-- UDim2.new(1, -20) of the full-width body land one gutter inside on each
+-- side instead of running edge to edge against the container stroke.
+assert(group.main.ClipsDescendants, "Container clips its surfaces to the rounded silhouette")
+assert(group.stroke.ApplyStrokeMode == Enum.ApplyStrokeMode.Interior, "Outer stroke rides inside the container's own clip")
 assert(group.bodyClip.ClipsDescendants, "Only the body clipper masks content")
-assert(group.bodyClip.Size.X.Scale == 1 and group.bodyClip.Size.X.Offset == 20, "Clipper bleeds 20px for full-width children")
+assert(group.bodyClip.Size.X.Scale == 1 and group.bodyClip.Size.X.Offset == 0, "Clipper spans the container")
+assert(group.bodyClip.Position.Y.Offset == group.headerHeight + 1, "Clipper starts under the divider")
 assert(group.body.Size.X.Scale == 1 and group.body.Size.X.Offset == 0, "Body spans the clipper")
-assert(group.body.Position.Y.Offset == 1, "Content keeps 1px of stroke breathing room")
-assert(not group.bodyPanel.Visible and group.bodyPanelStroke ~= nil, "Inner content panel starts hidden with its styled stroke")
-local headerCorner
-for _, child in group.header:GetChildren() do
-    if child.ClassName == "UICorner" then headerCorner = child end
+assert(group.body.Position.Y.Offset == 10, "Content starts one gutter under the divider")
+assert(not group.divider.Visible, "Divider stays hidden while collapsed")
+local containerCorner
+for _, child in group.main:GetChildren() do
+    if child.ClassName == "UICorner" then containerCorner = child end
 end
-assert(headerCorner and headerCorner.CornerRadius == window.theme.ElementCornerRadius, "Header keeps the element corner radius")
+assert(containerCorner and containerCorner.CornerRadius == window.theme.ElementCornerRadius, "Container keeps the element corner radius")
+-- Grouped children render as defined cards: a visible stroke and a surface a
+-- shade under the header band, like the design reference.
+assert(window.theme.CollapsibleChildElementStrokeTransparency == 0, "Grouped child cards keep a visible stroke")
 -- Header metrics mirror the Text element.
 assert(group.title.TextColor3 == window.theme.TitlingColor, "Title uses the Text title color")
 assert(group.title.Position.X.Offset == 42, "Icon-to-text gap matches the Text element")
@@ -76,9 +83,10 @@ assert(group.elements[10].main.Size.X.Offset == -40, "Section child keeps its no
 group.contentLayout.AbsoluteContentSize = Vector2.new(400, 900)
 group.interact.Activated:Fire()
 TestPump(0.4)
-assert(group._expanded and group.body.Visible and group.bodyClip.Visible and group.main.Size.Y.Offset == group.headerHeight + 907, "Expand to content height")
-assert(group.bodyPanel.Visible and group.bodyPanel.Size.Y.Offset == 902, "Inner panel expands to the measured content height plus breathing room")
-assert(group.bodyPanel.Size.X.Scale == 1 and group.bodyPanel.Size.X.Offset == 0, "Inner panel spans the content surface")
+assert(group._expanded and group.body.Visible and group.bodyClip.Visible and group.main.Size.Y.Offset == group.headerHeight + 921, "Expand to divider + padded content height")
+assert(group.divider.Visible, "Divider reveals with the body")
+assert(toggle.stroke.Transparency == 0, "Grouped child stroke is painted once revealed")
+assert(toggle.main.BackgroundTransparency < 0.5, "Grouped child cards keep a defined surface")
 assert(group.chevron.Rotation == 90, "Chevron animates open")
 assert(not other._expanded, "Sibling expansion is independent")
 group.interact.Activated:Fire()

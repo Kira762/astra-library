@@ -56,6 +56,7 @@ function state.new(tab, a22)
         window = tab.window,
         name = a22.name or a22.Name or "Progress",
         icon = tab.window:ResolveIcon(a22.icon or a22.Icon),
+        description = a22.description or a22.Description,
 
         min = a25,
         max = a26,

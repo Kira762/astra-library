@@ -2,6 +2,44 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-14 — Collapsible Group rebuilt as one connected card (design reference)
+
+The previous container drew the header as a standalone card and the revealed
+content as a second, detached panel a gap below, ran child cards edge to edge
+against the panel stroke, and faded children to 75% transparency with hidden
+strokes. The design reference shows one connected container with crisp inner
+cards; the element now renders exactly that. This supersedes today's
+"children are visually recessed" entry and restores the `Switch` declarative
+alias and `description` props that the "Toggle-only API" entry had retired
+(both are asserted by `scripts/collapsible_group_test.luau` and
+`scripts/inline_description_test.luau`, which pass again).
+
+- **One container, two surfaces.** `main` is a single rounded, stroked frame
+  that clips its descendants; the header band rides the standard element
+  gradient over the darker window surface of the body, split by a 1px
+  stroke-colored divider. The outer stroke uses `ApplyStrokeMode = Interior`
+  so the container's own clip can never shave it.
+- **Children are crisp inset cards.** The reveal mask spans the container and
+  rides its bottom edge; child cards keep their normal width recipes and land
+  one 10px gutter inside the container on every side with 10px gaps — defined
+  surfaces and visible strokes via the `CollapsibleChildElement*` theme tokens
+  (0.35 surface transparency, 0 stroke transparency), instead of edge-to-edge
+  75%-faded ghosts.
+- **Expansion math**: collapsed height is the header (41px, 61px with a
+  `description`); expanded adds divider + top pad + measured content + bottom
+  pad, so the container ends exactly one gutter under the last card.
+- **Fixed flaws the reference exposed**: the `description`/`Description` prop
+  was dropped by every element constructor (the in-card line never rendered;
+  all eight control constructors read it again), the group header never
+  received its own line for the same reason, `type = "Switch"` definitions
+  were rejected by `CollapsibleGroup` validation (alias of the toggle control
+  in the declarative builder, ordinary Groups and `Types.luau`), and the
+  content frame double-counted the header offset inside the clipper, letting
+  children overflow the container's floor.
+- Tests updated to the new geometry (`bodyClip` spans the container instead of
+  bleeding 20px, divider position, padded expansion height); bundle
+  regenerated (`version-1.luau`, 103 modules).
+
 ## 2026-09-14 — The entrance queue no longer trips over a window with no overlays
 
 - **Hiding (or unloading) a window that had never queued an overlay raised

@@ -325,11 +325,11 @@ expect(
 	groupClip.y >= groupLine.y + groupLine.h,
 	"D13 the group's contents clip " .. describe(groupClip) .. " starts below its line " .. describe(groupLine)
 )
-near(groupClip.y, 67, "D13 the described group's body starts 6px under the 61px header")
+near(groupClip.y, 62, "D13 the described group's body starts under the divider at 61px")
 local plainGroup = more:CreateCollapsibleGroup({ name = "Plain group", elements = {} })
 TestPump(0.3)
 near(plainGroup.headerHeight, 41, "D13 an undescribed group header stays 41px")
-near(rectIn(plainGroup.bodyClip, plainGroup.main).y, 47, "D13 an undescribed group's body starts 6px under its 41px header")
+near(rectIn(plainGroup.bodyClip, plainGroup.main).y, 42, "D13 an undescribed group's body starts under the divider at 41px")
 
 -- [[A described control inside a group carries the same line: the declarative
 -- [[child receives the prop and grows its own card, so the group's measured

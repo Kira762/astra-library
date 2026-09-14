@@ -582,10 +582,12 @@ local playerControls = tab:CreateCollapsibleGroup({
 })
 ```
 
-**Supported types:** `Button`, `Toggle`, `Slider`, `Dropdown`, `Input`,
-`Keybind`, `Stat`, `Progress`, `Section`, `Text`, `Changelog`, `Divider`,
-and ordinary `Group`. Each uses the same properties and implementation as its
-normal `Create…` method. `elements` can be omitted for an empty header.
+**Supported types:** `Button`, `Toggle`, `Switch` (declarative alias of the
+toggle control), `Slider`, `Dropdown`, `Input`, `Keybind`, `Stat`, `Progress`,
+`Section`, `Text`, `Changelog`, `Divider`, and ordinary `Group`. Each uses the
+same properties and implementation as its normal `Create…` method, including
+the optional `description` helper line. `elements` can be omitted for an empty
+header.
 
 An ordinary Group retains its compact row layout when its children support it.
 Use `direction = "column"` for a vertical Group; the declarative builder also

@@ -70,6 +70,7 @@ function state.new(tab, a25)
         window = tab.window,
         name = a25.name or a25.Name or "Statistic",
         icon = tab.window:ResolveIcon(a25.icon or a25.Icon),
+        description = a25.description or a25.Description,
 
         value = if (a25.value or a25.Value) ~= nil then (a25.value or a25.Value) else 0,
                         _hasValue = (a25.value or a25.Value) ~= nil,

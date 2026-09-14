@@ -6845,9 +6845,9 @@ function Window.new(props)
             self.settings = {
         toggleKeybind = Enum.KeyCode.K,
         theme = if type(props.theme or props.Theme) == "string" then string.lower(props.theme or props.Theme) else "default",
-        mouseOverride = true,         keepOnScreen = true,         welcomeToast = true,         haptics = false,
+        mouseOverride = false,         keepOnScreen = true,         welcomeToast = false,         haptics = false,
         dragMinimisedBar = false,
-        showProfile = true,
+        showProfile = false,
         showFullUsername = false,
         profileSide = "right",
         antiWindowDuplicate = true,
@@ -16696,11 +16696,11 @@ local defaults = {}
 
 defaults.values = {
     toggleKeybind = Enum.KeyCode.K,
-    mouseOverride = true,
+    mouseOverride = false,
     keepOnScreen = true,
-    welcomeToast = true,
+    welcomeToast = false,
     haptics = false,
-    showProfile = true,
+    showProfile = false,
     showFullUsername = false,
     antiWindowDuplicate = true,
     layoutMode = "top",

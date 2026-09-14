@@ -3,11 +3,11 @@ local defaults = {}
 
 defaults.values = {
     toggleKeybind = Enum.KeyCode.K,
-    mouseOverride = true,
+    mouseOverride = false,
     keepOnScreen = true,
-    welcomeToast = true,
+    welcomeToast = false,
     haptics = false,
-    showProfile = true,
+    showProfile = false,
     showFullUsername = false,
     antiWindowDuplicate = true,
     layoutMode = "top",

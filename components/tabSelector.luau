@@ -216,7 +216,7 @@ local function buildSidebarStyle(tab, layout)
 end
 
 function tabSelector.build(tab, layoutMode)
-    if layoutMode.mode == "sidebar" then
+    if layoutMode.mode == "sidebar" or layoutMode.forceCollapsed then
         buildSidebarStyle(tab, layoutMode)
     else
         buildTopStyle(tab)
@@ -321,7 +321,20 @@ function tabSelector.setRowCollapsed(tab, collapsed, layout)
     end
 
     if tab.topbarItemTitle then
-        tab.topbarItemTitle.Visible = not collapsed
+        if collapsed then
+            -- [[Icon-only rows must never leak a title while the rail is being
+            -- [[collapsed. Hide the label before the layout contracts; the
+            -- [[icon remains visible throughout the transition.]]
+            tab.topbarItemTitle.Visible = false
+            tab.topbarItemTitle.TextTransparency = 1
+        else
+            tab.topbarItemTitle.Visible = true
+            state.tweenService:Create(
+                tab.topbarItemTitle,
+                TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+                { TextTransparency = 0 }
+            ):Play()
+        end
     end
     if tab.topbarItemInitial then
         tab.topbarItemInitial.Visible = collapsed

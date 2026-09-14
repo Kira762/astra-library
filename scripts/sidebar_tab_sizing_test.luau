@@ -355,6 +355,12 @@ expect(switched == true, "T13 layout switch to the collapsed sidebar")
 TestPump(1.0)
 assertRailWidth(RAIL_COLLAPSED, "T13 collapsed sidebar uses its fixed compact rail")
 assertRowsTrackRail("T13 collapsed sidebar rows stay icon-only/full-rail")
+for i, tab in groupTabs() do
+
+	expect(tab.topbarItemTitle ~= nil, "T13 row " .. i .. " keeps its title node for restore")
+	expect(tab.topbarItemTitle.Visible == false, "T13 row " .. i .. " hides text in the dedicated collapsed sidebar")
+	expect(tab.topbarItemIcon ~= nil or tab.topbarItemInitial ~= nil, "T13 row " .. i .. " keeps an icon or initial")
+end
 
 -- T14: returning to the responsive sidebar restores name-driven sizing.
 switched = window:_setLayoutMode("sidebar")

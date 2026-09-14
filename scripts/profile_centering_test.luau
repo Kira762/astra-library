@@ -104,7 +104,7 @@ end
 -- ===== C1: a fresh window rests with the pair centred =====
 
 local window = Astra:CreateWindow({ name = "Profile Centring Test" })
-TestPump(0.6)
+TestPump(1.2)
 
 local main = window.main
 local panel = window.profilePanel
@@ -159,11 +159,9 @@ local lateWindow = Astra:CreateWindow({ name = "Profile Centring Test (late play
 -- [[The player arrives after the frame was built (so the build-time centring]]
 -- [[saw a disabled card) but before the deferred first show runs.]]
 state.localPlayer = player
--- [[The first show now also builds the initial settings page, and that build]]
--- [[is batched over a couple of extra frames by the construction pacing, so]]
--- [[give the reveal the frames it legitimately costs (was 0.15 when a shown]]
--- [[window had no settings content to build).]]
-TestPump(0.35)
+-- [[The shell uses the same one-second reveal deadline as every other fresh
+-- [[window; General's heavier settings content follows after it is visible.]]
+TestPump(1.2)
 eq(lateWindow.profilePanel.Visible, true, "C2 the card shows on the first show")
 eqUDim2(
 	lateWindow.main.Position,

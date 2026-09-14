@@ -114,8 +114,8 @@ Titles, tags, themes, and every window method.
 | `window:CreateTab({ name, icon })` | Create a tab. Returns a `Tab`. |
 | `window:CreateSection({ name, icon })` | Top-level section — a `TabSection`. |
 | `window:CreateTag({ text, title, icon, color, order })` | Small tag in the window footer. |
-| `window:Notify({ title, content, icon, duration })` | Classic notification. |
-| `window:Toast({ title, subtitle, icon, duration, position, ... })` | Compact toast. |
+| `window:Notify({ title, content, icon, duration })` | Queue a classic notification. |
+| `window:Toast({ title, subtitle, icon, duration, position, ... })` | Queue a compact toast. Notifications and toasts enter one at a time. |
 | `window:Popup({ title, content, boxes, options, ... })` | Modal popup. Returns `Popup:Close()`. |
 | `window:Navigate(tab)` | Select a tab by name or Tab object. |
 | `window:Show()` / `window:Hide()` / `window:ToggleHide()` | Visibility. |

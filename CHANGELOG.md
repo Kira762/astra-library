@@ -2,6 +2,29 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-14 — Staged startup, visible window entrance, and overlay queue
+
+- The window shell now reveals on a predictable one-second deadline instead of
+  waiting for the caller's entire initial tab/control build. Construction keeps
+  yielding at completed-control boundaries after the reveal, so a large script
+  can finish behind a responsive, already-visible window without starving its
+  animation frames.
+- First open now uses a 0.55-second Back/Out `UIScale` entrance at the window's
+  final layout size. This avoids re-laying out every descendant on every size
+  tween step; existing page elements follow with a short stagger, and elements
+  created after the shell appears use their normal reveal animation.
+- Initial General settings content and Auto Load Config restoration now begin
+  only after the shell settles. Saved controls are restored six per frame, so
+  their callbacks can no longer create the long blank pause that previously
+  happened before `main.Visible` and made the opening tween look instantaneous.
+- Notifications and toasts now share one FIFO entrance lane. Requests are cheap
+  prop records until displayed, and their 0.6-second entrances are spaced by a
+  0.65-second cooldown, preventing an execution-time burst from allocating and
+  animating every overlay on the same frame.
+- Startup coverage now pins deadline reveal during an unfinished 100-control
+  build, per-frame allocation bounds, the `UIScale` settle state, staged element
+  reveal, and the shared notification/toast cooldown. Bundle regenerated.
+
 ## 2026-09-14 — Collapsible Group children are visually recessed
 
 - Elements rendered inside a Collapsible Group are now marked as nested content.

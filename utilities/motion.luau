@@ -63,10 +63,9 @@ local SPECS: { [string]: TweenInfo } = {
 	-- [[The window's own entrance and other hero transitions.]]
 	emphasized = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
 
-	-- [[Window entrance: the frame's size and corner. Over the same 0.38s the
-	-- entrance always used, with a small overshoot so the window springs into
-	-- place instead of easing into it.]]
-	pop = TweenInfo.new(0.38, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+	-- [[Window entrance scale and corner. Long enough to read as a deliberate
+	-- load transition, with a small overshoot so the shell settles softly.]]
+	pop = TweenInfo.new(0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 
 	-- [[Dismissals: slightly quicker than the entrance that mirrored them.]]
 	exit = TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),

@@ -138,8 +138,9 @@ timing; the window's hot paths now go through it:
   writer per property, which removes the stray/twin tweens a fast hover in/out
   used to leave behind. `onCompleted` is connected *before* `Play`, so a
   synchronous completion (the test stubs) cannot skip a settle path.
-- The window's entrance rides `motion.spec("pop")` (the same 0.38s with a
-  small Back/Out overshoot); hover, element reveal, result flash, guard
+- The window's entrance rides `motion.spec("pop")` (a visible 0.55s
+  `UIScale` Back/Out transition that does not invalidate descendant layouts);
+  hover, element reveal, result flash, guard
   failure and the ambient gradient drift all moved onto the service.
 - `_revealElements` paces its cascade with `motion.step(stepDelay)`: a relaxed
   profile spreads the reveal, `instant` reveals every element on one frame.

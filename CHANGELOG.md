@@ -2,6 +2,12 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-14 — Buttons show a built-in tap affordance
+
+- Every `CreateButton` card now renders a themed 16px tap glyph on its right edge; compact rows place it as the trailing item.
+- The glyph reveals and hides with the card, pulses on click, and preserves the existing callback and haptic behavior.
+- `tapIcon = false` hides the glyph; `tapIcon = "name" | <assetId>` replaces it with a custom icon.
+
 ## 2026-09-14 — Startup arrives in stages: overlay entrance queue, staged window entrance
 
 - **Everything used to land on one frame.** A host that built its UI and fired a

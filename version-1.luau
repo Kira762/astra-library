@@ -354,6 +354,8 @@ export type CollapsibleGroupProps = {
 export type ButtonProps = {
     name: string?,
     icon: (string | number)?,
+    -- Built-in right-edge tap glyph: false hides it, a name/asset id replaces it.
+    tapIcon: (string | number | boolean)?,
     callback: (() -> ())?,
 }
 
@@ -9901,6 +9903,9 @@ function Window:_revealCommon(element, animate)
     if element.iconLabel then
         self:_reveal(element.iconLabel, { ImageTransparency = 0 }, animate)
     end
+    if element.tapIcon then
+        self:_reveal(element.tapIcon, { ImageTransparency = 0 }, animate)
+    end
     if element.descriptionLabel then
         self:_reveal(element.descriptionLabel, { TextTransparency = 0.45 }, animate)
     end
@@ -9912,6 +9917,9 @@ function Window:_hideCommon(element, animate)
     self:_reveal(element.main, { BackgroundTransparency = 1 }, animate)
     if element.iconLabel then
         self:_reveal(element.iconLabel, { ImageTransparency = 1 }, animate)
+    end
+    if element.tapIcon then
+        self:_reveal(element.tapIcon, { ImageTransparency = 1 }, animate)
     end
     if element.descriptionLabel then
         self:_reveal(element.descriptionLabel, { TextTransparency = 1 }, animate)
@@ -10211,6 +10219,28 @@ local callback = require(constants.HapticEngine)
 local baseCard = require(script.Parent.baseCard)
 local description = require(script.Parent.description)
 local element = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local tapPress = TweenInfo.new(0.11, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+
+-- [[Built-in "tap" glyph for the card's right edge. Candidates are tried in
+-- [[catalog order and the first hit wins: `icons.resolve` answers an
+-- [[unresolved request with the request itself, so a changed string is the
+-- [[signal that a name (or a `custom_asset/` file) actually loaded. `hand-tap`
+-- [[is the phosphor hand-with-tap-lines glyph the affordance is named after;
+-- [[the rest keep the icon present when a host strips a pack.]]
+local tapCandidates = { "hand-tap", "touch_app", "tabler:hand-click", "mouse-pointer-click", "hand" }
+
+local function resolveTapIcon(window, override)
+    if override ~= nil and override ~= true then
+        return window:ResolveIcon(override)
+    end
+    for _, candidate in ipairs(tapCandidates) do
+        local resolved = window:ResolveIcon(candidate)
+        if resolved ~= candidate then
+            return resolved
+        end
+    end
+    return nil
+end
 
 function state.new(tab, frame)
     frame = if typeof(frame) == "table" then frame else {}
@@ -10223,6 +10253,17 @@ function state.new(tab, frame)
         compact = tab.compact or false,
         callback = frame.callback or frame.Callback or function() end,
     }, state)
+
+    -- [[The trailing tap affordance is built-in: present unless the caller
+    -- [[opts out with `tapIcon = false`, and any icon request (name, pack
+    -- [[name, or asset id) replaces the glyph.]]
+    local tapValue = frame.tapIcon
+    if tapValue == nil then
+        tapValue = frame.TapIcon
+    end
+    if tapValue ~= false then
+        self.tapImage = resolveTapIcon(self.window, tapValue)
+    end
 
     if self.compact then
         self:_buildCompact()
@@ -10244,6 +10285,10 @@ function state:_buildFull()
         titleText = icon.t(self.name),
     })
 
+    -- [[The tap glyph sits in the card's right gutter, centred in the base
+    -- [[region exactly like the title row, and is created after `interact`
+    -- [[so it paints above the (invisible) click surface.]]
+
     self.interact = self.window:Create("TextButton", {
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 1),
@@ -10255,10 +10300,34 @@ function state:_buildFull()
         Parent = self.main,
     })
 
+    if self.tapImage then
+        local centerScale, centerOffset = description.center(self, 43)
+        self.tapIcon = self.window:Create("ImageLabel", {
+            Image = self.tapImage,
+            Size = UDim2.fromOffset(16, 16),
+            Position = UDim2.new(1, -15, centerScale, centerOffset),
+            AnchorPoint = Vector2.new(1, 0.5),
+            BorderSizePixel = 0,
+            BackgroundTransparency = 1,
+
+            ImageTransparency = 1,
+            Parent = self.main,
+        }, { ImageColor3 = "ContentColor" })
+
+        self.tapScale = self.window:Create("UIScale", {
+            Scale = 1,
+
+            Parent = self.tapIcon,
+        })
+    end
+
     self.window:_wireElementHover(self)
 
     self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
         callback.click()
+        if self.tapScale then
+            Button.tweenService:Create(self.tapScale, tapPress, { Scale = 0.8 }):Play()
+        end
         Button.tweenService
             :Create(
                 self.stroke,
@@ -10282,6 +10351,9 @@ function state:_buildFull()
             return
         end
 
+        if self.tapScale then
+            Button.tweenService:Create(self.tapScale, element, { Scale = 1 }):Play()
+        end
         Button.tweenService
             :Create(
                 self.main,
@@ -10354,10 +10426,35 @@ function state:_buildCompact()
         Parent = self.title,
     })
 
+    -- [[Trailing item of the row: the same tap glyph as the full card, at the
+    -- [[row's right edge. `interact` owns the row, so the icon is inside the
+    -- [[click surface and tapping it is tapping the button.]]
+    if self.tapImage then
+        self.tapIcon = window:Create("ImageLabel", {
+            Image = self.tapImage,
+            Size = UDim2.fromOffset(16, 16),
+            BorderSizePixel = 0,
+            BackgroundTransparency = 1,
+            LayoutOrder = 2,
+
+            ImageTransparency = 1,
+            Parent = self.interact,
+        }, { ImageColor3 = "ContentColor" })
+
+        self.tapScale = window:Create("UIScale", {
+            Scale = 1,
+
+            Parent = self.tapIcon,
+        })
+    end
+
     self.window:_wireElementHover(self)
 
     self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
         callback.click()
+        if self.tapScale then
+            Button.tweenService:Create(self.tapScale, tapPress, { Scale = 0.8 }):Play()
+        end
         Button.tweenService
             :Create(
                 self.stroke,
@@ -10374,6 +10471,9 @@ function state:_buildCompact()
             return
         end
 
+        if self.tapScale then
+            Button.tweenService:Create(self.tapScale, element, { Scale = 1 }):Play()
+        end
         Button.tweenService
             :Create(
                 self.stroke,
@@ -10395,6 +10495,9 @@ end
 function state:_minWidth()
     local w = 32
     if self.icon then
+        w += 22
+    end
+    if self.tapIcon then
         w += 22
     end
     w += tab.textWidth(self.window.theme.Font, 16, icon.resolve(self.name))
@@ -33334,108 +33437,108 @@ end)() end,
 
 local LineOffsets = {
     [2] = 12,
-    [3] = 235,
-    [5] = 650,
-    [6] = 685,
-    [7] = 730,
-    [8] = 636,
-    [9] = 847,
-    [10] = 957,
-    [11] = 1202,
-    [12] = 1429,
-    [13] = 1766,
-    [14] = 1973,
-    [15] = 2691,
-    [16] = 5082,
-    [17] = 5428,
-    [18] = 6067,
-    [19] = 6128,
-    [20] = 6498,
-    [21] = 6903,
-    [23] = 10028,
-    [24] = 10114,
-    [25] = 10326,
-    [26] = 10747,
-    [27] = 11069,
-    [28] = 11239,
-    [29] = 11384,
-    [30] = 12758,
-    [31] = 12972,
-    [32] = 13243,
-    [33] = 13803,
-    [34] = 14250,
-    [35] = 14336,
-    [36] = 14922,
-    [37] = 15545,
-    [38] = 15937,
-    [39] = 16067,
-    [40] = 16231,
-    [41] = 16385,
-    [43] = 16884,
-    [44] = 16907,
-    [45] = 16924,
-    [46] = 16957,
-    [47] = 17079,
-    [48] = 17103,
-    [49] = 17152,
-    [50] = 16859,
-    [51] = 17282,
-    [52] = 17585,
-    [53] = 17616,
-    [54] = 17271,
-    [55] = 17659,
-    [56] = 17679,
-    [57] = 17711,
-    [58] = 17641,
-    [59] = 17818,
-    [60] = 17877,
-    [61] = 17937,
-    [63] = 18063,
-    [64] = 18228,
-    [65] = 18048,
-    [66] = 18788,
-    [67] = 19091,
-    [68] = 19755,
-    [69] = 21547,
-    [70] = 22696,
-    [71] = 24224,
-    [72] = 18290,
-    [73] = 29476,
-    [74] = 29542,
-    [75] = 29608,
-    [76] = 29683,
-    [77] = 29786,
-    [78] = 29852,
-    [79] = 29927,
-    [80] = 30002,
-    [81] = 30077,
-    [82] = 30152,
-    [83] = 29370,
-    [84] = 30218,
-    [85] = 30316,
-    [86] = 30494,
-    [87] = 30546,
-    [88] = 30576,
-    [89] = 30827,
-    [90] = 30876,
-    [91] = 31329,
-    [92] = 31347,
-    [93] = 31499,
-    [94] = 31598,
-    [95] = 31620,
-    [96] = 31670,
-    [97] = 31996,
-    [98] = 32032,
-    [99] = 32050,
-    [100] = 32399,
-    [101] = 32411,
-    [102] = 32462,
-    [103] = 32481,
-    [104] = 32723,
-    [105] = 32767,
-    [106] = 32992,
-    [107] = 33020,
-    [108] = 33031,
+    [3] = 266,
+    [5] = 683,
+    [6] = 718,
+    [7] = 763,
+    [8] = 669,
+    [9] = 880,
+    [10] = 990,
+    [11] = 1235,
+    [12] = 1462,
+    [13] = 1799,
+    [14] = 2006,
+    [15] = 2724,
+    [16] = 5115,
+    [17] = 5461,
+    [18] = 6100,
+    [19] = 6161,
+    [20] = 6531,
+    [21] = 6936,
+    [23] = 10121,
+    [24] = 10207,
+    [25] = 10514,
+    [26] = 10935,
+    [27] = 11257,
+    [28] = 11427,
+    [29] = 11572,
+    [30] = 12946,
+    [31] = 13160,
+    [32] = 13431,
+    [33] = 13991,
+    [34] = 14438,
+    [35] = 14524,
+    [36] = 15110,
+    [37] = 15733,
+    [38] = 16129,
+    [39] = 16259,
+    [40] = 16423,
+    [41] = 16577,
+    [43] = 17076,
+    [44] = 17099,
+    [45] = 17116,
+    [46] = 17149,
+    [47] = 17271,
+    [48] = 17295,
+    [49] = 17344,
+    [50] = 17051,
+    [51] = 17474,
+    [52] = 17777,
+    [53] = 17808,
+    [54] = 17463,
+    [55] = 17851,
+    [56] = 17871,
+    [57] = 17903,
+    [58] = 17833,
+    [59] = 18010,
+    [60] = 18069,
+    [61] = 18129,
+    [63] = 18255,
+    [64] = 18420,
+    [65] = 18240,
+    [66] = 18980,
+    [67] = 19283,
+    [68] = 19947,
+    [69] = 21739,
+    [70] = 22888,
+    [71] = 24416,
+    [72] = 18482,
+    [73] = 29668,
+    [74] = 29734,
+    [75] = 29800,
+    [76] = 29875,
+    [77] = 29978,
+    [78] = 30044,
+    [79] = 30119,
+    [80] = 30194,
+    [81] = 30269,
+    [82] = 30344,
+    [83] = 29562,
+    [84] = 30410,
+    [85] = 30508,
+    [86] = 30686,
+    [87] = 30738,
+    [88] = 30768,
+    [89] = 31019,
+    [90] = 31068,
+    [91] = 31521,
+    [92] = 31539,
+    [93] = 31691,
+    [94] = 31790,
+    [95] = 31812,
+    [96] = 31862,
+    [97] = 32187,
+    [98] = 32223,
+    [99] = 32241,
+    [100] = 32590,
+    [101] = 32602,
+    [102] = 32653,
+    [103] = 32672,
+    [104] = 32923,
+    [105] = 32967,
+    [106] = 33192,
+    [107] = 33220,
+    [108] = 33231,
 }
 
 -- [[Misc AOT variable imports]]

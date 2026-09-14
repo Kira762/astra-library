@@ -89,6 +89,8 @@ export type CollapsibleGroupProps = {
 export type ButtonProps = {
     name: string?,
     icon: (string | number)?,
+    -- Built-in right-edge tap glyph: false hides it, a name/asset id replaces it.
+    tapIcon: (string | number | boolean)?,
     callback: (() -> ())?,
 }
 

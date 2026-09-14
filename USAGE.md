@@ -193,6 +193,23 @@ tab:CreateButton({
 })
 ```
 
+Every Button carries a built-in tap glyph on its right edge (phosphor `hand-tap`,
+resolved through the icon catalog). Tapping the card fires `callback` and pulses
+that glyph; the glyph itself is part of the card, so tapping it taps the button.
+`tapIcon = false` hides it, and `tapIcon = "name" | <assetId>` replaces it.
+
+```lua
+tab:CreateButton({
+    name = "Silent", icon = "bell-off",
+    tapIcon = false,
+    callback = function() end,
+})
+tab:CreateButton({
+    name = "Refresh", tapIcon = "refresh-cw",
+    callback = function() end,
+})
+```
+
 ### Toggle
 ```lua
 local t = tab:CreateToggle({

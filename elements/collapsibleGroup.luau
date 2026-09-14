@@ -155,6 +155,7 @@ function Collapsible.new(tab, props)
     }, { TextColor3 = "TitlingColor", FontFace = "Font" })
     if self.description then
         self.descriptionLabel = w:Create("TextLabel", {
+            Name = "Description",
             Text = locale.t(self.description), Position = UDim2.fromOffset(textX, 37),
             Size = UDim2.new(1, -(textX + 20), 0, 18), BackgroundTransparency = 1,
             TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,

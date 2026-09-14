@@ -26,6 +26,7 @@ type ConfigWindow = {
     _loading: boolean?,
     _loadedConfig: { [string]: unknown }?,
     _loadedConfigPath: string?,
+    _loadCheckpoint: ((any, number) -> ())?,
 }
 
 function persistenceConfig.getPath(window: ConfigWindow, requestedName: unknown?): (string?, string?)
@@ -159,12 +160,20 @@ function persistenceConfig.load(window: ConfigWindow, loadName: unknown?): boole
     local values = restored :: { [string]: unknown }
     local wasLoading = window._loading
     window._loading = true
-        local applyOk, applyErr = pcall(function()
+    local applyOk, applyErr = pcall(function()
+        local appliedCount = 0
         for loadedFlag, loadedControl in window.controls do
-            persistenceConfig.applyTo(loadedControl, values[loadedFlag])
+            local storedValue = values[loadedFlag]
+            if storedValue ~= nil or loadedControl._canBeNil then
+                persistenceConfig.applyTo(loadedControl, storedValue)
+                appliedCount += 1
+                if window._loadCheckpoint then
+                    window:_loadCheckpoint(appliedCount)
+                end
+            end
         end
     end)
-            window._loading = wasLoading
+    window._loading = wasLoading
     if not applyOk then
         logger.warn("Astra: Failed to apply configuration - " .. tostring(applyErr))
     end

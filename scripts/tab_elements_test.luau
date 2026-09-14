@@ -107,7 +107,7 @@ instrument()
 
 -- ===== E1: the first show walks the selected tab and marks the rest ========
 
-TestPump(0.8)
+TestPump(1.4)
 eq(#tabs[1].elements, 5, "E1 the fixture has five elements per tab")
 expect(shownCalls <= 5, "E1 the first show walks the selected tab, not all four (used " .. tostring(shownCalls) .. ")")
 eq(tabs[1]._elementsPending, false, "E1 the selected tab is not pending")

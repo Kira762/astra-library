@@ -74,6 +74,7 @@ type WindowModule = { new: (types.WindowProps) -> types.Window }
 local Astra = {} :: Astra
 local activeWindow: types.Window? = nil
 local ACTIVE_WINDOW_KEY = "__ASTRA_ACTIVE_WINDOW_V1"
+local STARTUP_REVEAL_DELAY = 1
 
 local function getGlobalStore(): { [string]: any }
 	local globalEnv = _G :: any
@@ -96,6 +97,10 @@ Astra.Core = Core
 Astra.Settings = Settings
 
 function Astra:CreateWindow(props: types.WindowProps): types.Window
+	-- Count module loading and shell construction toward the one-second reveal
+	-- target. If either is slow, the shell opens on the next available frame
+	-- rather than adding another full delay afterward.
+	local creationStartedAt = os.clock()
 	local existingWindow = activeWindow or globalStore[ACTIVE_WINDOW_KEY]
 	activeWindow = existingWindow
 	if existingWindow then
@@ -125,6 +130,7 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 	end
 
 	local window = result :: types.Window
+	window._startupStartedAt = creationStartedAt
 	activeWindow = window
 	globalStore[ACTIVE_WINDOW_KEY] = window
 	if State.secureMode then
@@ -160,18 +166,45 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 	end
 
 	if not window.unloaded then
-		-- Wait for a quiet frame. Construction may yield in large scripts;
-		-- don't auto-show a half-populated window at one of those boundaries.
+		-- Reveal on a predictable deadline instead of waiting for an arbitrarily
+		-- large host script to finish. Checkpoints continue pacing the remaining
+		-- constructors after this, so the opening tween keeps receiving frames.
 		task.defer(function()
-			local revision
-			repeat
-				revision = window._constructionRevision
+			local remaining = STARTUP_REVEAL_DELAY - (os.clock() - creationStartedAt)
+			if remaining > 0 then
+				task.wait(remaining)
+			else
+				-- The constructor already consumed the target interval. Still yield
+				-- once so the caller can add its first tab before the shell appears.
 				task.wait()
-				if window.unloaded or window._autoShowCancelled then
-					return
+			end
+
+			if window.unloaded then
+				return
+			end
+			if window._autoShowCancelled then
+				window._startupComplete = true
+				return
+			end
+			if window.hidden then
+				window:Show()
+			end
+
+			-- Keep post-reveal constructors at one completed control per frame
+			-- until two consecutive frames observe no construction activity.
+			local stableFrames = 0
+			while not window.unloaded and not window._autoShowCancelled and stableFrames < 2 do
+				local revision = window._constructionRevision
+				task.wait()
+				if (window._constructionBusy or 0) == 0 and revision == window._constructionRevision then
+					stableFrames += 1
+				else
+					stableFrames = 0
 				end
-			until (window._constructionBusy or 0) == 0 and revision == window._constructionRevision
-			window:Show()
+			end
+			if not window.unloaded then
+				window._startupComplete = true
+			end
 		end)
 	end
 
@@ -6643,6 +6676,25 @@ local scrollbarWidth = 8
 
 local viewportCheckInterval = 2
 
+-- Startup is deliberately paced in small, completed-object batches. Before the
+-- first reveal this prevents a large host script from monopolising a frame;
+-- after the reveal, one completed control is handed to the renderer per frame
+-- until the host's initial build goes quiet.
+local constructionFrameBudget = 0.003
+local constructionInstanceBudget = 48
+
+-- Toasts and notifications share one entrance lane. Their 0.6s transitions do
+-- not overlap, but already-visible messages are still allowed to remain in
+-- their normal stacks while the next one enters.
+local overlayEntranceCadence = 0.65
+
+-- Existing controls wait briefly behind the window surface, then reveal in a
+-- cascade. This makes the first open read as an entrance instead of one large
+-- visibility flip.
+local firstContentDelay = 0.14
+local firstContentStep = 0.045
+local firstContentDuration = 0.9
+
 local function computeSize(mode): UDim2
     local size = state.workspace.CurrentCamera
     return windowSizing.fit(size and size.ViewportSize, mode)
@@ -6721,6 +6773,13 @@ function Window.new(props)
         size = computeSize(layout.mode),
         instances = {},
         connections = {},
+
+        -- Cleared by the entrypoint after the caller's initial construction
+        -- has been quiet for two frames. Checkpoints continue after the window
+        -- appears so the remaining controls cannot freeze its entrance.
+        _startupComplete = false,
+        _overlayQueue = {},
+        _overlayQueueRunning = false,
 
         icon = icons.resolve(providedIcon or "Sirius"),
         showName = props.showName or props.ShowName or "Astra",
@@ -6818,6 +6877,15 @@ function Window.new(props)
                 Size = self.size,
         BackgroundTransparency = 1,         Visible = false,
         Parent = self.screenGui,
+    })
+
+    -- Scale is used only for the first entrance. Animating the Frame's Size
+    -- forces every descendant layout to recompute on every tween step; UIScale
+    -- gives the same soft pop without turning a large window into a layout
+    -- hotspot while it opens.
+    self.windowScale = self:Create("UIScale", {
+        Scale = 1,
+        Parent = self.main,
     })
 
     self.drag = require(script.Parent.drag).new(self)
@@ -7188,17 +7256,26 @@ function Window.new(props)
 end
 
 -- Yield only at completed construction boundaries, never halfway through a
--- control. Limit startup batches by both CPU time and instance count. The
--- synchronous API is preserved: callers resume with fully usable objects.
+-- control. Limit pre-reveal batches by both CPU time and instance count. Once
+-- the window is visible, yield after every completed control until the initial
+-- host build goes quiet; this is what lets the entrance keep rendering while a
+-- large script finishes adding the rest of its tabs and elements. The API is
+-- still synchronous: each constructor resumes with a fully usable object.
 function Window:_constructionCheckpoint(force)
-    if self.hasShownOnce or (not force and not self._constructed) then
+    if self._startupComplete or (not force and not self._constructed) then
         return
     end
     self._constructionRevision = (self._constructionRevision or 0) + 1
     local now = os.clock()
     local last = self._constructionClock or now
     local count = #self.instances
-    if force or now - last >= 0.004 or count - (self._constructionInstances or 0) >= 80 then
+    local visibleStartup = self.hasShownOnce == true
+    if
+        force
+        or visibleStartup
+        or now - last >= constructionFrameBudget
+        or count - (self._constructionInstances or 0) >= constructionInstanceBudget
+    then
         self._constructionBusy = (self._constructionBusy or 0) + 1
         task.wait() -- next Heartbeat, not another deferred task in this frame
         self._constructionBusy -= 1
@@ -7207,6 +7284,16 @@ function Window:_constructionCheckpoint(force)
         self._constructionInstances = #self.instances
     else
         self._constructionClock = last
+    end
+end
+
+-- Configuration restoration can execute host callbacks. Apply a small group,
+-- then return a frame to rendering so a large saved configuration cannot make
+-- the freshly-opened window hitch. This is called only by persistenceConfig.
+function Window:_loadCheckpoint(appliedCount)
+    if appliedCount % 6 == 0 then
+        task.wait()
+        assert(not self.unloaded, "Window unloaded while loading configuration")
     end
 end
 
@@ -7463,9 +7550,17 @@ function Window:_keybindUsing(keybind, source)
     return nil
 end
 
-function Window:Notify(props)
-    if self.unloaded then
-        return     end
+function Window:_copyOverlayProps(props)
+    local copy = {}
+    if typeof(props) == "table" then
+        for key, value in props do
+            copy[key] = value
+        end
+    end
+    return copy
+end
+
+function Window:_showNotification(props)
     if not self.notifications then
         self.notifications = self:Create("Frame", {
             Name = "Notifications",
@@ -7482,7 +7577,7 @@ function Window:Notify(props)
             VerticalAlignment = Enum.VerticalAlignment.Bottom,
             HorizontalAlignment = Enum.HorizontalAlignment.Center,
             SortOrder = Enum.SortOrder.LayoutOrder,
-                                    Padding = UDim.new(0, 0),
+            Padding = UDim.new(0, 0),
 
             Parent = self.notifications,
         })
@@ -7491,12 +7586,7 @@ function Window:Notify(props)
     return require(script.Parent.Parent.components.notification).new(self, props)
 end
 
-function Window:Toast(props)
-    if self.unloaded then
-        return
-    end
-
-        props = if typeof(props) == "table" then props else {}
+function Window:_toastContainer(props)
     local position = props.position or props.Position or "Top"
     local isTop = typeof(position) ~= "string" or position:lower() ~= "bottom"
     props.position = if isTop then "Top" else "Bottom"
@@ -7520,19 +7610,85 @@ function Window:Toast(props)
             VerticalAlignment = if isTop then Enum.VerticalAlignment.Top else Enum.VerticalAlignment.Bottom,
             HorizontalAlignment = Enum.HorizontalAlignment.Center,
             SortOrder = Enum.SortOrder.LayoutOrder,
-                        Padding = UDim.new(0, 0),
+            Padding = UDim.new(0, 0),
 
             Parent = container,
         })
 
         self[toastKey] = container
-
-                        if isTop then
+        if isTop then
             updateToastPosition(self, false)
         end
     end
 
-    return require(script.Parent.Parent.components.toast).new(self, props, container)
+    return container
+end
+
+function Window:_showToast(props)
+    return require(script.Parent.Parent.components.toast).new(self, props, self:_toastContainer(props))
+end
+
+function Window:_canStartOverlay()
+    return self.hasShownOnce
+        and not self.unloaded
+        and not self.hidden
+        and not self.animating
+        and not self._revealing
+end
+
+function Window:_startOverlayQueue()
+    if self._overlayQueueRunning or #self._overlayQueue == 0 or not self:_canStartOverlay() then
+        return
+    end
+
+    self._overlayQueueRunning = true
+    task.spawn(function()
+        while not self.unloaded and #self._overlayQueue > 0 do
+            if not self:_canStartOverlay() then
+                self._overlayQueueRunning = false
+                return
+            end
+
+            local request = table.remove(self._overlayQueue, 1)
+            local ok, err = pcall(function()
+                if request.kind == "notification" then
+                    self:_showNotification(request.props)
+                else
+                    self:_showToast(request.props)
+                end
+            end)
+            if not ok then
+                log.warn("Astra: Failed to show queued " .. request.kind .. " - " .. tostring(err))
+            end
+
+            -- Notification and toast entrances are both 0.6s. Waiting a touch
+            -- longer gives the renderer one entrance at a time instead of a
+            -- burst of competing layout/tween work.
+            task.wait(overlayEntranceCadence)
+        end
+        self._overlayQueueRunning = false
+    end)
+end
+
+function Window:_queueOverlay(kind, props)
+    if self.unloaded then
+        return
+    end
+    local request = {
+        kind = kind,
+        props = self:_copyOverlayProps(props),
+    }
+    table.insert(self._overlayQueue, request)
+    self:_startOverlayQueue()
+    return request
+end
+
+function Window:Notify(props)
+    return self:_queueOverlay("notification", props)
+end
+
+function Window:Toast(props)
+    return self:_queueOverlay("toast", props)
 end
 
 function Window:Popup(props)
@@ -8637,6 +8793,7 @@ function Window:_revealElements(stepDelay, totalDuration, layoutTransitionId)
     if not tab then
         return
     end
+    tab._elementsPending = false
 
     local page = tab.tabPage
     local viewTop = page.AbsolutePosition.Y
@@ -8669,6 +8826,47 @@ function Window:_revealElements(stepDelay, totalDuration, layoutTransitionId)
     end
 end
 
+function Window:_scheduleInitialSettingsContent()
+    if
+        self._initialSettingsScheduled
+        or self.unloaded
+        or not self.selectedTab
+        or not self.selectedTab._isSettingsTab
+    then
+        return
+    end
+    self._initialSettingsScheduled = true
+
+    -- A window with no host tab opens on General. Build that page after the
+    -- shell is already visible; building it inside Show delayed main.Visible
+    -- behind dozens of settings controls and made the entrance appear to skip.
+    task.defer(function()
+        if not self.unloaded and self.selectedTab and self.selectedTab._isSettingsTab then
+            self:_buildSettingsContent(self.selectedTab)
+        end
+    end)
+end
+
+function Window:_scheduleAutoLoad()
+    if self._autoLoaded or not self.configuration.autoLoad or self.unloaded then
+        return
+    end
+    self._autoLoaded = true
+
+    -- Restore only after the entrance has settled. Loading can update many
+    -- controls and execute their host callbacks; doing that before main.Visible
+    -- was the source of the long blank pause followed by a skipped animation.
+    task.defer(function()
+        if self.unloaded then
+            return
+        end
+        local ok, err = pcall(self.Load, self)
+        if not ok then
+            log.warn("Astra: Failed to load configuration - " .. tostring(err))
+        end
+    end)
+end
+
 function Window:Show()
         if self.animating or not self.hidden then
         return
@@ -8677,19 +8875,8 @@ function Window:Show()
     self._revealing = true
     self.drag.drag.Visible = false
 
-                if self.configuration.autoLoad and not self._autoLoaded then
-        self._autoLoaded = true
-        local ok, err = pcall(self.Load, self)
-        if not ok then
-            log.warn("Astra: Failed to load configuration - " .. tostring(err))
-        end
-    end
-
-    -- A window with no host tabs starts on General: it is genuinely being
-    -- viewed now, so populate it just as selecting Settings would.
-    if self.selectedTab and self.selectedTab._isSettingsTab then
-        self:_buildSettingsContent(self.selectedTab)
-    end
+    -- If General is still the selected page, its heavier content is built
+    -- after the shell settles (see _scheduleInitialSettingsContent).
 
     self.hidden = false
     self.minimised = false
@@ -8792,6 +8979,7 @@ function Window:_quickRestore()
         self.animating = false
         self._revealing = false
         updateToastPosition(self, true)
+        self:_startOverlayQueue()
     end
 
     if not motion.tween(self.main, { Size = self.size, Position = targetPos }, tweenInfo, settle) then
@@ -8816,13 +9004,8 @@ function Window:_firstShow()
         self:_recenterForProfile(false)
     end
 
-    local openingSize = UDim2.new(
-        self.size.X.Scale * 0.88,
-        math.floor(self.size.X.Offset * 0.88),
-        self.size.Y.Scale * 0.88,
-        math.floor(self.size.Y.Offset * 0.88)
-    )
-    self.main.Size = openingSize
+    self.main.Size = self.size
+    self.windowScale.Scale = 0.92
     -- [[Entrance starts as a capsule (theme pill) then opens to CornerRoundness.]]
     self.windowCorner.CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0)
     self:_setContentVisible(true)
@@ -8834,17 +9017,18 @@ function Window:_firstShow()
             tab:_applyVisual(if self.selectedTab == tab then "selected" else "unselected")
         end
         if tab == self.selectedTab then
-            self:_showTabElements(tab)
+            -- Keep the first page at its constructor's transparent state. The
+            -- surface opens first and the page follows in a paced cascade.
+            self:_markTabElementsPending(tab)
         end
     end
-    -- [[Restore the settings/normal rail split; the loop above shows the
-    -- [[selected tab's elements (the others are either already shown or still
-    -- [[marked to show when they are opened).]]
+    -- [[Restore the settings/normal rail split. The selected page remains
+    -- [[pending until the delayed first-content cascade below.]]
     self:_applySettingsLayout(self._settingsMode)
     for _, tag in self.tags do
         tag:_setShown(false, false)
     end
-    local tweenInfo = TweenInfo.new(0.38, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
+    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     if self.topbarIcon then
         self.topbarIcon.ImageTransparency = 1
         motion.tween(self.topbarIcon, { ImageTransparency = 0 }, tweenInfo)
@@ -8869,10 +9053,10 @@ function Window:_firstShow()
     end
     self:_fadeSurfaces(true, tweenInfo)
 
-    -- [[The entrance is the library's hero transition, so the frame lands on
-    -- the motion service's "pop" spec: the same 0.38s as before, but with a
-    -- small Back/Out overshoot, so the window springs the last pixels into
-    -- place instead of easing into them. The corner rides the same spec.
+    -- [[The entrance is the library's hero transition. Only UIScale moves:
+    -- the main frame stays at its final size, so hundreds of descendants are
+    -- not laid out again on every tween step. The Back/Out pop and surface
+    -- fade make the load visible without front-loading the remaining content.
     --
     -- The settle path has to run either way: motion.tween returns no tween
     -- when animation is switched off (the "Instant" speed profile), and a
@@ -8888,18 +9072,27 @@ function Window:_firstShow()
         self.drag.drag.Visible = false
         self.animating = false
         self._revealing = false
-        -- [[The window reached its final size: the strip's viewport is]]
-        -- [[stable now, so park the selected tab in view (it was computed]]
-        -- [[at full size during construction, but the entrance shrank the]]
-        -- [[window to 88%, which clamped CanvasPosition along the way).]]
+        -- [[The window is stable now, so park the selected tab in view and
+        -- [[let saved values/callbacks begin only after the opening frame.]]
         self:_scrollSelectedTabIntoView(false)
         self:_refreshTabStripChrome()
+        self:_scheduleInitialSettingsContent()
+        self:_scheduleAutoLoad()
+        self:_startOverlayQueue()
     end
 
-    if not motion.tween(self.main, {
-        BackgroundTransparency = windowSurfaceTransparency,
-        Size = self.size,
-    }, "pop", settle) then
+    -- Let the shell establish itself before revealing the visible page. The
+    -- cascade is independently guarded, so hiding/unloading during the delay
+    -- cannot resurrect content.
+    task.delay(firstContentDelay, function()
+        if self.unloaded or self.hidden or self.minimised then
+            return
+        end
+        self:_revealElements(firstContentStep, firstContentDuration)
+    end)
+
+    motion.tween(self.main, { BackgroundTransparency = windowSurfaceTransparency }, "emphasized")
+    if not motion.tween(self.windowScale, { Scale = 1 }, "pop", settle) then
         settle()
     end
     motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, "pop")
@@ -9590,6 +9783,8 @@ function Window:Unload()
     table.clear(self.localeProperties)
     table.clear(self.controls)
     table.clear(self.tabs)
+    table.clear(self._overlayQueue)
+    self._overlayQueueRunning = false
 end
 
 return Window
@@ -15368,7 +15563,11 @@ function state:_register(element)
     self.window:_restoreLate(element)
 
     if not self.window.hidden and not self.window.minimised and self.window.selectedTab == self then
-        element:_setShown(true, false)
+        -- Controls added after the startup shell is visible should join it
+        -- with their normal reveal animation instead of popping in instantly.
+        -- Window:_constructionCheckpoint paces these registrations one per
+        -- frame while the initial host build is still active.
+        element:_setShown(true, true)
     else
         -- [[The element stayed hidden with the window: remember that this tab
         -- [[has something to show when it is next opened.]]
@@ -31303,10 +31502,9 @@ local SPECS: { [string]: TweenInfo } = {
 	-- [[The window's own entrance and other hero transitions.]]
 	emphasized = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
 
-	-- [[Window entrance: the frame's size and corner. Over the same 0.38s the
-	-- entrance always used, with a small overshoot so the window springs into
-	-- place instead of easing into it.]]
-	pop = TweenInfo.new(0.38, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+	-- [[Window entrance scale and corner. Long enough to read as a deliberate
+	-- load transition, with a small overshoot so the shell settles softly.]]
+	pop = TweenInfo.new(0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 
 	-- [[Dismissals: slightly quicker than the entrance that mirrored them.]]
 	exit = TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
@@ -32077,6 +32275,7 @@ type ConfigWindow = {
     _loading: boolean?,
     _loadedConfig: { [string]: unknown }?,
     _loadedConfigPath: string?,
+    _loadCheckpoint: ((any, number) -> ())?,
 }
 
 function persistenceConfig.getPath(window: ConfigWindow, requestedName: unknown?): (string?, string?)
@@ -32210,12 +32409,20 @@ function persistenceConfig.load(window: ConfigWindow, loadName: unknown?): boole
     local values = restored :: { [string]: unknown }
     local wasLoading = window._loading
     window._loading = true
-        local applyOk, applyErr = pcall(function()
+    local applyOk, applyErr = pcall(function()
+        local appliedCount = 0
         for loadedFlag, loadedControl in window.controls do
-            persistenceConfig.applyTo(loadedControl, values[loadedFlag])
+            local storedValue = values[loadedFlag]
+            if storedValue ~= nil or loadedControl._canBeNil then
+                persistenceConfig.applyTo(loadedControl, storedValue)
+                appliedCount += 1
+                if window._loadCheckpoint then
+                    window:_loadCheckpoint(appliedCount)
+                end
+            end
         end
     end)
-            window._loading = wasLoading
+    window._loading = wasLoading
     if not applyOk then
         logger.warn("Astra: Failed to apply configuration - " .. tostring(applyErr))
     end
@@ -32808,107 +33015,107 @@ end)() end,
 
 local LineOffsets = {
     [2] = 12,
-    [3] = 185,
-    [5] = 600,
-    [6] = 635,
-    [7] = 680,
-    [8] = 586,
-    [9] = 797,
-    [10] = 907,
-    [11] = 1152,
-    [12] = 1379,
-    [13] = 1686,
-    [14] = 2404,
-    [15] = 4795,
-    [16] = 5141,
-    [17] = 5780,
-    [18] = 5841,
-    [19] = 6211,
-    [20] = 6588,
-    [22] = 9599,
-    [23] = 9685,
-    [24] = 9897,
-    [25] = 10318,
-    [26] = 10640,
-    [27] = 10810,
-    [28] = 10955,
-    [29] = 12329,
-    [30] = 12543,
-    [31] = 12814,
-    [32] = 13374,
-    [33] = 13821,
-    [34] = 13907,
-    [35] = 14493,
-    [36] = 15116,
-    [37] = 15508,
-    [38] = 15638,
-    [39] = 15802,
-    [40] = 15956,
-    [42] = 16455,
-    [43] = 16478,
-    [44] = 16495,
-    [45] = 16528,
-    [46] = 16650,
-    [47] = 16674,
-    [48] = 16723,
-    [49] = 16430,
-    [50] = 16853,
-    [51] = 17156,
-    [52] = 17187,
-    [53] = 16842,
-    [54] = 17230,
-    [55] = 17250,
-    [56] = 17282,
-    [57] = 17212,
-    [58] = 17389,
-    [59] = 17448,
-    [60] = 17508,
-    [62] = 17634,
-    [63] = 17799,
-    [64] = 17619,
-    [65] = 18359,
-    [66] = 18662,
-    [67] = 19326,
-    [68] = 21118,
-    [69] = 22267,
-    [70] = 23795,
-    [71] = 17861,
-    [72] = 29047,
-    [73] = 29113,
-    [74] = 29179,
-    [75] = 29254,
-    [76] = 29357,
-    [77] = 29423,
-    [78] = 29498,
-    [79] = 29573,
-    [80] = 29648,
-    [81] = 29723,
-    [82] = 28941,
-    [83] = 29789,
-    [84] = 29887,
-    [85] = 30065,
-    [86] = 30117,
-    [87] = 30147,
-    [88] = 30398,
-    [89] = 30447,
-    [90] = 30900,
-    [91] = 30918,
-    [92] = 31070,
-    [93] = 31169,
-    [94] = 31191,
-    [95] = 31241,
-    [96] = 31567,
-    [97] = 31603,
-    [98] = 31621,
-    [99] = 31970,
-    [100] = 31982,
-    [101] = 32033,
-    [102] = 32052,
-    [103] = 32294,
-    [104] = 32338,
-    [105] = 32563,
-    [106] = 32591,
-    [107] = 32602,
+    [3] = 218,
+    [5] = 633,
+    [6] = 668,
+    [7] = 713,
+    [8] = 619,
+    [9] = 830,
+    [10] = 940,
+    [11] = 1185,
+    [12] = 1412,
+    [13] = 1719,
+    [14] = 2437,
+    [15] = 4828,
+    [16] = 5174,
+    [17] = 5813,
+    [18] = 5874,
+    [19] = 6244,
+    [20] = 6621,
+    [22] = 9794,
+    [23] = 9880,
+    [24] = 10092,
+    [25] = 10513,
+    [26] = 10835,
+    [27] = 11005,
+    [28] = 11150,
+    [29] = 12524,
+    [30] = 12738,
+    [31] = 13009,
+    [32] = 13569,
+    [33] = 14016,
+    [34] = 14102,
+    [35] = 14688,
+    [36] = 15311,
+    [37] = 15707,
+    [38] = 15837,
+    [39] = 16001,
+    [40] = 16155,
+    [42] = 16654,
+    [43] = 16677,
+    [44] = 16694,
+    [45] = 16727,
+    [46] = 16849,
+    [47] = 16873,
+    [48] = 16922,
+    [49] = 16629,
+    [50] = 17052,
+    [51] = 17355,
+    [52] = 17386,
+    [53] = 17041,
+    [54] = 17429,
+    [55] = 17449,
+    [56] = 17481,
+    [57] = 17411,
+    [58] = 17588,
+    [59] = 17647,
+    [60] = 17707,
+    [62] = 17833,
+    [63] = 17998,
+    [64] = 17818,
+    [65] = 18558,
+    [66] = 18861,
+    [67] = 19525,
+    [68] = 21317,
+    [69] = 22466,
+    [70] = 23994,
+    [71] = 18060,
+    [72] = 29246,
+    [73] = 29312,
+    [74] = 29378,
+    [75] = 29453,
+    [76] = 29556,
+    [77] = 29622,
+    [78] = 29697,
+    [79] = 29772,
+    [80] = 29847,
+    [81] = 29922,
+    [82] = 29140,
+    [83] = 29988,
+    [84] = 30086,
+    [85] = 30264,
+    [86] = 30316,
+    [87] = 30346,
+    [88] = 30597,
+    [89] = 30646,
+    [90] = 31099,
+    [91] = 31117,
+    [92] = 31269,
+    [93] = 31368,
+    [94] = 31390,
+    [95] = 31440,
+    [96] = 31765,
+    [97] = 31801,
+    [98] = 31819,
+    [99] = 32168,
+    [100] = 32180,
+    [101] = 32231,
+    [102] = 32250,
+    [103] = 32501,
+    [104] = 32545,
+    [105] = 32770,
+    [106] = 32798,
+    [107] = 32809,
 }
 
 -- [[Misc AOT variable imports]]

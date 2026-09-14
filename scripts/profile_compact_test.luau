@@ -187,7 +187,7 @@ local function assertNoOverlap(targetWindow, message)
 end
 
 local window = Astra:CreateWindow({ name = "Profile Compact Test" })
-TestPump(0.6)
+TestPump(1.2)
 
 local main = window.main
 local panel = window.profilePanel

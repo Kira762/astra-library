@@ -253,7 +253,11 @@ function state:_register(element)
     self.window:_restoreLate(element)
 
     if not self.window.hidden and not self.window.minimised and self.window.selectedTab == self then
-        element:_setShown(true, false)
+        -- Controls added after the startup shell is visible should join it
+        -- with their normal reveal animation instead of popping in instantly.
+        -- Window:_constructionCheckpoint paces these registrations one per
+        -- frame while the initial host build is still active.
+        element:_setShown(true, true)
     else
         -- [[The element stayed hidden with the window: remember that this tab
         -- [[has something to show when it is next opened.]]

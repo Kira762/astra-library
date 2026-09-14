@@ -85,7 +85,7 @@ game.GameId = 123456
 game.JobId = "astra-details-server"
 
 local window = Astra:CreateWindow({ name = "Profile Details Test" })
-TestPump(0.6)
+TestPump(1.2)
 theme = window.theme
 expect(theme ~= nil, "E0 the window exposes its resolved theme")
 

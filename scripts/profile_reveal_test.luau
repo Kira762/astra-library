@@ -56,7 +56,7 @@ game.Name = "Test Place"
 game.JobId = "astra-reveal-server"
 
 local window = Astra:CreateWindow({ name = "Profile Reveal Test" })
-TestPump(0.6)
+TestPump(1.2)
 
 local function findSettingsElement(targetWindow, tabName, elementName)
 	targetWindow:_buildSettingsUI() -- settings shells are now lazy too

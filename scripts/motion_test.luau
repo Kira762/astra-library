@@ -193,7 +193,7 @@ motion.setProfile("normal")
 -- ===== M8: the window's Animation speed setting =====
 
 local window = Astra:CreateWindow({ name = "Motion Test" })
-TestPump(0.6)
+TestPump(1.2)
 
 window.settings.motionSpeed = "relaxed"
 window:_applyMotionSetting()
@@ -236,7 +236,7 @@ TestPump(0.1)
 local instantWindow = Astra:CreateWindow({ name = "Motion Instant" })
 instantWindow.settings.motionSpeed = "instant"
 instantWindow:_applyMotionSetting()
-TestPump(0.6)
+TestPump(1.2)
 
 eq(instantWindow.main.Visible, true, "M11 the window is up with animation off")
 eq(instantWindow.animating, false, "M11 the first show settles without waiting for a tween")

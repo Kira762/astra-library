@@ -63,6 +63,7 @@ type WindowModule = { new: (types.WindowProps) -> types.Window }
 local Astra = {} :: Astra
 local activeWindow: types.Window? = nil
 local ACTIVE_WINDOW_KEY = "__ASTRA_ACTIVE_WINDOW_V1"
+local STARTUP_REVEAL_DELAY = 1
 
 local function getGlobalStore(): { [string]: any }
 	local globalEnv = _G :: any
@@ -85,6 +86,10 @@ Astra.Core = Core
 Astra.Settings = Settings
 
 function Astra:CreateWindow(props: types.WindowProps): types.Window
+	-- Count module loading and shell construction toward the one-second reveal
+	-- target. If either is slow, the shell opens on the next available frame
+	-- rather than adding another full delay afterward.
+	local creationStartedAt = os.clock()
 	local existingWindow = activeWindow or globalStore[ACTIVE_WINDOW_KEY]
 	activeWindow = existingWindow
 	if existingWindow then
@@ -114,6 +119,7 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 	end
 
 	local window = result :: types.Window
+	window._startupStartedAt = creationStartedAt
 	activeWindow = window
 	globalStore[ACTIVE_WINDOW_KEY] = window
 	if State.secureMode then
@@ -149,18 +155,45 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 	end
 
 	if not window.unloaded then
-		-- Wait for a quiet frame. Construction may yield in large scripts;
-		-- don't auto-show a half-populated window at one of those boundaries.
+		-- Reveal on a predictable deadline instead of waiting for an arbitrarily
+		-- large host script to finish. Checkpoints continue pacing the remaining
+		-- constructors after this, so the opening tween keeps receiving frames.
 		task.defer(function()
-			local revision
-			repeat
-				revision = window._constructionRevision
+			local remaining = STARTUP_REVEAL_DELAY - (os.clock() - creationStartedAt)
+			if remaining > 0 then
+				task.wait(remaining)
+			else
+				-- The constructor already consumed the target interval. Still yield
+				-- once so the caller can add its first tab before the shell appears.
 				task.wait()
-				if window.unloaded or window._autoShowCancelled then
-					return
+			end
+
+			if window.unloaded then
+				return
+			end
+			if window._autoShowCancelled then
+				window._startupComplete = true
+				return
+			end
+			if window.hidden then
+				window:Show()
+			end
+
+			-- Keep post-reveal constructors at one completed control per frame
+			-- until two consecutive frames observe no construction activity.
+			local stableFrames = 0
+			while not window.unloaded and not window._autoShowCancelled and stableFrames < 2 do
+				local revision = window._constructionRevision
+				task.wait()
+				if (window._constructionBusy or 0) == 0 and revision == window._constructionRevision then
+					stableFrames += 1
+				else
+					stableFrames = 0
 				end
-			until (window._constructionBusy or 0) == 0 and revision == window._constructionRevision
-			window:Show()
+			end
+			if not window.unloaded then
+				window._startupComplete = true
+			end
 		end)
 	end
 

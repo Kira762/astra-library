@@ -2,6 +2,39 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-14 — Element descriptions render inside the cards again (no overlap)
+
+- **`description` was a dead prop.** The settings refactor (`df2a3e9`, PR #28)
+  dropped `elements/description.luau` and every element's use of it while the
+  types, docs and changelog kept describing the in-card line — so the line
+  never rendered and nothing reserved room for helper copy: a host that drew
+  its own copy under an element had it land on top of that element's UI.
+- **The line lives inside the element's own card.** `elements/description.luau`
+  (restored) attaches a muted 14px `ContentColor` label under the title region —
+  the Collapsible Group header recipe — and the card grows by the measured
+  wrapped height (`lines * 17 + 3`; one line: 41 -> 61), so the copy can never
+  cover the title row, the control or the card's edge.
+- **Everything that shares the card follows the growth.** Title rows and
+  controls stay centred in the base region they had before the card grew
+  (`description.center`), bottom-anchored pieces ride up above the line
+  (slider tracks in each layout mode via `description.rebase`, progress bar and
+  readout, stat value/host), every height writer — hover tweens, layout
+  switches, the dropdown's closed *and* open heights — goes through
+  `description.height`, and the Collapsible Group header itself is 41px without
+  a description and 61px with one.
+- **The line is measured, not guessed.** The wrapped count comes from the
+  shared text metrics (with a greedy word count where a host has none) and
+  re-measures whenever the card's width changes or the text retypes, so a
+  locale switch, a window resize or a long lock message rewraps and re-grows
+  the card instead of spilling over the control.
+- Restored the docs (`MODULES.md`, `USAGE.md`) and the example
+  (`example.client.luau`: described controls on Home, Controls, Appearance,
+  Information and a described Collapsible Group), and the
+  `scripts/inline_description_test.{luau,sh}` suite: D1-D12 pin the recipe and
+  assert that no described element's line intersects its title row, control
+  surface, track, readout or card edge. Full suite: 22/22 plus the bundle
+  smoke test green.
+
 ## 2026-09-14 — Default theme matches Rayfield Gen2; capsule bar follows theme
 
 - **`themes/default.luau` rebuilt on Rayfield Gen2's default palette.** Shared

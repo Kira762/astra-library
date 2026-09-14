@@ -105,13 +105,17 @@ function Collapsible.new(tab, props)
     local self = setmetatable({
         tab = tab, window = tab.window, elements = {}, connections = {},
         name = props.name or props.Name or "Collapsible Group",
+        description = props.description or props.Description,
         icon = tab.window:ResolveIcon(props.icon or props.Icon),
         deriveFlagFromName = tab.deriveFlagFromName,
         forgetState = props.forgetState or tab.forgetState,
         _expanded = false, _shown = false,
     }, Collapsible)
     local w = self.window
-    self.headerHeight = 41
+    -- [[One muted 14px line under the title band, the element-description
+    -- [[recipe: the header grows by the line's 20px band (41 -> 61) instead of
+    -- [[letting the line run into the title row or the first child.]]
+    self.headerHeight = if self.description then 61 else 41
     -- The container only reserves layout space: it must not clip. The header
     -- card fills it edge to edge, and a tight ClipsDescendants parent shaves
     -- the outer half of its 1px stroke (Border mode straddles the edge) plus
@@ -149,6 +153,15 @@ function Collapsible.new(tab, props)
         TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
         TextTransparency = 1, Parent = self.header,
     }, { TextColor3 = "TitlingColor", FontFace = "Font" })
+    if self.description then
+        self.descriptionLabel = w:Create("TextLabel", {
+            Name = "Description",
+            Text = locale.t(self.description), Position = UDim2.fromOffset(textX, 37),
+            Size = UDim2.new(1, -(textX + 20), 0, 18), BackgroundTransparency = 1,
+            TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+            TextTransparency = 1, Parent = self.header,
+        }, { TextColor3 = "ContentColor", FontFace = "Font" })
+    end
     self.chevron = w:Create("ImageLabel", {
         Image = w:ResolveIcon("chevron-right"), Position = UDim2.new(1, -36, 0, 12),
         Size = UDim2.fromOffset(16, 16), BackgroundTransparency = 1,
@@ -278,6 +291,9 @@ function Collapsible:_setShown(shown, animate)
     w:_reveal(self.title, { TextTransparency = if shown then 0 else 1 }, animate)
     w:_reveal(self.chevron, { ImageTransparency = if shown then 0.4 else 1 }, animate)
     if self.iconLabel then w:_reveal(self.iconLabel, { ImageTransparency = if shown then 0 else 1 }, animate) end
+    if self.descriptionLabel then
+        w:_reveal(self.descriptionLabel, { TextTransparency = if shown then 0.45 else 1 }, animate)
+    end
     if self._expanded then
         for _, child in ipairs(self.elements) do child:_setShown(shown, animate) end
     end

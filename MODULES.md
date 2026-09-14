@@ -365,6 +365,14 @@ Per-element specifics:
   types and ordinary Groups. Validates definitions, rejects nested collapsibles,
   animates measured content height through the motion service, and keeps child
   controls alive while hidden. Search and tab removal traverse its descendants.
+- `description.luau` — the in-card description line shared by every element with a
+  `description` prop: attaches a muted 14px `ContentColor` label inside the
+  element's own card (the Collapsible Group header recipe), measures the wrapped
+  line count with the shared text metrics, grows the card by `lines * 17 + 3`
+  (one line: 41 -> 61), re-measures whenever the card's width changes or the text
+  retypes, keeps the control centred in the base region it had before the growth,
+  and doubles as the lock-message surface. Replaced the standalone `descriptor`
+  row that used to render *below* element cards.
 - `tab.luau` — tab class: `tabPage` (ScrollingFrame), `_register(element)` pipeline into `window.controls[flag]`, selector button visuals.
 - `group.luau`, `section.luau`, `tabSection.luau` — container classes with UIListLayout locals.
 - `changelog.luau` — release-history element (`__type = "Changelog"`): normalizes `ChangelogEntry`/`ChangelogChange` props, maps symbols (`+`/`-`/`~`, or words like "added"/"removed"/"changed") to green/red/amber, fades entries in, supports `Set`/`Refresh`/`Add(entry, prepend?)`/`Clear`.
@@ -530,6 +538,8 @@ Per-element specifics:
 | `toggle_switch_test.sh` | Switch geometry: one set of metrics, mirrored resting states, equal clearance, the sheen under the knob, and the animated positions matching the built ones. |
 | `input_field_test.sh` | Field-box corners: the Input field and the Keybind cap round with the theme's `ElementCornerRadius` as theme bindings (pixel radii, never capsule scales), re-stated on a theme switch, and shared with their element cards. |
 | `slider_travel_test.sh` | Slider knob travel: the capsule's centre stays half a knob inside each track end (resting, held and after release), so it never overlaps the track end or card edge at max/min, and the fill ends at the knob's centre. |
+| `description_geometry_probe.luau`, `render_description_preview.py` | Geometry preview for the in-card descriptions: the probe prints every described element's card, line and control rects, and the renderer draws them (PNG + HTML) with the intersection count per card, so the layout can be inspected without the engine. |
+| `inline_description_test.sh` | In-card element descriptions: the line is a child of the element's own card (nothing renders below it), the one-line recipe (41 -> 61, 14px at `(20, 37)`), controls keep the base region, a wrapped line grows the card by `lines * 17 + 3`, the line never intersects a title row, control surface, track or readout, sliders re-seat it per layout mode, the dropdown's open height carries it, it reveals at 0.45 and carries the lock message, and the Collapsible Group header grows to 61px with its own line. |
 | `icons_test.sh` | Icon resolver: name-only lookup across the packs in priority order (and how lazily they load), qualified `pack:name`, case sensitivity, unknown-pack warnings, custom assets (one import per path, memoised misses, the `listfiles` index), cache-key separation, and `window:ResolveIcon`. |
 | `motion_test.sh` | Motion service: shared specs, time scale + its cache, profiles, tween ownership (cancel-on-overlap vs. unrelated properties), the no-op and animation-off paths, the window's "Animation speed" setting, and hover going through the service. |
 

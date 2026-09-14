@@ -9,6 +9,7 @@ local tab = require(script.Parent.Parent.functions)
 local props = require(constants.moveable)
 local name = require(constants.lockable)
 local placeholder = require(constants.locale)
+local description = require(script.Parent.description)
 local numeric = require(constants.constants)
 local clearOnFocus = require(constants.HapticEngine)
 
@@ -33,6 +34,7 @@ function state.new(tab, placeholderLabel)
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = placeholderLabel.name or placeholderLabel.Name or "Input",
+        description = placeholderLabel.description or placeholderLabel.Description,
         icon = tab.window:ResolveIcon(placeholderLabel.icon or placeholderLabel.Icon),
         forgetState = placeholderLabel.forgetState or placeholderLabel.ForgetState or tab.forgetState,
         placeholder = placeholderLabel.placeholder or placeholderLabel.Placeholder or "",
@@ -63,9 +65,14 @@ function state.new(tab, placeholderLabel)
     self.stroke = self.window:StyleElementBody(self.main)
     self.hoverOverlay = self.window:CreateHoverOverlay(self.main)
 
+    -- [[The card grows for a description before the title row and the field
+    -- [[box are built, so both centre in the base region instead of riding
+    -- [[down onto the line.]]
+    description.attach(self)
+
     self.container = self.window:Create("Frame", {
         Size = UDim2.new(1, -115, 0, 16),
-        Position = UDim2.new(0, 20, 0.5, 0),
+        Position = UDim2.new(0, 20, description.center(self, 41)),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -112,7 +119,7 @@ function state.new(tab, placeholderLabel)
 
     self.box = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -7, 0.5, 0),
+        Position = UDim2.new(1, -7, description.center(self, 41)),
         Size = UDim2.fromOffset(85, 30),
         BorderSizePixel = 0,
 

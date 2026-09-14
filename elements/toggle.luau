@@ -11,6 +11,7 @@ local name = require(constants.lockable)
 local flag = require(constants.locale)
 local value = require(constants.HapticEngine)
 local baseCard = require(script.Parent.baseCard)
+local description = require(script.Parent.description)
 local callback = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
 -- [[Switch metrics, in one place. The track and the knob are both pills and
@@ -43,6 +44,7 @@ function state.new(tab, element)
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = element.name or element.Name or "Switch",
+        description = element.description or element.Description,
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
         forgetState = element.forgetState or element.ForgetState or tab.forgetState,
         compact = tab.compact or false,
@@ -179,7 +181,9 @@ function state:_buildFull()
     })
 
     self:_buildSwitch(self.main)
-    self.functionContainer.Position = UDim2.new(1, -15, 0.5, 0)
+    -- [[The switch centres in the base region too, so a described card grows
+    -- [[under the toggle instead of pushing it down onto the line.]]
+    self.functionContainer.Position = UDim2.new(1, -15, description.center(self, 41))
     self.functionContainer.AnchorPoint = Vector2.new(1, 0.5)
 
     self.window:_wireElementHover(self)
@@ -196,7 +200,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-                { Size = UDim2.new(1, -26, 0, 41) }
+                { Size = UDim2.new(1, -26, 0, description.height(self, 41)) }
             )
             :Play()
 
@@ -212,7 +216,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 TweenInfo.new(0.25, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
-                { Size = UDim2.new(1, -20, 0, 41) }
+                { Size = UDim2.new(1, -20, 0, description.height(self, 41)) }
             )
             :Play()
         Toggle.tweenService

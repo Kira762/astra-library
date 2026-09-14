@@ -4,6 +4,8 @@
 
 local baseCard = {}
 
+local description = require(script.Parent.description)
+
 export type BaseCardOpts = {
     height: number?,
     rightPadding: number?,
@@ -28,11 +30,17 @@ function baseCard.buildFull(element: any, opts: BaseCardOpts?): any
     element.stroke = window:StyleElementBody(element.main)
     element.hoverOverlay = window:CreateHoverOverlay(element.main)
 
+    -- [[A description grows the card here, before the title row is built, so
+    -- [[the row centres in the base region instead of drifting down into the
+    -- [[line (see elements/description.luau).]]
+    description.attach(element)
+    local centerScale, centerOffset = description.center(element, height)
+
     element.container = window:Create("Frame", {
         BorderSizePixel = 0,
         Parent = element.main,
         Size = UDim2.new(1, -rightPadding, 0, 16),
-        Position = UDim2.new(0, 20, 0.5, 0),
+        Position = UDim2.new(0, 20, centerScale, centerOffset),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
     })

@@ -31,6 +31,7 @@ constants.zIndex = {
     elementLock = 60,
     elementLockContent = 65,
     bottomFade = 100,
+    tabFade = 2,
     notification = 1500,
     drag = 100003,
     toast = 2000,

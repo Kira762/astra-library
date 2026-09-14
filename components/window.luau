@@ -1752,6 +1752,76 @@ function Window:_buildLockScrim(element)
     }, { CornerRadius = "ElementCornerRadius" })
 end
 
+-- [[Topbar tab-strip chrome: the strip is inset from the window edge and a]]
+-- [[gradient fade marks whichever edge is clipping tabs. Runs off canvas/]]
+-- [[size change signals (see Topbar.Build) and skips writes when the target]]
+-- [[state is unchanged, so steady-state cost is one comparison per signal.]]
+function Window:_refreshTabStripChrome()
+    local strip = self.tabList
+    local fadeLeft = self.tabFadeLeft
+    local fadeRight = self.tabFadeRight
+    if self.layout.mode ~= "top" or not strip or not strip.Parent then
+        return
+    end
+
+    local rightClipped = strip.CanvasSize.X > strip.AbsoluteWindowSize.X + 0.5
+    if fadeRight and fadeRight.Parent and fadeRight.Visible ~= rightClipped then
+        fadeRight.Visible = rightClipped
+    end
+
+    local scrolledFromLeft = strip.CanvasPosition.X > 0.5
+    if fadeLeft and fadeLeft.Parent and fadeLeft.Visible ~= scrolledFromLeft then
+        fadeLeft.Visible = scrolledFromLeft
+    end
+end
+
+-- [[Keep the selected pill inside the strip's viewport after a selection.]]
+-- [[Children of the ScrollingFrame sit in canvas space, so item.Position]]
+-- [[is the tab's offset along the strip without any absolute-position]]
+-- [[math; the inset keeps the landing a touch clear of the edge fades.]]
+function Window:_scrollSelectedTabIntoView(tweened)
+    local strip = self.tabList
+    if self.layout.mode ~= "top" or not strip or not strip.Parent then
+        return
+    end
+
+    local tab = self.selectedTab
+    local item = tab and (not tab.neglectSelector) and tab.topbarItem
+    if not item or not item.Parent then
+        return
+    end
+
+    local inset = self.layout.tabStripInset or 22
+    local viewport = strip.AbsoluteWindowSize.X
+    local maxScroll = math.max(0, strip.CanvasSize.X - viewport)
+    local left = item.Position.X
+    local right = left + item.AbsoluteSize.X
+    local pos = strip.CanvasPosition.X
+
+    -- [[Move the strip only when the pill is clipped or pressed up
+    -- [[against an edge fade; a comfortably visible tab stays put, so
+    -- [[selecting it does not re-scroll the strip for no reason.]]
+    local target = nil
+    if left < pos + inset then
+        target = left - inset
+    elseif right > pos + viewport - inset then
+        target = right + inset - viewport
+    end
+    if target == nil then
+        return
+    end
+    target = math.clamp(target, 0, maxScroll)
+    if math.abs(pos - target) < 1 then
+        return
+    end
+
+    if tweened then
+        motion.tween(strip, { CanvasPosition = Vector2.new(target, 0) }, "snappy")
+    else
+        strip.CanvasPosition = Vector2.new(target, 0)
+    end
+end
+
 function Window:_setLayoutMode(modeName)
     if self.unloaded then
         return false
@@ -1794,6 +1864,16 @@ function Window:_setLayoutMode(modeName)
         self.sidebar = nil
     elseif self.tabList then
         self:DestroySubtree(self.tabList)
+    end
+    -- [[The edge fades live beside the topbar strip, so they are topbar]]
+    -- [[chrome: tear them down on the way out of "top" mode.]]
+    if self.tabFadeLeft then
+        self:DestroySubtree(self.tabFadeLeft)
+        self.tabFadeLeft = nil
+    end
+    if self.tabFadeRight then
+        self:DestroySubtree(self.tabFadeRight)
+        self.tabFadeRight = nil
     end
     local implementation = layouts.implementation(modeName)
     implementation.Build(self, newLayout)
@@ -2205,6 +2285,12 @@ function Window:_firstShow()
         self.drag.drag.Visible = false
         self.animating = false
         self._revealing = false
+        -- [[The window reached its final size: the strip's viewport is]]
+        -- [[stable now, so park the selected tab in view (it was computed]]
+        -- [[at full size during construction, but the entrance shrank the]]
+        -- [[window to 88%, which clamped CanvasPosition along the way).]]
+        self:_scrollSelectedTabIntoView(false)
+        self:_refreshTabStripChrome()
     end
 
     if not motion.tween(self.main, {

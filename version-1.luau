@@ -8342,6 +8342,76 @@ function Window:_buildLockScrim(element)
     }, { CornerRadius = "ElementCornerRadius" })
 end
 
+-- [[Topbar tab-strip chrome: the strip is inset from the window edge and a]]
+-- [[gradient fade marks whichever edge is clipping tabs. Runs off canvas/]]
+-- [[size change signals (see Topbar.Build) and skips writes when the target]]
+-- [[state is unchanged, so steady-state cost is one comparison per signal.]]
+function Window:_refreshTabStripChrome()
+    local strip = self.tabList
+    local fadeLeft = self.tabFadeLeft
+    local fadeRight = self.tabFadeRight
+    if self.layout.mode ~= "top" or not strip or not strip.Parent then
+        return
+    end
+
+    local rightClipped = strip.CanvasSize.X > strip.AbsoluteWindowSize.X + 0.5
+    if fadeRight and fadeRight.Parent and fadeRight.Visible ~= rightClipped then
+        fadeRight.Visible = rightClipped
+    end
+
+    local scrolledFromLeft = strip.CanvasPosition.X > 0.5
+    if fadeLeft and fadeLeft.Parent and fadeLeft.Visible ~= scrolledFromLeft then
+        fadeLeft.Visible = scrolledFromLeft
+    end
+end
+
+-- [[Keep the selected pill inside the strip's viewport after a selection.]]
+-- [[Children of the ScrollingFrame sit in canvas space, so item.Position]]
+-- [[is the tab's offset along the strip without any absolute-position]]
+-- [[math; the inset keeps the landing a touch clear of the edge fades.]]
+function Window:_scrollSelectedTabIntoView(tweened)
+    local strip = self.tabList
+    if self.layout.mode ~= "top" or not strip or not strip.Parent then
+        return
+    end
+
+    local tab = self.selectedTab
+    local item = tab and (not tab.neglectSelector) and tab.topbarItem
+    if not item or not item.Parent then
+        return
+    end
+
+    local inset = self.layout.tabStripInset or 22
+    local viewport = strip.AbsoluteWindowSize.X
+    local maxScroll = math.max(0, strip.CanvasSize.X - viewport)
+    local left = item.Position.X
+    local right = left + item.AbsoluteSize.X
+    local pos = strip.CanvasPosition.X
+
+    -- [[Move the strip only when the pill is clipped or pressed up
+    -- [[against an edge fade; a comfortably visible tab stays put, so
+    -- [[selecting it does not re-scroll the strip for no reason.]]
+    local target = nil
+    if left < pos + inset then
+        target = left - inset
+    elseif right > pos + viewport - inset then
+        target = right + inset - viewport
+    end
+    if target == nil then
+        return
+    end
+    target = math.clamp(target, 0, maxScroll)
+    if math.abs(pos - target) < 1 then
+        return
+    end
+
+    if tweened then
+        motion.tween(strip, { CanvasPosition = Vector2.new(target, 0) }, "snappy")
+    else
+        strip.CanvasPosition = Vector2.new(target, 0)
+    end
+end
+
 function Window:_setLayoutMode(modeName)
     if self.unloaded then
         return false
@@ -8384,6 +8454,16 @@ function Window:_setLayoutMode(modeName)
         self.sidebar = nil
     elseif self.tabList then
         self:DestroySubtree(self.tabList)
+    end
+    -- [[The edge fades live beside the topbar strip, so they are topbar]]
+    -- [[chrome: tear them down on the way out of "top" mode.]]
+    if self.tabFadeLeft then
+        self:DestroySubtree(self.tabFadeLeft)
+        self.tabFadeLeft = nil
+    end
+    if self.tabFadeRight then
+        self:DestroySubtree(self.tabFadeRight)
+        self.tabFadeRight = nil
     end
     local implementation = layouts.implementation(modeName)
     implementation.Build(self, newLayout)
@@ -8795,6 +8875,12 @@ function Window:_firstShow()
         self.drag.drag.Visible = false
         self.animating = false
         self._revealing = false
+        -- [[The window reached its final size: the strip's viewport is]]
+        -- [[stable now, so park the selected tab in view (it was computed]]
+        -- [[at full size during construction, but the entrance shrank the]]
+        -- [[window to 88%, which clamped CanvasPosition along the way).]]
+        self:_scrollSelectedTabIntoView(false)
+        self:_refreshTabStripChrome()
     end
 
     if not motion.tween(self.main, {
@@ -15001,6 +15087,10 @@ function state:Select(a24)
         self:_applyVisual("selected", element)
     end
 
+    -- [[Topbar mode only (a no-op on the sidebar): the selected pill]]
+    -- [[must stay in view as the user moves through a long strip.]]
+    self.window:_scrollSelectedTabIntoView(not a25)
+
     for _, tab in self.window.tabs do
         if tab ~= self.window.selectedTab then
             tab:Deselect(a25)
@@ -17173,16 +17263,71 @@ return SidebarCollapsed
 end)() end,
     [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
 local search = require(script.Parent.Parent.components.search)
+local functions = require(script.Parent.Parent.functions)
+local utilities = script.Parent.Parent.utilities
+local constants = require(utilities.constants)
 
 local Topbar = {}
 
+local FADE_WIDTH = 24
+
+-- [[The window surface's WindowColor gradient runs bottom-to-top (rotation]]
+-- [[270), so the colour behind the strip — at the top of the window — is]]
+-- [[the sequence's last keypoint. Flattening it is the same trick the]]
+-- [[bottom fade uses, so a theme can never drift the two apart.]]
+local function topSurfaceColor(color)
+    local keypoints = functions.toColorSequence(color).Keypoints
+    return ColorSequence.new(keypoints[#keypoints].Value)
+end
+
+local function buildFade(window, layout, inset, name, anchoredRight, transparentEdge)
+    -- [[transparentEdge is the frame edge that must be fully clear:]]
+    -- [[left for the right fade (it dissolves towards the visible tabs),]]
+    -- [[right for the left fade.]]
+    local fade = window:Create("Frame", {
+        Name = name,
+        Size = UDim2.fromOffset(FADE_WIDTH, layout.tabStripHeight),
+        Position = if anchoredRight
+            then UDim2.new(1, -(inset + FADE_WIDTH), 0, layout.tabStripTop)
+            else UDim2.new(0, inset, 0, layout.tabStripTop),
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BorderSizePixel = 0,
+        BackgroundTransparency = 1,
+        Visible = false,
+        ZIndex = constants.zIndex.tabFade,
+
+        Parent = window.main,
+    })
+
+    window:Create("UIGradient", {
+        Rotation = 0,
+        Transparency = if transparentEdge == "left"
+            then NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 1),
+                NumberSequenceKeypoint.new(1, 0),
+            })
+            else NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 0),
+                NumberSequenceKeypoint.new(1, 1),
+            }),
+        Parent = fade,
+    }, { Color = { "WindowColor", topSurfaceColor } })
+
+    return fade
+end
+
 function Topbar.Build(window, layout)
+    -- [[The strip is inset from the window edge on both sides (instead of]]
+    -- [[using UIPadding, which would scroll away with the content), so a]]
+    -- [[tab that overflows clips inside the window — never touching its]]
+    -- [[border — and the edge fades below mark where tabs go off.]]
+    local inset = layout.tabStripInset or 22
+
     window.tabList = window:Create("ScrollingFrame", {
         Name = "Tabs",
         Active = true,
-        Size = UDim2.new(1, 0, 0, layout.tabStripHeight),
-        Position = UDim2.new(0.5, 0, 0, layout.tabStripTop),
-        AnchorPoint = Vector2.new(0.5, 0),
+        Size = UDim2.new(1, -inset * 2, 0, layout.tabStripHeight),
+        Position = UDim2.new(0, inset, 0, layout.tabStripTop),
         BackgroundTransparency = 1,
         AutomaticCanvasSize = Enum.AutomaticSize.X,
         CanvasSize = UDim2.new(0, 0, 0, 0),
@@ -17199,11 +17344,23 @@ function Topbar.Build(window, layout)
         SortOrder = Enum.SortOrder.LayoutOrder,
         Parent = window.tabList,
     })
-    window:Create("UIPadding", {
-        PaddingLeft = UDim.new(0, 22),
-        PaddingRight = UDim.new(0, 10),
-        Parent = window.tabList,
-    })
+
+    window.tabFadeLeft = buildFade(window, layout, inset, "TabFadeLeft", false, "right")
+    window.tabFadeRight = buildFade(window, layout, inset, "TabFadeRight", true, "left")
+
+    -- [[Canvas content changes (tabs added/removed) and scrolling move the]]
+    -- [[clipping edges; the window's Size covers resizes and the entrance]]
+    -- [[tween. _refreshTabStripChrome skips writes when nothing changed.]]
+    window:Connect(window.tabList:GetPropertyChangedSignal("CanvasSize"), function()
+        window:_refreshTabStripChrome()
+    end)
+    window:Connect(window.tabList:GetPropertyChangedSignal("CanvasPosition"), function()
+        window:_refreshTabStripChrome()
+    end)
+    window:Connect(window.main:GetPropertyChangedSignal("Size"), function()
+        window:_refreshTabStripChrome()
+    end)
+    window:_refreshTabStripChrome()
 end
 
 function Topbar.ApplyWidth(window)
@@ -29658,6 +29815,7 @@ constants.zIndex = {
     elementLock = 60,
     elementLockContent = 65,
     bottomFade = 100,
+    tabFade = 2,
     notification = 1500,
     drag = 100003,
     toast = 2000,
@@ -30505,6 +30663,7 @@ export type Layout = {
 
         tabStripTop: number?,
     tabStripHeight: number?,
+    tabStripInset: number?,
 
         railWidth: number?,
     railCollapsedWidth: number?,
@@ -30532,6 +30691,11 @@ layouts.top = {
 
     tabStripTop = tabStripTopOffset,
     tabStripHeight = tabStripRowHeight,
+
+    -- [[Margin between the window edge and the tab strip. The strip's]]
+    -- [[ScrollingFrame is inset by this much on each side, so overflowing]]
+    -- [[tabs clip inside the window instead of running into its border.]]
+    tabStripInset = 22,
 
     pageDirection = Enum.FillDirection.Horizontal,
 
@@ -32381,89 +32545,89 @@ local LineOffsets = {
     [18] = 5844,
     [19] = 6214,
     [20] = 6591,
-    [22] = 9481,
-    [23] = 9559,
-    [24] = 9770,
-    [25] = 10215,
-    [26] = 10522,
-    [27] = 10667,
-    [28] = 12035,
-    [29] = 12246,
-    [30] = 12511,
-    [31] = 13066,
-    [32] = 13508,
-    [33] = 13594,
-    [34] = 14170,
-    [35] = 14787,
-    [36] = 15178,
-    [37] = 15308,
-    [38] = 15472,
-    [39] = 15626,
-    [41] = 16122,
-    [42] = 16145,
-    [43] = 16162,
-    [44] = 16195,
-    [45] = 16317,
-    [46] = 16341,
-    [47] = 16390,
-    [48] = 16097,
-    [49] = 16520,
-    [50] = 16823,
-    [51] = 16854,
-    [52] = 16509,
-    [53] = 16897,
-    [54] = 16917,
-    [55] = 16949,
-    [56] = 16879,
-    [57] = 17056,
-    [58] = 17115,
-    [59] = 17175,
-    [61] = 17234,
-    [62] = 17399,
-    [63] = 17219,
-    [64] = 17959,
-    [65] = 18262,
-    [66] = 18926,
-    [67] = 20718,
-    [68] = 21867,
-    [69] = 23395,
-    [70] = 17461,
-    [71] = 28647,
-    [72] = 28709,
-    [73] = 28771,
-    [74] = 28846,
-    [75] = 28928,
-    [76] = 28990,
-    [77] = 29065,
-    [78] = 29140,
-    [79] = 29215,
-    [80] = 29290,
-    [81] = 28541,
-    [82] = 29352,
-    [83] = 29450,
-    [84] = 29628,
-    [85] = 29679,
-    [86] = 29709,
-    [87] = 29960,
-    [88] = 30009,
-    [89] = 30462,
-    [90] = 30480,
-    [91] = 30626,
-    [92] = 30725,
-    [93] = 30747,
-    [94] = 30797,
-    [95] = 31123,
-    [96] = 31159,
-    [97] = 31177,
-    [98] = 31526,
-    [99] = 31538,
-    [100] = 31589,
-    [101] = 31608,
-    [102] = 31850,
-    [103] = 31894,
-    [104] = 32119,
-    [105] = 32147,
-    [106] = 32158,
+    [22] = 9567,
+    [23] = 9645,
+    [24] = 9856,
+    [25] = 10301,
+    [26] = 10608,
+    [27] = 10753,
+    [28] = 12121,
+    [29] = 12332,
+    [30] = 12597,
+    [31] = 13152,
+    [32] = 13594,
+    [33] = 13680,
+    [34] = 14256,
+    [35] = 14873,
+    [36] = 15268,
+    [37] = 15398,
+    [38] = 15562,
+    [39] = 15716,
+    [41] = 16212,
+    [42] = 16235,
+    [43] = 16252,
+    [44] = 16285,
+    [45] = 16407,
+    [46] = 16431,
+    [47] = 16480,
+    [48] = 16187,
+    [49] = 16610,
+    [50] = 16913,
+    [51] = 16944,
+    [52] = 16599,
+    [53] = 16987,
+    [54] = 17007,
+    [55] = 17039,
+    [56] = 16969,
+    [57] = 17146,
+    [58] = 17205,
+    [59] = 17265,
+    [61] = 17391,
+    [62] = 17556,
+    [63] = 17376,
+    [64] = 18116,
+    [65] = 18419,
+    [66] = 19083,
+    [67] = 20875,
+    [68] = 22024,
+    [69] = 23552,
+    [70] = 17618,
+    [71] = 28804,
+    [72] = 28866,
+    [73] = 28928,
+    [74] = 29003,
+    [75] = 29085,
+    [76] = 29147,
+    [77] = 29222,
+    [78] = 29297,
+    [79] = 29372,
+    [80] = 29447,
+    [81] = 28698,
+    [82] = 29509,
+    [83] = 29607,
+    [84] = 29785,
+    [85] = 29837,
+    [86] = 29867,
+    [87] = 30118,
+    [88] = 30167,
+    [89] = 30620,
+    [90] = 30638,
+    [91] = 30790,
+    [92] = 30889,
+    [93] = 30911,
+    [94] = 30961,
+    [95] = 31287,
+    [96] = 31323,
+    [97] = 31341,
+    [98] = 31690,
+    [99] = 31702,
+    [100] = 31753,
+    [101] = 31772,
+    [102] = 32014,
+    [103] = 32058,
+    [104] = 32283,
+    [105] = 32311,
+    [106] = 32322,
 }
 
 -- [[Misc AOT variable imports]]

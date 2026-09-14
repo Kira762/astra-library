@@ -960,6 +960,16 @@ function Window:_copyOverlayProps(props)
     return copy
 end
 
+-- Public notification API. Keep the queueing implementation private so all
+-- callers, including settings and secure-mode diagnostics, use the same
+-- bounded entrance lane.
+function Window:Notify(props)
+    if self.unloaded then
+        return
+    end
+    return self:_showNotification(props)
+end
+
 function Window:_showNotification(props)
     if not self.notifications then
         self.notifications = self:Create("Frame", {

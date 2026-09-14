@@ -49,13 +49,13 @@ end
 assert(gradientOf(group.headerSurface) and gradientOf(group.headerSurface).Color == gradientOf(toggle.main).Color, "Header gradient matches element surfaces")
 
 -- One connected card: the container clips its surfaces to the rounded
--- silhouette with an interior stroke, the header band rides the element
+-- silhouette with a border stroke, the header band rides the element
 -- gradient over the darker body surface, and a 1px divider separates them.
 -- The reveal mask spans the container and rides its bottom edge; children at
 -- UDim2.new(1, -20) of the full-width body land one gutter inside on each
 -- side instead of running edge to edge against the container stroke.
 assert(group.main.ClipsDescendants, "Container clips its surfaces to the rounded silhouette")
-assert(group.stroke.ApplyStrokeMode == Enum.ApplyStrokeMode.Interior, "Outer stroke rides inside the container's own clip")
+assert(group.stroke.ApplyStrokeMode == Enum.ApplyStrokeMode.Border, "Outer stroke uses a supported border mode")
 assert(group.bodyClip.ClipsDescendants, "Only the body clipper masks content")
 assert(group.bodyClip.Size.X.Scale == 1 and group.bodyClip.Size.X.Offset == 0, "Clipper spans the container")
 assert(group.bodyClip.Position.Y.Offset == group.headerHeight + 1, "Clipper starts under the divider")

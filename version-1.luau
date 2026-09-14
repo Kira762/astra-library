@@ -934,9 +934,10 @@ function chrome.buildCollapsedFace(window)
         Parent = window.main,
     }, { ImageColor3 = "TitlingColor" })
 
+    -- [[Gen2: PillCornerRadius drives tab pills and the collapsed capsule icon.]]
     window:Create("UICorner", {
         Parent = window.collapsedIcon,
-    }, { CornerRadius = "CornerRoundness" })
+    }, { CornerRadius = "PillCornerRadius" })
 
     local collapsedTextFrame = window:Create("Frame", {
         Name = "CollapsedText",
@@ -7307,6 +7308,15 @@ function Window:ChangeTheme(themeInput)
     self:_syncLiveAnimation()
     -- [[A theme can change the row title font, hence the rail width.]]
     self:_applyContentRailWidth()
+
+    -- [[Capsule / minimised bar: keep the live corner on the theme's pill
+    -- [[radius so ChangeTheme restyles the bar without needing a re-collapse.]]
+    if self.windowCorner and (self._collapsedShown or self.minimised) and not self.animating then
+        local pill = self.theme.PillCornerRadius or UDim.new(1, 0)
+        if self.windowCorner.CornerRadius ~= pill then
+            state.tweenService:Create(self.windowCorner, tweenStyle, { CornerRadius = pill }):Play()
+        end
+    end
 end
 
 function Window:_refreshElementThemes()
@@ -7600,7 +7610,9 @@ function Window:Close()
             return
         end
     end
-    motion.tween(self.windowCorner, { CornerRadius = UDim.new(1, 0) }, closeTweenInfo)
+    -- [[Collapse to a capsule using the theme's pill radius so a custom
+    -- [[PillCornerRadius still reads on the closing shrink.]]
+    motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, closeTweenInfo)
 end
 
 function Window:Hide()
@@ -7698,7 +7710,8 @@ function Window:Hide()
     if not motion.tween(self.main, { Size = collapsedSize, Position = collapsedPos }, surfaceTween, settleCollapse) then
         settleCollapse()
     end
-    motion.tween(self.windowCorner, { CornerRadius = UDim.new(1, 0) }, cornerTween)
+    -- [[Capsule bar: theme PillCornerRadius (Gen2 default is a full pill).]]
+    motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, cornerTween)
 
     self.topbar.Visible = true
     self:_setContentVisible(false)
@@ -7739,6 +7752,7 @@ function Window:ToggleMinimise()
         self.drag.drag.Visible = false
         image.assign(self.minimiseAction.iconLabel, "Image", constants.icons.minimise)
         state.tweenService:Create(self.main, expandTween, { Size = self.size }):Play()
+        motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, expandTween)
         self:_fadeSurfaces(true, surfaceTween)	chrome.setCollapsedShown(self, false, surfaceTween)
 
         -- [[The card comes back with the expanded window and the pair has]]
@@ -7810,6 +7824,8 @@ function Window:ToggleMinimise()
         state.tweenService
             :Create(self.main, expandTween, { Size = UDim2.fromOffset(self.size.X.Offset, self.layout.topbarHeight) })
             :Play()
+        -- [[Minimised bar reads as a theme-aware capsule (PillCornerRadius).]]
+        motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, expandTween)
 
         state.tweenService
             :Create(self.drag.drag, expandTween, {
@@ -8811,7 +8827,8 @@ function Window:_firstShow()
         math.floor(self.size.Y.Offset * 0.88)
     )
     self.main.Size = openingSize
-    self.windowCorner.CornerRadius = UDim.new(1, 0)
+    -- [[Entrance starts as a capsule (theme pill) then opens to CornerRoundness.]]
+    self.windowCorner.CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0)
     self:_setContentVisible(true)
     self:_setTabSectionsVisible(true)
     self:_setTabSectionsShown(true)
@@ -28844,6 +28861,10 @@ return {
     AccentGlow = 0.3,
     DropdownHighlight = Color3.fromRGB(197, 151, 244),
     ToggleKnobOff = Color3.fromRGB(216, 206, 225),
+    -- [[Solid off-knob: do not inherit Gen2 default's translucent white knob.]]
+    ToggleKnobOffTransparency = 0.08,
+    ToggleTrack = Color3.fromRGB(10, 8, 14),
+    ToggleTrackTransparency = 0.82,
     StatBackground = Color3.fromRGB(27, 21, 36),
     NeutralButton = Color3.fromRGB(43, 34, 57),
     NeutralButtonHover = Color3.fromRGB(57, 45, 74),
@@ -28906,6 +28927,10 @@ return {
     AccentGlow = 0.3,
     DropdownHighlight = Color3.fromRGB(105, 181, 248),
     ToggleKnobOff = Color3.fromRGB(196, 210, 226),
+    -- [[Solid off-knob: do not inherit Gen2 default's translucent white knob.]]
+    ToggleKnobOffTransparency = 0.08,
+    ToggleTrack = Color3.fromRGB(8, 12, 18),
+    ToggleTrackTransparency = 0.82,
     StatBackground = Color3.fromRGB(19, 26, 39),
     NeutralButton = Color3.fromRGB(34, 46, 65),
     NeutralButtonHover = Color3.fromRGB(47, 63, 86),
@@ -29002,82 +29027,100 @@ end)() end,
     [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
 local default = require(script.Parent.Parent.core.state)
 
+-- [[Rayfield Gen2 default palette, ported 1:1 for shared keys. Astra-only
+-- [[semantic keys (Background, WindowSurface, text tiers, Success/Warning,
+-- [[etc.) are derived from the same greyscale + teal accent so the capsule,
+-- [[profile card and settings surfaces stay coherent with Gen2.]]
 return {
-    Background = Color3.fromRGB(13, 15, 18),
-    WindowSurface = Color3.fromRGB(21, 24, 29),
-    TopbarSurface = Color3.fromRGB(25, 29, 35),
-    SidebarSurface = Color3.fromRGB(18, 21, 26),
-    TabSurface = Color3.fromRGB(30, 35, 42),
-    TabSelected = Color3.fromRGB(40, 73, 70),
-    ElementSurface = Color3.fromRGB(28, 32, 38),
-    ElementHover = Color3.fromRGB(35, 41, 48),
-    ElementPressed = Color3.fromRGB(23, 27, 33),
-    SecondaryElement = Color3.fromRGB(24, 28, 34),
-    Stroke = Color3.fromRGB(55, 62, 72),
-    SecondaryStroke = Color3.fromRGB(42, 49, 58),
-    PrimaryText = Color3.fromRGB(235, 239, 242),
-    SecondaryText = Color3.fromRGB(178, 187, 195),
-    MutedText = Color3.fromRGB(126, 137, 148),
-    DisabledText = Color3.fromRGB(91, 101, 111),
-    Accent = Color3.fromRGB(54, 190, 157),
-    AccentHover = Color3.fromRGB(72, 211, 177),
-    AccentPressed = Color3.fromRGB(35, 145, 119),
-    AccentStrokeSemantic = Color3.fromRGB(92, 220, 187),
-    Success = Color3.fromRGB(65, 190, 126),
+    -- [[Semantic palette (derived from Gen2 greys + teal accent)]]
+    Background = Color3.fromRGB(10, 10, 10),
+    WindowSurface = Color3.fromRGB(25, 25, 25),
+    TopbarSurface = Color3.fromRGB(30, 30, 30),
+    SidebarSurface = Color3.fromRGB(18, 18, 18),
+    TabSurface = Color3.fromRGB(35, 35, 35),
+    TabSelected = Color3.fromRGB(23, 153, 110),
+    ElementSurface = Color3.fromRGB(30, 30, 30),
+    ElementHover = Color3.fromRGB(40, 40, 40),
+    ElementPressed = Color3.fromRGB(22, 22, 22),
+    SecondaryElement = Color3.fromRGB(25, 25, 25),
+    Stroke = Color3.fromRGB(48, 48, 48),
+    SecondaryStroke = Color3.fromRGB(35, 35, 35),
+    PrimaryText = Color3.fromRGB(255, 255, 255),
+    SecondaryText = Color3.fromRGB(200, 200, 200),
+    MutedText = Color3.fromRGB(178, 178, 178),
+    DisabledText = Color3.fromRGB(120, 120, 120),
+    Accent = Color3.fromRGB(23, 153, 110),
+    AccentHover = Color3.fromRGB(32, 201, 144),
+    AccentPressed = Color3.fromRGB(0, 134, 98),
+    AccentStrokeSemantic = Color3.fromRGB(32, 201, 144),
+    Success = Color3.fromRGB(0, 170, 127),
     Warning = Color3.fromRGB(224, 166, 74),
-    Error = Color3.fromRGB(211, 86, 88),
-    NotificationSurface = Color3.fromRGB(28, 34, 41),
-    PopupSurface = Color3.fromRGB(24, 29, 35),
-    InputSurface = Color3.fromRGB(17, 21, 26),
+    Error = Color3.fromRGB(185, 50, 50),
+    NotificationSurface = Color3.fromRGB(30, 30, 30),
+    PopupSurface = Color3.fromRGB(25, 25, 25),
+    InputSurface = Color3.fromRGB(18, 18, 18),
 
-    CornerRoundness = UDim.new(0, 16),
-    WindowColor = ColorSequence.new(Color3.fromRGB(19, 22, 27), Color3.fromRGB(27, 32, 38)),
-    ShadowColor = Color3.fromRGB(5, 7, 10),
-    ElementStroke = Color3.fromRGB(54, 62, 72),
-    CardSurface = Color3.fromRGB(28, 32, 38),
-    ElementGradient = ColorSequence.new(Color3.fromRGB(28, 32, 38), Color3.fromRGB(32, 37, 44)),
-    ElementStrokeGradient = ColorSequence.new(Color3.fromRGB(48, 56, 66), Color3.fromRGB(62, 72, 82)),
-    TabColor = Color3.fromRGB(212, 220, 224),
-    TabBackground = ColorSequence.new(Color3.fromRGB(31, 37, 44), Color3.fromRGB(25, 30, 36)),
-    TabStroke = ColorSequence.new(Color3.fromRGB(58, 69, 79), Color3.fromRGB(43, 51, 60)),
-    SliderBackground = Color3.fromRGB(38, 45, 53),
-    SliderBackgroundHover = Color3.fromRGB(49, 58, 68),
-    SliderProgress = ColorSequence.new(Color3.fromRGB(65, 202, 167), Color3.fromRGB(38, 160, 130)),
-    SliderStroke = Color3.fromRGB(102, 116, 126),
-    ActionColor = Color3.fromRGB(228, 235, 238),
+    -- [[Gen2 shared keys — values match src/themes/default.luau]]
+    CornerRoundness = UDim.new(0, 20),
+    WindowColor = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(10, 10, 10)),
+        ColorSequenceKeypoint.new(0.9999, Color3.fromRGB(25, 25, 25)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 35, 35)),
+    }),
+    ShadowColor = Color3.fromRGB(20, 20, 20),
+    ElementStroke = Color3.fromRGB(35, 35, 35),
+    CardSurface = Color3.fromRGB(30, 30, 30),
+    ElementGradient = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 30, 30)),
+        ColorSequenceKeypoint.new(0.9999, Color3.fromRGB(35, 35, 35)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 35, 35)),
+    }),
+    ElementStrokeGradient = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(48, 48, 48)),
+        ColorSequenceKeypoint.new(0.9999, Color3.fromRGB(58, 58, 58)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(48, 48, 48)),
+    }),
+    TabColor = Color3.fromRGB(255, 255, 255),
+    TabBackground = ColorSequence.new(Color3.fromRGB(50, 50, 50), Color3.fromRGB(35, 35, 35)),
+    TabStroke = ColorSequence.new(Color3.fromRGB(95, 95, 95), Color3.fromRGB(50, 50, 50)),
+    SliderBackground = Color3.fromRGB(47, 47, 47),
+    SliderBackgroundHover = Color3.fromRGB(60, 60, 60),
+    SliderProgress = ColorSequence.new(Color3.fromRGB(0, 170, 127), Color3.fromRGB(0, 134, 98)),
+    SliderStroke = Color3.fromRGB(255, 255, 255),
+    ActionColor = Color3.fromRGB(255, 255, 255),
     TitleFont = default.brandFont(Enum.FontWeight.SemiBold),
     Font = default.brandFont(Enum.FontWeight.Medium),
-    ContentColor = Color3.fromRGB(220, 226, 230),
+    ContentColor = Color3.fromRGB(255, 255, 255),
     LiveAnimation = false,
     DarkToggleOverlay = true,
     ElementTransparency = 0,
     ElementStrokeTransparency = 0,
     ElementStrokeHoverTransparency = 0,
-    ElementStrokeHover = Color3.fromRGB(78, 91, 102),
-    ElementCornerRadius = UDim.new(0, 10),
-    ElementTextHoverColor = Color3.fromRGB(245, 249, 250),
-    TitlingColor = Color3.fromRGB(239, 244, 246),
-    DropdownHighlight = Color3.fromRGB(72, 211, 177),
-    AccentColor = Color3.fromRGB(54, 190, 157),
-    AccentStroke = Color3.fromRGB(92, 220, 187),
-    AccentGlow = 0.28,
-    StatBackground = Color3.fromRGB(23, 27, 33),
-    SliderHandle = Color3.fromRGB(222, 235, 233),
+    ElementStrokeHover = Color3.fromRGB(50, 50, 50),
+    ElementCornerRadius = UDim.new(0, 12),
+    ElementTextHoverColor = Color3.fromRGB(255, 255, 255),
+    TitlingColor = Color3.fromRGB(255, 255, 255),
+    DropdownHighlight = Color3.fromRGB(255, 255, 255),
+    AccentColor = Color3.fromRGB(23, 153, 110),
+    AccentStroke = Color3.fromRGB(32, 201, 144),
+    AccentGlow = 0.4,
+    StatBackground = Color3.fromRGB(25, 25, 25),
+    SliderHandle = Color3.fromRGB(255, 255, 255),
     PillCornerRadius = UDim.new(1, 0),
-    ToggleTrack = Color3.fromRGB(8, 11, 14),
-    ToggleTrackTransparency = 0.82,
-    ToggleKnobOff = Color3.fromRGB(189, 198, 204),
-    ToggleKnobOffTransparency = 0.08,
-    FieldBackground = Color3.fromRGB(16, 20, 25),
-    FieldTransparency = 0,
-    FieldGlow = Color3.fromRGB(58, 185, 157),
-    PlaceholderColor = Color3.fromRGB(126, 137, 148),
-    SurfaceStroke = Color3.fromRGB(50, 58, 67),
-    NeutralButton = Color3.fromRGB(32, 38, 45),
-    NeutralButtonHover = Color3.fromRGB(43, 51, 60),
-    NeutralButtonStroke = Color3.fromRGB(72, 83, 94),
-    ErrorColor = Color3.fromRGB(211, 86, 88),
-    ErrorStrokeColor = Color3.fromRGB(239, 118, 119),
+    ToggleTrack = Color3.fromRGB(0, 0, 0),
+    ToggleTrackTransparency = 0.9,
+    ToggleKnobOff = Color3.fromRGB(255, 255, 255),
+    ToggleKnobOffTransparency = 0.8,
+    FieldBackground = Color3.fromRGB(255, 255, 255),
+    FieldTransparency = 0.9,
+    FieldGlow = Color3.fromRGB(255, 255, 255),
+    PlaceholderColor = Color3.fromRGB(178, 178, 178),
+    SurfaceStroke = Color3.fromRGB(255, 255, 255),
+    NeutralButton = Color3.fromRGB(38, 38, 38),
+    NeutralButtonHover = Color3.fromRGB(54, 54, 54),
+    NeutralButtonStroke = Color3.fromRGB(255, 255, 255),
+    ErrorColor = Color3.fromRGB(185, 50, 50),
+    ErrorStrokeColor = Color3.fromRGB(240, 75, 75),
 }
 
 end)() end,
@@ -29125,6 +29168,10 @@ return {
     AccentGlow = 0.28,
     DropdownHighlight = Color3.fromRGB(243, 169, 78),
     ToggleKnobOff = Color3.fromRGB(226, 215, 202),
+    -- [[Solid off-knob: do not inherit Gen2 default's translucent white knob.]]
+    ToggleKnobOffTransparency = 0.08,
+    ToggleTrack = Color3.fromRGB(12, 9, 7),
+    ToggleTrackTransparency = 0.82,
     StatBackground = Color3.fromRGB(30, 24, 21),
     NeutralButton = Color3.fromRGB(47, 38, 32),
     NeutralButtonHover = Color3.fromRGB(63, 51, 42),
@@ -29487,6 +29534,10 @@ return {
     AccentGlow = 0.3,
     DropdownHighlight = Color3.fromRGB(237, 132, 168),
     ToggleKnobOff = Color3.fromRGB(228, 209, 217),
+    -- [[Solid off-knob: do not inherit Gen2 default's translucent white knob.]]
+    ToggleKnobOffTransparency = 0.08,
+    ToggleTrack = Color3.fromRGB(12, 8, 10),
+    ToggleTrackTransparency = 0.82,
     StatBackground = Color3.fromRGB(31, 21, 26),
     NeutralButton = Color3.fromRGB(51, 35, 42),
     NeutralButtonHover = Color3.fromRGB(68, 46, 56),
@@ -32535,99 +32586,99 @@ local LineOffsets = {
     [8] = 590,
     [9] = 801,
     [10] = 911,
-    [11] = 1155,
-    [12] = 1382,
-    [13] = 1689,
-    [14] = 2407,
-    [15] = 4798,
-    [16] = 5144,
-    [17] = 5783,
-    [18] = 5844,
-    [19] = 6214,
-    [20] = 6591,
-    [22] = 9567,
-    [23] = 9645,
-    [24] = 9856,
-    [25] = 10301,
-    [26] = 10608,
-    [27] = 10753,
-    [28] = 12121,
-    [29] = 12332,
-    [30] = 12597,
-    [31] = 13152,
-    [32] = 13594,
-    [33] = 13680,
-    [34] = 14256,
-    [35] = 14873,
-    [36] = 15268,
-    [37] = 15398,
-    [38] = 15562,
-    [39] = 15716,
-    [41] = 16212,
-    [42] = 16235,
-    [43] = 16252,
-    [44] = 16285,
-    [45] = 16407,
-    [46] = 16431,
-    [47] = 16480,
-    [48] = 16187,
-    [49] = 16610,
-    [50] = 16913,
-    [51] = 16944,
-    [52] = 16599,
-    [53] = 16987,
-    [54] = 17007,
-    [55] = 17039,
-    [56] = 16969,
-    [57] = 17146,
-    [58] = 17205,
-    [59] = 17265,
-    [61] = 17391,
-    [62] = 17556,
-    [63] = 17376,
-    [64] = 18116,
-    [65] = 18419,
-    [66] = 19083,
-    [67] = 20875,
-    [68] = 22024,
-    [69] = 23552,
-    [70] = 17618,
-    [71] = 28804,
-    [72] = 28866,
-    [73] = 28928,
-    [74] = 29003,
-    [75] = 29085,
-    [76] = 29147,
-    [77] = 29222,
-    [78] = 29297,
-    [79] = 29372,
-    [80] = 29447,
-    [81] = 28698,
-    [82] = 29509,
-    [83] = 29607,
-    [84] = 29785,
-    [85] = 29837,
-    [86] = 29867,
-    [87] = 30118,
-    [88] = 30167,
-    [89] = 30620,
-    [90] = 30638,
-    [91] = 30790,
-    [92] = 30889,
-    [93] = 30911,
-    [94] = 30961,
-    [95] = 31287,
-    [96] = 31323,
-    [97] = 31341,
-    [98] = 31690,
-    [99] = 31702,
-    [100] = 31753,
-    [101] = 31772,
-    [102] = 32014,
-    [103] = 32058,
-    [104] = 32283,
-    [105] = 32311,
-    [106] = 32322,
+    [11] = 1156,
+    [12] = 1383,
+    [13] = 1690,
+    [14] = 2408,
+    [15] = 4799,
+    [16] = 5145,
+    [17] = 5784,
+    [18] = 5845,
+    [19] = 6215,
+    [20] = 6592,
+    [22] = 9584,
+    [23] = 9662,
+    [24] = 9873,
+    [25] = 10318,
+    [26] = 10625,
+    [27] = 10770,
+    [28] = 12138,
+    [29] = 12349,
+    [30] = 12614,
+    [31] = 13169,
+    [32] = 13611,
+    [33] = 13697,
+    [34] = 14273,
+    [35] = 14890,
+    [36] = 15285,
+    [37] = 15415,
+    [38] = 15579,
+    [39] = 15733,
+    [41] = 16229,
+    [42] = 16252,
+    [43] = 16269,
+    [44] = 16302,
+    [45] = 16424,
+    [46] = 16448,
+    [47] = 16497,
+    [48] = 16204,
+    [49] = 16627,
+    [50] = 16930,
+    [51] = 16961,
+    [52] = 16616,
+    [53] = 17004,
+    [54] = 17024,
+    [55] = 17056,
+    [56] = 16986,
+    [57] = 17163,
+    [58] = 17222,
+    [59] = 17282,
+    [61] = 17408,
+    [62] = 17573,
+    [63] = 17393,
+    [64] = 18133,
+    [65] = 18436,
+    [66] = 19100,
+    [67] = 20892,
+    [68] = 22041,
+    [69] = 23569,
+    [70] = 17635,
+    [71] = 28821,
+    [72] = 28887,
+    [73] = 28953,
+    [74] = 29028,
+    [75] = 29128,
+    [76] = 29194,
+    [77] = 29269,
+    [78] = 29344,
+    [79] = 29419,
+    [80] = 29494,
+    [81] = 28715,
+    [82] = 29560,
+    [83] = 29658,
+    [84] = 29836,
+    [85] = 29888,
+    [86] = 29918,
+    [87] = 30169,
+    [88] = 30218,
+    [89] = 30671,
+    [90] = 30689,
+    [91] = 30841,
+    [92] = 30940,
+    [93] = 30962,
+    [94] = 31012,
+    [95] = 31338,
+    [96] = 31374,
+    [97] = 31392,
+    [98] = 31741,
+    [99] = 31753,
+    [100] = 31804,
+    [101] = 31823,
+    [102] = 32065,
+    [103] = 32109,
+    [104] = 32334,
+    [105] = 32362,
+    [106] = 32373,
 }
 
 -- [[Misc AOT variable imports]]

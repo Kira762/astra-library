@@ -717,6 +717,15 @@ function Window:ChangeTheme(themeInput)
     self:_syncLiveAnimation()
     -- [[A theme can change the row title font, hence the rail width.]]
     self:_applyContentRailWidth()
+
+    -- [[Capsule / minimised bar: keep the live corner on the theme's pill
+    -- [[radius so ChangeTheme restyles the bar without needing a re-collapse.]]
+    if self.windowCorner and (self._collapsedShown or self.minimised) and not self.animating then
+        local pill = self.theme.PillCornerRadius or UDim.new(1, 0)
+        if self.windowCorner.CornerRadius ~= pill then
+            state.tweenService:Create(self.windowCorner, tweenStyle, { CornerRadius = pill }):Play()
+        end
+    end
 end
 
 function Window:_refreshElementThemes()
@@ -1010,7 +1019,9 @@ function Window:Close()
             return
         end
     end
-    motion.tween(self.windowCorner, { CornerRadius = UDim.new(1, 0) }, closeTweenInfo)
+    -- [[Collapse to a capsule using the theme's pill radius so a custom
+    -- [[PillCornerRadius still reads on the closing shrink.]]
+    motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, closeTweenInfo)
 end
 
 function Window:Hide()
@@ -1108,7 +1119,8 @@ function Window:Hide()
     if not motion.tween(self.main, { Size = collapsedSize, Position = collapsedPos }, surfaceTween, settleCollapse) then
         settleCollapse()
     end
-    motion.tween(self.windowCorner, { CornerRadius = UDim.new(1, 0) }, cornerTween)
+    -- [[Capsule bar: theme PillCornerRadius (Gen2 default is a full pill).]]
+    motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, cornerTween)
 
     self.topbar.Visible = true
     self:_setContentVisible(false)
@@ -1149,6 +1161,7 @@ function Window:ToggleMinimise()
         self.drag.drag.Visible = false
         image.assign(self.minimiseAction.iconLabel, "Image", constants.icons.minimise)
         state.tweenService:Create(self.main, expandTween, { Size = self.size }):Play()
+        motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, expandTween)
         self:_fadeSurfaces(true, surfaceTween)	chrome.setCollapsedShown(self, false, surfaceTween)
 
         -- [[The card comes back with the expanded window and the pair has]]
@@ -1220,6 +1233,8 @@ function Window:ToggleMinimise()
         state.tweenService
             :Create(self.main, expandTween, { Size = UDim2.fromOffset(self.size.X.Offset, self.layout.topbarHeight) })
             :Play()
+        -- [[Minimised bar reads as a theme-aware capsule (PillCornerRadius).]]
+        motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, expandTween)
 
         state.tweenService
             :Create(self.drag.drag, expandTween, {
@@ -2221,7 +2236,8 @@ function Window:_firstShow()
         math.floor(self.size.Y.Offset * 0.88)
     )
     self.main.Size = openingSize
-    self.windowCorner.CornerRadius = UDim.new(1, 0)
+    -- [[Entrance starts as a capsule (theme pill) then opens to CornerRoundness.]]
+    self.windowCorner.CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0)
     self:_setContentVisible(true)
     self:_setTabSectionsVisible(true)
     self:_setTabSectionsShown(true)

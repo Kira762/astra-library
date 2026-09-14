@@ -41,6 +41,10 @@ return {
     AccentGlow = 0.3,
     DropdownHighlight = Color3.fromRGB(237, 132, 168),
     ToggleKnobOff = Color3.fromRGB(228, 209, 217),
+    -- [[Solid off-knob: do not inherit Gen2 default's translucent white knob.]]
+    ToggleKnobOffTransparency = 0.08,
+    ToggleTrack = Color3.fromRGB(12, 8, 10),
+    ToggleTrackTransparency = 0.82,
     StatBackground = Color3.fromRGB(31, 21, 26),
     NeutralButton = Color3.fromRGB(51, 35, 42),
     NeutralButtonHover = Color3.fromRGB(68, 46, 56),

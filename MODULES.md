@@ -332,11 +332,16 @@ changes, tab removal), `Tab:Remove`, `Window:SetLocale` and
 The entrance queue shared by every window-level overlay: `pending` (requests
 waiting for a turn), `running` (one pump per window), `paused` (the gate held
 closed while the window's own entrance is up), `closed` (the window is gone).
+`Window.new` pre-seeds `_overlayQueue` with a placeholder that has none of those
+fields, so `queueFor` completes the shape on first use — carrying `paused`/
+`running`/`closed` across — and every entry point reads the queue through it;
+that is what lets the rest of the module take `#queue.pending` unconditionally.
 `OverlayQueue.request(window, build)` enqueues, `OverlayQueue.pause`/
 `OverlayQueue.resume` open and close the gate (`Window.new` closes it,
 `_firstShow`'s settle and `Window:_stageContentReveal` open it; `Window:Hide`
 re-opens it when the entrance was cancelled before it ran), and
-`OverlayQueue.close` is called from `Window:Unload`. A card takes its turn with
+`OverlayQueue.close` is called from `Window:Unload` (and leaves the queue at its
+placeholder values, since `Unload` clears the table whole afterwards). A card takes its turn with
 `build(release)` and calls `release()` when its entrance is committed — the
 constructor does that through `_entranceDone`, which the dismiss path also
 reaches so a retired card cannot wedge the queue. Locals: `entranceGap` /

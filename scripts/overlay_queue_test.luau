@@ -13,7 +13,13 @@
 --   Q6 with animation switched off the queue still drains — ordered, but with
 --      no cooldown to wait for;
 --   Q7 the page's controls are staged behind the window's entrance rather than
---      all written on the frame `Show` opens on.
+--      all written on the frame `Show` opens on;
+--   Q8 a window that never queued an overlay survives its entrance being
+--      cancelled: `Window.new` seeds a placeholder for the queue and pauses it,
+--      so a window with no requests owns a paused queue with no `pending` list —
+--      and the gate-opening path used to read `#queue.pending` straight off it
+--      (`attempt to get length of a nil value`, raised out of the entrance's
+--      `resume` on the first host that hid a window before it had shown).
 --
 -- Counts instance allocations per simulated frame, the way the startup suite
 -- does: the queue's whole job is that no frame pays for two cards.
@@ -240,6 +246,51 @@ end
 for _, element in stagedTab.elements do
 	eq(element.title.TextTransparency, 0, "Q7 every control on the page ends up revealed")
 end
+
+-- ===== Q8: the entrance gate on a window that queued no overlay ==============
+
+-- [[`Window.new` pre-seeds `_overlayQueue` with a placeholder (so `Unload` always
+-- [[has something to clear) and pauses the queue through that placeholder. A
+-- [[window that never queued an overlay therefore owns a *paused* queue with no
+-- [[pending list at all, and opening the gate read `#queue.pending` off it —
+-- [[`attempt to get length of a nil value`, raised out of the entrance's resume,
+-- [[on the first host that hid a window before it had ever shown.]]
+local gated = Astra:CreateWindow({ name = "Overlay gate" })
+gated:CreateTab({ name = "Home" })
+eq(gated.hidden, true, "Q8 the window has not shown yet")
+eq(type(gated._overlayQueue), "table", "Q8 the window carries a placeholder for its queue")
+eq(gated._overlayQueue.paused, true, "Q8 construction pauses the queue through the placeholder")
+
+-- [[Hiding before the first show is the path that opens the gate on that
+-- [[placeholder: the entrance is never going to arrive, so nothing may be left
+-- [[parked behind it.]]
+local queuedBeforeGate = builtCount(gated)
+gated:Hide()
+eq(type(gated._overlayQueue.pending), "table", "Q8 opening the gate completes the placeholder into a queue")
+eq(#gated._overlayQueue.pending, 0, "Q8 completing the queue invents no work")
+eq(gated._overlayQueue.paused, false, "Q8 a cancelled entrance opens the gate")
+
+-- [[...and a cancelled entrance still holds the gate for anything queued
+-- [[afterwards: the queue was paused before it had a pending list, and that flag
+-- [[has to survive the upgrade, or the cards would land on the hidden window.]]
+gated:Notify({ title = "Held", content = "Waits for the gate nobody will open" })
+eq(#gated._overlayQueue.pending, 1, "Q8 the request waits its turn")
+eq(gated._overlayQueue.paused, true, "Q8 the pause survives the placeholder being completed")
+for _ = 1, 4 do
+	TestPump(0.05)
+end
+eq(builtCount(gated), queuedBeforeGate, "Q8 nothing is built while the gate is held")
+
+-- [[The window is unloaded while its queue still holds that request: `close`
+-- [[runs against a queue that has a pending list to drop, and the deferred
+-- [[auto-show that arrives afterwards must not try to open a window whose
+-- [[instances are gone.]]
+gated:Unload()
+eq(#gated._overlayQueue.pending, 0, "Q8 an unload drops what was still waiting")
+eq(gated._overlayQueue.closed, true, "Q8 the queue is closed with its window")
+gated:Show()
+TestPump(0.2)
+eq(gated.hidden, true, "Q8 an unloaded window cannot be shown")
 
 window:Unload()
 paced:Unload()

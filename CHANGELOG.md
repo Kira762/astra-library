@@ -2,6 +2,35 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-14 — The entrance queue no longer trips over a window with no overlays
+
+- **Hiding (or unloading) a window that had never queued an overlay raised
+  `attempt to get length of a nil value` inside a coroutine.** `Window.new` seeds
+  `_overlayQueue` with an empty placeholder so `Window:Unload` always has something
+  to clear, and construction pauses the gate *through* that placeholder — so the
+  first thing a window with no requests owns is a **paused queue with no `pending`
+  list**. Opening the gate (`Window:Hide` before the first show, the settle of
+  `_stageContentReveal`, `_quickRestore`) tested `queue.paused`, watched it come
+  true, and then took `#queue.pending`.
+- **`queueFor` now completes the queue's shape instead of only creating it.** It
+  treats anything without a `pending` list as unbuilt, carries `paused` / `running`
+  / `closed` across the upgrade (a gate closed before the first request is a gate
+  that must *stay* closed), and every entry point — `pause`, `resume`, `request`,
+  `pump`, `close` — reads the queue through it, so `#queue.pending` is safe
+  everywhere in the module.
+- **`OverlayQueue.close` leaves the queue at its placeholder values** rather than
+  just draining `pending`, because `Window:Unload` clears the whole table
+  immediately afterwards; a late entrance coroutine now finds an empty list
+  instead of a missing one.
+- **`Window:Show` returns early for an unloaded window.** Its guard covered only
+  `animating`/`hidden`, so the deferred startup reveal (`library_entrypoint`) that
+  is already in flight when a host unloads inside the reveal deadline reached
+  `self.drag` on a torn-down window.
+- New pin `Q8` in `scripts/overlay_queue_test.luau` walks the exact sequence:
+  construct → hide → queue → unload, asserting the gate opens on the placeholder,
+  invents no work, keeps a cancelled entrance's gate closed for anything queued
+  afterwards, and never rebuilds an unloaded window.
+
 ## 2026-09-14 — Buttons show a built-in tap affordance
 
 - Every `CreateButton` card now renders a themed 16px tap glyph on its right edge; compact rows place it as the trailing item.

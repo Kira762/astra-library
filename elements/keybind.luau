@@ -8,6 +8,7 @@ local Keybind = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
 local props = require(constants.moveable)
 local name = require(constants.lockable)
+local description = require(script.Parent.description)
 local flag = require(constants.locale)
 local value = require(constants.constants)
 local isMenuToggle = require(constants.HapticEngine)
@@ -58,6 +59,7 @@ function state.new(tab, a22)
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = a22.name or a22.Name or "Keybind",
+        description = a22.description or a22.Description,
         icon = tab.window:ResolveIcon(a22.icon or a22.Icon),
         forgetState = a22.forgetState or a22.ForgetState or tab.forgetState,
         editable = a22.editable or a22.Editable or false,
@@ -93,10 +95,14 @@ function state.new(tab, a22)
     self.stroke = self.window:StyleElementBody(self.main)
     self.hoverOverlay = self.window:CreateHoverOverlay(self.main)
 
+    -- [[The card grows for a description before the title row and the key cap
+    -- [[are built, so both centre in the base region instead of riding down
+    -- [[onto the line.]]
+    description.attach(self)
 
         self.container = self.window:Create("Frame", {
         Size = UDim2.new(1, -115, 0, 16),
-        Position = UDim2.new(0, 20, 0.5, 0),
+        Position = UDim2.new(0, 20, description.center(self, 41)),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -143,7 +149,7 @@ function state.new(tab, a22)
 
         self.box = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -7, 0.5, 0),
+        Position = UDim2.new(1, -7, description.center(self, 41)),
         Size = UDim2.fromOffset(40, 30),
         BorderSizePixel = 0,
 

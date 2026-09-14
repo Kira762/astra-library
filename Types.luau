@@ -84,18 +84,21 @@ export type CollapsibleElementProps = {
 
 export type CollapsibleGroupProps = {
     name: string?,
+    description: string?,
     icon: (string | number)?,
     elements: { CollapsibleElementProps }?,
 }
 
 export type ButtonProps = {
     name: string?,
+    description: string?,
     icon: (string | number)?,
     callback: (() -> ())?,
 }
 
 export type ToggleProps = {
     name: string?,
+    description: string?,
     icon: (string | number)?,
     flag: string?,
     value: boolean?,
@@ -105,6 +108,7 @@ export type ToggleProps = {
 
 export type SliderProps = {
     name: string?,
+    description: string?,
     icon: (string | number)?,
     flag: string?,
     range: { number }?,     increment: number?,
@@ -116,6 +120,7 @@ export type SliderProps = {
 
 export type DropdownProps = {
     name: string?,
+    description: string?,
     icon: (string | number)?,
     flag: string?,
     options: { string }?,
@@ -128,6 +133,7 @@ export type DropdownProps = {
 
 export type InputProps = {
     name: string?,
+    description: string?,
     icon: (string | number)?,
     flag: string?,
     value: string?,
@@ -140,6 +146,7 @@ export type InputProps = {
 
 export type KeybindProps = {
     name: string?,
+    description: string?,
     icon: (string | number)?,
     flag: string?,
     value: (EnumItem | string)?,     forgetState: boolean?,     editable: boolean?,
@@ -147,6 +154,7 @@ export type KeybindProps = {
 
 export type StatProps = {
     name: string?,
+    description: string?,
     icon: (string | number)?,
     prefix: string?,
     suffix: string?,
@@ -157,6 +165,7 @@ export type StatProps = {
 
 export type ProgressProps = {
     name: string?,
+    description: string?,
     icon: (string | number)?,
     range: { number }?,     value: number?,
     steps: number?,     text: string?,     format: ((value: number, min: number, max: number) -> string)?,     showValue: boolean?,     indeterminate: boolean?, }

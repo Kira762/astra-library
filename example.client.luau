@@ -51,6 +51,7 @@ home:CreateButton({
 })
 home:CreateToggle({
     name = "Enable feature",
+    description = "Runs the example's feature hook on toggle.",
     value = true,
     callback = function(value)
         window:Notify({
@@ -65,6 +66,7 @@ local controls = window:CreateTab({ name = "Controls", icon = "sliders-horizonta
 controls:CreateSection({ name = "Input elements" })
 controls:CreateSlider({
     name = "Volume",
+    description = "Master output level. The description sits inside the card.",
     range = { 0, 100 },
     value = 50,
     increment = 1,
@@ -74,6 +76,7 @@ controls:CreateSlider({
 })
 controls:CreateDropdown({
     name = "Mode",
+    description = "Applies the selected mode immediately.",
     options = { "Default", "Performance", "Visual" },
     value = "Default",
     callback = function(value)
@@ -82,6 +85,7 @@ controls:CreateDropdown({
 })
 controls:CreateInput({
     name = "Display name",
+    description = "Shown on the window and in notifications.",
     placeholder = "Enter a name",
     callback = function(value)
         window:Toast({ title = "Name updated", subtitle = tostring(value) })
@@ -89,6 +93,7 @@ controls:CreateInput({
 })
 controls:CreateSwitch({
     name = "Compact mode",
+    description = "Keeps elements on one row where the space allows.",
     value = false,
     callback = function(value)
         window:Toast({
@@ -103,6 +108,7 @@ local appearance = window:CreateTab({ name = "Appearance", icon = "palette" })
 appearance:CreateSection({ name = "Visual elements" })
 appearance:CreateSlider({
     name = "Opacity",
+    description = "Long copy wraps instead of overlapping: the card grows by the measured line count, so a description this size still keeps the title row, the slider and the card's edge clear.",
     range = { 0, 100 },
     value = 80,
     suffix = "%",
@@ -140,6 +146,7 @@ information:CreateButton({
 information:CreateSection({ name = "Additional elements" })
 information:CreateProgress({
     name = "Progress",
+    description = "The bar and its readout ride above this line.",
     range = { 0, 100 },
     value = 68,
     steps = 10,
@@ -147,11 +154,13 @@ information:CreateProgress({
 })
 information:CreateStat({
     name = "Active tests",
+    description = "Counted from the last sweep.",
     value = 20,
     suffix = " tabs",
 })
 information:CreateKeybind({
     name = "Test shortcut",
+    description = "Click the cap, then press a single key.",
     value = Enum.KeyCode.RightShift,
     callback = function()
         window:Toast({ title = "Shortcut", subtitle = "Test shortcut activated" })
@@ -350,6 +359,7 @@ home:Select()
 local collapsibleTab = window:CreateTab({ name = "Collapsible Groups", icon = "panels-top-left" })
 collapsibleTab:CreateCollapsibleGroup({
     name = "Player Preferences",
+    description = "Click the header to expand. Closing keeps these values active.",
     icon = "user-round",
     elements = {
         { type = "Toggle", name = "Enabled", flag = "collapsibleEnabled", value = true },

@@ -264,6 +264,116 @@ local function isA(className, target)
 	return className == target or isAncestorOf(className, target)
 end
 
+-- [[Engine property defaults. A real GuiObject answers every property it has,
+-- [[assigned or not: a Frame's Position reads (0, 0, 0, 0) until a layout or a
+-- [[tween moves it, its ZIndex reads 1, a TextLabel's Text reads "". The
+-- [[library leans on that on instances it only ever places through a layout —
+-- [[the topbar pill whose Position the strip scrolls past, the element bodies
+-- [[whose AnchorPoint drives a centring tween — so unassigned members read
+-- [[their engine default here instead of nil, which is what used to take
+-- [[whole suites down with "attempt to index nil with 'X'" before any
+-- [[assertion ran. Values are built lazily: the datatype tables above are
+-- [[shared and a default must never be mutated by a test.]]
+local propertyDefaults = {
+	Instance = {
+		Archivable = true,
+	},
+	GuiObject = {
+		Active = true,
+		AnchorPoint = function() return Vector2.new(0, 0) end,
+		AutomaticSize = "None",
+		BackgroundColor3 = function() return Color3.fromRGB(163, 162, 165) end,
+		BackgroundTransparency = 0,
+		BorderSizePixel = 1,
+		ClipsDescendants = false,
+		LayoutOrder = 0,
+		Position = function() return UDim2.new(0, 0, 0, 0) end,
+		Rotation = 0,
+		Size = function() return UDim2.new(0, 0, 0, 0) end,
+		Visible = true,
+		ZIndex = 1,
+	},
+	ScreenGui = {
+		DisplayOrder = 0,
+		Enabled = true,
+		IgnoreGuiInset = false,
+		ResetOnSpawn = true,
+	},
+	Frame = {},
+	TextLabel = {
+		RichText = false,
+		Text = "",
+		TextColor3 = function() return Color3.fromRGB(0, 0, 0) end,
+		TextScaled = false,
+		TextSize = 8,
+		TextTransparency = 0,
+		TextWrapped = false,
+		TextXAlignment = "Center",
+		TextYAlignment = "Center",
+	},
+	TextButton = {
+		AutoButtonColor = true,
+	},
+	TextBox = {
+		ClearTextOnFocus = true,
+		MultiLine = false,
+		PlaceholderText = "",
+		TextEditable = true,
+	},
+	ImageLabel = {
+		Image = "",
+		ImageColor3 = function() return Color3.fromRGB(255, 255, 255) end,
+		ImageTransparency = 0,
+		ScaleType = "Stretch",
+	},
+	ImageButton = {
+		AutoButtonColor = true,
+	},
+	ScrollingFrame = {
+		AutomaticCanvasSize = "None",
+		CanvasPosition = function() return Vector2.new(0, 0) end,
+		CanvasSize = function() return UDim2.new(0, 0, 0, 0) end,
+		ElasticBehavior = "WhenScrollable",
+		ScrollBarImageTransparency = 0,
+		ScrollBarThickness = 12,
+		ScrollingDirection = "XY",
+	},
+}
+
+-- [[EnumItem-valued defaults are read from Enum so identity comparison works;
+-- [[a raw string would not equal Enum.AutomaticSize.None under typeof/marker
+-- [[rules. Keep the mapping tiny and explicit.]]
+local enumDefaults = {
+	AutomaticSize = { "AutomaticSize", "None" },
+	ScrollingDirection = { "ScrollingDirection", "XY" },
+	TextXAlignment = { "TextXAlignment", "Center" },
+	TextYAlignment = { "TextYAlignment", "Center" },
+	ScaleType = { "ScaleType", "Stretch" },
+	AutomaticCanvasSize = { "AutomaticCanvasSize", "None" },
+	ElasticBehavior = { "ElasticBehavior", "WhenScrollable" },
+}
+
+local function defaultValue(className, key)
+	local cursor = className
+	while cursor do
+		local defaults = propertyDefaults[cursor]
+		if defaults and defaults[key] ~= nil then
+			local value = defaults[key]
+			return if type(value) == "function" then value() else value
+		end
+		local hierarchy = HIERARCHY[cursor]
+		cursor = hierarchy and (hierarchy[1] or "") or nil
+		if cursor == "" then
+			cursor = nil
+		end
+	end
+	local mapping = enumDefaults[key]
+	if mapping then
+		return Enum[mapping[1]][mapping[2]]
+	end
+	return nil
+end
+
 local function absoluteSize(inst)
 	if not inst then
 		return { X = viewportSize.X, Y = viewportSize.Y }
@@ -425,7 +535,27 @@ local function newInstance(className)
 				if key == "AbsoluteWindowSize" then
 					return absoluteSize(self)
 				end
-				return props[key]
+				if key == "CanvasPosition" then
+					-- [[The engine always answers a Vector2 here: a frame that
+					-- [[has never been scrolled reads (0, 0), never nil. The
+					-- [[topbar's fade logic compares against it before any
+					-- [[scroll has happened, so nil used to take every suite
+					-- [[down with "attempt to index nil with 'X'".]]
+					local position = props.CanvasPosition
+					return { X = position and position.X or 0, Y = position and position.Y or 0 }
+				end
+				-- [[AbsoluteCanvasSize follows CanvasSize, resolved against
+				-- [[the viewport the same way the engine resolves a UDim2.
+				-- [[CanvasSize is left untouched (the suites assert on it).]]
+				local canvas = props.CanvasSize
+				if canvas then
+					local viewport = absoluteSize(self)
+					return {
+						X = canvas.X.Scale * viewport.X + canvas.X.Offset,
+						Y = canvas.Y.Scale * viewport.Y + canvas.Y.Offset,
+					}
+				end
+				return { X = 0, Y = 0 }
 			end
 			if key == "AbsolutePosition" then
 				return absolutePosition(self)
@@ -448,7 +578,9 @@ local function newInstance(className)
 				end
 			end
 		end
-		return nil
+		-- [[Nothing assigned: answer the engine's default for the member (see
+		-- [[propertyDefaults above) instead of nil.]]
+		return defaultValue(props.ClassName, key)
 	end,
 		__newindex = function(self, key, value)
 			if rawget(self, "__destroyed") then

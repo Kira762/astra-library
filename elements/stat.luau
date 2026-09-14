@@ -9,6 +9,7 @@ local tab = require(script.Parent.Parent.functions)
 local props = require(constants.odometer)
 local name = require(constants.moveable)
 local value = require(constants.constants)
+local description = require(script.Parent.description)
 local prefix = require(constants.locale)
 local suffix = require(constants.log)
 
@@ -68,6 +69,7 @@ function state.new(tab, a25)
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = a25.name or a25.Name or "Statistic",
+        description = a25.description or a25.Description,
         icon = tab.window:ResolveIcon(a25.icon or a25.Icon),
 
         value = if (a25.value or a25.Value) ~= nil then (a25.value or a25.Value) else 0,
@@ -134,6 +136,11 @@ function state:_buildFull()
 
         Parent = self.stroke,
     })
+
+    -- [[A description grows the card before the readouts are built, so the
+    -- [[bottom-anchored value and change hosts ride up above the line while
+    -- [[the title keeps its own top-left corner.]]
+    description.attach(self)
 
     self.titleContainer = window:Create("Frame", {
         Size = UDim2.new(1, -30, 0, 22),
@@ -213,7 +220,7 @@ function state:_buildFull()
 
     self.valueHost = window:Create("Frame", {
         AnchorPoint = Vector2.new(0, 1),
-        Position = UDim2.new(0, 15, 1, -12),
+        Position = UDim2.new(0, 15, 1, -12 - (self._descriptionExtra or 0)),
         Size = UDim2.new(0.5, -20, 0, 18),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -224,7 +231,7 @@ function state:_buildFull()
 
     self.changeHost = window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 1),
-        Position = UDim2.new(1, -15, 1, -12),
+        Position = UDim2.new(1, -15, 1, -12 - (self._descriptionExtra or 0)),
         Size = UDim2.new(0.5, -20, 0, 14),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,

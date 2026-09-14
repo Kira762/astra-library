@@ -8,6 +8,7 @@ local Progress = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
 local props = require(constants.moveable)
 local name = require(constants.locale)
+local description = require(script.Parent.description)
 
 local range = 60
 local value = 8
@@ -54,6 +55,7 @@ function state.new(tab, a22)
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = a22.name or a22.Name or "Progress",
+        description = a22.description or a22.Description,
         icon = tab.window:ResolveIcon(a22.icon or a22.Icon),
 
         min = a25,
@@ -119,6 +121,10 @@ function state:_build()
 
     self.stroke = self.window:StyleElementBody(self.main)
 
+    -- [[A description grows the card before the track is built, so the
+    -- [[bottom-anchored bar and steps ride up above the line instead of
+    -- [[drawing over it.]]
+    description.attach(self)
 
         self.container = self.window:Create("Frame", {
         Size = UDim2.new(1, -110, 0, fill),
@@ -191,7 +197,7 @@ function state:_build()
 
                 self.track = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0.5, 1),
-        Position = UDim2.new(0.5, 0, 1, -16),
+        Position = UDim2.new(0.5, 0, 1, -16 - (self._descriptionExtra or 0)),
         Size = UDim2.new(1, -text * 2, 0, value),
         BorderSizePixel = 0,
 
@@ -243,7 +249,7 @@ function state:_buildSteps()
 
     self.track = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0.5, 1),
-        Position = UDim2.new(0.5, 0, 1, -17),
+        Position = UDim2.new(0.5, 0, 1, -17 - (self._descriptionExtra or 0)),
         Size = UDim2.new(1, -text * 2, 0, element),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,

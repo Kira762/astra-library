@@ -8759,7 +8759,7 @@ function Window:SaveSettings()
 end
 
 function Window:LoadSettings()
-    local loaded = persistence.loadSettings(self)
+    local loaded, migrated = persistence.loadSettings(self)
     self.configuration.autoSave = self.settings.autoSaveConfig
     self.configuration.autoLoad = self.settings.autoLoadConfig
     -- [[The animation-speed setting lives in the same file, and the motion
@@ -8773,6 +8773,11 @@ function Window:LoadSettings()
     -- [[card never unmasks identity data while it is hidden and the toggle]]
     -- [[is built showing the truth.]]
     profilePanel.syncReveal(self)
+    if migrated then
+        -- [[Persist the normalized legacy profile state once. This keeps the
+        -- [[default off without overriding a deliberate choice on later boots.]]
+        self:SaveSettings()
+    end
     return loaded
 end
 
@@ -33069,6 +33074,12 @@ local enumHelper = require(script.Parent.enums)
 
 local persistenceSettings = {}
 
+-- [[Settings files written before profile visibility was explicitly kept off
+-- [[did not carry a schema marker. Treat those files as legacy once, clear the
+-- [[profile visibility pair, and write the marker back so a user can still turn
+-- [[the profile on intentionally afterward.]]
+local SETTINGS_VERSION = 1
+
 type SettingsWindow = {
     settings: {
         toggleKeybind: EnumItem,
@@ -33091,6 +33102,7 @@ type SettingsWindow = {
 }
 
 type DecodedSettings = {
+    settingsVersion: unknown?,
     toggleKeybind: { [number]: unknown }?,
     theme: unknown?,
     mouseOverride: unknown?,
@@ -33116,6 +33128,7 @@ function persistenceSettings.saveSettings(window: SettingsWindow): boolean
     local folder, filePath = persistenceSettings.getSettingsPath()
 
     local payload: { [string]: unknown } = {
+        settingsVersion = SETTINGS_VERSION,
         toggleKeybind = {
             tostring(window.settings.toggleKeybind.EnumType),
             window.settings.toggleKeybind.Value,
@@ -33189,11 +33202,21 @@ local function readWithFallback(): DecodedSettings?
     return nil
 end
 
-function persistenceSettings.loadSettings(window: SettingsWindow): boolean
+function persistenceSettings.loadSettings(window: SettingsWindow): (boolean, boolean)
     local decodedSettings = readWithFallback()
 
     if not decodedSettings then
-        return false
+        return false, false
+    end
+
+    local storedVersion = tonumber(decodedSettings.settingsVersion) or 0
+    local migrated = storedVersion < SETTINGS_VERSION
+    if migrated then
+        -- [[A legacy profile preference may have been saved as true. Clear it
+        -- [[only during the one-time migration; after this file is rewritten,
+        -- [[users can enable the profile normally and keep that choice.]]
+        decodedSettings.showProfile = false
+        decodedSettings.showFullUsername = false
     end
 
     for _, key in { "autoSaveConfig", "autoLoadConfig" } do
@@ -33279,7 +33302,7 @@ function persistenceSettings.loadSettings(window: SettingsWindow): boolean
         end
     end
 
-    return true
+    return true, migrated
 end
 
 return persistenceSettings
@@ -33552,90 +33575,90 @@ local LineOffsets = {
     [19] = 6194,
     [20] = 6577,
     [21] = 6982,
-    [23] = 10185,
-    [24] = 10271,
-    [25] = 10579,
-    [26] = 11000,
-    [27] = 11339,
-    [28] = 11509,
-    [29] = 11654,
-    [30] = 13029,
-    [31] = 13248,
-    [32] = 13520,
-    [33] = 14081,
-    [34] = 14529,
-    [35] = 14615,
-    [36] = 15202,
-    [37] = 15826,
-    [38] = 16222,
-    [39] = 16352,
-    [40] = 16516,
-    [41] = 16670,
-    [43] = 17170,
-    [44] = 17193,
-    [45] = 17210,
-    [46] = 17243,
-    [47] = 17365,
-    [48] = 17389,
-    [49] = 17438,
-    [50] = 17145,
-    [51] = 17568,
-    [52] = 17871,
-    [53] = 17902,
-    [54] = 17557,
-    [55] = 17945,
-    [56] = 17965,
-    [57] = 17997,
-    [58] = 17927,
-    [59] = 18104,
-    [60] = 18163,
-    [61] = 18223,
-    [63] = 18349,
-    [64] = 18514,
-    [65] = 18334,
-    [66] = 19074,
-    [67] = 19377,
-    [68] = 20041,
-    [69] = 21833,
-    [70] = 22982,
-    [71] = 24510,
-    [72] = 18576,
-    [73] = 29762,
-    [74] = 29828,
-    [75] = 29894,
-    [76] = 29969,
-    [77] = 30075,
-    [78] = 30141,
-    [79] = 30216,
-    [80] = 30291,
-    [81] = 30366,
-    [82] = 30441,
-    [83] = 29656,
-    [84] = 30507,
-    [85] = 30605,
-    [86] = 30783,
-    [87] = 30835,
-    [88] = 30865,
-    [89] = 31116,
-    [90] = 31165,
-    [91] = 31618,
-    [92] = 31636,
-    [93] = 31788,
-    [94] = 31887,
-    [95] = 31909,
-    [96] = 31959,
-    [97] = 32284,
-    [98] = 32320,
-    [99] = 32338,
-    [100] = 32687,
-    [101] = 32699,
-    [102] = 32750,
-    [103] = 32769,
-    [104] = 33020,
-    [105] = 33064,
-    [106] = 33289,
-    [107] = 33317,
-    [108] = 33328,
+    [23] = 10190,
+    [24] = 10276,
+    [25] = 10584,
+    [26] = 11005,
+    [27] = 11344,
+    [28] = 11514,
+    [29] = 11659,
+    [30] = 13034,
+    [31] = 13253,
+    [32] = 13525,
+    [33] = 14086,
+    [34] = 14534,
+    [35] = 14620,
+    [36] = 15207,
+    [37] = 15831,
+    [38] = 16227,
+    [39] = 16357,
+    [40] = 16521,
+    [41] = 16675,
+    [43] = 17175,
+    [44] = 17198,
+    [45] = 17215,
+    [46] = 17248,
+    [47] = 17370,
+    [48] = 17394,
+    [49] = 17443,
+    [50] = 17150,
+    [51] = 17573,
+    [52] = 17876,
+    [53] = 17907,
+    [54] = 17562,
+    [55] = 17950,
+    [56] = 17970,
+    [57] = 18002,
+    [58] = 17932,
+    [59] = 18109,
+    [60] = 18168,
+    [61] = 18228,
+    [63] = 18354,
+    [64] = 18519,
+    [65] = 18339,
+    [66] = 19079,
+    [67] = 19382,
+    [68] = 20046,
+    [69] = 21838,
+    [70] = 22987,
+    [71] = 24515,
+    [72] = 18581,
+    [73] = 29767,
+    [74] = 29833,
+    [75] = 29899,
+    [76] = 29974,
+    [77] = 30080,
+    [78] = 30146,
+    [79] = 30221,
+    [80] = 30296,
+    [81] = 30371,
+    [82] = 30446,
+    [83] = 29661,
+    [84] = 30512,
+    [85] = 30610,
+    [86] = 30788,
+    [87] = 30840,
+    [88] = 30870,
+    [89] = 31121,
+    [90] = 31170,
+    [91] = 31623,
+    [92] = 31641,
+    [93] = 31793,
+    [94] = 31892,
+    [95] = 31914,
+    [96] = 31964,
+    [97] = 32289,
+    [98] = 32325,
+    [99] = 32343,
+    [100] = 32692,
+    [101] = 32704,
+    [102] = 32755,
+    [103] = 32774,
+    [104] = 33025,
+    [105] = 33069,
+    [106] = 33312,
+    [107] = 33340,
+    [108] = 33351,
 }
 
 -- [[Misc AOT variable imports]]

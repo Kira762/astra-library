@@ -6,6 +6,12 @@ local enumHelper = require(script.Parent.enums)
 
 local persistenceSettings = {}
 
+-- [[Settings files written before profile visibility was explicitly kept off
+-- [[did not carry a schema marker. Treat those files as legacy once, clear the
+-- [[profile visibility pair, and write the marker back so a user can still turn
+-- [[the profile on intentionally afterward.]]
+local SETTINGS_VERSION = 1
+
 type SettingsWindow = {
     settings: {
         toggleKeybind: EnumItem,
@@ -28,6 +34,7 @@ type SettingsWindow = {
 }
 
 type DecodedSettings = {
+    settingsVersion: unknown?,
     toggleKeybind: { [number]: unknown }?,
     theme: unknown?,
     mouseOverride: unknown?,
@@ -53,6 +60,7 @@ function persistenceSettings.saveSettings(window: SettingsWindow): boolean
     local folder, filePath = persistenceSettings.getSettingsPath()
 
     local payload: { [string]: unknown } = {
+        settingsVersion = SETTINGS_VERSION,
         toggleKeybind = {
             tostring(window.settings.toggleKeybind.EnumType),
             window.settings.toggleKeybind.Value,
@@ -126,11 +134,21 @@ local function readWithFallback(): DecodedSettings?
     return nil
 end
 
-function persistenceSettings.loadSettings(window: SettingsWindow): boolean
+function persistenceSettings.loadSettings(window: SettingsWindow): (boolean, boolean)
     local decodedSettings = readWithFallback()
 
     if not decodedSettings then
-        return false
+        return false, false
+    end
+
+    local storedVersion = tonumber(decodedSettings.settingsVersion) or 0
+    local migrated = storedVersion < SETTINGS_VERSION
+    if migrated then
+        -- [[A legacy profile preference may have been saved as true. Clear it
+        -- [[only during the one-time migration; after this file is rewritten,
+        -- [[users can enable the profile normally and keep that choice.]]
+        decodedSettings.showProfile = false
+        decodedSettings.showFullUsername = false
     end
 
     for _, key in { "autoSaveConfig", "autoLoadConfig" } do
@@ -216,7 +234,7 @@ function persistenceSettings.loadSettings(window: SettingsWindow): boolean
         end
     end
 
-    return true
+    return true, migrated
 end
 
 return persistenceSettings

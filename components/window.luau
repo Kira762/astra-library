@@ -1778,7 +1778,7 @@ function Window:SaveSettings()
 end
 
 function Window:LoadSettings()
-    local loaded = persistence.loadSettings(self)
+    local loaded, migrated = persistence.loadSettings(self)
     self.configuration.autoSave = self.settings.autoSaveConfig
     self.configuration.autoLoad = self.settings.autoLoadConfig
     -- [[The animation-speed setting lives in the same file, and the motion
@@ -1792,6 +1792,11 @@ function Window:LoadSettings()
     -- [[card never unmasks identity data while it is hidden and the toggle]]
     -- [[is built showing the truth.]]
     profilePanel.syncReveal(self)
+    if migrated then
+        -- [[Persist the normalized legacy profile state once. This keeps the
+        -- [[default off without overriding a deliberate choice on later boots.]]
+        self:SaveSettings()
+    end
     return loaded
 end
 

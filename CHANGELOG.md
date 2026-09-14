@@ -2,6 +2,32 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-14 — Default theme matches Rayfield Gen2; capsule bar follows theme
+
+- **`themes/default.luau` rebuilt on Rayfield Gen2's default palette.** Shared
+  keys (`WindowColor`, `ElementGradient`, `AccentColor`/`AccentStroke`,
+  `SliderProgress`, toggle/field tokens, corner radii, greyscale surfaces,
+  white titling/content) match Gen2's `src/themes/default.luau` 1:1 — teal
+  accent `23,153,110` / stroke `32,201,144`, window gradient `10→25→35`,
+  `CornerRoundness` 20px, `ElementCornerRadius` 12px, translucent white
+  fields (`FieldTransparency = 0.9`). Astra-only semantic keys
+  (`Background`, `WindowSurface`, text tiers, `Success`/`Warning`, etc.) are
+  derived from the same greys + teal so the profile card and settings stay
+  coherent. Named themes (`cobalt`, `frost`, …) are unchanged and still
+  overlay the new default via `themes/init.luau`.
+- **Capsule / minimised bar adapts the theme.** Collapse, minimise, first-show
+  entrance and close now tween `windowCorner` to `PillCornerRadius` (Gen2's
+  full pill by default) instead of a hard-coded `UDim.new(1, 0)`; expanding
+  restores `CornerRoundness`. `ChangeTheme` while the capsule or minimised
+  bar is up re-applies the live pill radius. The collapsed-face icon corner
+  binds to `PillCornerRadius` in `components/chrome.luau`.
+- **Named-theme inheritance guard:** Gen2 default's translucent off-knob
+  (`ToggleKnobOffTransparency = 0.8`) and near-clear track would have leaked
+  into partial themes that only set `ToggleKnobOff`. `amethyst`, `cobalt`,
+  `ember`, and `rose` now pin solid-knob / track tokens like the full themes
+  (`frost`, `emerald`, …). Fields were already safe (`FieldTransparency = 0`).
+- Bundle regenerated (`version-1.luau`, 101 modules).
+
 ## 2026-09-14 — Grouped dropdowns scroll the tab page; settings integration debt cleared
 
 - **Opening a Dropdown inside a Collapsible Group crashed on the engine.**

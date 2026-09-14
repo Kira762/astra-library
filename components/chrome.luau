@@ -24,9 +24,10 @@ function chrome.buildCollapsedFace(window)
         Parent = window.main,
     }, { ImageColor3 = "TitlingColor" })
 
+    -- [[Gen2: PillCornerRadius drives tab pills and the collapsed capsule icon.]]
     window:Create("UICorner", {
         Parent = window.collapsedIcon,
-    }, { CornerRadius = "CornerRoundness" })
+    }, { CornerRadius = "PillCornerRadius" })
 
     local collapsedTextFrame = window:Create("Frame", {
         Name = "CollapsedText",

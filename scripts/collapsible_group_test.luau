@@ -83,8 +83,12 @@ end
 assert(bandCorner, "Header band rounds its own corners")
 assert(bandCorner.TopLeftRadius == window.theme.ElementCornerRadius, "Band's top-left corner matches the container arc")
 assert(bandCorner.TopRightRadius == window.theme.ElementCornerRadius, "Band's top-right corner matches the container arc")
-assert(bandCorner.BottomLeftRadius.Scale == 0 and bandCorner.BottomLeftRadius.Offset == 0, "Band's bottom-left corner stays square")
-assert(bandCorner.BottomRightRadius.Scale == 0 and bandCorner.BottomRightRadius.Offset == 0, "Band's bottom-right corner stays square")
+-- Collapsed, the band is the whole card, so its bottom edge is the card's bottom
+-- edge: it carries the container's bottom arcs too, or its square corners paint
+-- past the stroke and the card reads rounded on top and uneven below.
+assert(bandCorner.BottomLeftRadius == window.theme.ElementCornerRadius, "Closed band carries the container's bottom-left arc")
+assert(bandCorner.BottomRightRadius == window.theme.ElementCornerRadius, "Closed band carries the container's bottom-right arc")
+assert(group.headerCorner == bandCorner, "The band keeps one corner for both states")
 -- The revealed body's darker window surface is painted by the clipper, which
 -- is flush with the container's bottom edge and keeps its arcs.
 local bodyCorner
@@ -117,6 +121,11 @@ group.interact.Activated:Fire()
 TestPump(0.4)
 assert(group._expanded and group.body.Visible and group.bodyClip.Visible and group.main.Size.Y.Offset == group.headerHeight + 921, "Expand to divider + padded content height")
 assert(group.divider.Visible, "Divider reveals with the body")
+-- Open, the band stops at the straight divider and the clipper below takes the
+-- card's bottom edge, so the bottom pair squares off again on the same corner.
+assert(bandCorner.TopLeftRadius == window.theme.ElementCornerRadius, "Open band keeps the container's top arcs")
+assert(bandCorner.BottomLeftRadius.Scale == 0 and bandCorner.BottomLeftRadius.Offset == 0, "Open band squares its bottom-left against the divider")
+assert(bandCorner.BottomRightRadius.Scale == 0 and bandCorner.BottomRightRadius.Offset == 0, "Open band squares its bottom-right against the divider")
 assert(toggle.stroke.Transparency == 0, "Grouped child stroke is painted once revealed")
 assert(toggle.main.BackgroundTransparency < 0.5, "Grouped child cards keep a defined surface")
 assert(group.chevron.Rotation == 90, "Chevron animates open")
@@ -124,6 +133,8 @@ assert(not other._expanded, "Sibling expansion is independent")
 group.interact.Activated:Fire()
 TestPump(0.4)
 assert(not group.body.Visible and not group.bodyClip.Visible and group.main.Size.Y.Offset == group.headerHeight, "Collapse releases layout height")
+assert(bandCorner.BottomLeftRadius == window.theme.ElementCornerRadius, "Settled collapse hands the bottom arc back to the band")
+assert(bandCorner.BottomRightRadius == window.theme.ElementCornerRadius, "Settled collapse rounds both bottom corners of the band")
 assert(callbacks == 0, "Opening and closing must never run value callbacks")
 Astra.Core.state.userInputService.InputBegan:Fire({ UserInputType = Enum.UserInputType.Keyboard, KeyCode = Enum.KeyCode.P }, false)
 TestPump(0.1)
@@ -174,12 +185,30 @@ group:Unlock()
 for _ = 1, 5 do group.interact.Activated:Fire() end
 TestPump(0.5)
 assert(not group._expanded and not group.body.Visible and not group.bodyClip.Visible, "Rapid clicks settle collapsed")
+assert(bandCorner.BottomLeftRadius == window.theme.ElementCornerRadius, "Reversed clicks still settle on a rounded closed band")
 Astra.Motion.setProfile("instant")
 group.interact.Activated:Fire()
 assert(group._expanded and group.body.Visible and group.bodyClip.Visible and group.chevron.Rotation == 90, "Instant animation profile")
+assert(bandCorner.BottomLeftRadius.Scale == 0 and bandCorner.BottomLeftRadius.Offset == 0, "Instant expand squares the band in the same step")
 group.interact.Activated:Fire()
 assert(not group.body.Visible and not group.bodyClip.Visible, "Instant collapse is synchronous")
+assert(bandCorner.BottomLeftRadius == window.theme.ElementCornerRadius, "Instant collapse rounds the band in the same step")
 Astra.Motion.setProfile("normal")
+
+-- The corner set is re-read from the theme, so a radius change follows the
+-- band's bottom arcs as well as the container's own (ChangeTheme binds the
+-- band's top corners directly; the element's refresh owns the bottom pair).
+local elementRadius = window.theme.ElementCornerRadius
+window:ChangeTheme({ ElementCornerRadius = UDim.new(0, 5) })
+TestPump(0.2)
+group:_refreshTheme()
+assert(bandCorner.TopLeftRadius == window.theme.ElementCornerRadius, "Theme radius reaches the band's top corner")
+assert(bandCorner.BottomLeftRadius == window.theme.ElementCornerRadius, "Theme radius reaches the closed band's bottom corner")
+assert(bodyCorner.BottomLeftRadius == window.theme.ElementCornerRadius, "Theme radius reaches the body clipper")
+window:ChangeTheme({ ElementCornerRadius = elementRadius })
+TestPump(0.2)
+group:_refreshTheme()
+assert(bandCorner.BottomLeftRadius == elementRadius, "Restored radius returns to the closed band")
 
 -- Search includes children, temporarily expands matches, then restores state.
 window.searchAction.callback()

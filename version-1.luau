@@ -8836,6 +8836,32 @@ function Window:_roundCorners(frame, corners, token)
     return self:Create("UICorner", props, themeMap)
 end
 
+-- [[Companion to `_roundCorners` for a corner set an element flips with its own
+-- [[state instead of once at construction: `corners` (default: all four, as in
+-- [[`_roundCorners`) ride the `token` radius and every other corner of the frame
+-- [[goes back to square, so a caller can move which of an inner surface's edges
+-- [[match the container's arcs — a collapsible header is the card's bottom edge
+-- [[only while it is closed. No theme binding is recorded here (`themeProperties`
+-- [[still owns whatever `_roundCorners` bound), so a later `ChangeTheme` re-reads
+-- [[`token` through this same call from the element instead of fighting it. There
+-- [[is nothing to move on an engine without per-corner radii, where
+-- [[`_roundCorners` already gave the frame one radius on all four corners, so the
+-- [[call is a no-op there.]]
+function Window:_setRoundedCorners(corner, corners, token)
+    if not corner or not hasPerCornerRadius then
+        return
+    end
+
+    local radius = if token then self.theme[token] else nil
+    for _, key in cornerKeys do
+        local wanted = radius ~= nil and (not corners or table.find(corners, key) ~= nil)
+        local target = if wanted then radius else UDim.new(0, 0)
+        if corner[key] ~= target then
+            corner[key] = target
+        end
+    end
+end
+
 function Window:_setElementLocked(element, locked, message)
     locked = locked == true
                 local wasLocked = element.locked == true
@@ -11076,6 +11102,16 @@ local constructors = {
 }
 local compactTypes = { Button = true, Toggle = true, Switch = true, Slider = true, Stat = true, Group = true }
 
+-- [[Which corners of the header band carry the container's arcs. Open, the band
+-- [[is only the top of the card: its bottom edge is the straight divider, so the
+-- [[bottom corners must stay square or they would notch into the revealed body.
+-- [[Closed, the band *is* the whole card, so its bottom corners have to carry the
+-- [[container's bottom arcs exactly like its top ones carry the top.]]
+local bandCorners = {
+    expanded = { "TopLeftRadius", "TopRightRadius" },
+    collapsed = { "TopLeftRadius", "TopRightRadius", "BottomLeftRadius", "BottomRightRadius" },
+}
+
 local function validate(definitions, path, ancestors, depth)
     assert(type(definitions) == "table", path .. " must be an array")
     assert(not ancestors[definitions] and depth <= 32, path .. ": cyclic or excessively deep group definitions")
@@ -11204,8 +11240,10 @@ function Collapsible.new(tab, props)
     -- [[GuiObject's own surface — descendants paint over the arcs. Left
     -- [[square, the band filled the card's top-left and top-right corners and
     -- [[squared off the silhouette the stroke draws. Rounding the band's top
-    -- [[corners with the container's own radius makes the two arcs one.
-    w:_roundCorners(self.headerSurface, { "TopLeftRadius", "TopRightRadius" }, "ElementCornerRadius")
+    -- [[corners with the container's own radius makes the two arcs one, and
+    -- [[_fitHeaderCorners adds the bottom pair while the group is closed.
+    self.headerCorner = w:_roundCorners(self.headerSurface, { "TopLeftRadius", "TopRightRadius" }, "ElementCornerRadius")
+    self:_fitHeaderCorners()
     self.divider = w:Create("Frame", {
         Name = "HeaderDivider", Position = UDim2.fromOffset(0, self.headerHeight),
         Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0,
@@ -11295,6 +11333,24 @@ function Collapsible.new(tab, props)
     return self
 end
 
+-- [[Collapsed, the band is the whole card — there is no body under it — so it
+-- [[has to carry the container's bottom arcs too, or its square bottom corners
+-- [[paint over the silhouette the stroke draws and the card reads as rounded at
+-- [[the top and uneven at the bottom. Expanded, the clipper below takes the
+-- [[bottom edge (it is flush with the container's floor and keeps the same
+-- [[radius token), so the band squares off against the straight divider. One
+-- [[token for both states means the corner never changes radius, only which
+-- [[surface owns it, and the clipper keeps the arcs for every frame in between:
+-- [[the collapse rounds the band as it settles, and the opening squares it
+-- [[before the body is revealed underneath.]]
+function Collapsible:_fitHeaderCorners()
+    self.window:_setRoundedCorners(
+        self.headerCorner,
+        if self._expanded then bandCorners.expanded else bandCorners.collapsed,
+        "ElementCornerRadius"
+    )
+end
+
 function Collapsible:_resize(animate)
     -- (The engine always reports an AbsoluteContentSize; the test harness
     -- only stubs it once content is driven, so an unmeasured layout reads 0.)
@@ -11311,11 +11367,20 @@ function Collapsible:_resize(animate)
     self._resizeRevision = (self._resizeRevision or 0) + 1
     local revision = self._resizeRevision
     local function finish()
-        if not self.window.unloaded and self.main.Parent and self._resizeRevision == revision and not self._expanded then
+        if self.window.unloaded or not self.main.Parent or self._resizeRevision ~= revision then
+            return
+        end
+        if not self._expanded then
             self.body.Visible = false
             self.bodyClip.Visible = false
             self.divider.Visible = false
         end
+        -- [[Runs on every settle, in both states: the corner set follows the
+        -- [[height the container has actually reached, so a reversal mid-tween
+        -- [[(a stale revision returns above) can never leave the band's bottom
+        -- [[arcs on a card that is about to show its body, or off a card that
+        -- [[has just released it.]]
+        self:_fitHeaderCorners()
     end
     if animate and self._shown then
         -- The reveal mask derives its bounds from the container, so a single
@@ -11335,6 +11400,10 @@ function Collapsible:_setExpanded(expanded, animate)
     if self._expanded == expanded then return end
     self._expanded = expanded
     if expanded then
+        -- [[Square the band off against the divider before the body surfaces
+        -- [[under it, so the first revealed frame already shows a straight
+        -- [[header/body seam instead of two notches at the band's floor.
+        self:_fitHeaderCorners()
         self.body.Visible = true
         self.bodyClip.Visible = true
         self.divider.Visible = true
@@ -33639,90 +33708,90 @@ local LineOffsets = {
     [19] = 6194,
     [20] = 6609,
     [21] = 7014,
-    [23] = 10232,
-    [24] = 10318,
-    [25] = 10626,
-    [26] = 11047,
-    [27] = 11408,
-    [28] = 11578,
-    [29] = 11723,
-    [30] = 13098,
-    [31] = 13317,
-    [32] = 13589,
-    [33] = 14150,
-    [34] = 14598,
-    [35] = 14684,
-    [36] = 15271,
-    [37] = 15895,
-    [38] = 16291,
-    [39] = 16421,
-    [40] = 16585,
-    [41] = 16739,
-    [43] = 17239,
-    [44] = 17262,
-    [45] = 17279,
-    [46] = 17312,
-    [47] = 17434,
-    [48] = 17458,
-    [49] = 17507,
-    [50] = 17214,
-    [51] = 17637,
-    [52] = 17940,
-    [53] = 17971,
-    [54] = 17626,
-    [55] = 18014,
-    [56] = 18034,
-    [57] = 18066,
-    [58] = 17996,
-    [59] = 18173,
-    [60] = 18232,
-    [61] = 18292,
-    [63] = 18418,
-    [64] = 18583,
-    [65] = 18403,
-    [66] = 19143,
-    [67] = 19446,
-    [68] = 20110,
-    [69] = 21902,
-    [70] = 23051,
-    [71] = 24579,
-    [72] = 18645,
-    [73] = 29831,
-    [74] = 29897,
-    [75] = 29963,
-    [76] = 30038,
-    [77] = 30144,
-    [78] = 30210,
-    [79] = 30285,
-    [80] = 30360,
-    [81] = 30435,
-    [82] = 30510,
-    [83] = 29725,
-    [84] = 30576,
-    [85] = 30674,
-    [86] = 30852,
-    [87] = 30904,
-    [88] = 30934,
-    [89] = 31185,
-    [90] = 31234,
-    [91] = 31687,
-    [92] = 31705,
-    [93] = 31857,
-    [94] = 31956,
-    [95] = 31978,
-    [96] = 32028,
-    [97] = 32353,
-    [98] = 32389,
-    [99] = 32407,
-    [100] = 32756,
-    [101] = 32768,
-    [102] = 32819,
-    [103] = 32838,
-    [104] = 33089,
-    [105] = 33133,
-    [106] = 33376,
-    [107] = 33404,
-    [108] = 33415,
+    [23] = 10258,
+    [24] = 10344,
+    [25] = 10652,
+    [26] = 11073,
+    [27] = 11477,
+    [28] = 11647,
+    [29] = 11792,
+    [30] = 13167,
+    [31] = 13386,
+    [32] = 13658,
+    [33] = 14219,
+    [34] = 14667,
+    [35] = 14753,
+    [36] = 15340,
+    [37] = 15964,
+    [38] = 16360,
+    [39] = 16490,
+    [40] = 16654,
+    [41] = 16808,
+    [43] = 17308,
+    [44] = 17331,
+    [45] = 17348,
+    [46] = 17381,
+    [47] = 17503,
+    [48] = 17527,
+    [49] = 17576,
+    [50] = 17283,
+    [51] = 17706,
+    [52] = 18009,
+    [53] = 18040,
+    [54] = 17695,
+    [55] = 18083,
+    [56] = 18103,
+    [57] = 18135,
+    [58] = 18065,
+    [59] = 18242,
+    [60] = 18301,
+    [61] = 18361,
+    [63] = 18487,
+    [64] = 18652,
+    [65] = 18472,
+    [66] = 19212,
+    [67] = 19515,
+    [68] = 20179,
+    [69] = 21971,
+    [70] = 23120,
+    [71] = 24648,
+    [72] = 18714,
+    [73] = 29900,
+    [74] = 29966,
+    [75] = 30032,
+    [76] = 30107,
+    [77] = 30213,
+    [78] = 30279,
+    [79] = 30354,
+    [80] = 30429,
+    [81] = 30504,
+    [82] = 30579,
+    [83] = 29794,
+    [84] = 30645,
+    [85] = 30743,
+    [86] = 30921,
+    [87] = 30973,
+    [88] = 31003,
+    [89] = 31254,
+    [90] = 31303,
+    [91] = 31756,
+    [92] = 31774,
+    [93] = 31926,
+    [94] = 32025,
+    [95] = 32047,
+    [96] = 32097,
+    [97] = 32422,
+    [98] = 32458,
+    [99] = 32476,
+    [100] = 32825,
+    [101] = 32837,
+    [102] = 32888,
+    [103] = 32907,
+    [104] = 33158,
+    [105] = 33202,
+    [106] = 33445,
+    [107] = 33473,
+    [108] = 33484,
 }
 
 -- [[Misc AOT variable imports]]

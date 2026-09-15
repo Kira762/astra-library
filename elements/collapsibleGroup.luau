@@ -30,6 +30,16 @@ local constructors = {
 }
 local compactTypes = { Button = true, Toggle = true, Switch = true, Slider = true, Stat = true, Group = true }
 
+-- [[Which corners of the header band carry the container's arcs. Open, the band
+-- [[is only the top of the card: its bottom edge is the straight divider, so the
+-- [[bottom corners must stay square or they would notch into the revealed body.
+-- [[Closed, the band *is* the whole card, so its bottom corners have to carry the
+-- [[container's bottom arcs exactly like its top ones carry the top.]]
+local bandCorners = {
+    expanded = { "TopLeftRadius", "TopRightRadius" },
+    collapsed = { "TopLeftRadius", "TopRightRadius", "BottomLeftRadius", "BottomRightRadius" },
+}
+
 local function validate(definitions, path, ancestors, depth)
     assert(type(definitions) == "table", path .. " must be an array")
     assert(not ancestors[definitions] and depth <= 32, path .. ": cyclic or excessively deep group definitions")
@@ -158,8 +168,10 @@ function Collapsible.new(tab, props)
     -- [[GuiObject's own surface — descendants paint over the arcs. Left
     -- [[square, the band filled the card's top-left and top-right corners and
     -- [[squared off the silhouette the stroke draws. Rounding the band's top
-    -- [[corners with the container's own radius makes the two arcs one.
-    w:_roundCorners(self.headerSurface, { "TopLeftRadius", "TopRightRadius" }, "ElementCornerRadius")
+    -- [[corners with the container's own radius makes the two arcs one, and
+    -- [[_fitHeaderCorners adds the bottom pair while the group is closed.
+    self.headerCorner = w:_roundCorners(self.headerSurface, { "TopLeftRadius", "TopRightRadius" }, "ElementCornerRadius")
+    self:_fitHeaderCorners()
     self.divider = w:Create("Frame", {
         Name = "HeaderDivider", Position = UDim2.fromOffset(0, self.headerHeight),
         Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0,
@@ -249,6 +261,24 @@ function Collapsible.new(tab, props)
     return self
 end
 
+-- [[Collapsed, the band is the whole card — there is no body under it — so it
+-- [[has to carry the container's bottom arcs too, or its square bottom corners
+-- [[paint over the silhouette the stroke draws and the card reads as rounded at
+-- [[the top and uneven at the bottom. Expanded, the clipper below takes the
+-- [[bottom edge (it is flush with the container's floor and keeps the same
+-- [[radius token), so the band squares off against the straight divider. One
+-- [[token for both states means the corner never changes radius, only which
+-- [[surface owns it, and the clipper keeps the arcs for every frame in between:
+-- [[the collapse rounds the band as it settles, and the opening squares it
+-- [[before the body is revealed underneath.]]
+function Collapsible:_fitHeaderCorners()
+    self.window:_setRoundedCorners(
+        self.headerCorner,
+        if self._expanded then bandCorners.expanded else bandCorners.collapsed,
+        "ElementCornerRadius"
+    )
+end
+
 function Collapsible:_resize(animate)
     -- (The engine always reports an AbsoluteContentSize; the test harness
     -- only stubs it once content is driven, so an unmeasured layout reads 0.)
@@ -265,11 +295,20 @@ function Collapsible:_resize(animate)
     self._resizeRevision = (self._resizeRevision or 0) + 1
     local revision = self._resizeRevision
     local function finish()
-        if not self.window.unloaded and self.main.Parent and self._resizeRevision == revision and not self._expanded then
+        if self.window.unloaded or not self.main.Parent or self._resizeRevision ~= revision then
+            return
+        end
+        if not self._expanded then
             self.body.Visible = false
             self.bodyClip.Visible = false
             self.divider.Visible = false
         end
+        -- [[Runs on every settle, in both states: the corner set follows the
+        -- [[height the container has actually reached, so a reversal mid-tween
+        -- [[(a stale revision returns above) can never leave the band's bottom
+        -- [[arcs on a card that is about to show its body, or off a card that
+        -- [[has just released it.]]
+        self:_fitHeaderCorners()
     end
     if animate and self._shown then
         -- The reveal mask derives its bounds from the container, so a single
@@ -289,6 +328,10 @@ function Collapsible:_setExpanded(expanded, animate)
     if self._expanded == expanded then return end
     self._expanded = expanded
     if expanded then
+        -- [[Square the band off against the divider before the body surfaces
+        -- [[under it, so the first revealed frame already shows a straight
+        -- [[header/body seam instead of two notches at the band's floor.
+        self:_fitHeaderCorners()
         self.body.Visible = true
         self.bodyClip.Visible = true
         self.divider.Visible = true

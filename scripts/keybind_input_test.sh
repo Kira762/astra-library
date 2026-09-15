@@ -1,5 +1,5 @@
 #!/bin/sh
-# Run focus/rebinding regressions against the standalone bundle.
+# Run keybind cap/capture regressions against the standalone bundle.
 set -u
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

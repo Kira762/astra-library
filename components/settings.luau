@@ -95,7 +95,6 @@ function settingsComponent.buildUI(window)
                     name = "Toggle Keybind",
                     icon = constants.icons.search,
                     value = window.settings.toggleKeybind,
-                    editable = true,
                     isMenuToggle = true,
                     onChanged = function(value)
                         window.settings.toggleKeybind = value

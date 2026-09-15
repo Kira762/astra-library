@@ -25751,6 +25751,14 @@ function ImportGlobals(refId)
 
         local CurrentRefPointer = moduleRef
 
+        -- [[Error text for the two guard branches below. Declared here rather
+        -- [[than injected at generation time: the generator used to
+        -- [[string-replace a "local ErrorNonModuleScript" declaration that the
+        -- [[template never contained, so both names resolved to nil and the
+        -- [[branches raised a blank message.]]
+        local ErrorNonModuleScript = "Expected ModuleScript got " .. CurrentRefPointer.ClassName
+        local ErrorSelfRequire = "Cannot require self"
+
         if CurrentRefPointer.ClassName ~= "ModuleScript" then
             error(ErrorNonModuleScript, 2)
         elseif CurrentRefPointer == ScriptRef then

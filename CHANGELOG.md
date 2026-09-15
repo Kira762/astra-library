@@ -26,6 +26,13 @@ tap, before `self:_runCallback()` could run the caller's callback.
   `persistence = persistence` — the bare global, not the local. `MODULES.md`
   has always documented the export; the value behind it was missing. No
   internal consumer touched the field, so it failed silently.
+- **The generated loader carried the same defect.** `scripts/generate_bundle.js`
+  injected `ErrorNonModuleScript` and `ErrorSelfRequire` by string-replacing a
+  `local ErrorNonModuleScript` declaration that the loader template never
+  contained, so both `.replace()` calls were silent no-ops and the bundle's
+  two require guards raised `error(nil)` — a blank message instead of
+  `Expected ModuleScript got Folder` / `Cannot require self`. The constants are
+  declared in the template now, where `CurrentRefPointer` is in scope.
 - **New suite `scripts/button_click_test`** (B1–B6) pins the whole path: the
   tap glyph exists so the animation is really exercised, the click runs the
   callback, and the press/release *sequence* of writes lands on the tap scale

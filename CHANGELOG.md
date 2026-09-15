@@ -37,12 +37,18 @@ was constructed, not from where it sits.
   and `Window:_setLayoutMode` re-applies the rail width after its rebuild loop
   (which also re-constrains a capped long title's wrapping slot — those came
   back unconstrained and overflowed the rail too).
+- **The icon-only tile is square.** A collapsed row kept its full-rail width, so
+  a 64px rail produced a 34x38 tile and the icon sat 7px from the tile's sides
+  but 9px from its top and bottom. `setRowCollapsed` sizes a collapsed row to
+  `rowHeight` square (the rail's list still centres it, the icon stays 20px), so
+  the glyph has the same clearance on all four edges; an expanded row keeps the
+  full-rail recipe (inset each side).
 - Tests extended for both: the group suite asserts the band's top-corner radii
   against the container's, the band's square bottom corners and the body
   clipper's surface/bottom arcs; the sidebar suite asserts that a row created
-  while the rail is collapsed is born icon-only (title hidden, content centred,
-  no expanded padding) and that rebuilt rows keep the capped title slot.
-  Bundle regenerated (`version-1.luau`, 103 modules).
+  while the rail is collapsed is born an icon-only square tile (title hidden,
+  content centred, no expanded padding) and that rebuilt rows keep the capped
+  title slot. Bundle regenerated (`version-1.luau`, 103 modules).
 
 ## 2026-09-14 — Collapsible Group rebuilt as one connected card (design reference)
 

@@ -363,6 +363,14 @@ function tabSelector.setRowCollapsed(tab, collapsed, layout)
     if tab.topbarItemInitial then
         tab.topbarItemInitial.Visible = collapsed
     end
+    -- [[An icon-only row is a square tile the height of the row. The rail is
+    -- [[64px wide, so a full-rail row (inset 15px each side) was 34x38: the
+    -- [[icon sat 7px from its sides but 9px from its top and bottom, which
+    -- [[reads as an off-centre glyph. The square tile keeps the list's
+    -- [[centring and leaves the icon the same clearance on all four edges.
+    tab.topbarItem.Size = if collapsed
+        then UDim2.fromOffset(layout.rowHeight :: number, layout.rowHeight :: number)
+        else UDim2.new(1, -(layout.rowInset :: number) * 2, 0, layout.rowHeight :: number)
     local rowPadding = if collapsed then 0 else layout.rowPadding
     tab.topbarItemContainer.Size = UDim2.new(1, -rowPadding, 0, 24)
     tab.topbarItemContainer.Position = UDim2.new(0, rowPadding, 0.5, 0)

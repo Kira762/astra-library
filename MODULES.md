@@ -334,8 +334,10 @@ icon-only width right now (the rail's own `Size`, written by the layout's
 reads it, so a row rebuilt *after* the rail was sized — a layout switch
 (`Window:_setLayoutMode` rebuilds every row), or `Window:CreateTab` while the
 rail is icon-only — is born in the rail's current state: icon-only rows hide
-their title and drop the expanded row padding, instead of leaking the start of
-the tab name past the icon inside a 64px rail. `Window:_setLayoutMode` also
+their title, drop the expanded row padding and size themselves as a square
+`rowHeight` tile (a full-rail row was 34x38 in a 64px rail, which left the icon
+7px from the tile's sides but 9px from its top and bottom), instead of leaking
+the start of the tab name past the icon inside a 64px rail. `Window:_setLayoutMode` also
 re-applies the rail width after its rebuild loop, which is what re-constrains a
 capped title's wrapping slot on the new rows.
 

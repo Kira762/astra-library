@@ -2,6 +2,42 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-15 — Tab-strip end gutters and the end of Tags
+
+Follow-up to today's tab-strip spacing pass. The outer pills could still
+touch the strip's clip edges: the strip frame was inset from the *window*
+but nothing separated the first and last pill from the strip's own edges, so
+an end pill sat flush against the fade boundary at rest and a scrolled strip
+parked the last pill against the edge. The Tag element is also removed
+entirely.
+
+- **End gutters inside the strip.** The top-layout strip now carries a
+  `UIPadding` (`tabStripEdgePadding = 14`, a new layout token) at each canvas
+  end. Padding scrolls with the content, so the first pill starts — and the
+  last pill ends — a fixed distance inside the clip edge at every scroll
+  position, while an overflowing pill still clips well inside the window
+  border (the frame inset is unchanged at 30). Pill-to-pill spacing opens from
+  7 to 8.
+- **Chrome band is balanced.** The top clearance and the gap below the strip
+  are both 6 (`tabStripTopClearance` / `tabStripBottomClearance`, was 3/3 with
+  the row 1px above the topbar edge in older builds): the strip is centred in
+  its band and `chromeHeight` follows, shifting the content area, search pill
+  and window sizing together.
+- **Fades are gutter-aware.** `tabStripFadeWidth` (30, was a local 24) covers
+  the new gutter; `_refreshTabStripChrome` measures clipping from the last
+  pill's canvas-space edge, so the trailing 14px gutter no longer lights the
+  right fade a gutter early. `_scrollSelectedTabIntoView` lands the selected
+  pill clear of whichever fade is showing (left: fade width; right: end
+  gutter) and clamps against the true `AbsoluteCanvasSize - frame width`
+  scroll range.
+- **Tags permanently removed.** `elements/tag.luau`, `Window:CreateTag`, the
+  topbar tag container and its `tags` list, the `Tag`/`TagProps` types, the
+  example's tags and the USAGE/MODULES references are gone, along with the
+  tag fade loops from close/hide/show. The example and docs no longer mention
+  tags; new `scripts/topbar_strip_test` asserts the strip geometry, fade
+  thresholds, scroll-into-view landings and the removed tag API.
+- Bundle regenerated (`version-1.luau`, 102 modules).
+
 ## 2026-09-15 — Breathing room around the topbar tab strip
 
 The top-layout tab strip sat almost flush with its surroundings: its

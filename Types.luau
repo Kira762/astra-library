@@ -27,14 +27,6 @@ export type TabProps = {
     icon: (string | number)?,
 }
 
-export type TagProps = {
-    text: string?,
-    title: string?,
-    icon: (string | number)?,
-    color: Color3?,
-    order: number?,
-}
-
 export type SectionProps = {
     name: string?,
     icon: (string | number)?,
@@ -271,14 +263,6 @@ export type Divider = Moveable & {
     text: string,     Set: (self: Divider, text: string?) -> (),
 }
 
-export type Tag = {
-    Set: (self: Tag, props: TagProps) -> (),
-    SetColor: (self: Tag, color: Color3) -> (),
-    SetText: (self: Tag, text: string?) -> (),
-    SetIcon: (self: Tag, icon: (string | number)?) -> (),
-    Remove: (self: Tag) -> (),
-}
-
 export type Popup = {
     Close: (self: Popup) -> (),
 }
@@ -325,7 +309,6 @@ export type Window = {
     Flags: { [string]: any },
     CreateTab: (self: Window, props: TabProps) -> Tab,
         CreateSection: (self: Window, props: SectionProps) -> TabSection,
-    CreateTag: (self: Window, props: TagProps) -> Tag,
     Notify: (self: Window, props: NotifyProps) -> (),
     Toast: (self: Window, props: ToastProps) -> (),
     Popup: (self: Window, props: PopupProps) -> Popup?,     Show: (self: Window) -> (),

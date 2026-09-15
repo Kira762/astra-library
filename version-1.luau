@@ -26,7 +26,6 @@ export type WindowConfiguration = types.WindowConfiguration
 
 export type WindowProps = types.WindowProps
 export type TabProps = types.TabProps
-export type TagProps = types.TagProps
 export type SectionProps = types.SectionProps
 export type GroupProps = types.GroupProps
 export type CollapsibleGroupProps = types.CollapsibleGroupProps
@@ -65,7 +64,6 @@ export type Section = types.Section
 export type TabSection = types.TabSection
 export type Text = types.Text
 export type Divider = types.Divider
-export type Tag = types.Tag
 export type Popup = types.Popup
 export type Astra = types.Astra
 
@@ -290,14 +288,6 @@ export type WindowProps = {
 export type TabProps = {
     name: string?,
     icon: (string | number)?,
-}
-
-export type TagProps = {
-    text: string?,
-    title: string?,
-    icon: (string | number)?,
-    color: Color3?,
-    order: number?,
 }
 
 export type SectionProps = {
@@ -536,14 +526,6 @@ export type Divider = Moveable & {
     text: string,     Set: (self: Divider, text: string?) -> (),
 }
 
-export type Tag = {
-    Set: (self: Tag, props: TagProps) -> (),
-    SetColor: (self: Tag, color: Color3) -> (),
-    SetText: (self: Tag, text: string?) -> (),
-    SetIcon: (self: Tag, icon: (string | number)?) -> (),
-    Remove: (self: Tag) -> (),
-}
-
 export type Popup = {
     Close: (self: Popup) -> (),
 }
@@ -590,7 +572,6 @@ export type Window = {
     Flags: { [string]: any },
     CreateTab: (self: Window, props: TabProps) -> Tab,
         CreateSection: (self: Window, props: SectionProps) -> TabSection,
-    CreateTag: (self: Window, props: TagProps) -> Tag,
     Notify: (self: Window, props: NotifyProps) -> (),
     Toast: (self: Window, props: ToastProps) -> (),
     Popup: (self: Window, props: PopupProps) -> Popup?,     Show: (self: Window) -> (),
@@ -7197,7 +7178,6 @@ function Window.new(props)
         localeProperties = {},
         tabs = {},
         tabSections = {},
-        tags = {},
         selectedTab = nil,
         _settingsLayoutActive = false,
         _settingsTabs = {},
@@ -7430,28 +7410,6 @@ function Window.new(props)
             Parent = self.titleContainer,
         }, { TextColor3 = "TitlingColor", FontFace = "Font" })
     end
-
-    self.tagContainer = self:Create("Frame", {
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 25, 0.5, 0),
-        Size = UDim2.fromOffset(50, 24),
-        AutomaticSize = Enum.AutomaticSize.XY,
-        BackgroundTransparency = 1,
-        LayoutOrder = 2,
-        Visible = false,
-
-        Parent = self.topContainer,
-    })
-
-    self.tagContainerLayout = self:Create("UIListLayout", {
-        Padding = UDim.new(0, 5),
-        FillDirection = Enum.FillDirection.Horizontal,
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-
-        Parent = self.tagContainer,
-    })
-
 
         self.windowShadow = self:CreateGlow(self.main, "ShadowColor", 20, 1)
 
@@ -7884,13 +7842,6 @@ function Window:_setTabSectionsVisible(visible)
     end
 end
 
-function Window:CreateTag(props)
-    assert(not self.unloaded, "Cannot create a tag on an unloaded window.")
-    local tag = require(script.Parent.Parent.elements.tag).new(self, props)
-    table.insert(self.tags, tag)
-    return tag
-end
-
 function Window:_registerControl(element)
     if not element.flag or element.flag == "" or element.forgetState then
         return
@@ -8112,9 +8063,6 @@ function Window:Close()
     if self.topbarIcon then
         motion.tween(self.topbarIcon, { ImageTransparency = 1 }, closeTweenInfo)
     end
-    for _, tag in self.tags do
-        tag:_setShown(false, closeTweenInfo)
-    end
     self:_fadeSelectedElementsOut()
     -- [[The contraction goes through the motion service so the close answers
     -- the speed setting like the rest of the window. A nil return means
@@ -8215,10 +8163,6 @@ function Window:Hide()
         if actionFrame:IsA("Frame") then
             motion.tween(actionFrame.ImageLabel, { ImageTransparency = 1 }, hideTween)
         end
-    end
-
-    for _, tag in self.tags do
-        tag:_setShown(false, hideTween)
     end
 
     for _, tab in pairs(self.tabs) do
@@ -8944,21 +8888,32 @@ function Window:_refreshTabStripChrome()
         return
     end
 
-    local rightClipped = strip.AbsoluteCanvasSize.X > strip.AbsoluteWindowSize.X + 0.5
+    -- [[The canvas carries an end gutter on each side (UIPadding), and the]]
+    -- [[frame itself is inset from the window edge, so clipping is read from]]
+    -- [[the last pill's canvas-space right edge against the frame's full]]
+    -- [[width — AbsoluteWindowSize alone would count the trailing gutter as]]
+    -- [[clipped content and light the fade a gutter too early.]]
+    local edgePadding = self.layout.tabStripEdgePadding or 14
+    local frameWidth = strip.AbsoluteSize.X
+    local scrollX = strip.CanvasPosition.X
+    local contentRight = strip.AbsoluteCanvasSize.X - edgePadding
+
+    local rightClipped = contentRight > scrollX + frameWidth + 0.5
     if fadeRight and fadeRight.Parent and fadeRight.Visible ~= rightClipped then
         fadeRight.Visible = rightClipped
     end
 
-    local scrolledFromLeft = strip.CanvasPosition.X > 0.5
+    local scrolledFromLeft = scrollX > 0.5
     if fadeLeft and fadeLeft.Parent and fadeLeft.Visible ~= scrolledFromLeft then
         fadeLeft.Visible = scrolledFromLeft
     end
 end
 
 -- [[Keep the selected pill inside the strip's viewport after a selection.]]
--- [[Children of the ScrollingFrame sit in canvas space, so item.Position]]
--- [[is the tab's offset along the strip without any absolute-position]]
--- [[math; the inset keeps the landing a touch clear of the edge fades.]]
+-- [[Children of the ScrollingFrame sit in canvas space (the end-gutter]]
+-- [[padding shifts the first pill's origin), so item.Position is the tab's]]
+-- [[offset along the strip without any absolute-position math; the landing]]
+-- [[clearance parks the pill just clear of whichever edge fade is showing.]]
 function Window:_scrollSelectedTabIntoView(tweened)
     local strip = self.tabList
     if self.layout.mode ~= "top" or not strip or not strip.Parent then
@@ -8971,21 +8926,24 @@ function Window:_scrollSelectedTabIntoView(tweened)
         return
     end
 
-    local inset = self.layout.tabStripInset or 30
-    local viewport = strip.AbsoluteWindowSize.X
-    local maxScroll = math.max(0, strip.AbsoluteCanvasSize.X - viewport)
+    local edgePadding = self.layout.tabStripEdgePadding or 14
+    local fadeLanding = self.layout.tabStripFadeWidth or 30
+    local frameWidth = strip.AbsoluteSize.X
+    local maxScroll = math.max(0, strip.AbsoluteCanvasSize.X - frameWidth)
     local left = item.Position.X.Offset
     local right = left + item.AbsoluteSize.X
     local pos = strip.CanvasPosition.X
 
     -- [[Move the strip only when the pill is clipped or pressed up
     -- [[against an edge fade; a comfortably visible tab stays put, so
-    -- [[selecting it does not re-scroll the strip for no reason.]]
+    -- [[selecting it does not re-scroll the strip for no reason. The left]]
+    -- [[landing clears the fade; the right landing leaves the end gutter]]
+    -- [[visible beside the pill.]]
     local target = nil
-    if left < pos + inset then
-        target = left - inset
-    elseif right > pos + viewport - inset then
-        target = right + inset - viewport
+    if left < pos + fadeLanding then
+        target = left - fadeLanding
+    elseif right > pos + frameWidth - edgePadding then
+        target = right + edgePadding - frameWidth
     end
     if target == nil then
         return
@@ -9389,9 +9347,6 @@ function Window:_quickRestore()
         end
     end
 
-    for _, tag in self.tags do
-        tag:_setShown(true, false)
-    end
     -- [[Same contract as the first show: run the settle path from the tween's
     -- Completed, or immediately when there is no tween (motion switched off),
     -- so `animating` is never left set.]]
@@ -9469,9 +9424,6 @@ function Window:_firstShow()
     -- [[for when it is opened; the staged reveal below walks the page that is
     -- [[actually on screen, one control per beat.]]
     self:_applySettingsLayout(self._settingsMode)
-    for _, tag in self.tags do
-        tag:_setShown(false, false)
-    end
     local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     if self.topbarIcon then
         self.topbarIcon.ImageTransparency = 1
@@ -9492,9 +9444,6 @@ function Window:_firstShow()
         end
     end
 
-    for _, tag in self.tags do
-        tag:_setShown(true, tweenInfo)
-    end
     self:_fadeSurfaces(true, tweenInfo)
 
     -- [[The entrance is the library's hero transition. Only UIScale moves:
@@ -16489,170 +16438,6 @@ end)() end,
     [39] = function()local wax,script,require=ImportGlobals(39)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
-state.__type = "Tag"
-
-local constants = script.Parent.Parent.utilities
-
-local Tag = require(constants.Parent.core.state)
-local tab = require(script.Parent.Parent.functions)
-local props = require(script.Parent.Parent.images.image)
-
-local text = Color3.fromRGB(255, 175, 15)
-local title = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-
-function state.new(window, icon)
-    icon = if typeof(icon) == "table" then icon else {}
-
-    local self = setmetatable({
-        window = assert(window, "Missing argument #1 (Window expected)"),
-        text = icon.text or icon.Text or icon.title or icon.Title,
-        icon = window:ResolveIcon(icon.icon or icon.Icon),
-        color = icon.color or icon.Color or text,
-    }, state)
-
-    assert(self.icon or (self.text and self.text ~= ""), "A Tag requires an icon, text, or both.")
-
-    self.main = self.window:Create("Frame", {
-        Name = "Tag",
-        Size = UDim2.fromOffset(10, 24),
-        AutomaticSize = Enum.AutomaticSize.X,
-        BackgroundColor3 = self.color,
-        BorderSizePixel = 0,
-        LayoutOrder = icon.order or icon.Order or 0,
-
-                BackgroundTransparency = 1,
-        Parent = self.window.tagContainer,
-    })
-
-    self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 8),
-
-        Parent = self.main,
-    })
-
-    self.window:Create("UIPadding", {
-        PaddingLeft = UDim.new(0, 10),
-        PaddingRight = UDim.new(0, 10),
-
-        Parent = self.main,
-    })
-
-    self.window:Create("UIListLayout", {
-        Padding = UDim.new(0, 5),
-        FillDirection = Enum.FillDirection.Horizontal,
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-
-        Parent = self.main,
-    })
-
-    local color = tab.contrastColor(self.color)
-
-    self.iconLabel = self.window:Create("ImageLabel", {
-        Name = "Icon",
-        Image = self.icon or "",
-        ImageColor3 = color,
-        Size = UDim2.fromOffset(16, 16),
-        BackgroundTransparency = 1,
-        Visible = self.icon ~= nil,
-        ZIndex = 5,
-
-                ImageTransparency = 1,
-        Parent = self.main,
-    })
-
-    self.title = self.window:Create("TextLabel", {
-        Name = "Title",
-        AnchorPoint = Vector2.new(0, 0.5),
-        Size = UDim2.fromOffset(10, 15),
-        AutomaticSize = Enum.AutomaticSize.X,
-        BackgroundTransparency = 1,
-        Text = self.text or "",
-        TextColor3 = color,
-        TextSize = 15,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextWrapped = true,
-        RichText = true,
-        Visible = self.text ~= nil and self.text ~= "",
-        LayoutOrder = 1,
-        ZIndex = 5,
-
-                TextTransparency = 1,
-        Parent = self.main,
-    }, { FontFace = "Font" })
-
-    self.window.tagContainer.Visible = true
-
-        if not self.window.hidden then
-        self:_setShown(true, title)
-    end
-
-    return self
-end
-
-function state:_setShown(order, element)
-    local frame = if order then 0 else 1
-    local a13 = if typeof(element) == "TweenInfo" then element elseif element then title else nil
-    if a13 then
-        Tag.tweenService:Create(self.main, a13, { BackgroundTransparency = frame }):Play()
-        Tag.tweenService:Create(self.iconLabel, a13, { ImageTransparency = frame }):Play()
-        Tag.tweenService:Create(self.title, a13, { TextTransparency = frame }):Play()
-    else
-        self.main.BackgroundTransparency = frame
-        self.iconLabel.ImageTransparency = frame
-        self.title.TextTransparency = frame
-    end
-end
-
-function state:SetColor(a14)
-    self.color = a14
-    local a15 = tab.contrastColor(a14)
-    Tag.tweenService:Create(self.main, title, { BackgroundColor3 = a14 }):Play()
-    Tag.tweenService:Create(self.iconLabel, title, { ImageColor3 = a15 }):Play()
-    Tag.tweenService:Create(self.title, title, { TextColor3 = a15 }):Play()
-end
-
-function state:SetText(a16)
-    self.text = a16
-    self.title.Text = a16 or ""
-    self.title.Visible = a16 ~= nil and a16 ~= ""
-end
-
-function state:SetIcon(a17)
-    self.icon = a17
-    props.assign(self.iconLabel, "Image", a17)
-    self.iconLabel.Visible = a17 ~= nil
-end
-
-function state:Set(a18)
-    if a18.color or a18.Color then
-        self:SetColor(a18.color or a18.Color)
-    end
-    if a18.text or a18.Text or a18.title or a18.Title then
-        self:SetText(a18.text or a18.Text or a18.title or a18.Title)
-    end
-    if a18.icon ~= nil or a18.Icon ~= nil then
-        self:SetIcon(a18.icon or a18.Icon)
-    end
-end
-
-function state:Remove()
-        self.window:DestroySubtree(self.main)
-    local a19 = table.find(self.window.tags, self)
-    if a19 then
-        table.remove(self.window.tags, a19)
-    end
-    if #self.window.tags == 0 then
-        self.window.tagContainer.Visible = false
-    end
-end
-
-return state
-
-end)() end,
-    [40] = function()local wax,script,require=ImportGlobals(40)local ImportGlobals return (function(...)
-local state = {}
-state.__index = state
 state.__type = "Text"
 
 local constants = require(script.Parent.Parent.utilities.moveable)
@@ -16804,7 +16589,7 @@ constants(state)
 return state
 
 end)() end,
-    [41] = function()local wax,script,require=ImportGlobals(41)local ImportGlobals return (function(...)
+    [40] = function()local wax,script,require=ImportGlobals(40)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Toggle"
@@ -17279,7 +17064,7 @@ end
 return state
 
 end)() end,
-    [50] = function()local wax,script,require=ImportGlobals(50)local ImportGlobals return (function(...)
+    [49] = function()local wax,script,require=ImportGlobals(49)local ImportGlobals return (function(...)
 
 local managerModule = require(script.manager)
 local registryModule = require(script.registry)
@@ -17304,7 +17089,7 @@ end
 return settings
 
 end)() end,
-    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)
+    [42] = function()local wax,script,require=ImportGlobals(42)local ImportGlobals return (function(...)
 
 local appearance = {}
 
@@ -17327,7 +17112,7 @@ end
 return appearance
 
 end)() end,
-    [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)
+    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)
 
 local behavior = {}
 
@@ -17344,7 +17129,7 @@ end
 return behavior
 
 end)() end,
-    [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
+    [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)
 
 local defaults = {}
 
@@ -17377,7 +17162,7 @@ end
 return defaults
 
 end)() end,
-    [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
+    [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
 
 local registry = require(script.Parent.registry)
 local defaults = require(script.Parent.defaults)
@@ -17499,7 +17284,7 @@ end
 return SettingsManager
 
 end)() end,
-    [47] = function()local wax,script,require=ImportGlobals(47)local ImportGlobals return (function(...)
+    [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
 
 local motion = require(script.Parent.Parent.utilities.motion)
 
@@ -17523,7 +17308,7 @@ end
 return performance
 
 end)() end,
-    [48] = function()local wax,script,require=ImportGlobals(48)local ImportGlobals return (function(...)
+    [47] = function()local wax,script,require=ImportGlobals(47)local ImportGlobals return (function(...)
 
 local settingsPersistence = require(script.Parent.Parent.utilities.persistenceSettings)
 local settingsCache = require(script.Parent.Parent.cache.persistenceCache)
@@ -17572,7 +17357,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [49] = function()local wax,script,require=ImportGlobals(49)local ImportGlobals return (function(...)
+    [48] = function()local wax,script,require=ImportGlobals(48)local ImportGlobals return (function(...)
 
 local registry = {}
 
@@ -17691,7 +17476,7 @@ end
 return registry
 
 end)() end,
-    [54] = function()local wax,script,require=ImportGlobals(54)local ImportGlobals return (function(...)
+    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
 
 local imageCache = require(script.moduleCache)
 
@@ -17702,7 +17487,7 @@ local moduleCache = {
 return moduleCache
 
 end)() end,
-    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
+    [50] = function()local wax,script,require=ImportGlobals(50)local ImportGlobals return (function(...)
 local filesystem = require(script.Parent.Parent.utilities.filesystem)
 local path = require(script.Parent.Parent.utilities.path)
 local variables = require(script.Parent.Parent.core.state)
@@ -18005,7 +17790,7 @@ end
 return imageCache
 
 end)() end,
-    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
+    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
 
 local moduleCache = {}
 
@@ -18036,7 +17821,7 @@ end
 return moduleCache
 
 end)() end,
-    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
+    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
 
 local persistenceCache = {}
 
@@ -18061,7 +17846,7 @@ end
 return persistenceCache
 
 end)() end,
-    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
+    [57] = function()local wax,script,require=ImportGlobals(57)local ImportGlobals return (function(...)
 
 local textMetrics = require(script.textMetrics)
 local colors = require(script.colors)
@@ -18079,7 +17864,7 @@ functions.contrastText = colors.contrastText
 return functions
 
 end)() end,
-    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
+    [54] = function()local wax,script,require=ImportGlobals(54)local ImportGlobals return (function(...)
 local colors = {}
 
 function colors.contrastColor(color: Color3): Color3
@@ -18099,7 +17884,7 @@ end
 return colors
 
 end)() end,
-    [56] = function()local wax,script,require=ImportGlobals(56)local ImportGlobals return (function(...)
+    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
 local flagNames = {}
 
 local offsetBasis = 2166136261
@@ -18131,7 +17916,7 @@ end
 return flagNames
 
 end)() end,
-    [57] = function()local wax,script,require=ImportGlobals(57)local ImportGlobals return (function(...)
+    [56] = function()local wax,script,require=ImportGlobals(56)local ImportGlobals return (function(...)
 local state = require(script.Parent.Parent.core.state)
 local textService = state.textService
 
@@ -18238,7 +18023,7 @@ end
 return textMetrics
 
 end)() end,
-    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
+    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local Sidebar = {}
@@ -18297,7 +18082,7 @@ end
 return Sidebar
 
 end)() end,
-    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
+    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local SidebarCollapsed = {}
@@ -18357,7 +18142,7 @@ end
 return SidebarCollapsed
 
 end)() end,
-    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
+    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
 local search = require(script.Parent.Parent.components.search)
 local functions = require(script.Parent.Parent.functions)
 local utilities = script.Parent.Parent.utilities
@@ -18365,7 +18150,8 @@ local constants = require(utilities.constants)
 
 local Topbar = {}
 
-local FADE_WIDTH = 24
+local DEFAULT_FADE_WIDTH = 30
+local DEFAULT_EDGE_PADDING = 14
 
 -- [[The window surface's WindowColor gradient runs bottom-to-top (rotation]]
 -- [[270), so the colour behind the strip — at the top of the window — is]]
@@ -18380,11 +18166,12 @@ local function buildFade(window, layout, inset, name, anchoredRight, transparent
     -- [[transparentEdge is the frame edge that must be fully clear:]]
     -- [[left for the right fade (it dissolves towards the visible tabs),]]
     -- [[right for the left fade.]]
+    local fadeWidth = layout.tabStripFadeWidth or DEFAULT_FADE_WIDTH
     local fade = window:Create("Frame", {
         Name = name,
-        Size = UDim2.fromOffset(FADE_WIDTH, layout.tabStripHeight),
+        Size = UDim2.fromOffset(fadeWidth, layout.tabStripHeight),
         Position = if anchoredRight
-            then UDim2.new(1, -(inset + FADE_WIDTH), 0, layout.tabStripTop)
+            then UDim2.new(1, -(inset + fadeWidth), 0, layout.tabStripTop)
             else UDim2.new(0, inset, 0, layout.tabStripTop),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BorderSizePixel = 0,
@@ -18413,11 +18200,14 @@ local function buildFade(window, layout, inset, name, anchoredRight, transparent
 end
 
 function Topbar.Build(window, layout)
-    -- [[The strip is inset from the window edge on both sides (instead of]]
-    -- [[using UIPadding, which would scroll away with the content), so a]]
-    -- [[tab that overflows clips inside the window — never touching its]]
-    -- [[border — and the edge fades below mark where tabs go off.]]
+    -- [[The strip frame itself is inset from the window edge on both]]
+    -- [[sides, and the canvas carries its own UIPadding at each end. The]]
+    -- [[two margins stack: an overflowing tab clips well inside the]]
+    -- [[window border, and even the first/last pill keeps a visible gap]]
+    -- [[from the clip edge (UIPadding scrolls with the content, unlike a]]
+    -- [[margin on the frame). The edge fades below mark where tabs go off.]]
     local inset = layout.tabStripInset or 30
+    local edgePadding = layout.tabStripEdgePadding or DEFAULT_EDGE_PADDING
 
     window.tabList = window:Create("ScrollingFrame", {
         Name = "Tabs",
@@ -18432,8 +18222,21 @@ function Topbar.Build(window, layout)
         ScrollingDirection = Enum.ScrollingDirection.X,
         Parent = window.main,
     })
+
+    -- [[End gutters: empty space the pills can never occupy, so the]]
+    -- [[outermost pill never touches the strip edge at either scroll]]
+    -- [[extreme. AutomaticCanvasSize folds the padding into the canvas,]]
+    -- [[which is also what keeps the last pill scrollable clear of the]]
+    -- [[right fade.]]
+    window:Create("UIPadding", {
+        PaddingLeft = UDim.new(0, edgePadding),
+        PaddingRight = UDim.new(0, edgePadding),
+
+        Parent = window.tabList,
+    })
+
     window.tabListLayout = window:Create("UIListLayout", {
-        Padding = UDim.new(0, 7),
+        Padding = UDim.new(0, 8),
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalAlignment = Enum.HorizontalAlignment.Left,
@@ -18468,7 +18271,7 @@ end
 return Topbar
 
 end)() end,
-    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
+    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
 
 local image = require(script.image)
 
@@ -18483,7 +18286,7 @@ local windowIcons = {
 return windowIcons
 
 end)() end,
-    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
+    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
 local imageCache = require(script.Parent.Parent.cache.imageCache)
 local variables = require(script.Parent.Parent.core.state)
 
@@ -18648,7 +18451,7 @@ end
 return image
 
 end)() end,
-    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
+    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
 
 local windowIcons = {}
 
@@ -18710,7 +18513,7 @@ end
 return windowIcons
 
 end)() end,
-    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
+    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
 -- [[Icon resolver service.]]
 -- [[]]
 -- [[Public API is compatible with the previous single-module catalog:]]
@@ -19208,7 +19011,7 @@ end
 return icons
 
 end)() end,
-    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
+    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
 local function expand(prefix: string, pack: string, raw: { [string]: string }): { [string]: string }
     local t = {}
     for k, name in raw do
@@ -19511,7 +19314,7 @@ local feather = expand("assets/icons/feather-pack/", "feather", {
 return feather
 
 end)() end,
-    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
+    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
 local function expand(prefix: string, pack: string, raw: { [string]: string }): { [string]: string }
     local t = {}
     for k, name in raw do
@@ -20175,7 +19978,7 @@ local heroicons = expand("assets/icons/heroicons-pack/", "heroicons", {
 return heroicons
 
 end)() end,
-    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
+    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
 local function expand(prefix: string, pack: string, raw: { [string]: string }): { [string]: string }
     local t = {}
     for k, name in raw do
@@ -21967,7 +21770,7 @@ local lucide = expand("assets/icons/lucide-pack/", "lucide", {
 return lucide
 
 end)() end,
-    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
+    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
 local function expand(prefix: string, pack: string, raw: { [string]: string }): { [string]: string }
     local t = {}
     for k, name in raw do
@@ -23116,7 +22919,7 @@ local material = expand("assets/icons/material-pack/white/", "material", {
 return material
 
 end)() end,
-    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
+    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
 local function expand(prefix: string, pack: string, raw: { [string]: string }): { [string]: string }
     local t = {}
     for k, name in raw do
@@ -24644,7 +24447,7 @@ local phosphor = expand("assets/icons/phosphor-pack/", "phosphor", {
 return phosphor
 
 end)() end,
-    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
+    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
 local function expand(prefix: string, pack: string, raw: { [string]: string }): { [string]: string }
     local t = {}
     for k, name in raw do
@@ -29790,7 +29593,7 @@ local tabler = expand("assets/icons/tabler-pack/", "tabler", {
 return tabler
 
 end)() end,
-    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
+    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
 -- [[Theme resolution engine (themes/init.luau).]]
 -- [[]]
 -- [[Extracted verbatim from components/window.luau so the window no longer owns]]
@@ -29896,7 +29699,7 @@ end
 return themes
 
 end)() end,
-    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
+    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(16, 13, 24),
@@ -29962,7 +29765,7 @@ return {
 }
 
 end)() end,
-    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
+    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(11, 16, 25),
@@ -30028,7 +29831,7 @@ return {
 }
 
 end)() end,
-    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
+    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
 local crimson = require(script.Parent.Parent.core.state)
 
 return {
@@ -30103,7 +29906,7 @@ return {
 }
 
 end)() end,
-    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
+    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
 local default = require(script.Parent.Parent.core.state)
 
 -- [[Rayfield Gen2 default palette, ported 1:1 for shared keys. Astra-only
@@ -30209,7 +30012,7 @@ return {
 }
 
 end)() end,
-    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
+    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(22, 18, 16),
@@ -30275,7 +30078,7 @@ return {
 }
 
 end)() end,
-    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
+    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
 local emerald = require(script.Parent.Parent.core.state)
 
 return {
@@ -30350,7 +30153,7 @@ return {
 }
 
 end)() end,
-    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
+    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
 local frost = require(script.Parent.Parent.core.state)
 
 return {
@@ -30425,7 +30228,7 @@ return {
 }
 
 end)() end,
-    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
+    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
 local gold = require(script.Parent.Parent.core.state)
 
 return {
@@ -30500,7 +30303,7 @@ return {
 }
 
 end)() end,
-    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
+    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
 local onyx = require(script.Parent.Parent.core.state)
 
 return {
@@ -30575,7 +30378,7 @@ return {
 }
 
 end)() end,
-    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
+    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(23, 15, 19),
@@ -30641,7 +30444,7 @@ return {
 }
 
 end)() end,
-    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
+    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 
 local hapticService = {}
@@ -30739,7 +30542,7 @@ end
 return hapticService
 
 end)() end,
-    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
+    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
 local networkUtil = require(script.Parent.network)
 local logger = require(script.Parent.log)
 
@@ -30917,7 +30720,7 @@ end
 return assetResolver
 
 end)() end,
-    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
+    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
 local iconRegistry = require(script.Parent.Parent.images.windowIcons)
 local constants = {}
 
@@ -30969,7 +30772,7 @@ constants.displayOrder = {
 return constants
 
 end)() end,
-    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
+    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
 local enums = {}
 
 function enums.itemFromValue(enumType, value)
@@ -30999,7 +30802,7 @@ end
 return enums
 
 end)() end,
-    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
+    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
 local serviceProvider = require(script.Parent.services)
 local filesystem = {}
 
@@ -31250,7 +31053,7 @@ end
 return filesystem
 
 end)() end,
-    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
+    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 local pathUtil = require(script.Parent.path)
 
@@ -31299,7 +31102,7 @@ end
 return filesystemManager
 
 end)() end,
-    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
+    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
 local fontManager = require(script.Parent.services)
 local a2 = fontManager.getService("HttpService")
 local a3 = fontManager.getService("RunService")
@@ -31752,7 +31555,7 @@ end
 return a16
 
 end)() end,
-    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
+    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
 
 local functions = {}
 
@@ -31770,7 +31573,7 @@ functions.contrastText = textMetrics.contrastText
 return functions
 
 end)() end,
-    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
+    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
 local layouts = {}
 
 local topbarLayout = require(script.Parent.Parent.layouts.Topbar)
@@ -31779,12 +31582,14 @@ local sidebarCollapsedLayout = require(script.Parent.Parent.layouts.SidebarColla
 
 local topbarHeightConstant = 64
 
--- [[Clearance under the topbar row: keeps the tab pills visibly separated]]
--- [[from the topbar's bottom edge instead of pressed up against it.]]
-local tabStripTopClearance = 3
+-- [[Clearance above and below the tab row. The strip is centred in the]]
+-- [[chrome band with matching gaps on both sides, so the pills read as]]
+-- [[neither pressed against the topbar nor pressed against the content.]]
+local tabStripTopClearance = 6
+local tabStripBottomClearance = 6
 local tabStripTopOffset = topbarHeightConstant + tabStripTopClearance
 local tabStripRowHeight = 38
-local chromeGap = 3
+local chromeGap = tabStripBottomClearance
 
 export type Mode = "top" | "sidebar"
 
@@ -31803,6 +31608,8 @@ export type Layout = {
         tabStripTop: number?,
     tabStripHeight: number?,
     tabStripInset: number?,
+    tabStripEdgePadding: number?,
+    tabStripFadeWidth: number?,
 
         railWidth: number?,
     railCollapsedWidth: number?,
@@ -31833,9 +31640,18 @@ layouts.top = {
 
     -- [[Margin between the window edge and the tab strip. The strip's]]
     -- [[ScrollingFrame is inset by this much on each side, so overflowing]]
-    -- [[tabs clip inside the window instead of running into its border, and]]
-    -- [[the end pills sit visibly clear of the window's side edges.]]
+    -- [[tabs clip inside the window instead of running into its border.]]
     tabStripInset = 30,
+
+    -- [[Empty gutter *inside* the strip at each end (canvas UIPadding):]]
+    -- [[the first and last pills never touch the strip's clip edge, at]]
+    -- [[rest or scrolled, so the edge fades dissolve over empty space]]
+    -- [[instead of over a pill pressed up against the edge.]]
+    tabStripEdgePadding = 14,
+
+    -- [[Width of the gradient fade that marks a clipping edge; wide]]
+    -- [[enough to cover the end gutter plus a little strip beyond it.]]
+    tabStripFadeWidth = 30,
 
     pageDirection = Enum.FillDirection.Horizontal,
 
@@ -31926,7 +31742,7 @@ end
 return layouts
 
 end)() end,
-    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
+    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local logger = require(script.Parent.log)
 
@@ -32025,7 +31841,7 @@ end
 return locale
 
 end)() end,
-    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
+    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
 local function lockable<T>(element: T): T
     local target = element :: any
 
@@ -32047,7 +31863,7 @@ end
 return lockable
 
 end)() end,
-    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
+    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
 local log = {}
 
 type SuppressPredicate = () -> boolean
@@ -32097,7 +31913,7 @@ end
 return log
 
 end)() end,
-    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
+    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
 -- [[Astra motion service.
 --
 -- Every animation in the library used to build its own TweenInfo and call
@@ -32422,7 +32238,7 @@ end
 return motion
 
 end)() end,
-    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
+    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
 local function moveable<T>(dragState: T): T
     local target = dragState :: any
 
@@ -32458,7 +32274,7 @@ end
 return moveable
 
 end)() end,
-    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
+    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
 local network = {}
 network.__index = network
 
@@ -32476,7 +32292,7 @@ end
 return network
 
 end)() end,
-    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
+    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local textService = coreState.textService
 
@@ -32825,7 +32641,7 @@ end
 return odometer
 
 end)() end,
-    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
+    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
 type OrderedElement = {
     main: GuiObject,
 }
@@ -32837,7 +32653,7 @@ end
 return ordering
 
 end)() end,
-    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
+    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
 local path = {}
 
 function path.join(base: string, suffix: string?): string
@@ -32888,7 +32704,7 @@ end
 return path
 
 end)() end,
-    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
+    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
 local persistence = {}
 
 local configPersistence = require(script.Parent.persistenceConfig)
@@ -32907,7 +32723,7 @@ persistence.loadSettings = settingsPersistence.loadSettings
 return persistence
 
 end)() end,
-    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
+    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local logger = require(script.Parent.log)
@@ -33158,7 +32974,7 @@ end
 return persistenceConfig
 
 end)() end,
-    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
+    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local pathUtil = require(script.Parent.path)
 
@@ -33202,7 +33018,7 @@ end
 return persistencePaths
 
 end)() end,
-    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
+    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local paths = require(script.Parent.persistencePaths)
@@ -33445,7 +33261,7 @@ end
 return persistenceSettings
 
 end)() end,
-    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
+    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 
 local persistenceWrite = {}
@@ -33473,7 +33289,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
+    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
 local services = {}
 
 function services.getService(serviceName)
@@ -33484,7 +33300,7 @@ end
 return services
 
 end)() end,
-    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
+    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
 local layoutMetrics = require(script.Parent.layouts)
 local coreState = require(script.Parent.Parent.core.state)
 
@@ -33694,108 +33510,107 @@ end)() end,
 
 local LineOffsets = {
     [2] = 12,
-    [3] = 266,
-    [5] = 683,
-    [6] = 718,
-    [7] = 763,
-    [8] = 669,
-    [9] = 880,
-    [10] = 990,
-    [11] = 1235,
-    [12] = 1462,
-    [13] = 1799,
-    [14] = 2039,
-    [15] = 2757,
-    [16] = 5148,
-    [17] = 5494,
-    [18] = 6133,
-    [19] = 6194,
-    [20] = 6609,
-    [21] = 7014,
-    [23] = 10258,
-    [24] = 10344,
-    [25] = 10652,
-    [26] = 11073,
-    [27] = 11477,
-    [28] = 11647,
-    [29] = 11792,
-    [30] = 13167,
-    [31] = 13386,
-    [32] = 13658,
-    [33] = 14219,
-    [34] = 14667,
-    [35] = 14753,
-    [36] = 15340,
-    [37] = 15964,
-    [38] = 16360,
-    [39] = 16490,
-    [40] = 16654,
-    [41] = 16808,
-    [43] = 17308,
-    [44] = 17331,
-    [45] = 17348,
-    [46] = 17381,
-    [47] = 17503,
-    [48] = 17527,
-    [49] = 17576,
-    [50] = 17283,
-    [51] = 17706,
-    [52] = 18009,
-    [53] = 18040,
-    [54] = 17695,
-    [55] = 18083,
-    [56] = 18103,
-    [57] = 18135,
-    [58] = 18065,
-    [59] = 18242,
-    [60] = 18301,
-    [61] = 18361,
-    [63] = 18487,
-    [64] = 18652,
-    [65] = 18472,
-    [66] = 19212,
-    [67] = 19515,
-    [68] = 20179,
-    [69] = 21971,
-    [70] = 23120,
-    [71] = 24648,
-    [72] = 18714,
-    [73] = 29900,
-    [74] = 29966,
-    [75] = 30032,
-    [76] = 30107,
-    [77] = 30213,
-    [78] = 30279,
-    [79] = 30354,
-    [80] = 30429,
-    [81] = 30504,
-    [82] = 30579,
-    [83] = 29794,
-    [84] = 30645,
-    [85] = 30743,
-    [86] = 30921,
-    [87] = 30973,
-    [88] = 31003,
-    [89] = 31254,
-    [90] = 31303,
-    [91] = 31756,
-    [92] = 31774,
-    [93] = 31930,
-    [94] = 32029,
-    [95] = 32051,
-    [96] = 32101,
-    [97] = 32426,
-    [98] = 32462,
-    [99] = 32480,
-    [100] = 32829,
-    [101] = 32841,
-    [102] = 32892,
-    [103] = 32911,
-    [104] = 33162,
-    [105] = 33206,
-    [106] = 33449,
-    [107] = 33477,
-    [108] = 33488,
+    [3] = 264,
+    [5] = 664,
+    [6] = 699,
+    [7] = 744,
+    [8] = 650,
+    [9] = 861,
+    [10] = 971,
+    [11] = 1216,
+    [12] = 1443,
+    [13] = 1780,
+    [14] = 2020,
+    [15] = 2738,
+    [16] = 5129,
+    [17] = 5475,
+    [18] = 6114,
+    [19] = 6175,
+    [20] = 6590,
+    [21] = 6995,
+    [23] = 10207,
+    [24] = 10293,
+    [25] = 10601,
+    [26] = 11022,
+    [27] = 11426,
+    [28] = 11596,
+    [29] = 11741,
+    [30] = 13116,
+    [31] = 13335,
+    [32] = 13607,
+    [33] = 14168,
+    [34] = 14616,
+    [35] = 14702,
+    [36] = 15289,
+    [37] = 15913,
+    [38] = 16309,
+    [39] = 16439,
+    [40] = 16593,
+    [42] = 17093,
+    [43] = 17116,
+    [44] = 17133,
+    [45] = 17166,
+    [46] = 17288,
+    [47] = 17312,
+    [48] = 17361,
+    [49] = 17068,
+    [50] = 17491,
+    [51] = 17794,
+    [52] = 17825,
+    [53] = 17480,
+    [54] = 17868,
+    [55] = 17888,
+    [56] = 17920,
+    [57] = 17850,
+    [58] = 18027,
+    [59] = 18086,
+    [60] = 18146,
+    [62] = 18290,
+    [63] = 18455,
+    [64] = 18275,
+    [65] = 19015,
+    [66] = 19318,
+    [67] = 19982,
+    [68] = 21774,
+    [69] = 22923,
+    [70] = 24451,
+    [71] = 18517,
+    [72] = 29703,
+    [73] = 29769,
+    [74] = 29835,
+    [75] = 29910,
+    [76] = 30016,
+    [77] = 30082,
+    [78] = 30157,
+    [79] = 30232,
+    [80] = 30307,
+    [81] = 30382,
+    [82] = 29597,
+    [83] = 30448,
+    [84] = 30546,
+    [85] = 30724,
+    [86] = 30776,
+    [87] = 30806,
+    [88] = 31057,
+    [89] = 31106,
+    [90] = 31559,
+    [91] = 31577,
+    [92] = 31746,
+    [93] = 31845,
+    [94] = 31867,
+    [95] = 31917,
+    [96] = 32242,
+    [97] = 32278,
+    [98] = 32296,
+    [99] = 32645,
+    [100] = 32657,
+    [101] = 32708,
+    [102] = 32727,
+    [103] = 32978,
+    [104] = 33022,
+    [105] = 33265,
+    [106] = 33293,
+    [107] = 33304,
 }
 
 -- [[Misc AOT variable imports]]
@@ -33963,7 +33778,7 @@ local ObjectTree = {
                 },
             },
             {
-                42,
+                41,
                 1,
                 {
                     "elements",
@@ -34085,18 +33900,11 @@ local ObjectTree = {
                         39,
                         2,
                         {
-                            "tag",
-                        },
-                    },
-                    {
-                        40,
-                        2,
-                        {
                             "text",
                         },
                     },
                     {
-                        41,
+                        40,
                         2,
                         {
                             "toggle",
@@ -34105,56 +33913,56 @@ local ObjectTree = {
                 },
             },
             {
-                50,
+                49,
                 2,
                 {
                     "settings",
                 },
                 {
                     {
-                        43,
+                        42,
                         2,
                         {
                             "appearance",
                         },
                     },
                     {
-                        44,
+                        43,
                         2,
                         {
                             "behavior",
                         },
                     },
                     {
-                        45,
+                        44,
                         2,
                         {
                             "defaults",
                         },
                     },
                     {
-                        46,
+                        45,
                         2,
                         {
                             "manager",
                         },
                     },
                     {
-                        47,
+                        46,
                         2,
                         {
                             "performance",
                         },
                     },
                     {
-                        48,
+                        47,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        49,
+                        48,
                         2,
                         {
                             "registry",
@@ -34163,28 +33971,28 @@ local ObjectTree = {
                 },
             },
             {
-                54,
+                53,
                 2,
                 {
                     "cache",
                 },
                 {
                     {
-                        51,
+                        50,
                         2,
                         {
                             "imageCache",
                         },
                     },
                     {
-                        52,
+                        51,
                         2,
                         {
                             "moduleCache",
                         },
                     },
                     {
-                        53,
+                        52,
                         2,
                         {
                             "persistenceCache",
@@ -34193,28 +34001,28 @@ local ObjectTree = {
                 },
             },
             {
-                58,
+                57,
                 2,
                 {
                     "functions",
                 },
                 {
                     {
-                        55,
+                        54,
                         2,
                         {
                             "colors",
                         },
                     },
                     {
-                        56,
+                        55,
                         2,
                         {
                             "flagNames",
                         },
                     },
                     {
-                        57,
+                        56,
                         2,
                         {
                             "textMetrics",
@@ -34223,28 +34031,28 @@ local ObjectTree = {
                 },
             },
             {
-                62,
+                61,
                 1,
                 {
                     "layouts",
                 },
                 {
                     {
-                        59,
+                        58,
                         2,
                         {
                             "Sidebar",
                         },
                     },
                     {
-                        60,
+                        59,
                         2,
                         {
                             "SidebarCollapsed",
                         },
                     },
                     {
-                        61,
+                        60,
                         2,
                         {
                             "Topbar",
@@ -34253,21 +34061,21 @@ local ObjectTree = {
                 },
             },
             {
-                65,
+                64,
                 2,
                 {
                     "images",
                 },
                 {
                     {
-                        63,
+                        62,
                         2,
                         {
                             "image",
                         },
                     },
                     {
-                        64,
+                        63,
                         2,
                         {
                             "windowIcons",
@@ -34276,49 +34084,49 @@ local ObjectTree = {
                 },
             },
             {
-                72,
+                71,
                 2,
                 {
                     "icons",
                 },
                 {
                     {
-                        66,
+                        65,
                         2,
                         {
                             "feather",
                         },
                     },
                     {
-                        67,
+                        66,
                         2,
                         {
                             "heroicons",
                         },
                     },
                     {
-                        68,
+                        67,
                         2,
                         {
                             "lucide",
                         },
                     },
                     {
-                        69,
+                        68,
                         2,
                         {
                             "material",
                         },
                     },
                     {
-                        70,
+                        69,
                         2,
                         {
                             "phosphor",
                         },
                     },
                     {
-                        71,
+                        70,
                         2,
                         {
                             "tabler",
@@ -34327,77 +34135,77 @@ local ObjectTree = {
                 },
             },
             {
-                83,
+                82,
                 2,
                 {
                     "themes",
                 },
                 {
                     {
-                        73,
+                        72,
                         2,
                         {
                             "amethyst",
                         },
                     },
                     {
-                        74,
+                        73,
                         2,
                         {
                             "cobalt",
                         },
                     },
                     {
-                        75,
+                        74,
                         2,
                         {
                             "crimson",
                         },
                     },
                     {
-                        76,
+                        75,
                         2,
                         {
                             "default",
                         },
                     },
                     {
-                        77,
+                        76,
                         2,
                         {
                             "ember",
                         },
                     },
                     {
-                        78,
+                        77,
                         2,
                         {
                             "emerald",
                         },
                     },
                     {
-                        79,
+                        78,
                         2,
                         {
                             "frost",
                         },
                     },
                     {
-                        80,
+                        79,
                         2,
                         {
                             "gold",
                         },
                     },
                     {
-                        81,
+                        80,
                         2,
                         {
                             "onyx",
                         },
                     },
                     {
-                        82,
+                        81,
                         2,
                         {
                             "rose",
@@ -34406,182 +34214,182 @@ local ObjectTree = {
                 },
             },
             {
-                109,
+                108,
                 1,
                 {
                     "utilities",
                 },
                 {
                     {
-                        84,
+                        83,
                         2,
                         {
                             "HapticEngine",
                         },
                     },
                     {
-                        85,
+                        84,
                         2,
                         {
                             "assetResolver",
                         },
                     },
                     {
-                        86,
+                        85,
                         2,
                         {
                             "constants",
                         },
                     },
                     {
-                        87,
+                        86,
                         2,
                         {
                             "enums",
                         },
                     },
                     {
-                        88,
+                        87,
                         2,
                         {
                             "filesystem",
                         },
                     },
                     {
-                        89,
+                        88,
                         2,
                         {
                             "filesystemManager",
                         },
                     },
                     {
-                        90,
+                        89,
                         2,
                         {
                             "fontManager",
                         },
                     },
                     {
-                        91,
+                        90,
                         2,
                         {
                             "functions",
                         },
                     },
                     {
-                        92,
+                        91,
                         2,
                         {
                             "layouts",
                         },
                     },
                     {
-                        93,
+                        92,
                         2,
                         {
                             "locale",
                         },
                     },
                     {
-                        94,
+                        93,
                         2,
                         {
                             "lockable",
                         },
                     },
                     {
-                        95,
+                        94,
                         2,
                         {
                             "log",
                         },
                     },
                     {
-                        96,
+                        95,
                         2,
                         {
                             "motion",
                         },
                     },
                     {
-                        97,
+                        96,
                         2,
                         {
                             "moveable",
                         },
                     },
                     {
-                        98,
+                        97,
                         2,
                         {
                             "network",
                         },
                     },
                     {
-                        99,
+                        98,
                         2,
                         {
                             "odometer",
                         },
                     },
                     {
-                        100,
+                        99,
                         2,
                         {
                             "ordering",
                         },
                     },
                     {
-                        101,
+                        100,
                         2,
                         {
                             "path",
                         },
                     },
                     {
-                        102,
+                        101,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        103,
+                        102,
                         2,
                         {
                             "persistenceConfig",
                         },
                     },
                     {
-                        104,
+                        103,
                         2,
                         {
                             "persistencePaths",
                         },
                     },
                     {
-                        105,
+                        104,
                         2,
                         {
                             "persistenceSettings",
                         },
                     },
                     {
-                        106,
+                        105,
                         2,
                         {
                             "persistenceWrite",
                         },
                     },
                     {
-                        107,
+                        106,
                         2,
                         {
                             "services",
                         },
                     },
                     {
-                        108,
+                        107,
                         2,
                         {
                             "windowSizing",

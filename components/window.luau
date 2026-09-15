@@ -184,7 +184,6 @@ function Window.new(props)
         localeProperties = {},
         tabs = {},
         tabSections = {},
-        tags = {},
         selectedTab = nil,
         _settingsLayoutActive = false,
         _settingsTabs = {},
@@ -417,28 +416,6 @@ function Window.new(props)
             Parent = self.titleContainer,
         }, { TextColor3 = "TitlingColor", FontFace = "Font" })
     end
-
-    self.tagContainer = self:Create("Frame", {
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 25, 0.5, 0),
-        Size = UDim2.fromOffset(50, 24),
-        AutomaticSize = Enum.AutomaticSize.XY,
-        BackgroundTransparency = 1,
-        LayoutOrder = 2,
-        Visible = false,
-
-        Parent = self.topContainer,
-    })
-
-    self.tagContainerLayout = self:Create("UIListLayout", {
-        Padding = UDim.new(0, 5),
-        FillDirection = Enum.FillDirection.Horizontal,
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-
-        Parent = self.tagContainer,
-    })
-
 
         self.windowShadow = self:CreateGlow(self.main, "ShadowColor", 20, 1)
 
@@ -871,13 +848,6 @@ function Window:_setTabSectionsVisible(visible)
     end
 end
 
-function Window:CreateTag(props)
-    assert(not self.unloaded, "Cannot create a tag on an unloaded window.")
-    local tag = require(script.Parent.Parent.elements.tag).new(self, props)
-    table.insert(self.tags, tag)
-    return tag
-end
-
 function Window:_registerControl(element)
     if not element.flag or element.flag == "" or element.forgetState then
         return
@@ -1099,9 +1069,6 @@ function Window:Close()
     if self.topbarIcon then
         motion.tween(self.topbarIcon, { ImageTransparency = 1 }, closeTweenInfo)
     end
-    for _, tag in self.tags do
-        tag:_setShown(false, closeTweenInfo)
-    end
     self:_fadeSelectedElementsOut()
     -- [[The contraction goes through the motion service so the close answers
     -- the speed setting like the rest of the window. A nil return means
@@ -1202,10 +1169,6 @@ function Window:Hide()
         if actionFrame:IsA("Frame") then
             motion.tween(actionFrame.ImageLabel, { ImageTransparency = 1 }, hideTween)
         end
-    end
-
-    for _, tag in self.tags do
-        tag:_setShown(false, hideTween)
     end
 
     for _, tab in pairs(self.tabs) do
@@ -1931,21 +1894,32 @@ function Window:_refreshTabStripChrome()
         return
     end
 
-    local rightClipped = strip.AbsoluteCanvasSize.X > strip.AbsoluteWindowSize.X + 0.5
+    -- [[The canvas carries an end gutter on each side (UIPadding), and the]]
+    -- [[frame itself is inset from the window edge, so clipping is read from]]
+    -- [[the last pill's canvas-space right edge against the frame's full]]
+    -- [[width — AbsoluteWindowSize alone would count the trailing gutter as]]
+    -- [[clipped content and light the fade a gutter too early.]]
+    local edgePadding = self.layout.tabStripEdgePadding or 14
+    local frameWidth = strip.AbsoluteSize.X
+    local scrollX = strip.CanvasPosition.X
+    local contentRight = strip.AbsoluteCanvasSize.X - edgePadding
+
+    local rightClipped = contentRight > scrollX + frameWidth + 0.5
     if fadeRight and fadeRight.Parent and fadeRight.Visible ~= rightClipped then
         fadeRight.Visible = rightClipped
     end
 
-    local scrolledFromLeft = strip.CanvasPosition.X > 0.5
+    local scrolledFromLeft = scrollX > 0.5
     if fadeLeft and fadeLeft.Parent and fadeLeft.Visible ~= scrolledFromLeft then
         fadeLeft.Visible = scrolledFromLeft
     end
 end
 
 -- [[Keep the selected pill inside the strip's viewport after a selection.]]
--- [[Children of the ScrollingFrame sit in canvas space, so item.Position]]
--- [[is the tab's offset along the strip without any absolute-position]]
--- [[math; the inset keeps the landing a touch clear of the edge fades.]]
+-- [[Children of the ScrollingFrame sit in canvas space (the end-gutter]]
+-- [[padding shifts the first pill's origin), so item.Position is the tab's]]
+-- [[offset along the strip without any absolute-position math; the landing]]
+-- [[clearance parks the pill just clear of whichever edge fade is showing.]]
 function Window:_scrollSelectedTabIntoView(tweened)
     local strip = self.tabList
     if self.layout.mode ~= "top" or not strip or not strip.Parent then
@@ -1958,21 +1932,24 @@ function Window:_scrollSelectedTabIntoView(tweened)
         return
     end
 
-    local inset = self.layout.tabStripInset or 30
-    local viewport = strip.AbsoluteWindowSize.X
-    local maxScroll = math.max(0, strip.AbsoluteCanvasSize.X - viewport)
+    local edgePadding = self.layout.tabStripEdgePadding or 14
+    local fadeLanding = self.layout.tabStripFadeWidth or 30
+    local frameWidth = strip.AbsoluteSize.X
+    local maxScroll = math.max(0, strip.AbsoluteCanvasSize.X - frameWidth)
     local left = item.Position.X.Offset
     local right = left + item.AbsoluteSize.X
     local pos = strip.CanvasPosition.X
 
     -- [[Move the strip only when the pill is clipped or pressed up
     -- [[against an edge fade; a comfortably visible tab stays put, so
-    -- [[selecting it does not re-scroll the strip for no reason.]]
+    -- [[selecting it does not re-scroll the strip for no reason. The left]]
+    -- [[landing clears the fade; the right landing leaves the end gutter]]
+    -- [[visible beside the pill.]]
     local target = nil
-    if left < pos + inset then
-        target = left - inset
-    elseif right > pos + viewport - inset then
-        target = right + inset - viewport
+    if left < pos + fadeLanding then
+        target = left - fadeLanding
+    elseif right > pos + frameWidth - edgePadding then
+        target = right + edgePadding - frameWidth
     end
     if target == nil then
         return
@@ -2376,9 +2353,6 @@ function Window:_quickRestore()
         end
     end
 
-    for _, tag in self.tags do
-        tag:_setShown(true, false)
-    end
     -- [[Same contract as the first show: run the settle path from the tween's
     -- Completed, or immediately when there is no tween (motion switched off),
     -- so `animating` is never left set.]]
@@ -2456,9 +2430,6 @@ function Window:_firstShow()
     -- [[for when it is opened; the staged reveal below walks the page that is
     -- [[actually on screen, one control per beat.]]
     self:_applySettingsLayout(self._settingsMode)
-    for _, tag in self.tags do
-        tag:_setShown(false, false)
-    end
     local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     if self.topbarIcon then
         self.topbarIcon.ImageTransparency = 1
@@ -2479,9 +2450,6 @@ function Window:_firstShow()
         end
     end
 
-    for _, tag in self.tags do
-        tag:_setShown(true, tweenInfo)
-    end
     self:_fadeSurfaces(true, tweenInfo)
 
     -- [[The entrance is the library's hero transition. Only UIScale moves:

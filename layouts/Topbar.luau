@@ -5,7 +5,8 @@ local constants = require(utilities.constants)
 
 local Topbar = {}
 
-local FADE_WIDTH = 24
+local DEFAULT_FADE_WIDTH = 30
+local DEFAULT_EDGE_PADDING = 14
 
 -- [[The window surface's WindowColor gradient runs bottom-to-top (rotation]]
 -- [[270), so the colour behind the strip — at the top of the window — is]]
@@ -20,11 +21,12 @@ local function buildFade(window, layout, inset, name, anchoredRight, transparent
     -- [[transparentEdge is the frame edge that must be fully clear:]]
     -- [[left for the right fade (it dissolves towards the visible tabs),]]
     -- [[right for the left fade.]]
+    local fadeWidth = layout.tabStripFadeWidth or DEFAULT_FADE_WIDTH
     local fade = window:Create("Frame", {
         Name = name,
-        Size = UDim2.fromOffset(FADE_WIDTH, layout.tabStripHeight),
+        Size = UDim2.fromOffset(fadeWidth, layout.tabStripHeight),
         Position = if anchoredRight
-            then UDim2.new(1, -(inset + FADE_WIDTH), 0, layout.tabStripTop)
+            then UDim2.new(1, -(inset + fadeWidth), 0, layout.tabStripTop)
             else UDim2.new(0, inset, 0, layout.tabStripTop),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BorderSizePixel = 0,
@@ -53,11 +55,14 @@ local function buildFade(window, layout, inset, name, anchoredRight, transparent
 end
 
 function Topbar.Build(window, layout)
-    -- [[The strip is inset from the window edge on both sides (instead of]]
-    -- [[using UIPadding, which would scroll away with the content), so a]]
-    -- [[tab that overflows clips inside the window — never touching its]]
-    -- [[border — and the edge fades below mark where tabs go off.]]
+    -- [[The strip frame itself is inset from the window edge on both]]
+    -- [[sides, and the canvas carries its own UIPadding at each end. The]]
+    -- [[two margins stack: an overflowing tab clips well inside the]]
+    -- [[window border, and even the first/last pill keeps a visible gap]]
+    -- [[from the clip edge (UIPadding scrolls with the content, unlike a]]
+    -- [[margin on the frame). The edge fades below mark where tabs go off.]]
     local inset = layout.tabStripInset or 30
+    local edgePadding = layout.tabStripEdgePadding or DEFAULT_EDGE_PADDING
 
     window.tabList = window:Create("ScrollingFrame", {
         Name = "Tabs",
@@ -72,8 +77,21 @@ function Topbar.Build(window, layout)
         ScrollingDirection = Enum.ScrollingDirection.X,
         Parent = window.main,
     })
+
+    -- [[End gutters: empty space the pills can never occupy, so the]]
+    -- [[outermost pill never touches the strip edge at either scroll]]
+    -- [[extreme. AutomaticCanvasSize folds the padding into the canvas,]]
+    -- [[which is also what keeps the last pill scrollable clear of the]]
+    -- [[right fade.]]
+    window:Create("UIPadding", {
+        PaddingLeft = UDim.new(0, edgePadding),
+        PaddingRight = UDim.new(0, edgePadding),
+
+        Parent = window.tabList,
+    })
+
     window.tabListLayout = window:Create("UIListLayout", {
-        Padding = UDim.new(0, 7),
+        Padding = UDim.new(0, 8),
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalAlignment = Enum.HorizontalAlignment.Left,

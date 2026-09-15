@@ -15,7 +15,6 @@ export type WindowConfiguration = types.WindowConfiguration
 
 export type WindowProps = types.WindowProps
 export type TabProps = types.TabProps
-export type TagProps = types.TagProps
 export type SectionProps = types.SectionProps
 export type GroupProps = types.GroupProps
 export type CollapsibleGroupProps = types.CollapsibleGroupProps
@@ -54,7 +53,6 @@ export type Section = types.Section
 export type TabSection = types.TabSection
 export type Text = types.Text
 export type Divider = types.Divider
-export type Tag = types.Tag
 export type Popup = types.Popup
 export type Astra = types.Astra
 

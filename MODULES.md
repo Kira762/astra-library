@@ -328,6 +328,17 @@ changes, tab removal), `Tab:Remove`, `Window:SetLocale` and
 (`railCollapsedWidth`), so a content-sized rail narrower than the old fixed
 219px still shows titles.
 
+`tabSelector.railCollapsed(window, layout)` answers whether the rail is at that
+icon-only width right now (the rail's own `Size`, written by the layout's
+`Build`/`ApplyWidth`; `forceCollapsed` is always collapsed). `tabSelector.build`
+reads it, so a row rebuilt *after* the rail was sized — a layout switch
+(`Window:_setLayoutMode` rebuilds every row), or `Window:CreateTab` while the
+rail is icon-only — is born in the rail's current state: icon-only rows hide
+their title and drop the expanded row padding, instead of leaking the start of
+the tab name past the icon inside a 64px rail. `Window:_setLayoutMode` also
+re-applies the rail width after its rebuild loop, which is what re-constrains a
+capped title's wrapping slot on the new rows.
+
 ### `components/overlayQueue.luau`
 The entrance queue shared by every window-level overlay: `pending` (requests
 waiting for a turn), `running` (one pump per window), `paused` (the gate held
@@ -402,6 +413,12 @@ Per-element specifics:
   marks descendants as visually nested (transparent cards/no child outlines),
   animates measured content height through the motion service, and keeps child
   controls alive while hidden. Search and tab removal traverse its descendants.
+  Surfaces: the container carries the element surface (`ElementGradient` over a
+  white base) so its own rounded top corners read as the header band, the band
+  rounds *its* top corners with the same `ElementCornerRadius` (Roblox rounds a
+  GuiObject's own surface but never clips descendants to the arcs — a square
+  band squared off the stroke's silhouette), and `bodyClip` paints the darker
+  window surface under the divider with the container's bottom arcs.
 - `description.luau` — legacy in-card helper-line utility kept for bundle
   compatibility; public element constructors no longer read `description` props.
 - `tab.luau` — tab class: `tabPage` (ScrollingFrame), `_register(element)` pipeline into `window.controls[flag]`, selector button visuals.
@@ -562,7 +579,8 @@ Per-element specifics:
 | `check_requires.py` | Static require graph: every module resolves, no cycles. |
 | `check_instance_fields.py` | Fails on custom-field writes on instances (the `_profileGeneration` crash class). |
 | `profile_{compact,centering,reveal,details}_test.sh` | Profile card suites: geometry/visibility, window-pair centring, the reveal toggle, and the redesigned card (tokens, pinned header + scrolling, live server/session values, license rows, tooltip, no-player case). |
-| `sidebar_tab_sizing_test.sh`, `smoke_test_bundle.sh` | Rail sizing and a bundle smoke run. |
+| `sidebar_tab_sizing_test.sh`, `smoke_test_bundle.sh` | Rail sizing (name-driven width, cap, restore) and a bundle smoke run; also the collapsed rail: rows are icon-only (title hidden, content centred, no expanded padding) whether they were collapsed in place, rebuilt by a layout switch, or created while the rail was already icon-only, and a capped title re-constrains after that rebuild. |
+| `collapsible_group_test.sh` | Collapsible groups: every declarative element type, state/callbacks, the connected-card geometry and surface recipe, and the corner treatment (band's top arcs matching the container, body clipper's bottom arcs). |
 | `instance_budget_test.sh` | Per-element instance ceilings plus a realistic-page budget — the frame-time proxy guard. |
 | `odometer_test.sh` | Odometer readout: lazy row materialisation, and the resting row still showing the value's digit through plain/wrap/roll-down transitions. |
 | `dropdown_rows_test.sh` | Dropdown option rows: none (and no search bar) while closed whatever the list length, one per option in order on open plus the bar once, the rendered selected/unselected state and corner tiers, reopening reusing the rows, edits and picks made while closed, and the search filter. |

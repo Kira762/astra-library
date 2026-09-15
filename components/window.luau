@@ -1800,11 +1800,15 @@ function Window:LoadSettings()
     return loaded
 end
 
-function Window:_roundCorners(frame, corners)
+-- [[`token` is the theme key the rounded corners read; it defaults to the
+-- [[window's own roundness, but callers inside an element pass that element's
+-- [[radius token so an inner surface can share the container's arcs.]]
+function Window:_roundCorners(frame, corners, token)
+    token = token or "CornerRoundness"
     if not corners or not hasPerCornerRadius then
         return self:Create("UICorner", {
             Parent = frame,
-        }, { CornerRadius = "CornerRoundness" })
+        }, { CornerRadius = token })
     end
 
     local props = { Parent = frame }
@@ -1813,7 +1817,7 @@ function Window:_roundCorners(frame, corners)
         props[key] = UDim.new(0, 0)
     end
     for _, corner in corners do
-        props[corner] = nil         themeMap[corner] = "CornerRoundness"
+        props[corner] = nil         themeMap[corner] = token
     end
 
     return self:Create("UICorner", props, themeMap)
@@ -2048,6 +2052,12 @@ function Window:_setLayoutMode(modeName)
             tab:_applyVisual(if self.selectedTab == tab then "selected" else "unselected")
         end
     end
+    -- [[The rows above are brand-new instances, and the rail's width was
+    -- [[applied before they existed. Re-applying it now lands the row state on
+    -- [[the rows that actually live in the rail — icon-only rows in a
+    -- [[collapsed rail (a rail that came back showing tab names), titles held
+    -- [[inside a capped one (a rail that came back overflowing).
+    self:_applyRailWidth()
     self:_applySettingsLayout(self._settingsMode)
     if self.selectedTab then
         self:_jumpTo(self.selectedTab.tabPage)

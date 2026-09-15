@@ -348,8 +348,7 @@ TestPump(0.2)
 assertGroupSized(shortRail, "T12 restoring the locale restores the original rail")
 
 -- T13: the separate collapsedSidebar layout keeps its icon-only rail
--- (name-driven sizing must not leak into it; title visibility there is
--- pre-existing baseline behavior and is intentionally not asserted).
+-- (name-driven sizing must not leak into it).
 switched = window:_setLayoutMode("collapsedSidebar")
 expect(switched == true, "T13 layout switch to the collapsed sidebar")
 TestPump(1.0)
@@ -362,11 +361,46 @@ for i, tab in groupTabs() do
 	expect(tab.topbarItemIcon ~= nil or tab.topbarItemInitial ~= nil, "T13 row " .. i .. " keeps an icon or initial")
 end
 
+-- T13b: rows are rebuilt by a layout switch (and by CreateTab) after the rail
+-- has already been sized, so a row has to be born in the rail's current state.
+-- Built as an expanded row, it kept its title and its 10px content padding, and
+-- a 64px rail rendered "El…" of the tab name beside the icon instead of an
+-- icon-only row centred in its tile.
+local collapsedExtra = window:CreateTab({ name = "CollapsedExtra", icon = "gauge" })
+TestPump(0.3)
+for i, tab in groupTabs() do
+	expect(tab.topbarItemTitle.Visible == false, "T13b row " .. i .. " is born icon-only in the collapsed rail")
+	eq(tab.topbarItemContainer.Size.X.Scale, 1, "T13b row " .. i .. " content container spans the row")
+	eq(tab.topbarItemContainer.Size.X.Offset, 0, "T13b row " .. i .. " content keeps no expanded padding")
+	eq(tab.topbarItemContainer.Position.X.Offset, 0, "T13b row " .. i .. " content is not pushed inward")
+	eq(tab.topbarItemLayout.HorizontalAlignment, Enum.HorizontalAlignment.Center, "T13b row " .. i .. " content is centred")
+end
+collapsedExtra:Remove()
+TestPump(0.3)
+assertRailWidth(RAIL_COLLAPSED, "T13b removing the row keeps the collapsed rail")
+
 -- T14: returning to the responsive sidebar restores name-driven sizing.
 switched = window:_setLayoutMode("sidebar")
 expect(switched == true, "T14 layout switch back to the responsive sidebar")
 TestPump(1.0)
 assertGroupSized(shortRail, "T14 responsive sidebar rail is name-sized again")
+
+-- T14b: the same rebuild path has to re-apply the rail's title wrapping. A
+-- capped long name had its width constraint reset by the rebuild, so the row
+-- came back at its natural width and overflowed the rail it was capped for.
+local longAgain = window:CreateTab({ name = "ThisTabNameIsReallyQuiteLong", icon = "sliders-horizontal" })
+TestPump(0.3)
+window:_setLayoutMode("collapsedSidebar")
+TestPump(1.0)
+window:_setLayoutMode("sidebar")
+TestPump(1.0)
+assertGroupSized(RAIL_CAP, "T14b rebuilt rows keep the capped rail")
+local cappedTitle = longAgain.topbarItemTitle
+eq(cappedTitle.AutomaticSize, Enum.AutomaticSize.Y, "T14b rebuilt capped title is width-constrained again")
+eq(cappedTitle.Size.X.Offset, cappedSlot, "T14b rebuilt capped title holds the available slot")
+longAgain:Remove()
+TestPump(0.3)
+assertGroupSized(shortRail, "T14b removing the long row restores the name-driven rail")
 
 -- T15: the profile panel beside the window (it replaces the in-window
 -- profile). The window + gap + panel rest centred on screen as one unit:

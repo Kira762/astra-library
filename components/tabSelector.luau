@@ -215,9 +215,33 @@ local function buildSidebarStyle(tab, layout)
     buildContent(tab, layout.rowIconSize, true)
 end
 
+-- [[Whether the rail is currently at its icon-only width. The rail's own Size
+-- [[is the source of truth: it is written by ApplyWidth (the layout's Build
+-- [[sizes it too), and row rebuilds happen after that. A window whose rail has
+-- [[not been built yet falls back to the layout's requested width.]]
+function tabSelector.railCollapsed(window, layout)
+    if layout.mode ~= "sidebar" then
+        return false
+    end
+    if layout.forceCollapsed then
+        return true
+    end
+    local sidebar = window.sidebar
+    local width = if sidebar then sidebar.Size.X.Offset else (layout.railWidth :: number)
+    return width <= (layout.railCollapsedWidth :: number)
+end
+
 function tabSelector.build(tab, layoutMode)
     if layoutMode.mode == "sidebar" or layoutMode.forceCollapsed then
         buildSidebarStyle(tab, layoutMode)
+        -- [[A row has to be born in whatever state the rail is in right now.
+        -- [[Rows are rebuilt after the rail is sized (a layout switch, or a tab
+        -- [[created while the rail is icon-only), and a row built as an
+        -- [[expanded one keeps its title: in a 64px rail that leaked "El…" of
+        -- [[the tab name past the icon instead of the icon-only row.
+        if tabSelector.railCollapsed(tab.window, layoutMode) then
+            tabSelector.setRowCollapsed(tab, true, layoutMode)
+        end
     else
         buildTopStyle(tab)
     end

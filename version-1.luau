@@ -6408,9 +6408,33 @@ local function buildSidebarStyle(tab, layout)
     buildContent(tab, layout.rowIconSize, true)
 end
 
+-- [[Whether the rail is currently at its icon-only width. The rail's own Size
+-- [[is the source of truth: it is written by ApplyWidth (the layout's Build
+-- [[sizes it too), and row rebuilds happen after that. A window whose rail has
+-- [[not been built yet falls back to the layout's requested width.]]
+function tabSelector.railCollapsed(window, layout)
+    if layout.mode ~= "sidebar" then
+        return false
+    end
+    if layout.forceCollapsed then
+        return true
+    end
+    local sidebar = window.sidebar
+    local width = if sidebar then sidebar.Size.X.Offset else (layout.railWidth :: number)
+    return width <= (layout.railCollapsedWidth :: number)
+end
+
 function tabSelector.build(tab, layoutMode)
     if layoutMode.mode == "sidebar" or layoutMode.forceCollapsed then
         buildSidebarStyle(tab, layoutMode)
+        -- [[A row has to be born in whatever state the rail is in right now.
+        -- [[Rows are rebuilt after the rail is sized (a layout switch, or a tab
+        -- [[created while the rail is icon-only), and a row built as an
+        -- [[expanded one keeps its title: in a 64px rail that leaked "El…" of
+        -- [[the tab name past the icon instead of the icon-only row.
+        if tabSelector.railCollapsed(tab.window, layoutMode) then
+            tabSelector.setRowCollapsed(tab, true, layoutMode)
+        end
     else
         buildTopStyle(tab)
     end
@@ -8781,11 +8805,15 @@ function Window:LoadSettings()
     return loaded
 end
 
-function Window:_roundCorners(frame, corners)
+-- [[`token` is the theme key the rounded corners read; it defaults to the
+-- [[window's own roundness, but callers inside an element pass that element's
+-- [[radius token so an inner surface can share the container's arcs.]]
+function Window:_roundCorners(frame, corners, token)
+    token = token or "CornerRoundness"
     if not corners or not hasPerCornerRadius then
         return self:Create("UICorner", {
             Parent = frame,
-        }, { CornerRadius = "CornerRoundness" })
+        }, { CornerRadius = token })
     end
 
     local props = { Parent = frame }
@@ -8794,7 +8822,7 @@ function Window:_roundCorners(frame, corners)
         props[key] = UDim.new(0, 0)
     end
     for _, corner in corners do
-        props[corner] = nil         themeMap[corner] = "CornerRoundness"
+        props[corner] = nil         themeMap[corner] = token
     end
 
     return self:Create("UICorner", props, themeMap)
@@ -9029,6 +9057,12 @@ function Window:_setLayoutMode(modeName)
             tab:_applyVisual(if self.selectedTab == tab then "selected" else "unselected")
         end
     end
+    -- [[The rows above are brand-new instances, and the rail's width was
+    -- [[applied before they existed. Re-applying it now lands the row state on
+    -- [[the rows that actually live in the rail — icon-only rows in a
+    -- [[collapsed rail (a rail that came back showing tab names), titles held
+    -- [[inside a capped one (a rail that came back overflowing).
+    self:_applyRailWidth()
     self:_applySettingsLayout(self._settingsMode)
     if self.selectedTab then
         self:_jumpTo(self.selectedTab.tabPage)
@@ -11133,9 +11167,18 @@ function Collapsible.new(tab, props)
         BackgroundTransparency = 1, BorderSizePixel = 0,
         ClipsDescendants = true, Parent = tab.tabPage,
     }, { BackgroundTransparency = "ElementTransparency" })
-    w:Create("UIGradient", { Rotation = 270, Parent = self.main }, { Color = "WindowColor" })
+    -- [[The container's own surface is the element surface (the white base
+    -- [[under the ElementGradient recipe every element uses), so the card's
+    -- [[silhouette — its rounded top corners included — reads as the header
+    -- [[band. Roblox rounds a GuiObject's own surface but never clips its
+    -- [[descendants to the arcs, so the band below carries the same radius on
+    -- [[its top corners and the body clipper paints the darker window surface
+    -- [[the revealed body sits on.
+    w:Create("UIGradient", { Rotation = 270, Parent = self.main }, { Color = "ElementGradient" })
     w:Create("UICorner", { Parent = self.main }, { CornerRadius = "ElementCornerRadius" })
-    -- [[The container clips its own descendants to the rounded silhouette.]]
+    -- [[The container masks its own descendants to its bounds; the rounded
+    -- [[silhouette comes from the container's corner plus the band's matching
+    -- [[top-corner radius.]]
     -- [[UIStroke supports Border/Contextual modes, not Interior; Border keeps
     -- [[the outline on the container without reading an invalid enum member.]]
     self.stroke = w:Create("UIStroke", {
@@ -11149,6 +11192,12 @@ function Collapsible.new(tab, props)
     -- [[The plain white base under the ElementGradient is the standard element
     -- [[surface recipe; a themed base would multiply the gradient near-black.
     w:Create("UIGradient", { Rotation = 270, Parent = self.headerSurface }, { Color = "ElementGradient" })
+    -- [[The band is a child of the container, and Roblox only rounds a
+    -- [[GuiObject's own surface — descendants paint over the arcs. Left
+    -- [[square, the band filled the card's top-left and top-right corners and
+    -- [[squared off the silhouette the stroke draws. Rounding the band's top
+    -- [[corners with the container's own radius makes the two arcs one.
+    w:_roundCorners(self.headerSurface, { "TopLeftRadius", "TopRightRadius" }, "ElementCornerRadius")
     self.divider = w:Create("Frame", {
         Name = "HeaderDivider", Position = UDim2.fromOffset(0, self.headerHeight),
         Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0,
@@ -11202,10 +11251,16 @@ function Collapsible.new(tab, props)
         Name = "ContentsClip",
         Position = UDim2.fromOffset(0, self.headerHeight + 1),
         Size = UDim2.new(1, 0, 1, -(self.headerHeight + 1)),
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BackgroundTransparency = 1, BorderSizePixel = 0,
         ClipsDescendants = true, Visible = false, Parent = self.main,
-    })
-    w:Create("UICorner", { Parent = self.bodyClip }, { CornerRadius = "ElementCornerRadius" })
+    }, { BackgroundTransparency = "ElementTransparency" })
+    -- [[The revealed body sits on the darker window surface, and the clipper
+    -- [[is flush with the container's bottom edge, so it paints that surface
+    -- [[for the whole body region and keeps the container's bottom arcs (its
+    -- [[top corners stay square — the divider above is a straight line).
+    w:Create("UIGradient", { Rotation = 270, Parent = self.bodyClip }, { Color = "WindowColor" })
+    w:_roundCorners(self.bodyClip, { "BottomLeftRadius", "BottomRightRadius" }, "ElementCornerRadius")
     -- [[body lives inside the clipper, which already starts under the divider,
     -- [[so only the top pad offsets it here.
     self.body = w:Create("Frame", {
@@ -11306,6 +11361,7 @@ function Collapsible:_setShown(shown, animate)
     local w = self.window
     w:_reveal(self.main, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
     w:_reveal(self.headerSurface, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
+    w:_reveal(self.bodyClip, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
     w:_reveal(self.stroke, { Transparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
     w:_reveal(self.divider, { BackgroundTransparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
     w:_reveal(self.title, { TextTransparency = if shown then 0 else 1 }, animate)
@@ -33573,92 +33629,92 @@ local LineOffsets = {
     [17] = 5494,
     [18] = 6133,
     [19] = 6194,
-    [20] = 6577,
-    [21] = 6982,
-    [23] = 10190,
-    [24] = 10276,
-    [25] = 10584,
-    [26] = 11005,
-    [27] = 11344,
-    [28] = 11514,
-    [29] = 11659,
-    [30] = 13034,
-    [31] = 13253,
-    [32] = 13525,
-    [33] = 14086,
-    [34] = 14534,
-    [35] = 14620,
-    [36] = 15207,
-    [37] = 15831,
-    [38] = 16227,
-    [39] = 16357,
-    [40] = 16521,
-    [41] = 16675,
-    [43] = 17175,
-    [44] = 17198,
-    [45] = 17215,
-    [46] = 17248,
-    [47] = 17370,
-    [48] = 17394,
-    [49] = 17443,
-    [50] = 17150,
-    [51] = 17573,
-    [52] = 17876,
-    [53] = 17907,
-    [54] = 17562,
-    [55] = 17950,
-    [56] = 17970,
-    [57] = 18002,
-    [58] = 17932,
-    [59] = 18109,
-    [60] = 18168,
-    [61] = 18228,
-    [63] = 18354,
-    [64] = 18519,
-    [65] = 18339,
-    [66] = 19079,
-    [67] = 19382,
-    [68] = 20046,
-    [69] = 21838,
-    [70] = 22987,
-    [71] = 24515,
-    [72] = 18581,
-    [73] = 29767,
-    [74] = 29833,
-    [75] = 29899,
-    [76] = 29974,
-    [77] = 30080,
-    [78] = 30146,
-    [79] = 30221,
-    [80] = 30296,
-    [81] = 30371,
-    [82] = 30446,
-    [83] = 29661,
-    [84] = 30512,
-    [85] = 30610,
-    [86] = 30788,
-    [87] = 30840,
-    [88] = 30870,
-    [89] = 31121,
-    [90] = 31170,
-    [91] = 31623,
-    [92] = 31641,
-    [93] = 31793,
-    [94] = 31892,
-    [95] = 31914,
-    [96] = 31964,
-    [97] = 32289,
-    [98] = 32325,
-    [99] = 32343,
-    [100] = 32692,
-    [101] = 32704,
-    [102] = 32755,
-    [103] = 32774,
-    [104] = 33025,
-    [105] = 33069,
-    [106] = 33312,
-    [107] = 33340,
-    [108] = 33351,
+    [20] = 6601,
+    [21] = 7006,
+    [23] = 10224,
+    [24] = 10310,
+    [25] = 10618,
+    [26] = 11039,
+    [27] = 11400,
+    [28] = 11570,
+    [29] = 11715,
+    [30] = 13090,
+    [31] = 13309,
+    [32] = 13581,
+    [33] = 14142,
+    [34] = 14590,
+    [35] = 14676,
+    [36] = 15263,
+    [37] = 15887,
+    [38] = 16283,
+    [39] = 16413,
+    [40] = 16577,
+    [41] = 16731,
+    [43] = 17231,
+    [44] = 17254,
+    [45] = 17271,
+    [46] = 17304,
+    [47] = 17426,
+    [48] = 17450,
+    [49] = 17499,
+    [50] = 17206,
+    [51] = 17629,
+    [52] = 17932,
+    [53] = 17963,
+    [54] = 17618,
+    [55] = 18006,
+    [56] = 18026,
+    [57] = 18058,
+    [58] = 17988,
+    [59] = 18165,
+    [60] = 18224,
+    [61] = 18284,
+    [63] = 18410,
+    [64] = 18575,
+    [65] = 18395,
+    [66] = 19135,
+    [67] = 19438,
+    [68] = 20102,
+    [69] = 21894,
+    [70] = 23043,
+    [71] = 24571,
+    [72] = 18637,
+    [73] = 29823,
+    [74] = 29889,
+    [75] = 29955,
+    [76] = 30030,
+    [77] = 30136,
+    [78] = 30202,
+    [79] = 30277,
+    [80] = 30352,
+    [81] = 30427,
+    [82] = 30502,
+    [83] = 29717,
+    [84] = 30568,
+    [85] = 30666,
+    [86] = 30844,
+    [87] = 30896,
+    [88] = 30926,
+    [89] = 31177,
+    [90] = 31226,
+    [91] = 31679,
+    [92] = 31697,
+    [93] = 31849,
+    [94] = 31948,
+    [95] = 31970,
+    [96] = 32020,
+    [97] = 32345,
+    [98] = 32381,
+    [99] = 32399,
+    [100] = 32748,
+    [101] = 32760,
+    [102] = 32811,
+    [103] = 32830,
+    [104] = 33081,
+    [105] = 33125,
+    [106] = 33368,
+    [107] = 33396,
+    [108] = 33407,
 }
 
 -- [[Misc AOT variable imports]]

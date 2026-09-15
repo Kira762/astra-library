@@ -129,9 +129,18 @@ function Collapsible.new(tab, props)
         BackgroundTransparency = 1, BorderSizePixel = 0,
         ClipsDescendants = true, Parent = tab.tabPage,
     }, { BackgroundTransparency = "ElementTransparency" })
-    w:Create("UIGradient", { Rotation = 270, Parent = self.main }, { Color = "WindowColor" })
+    -- [[The container's own surface is the element surface (the white base
+    -- [[under the ElementGradient recipe every element uses), so the card's
+    -- [[silhouette — its rounded top corners included — reads as the header
+    -- [[band. Roblox rounds a GuiObject's own surface but never clips its
+    -- [[descendants to the arcs, so the band below carries the same radius on
+    -- [[its top corners and the body clipper paints the darker window surface
+    -- [[the revealed body sits on.
+    w:Create("UIGradient", { Rotation = 270, Parent = self.main }, { Color = "ElementGradient" })
     w:Create("UICorner", { Parent = self.main }, { CornerRadius = "ElementCornerRadius" })
-    -- [[The container clips its own descendants to the rounded silhouette.]]
+    -- [[The container masks its own descendants to its bounds; the rounded
+    -- [[silhouette comes from the container's corner plus the band's matching
+    -- [[top-corner radius.]]
     -- [[UIStroke supports Border/Contextual modes, not Interior; Border keeps
     -- [[the outline on the container without reading an invalid enum member.]]
     self.stroke = w:Create("UIStroke", {
@@ -145,6 +154,12 @@ function Collapsible.new(tab, props)
     -- [[The plain white base under the ElementGradient is the standard element
     -- [[surface recipe; a themed base would multiply the gradient near-black.
     w:Create("UIGradient", { Rotation = 270, Parent = self.headerSurface }, { Color = "ElementGradient" })
+    -- [[The band is a child of the container, and Roblox only rounds a
+    -- [[GuiObject's own surface — descendants paint over the arcs. Left
+    -- [[square, the band filled the card's top-left and top-right corners and
+    -- [[squared off the silhouette the stroke draws. Rounding the band's top
+    -- [[corners with the container's own radius makes the two arcs one.
+    w:_roundCorners(self.headerSurface, { "TopLeftRadius", "TopRightRadius" }, "ElementCornerRadius")
     self.divider = w:Create("Frame", {
         Name = "HeaderDivider", Position = UDim2.fromOffset(0, self.headerHeight),
         Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0,
@@ -198,10 +213,16 @@ function Collapsible.new(tab, props)
         Name = "ContentsClip",
         Position = UDim2.fromOffset(0, self.headerHeight + 1),
         Size = UDim2.new(1, 0, 1, -(self.headerHeight + 1)),
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BackgroundTransparency = 1, BorderSizePixel = 0,
         ClipsDescendants = true, Visible = false, Parent = self.main,
-    })
-    w:Create("UICorner", { Parent = self.bodyClip }, { CornerRadius = "ElementCornerRadius" })
+    }, { BackgroundTransparency = "ElementTransparency" })
+    -- [[The revealed body sits on the darker window surface, and the clipper
+    -- [[is flush with the container's bottom edge, so it paints that surface
+    -- [[for the whole body region and keeps the container's bottom arcs (its
+    -- [[top corners stay square — the divider above is a straight line).
+    w:Create("UIGradient", { Rotation = 270, Parent = self.bodyClip }, { Color = "WindowColor" })
+    w:_roundCorners(self.bodyClip, { "BottomLeftRadius", "BottomRightRadius" }, "ElementCornerRadius")
     -- [[body lives inside the clipper, which already starts under the divider,
     -- [[so only the top pad offsets it here.
     self.body = w:Create("Frame", {
@@ -302,6 +323,7 @@ function Collapsible:_setShown(shown, animate)
     local w = self.window
     w:_reveal(self.main, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
     w:_reveal(self.headerSurface, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
+    w:_reveal(self.bodyClip, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
     w:_reveal(self.stroke, { Transparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
     w:_reveal(self.divider, { BackgroundTransparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
     w:_reveal(self.title, { TextTransparency = if shown then 0 else 1 }, animate)

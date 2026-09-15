@@ -63,10 +63,42 @@ assert(group.body.Size.X.Scale == 1 and group.body.Size.X.Offset == 0, "Body spa
 assert(group.body.Position.Y.Offset == 10, "Content starts one gutter under the divider")
 assert(not group.divider.Visible, "Divider stays hidden while collapsed")
 local containerCorner
+local containerGradient
 for _, child in group.main:GetChildren() do
     if child.ClassName == "UICorner" then containerCorner = child end
+    if child.ClassName == "UIGradient" then containerGradient = child end
 end
 assert(containerCorner and containerCorner.CornerRadius == window.theme.ElementCornerRadius, "Container keeps the element corner radius")
+-- Roblox rounds a GuiObject's own surface but never clips its descendants to
+-- the arcs, so the band (a child, spanning the full width) used to fill the
+-- card's top-left and top-right corners and square off the silhouette the
+-- stroke draws. The band now carries the container's own top-corner radius,
+-- and the container's surface is the element surface the band paints, so the
+-- corner arcs resolve to the band's colour instead of the body's.
+assert(containerGradient and containerGradient.Color == window.theme.ElementGradient, "Container surface matches the header band")
+local bandCorner
+for _, child in group.headerSurface:GetChildren() do
+    if child.ClassName == "UICorner" then bandCorner = child end
+end
+assert(bandCorner, "Header band rounds its own corners")
+assert(bandCorner.TopLeftRadius == window.theme.ElementCornerRadius, "Band's top-left corner matches the container arc")
+assert(bandCorner.TopRightRadius == window.theme.ElementCornerRadius, "Band's top-right corner matches the container arc")
+assert(bandCorner.BottomLeftRadius.Scale == 0 and bandCorner.BottomLeftRadius.Offset == 0, "Band's bottom-left corner stays square")
+assert(bandCorner.BottomRightRadius.Scale == 0 and bandCorner.BottomRightRadius.Offset == 0, "Band's bottom-right corner stays square")
+-- The revealed body's darker window surface is painted by the clipper, which
+-- is flush with the container's bottom edge and keeps its arcs.
+local bodyCorner
+local bodyGradient
+for _, child in group.bodyClip:GetChildren() do
+    if child.ClassName == "UICorner" then bodyCorner = child end
+    if child.ClassName == "UIGradient" then bodyGradient = child end
+end
+assert(bodyGradient and bodyGradient.Color == window.theme.WindowColor, "Body clipper paints the window surface")
+assert(bodyCorner, "Body clipper rounds its own corners")
+assert(bodyCorner.BottomLeftRadius == window.theme.ElementCornerRadius, "Body keeps the container's bottom-left arc")
+assert(bodyCorner.BottomRightRadius == window.theme.ElementCornerRadius, "Body keeps the container's bottom-right arc")
+assert(bodyCorner.TopLeftRadius.Scale == 0 and bodyCorner.TopLeftRadius.Offset == 0, "Body's top-left corner stays square under the divider")
+assert(bodyCorner.TopRightRadius.Scale == 0 and bodyCorner.TopRightRadius.Offset == 0, "Body's top-right corner stays square under the divider")
 -- Grouped children render as defined cards: a visible stroke and a surface a
 -- shade under the header band, like the design reference.
 assert(window.theme.CollapsibleChildElementStrokeTransparency == 0, "Grouped child cards keep a visible stroke")

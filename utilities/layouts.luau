@@ -6,7 +6,10 @@ local sidebarCollapsedLayout = require(script.Parent.Parent.layouts.SidebarColla
 
 local topbarHeightConstant = 64
 
-local tabStripTopOffset = topbarHeightConstant - 1
+-- [[Clearance under the topbar row: keeps the tab pills visibly separated]]
+-- [[from the topbar's bottom edge instead of pressed up against it.]]
+local tabStripTopClearance = 3
+local tabStripTopOffset = topbarHeightConstant + tabStripTopClearance
 local tabStripRowHeight = 38
 local chromeGap = 3
 
@@ -57,8 +60,9 @@ layouts.top = {
 
     -- [[Margin between the window edge and the tab strip. The strip's]]
     -- [[ScrollingFrame is inset by this much on each side, so overflowing]]
-    -- [[tabs clip inside the window instead of running into its border.]]
-    tabStripInset = 22,
+    -- [[tabs clip inside the window instead of running into its border, and]]
+    -- [[the end pills sit visibly clear of the window's side edges.]]
+    tabStripInset = 30,
 
     pageDirection = Enum.FillDirection.Horizontal,
 

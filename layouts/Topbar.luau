@@ -57,7 +57,7 @@ function Topbar.Build(window, layout)
     -- [[using UIPadding, which would scroll away with the content), so a]]
     -- [[tab that overflows clips inside the window — never touching its]]
     -- [[border — and the edge fades below mark where tabs go off.]]
-    local inset = layout.tabStripInset or 22
+    local inset = layout.tabStripInset or 30
 
     window.tabList = window:Create("ScrollingFrame", {
         Name = "Tabs",

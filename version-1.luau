@@ -8971,7 +8971,7 @@ function Window:_scrollSelectedTabIntoView(tweened)
         return
     end
 
-    local inset = self.layout.tabStripInset or 22
+    local inset = self.layout.tabStripInset or 30
     local viewport = strip.AbsoluteWindowSize.X
     local maxScroll = math.max(0, strip.AbsoluteCanvasSize.X - viewport)
     local left = item.Position.X.Offset
@@ -18417,7 +18417,7 @@ function Topbar.Build(window, layout)
     -- [[using UIPadding, which would scroll away with the content), so a]]
     -- [[tab that overflows clips inside the window — never touching its]]
     -- [[border — and the edge fades below mark where tabs go off.]]
-    local inset = layout.tabStripInset or 22
+    local inset = layout.tabStripInset or 30
 
     window.tabList = window:Create("ScrollingFrame", {
         Name = "Tabs",
@@ -31779,7 +31779,10 @@ local sidebarCollapsedLayout = require(script.Parent.Parent.layouts.SidebarColla
 
 local topbarHeightConstant = 64
 
-local tabStripTopOffset = topbarHeightConstant - 1
+-- [[Clearance under the topbar row: keeps the tab pills visibly separated]]
+-- [[from the topbar's bottom edge instead of pressed up against it.]]
+local tabStripTopClearance = 3
+local tabStripTopOffset = topbarHeightConstant + tabStripTopClearance
 local tabStripRowHeight = 38
 local chromeGap = 3
 
@@ -31830,8 +31833,9 @@ layouts.top = {
 
     -- [[Margin between the window edge and the tab strip. The strip's]]
     -- [[ScrollingFrame is inset by this much on each side, so overflowing]]
-    -- [[tabs clip inside the window instead of running into its border.]]
-    tabStripInset = 22,
+    -- [[tabs clip inside the window instead of running into its border, and]]
+    -- [[the end pills sit visibly clear of the window's side edges.]]
+    tabStripInset = 30,
 
     pageDirection = Enum.FillDirection.Horizontal,
 
@@ -33776,22 +33780,22 @@ local LineOffsets = {
     [90] = 31303,
     [91] = 31756,
     [92] = 31774,
-    [93] = 31926,
-    [94] = 32025,
-    [95] = 32047,
-    [96] = 32097,
-    [97] = 32422,
-    [98] = 32458,
-    [99] = 32476,
-    [100] = 32825,
-    [101] = 32837,
-    [102] = 32888,
-    [103] = 32907,
-    [104] = 33158,
-    [105] = 33202,
-    [106] = 33445,
-    [107] = 33473,
-    [108] = 33484,
+    [93] = 31930,
+    [94] = 32029,
+    [95] = 32051,
+    [96] = 32101,
+    [97] = 32426,
+    [98] = 32462,
+    [99] = 32480,
+    [100] = 32829,
+    [101] = 32841,
+    [102] = 32892,
+    [103] = 32911,
+    [104] = 33162,
+    [105] = 33206,
+    [106] = 33449,
+    [107] = 33477,
+    [108] = 33488,
 }
 
 -- [[Misc AOT variable imports]]

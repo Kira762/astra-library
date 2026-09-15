@@ -72,16 +72,15 @@ type WindowModule = { new: (types.WindowProps) -> types.Window }
 local Astra = {} :: Astra
 local activeWindow: types.Window? = nil
 local ACTIVE_WINDOW_KEY = "__ASTRA_ACTIVE_WINDOW_V1"
-local STARTUP_REVEAL_DELAY = 1
 
--- [[Beats of the arrival sequence, in seconds: how long the window waits after
--- the host's build goes quiet before it shows itself, and how long a font
--- download waits for that entrance before it triggers its own full theme pass.
--- Both are cooldowns between *parts* of startup, not extra work: neither makes
--- the interface take longer to be usable, they stop several expensive steps
--- from all taking the same frame. The settle stays inside one or two frames on
--- purpose — the entrance and everything after it are where the slack belongs.]]
-local STARTUP_SETTLE = 0.1
+-- [[How long a font download waits for the entrance before it triggers its own
+-- full theme pass. It is a cooldown between *parts* of startup, not extra
+-- work: a font swap walks every instance the window owns, so running it while
+-- the window is still arriving would put that pass on the frames the entrance
+-- needs. Bounded, because a host that never shows the window must still end
+-- up with its font. There is deliberately no reveal gate beside it: the
+-- window shows on the next frame and the remaining constructors stream in
+-- behind it in small budget-limited batches.]]
 local FONT_SETTLE_BUDGET = 3
 
 local function getGlobalStore(): { [string]: any }
@@ -105,10 +104,6 @@ Astra.Core = Core
 Astra.Settings = Settings
 
 function Astra:CreateWindow(props: types.WindowProps): types.Window
-	-- Count module loading and shell construction toward the one-second reveal
-	-- target. If either is slow, the shell opens on the next available frame
-	-- rather than adding another full delay afterward.
-	local creationStartedAt = os.clock()
 	local existingWindow = activeWindow or globalStore[ACTIVE_WINDOW_KEY]
 	activeWindow = existingWindow
 	if existingWindow then
@@ -138,9 +133,11 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 	end
 
 	local window = result :: types.Window
-	window._startupStartedAt = creationStartedAt
 	activeWindow = window
 	globalStore[ACTIVE_WINDOW_KEY] = window
+	-- [[One secure-mode branch: the optional-icon preload and the brand-font
+	-- swap are independent, so they run as sibling threads rather than in two
+	-- separately-guarded blocks.]]
 	if State.secureMode then
 		task.defer(function()
 			Image.preload(function(failedCount, failedRoles)
@@ -156,8 +153,6 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 				})
 			end)
 		end)
-	end
-	if State.secureMode then
 		task.spawn(function()
 			local mediumFont = State.fontManager:loadFont(Constants.fontAsset, Enum.FontWeight.Medium)
 			local semiBoldFont = State.fontManager:loadFont(Constants.fontAsset, Enum.FontWeight.SemiBold)
@@ -189,18 +184,17 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 	end
 
 	if not window.unloaded then
-		-- Reveal on a predictable deadline instead of waiting for an arbitrarily
-		-- large host script to finish. Checkpoints continue pacing the remaining
-		-- constructors after this, so the opening tween keeps receiving frames.
+		-- Reveal on the next frame instead of on a fixed one-second deadline.
+		-- The old gate waited out the interval even for an empty window, which
+		-- is the 1s of the reported startup lag that every script paid. The
+		-- checkpoints below keep pacing the remaining constructors in small
+		-- budget-limited batches until the build goes quiet, so the opening
+		-- tween keeps receiving frames while late controls stream in behind
+		-- the already-visible shell.
 		task.defer(function()
-			local remaining = STARTUP_REVEAL_DELAY - (os.clock() - creationStartedAt)
-			if remaining > 0 then
-				task.wait(remaining)
-			else
-				-- The constructor already consumed the target interval. Still yield
-				-- once so the caller can add its first tab before the shell appears.
-				task.wait()
-			end
+			-- Still yield once so the caller can add its first tab before the
+			-- shell appears.
+			task.wait()
 
 			if window.unloaded then
 				return
@@ -213,43 +207,22 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 				window:Show()
 			end
 
-			-- Keep post-reveal constructors at one completed control per frame
-			-- until two consecutive frames observe no construction activity.
+			-- Keep pacing post-reveal constructors until two consecutive frames
+			-- observe no construction activity.
 			local stableFrames = 0
 			while not window.unloaded and not window._autoShowCancelled and stableFrames < 2 do
 				local revision = window._constructionRevision
 				task.wait()
 				if (window._constructionBusy or 0) == 0 and revision == window._constructionRevision then
 					stableFrames += 1
-					else
-						stableFrames = 0
-					end
-				end
-
-			-- [[One beat of slack between the last batch of the build and the
-			-- entrance. The tail of a host's script — a configuration read, an
-			-- image preloading, the first frames of layout settling — used to
-			-- land on the same frame the window opened on, which is what made a
-			-- long load end in a stutter instead of an arrival. The window is
-			-- still handed the next frames to itself, and everything the script
-			-- queued (toasts, notifications, the profile card) follows it.]]
-			local settled = 0
-			while settled < STARTUP_SETTLE do
-				if window.unloaded or window._autoShowCancelled then
-					return
-				end
-				settled += task.wait()
-				-- [[A host that carries on building from a delayed callback
-				-- keeps the entrance parked until it goes quiet again: showing
-				-- mid-batch is exactly the thing this loop exists to avoid.]]
-				while (window._constructionBusy or 0) > 0 do
-					if window.unloaded or window._autoShowCancelled then
-						return
-					end
-					settled += task.wait()
+				else
+					stableFrames = 0
 				end
 			end
 
+			if window.unloaded or window._autoShowCancelled then
+				return
+			end
 			window:Show()
 		end)
 	end
@@ -7026,7 +6999,7 @@ local tweenStyle = TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirecti
 -- content — and short enough that nothing looks like it is waiting for the
 -- next thing to happen. Scaled by the motion service, and skipped entirely
 -- when animation is switched off.]]
-local contentRevealBeat = 0.22
+local contentRevealBeat = 0.12
 
 local collapsedWideSize = UDim2.fromOffset(185, 50)
 local collapsedIconOnlySize = UDim2.fromOffset(50, 50)
@@ -7058,10 +7031,10 @@ local scrollbarWidth = 8
 
 local viewportCheckInterval = 2
 
--- Startup is deliberately paced in small, completed-object batches. Before the
--- first reveal this prevents a large host script from monopolising a frame;
--- after the reveal, one completed control is handed to the renderer per frame
--- until the host's initial build goes quiet.
+-- Startup is deliberately paced in small, completed-object batches, before the
+-- first reveal and after it alike. This prevents a large host script from
+-- monopolising a frame while still letting the opening tween render as the
+-- remaining controls stream in behind the already-visible shell.
 local constructionFrameBudget = 0.003
 local constructionInstanceBudget = 48
 
@@ -7070,12 +7043,11 @@ local constructionInstanceBudget = 48
 -- their normal stacks while the next one enters.
 local overlayEntranceCadence = 0.65
 
--- Existing controls wait briefly behind the window surface, then reveal in a
--- cascade. This makes the first open read as an entrance instead of one large
--- visibility flip.
-local firstContentDelay = 0.14
-local firstContentStep = 0.045
-local firstContentDuration = 0.9
+-- The first open reads as an entrance instead of one large visibility flip:
+-- the shell animates in, then `_stageContentReveal` walks the visible page one
+-- control per beat (see `_firstShow`). There is exactly one cascade — an older
+-- second timer used to walk the same page concurrently, restarting the first
+-- cascade's tweens mid-flight through the motion service's cancel-on-overlap.
 
 local function computeSize(mode): UDim2
     local size = state.workspace.CurrentCamera
@@ -7627,11 +7599,11 @@ function Window.new(props)
 end
 
 -- Yield only at completed construction boundaries, never halfway through a
--- control. Limit pre-reveal batches by both CPU time and instance count. Once
--- the window is visible, yield after every completed control until the initial
--- host build goes quiet; this is what lets the entrance keep rendering while a
--- large script finishes adding the rest of its tabs and elements. The API is
--- still synchronous: each constructor resumes with a fully usable object.
+-- control. Batches are limited by both CPU time and instance count, before
+-- the first reveal and after it alike: the opening tween keeps receiving
+-- frames while a large script streams the rest of its controls in, and no
+-- single frame pays for the whole build. The API is still synchronous: each
+-- constructor resumes with a fully usable object.
 function Window:_constructionCheckpoint(force)
     if self._startupComplete or (not force and not self._constructed) then
         return
@@ -7640,10 +7612,8 @@ function Window:_constructionCheckpoint(force)
     local now = os.clock()
     local last = self._constructionClock or now
     local count = #self.instances
-    local visibleStartup = self.hasShownOnce == true
     if
         force
-        or visibleStartup
         or now - last >= constructionFrameBudget
         or count - (self._constructionInstances or 0) >= constructionInstanceBudget
     then
@@ -7738,6 +7708,12 @@ function Window:ChangeTheme(themeInput)
         deriveStrokes(self.theme, themeTable)
     end
 
+    -- [[Before the first show the window is invisible, so routing every
+    -- Color3/number through a 0.5s tween only buys dozens of tween allocations
+    -- on the startup path — nothing can be seen animating. Assign the end
+    -- state directly; the values are identical to what the tweens would have
+    -- settled on, and everything from the first entrance on still tweens.]]
+    local instantApply = self.hidden and not self.hasShownOnce
     for instance, properties in self.themeProperties do
         for prop, binding in properties do
             local resolvedValue = if typeof(binding) == "table" then binding[2](self.theme[binding[1]]) else self.theme[binding]
@@ -7745,7 +7721,7 @@ function Window:ChangeTheme(themeInput)
             if instance[prop] == resolvedValue then
                 continue
             end
-            if typeof(resolvedValue) == "Color3" or typeof(resolvedValue) == "number" then
+            if not instantApply and (typeof(resolvedValue) == "Color3" or typeof(resolvedValue) == "number") then
                 state.tweenService:Create(instance, tweenStyle, { [prop] = resolvedValue }):Play()
             else
                 instance[prop] = resolvedValue
@@ -9179,7 +9155,6 @@ function Window:_revealElements(stepDelay, totalDuration, layoutTransitionId)
     if not tab then
         return
     end
-    tab._elementsPending = false
 
     -- [[The cascade is the moment this page's elements are being looked at, so]]
     -- [[it owns the pending mark `_showTabElements` would otherwise clear in]]
@@ -9476,29 +9451,19 @@ function Window:_firstShow()
         overlayQueue.resume(self)
     end
 
-    -- Let the shell establish itself before revealing the visible page. The
-    -- cascade is independently guarded, so hiding/unloading during the delay
-    -- cannot resurrect content.
-    task.delay(firstContentDelay, function()
-        if self.unloaded or self.hidden or self.minimised then
-            return
-        end
-        self:_revealElements(firstContentStep, firstContentDuration)
-    end)
-
     motion.tween(self.main, { BackgroundTransparency = windowSurfaceTransparency }, "emphasized")
     if not motion.tween(self.windowScale, { Scale = 1 }, "pop", settle) then
         settle()
     end
     motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, "pop")
 
-    -- [[Second beat of the entrance: the page's controls cascade in once the
-    -- [[frame is close to its resting size, and only then do the queued
-    -- [[notifications and toasts start arriving one at a time. Everything after
-    -- [[`CreateWindow` — the welcome toast, a host's "loaded N modules"
-    -- [[notifications, the optional-icon warning — rides that queue instead of
-    -- [[sharing the frame the window itself opens on.]]
-    self:_stageContentReveal(motion.step(contentRevealBeat), 0.02, 0.5, entranceId)
+    -- [[Second beat of the entrance: the single cascade walks the page's
+    -- [[controls in once the frame is close to its resting size, and only
+    -- [[then do the queued notifications and toasts start arriving one at a
+    -- [[time. Everything after `CreateWindow` — the welcome toast, a host's
+    -- [["loaded N modules" notifications, the optional-icon warning — rides
+    -- [[that queue instead of sharing the frame the window itself opens on.]]
+    self:_stageContentReveal(motion.step(contentRevealBeat), 0.02, 0.35, entranceId)
 
     local player = state.localPlayer
     if player and self.settings.welcomeToast and chrome.isNewUser() then
@@ -16167,8 +16132,8 @@ function state:_register(element)
     if not self.window.hidden and not self.window.minimised and self.window.selectedTab == self then
         -- Controls added after the startup shell is visible should join it
         -- with their normal reveal animation instead of popping in instantly.
-        -- Window:_constructionCheckpoint paces these registrations one per
-        -- frame while the initial host build is still active.
+        -- Window:_constructionCheckpoint paces these registrations in small
+        -- budget-limited batches while the initial host build is still active.
         element:_setShown(true, true)
     else
         -- [[The element stayed hidden with the window: remember that this tab
@@ -33510,107 +33475,107 @@ end)() end,
 
 local LineOffsets = {
     [2] = 12,
-    [3] = 264,
-    [5] = 664,
-    [6] = 699,
-    [7] = 744,
-    [8] = 650,
-    [9] = 861,
-    [10] = 971,
-    [11] = 1216,
-    [12] = 1443,
-    [13] = 1780,
-    [14] = 2020,
-    [15] = 2738,
-    [16] = 5129,
-    [17] = 5475,
-    [18] = 6114,
-    [19] = 6175,
-    [20] = 6590,
-    [21] = 6995,
-    [23] = 10207,
-    [24] = 10293,
-    [25] = 10601,
-    [26] = 11022,
-    [27] = 11426,
-    [28] = 11596,
-    [29] = 11741,
-    [30] = 13116,
-    [31] = 13335,
-    [32] = 13607,
-    [33] = 14168,
-    [34] = 14616,
-    [35] = 14702,
-    [36] = 15289,
-    [37] = 15913,
-    [38] = 16309,
-    [39] = 16439,
-    [40] = 16593,
-    [42] = 17093,
-    [43] = 17116,
-    [44] = 17133,
-    [45] = 17166,
-    [46] = 17288,
-    [47] = 17312,
-    [48] = 17361,
-    [49] = 17068,
-    [50] = 17491,
-    [51] = 17794,
-    [52] = 17825,
-    [53] = 17480,
-    [54] = 17868,
-    [55] = 17888,
-    [56] = 17920,
-    [57] = 17850,
-    [58] = 18027,
-    [59] = 18086,
-    [60] = 18146,
-    [62] = 18290,
-    [63] = 18455,
-    [64] = 18275,
-    [65] = 19015,
-    [66] = 19318,
-    [67] = 19982,
-    [68] = 21774,
-    [69] = 22923,
-    [70] = 24451,
-    [71] = 18517,
-    [72] = 29703,
-    [73] = 29769,
-    [74] = 29835,
-    [75] = 29910,
-    [76] = 30016,
-    [77] = 30082,
-    [78] = 30157,
-    [79] = 30232,
-    [80] = 30307,
-    [81] = 30382,
-    [82] = 29597,
-    [83] = 30448,
-    [84] = 30546,
-    [85] = 30724,
-    [86] = 30776,
-    [87] = 30806,
-    [88] = 31057,
-    [89] = 31106,
-    [90] = 31559,
-    [91] = 31577,
-    [92] = 31746,
-    [93] = 31845,
-    [94] = 31867,
-    [95] = 31917,
-    [96] = 32242,
-    [97] = 32278,
-    [98] = 32296,
-    [99] = 32645,
-    [100] = 32657,
-    [101] = 32708,
-    [102] = 32727,
-    [103] = 32978,
-    [104] = 33022,
-    [105] = 33265,
-    [106] = 33293,
-    [107] = 33304,
+    [3] = 237,
+    [5] = 637,
+    [6] = 672,
+    [7] = 717,
+    [8] = 623,
+    [9] = 834,
+    [10] = 944,
+    [11] = 1189,
+    [12] = 1416,
+    [13] = 1753,
+    [14] = 1993,
+    [15] = 2711,
+    [16] = 5102,
+    [17] = 5448,
+    [18] = 6087,
+    [19] = 6148,
+    [20] = 6563,
+    [21] = 6968,
+    [23] = 10172,
+    [24] = 10258,
+    [25] = 10566,
+    [26] = 10987,
+    [27] = 11391,
+    [28] = 11561,
+    [29] = 11706,
+    [30] = 13081,
+    [31] = 13300,
+    [32] = 13572,
+    [33] = 14133,
+    [34] = 14581,
+    [35] = 14667,
+    [36] = 15254,
+    [37] = 15878,
+    [38] = 16274,
+    [39] = 16404,
+    [40] = 16558,
+    [42] = 17058,
+    [43] = 17081,
+    [44] = 17098,
+    [45] = 17131,
+    [46] = 17253,
+    [47] = 17277,
+    [48] = 17326,
+    [49] = 17033,
+    [50] = 17456,
+    [51] = 17759,
+    [52] = 17790,
+    [53] = 17445,
+    [54] = 17833,
+    [55] = 17853,
+    [56] = 17885,
+    [57] = 17815,
+    [58] = 17992,
+    [59] = 18051,
+    [60] = 18111,
+    [62] = 18255,
+    [63] = 18420,
+    [64] = 18240,
+    [65] = 18980,
+    [66] = 19283,
+    [67] = 19947,
+    [68] = 21739,
+    [69] = 22888,
+    [70] = 24416,
+    [71] = 18482,
+    [72] = 29668,
+    [73] = 29734,
+    [74] = 29800,
+    [75] = 29875,
+    [76] = 29981,
+    [77] = 30047,
+    [78] = 30122,
+    [79] = 30197,
+    [80] = 30272,
+    [81] = 30347,
+    [82] = 29562,
+    [83] = 30413,
+    [84] = 30511,
+    [85] = 30689,
+    [86] = 30741,
+    [87] = 30771,
+    [88] = 31022,
+    [89] = 31071,
+    [90] = 31524,
+    [91] = 31542,
+    [92] = 31711,
+    [93] = 31810,
+    [94] = 31832,
+    [95] = 31882,
+    [96] = 32207,
+    [97] = 32243,
+    [98] = 32261,
+    [99] = 32610,
+    [100] = 32622,
+    [101] = 32673,
+    [102] = 32692,
+    [103] = 32943,
+    [104] = 32987,
+    [105] = 33230,
+    [106] = 33258,
+    [107] = 33269,
 }
 
 -- [[Misc AOT variable imports]]

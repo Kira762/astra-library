@@ -2,6 +2,42 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-15 — Instant startup: the window shows on the next frame
+
+The 1–3s wait before the window appeared was three deliberate gates, not slow
+construction: a fixed one-second reveal deadline in the entrypoint (paid even
+by an empty window), a settle loop behind it, and a first-show entrance that
+ran *two* overlapping content cascades over the same page. The shell now
+appears on the next frame and the entrance is a single staged sequence.
+
+- **No reveal deadline.** `STARTUP_REVEAL_DELAY` (1s) and the `STARTUP_SETTLE`
+  loop are gone: auto-show runs on a `task.defer` plus one heartbeat, so the
+  caller's first synchronous `CreateTab` calls still land before the shell
+  appears. Pacing is budget-limited on both sides of the reveal now (3ms /
+  48 instances per frame) instead of dropping to one control per frame after
+  it — with the window visible from frame two, the old post-reveal lane
+  would have funnelled nearly every control through single-frame yields and
+  made large builds finish *slower*. `Hide()` before that tick still cancels
+  auto-show via `_autoShowCancelled`.
+- **One cascade.** `_firstShow` used to walk the visible page twice: a
+  `task.delay(firstContentDelay)` reveal *and* the `_stageContentReveal` one,
+  with different pacing each. The second cascade's tweens cancelled the
+  first's mid-flight through motion's cancel-on-overlap, so the entrance did
+  double work to look worse. Only the staged path remains
+  (`contentRevealBeat` 0.22 → 0.12, cascade budget 0.5 → 0.35); the
+  `firstContent*` timers and the duplicated `_elementsPending` clear are
+  removed. The `pop`/`emphasized` shell specs are untouched.
+- **No tween storm while hidden.** `Window:ChangeTheme` routed every
+  Color3/number binding through a 0.5s tween even when called pre-first-show
+  from `Window.new`, where nothing can be seen animating. While hidden and
+  never shown it now assigns the identical end state directly; every later
+  theme change still tweens.
+- **One secure-mode branch.** The entrypoint's two separately-guarded
+  `if State.secureMode` blocks (icon preload, font swap) run as sibling
+  threads under a single guard. The unread `window._startupStartedAt` stamp
+  goes with the deadline it served.
+- Bundle regenerated (`version-1.luau`).
+
 ## 2026-09-15 — Tab-strip end gutters and the end of Tags
 
 Follow-up to today's tab-strip spacing pass. The outer pills could still

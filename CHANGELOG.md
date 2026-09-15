@@ -2,6 +2,25 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-15 — Breathing room around the topbar tab strip
+
+The top-layout tab strip sat almost flush with its surroundings: its
+ScrollingFrame started one pixel *above* the topbar's bottom edge and the side
+insets were only 22px, so the tabs read as pressed up against the title row and
+the outermost pills crowded the window's side edges.
+
+- **Clearance under the topbar.** `tabStripTopOffset` is now
+  `topbarHeight + 3` (was `topbarHeight - 1`): the strip no longer overlaps the
+  topbar's bottom edge, so a real gap separates the tab pills from the title
+  row. `chromeHeight` recomputes from the same constants, so the elements area,
+  the search pill, and window sizing all shift with it.
+- **Wider side insets.** `tabStripInset` is 30 (was 22), so the first and last
+  pills keep a visible margin from the window's edges. The edge fades and the
+  scroll-into-view padding derive from the same inset and follow automatically;
+  the duplicated `or 22` fallbacks in `Topbar.Build` and
+  `Window:_scrollSelectedTabIntoView` now read `or 30`.
+- Bundle regenerated (`version-1.luau`, 103 modules).
+
 ## 2026-09-15 — The closed Collapsible Group's bottom corners
 
 Follow-up on today's corner entry: rounding the header band's *top* corners left

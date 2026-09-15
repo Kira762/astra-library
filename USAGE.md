@@ -608,6 +608,10 @@ are rejected before creating any UI.
   search restores their previous expansion state.
 - Children render at the same width as standalone elements, and the header
   matches the Text element's card metrics (gutters, title and body styling).
+- The card silhouette stays even in both states: collapsed, the header band is the
+  card's bottom edge and carries the container's rounded bottom corners; open, the
+  band ends at the straight divider and the revealed body carries them. Both read
+  the same `ElementCornerRadius`, so no corner ever changes radius.
 - All three layouts are supported; the tab supplies scrolling for long contents.
 - `MoveTo`, `MoveToTop`, `MoveToBottom`, `MoveUp`, `MoveDown`, `Lock`, and `Unlock`
   work on the container. Created child handles are also available in its

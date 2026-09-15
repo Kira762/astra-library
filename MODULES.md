@@ -420,7 +420,12 @@ Per-element specifics:
   rounds *its* top corners with the same `ElementCornerRadius` (Roblox rounds a
   GuiObject's own surface but never clips descendants to the arcs — a square
   band squared off the stroke's silhouette), and `bodyClip` paints the darker
-  window surface under the divider with the container's bottom arcs.
+  window surface under the divider with the container's bottom arcs. Because the
+  band *is* the card's bottom edge while the group is closed, `_fitHeaderCorners`
+  (through `Window:_setRoundedCorners`, the state-flipping companion of
+  `_roundCorners`) moves the container's bottom arcs onto the band and squares
+  them off again the moment the body is revealed, so both states keep one even
+  silhouette on the same radius token.
 - `description.luau` — legacy in-card helper-line utility kept for bundle
   compatibility; public element constructors no longer read `description` props.
 - `tab.luau` — tab class: `tabPage` (ScrollingFrame), `_register(element)` pipeline into `window.controls[flag]`, selector button visuals.

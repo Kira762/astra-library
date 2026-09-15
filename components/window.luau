@@ -1823,6 +1823,32 @@ function Window:_roundCorners(frame, corners, token)
     return self:Create("UICorner", props, themeMap)
 end
 
+-- [[Companion to `_roundCorners` for a corner set an element flips with its own
+-- [[state instead of once at construction: `corners` (default: all four, as in
+-- [[`_roundCorners`) ride the `token` radius and every other corner of the frame
+-- [[goes back to square, so a caller can move which of an inner surface's edges
+-- [[match the container's arcs — a collapsible header is the card's bottom edge
+-- [[only while it is closed. No theme binding is recorded here (`themeProperties`
+-- [[still owns whatever `_roundCorners` bound), so a later `ChangeTheme` re-reads
+-- [[`token` through this same call from the element instead of fighting it. There
+-- [[is nothing to move on an engine without per-corner radii, where
+-- [[`_roundCorners` already gave the frame one radius on all four corners, so the
+-- [[call is a no-op there.]]
+function Window:_setRoundedCorners(corner, corners, token)
+    if not corner or not hasPerCornerRadius then
+        return
+    end
+
+    local radius = if token then self.theme[token] else nil
+    for _, key in cornerKeys do
+        local wanted = radius ~= nil and (not corners or table.find(corners, key) ~= nil)
+        local target = if wanted then radius else UDim.new(0, 0)
+        if corner[key] ~= target then
+            corner[key] = target
+        end
+    end
+end
+
 function Window:_setElementLocked(element, locked, message)
     locked = locked == true
                 local wasLocked = element.locked == true

@@ -2,6 +2,43 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-15 — The closed Collapsible Group's bottom corners
+
+Follow-up on today's corner entry: rounding the header band's *top* corners left
+the same flaw one edge down. A closed group's container is exactly as tall as the
+band, so the band is the card's bottom edge — and since Roblox rounds a GuiObject's
+own surface but never clips a descendant to those arcs, its square bottom corners
+painted over the container's bottom arcs. The stroke drew a rounded outline while
+the fill ran past it: rounded top, uneven bottom. Open groups were already fine
+(`bodyClip` is flush with the container's floor and carries those arcs), so nothing
+about the revealed body changed.
+
+- **The band now carries the container's bottom arcs while it is closed.**
+  `Collapsible:_fitHeaderCorners()` re-reads one radius token (`ElementCornerRadius`)
+  for both states, so only *which surface owns the edge* changes, never the radius:
+  closed → all four corners round, open → the bottom pair squares off against the
+  straight divider again.
+- **The flip is timed to the settle, not the click.** Collapsing rounds the band in
+  `Window`-independent `_resize` finish (so the shrink shows the clipper's arcs for
+  every frame in between, and a reversal mid-tween cannot strand a state — a stale
+  revision still returns early), while opening squares the band *before* the body is
+  revealed so the first expanded frame shows a straight seam instead of two notches
+  at the band's floor. Instant motion and a hidden window's deferred reveal settle
+  synchronously through the same path, and the reveal/`_refreshTheme` route re-applies
+  it, so a radius changed while closed still lands.
+- **`Window:_setRoundedCorners(corner, corners, token)`** is the state-flipping
+  companion to `_roundCorners`: the listed corners ride the token, every other corner
+  of that frame goes back to square, and already-matching corners are not rewritten.
+  It reuses the container's one `UICorner` (no instance churn — open/close/move still
+  create nothing) and is a no-op on an engine without per-corner radii, where
+  `_roundCorners` already gave the frame one radius on all four corners.
+- Tests extended: the group suite asserts all four closed-band arcs against the
+  container's, that the band keeps a single `UICorner` across states, that expanding
+  squares only the bottom pair, that a settled collapse and an instant (zero-length)
+  collapse/expansion both land in the same step, and that a theme radius change flows
+  to the band's bottom corners and the body clipper. Bundle regenerated
+  (`version-1.luau`, 103 modules).
+
 ## 2026-09-15 — Collapsible Group corners, and icon-only rows that stayed readable
 
 A screenshot review found the Collapsible Group's top-left and top-right

@@ -59,9 +59,6 @@ local windowSurfaceGradientOffset = Vector2.new(0, -0.1)
 local lockScrimTransparency = 0.55
 local lockedTextTransparency = 0.55
 
-local epsilon = 0.04
-local scrollbarWidth = 8
-
 local viewportCheckInterval = 2
 
 -- Startup is deliberately paced in small, completed-object batches, before the
@@ -74,8 +71,6 @@ local constructionInstanceBudget = 48
 -- Toasts and notifications share one entrance lane. Their 0.6s transitions do
 -- not overlap, but already-visible messages are still allowed to remain in
 -- their normal stacks while the next one enters.
-local overlayEntranceCadence = 0.65
-
 -- The first open reads as an entrance instead of one large visibility flip:
 -- the shell animates in, then `_stageContentReveal` walks the visible page one
 -- control per beat (see `_firstShow`). There is exactly one cascade — an older
@@ -98,10 +93,6 @@ local hasPerCornerRadius = (function()
         end)
     )
 end)()
-
-local function layoutFor(isSidebar)
-    return if isSidebar then layouts.sidebar else layouts.top
-end
 
 local function layoutKey(layout)
     if layout.mode == "sidebar" and layout.forceCollapsed then
@@ -501,6 +492,9 @@ function Window.new(props)
     })
     self.rfSettings._isSettingsTab = true
     self._settingsTabs = { self.rfSettings }
+    -- [[Settings tab shell landed; hand the frame back before the action
+    -- [[buttons and search chrome are added.]]
+    self:_constructionCheckpoint(true)
 
     require(script.Parent.action).new(self, {
         name = "Close",
@@ -548,6 +542,9 @@ function Window.new(props)
 
     search.build(self)
         self:_applyRailWidth()
+    -- [[Toolbar complete; another frame before persisted settings are read
+    -- [[and applied (a disk read, the theme pass and possibly a layout swap).]]
+    self:_constructionCheckpoint(true)
 
     self.unloaded = false
     self.minimised = false
@@ -565,48 +562,24 @@ function Window.new(props)
         self:_setLayoutMode(self.settings.layoutMode)
     end
 
-    haptic.setContainer(self.screenGui)     haptic.setEnabled(self.settings.haptics)     chrome.buildCollapsedFace(self)
+    haptic.setContainer(self.screenGui)     haptic.setEnabled(self.settings.haptics)
+    chrome.buildCollapsedFace(self)
 
     self:_constructionCheckpoint(true)
-    profilePanel.build(self)
+    -- [[The profile card is opt-in: it builds only when "Show profile" is on
+    -- [[(the default is off), so the common window skips its ~90 themed
+    -- [[instances on the spawn path. The first toggle to enable it builds the
+    -- [[card on demand through profilePanel.ensureBuilt.]]
+    profilePanel.ensureBuilt(self)
     profilePanel.setSubtitle(self, self.profileText)
     if profilePanel.isEnabled(self) then
         self.main.Position = self:_profileCenterPosition()
     end
-    task.defer(function()
-        if self.unloaded or state.localPlayer or not self.profilePanel then
-            return
-        end
-        local deadline = os.clock() + 2
-        local connection
-        connection = state.runService.RenderStepped:Connect(function()
-            if self.unloaded then
-                connection:Disconnect()
-                return
-            end
-            if state.localPlayer or os.clock() > deadline then
-                connection:Disconnect()
-                if state.localPlayer and self.profilePanel then
-                    profilePanel.applyIdentity(self)
-                    profilePanel.setShown(self, true, profilePanel.settleInfo)
-                    -- [[The player may have arrived after construction, when]]
-                    -- [[the panel was still disabled and the window was not]]
-                    -- [[shifted. If the window is still anchored at the]]
-                    -- [[screen centre (the user has not dragged it), centre]]
-                    -- [[the window + panel pair now.]]
-                    if self.main.Position.X.Scale == 0.5 and self.main.Position.Y.Scale == 0.5 then
-                        self:_recenterForProfile(true)
-                    end
-                end
-            end
-        end)
-        -- [[The connection already exists here, so it is adopted into the]]
-        -- [[window's list directly: Window:Connect takes a *signal* and calls]]
-        -- [[:Connect on it, which threw on a connection object and killed this]]
-        -- [[waiter — the profile card then stayed hidden even with "Show]]
-        -- [[profile" on.]]
-        table.insert(self.connections, connection)
-    end)
+    -- [[Card on but the player object is not replicated yet: this waiter fills
+    -- [[and reveals it the moment the player arrives. It is also re-armed by
+    -- [[setEnabled when the card is switched on later (lazy build), so the
+    -- [[toggle path keeps the same late-player behaviour as startup.]]
+    self:_armProfilePlayerWaiter()
     self:_bindKeybind()
     self:_bindMouseOverride()
     self:_bindTopbarDrag()
@@ -631,34 +604,44 @@ function Window.new(props)
     return self
 end
 
--- Yield only at completed construction boundaries, never halfway through a
--- control. Batches are limited by both CPU time and instance count, before
--- the first reveal and after it alike: the opening tween keeps receiving
--- frames while a large script streams the rest of its controls in, and no
--- single frame pays for the whole build. The API is still synchronous: each
--- constructor resumes with a fully usable object.
-function Window:_constructionCheckpoint(force)
-    if self._startupComplete or (not force and not self._constructed) then
-        return
-    end
-    self._constructionRevision = (self._constructionRevision or 0) + 1
+-- Yield at a completed construction boundary when the current frame has
+-- spent its budget. Batches are limited by both CPU time and instance count,
+-- and the check is unconditional: components that build lazily after startup
+-- (the profile card on first enable, late settings panels) use this directly
+-- so a deferred build can never monopolise a frame either. Yields land on the
+-- next Heartbeat (not another deferred task in the same frame).
+function Window:_paceBudget(force)
     local now = os.clock()
     local last = self._constructionClock or now
     local count = #self.instances
     if
-        force
-        or now - last >= constructionFrameBudget
-        or count - (self._constructionInstances or 0) >= constructionInstanceBudget
+        not force
+        and now - last < constructionFrameBudget
+        and count - (self._constructionInstances or 0) < constructionInstanceBudget
     then
-        self._constructionBusy = (self._constructionBusy or 0) + 1
-        task.wait() -- next Heartbeat, not another deferred task in this frame
-        self._constructionBusy -= 1
-        assert(not self.unloaded, "Window unloaded during construction")
-        self._constructionClock = os.clock()
-        self._constructionInstances = #self.instances
-    else
         self._constructionClock = last
+        return
     end
+    self._constructionRevision = (self._constructionRevision or 0) + 1
+    self._constructionBusy = (self._constructionBusy or 0) + 1
+    task.wait()
+    self._constructionBusy -= 1
+    assert(not self.unloaded, "Window unloaded during construction")
+    self._constructionClock = os.clock()
+    self._constructionInstances = #self.instances
+end
+
+-- Startup-only checkpoint: element constructors stream in between the shell's
+-- first reveal and the build going quiet, so yielding is gated to that window.
+-- `force` marks an explicit shell phase boundary inside Window.new (where
+-- `_constructed` is still false). Every boundary yields whole, completed
+-- objects, never half a control, so each constructor resumes with a fully
+-- usable object.
+function Window:_constructionCheckpoint(force)
+    if self._startupComplete or (not force and not self._constructed) then
+        return
+    end
+    self:_paceBudget(force)
 end
 
 -- Configuration restoration can execute host callbacks. Apply a small group,
@@ -1420,6 +1403,47 @@ function Window:_recenterForProfile(animate)
         self.main.Position = target
         self:_syncDragBar()
     end
+end
+
+-- [[One-shot waiter for a LocalPlayer that has not replicated when the card
+-- [[was enabled. On arrival it builds the (lazily skipped) card if needed,
+-- [[fills its identity and reveals the window + card pair. Bounded by a short
+-- [[deadline so a host with no player at all does not keep polling forever.
+-- [[Safe to call repeatedly; the first arm wins.
+function Window:_armProfilePlayerWaiter()
+    if self._profileWaiterArmed or self.unloaded then
+        return
+    end
+    if self.settings.showProfile ~= true or state.localPlayer then
+        return
+    end
+    self._profileWaiterArmed = true
+
+    task.defer(function()
+        local deadline = os.clock() + 2
+        local connection
+        connection = state.runService.RenderStepped:Connect(function()
+            if self.unloaded then
+                connection:Disconnect()
+                return
+            end
+            if state.localPlayer or os.clock() > deadline then
+                connection:Disconnect()
+                if state.localPlayer and profilePanel.ensureBuilt(self) then
+                    profilePanel.applyIdentity(self)
+                    profilePanel.setShown(self, true, profilePanel.settleInfo)
+                    -- [[Centre the pair if the user has not dragged the
+                    -- [[window off its resting spot.]]
+                    if self.main.Position.X.Scale == 0.5 and self.main.Position.Y.Scale == 0.5 then
+                        self:_recenterForProfile(true)
+                    end
+                end
+            end
+        end)
+        -- [[Adopt the connection directly: Window:Connect takes a *signal*,
+        -- [[not a connection object.]]
+        table.insert(self.connections, connection)
+    end)
 end
 
 function Window:_applyWindowSize()
@@ -2264,8 +2288,8 @@ function Window:Show()
     self._revealing = true
     self.drag.drag.Visible = false
 
-    -- If General is still the selected page, its heavier content is built
-    -- after the shell settles (see _scheduleInitialSettingsContent).
+    -- General's heavier content is never built here: settings panels build
+    -- lazily on first open through _buildSettingsContent / buildContent.
 
     self.hidden = false
     self.minimised = false
@@ -3194,7 +3218,10 @@ function Window:Unload()
     table.clear(self.localeProperties)
     table.clear(self.controls)
     table.clear(self.tabs)
-    table.clear(self._overlayQueue)
+    -- [[overlayQueue.close already drained the queue into its safe resting
+    -- [[shape (empty pending list, closed flag); wiping the table itself used
+    -- [[to pull `pending` out from under the pump coroutine on its next resume
+    -- [[(a `#nil` error racing an unload that landed mid-gate).]]
     self._overlayQueueRunning = false
 end
 

@@ -57,32 +57,10 @@ game.JobId = "astra-reveal-server"
 
 local window = Astra:CreateWindow({ name = "Profile Reveal Test" })
 TestPump(1.2)
+EnableProfileCard(window) -- lazy profile card; enabled the way a user enables it
 
-local function findSettingsElement(targetWindow, tabName, elementName)
-	targetWindow:_buildSettingsUI() -- settings shells are now lazy too
-	for _, tab in targetWindow._settingsTabs do
-		if tab.name == tabName then
-			tab:Select()
-			TestPump(0.15)
-			local function scan(elements)
-				for _, element in elements do
-					if element.name == elementName then
-						return element
-					end
-					if element.elements then
-						local found = scan(element.elements)
-						if found then
-							return found
-						end
-					end
-				end
-				return nil
-			end
-			return scan(tab.elements)
-		end
-	end
-	return nil
-end
+-- Uses the shared FindSettingsElement helper in sidebar_sizing_stubs.
+local findSettingsElement = FindSettingsElement
 
 local function assertMasked(message)
 	eq(window.profileName.Text, "Tes****", message .. ": display name masked")
@@ -177,6 +155,7 @@ TestPump(0.2)
 state.localPlayer = nil
 local lateWindow = Astra:CreateWindow({ name = "Profile Reveal Test (late player)" })
 TestPump(0.6)
+EnableProfileCard(lateWindow) -- build before the player exists, through the toggle
 expect(lateWindow.profilePanel ~= nil, "P5 the panel is built even without a local player")
 eq(lateWindow.profilePanel.Visible, false, "P5 the card stays hidden while the player is unknown")
 eq(lateWindow.profileName.Text, "", "P5 no identity is rendered before the player exists")

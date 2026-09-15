@@ -1436,6 +1436,23 @@ function profilePanel.hideTooltip(window)
     end)
 end
 
+-- [[The card used to be built for every window - dozens of themed instances
+-- [[on the spawn path - even though "Show profile" ships switched off. It is
+-- [[now built on demand: the first time the setting is on (from disk during
+-- [[construction, or when the user flips the toggle later). Every other
+-- [[function in this module reads the card's instances through nil guards, so
+-- [[an unbuilt card is simply inert. Returns the panel (or nil when the card
+-- [[is disabled/gone).
+function profilePanel.ensureBuilt(window)
+    if window.profilePanel then
+        return window.profilePanel
+    end
+    if window.unloaded or window.settings.showProfile ~= true then
+        return nil
+    end
+    return profilePanel.build(window)
+end
+
 function profilePanel.build(window)
     if window.profilePanel then
         window:DestroySubtree(window.profilePanel)
@@ -1765,9 +1782,10 @@ function profilePanel.build(window)
 
     local y = 0
 
-    if not window._constructed then
-        window:_constructionCheckpoint(true)
-    end
+    -- [[Pinned header done; give the frame back before the detail cards if
+    -- [[the budget was spent. Unconditional pacing: the card may be building
+    -- [[lazily on a toggle click, when startup checkpoints have gone quiet.]]
+    window:_paceBudget()
 
     -- ===== ACCOUNT =====
 
@@ -1953,6 +1971,10 @@ function profilePanel.build(window)
 
     content.Size = UDim2.new(1, 0, 0, y)
     window.profileDetails.CanvasSize = UDim2.fromOffset(0, scrollPaddingTop + y + scrollPaddingBottom)
+
+    -- [[Detail cards done; the tooltip and its wiring start on a fresh frame
+    -- [[when the previous section spent the budget.]]
+    window:_paceBudget()
 
     -- [[Hover tooltip surface. Parented to the card (not the scroll region) so
     -- [[it is never clipped by the scrolling area.]]
@@ -2268,6 +2290,20 @@ end
 
 function profilePanel.setEnabled(window, enabled)
     window.settings.showProfile = enabled == true
+
+    -- [[The card is built on demand the first time the setting is switched
+    -- [[on, so the default-off window never paid for its dozens of instances.
+    -- [[Build before the writers below run: applyIdentity fills the fresh
+    -- [[card and setShown fades it in as part of the same toggle.]]
+    if window.settings.showProfile then
+        profilePanel.ensureBuilt(window)
+        -- [[Player not replicated yet? The startup waiter only armed while
+        -- [[construction knew the setting was on; a card enabled later gets
+        -- [[its own waiter so it still reveals on arrival.]]
+        if not state.localPlayer and window._armProfilePlayerWaiter then
+            window:_armProfilePlayerWaiter()
+        end
+    end
 
     -- [[The reveal toggle depends on the card, so switching the card off]]
     -- [[switches the reveal off with it: it can never sit active while]]

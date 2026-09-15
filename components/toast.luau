@@ -8,6 +8,7 @@ local functions = require(script.Parent.Parent.functions)
 local constants = require(utilities.constants)
 local imageModule = require(script.Parent.Parent.images.image)
 local haptic = require(utilities.HapticEngine)
+local motion = require(utilities.motion)
 
 local showTween = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
 local expandTween = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
@@ -21,7 +22,6 @@ local smallIconPad = 18
 local largeIconPad = 18
 local avatarLeftPad = 10
 local avatarRightPad = 28
-local contentSpacing = 12
 local outerPadding = 8
 local layoutPad = 19
 local minContentWidth = 140
@@ -280,18 +280,20 @@ end
 -- [[Hands the entrance slot back to the queue once the toast's entrance is
 -- committed (or once it is dismissed, whichever comes first) so the next
 -- queued overlay can start. Idempotent by design: both paths reach it.]]
-function Toast:_entranceDone()
+function Toast:_entranceDone(early)
     local release = self._release
     if not release then
         return
     end
     self._release = nil
-    release()
+    -- [[`early` marks a dismissal/retirement mid-entrance: the queue skips its
+    -- [[full entrance cadence then, since no transition needs protecting.]]
+    release(early == true)
 end
 
 function Toast:_show()
     if self._dismissed or not self.main.Parent then
-        self:_entranceDone()
+        self:_entranceDone(true)
         return
     end
 
@@ -299,7 +301,7 @@ function Toast:_show()
 
     local width, height = self:_measure()
     if self._dismissed or not self.main.Parent then
-        self:_entranceDone()
+        self:_entranceDone(true)
         return
     end
     self.main.Size = UDim2.new(0, width, 0, 0)
@@ -311,9 +313,16 @@ function Toast:_show()
     state.tweenService:Create(self.shadow, textFadeTween, { Transparency = 0.6 }):Play()
     state.tweenService:Create(self.titleLabel, textFadeTween, { TextTransparency = 0 }):Play()
 
-    task.wait(0.05)
+    -- [[The two stagger beats answer the motion profile: with animation
+    -- [[switched off they collapse to immediate frames and the queue drains
+    -- [[a card a frame. The queue itself holds the lane for the entrance
+    -- [[cadence afterwards, so transitions never overlap.]]
+    local firstBeat = motion.step(0.05)
+    if firstBeat > 0 then
+        task.wait(firstBeat)
+    end
     if self._dismissed or not self.main.Parent then
-        self:_entranceDone()
+        self:_entranceDone(true)
         return
     end
     if self.iconLabel then
@@ -321,17 +330,21 @@ function Toast:_show()
         state.tweenService:Create(self.iconLabel, textFadeTween, { ImageTransparency = 0 }):Play()
     end
 
-    task.wait(0.05)
+    local secondBeat = motion.step(0.05)
+    if secondBeat > 0 then
+        task.wait(secondBeat)
+    end
     if self._dismissed or not self.main.Parent then
-        self:_entranceDone()
+        self:_entranceDone(true)
         return
     end
     if self.subtitleLabel then
         state.tweenService:Create(self.subtitleLabel, textFadeTween, { TextTransparency = 0.5 }):Play()
     end
 
-    -- [[Everything still running is the hold time now, not the entrance, so
-    -- the next toast in the queue may take its turn.]]
+    -- [[Everything still running is the hold time now, not the entrance.
+    -- [[A dismissal below releases early; the natural end lets the queue
+    -- [[wait out the full entrance cadence before the next card starts.]]
     self:_entranceDone()
 
     local elapsed = 0
@@ -352,8 +365,9 @@ function Toast:_dismiss()
     self._dismissed = true
 
     -- [[A toast retired before its entrance finished still owes the queue its
-    -- slot; `_entranceDone` is a no-op once the show path handed it back.]]
-    self:_entranceDone()
+    -- slot; `_entranceDone` is a no-op once the show path handed it back.
+    -- Early release lets the queue skip the full entrance cadence.]]
+    self:_entranceDone(true)
 
     local liveList = self._live
     local index = liveList and table.find(liveList, self)

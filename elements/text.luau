@@ -5,10 +5,8 @@ state.__type = "Text"
 local constants = require(script.Parent.Parent.utilities.moveable)
 local Text = require(script.Parent.Parent.utilities.locale)
 
-local tab = 16
-local props = 14
-
-local name = 0.45
+-- [[Resting transparency of body text shown by this control.]]
+local restingTextTransparency = 0.45
 
 function state.new(tab, element)
     element = if typeof(element) == "table" then element else {}
@@ -143,7 +141,7 @@ function state:_setShown(frame, a11)
         self.window:_hideCommon(self, a11)
     end
 
-    self.window:_reveal(self.body, { TextTransparency = if frame then name else 1 }, a11)
+    self.window:_reveal(self.body, { TextTransparency = if frame then restingTextTransparency else 1 }, a11)
 end
 
 constants(state)

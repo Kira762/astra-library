@@ -38,8 +38,17 @@ local OverlayQueue = {}
 -- [[Cooldown between two overlays landing, and the shorter one used while a
 -- backlog is still waiting so a long queue drains instead of crawling. Both
 -- are beats for the *next* card to start on: the entrance itself belongs to
--- the overlay.]]
+-- the overlay.
+-- [[]]
+-- `entranceCadence` protects the first card to finish its staggered reveal:
+-- the card hands its slot back ~0.1s in (its later pieces are just tweens),
+-- so without this the next card's 0.6s entrance tween started on top of the
+-- first one - the overlap the single lane exists to prevent. It applies once
+-- per pump, to the first natural hand-off; a deep backlog then drains with
+-- the short `backlogGap`, and a card dismissed mid-entrance releases early and
+-- skips it (there is no transition left on screen to protect).
 local entranceGap = 0.18
+local entranceCadence = 0.45
 local backlogGap = 0.06
 local backlogSize = 3
 
@@ -130,9 +139,19 @@ function OverlayQueue.pump(window, queue)
     queue.running = true
 
     task.spawn(function()
-        while #queue.pending > 0 do
+        -- [[The window can be unloaded between turns. Unload leaves the queue
+        -- [[object in one piece, but older paths (and hosts that assign their
+        -- [[own table) can leave it without a `pending` list: retire rather
+        -- [[than index nil.]]
+        -- [[The first natural hand-off in a pump waits the full entrance
+        -- [[cadence so the lead card's 0.6s transition cannot overlap the
+        -- [[next one; later turns use the steady (or backlog) gap.]]
+        local firstTurn = true
+        while type(queue.pending) == "table" and #queue.pending > 0 do
             if window.unloaded or queue.closed then
-                table.clear(queue.pending)
+                if queue.pending then
+                    table.clear(queue.pending)
+                end
                 break
             end
 
@@ -149,21 +168,29 @@ function OverlayQueue.pump(window, queue)
             end
 
             if window.unloaded or queue.closed then
-                table.clear(queue.pending)
+                if queue.pending then
+                    table.clear(queue.pending)
+                end
                 break
             end
 
             -- [[The overlay reports back when its entrance is committed. A
             -- build that errors out has already reported nothing, so the
-            -- budget below moves the queue along regardless.]]
+            -- budget below moves the queue along regardless. `early` is set
+            -- when the card was dismissed/retired mid-entrance, in which case
+            -- there is nothing on screen for the next card to avoid
+            -- overlapping and the cadence wait is skipped.]]
             local released = false
-            local function release()
+            local earlyRelease = false
+            local function release(early)
                 released = true
+                earlyRelease = early == true
             end
 
             local ok, err = pcall(entry.build, release)
             if not ok then
                 log.warn("Astra: an overlay failed to open - " .. tostring(err))
+                released = true
             end
 
             local entranceWaited = 0
@@ -172,14 +199,25 @@ function OverlayQueue.pump(window, queue)
             end
 
             if window.unloaded or queue.closed then
-                table.clear(queue.pending)
+                if queue.pending then
+                    table.clear(queue.pending)
+                end
                 break
             end
 
-            -- [[The cooldown between two cards. A short one when the queue is
-            -- still long, so a burst stays a cascade and does not turn into a
-            -- slideshow.]]
-            local gap = if #queue.pending > backlogSize then backlogGap else entranceGap
+            -- [[Cooldown before the next card. The first natural hand-off of
+            -- [[a pump waits out the entrance cadence so transitions do not
+            -- [[overlap; an early dismiss skips it, and a deep backlog drains
+            -- [[with the short gap instead of crawling.]]
+            local gap
+            if earlyRelease then
+                gap = entranceGap
+            elseif firstTurn then
+                gap = entranceCadence
+            else
+                gap = if #queue.pending > backlogSize then backlogGap else entranceGap
+            end
+            firstTurn = false
             waitSeconds(motion.step(gap))
         end
 
@@ -208,6 +246,16 @@ function OverlayQueue.request(window, build): boolean
     end
 
     table.insert(queue.pending, { build = build })
+
+    -- [[A window whose first entrance was cancelled (Hide before it ever
+    -- [[showed) re-parks anything that arrives afterward: Hide opened the
+    -- [[gate only to flush what was already waiting, so a cancelled entrance
+    -- [[cannot strand a card - new work must still wait for a window that is
+    -- [[not on screen. A window that showed once queues normally while
+    -- [[hidden, matching the steady-state toast behaviour.]]
+    if window.hidden and not window.hasShownOnce then
+        queue.paused = true
+    end
 
     OverlayQueue.pump(window, queue)
     return true

@@ -26,7 +26,16 @@ windowIcons.roles = {
     config = "config",
 }
 
+-- [[The id/role tables are module constants, so the reverse manifest and the
+-- [[sorted role list are built once on first use instead of on every call -
+-- [[roleForId used to rebuild the whole manifest per failed icon.]]
+local cachedManifest: { [number]: { roles: { string } } }? = nil
+local cachedRoleList: { string }? = nil
+
 function windowIcons.manifest()
+    if cachedManifest then
+        return cachedManifest
+    end
     local manifest: { [number]: { roles: { string } } } = {}
     for name, id in windowIcons.ids do
         local entry = manifest[id]
@@ -36,6 +45,7 @@ function windowIcons.manifest()
         end
         table.insert(entry.roles, windowIcons.roles[name] or name)
     end
+    cachedManifest = manifest
     return manifest
 end
 
@@ -48,11 +58,15 @@ function windowIcons.roleForId(id: number): string
 end
 
 function windowIcons.roleList(): { string }
+    if cachedRoleList then
+        return cachedRoleList
+    end
     local list = {}
     for name in windowIcons.ids do
         table.insert(list, windowIcons.roles[name] or name)
     end
     table.sort(list)
+    cachedRoleList = list
     return list
 end
 

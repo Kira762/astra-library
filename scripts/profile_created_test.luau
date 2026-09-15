@@ -18,6 +18,7 @@ request = function(options)
 end
 local window = Astra:CreateWindow({ name = "Account created test" })
 TestPump(0.6)
+EnableProfileCard(window) -- profile card is lazy until the user enables it
 assert(window.profileJoinDateValue.Text == "29 Feb 2020", "Show the exact UTC creation date")
 assert(window.profileAccountAgeValue.Text:match("years ago$"), "Show elapsed years")
 assert(requests == 1, "Request once, not every refresh")

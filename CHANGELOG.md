@@ -2,6 +2,46 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-15 — Buttons stopped crashing on the first click
+
+Reported from the field as `attempt to index nil with 'spec'`, pointing at the
+bundle line inside a `LocalScript`. The example was never at fault: the fault
+was in the element the example was clicking.
+
+### The button's missing require
+
+The button's click choreography rides the shared motion service — the tap
+glyph dips on `fast` and springs back on `settle`, the card nudges on `snappy`
+— but `elements/button.luau` never required it. Every `motion.spec(...)` call
+read a bare global, so the module *built* cleanly and then died on the first
+tap, before `self:_runCallback()` could run the caller's callback.
+
+- **`local motion = require(constants.motion)`** added to
+  `elements/button.luau`, mirroring the sibling header in `elements/toggle.luau`
+  (which has the same comment block and the require the button had lost). Both
+  click handlers were affected: the full card and the compact row built by a
+  row `Group`.
+- **`Astra.Settings.persistence` was `nil`.** `settings/init.luau` built
+  `local persistenceModule = require(script.persistence)` and then exported
+  `persistence = persistence` — the bare global, not the local. `MODULES.md`
+  has always documented the export; the value behind it was missing. No
+  internal consumer touched the field, so it failed silently.
+- **The generated loader carried the same defect.** `scripts/generate_bundle.js`
+  injected `ErrorNonModuleScript` and `ErrorSelfRequire` by string-replacing a
+  `local ErrorNonModuleScript` declaration that the loader template never
+  contained, so both `.replace()` calls were silent no-ops and the bundle's
+  two require guards raised `error(nil)` — a blank message instead of
+  `Expected ModuleScript got Folder` / `Cannot require self`. The constants are
+  declared in the template now, where `CurrentRefPointer` is in scope.
+- **New suite `scripts/button_click_test`** (B1–B6) pins the whole path: the
+  tap glyph exists so the animation is really exercised, the click runs the
+  callback, and the press/release *sequence* of writes lands on the tap scale
+  (0.78 → 1), the card width (−26 → −20) and the stroke (open → resting token)
+  for both the card and the compact row, plus the settings surface's
+  persistence export. Against the previous bundle it fails with the reported
+  `attempt to index nil with 'spec'`; no earlier suite ever fired a click on a
+  `Button`, which is how this shipped.
+
 ## 2026-09-15 — The window's corners, and one motion system
 
 Two fixes that were visible together: straight 1px lines drawn across the

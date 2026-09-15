@@ -562,6 +562,14 @@ function ImportGlobals(refId)
 
         local CurrentRefPointer = moduleRef
 
+        -- [[Error text for the two guard branches below. Declared here rather
+        -- [[than injected at generation time: the generator used to
+        -- [[string-replace a "local ErrorNonModuleScript" declaration that the
+        -- [[template never contained, so both names resolved to nil and the
+        -- [[branches raised a blank message.]]
+        local ErrorNonModuleScript = "Expected ModuleScript got " .. CurrentRefPointer.ClassName
+        local ErrorSelfRequire = "Cannot require self"
+
         if CurrentRefPointer.ClassName ~= "ModuleScript" then
             error(ErrorNonModuleScript, 2)
         elseif CurrentRefPointer == ScriptRef then
@@ -622,8 +630,7 @@ let fullText =
   "\n\nlocal LineOffsets = {\n__LINEOFFSETS__\n}\n\n" +
   "-- [[Misc AOT variable imports]]\nlocal WaxVersion = \"0.4.1\"\nlocal EnvName = \"WaxRuntime\"\n" +
   "\n" + treeLua +
-  runtime.replace("local ErrorNonModuleScript", 'local ErrorNonModuleScript = "Expected ModuleScript got " .. CurrentRefPointer.ClassName')
-          .replace("local ErrorSelfRequire", 'local ErrorSelfRequire = "Cannot require self"');
+  runtime;
 
 // Compute offsets: for each module refId, find the line index where its body
 // begins (the line after the wrapper line).

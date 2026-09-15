@@ -127,7 +127,6 @@ local elements = {
 	{ "dropdown", "Quality", tab:CreateDropdown({ name = "Quality", description = "Applies instantly.", options = { "Low", "High" }, value = "Low" }) },
 	{ "input", "Display name", tab:CreateInput({ name = "Display name", description = "Shown to friends.", placeholder = "Enter a name" }) },
 	{ "keybind", "Push to talk", tab:CreateKeybind({ name = "Push to talk", description = "One letter only.", value = Enum.KeyCode.T }) },
-	{ "progress", "Download", tab:CreateProgress({ name = "Download", value = 50, description = "Hang tight." }) },
 	{ "stat", "Frames", tab:CreateStat({ name = "Frames", value = 240, description = "Per second." }) },
 	{ "toggle", "No description", tab:CreateToggle({ name = "No description" }) },
 	{ "keybind", "Wrapped hint", more:CreateKeybind({ name = "Wrapped hint", description = "Type one letter. Extra characters are removed automatically, which makes this line wrap.", value = Enum.KeyCode.Y }) },

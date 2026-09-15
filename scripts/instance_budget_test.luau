@@ -5,7 +5,7 @@
 -- Instance count is the library's main frame-time lever: Roblox renders and
 -- sorts every GUI instance it holds, so a page's element count is a direct
 -- proxy for what the menu costs while it is open. This suite pins a ceiling per
--- element type and for a realistic 16-element page, so a change that quietly
+-- element type and for a realistic 15-element page, so a change that quietly
 -- re-adds invisible decoration (or stops materialising readout rows lazily)
 -- fails here instead of in game.
 --
@@ -66,7 +66,6 @@ local ceilings = {
 	keybind = 18,
 	stat = 28,
 	statCompact = 24,
-	progress = 18,
 	section = 8,
 	text = 14,
 	divider = 8,
@@ -84,7 +83,6 @@ local builders = {
 	keybind = function() return tab:CreateKeybind({ name = "Keybind", value = Enum.KeyCode.K }) end,
 	stat = function() return tab:CreateStat({ name = "Stat", value = 1, suffix = "" }) end,
 	statCompact = function() return tab:CreateStat({ name = "StatC", value = 1, suffix = "", compact = true }) end,
-	progress = function() return tab:CreateProgress({ name = "Progress", value = 50 }) end,
 	section = function() return tab:CreateSection({ name = "Section" }) end,
 	text = function() return tab:CreateText({ name = "Text", text = "body" }) end,
 	divider = function() return tab:CreateDivider() end,
@@ -148,15 +146,14 @@ page:CreateButton({ name = "Reset", callback = function() end })
 page:CreateDropdown({ name = "Mode", options = { "Auto", "Manual", "Custom", "Expert" }, value = "Auto" })
 page:CreateInput({ name = "Nickname", placeholder = "..." })
 page:CreateKeybind({ name = "Toggle key", value = Enum.KeyCode.K })
-page:CreateProgress({ name = "Loading", value = 40 })
 page:CreateText({ name = "Note", text = "A realistic page." })
 TestPump(0.6)
 
 local used = count(page.tabPage) - before
-local pageBudget = 288
+local pageBudget = 270
 expect(
 	used <= pageBudget,
-	"B2 the 16-element page stays under its " .. tostring(pageBudget) .. " instance budget (used " .. tostring(used) .. ")"
+	"B2 the 15-element page stays under its " .. tostring(pageBudget) .. " instance budget (used " .. tostring(used) .. ")"
 )
 
 window:Unload()

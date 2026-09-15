@@ -12,7 +12,6 @@ local defs = {
     { type = "Input", name = "Nickname", value = "Player" },
     { type = "Keybind", name = "Hotkey", value = Enum.KeyCode.P, callback = function() callbacks += 1 end },
     { type = "Stat", name = "Score", value = 10 },
-    { type = "Progress", name = "Loading", value = 50 },
     { type = "Section", name = "Section" },
     { type = "Text", name = "Help", text = "Contents" },
     { type = "Changelog", name = "Changes", entries = { { version = "1", changes = { { text = "Added" } } } } },

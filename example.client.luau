@@ -90,19 +90,14 @@ elements:CreateDropdown({
     placeholder = "Choose tags",
 })
 
+-- [[Keep the example to the original Input element: one useful text field,
+-- [[not extra one-off input rows.]]
 elements:CreateInput({
     name = "Input",
     placeholder = "Type something",
     callback = function(value)
         window:Toast({ title = "Input", subtitle = tostring(value) })
     end,
-})
-
-elements:CreateInput({
-    name = "Numeric input",
-    placeholder = "Enter a number",
-    numeric = true,
-    clearOnFocus = true,
 })
 
 elements:CreateKeybind({
@@ -138,12 +133,12 @@ group:CreateButton({
 })
 group:CreateToggle({ name = "Grouped toggle", value = false })
 
--- [[The declarative group exercises the CollapsibleGroup path and every child
--- [[constructor, including the Switch alias used by declarative definitions.]]
+-- [[The declarative group exercises the CollapsibleGroup path with useful child
+-- [[rows; the standalone Input above covers the original input element.]]
 elements:CreateCollapsibleGroup({
     name = "Collapsible Group",
     icon = "panels-top-left",
-    description = "Expand this card to inspect every declarative child type.",
+    description = "Expand this card to inspect the useful declarative child rows."
     elements = {
         { type = "Section", name = "Declarative children" },
         { type = "Text", name = "Text child", text = "All child controls are constructed while the group is collapsed." },
@@ -152,7 +147,6 @@ elements:CreateCollapsibleGroup({
         { type = "Switch", name = "Switch alias child", value = false },
         { type = "Slider", name = "Slider child", range = { 0, 100 }, value = 25 },
         { type = "Dropdown", name = "Dropdown child", options = { "One", "Two" }, value = "One" },
-        { type = "Input", name = "Input child", placeholder = "Child input" },
         { type = "Keybind", name = "Keybind child", value = Enum.KeyCode.RightControl },
         { type = "Stat", name = "Stat child", value = 42, suffix = " checks" },
         { type = "Divider", text = "Nested diagnostics" },

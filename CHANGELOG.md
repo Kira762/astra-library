@@ -2,6 +2,19 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-15 — Keybinds use the original cap again
+
+- Removed the editable TextBox path from `Keybind`; the key cap is a `TextButton`
+  with a `TextLabel` again, so clicking it enters the normal capture flow instead
+  of creating a separate input field.
+- The built-in Settings toggle binding now uses that same Keybind control without
+  the `editable` prop. Capture behavior remains: press a key or supported mouse
+  button to bind, Backspace clears, Escape cancels, and conflicts are rejected.
+- Updated the keybind regression to pin the original button-backed cap and
+  regenerated the standalone bundle.
+- Cleaned `example.client.luau` so it only demonstrates the original `Input`
+  element once; duplicate no-op numeric/declarative input rows are gone.
+
 ## 2026-09-15 — Buttons stopped crashing on the first click
 
 Reported from the field as `attempt to index nil with 'spec'`, pointing at the

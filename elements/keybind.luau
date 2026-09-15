@@ -10,12 +10,10 @@ local props = require(constants.moveable)
 local name = require(constants.lockable)
 local description = require(script.Parent.description)
 local flag = require(constants.locale)
-local value = require(constants.constants)
 local isMenuToggle = require(constants.HapticEngine)
 local hold = require(constants.enums)
 local holdThreshold = require(constants.log)
 
-local callback = value.pillResizeInfo
 -- [[The keybind cap shares the field's motion: the cap follows its label on
 -- the hover spec, recording fades run on it too, and the theme refresh
 -- cross-fades on the surface spec.]]
@@ -66,7 +64,6 @@ function state.new(tab, a22)
         icon = tab.window:ResolveIcon(a22.icon or a22.Icon),
         description = a22.description or a22.Description,
         forgetState = a22.forgetState or a22.ForgetState or tab.forgetState,
-        editable = a22.editable or a22.Editable or false,
 
                         isMenuToggle = a22.isMenuToggle or a22.IsMenuToggle or false,
 
@@ -151,10 +148,12 @@ function state.new(tab, a22)
         Parent = self.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-        self.box = self.window:Create("Frame", {
+        self.box = self.window:Create("TextButton", {
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -7, description.center(self, 41)),
         Size = UDim2.fromOffset(40, 30),
+        AutoButtonColor = false,
+        Text = "",
         BorderSizePixel = 0,
 
         BackgroundTransparency = 1,
@@ -175,12 +174,8 @@ function state.new(tab, a22)
 
         self.glow = self.window:CreateGlow(self.box, "FieldGlow", 20, 1)
     self._glowIdle = 0.9
-    -- Use a focusable field, like Input, rather than a button under a label.
-    self.keyLabel = self.window:Create("TextBox", {
+    self.keyLabel = self.window:Create("TextLabel", {
         Text = frame(self.value),
-        ClearTextOnFocus = false,
-        TextEditable = self.editable,
-        MultiLine = false,
         Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -192,82 +187,16 @@ function state.new(tab, a22)
         Parent = self.box,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-    self.window:ConnectFor(self, self.keyLabel.Focused, function()
+    self.window:ConnectFor(self, self.box.MouseButton1Click, function()
         if self.locked or not self.window:_interactive() then
-            self.keyLabel:ReleaseFocus()
             return
         end
         isMenuToggle.click()
-        if self.editable then
-            -- Keep the current key visible and selected: the next typed letter
-            -- replaces the binding, Backspace clears it, and the field never
-            -- blanks itself just because it was focused.
-            self._fieldActive = true
-            local shown = tostring(self.keyLabel.Text or "")
-            self.keyLabel.SelectionStart = 1
-            self.keyLabel.CursorPosition = #shown + 1
-            motion.tween(self.keyLabel, { TextTransparency = 0 }, onChanged)
+        if self.recording then
+            self:_stopRecording()
         else
             self:_startRecording()
         end
-    end)
-
-    self.window:ConnectFor(self, self.keyLabel.FocusLost, function()
-        if self.recording then
-            self:_stopRecording()
-            return
-        end
-        if self.editable then
-            -- The edit session is over: show the bound key again, including
-            -- "None" when the field was left empty after a backspace.
-            self._fieldActive = false
-            self._editing = true
-            self.keyLabel.Text = frame(self.value)
-            self._editing = false
-            self:_sizeBox(true)
-            motion.tween(self.keyLabel, { TextTransparency = 0.6 }, onChanged)
-        else
-            self.keyLabel.Text = frame(self.value)
-        end
-    end)
-
-    self.window:ConnectFor(self, self.keyLabel:GetPropertyChangedSignal("Text"), function()
-        -- Only typed text is parsed, and only while the field is focused.
-        -- Every display write (Set, focus restore, stop-recording) happens
-        -- outside an edit session or behind the _editing guard, so a
-        -- programmatic "None" can never be mistaken for a typed "N".
-        if not self.editable or not self._fieldActive or self._editing then
-            return
-        end
-        local text = tostring(self.keyLabel.Text or "")
-        if text == "" then
-            -- Backspace cleared the field: unbind now, but keep the field
-            -- focused and empty so the next typed letter can rebind it.
-            if self.value ~= Enum.KeyCode.Unknown then
-                self:_commitEdit(Enum.KeyCode.Unknown)
-            end
-            return
-        end
-        local first = string.upper(text:sub(1, 1))
-        local nextValue = connection(first)
-        if not first:match("%a") or nextValue == Enum.KeyCode.Unknown then
-            -- Non-letters never become bindings; drop them and keep waiting.
-            self._editing = true
-            self.keyLabel.Text = ""
-            self._editing = false
-            return
-        end
-        if text ~= first then
-            self._editing = true
-            self.keyLabel.Text = first
-            self._editing = false
-        end
-        if nextValue ~= self.value then
-            self:_commitEdit(nextValue)
-        end
-        -- Re-select the letter so the next key replaces it: one letter, ever.
-        self.keyLabel.SelectionStart = 1
-        self.keyLabel.CursorPosition = 2
     end)
 
                     self.window:ConnectFor(self, Keybind.userInputService.InputBegan, function(a23, a24)
@@ -323,9 +252,6 @@ end
 
 function state:_stopRecording()
     self.recording = false
-    if self.keyLabel:IsFocused() then
-        self.keyLabel:ReleaseFocus()
-    end
                 if self.window._recordingKeybind == self then
         local window = self.window
         task.defer(function()
@@ -393,17 +319,6 @@ function state:_capture(a28)
     self:_bind(a29)
 end
 
-function state:_commitEdit(a48)
-    -- Editable-field commits keep the field focused: recording shutdown
-    -- (which releases focus and rewrites the label) belongs to capture mode,
-    -- so a typed letter does not end the edit session and Backspace stays
-    -- available for the next change.
-    self.value = a48
-    self:_sizeBox(true)
-    self.window:_runGuarded(self, self.onChanged, a48)
-    self.window:_persist(self)
-
-    self.window:_flashResult(self, true) end
 
 function state:_bind(a31)
     self.value = a31
@@ -496,11 +411,7 @@ function state:Set(a41, a42)
     self.value = a43
     if self.recording then
         self:_stopRecording()     else
-        -- Suppress the display write: while the field is being edited, a
-        -- programmatic label such as "None" must not parse as a typed "N".
-        self._editing = true
         self.keyLabel.Text = frame(self.value)
-        self._editing = false
         self:_sizeBox(true)
     end
 

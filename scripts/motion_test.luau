@@ -69,7 +69,7 @@ local specNames = {}
 for _, name in motion.specNames do
 	specNames[name] = true
 end
-for _, name in { "instant", "fast", "snappy", "normal", "smooth", "emphasized", "pop", "exit", "spring", "spin", "drift" } do
+for _, name in { "instant", "fast", "snappy", "normal", "smooth", "emphasized", "pop", "glide", "exit", "spring", "settle", "spin", "drift" } do
 	expect(specNames[name] == true, "M1 spec '" .. name .. "' is registered")
 	-- [[Checked structurally: the test stubs model TweenInfo as a plain table,
 	-- so `typeof(...) == "TweenInfo"` would only hold in a real client.]]
@@ -90,6 +90,10 @@ eq(snappy.EasingDirection, Enum.EasingDirection.Out, "M2 the snappy spec keeps O
 eq(motion.spec().Time, motion.spec("normal").Time, "M2 a missing spec falls back to normal")
 eq(motion.spec("not-a-spec").Time, motion.spec("normal").Time, "M2 an unknown spec falls back to normal")
 eq(motion.spec("pop").EasingStyle, Enum.EasingStyle.Back, "M2 the window entrance spec overshoots (Back)")
+eq(motion.spec("settle").EasingStyle, Enum.EasingStyle.Back, "M2 the small-surface spec overshoots too (Back)")
+eq(motion.spec("glide").EasingDirection, Enum.EasingDirection.InOut, "M2 lateral state moves ease InOut")
+eq(motion.spec("exit").EasingDirection, Enum.EasingDirection.In, "M2 dismissals accelerate out (In direction)")
+expect(motion.spec("exit").Time < motion.spec("emphasized").Time, "M2 a dismissal is quicker than a hero entrance")
 
 -- ===== M3: the time scale rescales specs =====
 

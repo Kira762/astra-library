@@ -1,5 +1,6 @@
 local utilities = script.Parent.Parent.utilities
 local state = require(utilities.Parent.core.state)
+local motion = require(utilities.motion)
 local services = require(utilities.services)
 local image = require(script.Parent.Parent.images.image)
 local functions = require(script.Parent.Parent.functions)
@@ -125,12 +126,11 @@ local avatarBgTransparency = 0.95
 local idleStrokeTransparency = 0.95
 local glowTransparency = 0.6
 
-local settleTween = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-local hoverTween = TweenInfo.new(0.15, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local settleTween, hoverTween = "snappy", "fast"
 
 local fallbackUri = "rbxassetid://0"
 
-profilePanel.settleInfo = settleTween
+profilePanel.settleSpec = settleTween
 
 local buildGeneration = 0
 
@@ -1416,8 +1416,8 @@ function profilePanel.showTooltip(window, text, contentY: number)
     setText(window.profileTooltipLabel, text)
     tip.Position = UDim2.fromOffset(paddingX + cardPaddingX, y)
     tip.Visible = true
-    state.tweenService:Create(tip, hoverTween, { BackgroundTransparency = 0 }):Play()
-    state.tweenService:Create(window.profileTooltipLabel, hoverTween, { TextTransparency = 0 }):Play()
+    motion.tween(tip, { BackgroundTransparency = 0 }, hoverTween)
+    motion.tween(window.profileTooltipLabel, { TextTransparency = 0 }, hoverTween)
 end
 
 function profilePanel.hideTooltip(window)
@@ -1425,9 +1425,9 @@ function profilePanel.hideTooltip(window)
     if not tip or not tip.Visible then
         return
     end
-    state.tweenService:Create(tip, hoverTween, { BackgroundTransparency = 1 }):Play()
+    motion.tween(tip, { BackgroundTransparency = 1 }, hoverTween)
     if window.profileTooltipLabel then
-        state.tweenService:Create(window.profileTooltipLabel, hoverTween, { TextTransparency = 1 }):Play()
+        motion.tween(window.profileTooltipLabel, { TextTransparency = 1 }, hoverTween)
     end
     task.delay(hoverTween.Time, function()
         if tip.Parent and tip.BackgroundTransparency >= 1 then
@@ -2129,7 +2129,7 @@ function profilePanel.build(window)
                 -- [[faded in: reveal it now instead of waiting for the
                 -- [[next show/hide cycle.]]
                 if window.profilePanel and window.profilePanel.Visible then
-                    state.tweenService:Create(avatarLabel, settleTween, { ImageTransparency = 0 }):Play()
+                    motion.tween(avatarLabel, { ImageTransparency = 0 }, settleTween)
                 end
             else
                 avatarReady[avatarLabel] = nil
@@ -2279,7 +2279,7 @@ function profilePanel.setShown(window, shown, tweenInfo)
             continue
         end
         if tweenInfo then
-            state.tweenService:Create(instance, tweenInfo, props):Play()
+            motion.tween(instance, props, tweenInfo)
         else
             for prop, value in props do
                 instance[prop] = value

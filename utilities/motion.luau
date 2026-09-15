@@ -42,13 +42,24 @@ export type MotionSpec = string | TweenInfo
 -- [[Named specs: the library's motion vocabulary. Each one is a fixed,
 -- shared TweenInfo, so a site that animates at 0.25s Quint/Out no longer
 -- allocates a new TweenInfo every time it runs. Names are stable API: a host
--- can use them through `Astra.Motion.tween` to match the window's timing.]]
+-- can use them through `Astra.Motion.tween` to match the window's timing.
+--
+-- The vocabulary follows one system, so unrelated components still read as
+-- the same interface:
+--   * entrances decelerate (Out) — things arrive fast and settle gently;
+--   * exits accelerate (In) — things leaving should not linger;
+--   * lateral state moves ease InOut — a bar that slides between states
+--     reads as deliberate, not reactive;
+--   * playful surfaces (the window shell, the capsule, oversized feedback)
+--     get a small Back overshoot; everything else stays honest.
+-- Durations step up with the size of what moves: 0.16 for a press, 0.25 for
+-- hover, 0.4 for an element, 0.5–0.6 for surfaces, 0.55 for the shell.]]
 local SPECS: { [string]: TweenInfo } = {
 	-- [[One frame's worth of movement: the "no animation" target for hosts
 	-- that want the tween-completed path without a visible transition.]]
 	instant = TweenInfo.new(0.01, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
 
-	-- [[Press/lift feedback.]]
+	-- [[Press/lift feedback: the shortest readable transition.]]
 	fast = TweenInfo.new(0.16, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
 
 	-- [[Hover feedback and dropdown rows: the most-used spec in the library.]]
@@ -67,11 +78,23 @@ local SPECS: { [string]: TweenInfo } = {
 	-- load transition, with a small overshoot so the shell settles softly.]]
 	pop = TweenInfo.new(0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 
-	-- [[Dismissals: slightly quicker than the entrance that mirrored them.]]
-	exit = TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+	-- [[Lateral state moves: the window folding into its capsule and back,
+	-- a bar sliding between resting places. InOut because the surface is
+	-- neither arriving nor leaving — it is moving house.]]
+	glide = TweenInfo.new(0.35, Enum.EasingStyle.Quart, Enum.EasingDirection.InOut),
+
+	-- [[Dismissals: quicker than the entrances that created them, and
+	-- accelerating (In) so a card that is leaving gains pace instead of
+	-- lingering at the end of its curve.]]
+	exit = TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
 
 	-- [[Overshoot for drag/pop feedback (the capsule settling back).]]
 	spring = TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+
+	-- [[Short overshoot for small surfaces: the collapsed capsule appearing,
+	-- a pill landing back after a press. Same family as `spring`, scaled
+	-- down so small elements never read bouncy.]]
+	settle = TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 
 	-- [[Tab selection gradient spin.]]
 	spin = TweenInfo.new(0.7, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
@@ -100,8 +123,10 @@ motion.specNames = {
 	"smooth",
 	"emphasized",
 	"pop",
+	"glide",
 	"exit",
 	"spring",
+	"settle",
 	"spin",
 	"drift",
 }

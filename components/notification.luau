@@ -10,11 +10,12 @@ local constants = require(utilities.constants)
 local haptic = require(utilities.HapticEngine)
 local motion = require(utilities.motion)
 
-local showTween = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local fadeInTween = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local textFadeTween = TweenInfo.new(0.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local bodyFadeTween = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local dismissTween = TweenInfo.new(0.9, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
+-- [[The card's entrance rides the motion service's shared vocabulary: the
+-- shell slides in on `emphasized`, surfaces fade on `normal`, copy on
+-- `snappy`, and the whole card accelerates out on `exit` — quicker than the
+-- entrance that made it, so the stack never feels crowded by its own past.]]
+local showTween, fadeInTween, textFadeTween = "emphasized", "normal", "snappy"
+local dismissTween = "exit"
 
 local bodyHiddenPosition = UDim2.new(0.5, 360, 0.5, 0)
 local bodyShownPosition = UDim2.new(0.5, 0, 0.5, 0)
@@ -245,12 +246,11 @@ function Notification:_show()
 
     haptic.notify()
 
-    state.tweenService:Create(self.main, showTween, { Size = UDim2.new(1, 0, 0, totalHeight) }):Play()
-    state.tweenService:Create(self.body, bodyFadeTween, { Position = bodyShownPosition }):Play()
-    state.tweenService:Create(self.body, fadeInTween, { BackgroundTransparency = 0 }):Play()
-    state.tweenService:Create(self.titleLabel, textFadeTween, { TextTransparency = 0 }):Play()
-    state.tweenService:Create(self.stroke, fadeInTween, { Transparency = 0.95 }):Play()
-    state.tweenService:Create(self.shadow, textFadeTween, { Transparency = 0.6 }):Play()
+    motion.tween(self.main, { Size = UDim2.new(1, 0, 0, totalHeight) }, showTween)
+    motion.tween(self.body, { Position = bodyShownPosition, BackgroundTransparency = 0 }, showTween)
+    motion.tween(self.titleLabel, { TextTransparency = 0 }, textFadeTween)
+    motion.tween(self.stroke, { Transparency = 0.95 }, fadeInTween)
+    motion.tween(self.shadow, { Transparency = 0.6 }, textFadeTween)
 
     -- [[The stagger beats answer the motion profile: with animation switched
     -- [[off they cost no time and the queue drains a card per frame.]]
@@ -263,7 +263,7 @@ function Notification:_show()
         return
     end
     if self.iconLabel then
-        state.tweenService:Create(self.iconLabel, textFadeTween, { ImageTransparency = 0 }):Play()
+        motion.tween(self.iconLabel, { ImageTransparency = 0 }, textFadeTween)
     end
 
     local secondBeat = motion.step(0.05)
@@ -275,7 +275,7 @@ function Notification:_show()
         return
     end
     if self.descriptionLabel then
-        state.tweenService:Create(self.descriptionLabel, textFadeTween, { TextTransparency = 0.35 }):Play()
+        motion.tween(self.descriptionLabel, { TextTransparency = 0.35 }, textFadeTween)
     end
 
     -- [[The card is fully on screen from here: everything that is still
@@ -316,19 +316,18 @@ function Notification:_dismiss()
         return
     end
 
-    state.tweenService:Create(self.body, fadeInTween, { BackgroundTransparency = 1 }):Play()
-    state.tweenService:Create(self.stroke, fadeInTween, { Transparency = 1 }):Play()
-    state.tweenService:Create(self.shadow, textFadeTween, { Transparency = 1 }):Play()
-    state.tweenService:Create(self.titleLabel, textFadeTween, { TextTransparency = 1 }):Play()
+    motion.tween(self.body, { BackgroundTransparency = 1, Size = UDim2.new(1, -90, 1, 0) }, dismissTween)
+    motion.tween(self.stroke, { Transparency = 1 }, dismissTween)
+    motion.tween(self.shadow, { Transparency = 1 }, dismissTween)
+    motion.tween(self.titleLabel, { TextTransparency = 1 }, dismissTween)
     if self.descriptionLabel then
-        state.tweenService:Create(self.descriptionLabel, textFadeTween, { TextTransparency = 1 }):Play()
+        motion.tween(self.descriptionLabel, { TextTransparency = 1 }, dismissTween)
     end
     if self.iconLabel then
-        state.tweenService:Create(self.iconLabel, textFadeTween, { ImageTransparency = 1 }):Play()
+        motion.tween(self.iconLabel, { ImageTransparency = 1 }, dismissTween)
     end
 
-    state.tweenService:Create(self.body, dismissTween, { Size = UDim2.new(1, -90, 1, 0) }):Play()
-    local collapseTween = state.tweenService:Create(self.main, dismissTween, { Size = UDim2.new(1, 0, 0, 0) })
+    local collapseTween = state.tweenService:Create(self.main, motion.spec(dismissTween), { Size = UDim2.new(1, 0, 0, 0) })
     local connection
     connection = collapseTween.Completed:Connect(function(playbackState)
         if connection then

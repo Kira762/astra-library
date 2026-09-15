@@ -549,12 +549,16 @@ Per-element specifics:
 - `constants.luau` — static constants incl. `icons` map (with `profileAvatarPlaceholder`).
 - `motion.luau` — the library's animation service: named `TweenInfo` specs
   created once (`instant`, `fast`, `snappy`, `normal`, `smooth`, `emphasized`,
-  `pop`, `exit`, `spring`, `spin`, `drift`), `motion.tween(instance, props,
-  spec, onCompleted)` which drops already-satisfied properties and cancels an
-  in-flight tween that would fight over the same property, `motion.step(base)`
-  for cascade pacing, and the speed profiles (`relaxed` 1.35x, `normal` 1x,
-  `snappy` 0.7x, `instant` = no animation) behind the window's "Animation
-  speed" setting. Public as `Astra.Motion`.
+  `pop`, `glide`, `exit`, `spring`, `settle`, `spin`, `drift` — entrances
+  decelerate, exits accelerate on `exit`'s In curve, lateral state moves ride
+  `glide`'s InOut, `pop`/`settle`/`spring` carry the Back-overshoot family),
+  `motion.tween(instance, props, spec, onCompleted)` which drops
+  already-satisfied properties and cancels an in-flight tween that would fight
+  over the same property, `motion.spec(info)` for rescaling a bespoke
+  TweenInfo (delayed glow beats, the odometer reel) with the active profile,
+  `motion.step(base)` for cascade pacing, and the speed profiles (`relaxed`
+  1.35x, `normal` 1x, `snappy` 0.7x, `instant` = no animation) behind the
+  window's "Animation speed" setting. Public as `Astra.Motion`.
 - `persistenceSettings.luau` — settings JSON encode/decode; `activeSubTab` round-trips here.
 - `persistenceWrite.luau` — atomic write helper.
 - `persistenceConfig.luau`, `persistencePaths.luau` — window-config serialization and key paths.

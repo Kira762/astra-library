@@ -3,6 +3,7 @@ Popup.__index = Popup
 Popup.__type = "Popup"
 
 local utilities = script.Parent.Parent.utilities
+local motion = require(utilities.motion)
 local state = require(utilities.Parent.core.state)
 local functions = require(script.Parent.Parent.functions)
 local constants = require(utilities.constants)
@@ -10,10 +11,12 @@ local locale = require(utilities.locale)
 local log = require(utilities.log)
 local haptic = require(utilities.HapticEngine)
 
-local cardShowTween = TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local fadeInTween = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local textFadeTween = TweenInfo.new(0.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local backdropTween = TweenInfo.new(0.35, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
+-- [[The dialog arrives on the shared vocabulary: the card glides the last
+-- few pixels to centre on `smooth` (a large surface decelerating), surfaces
+-- fade on `normal`, copy on `snappy`, the backdrop dims quickest of all so
+-- focus lands on the card. Closing plays the same paths in reverse on
+-- `snappy` — a dialog leaves quicker than it came.]]
+local cardShowTween, fadeInTween, textFadeTween, backdropTween = "smooth", "normal", "snappy", "fast"
 
 local cardWidth = 400
 local cardPadLeft = 22
@@ -564,20 +567,20 @@ function Popup:_buildButton(footerFrame, option, index)
         Parent = buttonFrame,
     })
 
-    local buttonHoverTween = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    local buttonHoverTween = "snappy"
     table.insert(
         self._connections,
         window:Connect(buttonInteract.MouseEnter, function()
             if self._closed then
                 return
             end
-            state.tweenService:Create(buttonFrame, buttonHoverTween, { BackgroundColor3 = hoverColor }):Play()
+            motion.tween(buttonFrame, { BackgroundColor3 = hoverColor }, buttonHoverTween)
         end)
     )
     table.insert(
         self._connections,
         window:Connect(buttonInteract.MouseLeave, function()
-            state.tweenService:Create(buttonFrame, buttonHoverTween, { BackgroundColor3 = bgColor }):Play()
+            motion.tween(buttonFrame, { BackgroundColor3 = bgColor }, buttonHoverTween)
         end)
     )
 
@@ -588,7 +591,7 @@ function Popup:_buildButton(footerFrame, option, index)
                 return
             end
             haptic.click()
-            state.tweenService:Create(buttonStroke, buttonHoverTween, { Transparency = 1 }):Play()
+            motion.tween(buttonStroke, { Transparency = 1 }, buttonHoverTween)
             if callback then
                 task.spawn(function()
                     local ok, err = pcall(callback)
@@ -657,11 +660,11 @@ function Popup:_show()
 
     haptic.notify()
 
-    state.tweenService:Create(self.card, cardShowTween, { Position = UDim2.new(0.5, 0, 0.5, 0) }):Play()
+    motion.tween(self.card, { Position = UDim2.new(0.5, 0, 0.5, 0) }, cardShowTween)
 
     for _, reveal in self._reveal do
         local tweenInfo = if reveal.instance == self.backdrop then backdropTween else fadeInTween
-        state.tweenService:Create(reveal.instance, tweenInfo, { [reveal.prop] = reveal.to }):Play()
+        motion.tween(reveal.instance, { [reveal.prop] = reveal.to }, tweenInfo)
     end
 end
 
@@ -692,7 +695,7 @@ function Popup:Close()
 
     local closeTween = state.tweenService:Create(
         self.card,
-        textFadeTween,
+        motion.spec(textFadeTween),
         { Position = UDim2.new(0.5, 0, 0.5, 10) }
     )
     self._closeConnection = closeTween.Completed:Connect(function(playbackState)
@@ -708,7 +711,7 @@ function Popup:Close()
     closeTween:Play()
 
     for _, reveal in self._reveal do
-        state.tweenService:Create(reveal.instance, textFadeTween, { [reveal.prop] = 1 }):Play()
+        motion.tween(reveal.instance, { [reveal.prop] = 1 }, textFadeTween)
     end
 end
 

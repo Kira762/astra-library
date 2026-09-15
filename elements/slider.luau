@@ -30,9 +30,14 @@ local function element(frame, fill, handle)
     return math.clamp(min, frame[1], frame[2])
 end
 
-local max = TweenInfo.new(0.45, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local isDragging = TweenInfo.new(0.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local connection = TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+-- [[The slider's fill and handle always move through the shared service:
+-- `normal` carries value changes, `fast` follows a drag (the handle chases
+-- the pointer, so it must be quick and never fight the next frame's target),
+-- `snappy` carries hover. Glow reveals trail on the delayed accent beat.]]
+local motion = require(constants.motion)
+local max = "normal"
+local isDragging = "fast"
+local connection = "snappy"
 
 local a22 = 300
 
@@ -200,15 +205,11 @@ function state.new(ownerTab, a31)
         if not self.window:_interactive() then
             return
         end
-        Slider.tweenService
-            :Create(self.track, max, { BackgroundColor3 = self.window.theme.SliderBackgroundHover })
-            :Play()
+        motion.tween(self.track, { BackgroundColor3 = self.window.theme.SliderBackgroundHover }, max)
     end)
 
     self.window:ConnectFor(self, self.main.MouseLeave, function()
-        Slider.tweenService
-            :Create(self.track, max, { BackgroundColor3 = self.window.theme.SliderBackground })
-            :Play()
+        motion.tween(self.track, { BackgroundColor3 = self.window.theme.SliderBackground }, max)
     end)
 
     self.window:ConnectFor(self, self.interact.InputBegan, function(a32)
@@ -446,8 +447,8 @@ function state:_renderProgress(a39)
     local fill = UDim2.new(0, center, 1, 0)
     local at = UDim2.new(0, center, 0.5, 0)
     if a39 then
-        Slider.tweenService:Create(self.progress, a39, { Size = fill }):Play()
-        Slider.tweenService:Create(self.handle, a39, { Position = at }):Play()
+        motion.tween(self.progress, { Size = fill }, a39)
+        motion.tween(self.handle, { Position = at }, a39)
     else
         self.progress.Size = fill
         self.handle.Position = at
@@ -498,13 +499,11 @@ function state:_setHeld(a46)
     local a47 = if a46 then a24 else a23
     self._handleWidth = a47.X
 
-    Slider.tweenService
-        :Create(self.handle, isDragging, {
-            Size = UDim2.fromOffset(a47.X, a47.Y),
-            BackgroundTransparency = if a46 then 0.7 else 0,
-        })
-        :Play()
-    Slider.tweenService:Create(self.handleStroke, isDragging, { Transparency = if a46 then 0.6 else 1 }):Play()
+    motion.tween(self.handle, {
+        Size = UDim2.fromOffset(a47.X, a47.Y),
+        BackgroundTransparency = if a46 then 0.7 else 0,
+    }, isDragging)
+    motion.tween(self.handleStroke, { Transparency = if a46 then 0.6 else 1 }, isDragging)
     self:_renderProgress(isDragging)
 end
 
@@ -527,7 +526,10 @@ function state:Set(a49, a50)
     end
 end
 
-local a51 = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out, 0, false, 0.35)
+local glowBase = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out, 0, false, 0.35)
+local function a51()
+    return motion.spec(glowBase)
+end
 
 function state:_setShown(a52, a53)
     local w = self.window
@@ -539,8 +541,8 @@ function state:_setShown(a52, a53)
         if self.valueOdo then
             self.valueOdo:reveal(0.3, a53)
         end
-        w:_reveal(self.progressGlow, { Transparency = math.max(0.55, w.theme.AccentGlow) }, a53, a51)
-        w:_reveal(self.handleGlow, { Transparency = 0.8 }, a53, a51)
+        w:_reveal(self.progressGlow, { Transparency = math.max(0.55, w.theme.AccentGlow) }, a53, a51())
+        w:_reveal(self.handleGlow, { Transparency = 0.8 }, a53, a51())
     else
         w:_hideCommon(self, a53)
         w:_reveal(self.track, { BackgroundTransparency = 1 }, a53)
@@ -549,19 +551,17 @@ function state:_setShown(a52, a53)
         if self.valueOdo then
             self.valueOdo:reveal(1, a53)
         end
-        w:_reveal(self.progressGlow, { Transparency = 1 }, a53, a51)
-        w:_reveal(self.handleGlow, { Transparency = 1 }, a53, a51)
+        w:_reveal(self.progressGlow, { Transparency = 1 }, a53, a51())
+        w:_reveal(self.handleGlow, { Transparency = 1 }, a53, a51())
     end
 end
 
 function state:_refreshTheme()
-    Slider.tweenService
-        :Create(
-            self.progressGlow,
-            TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-            { Transparency = math.max(0.55, self.window.theme.AccentGlow) }
-        )
-        :Play()
+    motion.tween(
+        self.progressGlow,
+        { Transparency = math.max(0.55, self.window.theme.AccentGlow) },
+        "smooth"
+    )
 end
 
 function state:_minWidth()

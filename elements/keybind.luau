@@ -16,7 +16,11 @@ local hold = require(constants.enums)
 local holdThreshold = require(constants.log)
 
 local callback = value.pillResizeInfo
-local onChanged = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+-- [[The keybind cap shares the field's motion: the cap follows its label on
+-- the hover spec, recording fades run on it too, and the theme refresh
+-- cross-fades on the surface spec.]]
+local motion = require(constants.motion)
+local onChanged = "snappy"
 
 local element = {
     [Enum.UserInputType.MouseButton1] = "MB1",
@@ -202,7 +206,7 @@ function state.new(tab, a22)
             local shown = tostring(self.keyLabel.Text or "")
             self.keyLabel.SelectionStart = 1
             self.keyLabel.CursorPosition = #shown + 1
-            Keybind.tweenService:Create(self.keyLabel, onChanged, { TextTransparency = 0 }):Play()
+            motion.tween(self.keyLabel, { TextTransparency = 0 }, onChanged)
         else
             self:_startRecording()
         end
@@ -221,7 +225,7 @@ function state.new(tab, a22)
             self.keyLabel.Text = frame(self.value)
             self._editing = false
             self:_sizeBox(true)
-            Keybind.tweenService:Create(self.keyLabel, onChanged, { TextTransparency = 0.6 }):Play()
+            motion.tween(self.keyLabel, { TextTransparency = 0.6 }, onChanged)
         else
             self.keyLabel.Text = frame(self.value)
         end
@@ -298,7 +302,7 @@ function state:_sizeBox(a25)
     local a26 = math.clamp(tab.textWidth(self.window.theme.Font, 15, self.keyLabel.Text) + 28, 40, 200)
     self.container.Size = UDim2.new(1, -(a26 + 35), 0, 16)
     if a25 then
-        Keybind.tweenService:Create(self.box, callback, { Size = UDim2.fromOffset(a26, 30) }):Play()
+        motion.tween(self.box, { Size = UDim2.fromOffset(a26, 30) }, "snappy")
     else
         self.box.Size = UDim2.fromOffset(a26, 30)
     end
@@ -313,8 +317,8 @@ function state:_startRecording()
     self.window._recordingKeybind = self
     self.keyLabel.Text = flag.resolve("Recording")
     self:_sizeBox(true)
-    Keybind.tweenService:Create(self.glow, onChanged, { Transparency = 0.7 }):Play()
-    Keybind.tweenService:Create(self.keyLabel, onChanged, { TextTransparency = 0 }):Play()
+    motion.tween(self.glow, { Transparency = 0.7 }, onChanged)
+    motion.tween(self.keyLabel, { TextTransparency = 0 }, onChanged)
 end
 
 function state:_stopRecording()
@@ -332,8 +336,8 @@ function state:_stopRecording()
     end
     self.keyLabel.Text = frame(self.value)
     self:_sizeBox(true)
-    Keybind.tweenService:Create(self.glow, onChanged, { Transparency = 0.9 }):Play()
-    Keybind.tweenService:Create(self.keyLabel, onChanged, { TextTransparency = 0.6 }):Play()
+    motion.tween(self.glow, { Transparency = 0.9 }, onChanged)
+    motion.tween(self.keyLabel, { TextTransparency = 0.6 }, onChanged)
 end
 
 function state:_capture(a28)
@@ -543,13 +547,11 @@ function state:_setShown(a50, a51)
 end
 
 function state:_refreshTheme()
-    Keybind.tweenService
-        :Create(
-            self.box,
-            TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-            { BackgroundTransparency = self.window.theme.FieldTransparency }
-        )
-        :Play()
+    motion.tween(
+        self.box,
+        { BackgroundTransparency = self.window.theme.FieldTransparency },
+        "smooth"
+    )
 end
 
 props(state)

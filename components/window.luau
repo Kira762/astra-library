@@ -24,8 +24,10 @@ local themes = require(script.Parent.Parent.themes)
 local Window = {}
 Window.__index = Window
 
-local revealTween = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local tweenStyle = TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+-- [[Element reveals, theme cross-fades and the toast stack's lane changes all
+-- ride the motion service's shared specs (see utilities/motion.luau) instead
+-- of per-call TweenInfo values: one vocabulary, one time scale, one owner per
+-- animated property.]]
 
 -- [[The beat between the window's shell landing and its page coming in. Long
 -- enough that the two read as one entrance in the right order — frame, then
@@ -39,7 +41,6 @@ local collapsedIconOnlySize = UDim2.fromOffset(50, 50)
 local collapsedPosition = UDim2.new(0.5, 0, 0, 20)
 local toastsTopPosition = UDim2.new(0.5, 0, 0, 12)
 local toastsTopWhenCollapsed = UDim2.new(0.5, 0, 0, collapsedPosition.Y.Offset + collapsedWideSize.Y.Offset + 12)
-local toastPositionTween = TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
 local toastWidth = 320
 
@@ -118,7 +119,7 @@ local function updateToastPosition(window, animate)
         return
     end
 
-    state.tweenService:Create(toastsTop, toastPositionTween, { Position = targetPos }):Play()
+    motion.tween(toastsTop, { Position = targetPos }, "snappy")
 end
 
 function Window:ResolveIcon(value, pack)
@@ -257,7 +258,14 @@ function Window.new(props)
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0.5, 0, 0.5, 0),
                 Size = self.size,
-        BackgroundTransparency = 1,         Visible = false,
+        BackgroundTransparency = 1,
+        -- [[Roblox gives every GuiObject a 1px border by default. The border
+        -- draws the frame's rectangular outline — straight lines that ignore
+        -- the UICorner arcs — so on the rounded window it painted a hard
+        -- square edge across all four corners once the surface faded in.
+        -- The window's silhouette is the UICorner's job alone.]]
+        BorderSizePixel = 0,
+        Visible = false,
         Parent = self.screenGui,
     })
 
@@ -728,8 +736,13 @@ function Window:ChangeTheme(themeInput)
     -- Color3/number through a 0.5s tween only buys dozens of tween allocations
     -- on the startup path — nothing can be seen animating. Assign the end
     -- state directly; the values are identical to what the tweens would have
-    -- settled on, and everything from the first entrance on still tweens.]]
+    -- settled on, and everything from the first entrance on still tweens.
+    -- When the theme *can* be seen changing, the per-instance properties are
+    -- batched into one motion-service tween each (instead of one TweenService
+    -- tween per property), so a theme switch both animates as one gesture and
+    -- hands ownership of every animated property to the service.]]
     local instantApply = self.hidden and not self.hasShownOnce
+    local pendingThemeTweens: { [Instance]: { [string]: any } } = {}
     for instance, properties in self.themeProperties do
         for prop, binding in properties do
             local resolvedValue = if typeof(binding) == "table" then binding[2](self.theme[binding[1]]) else self.theme[binding]
@@ -738,10 +751,20 @@ function Window:ChangeTheme(themeInput)
                 continue
             end
             if not instantApply and (typeof(resolvedValue) == "Color3" or typeof(resolvedValue) == "number") then
-                state.tweenService:Create(instance, tweenStyle, { [prop] = resolvedValue }):Play()
+                local batch = pendingThemeTweens[instance]
+                if not batch then
+                    batch = {}
+                    pendingThemeTweens[instance] = batch
+                end
+                batch[prop] = resolvedValue
             else
                 instance[prop] = resolvedValue
             end
+        end
+    end
+    if not instantApply then
+        for instance, batch in pendingThemeTweens do
+            motion.tween(instance, batch, "smooth")
         end
     end
 
@@ -760,7 +783,7 @@ function Window:ChangeTheme(themeInput)
     if self.windowCorner and (self._collapsedShown or self.minimised) and not self.animating then
         local pill = self.theme.PillCornerRadius or UDim.new(1, 0)
         if self.windowCorner.CornerRadius ~= pill then
-            state.tweenService:Create(self.windowCorner, tweenStyle, { CornerRadius = pill }):Play()
+            motion.tween(self.windowCorner, { CornerRadius = pill }, "smooth")
         end
     end
 end
@@ -797,7 +820,7 @@ function Window:CreateTab(props)
             tab.topbarItem.Visible = true
             tab:_applyVisual(
                 if self.selectedTab == tab then "selected" else "unselected",
-                TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+                "normal"
             )
         end
         -- [[A runtime-created tab may belong to the other rail.]]
@@ -1033,7 +1056,12 @@ function Window:Close()
     local transitionId = self._closeTransitionId
     local originalSize = self.main.Size
     local originalPosition = self.main.Position
-    local closeTweenInfo = TweenInfo.new(0.38, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
+    -- [[A close is a departure: the shell contracts on the `glide` spec (a
+    -- symmetric ease reads as the window folding itself away) while the
+    -- surface accelerates out on `exit`, so the window never lingers at the
+    -- tail of its own goodbye.]]
+    local contractTween = "glide"
+    local fadeOutTween = "exit"
     local targetSize = UDim2.new(
         originalSize.X.Scale * 0.88,
         math.floor(originalSize.X.Offset * 0.88),
@@ -1045,15 +1073,15 @@ function Window:Close()
     self.main.AnchorPoint = Vector2.new(0.5, 0.5)
     self.main.Position = originalPosition
     self.drag.drag.Visible = false
-    self:_fadeSurfaces(false, closeTweenInfo)
+    self:_fadeSurfaces(false, fadeOutTween)
     if self.title then
-        motion.tween(self.title, { TextTransparency = 1 }, closeTweenInfo)
+        motion.tween(self.title, { TextTransparency = 1 }, fadeOutTween)
     end
     if self.subtitle then
-        motion.tween(self.subtitle, { TextTransparency = 1 }, closeTweenInfo)
+        motion.tween(self.subtitle, { TextTransparency = 1 }, fadeOutTween)
     end
     if self.topbarIcon then
-        motion.tween(self.topbarIcon, { ImageTransparency = 1 }, closeTweenInfo)
+        motion.tween(self.topbarIcon, { ImageTransparency = 1 }, fadeOutTween)
     end
     self:_fadeSelectedElementsOut()
     -- [[The contraction goes through the motion service so the close answers
@@ -1071,11 +1099,14 @@ function Window:Close()
         self:Unload()
     end
 
+    -- [[The surface accelerates out first (a separate tween from the
+    -- contraction: one owner per property, and the fade never delays the
+    -- settle path the teardown waits on).]]
+    motion.tween(self.main, { BackgroundTransparency = 1 }, fadeOutTween)
     if not motion.tween(self.main, {
         Size = targetSize,
         Position = originalPosition,
-        BackgroundTransparency = 1,
-    }, closeTweenInfo, finishClose) then
+    }, contractTween, finishClose) then
         -- [[Nothing animated, so the teardown just ran and the window's
         -- instances are gone — the corner below must not be touched.]]
         finishClose()
@@ -1084,8 +1115,12 @@ function Window:Close()
         end
     end
     -- [[Collapse to a capsule using the theme's pill radius so a custom
-    -- [[PillCornerRadius still reads on the closing shrink.]]
-    motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, closeTweenInfo)
+    -- [[PillCornerRadius still reads on the closing shrink. A synchronous
+    -- completion (the test harness plays tweens on the spot) may have torn
+    -- the window down inside the call above; never touch the corner then.]]
+    if not self.unloaded then
+        motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, contractTween)
+    end
 end
 
 function Window:Hide()
@@ -1121,17 +1156,19 @@ function Window:Hide()
 
     local collapsedPos, collapsedSize = self:_collapsedRect()
 
-    local hideTween = TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-    local surfaceTween = TweenInfo.new(0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
-    local cornerTween = TweenInfo.new(0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
-    local collapseShowTween = TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    -- [[The fold: content leaves quickly (snappy fades), the shell glides
+    -- into the capsule with the symmetric ease, and the capsule's face
+    -- appears with a small settle overshoot so the fold ends on a landing,
+    -- not a stop.]]
+    local hideTween = "snappy"
+    local surfaceTween = "glide"
+    local cornerTween = "glide"
+    local collapseShowTween = "settle"
 
             self._hideTransitionId = (self._hideTransitionId or 0) + 1
     local transitionId = self._hideTransitionId
 
-            state.tweenService
-        :Create(self.drag.dragCosmetic, hideTween, { Size = UDim2.fromOffset(0, 4), BackgroundTransparency = 1 })
-        :Play()
+            motion.tween(self.drag.dragCosmetic, { Size = UDim2.fromOffset(0, 4), BackgroundTransparency = 1 }, "fast")
     task.delay(0.18, function()
         if self.unloaded or not self.hidden or self._hideTransitionId ~= transitionId then
             return
@@ -1217,8 +1254,12 @@ function Window:ToggleMinimise()
     self.drag.drag.Visible = false
     self.collapsedInteract.Visible = false
 
-    local expandTween = TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-    local surfaceTween = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
+    -- [[Both directions of the minimise move one surface between two shapes,
+    -- so both ride the same pair of specs: `smooth` carries the geometric
+    -- unfold (a big decelerating move reads as arriving), `settle` lands the
+    -- capsule face when folding away.]]
+    local expandTween = "smooth"
+    local surfaceTween = "smooth"
 
     self._hideTransitionId = (self._hideTransitionId or 0) + 1
 
@@ -1226,7 +1267,7 @@ function Window:ToggleMinimise()
         self.minimised = false
         self.drag.drag.Visible = false
         image.assign(self.minimiseAction.iconLabel, "Image", constants.icons.minimise)
-        state.tweenService:Create(self.main, expandTween, { Size = self.size }):Play()
+        motion.tween(self.main, { Size = self.size }, expandTween)
         motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, expandTween)
         self:_fadeSurfaces(true, surfaceTween)	chrome.setCollapsedShown(self, false, surfaceTween)
 
@@ -1238,16 +1279,14 @@ function Window:ToggleMinimise()
         -- [[is off).]]
         self:_clampToScreen()
 
-        state.tweenService
-            :Create(self.drag.drag, expandTween, {
-                Position = UDim2.new(
-                    self.main.Position.X.Scale,
-                    self.main.Position.X.Offset,
-                    self.main.Position.Y.Scale,
-                    self.main.Position.Y.Offset + self.size.Y.Offset / 2 + 15
-                ),
-            })
-            :Play()
+        motion.tween(self.drag.drag, {
+            Position = UDim2.new(
+                self.main.Position.X.Scale,
+                self.main.Position.X.Offset,
+                self.main.Position.Y.Scale,
+                self.main.Position.Y.Offset + self.size.Y.Offset / 2 + 15
+            ),
+        }, expandTween)
 
                         task.delay(0.2, function()
             if self.unloaded or self.minimised or self.hidden then
@@ -1296,22 +1335,18 @@ function Window:ToggleMinimise()
         end)
 
         self:_fadeSurfaces(false, surfaceTween)	chrome.setCollapsedShown(self, true, surfaceTween)
-        state.tweenService
-            :Create(self.main, expandTween, { Size = UDim2.fromOffset(self.size.X.Offset, self.layout.topbarHeight) })
-            :Play()
+        motion.tween(self.main, { Size = UDim2.fromOffset(self.size.X.Offset, self.layout.topbarHeight) }, expandTween)
         -- [[Minimised bar reads as a theme-aware capsule (PillCornerRadius).]]
         motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, expandTween)
 
-        state.tweenService
-            :Create(self.drag.drag, expandTween, {
-                Position = UDim2.new(
-                    self.main.Position.X.Scale,
-                    self.main.Position.X.Offset,
-                    self.main.Position.Y.Scale,
-                    self.main.Position.Y.Offset + self.layout.topbarHeight / 2 + 15
-                ),
-            })
-            :Play()
+        motion.tween(self.drag.drag, {
+            Position = UDim2.new(
+                self.main.Position.X.Scale,
+                self.main.Position.X.Offset,
+                self.main.Position.Y.Scale,
+                self.main.Position.Y.Offset + self.layout.topbarHeight / 2 + 15
+            ),
+        }, expandTween)
 
         task.delay(0.5, function()
             if self.unloaded then
@@ -1390,15 +1425,12 @@ function Window:_recenterForProfile(animate)
         return
     end
     if animate and not self.animating then
-        local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-        state.tweenService:Create(self.main, tweenInfo, { Position = target }):Play()
-        state.tweenService
-            :Create(
-                self.drag.drag,
-                tweenInfo,
-                { Position = UDim2.new(target.X.Scale, target.X.Offset, target.Y.Scale, target.Y.Offset + self.size.Y.Offset / 2 + 15) }
-            )
-            :Play()
+        -- [[A recenter slides the pair sideways between resting places: the
+        -- symmetric `glide` ease reads as deliberate, not reactive.]]
+        motion.tween(self.main, { Position = target }, "glide")
+        motion.tween(self.drag.drag, {
+            Position = UDim2.new(target.X.Scale, target.X.Offset, target.Y.Scale, target.Y.Offset + self.size.Y.Offset / 2 + 15),
+        }, "glide")
     else
         self.main.Position = target
         self:_syncDragBar()
@@ -1431,7 +1463,7 @@ function Window:_armProfilePlayerWaiter()
                 connection:Disconnect()
                 if state.localPlayer and profilePanel.ensureBuilt(self) then
                     profilePanel.applyIdentity(self)
-                    profilePanel.setShown(self, true, profilePanel.settleInfo)
+                    profilePanel.setShown(self, true, profilePanel.settleSpec)
                     -- [[Centre the pair if the user has not dragged the
                     -- [[window off its resting spot.]]
                     if self.main.Position.X.Scale == 0.5 and self.main.Position.Y.Scale == 0.5 then
@@ -1851,18 +1883,18 @@ function Window:_setElementLocked(element, locked, message)
         self:_buildLockScrim(element)
     end
 
-    local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    -- [[The lock scrim arrives on the shared hover spec; the unlock delay
+    -- tracks its duration so the scrim never hides after it has faded.]]
+    local lockSpec = "snappy"
 
     if locked then
         element.lockScrim.Visible = true
     end
-    state.tweenService
-        :Create(element.lockScrim, tweenInfo, {
-            BackgroundTransparency = if locked then lockScrimTransparency else 1,
-        })
-        :Play()
+    motion.tween(element.lockScrim, {
+        BackgroundTransparency = if locked then lockScrimTransparency else 1,
+    }, lockSpec)
     if not locked then
-        task.delay(tweenInfo.Time, function()
+        task.delay(0.25, function()
             if not element.locked and element.lockScrim and element.lockScrim.Parent then
                 element.lockScrim.Visible = false             end
         end)
@@ -1881,11 +1913,9 @@ function Window:_setElementLocked(element, locked, message)
         element._descriptionBefore = nil
     end
 
-    state.tweenService
-        :Create(label, tweenInfo, {
-            TextTransparency = if locked then lockedTextTransparency else 0.45,
-        })
-        :Play()
+    motion.tween(label, {
+        TextTransparency = if locked then lockedTextTransparency else 0.45,
+    }, lockSpec)
 end
 
 function Window:_buildLockScrim(element)
@@ -2011,7 +2041,7 @@ function Window:_setLayoutMode(modeName)
     self._layoutTransitioning = true
     self._layoutTransitionId = (self._layoutTransitionId or 0) + 1
     local transitionId = self._layoutTransitionId
-    local tweenInfo = TweenInfo.new(0.16, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    local tweenInfo = "fast"
     self:_fadeSurfaces(false, tweenInfo)
     self:_fadeSelectedElementsOut()
     for _, tab in self.tabs do
@@ -2329,7 +2359,11 @@ function Window:_quickRestore()
     end
     local targetPos = self:_clampedPosition(restore)
     self._restorePosition = targetPos
-    local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    -- [[The restore unfolds one surface between two shapes: the shell glides
+    -- (symmetric ease) while the corner springs open with a small overshoot,
+    -- so the capsule visibly "pops" back into the window.]]
+    local restoreTween = "glide"
+    local restoreCornerTween = "settle"
 
     self.main.ClipsDescendants = true
     self.main.BackgroundTransparency = windowSurfaceTransparency
@@ -2402,10 +2436,10 @@ function Window:_quickRestore()
         overlayQueue.resume(self)
     end
 
-    if not motion.tween(self.main, { Size = self.size, Position = targetPos }, tweenInfo, settle) then
+    if not motion.tween(self.main, { Size = self.size, Position = targetPos }, restoreTween, settle) then
         settle()
     end
-    motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, tweenInfo)
+    motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, restoreCornerTween)
     self:_stageContentReveal(motion.step(contentRevealBeat * 0.6), 0.02, 0.4, entranceId)
 end
 function Window:_firstShow()
@@ -2426,7 +2460,7 @@ function Window:_firstShow()
     end
 
     self.main.Size = self.size
-    self.windowScale.Scale = 0.92
+    self.windowScale.Scale = 0.94
     -- [[Entrance starts as a capsule (theme pill) then opens to CornerRoundness.]]
     self.windowCorner.CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0)
     -- [[Which entrance owns the staged content reveal below. A hide, a repeat
@@ -2456,7 +2490,7 @@ function Window:_firstShow()
     -- [[for when it is opened; the staged reveal below walks the page that is
     -- [[actually on screen, one control per beat.]]
     self:_applySettingsLayout(self._settingsMode)
-    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    local tweenInfo = "smooth"
     if self.topbarIcon then
         self.topbarIcon.ImageTransparency = 1
         motion.tween(self.topbarIcon, { ImageTransparency = 0 }, tweenInfo)
@@ -2729,8 +2763,8 @@ function Window:_flashResult(element, ok)
     local flashStroke = ok and constants.accent.onStroke or self.theme.ErrorStrokeColor
     -- [[Hoisted out of the function: these two are fixed, and the flash runs
     -- on every element callback that reports a result.]]
-    local flashTween = TweenInfo.new(0.1, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-    local restoreTween = TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    local flashTween = "fast"
+    local restoreTween = "normal"
 
     motion.tween(box, { BackgroundColor3 = flashColor }, flashTween)
     if boxStroke then
@@ -2852,7 +2886,7 @@ function Window:_runGuarded(element, fn, ...)
         element._errored = true
 
         local flashTarget = element.flashTarget or element.main
-        local errorTween = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+        local errorTween = "snappy"
         motion.tween(flashTarget, { BackgroundColor3 = self.theme.ErrorColor }, errorTween)
         motion.tween(element.stroke, { Color = self.theme.ErrorStrokeColor }, errorTween)
                 if element.title then
@@ -2872,12 +2906,12 @@ function Window:_runGuarded(element, fn, ...)
         motion.tween(
             flashTarget,
             { BackgroundColor3 = Color3.fromRGB(255, 255, 255) },
-            TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+            "normal"
         )
         motion.tween(
             element.stroke,
             { Color = self.theme.ElementStroke },
-            TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+            "emphasized"
         )
         element._errored = false
     end)
@@ -2996,7 +3030,7 @@ function Window:_reveal(instance, targets, animate, tweenInfo)
         -- and cancels an in-flight tween on the same property — the cascade
         -- asks every element on the page to show on one frame, and a
         -- hidden/reshown window used to stack a second reveal on the first.]]
-        motion.tween(instance, targets, tweenInfo or revealTween)
+        motion.tween(instance, targets, tweenInfo or "normal")
     else
         for prop, value in targets do
             instance[prop] = value
@@ -3043,7 +3077,7 @@ function Window:_resetCapsulePosition()
     self._collapsedPosition = nil
     if self._collapsedShown and not self.animating then
         local position = self:_collapsedRect()
-        motion.tween(self.main, { Position = position }, tweenStyle)
+        motion.tween(self.main, { Position = position }, "glide")
     end
 end
 

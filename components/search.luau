@@ -1,12 +1,17 @@
 local utilities = script.Parent.Parent.utilities
 local state = require(utilities.Parent.core.state)
+local motion = require(utilities.motion)
 local constants = require(utilities.constants)
 local locale = require(utilities.locale)
 local actionComponent = require(script.Parent.action)
 
 local search = {}
 
-local hoverTween = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+-- [[The search overlay shares the library's hover spec for its fades; the
+-- two task.delay beats below read the spec's duration so the pill never
+-- hides while its fade is still running.]]
+local HOVER_SPEC = "snappy"
+local HOVER_SPEC_TIME = 0.25
 
 local defaultTransparency = 0.6
 local hoverTransparency = 0.2
@@ -44,16 +49,12 @@ local function getAllElements(window)
     return elements
 end
 
-local function setPillVisibility(window, visible, tweenInfo)
-    state.tweenService
-        :Create(window.searchPill, tweenInfo, {
-            BackgroundTransparency = if visible then 0.9 else 1,
-        })
-        :Play()
-    state.tweenService:Create(window.searchStroke, tweenInfo, { Transparency = if visible then 0.85 else 1 }):Play()
-    state.tweenService:Create(window.searchShadow, tweenInfo, { Transparency = if visible then 0.92 else 1 }):Play()
-    state.tweenService:Create(window.searchIcon, tweenInfo, { ImageTransparency = if visible then 0.65 else 1 }):Play()
-    state.tweenService:Create(window.searchInput, tweenInfo, { TextTransparency = if visible then 0.2 else 1 }):Play()
+local function setPillVisibility(window, visible, spec)
+    motion.tween(window.searchPill, { BackgroundTransparency = if visible then 0.9 else 1 }, spec)
+    motion.tween(window.searchStroke, { Transparency = if visible then 0.85 else 1 }, spec)
+    motion.tween(window.searchShadow, { Transparency = if visible then 0.92 else 1 }, spec)
+    motion.tween(window.searchIcon, { ImageTransparency = if visible then 0.65 else 1 }, spec)
+    motion.tween(window.searchInput, { TextTransparency = if visible then 0.2 else 1 }, spec)
 end
 
 local function setTabVisibility(window, visible, tweenInfo)
@@ -141,18 +142,18 @@ function search.open(window)
     filterElements(window, "")
     window:_jumpTo(window.searchPage)
 
-    setTabVisibility(window, false, hoverTween)
-    task.delay(hoverTween.Time, function()
+    setTabVisibility(window, false, HOVER_SPEC)
+    task.delay(HOVER_SPEC_TIME, function()
         if not window.unloaded and window._searching and window.layout.mode ~= "sidebar" then
             window.tabList.Visible = false
         end
     end)
 
     window.searchPill.Visible = true
-    setPillVisibility(window, true, hoverTween)
+    setPillVisibility(window, true, HOVER_SPEC)
     window.searchInput:CaptureFocus()
 
-    state.tweenService:Create(window.searchAction.iconLabel, hoverTween, { ImageTransparency = hoverTransparency }):Play()
+    motion.tween(window.searchAction.iconLabel, { ImageTransparency = hoverTransparency }, HOVER_SPEC)
 end
 
 function search.close(window, opts)
@@ -172,8 +173,8 @@ function search.close(window, opts)
         window:_jumpTo(jumpTarget)
     end
 
-    setPillVisibility(window, false, hoverTween)
-    task.delay(hoverTween.Time, function()
+    setPillVisibility(window, false, HOVER_SPEC)
+    task.delay(HOVER_SPEC_TIME, function()
         if not window.unloaded and not window._searching then
             window.searchPill.Visible = false
         end
@@ -185,10 +186,10 @@ function search.close(window, opts)
         else
             window.tabList.Visible = true
         end
-        setTabVisibility(window, true, hoverTween)
+        setTabVisibility(window, true, HOVER_SPEC)
     end
 
-    state.tweenService:Create(window.searchAction.iconLabel, hoverTween, { ImageTransparency = defaultTransparency }):Play()
+    motion.tween(window.searchAction.iconLabel, { ImageTransparency = defaultTransparency }, HOVER_SPEC)
 end
 
 function search.toggle(window)

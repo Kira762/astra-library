@@ -421,19 +421,27 @@ remove files. Qualified names are never shadowed by the folder.
 ### Motion (animation)
 
 Astra's window transitions — hover, element reveal, the window entrance, the
-result flashes — run through one service, so your own animations can use the
-same timing and answer the same "Animation speed" setting the user picked in
-Performance → Motion. (The entrance queue that spaces the notification and
-toast arrivals paces itself through `Motion.step`, so it stretches and
-shortens with that setting too; each card's own entrance tweens still run on
-their component-local specs.)
+result flashes, every card's entrance and dismissal — run through one service,
+so your own animations can use the same timing and answer the same
+"Animation speed" setting the user picked in Performance → Motion. (The
+entrance queue that spaces the notification and toast arrivals paces itself
+through `Motion.step`, so it stretches and shortens with that setting too;
+the only curves outside the vocabulary are the progress bar's ambient
+indeterminate sweep and two delayed glow beats, and those rescale with the
+profile as well.)
 
 ```lua
 -- Animate with the library's own specs.
 Astra.Motion.tween(frame, { BackgroundTransparency = 0.5 }, "snappy")
 
--- Specs: instant, fast, snappy, normal, smooth, emphasized, pop, exit,
--- spring, spin, drift. A TweenInfo works anywhere a name does.
+-- Specs: instant, fast, snappy, normal, smooth, emphasized, pop, glide,
+-- exit, spring, settle, spin, drift. A TweenInfo works anywhere a name does.
+--
+-- The vocabulary is a system: entrances decelerate (Out), exits accelerate
+-- (`exit` is In — a dismissal is quicker than its entrance), lateral state
+-- moves ease InOut (`glide` — the window folding into its capsule), and the
+-- playful surfaces get a small Back overshoot (`pop` for the shell, `settle`
+-- for small elements, `spring` for drag landings).
 Astra.Motion.tween(stroke, { Color = Color3.new(1, 1, 1) }, TweenInfo.new(0.3))
 
 -- Settle work after the animation, without racing a synchronous completion.

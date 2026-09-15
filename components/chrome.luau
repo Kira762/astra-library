@@ -1,5 +1,6 @@
 local utilities = script.Parent.Parent.utilities
 local state = require(utilities.Parent.core.state)
+local motion = require(utilities.motion)
 local fs = require(utilities.filesystem)
 local constants = require(utilities.constants)
 local locale = require(utilities.locale)
@@ -207,9 +208,11 @@ function chrome.isNewUser()
     return isNew
 end
 
-function chrome.setCollapsedShown(window, shown, tweenInfo)
-    local transitionId = window._hideTransitionId
-
+-- [[The capsule's face (icon, title, subtitle) fades in with `spec` — a
+-- motion-service spec name (the fold plays "settle"), so the collapse answers
+-- the speed setting like everything else — or applies instantly when no spec
+-- is given (the silent state-sync path).]]
+function chrome.setCollapsedShown(window, shown, spec)
     local targets = {
         [window.collapsedIcon] = { ImageTransparency = if shown then 0 else 1 },
     }
@@ -220,17 +223,8 @@ function chrome.setCollapsedShown(window, shown, tweenInfo)
     end
 
     for instance, properties in targets do
-        if tweenInfo then
-            local tween = state.tweenService:Create(instance, tweenInfo, properties)
-            tween.Completed:Connect(function(ok)
-                if not ok or window._hideTransitionId ~= transitionId then
-                    return
-                end
-                for prop, value in properties do
-                    instance[prop] = value
-                end
-            end)
-            tween:Play()
+        if spec then
+            motion.tween(instance, properties, spec)
         else
             for prop, value in properties do
                 instance[prop] = value

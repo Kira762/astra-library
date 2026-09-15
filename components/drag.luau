@@ -6,8 +6,7 @@ local utilities = script.Parent.Parent.utilities
 
 local state = require(utilities.Parent.core.state)
 local constants = require(utilities.constants)
-local slowTween = TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-local fastTween = TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local motion = require(utilities.motion)
 
 function Drag.new(window, props)
     props = if typeof(props) == "table" then props else {}
@@ -91,25 +90,13 @@ function Drag.new(window, props)
 
     self.window:Connect(self.drag.MouseEnter, function()
         if not isDragging and not self.window.hidden then
-            state.tweenService
-                :Create(
-                    self.dragCosmetic,
-                    fastTween,
-                    { BackgroundTransparency = 0.5, Size = UDim2.new(0, 120, 0, 4) }
-                )
-                :Play()
+            motion.tween(self.dragCosmetic, { BackgroundTransparency = 0.5, Size = UDim2.new(0, 120, 0, 4) }, "fast")
         end
     end)
 
     self.window:Connect(self.drag.MouseLeave, function()
         if not isDragging and not self.window.hidden then
-            state.tweenService
-                :Create(
-                    self.dragCosmetic,
-                    fastTween,
-                    { BackgroundTransparency = 0.7, Size = UDim2.new(0, 100, 0, 4) }
-                )
-                :Play()
+            motion.tween(self.dragCosmetic, { BackgroundTransparency = 0.7, Size = UDim2.new(0, 100, 0, 4) }, "fast")
         end
     end)
 
@@ -128,18 +115,13 @@ function Drag.new(window, props)
             return
         end
 
-        state.tweenService
-            :Create(
-                self.dragCosmetic,
-                slowTween,
-                { Size = UDim2.new(0, 100, 0, 4), BackgroundTransparency = 0.7 }
-            )
-            :Play()
+        motion.tween(self.dragCosmetic, { Size = UDim2.new(0, 100, 0, 4), BackgroundTransparency = 0.7 }, "settle")
 
-        local settleTween = TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+        -- [[The capsule settling back after a drag is the spring's moment:
+        -- a short overshoot that reads as weight, not lag.]]
         local mainPos, dragPos = constrainPosition()
-        state.tweenService:Create(self.window.main, settleTween, { Position = mainPos }):Play()
-        state.tweenService:Create(self.drag, settleTween, { Position = dragPos }):Play()
+        motion.tween(self.window.main, { Position = mainPos }, "spring")
+        motion.tween(self.drag, { Position = dragPos }, "spring")
     end
 
     local lerpSmoothing = 1e-7
@@ -176,13 +158,7 @@ function Drag.new(window, props)
                 + self.window.main.AbsoluteSize * self.window.main.AnchorPoint
                 - state.userInputService:GetMouseLocation()
             if not self.window.hidden then
-                state.tweenService
-                    :Create(
-                        self.dragCosmetic,
-                        slowTween,
-                        { Size = UDim2.new(0, 110, 0, 4), BackgroundTransparency = 0 }
-                    )
-                    :Play()
+                motion.tween(self.dragCosmetic, { Size = UDim2.new(0, 110, 0, 4), BackgroundTransparency = 0 }, "fast")
             end
 
             self._dragConnection = self.window:Connect(state.runService.RenderStepped, renderStepHandler)

@@ -5,6 +5,7 @@ state.__type = "Progress"
 local constants = script.Parent.Parent.utilities
 
 local Progress = require(constants.Parent.core.state)
+local motion = require(constants.motion)
 local tab = require(script.Parent.Parent.functions)
 local props = require(constants.moveable)
 local name = require(constants.locale)
@@ -20,7 +21,11 @@ local fill = 16
 local textLabel = 14
 local a14 = 0.4
 
-local a15 = TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+-- [[Fills move on the shared reveal curve. The indeterminate sweep keeps its
+-- own looping TweenInfo: it is ambient motion, not a state transition, so it
+-- does not belong to the interaction vocabulary (and should not inherit the
+-- speed profiles a user tunes for interactions).]]
+local a15 = "normal"
 
 local a16 = NumberSequence.new({
     NumberSequenceKeypoint.new(0, 0.85),
@@ -344,7 +349,7 @@ function state:_render(a35: boolean?)
             if a35 == false then
                 a38.fill.BackgroundTransparency = a39
             else
-                Progress.tweenService:Create(a38.fill, a15, { BackgroundTransparency = a39 }):Play()
+                motion.tween(a38.fill, { BackgroundTransparency = a39 }, a15)
             end
         end
         return
@@ -354,7 +359,7 @@ function state:_render(a35: boolean?)
     if a35 == false then
         self.fill.Size = a40
     else
-        Progress.tweenService:Create(self.fill, a15, { Size = a40 }):Play()
+        motion.tween(self.fill, { Size = a40 }, a15)
     end
 end
 

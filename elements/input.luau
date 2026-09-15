@@ -13,8 +13,12 @@ local description = require(script.Parent.description)
 local numeric = require(constants.constants)
 local clearOnFocus = require(constants.HapticEngine)
 
-local callback = numeric.pillResizeInfo
-local element = TweenInfo.new(0.15, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+-- [[Field feedback rides the shared motion service: the box follows typing
+-- on the hover spec (quick, but never jumpy), focus fades the caret text on
+-- the press spec, and theme refreshes cross-fade on the surface spec.]]
+local motion = require(constants.motion)
+local callback = "snappy"
+local element = "fast"
 
 local function frame(textBox)
     local a, b = textBox:match("^([%d%.%-]+)%^([%d%.%-]+)$")
@@ -166,11 +170,11 @@ function state.new(tab, placeholderLabel)
     end)
 
     self.window:ConnectFor(self, self.input.Focused, function()
-        Input.tweenService:Create(self.input, element, { TextTransparency = 0 }):Play()
+        motion.tween(self.input, { TextTransparency = 0 }, element)
     end)
 
     self.window:ConnectFor(self, self.input.FocusLost, function()
-        Input.tweenService:Create(self.input, element, { TextTransparency = 0.6 }):Play()
+        motion.tween(self.input, { TextTransparency = 0.6 }, element)
         if self.clearOnFocus and self.input.Text == "" and self.value ~= "" then
             self.input.Text = self.value
             return
@@ -192,7 +196,7 @@ function state:_sizeBox(a16)
     local a18 = math.clamp(tab.textWidth(self.window.theme.Font, 15, a17) + 30, 70, 220)
     self.container.Size = UDim2.new(1, -(a18 + 35), 0, 16)
     if a16 then
-        Input.tweenService:Create(self.box, callback, { Size = UDim2.fromOffset(a18, 30) }):Play()
+        motion.tween(self.box, { Size = UDim2.fromOffset(a18, 30) }, callback)
     else
         self.box.Size = UDim2.fromOffset(a18, 30)
     end
@@ -254,13 +258,11 @@ function state:_setShown(a24, a25)
 end
 
 function state:_refreshTheme()
-    Input.tweenService
-        :Create(
-            self.box,
-            TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-            { BackgroundTransparency = self.window.theme.FieldTransparency }
-        )
-        :Play()
+    motion.tween(
+        self.box,
+        { BackgroundTransparency = self.window.theme.FieldTransparency },
+        "smooth"
+    )
 end
 
 props(state)

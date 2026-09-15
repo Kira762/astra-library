@@ -5,6 +5,7 @@ state.__type = "Statistic"
 local constants = script.Parent.Parent.utilities
 
 local Stat = require(constants.Parent.core.state)
+local motion = require(constants.motion)
 local tab = require(script.Parent.Parent.functions)
 local props = require(constants.odometer)
 local name = require(constants.moveable)
@@ -22,7 +23,9 @@ local frame = NumberSequence.new({
 
 local valueLabel = 38
 
-local baseline = TweenInfo.new(0.6, Enum.EasingStyle.Exponential)
+-- [[The stat's accent gradient drifts to its new angle on the shared hero
+-- spec — the same surface language as the window's own gradient.]]
+local baseline = "emphasized"
 
 local function a14(a15)
     return a15.fill.Keypoints[1].Value
@@ -444,7 +447,7 @@ function state:_setAccent(a27, a28)
         elseif a28 == -1 then Vector2.new(-0.04, 0.5)
         else Vector2.new(0, 0.5)
     for _, a32 in self._accentGradients do
-        Stat.tweenService:Create(a32, baseline, { Rotation = a30, Offset = a31 }):Play()
+        motion.tween(a32, { Rotation = a30, Offset = a31 }, baseline)
     end
 end
 

@@ -7,7 +7,7 @@ local utilities = script.Parent.Parent.utilities
 local state = require(utilities.Parent.core.state)
 local log = require(utilities.log)
 local haptic = require(utilities.HapticEngine)
-local hoverTween = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local motion = require(utilities.motion)
 
 function Action.new(window, props)
     props = if typeof(props) == "table" then props else {}
@@ -63,13 +63,7 @@ function Action.new(window, props)
         if self.isLit and self:isLit() then
             return
         end
-        state.tweenService
-            :Create(
-                self.iconLabel,
-                hoverTween,
-                { ImageTransparency = 0.6 }
-            )
-            :Play()
+        motion.tween(self.iconLabel, { ImageTransparency = 0.6 }, "snappy")
     end
 
     self.window:Connect(self.interact.MouseButton1Click, function()
@@ -90,13 +84,7 @@ function Action.new(window, props)
         if not self.window:_interactive() then
             return
         end
-        state.tweenService
-            :Create(
-                self.iconLabel,
-                hoverTween,
-                { ImageTransparency = 0.2 }
-            )
-            :Play()
+        motion.tween(self.iconLabel, { ImageTransparency = 0.2 }, "snappy")
     end)
 
     self.window:Connect(self.interact.MouseLeave, idleTransparency)

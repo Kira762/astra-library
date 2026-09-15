@@ -407,7 +407,7 @@ All element classes share the pattern:
 Per-element specifics:
 - `toggle.luau` — track/knob frames, accent tween locals.
 - `slider.luau` — fill frame, handle, drag math locals (`a1..a12`: range min/max, step, value normalization).
-- `dropdown.luau` — button, list frame, option rows (built on first open, `_materialiseOptions`/`_buildOptionAt`), highlight, search filter.
+- `dropdown.luau` — button, list frame, option rows (built on first open, `_materialiseOptions`/`_buildOptionAt`), highlight, search filter, and the multi-select action row: a checkbox in the rows' own 16px glyph slot (a drawn 12px outline when off, the rows' check glyph when on) with Select all, which toggles the visible options, and Clear with its pack bin, which removes only those. The box is re-synced by every path that can move the selection or the visible set (`_syncActions`), and only a multi-select dropdown builds any of it.
 - `input.luau` — TextBox, placeholder/focus locals, validation callback.
 - `keybind.luau` — listening state flag, input connection. Editable fields keep the current key selected, accept exactly one letter (extras are truncated, non-letters dropped), unbind on backspace while staying focused for the next key, and restore the bound key's display on focus loss; capture mode is unchanged.
 - `collapsibleGroup.luau` — optional declarative container for all tab element
@@ -591,6 +591,7 @@ Per-element specifics:
 | `instance_budget_test.sh` | Per-element instance ceilings plus a realistic-page budget — the frame-time proxy guard. |
 | `odometer_test.sh` | Odometer readout: lazy row materialisation, and the resting row still showing the value's digit through plain/wrap/roll-down transitions. |
 | `dropdown_rows_test.sh` | Dropdown option rows: none (and no search bar) while closed whatever the list length, one per option in order on open plus the bar once, the rendered selected/unselected state and corner tiers, reopening reusing the rows, edits and picks made while closed, and the search filter. |
+| `dropdown_actions_test.sh` | The multi-select action row: only a multi-select dropdown builds it, the checkbox's two states (the drawn outline against the rows' check glyph), Select all filling the visible set and toggling it back off, Clear sparing what the filter hides, the box following picks and filters, the 32px row in the open height, and the bin resolving to the pack's trash icon. |
 | `tab_elements_test.sh` | Tab elements: only the selected tab is walked on a show/hide, a tab opened later shows its elements in the same frame and state, the search shows every tab it renders, and a late element shows with its tab. |
 | `toggle_switch_test.sh` | Switch geometry: one set of metrics, mirrored resting states, equal clearance, the sheen under the knob, and the animated positions matching the built ones. |
 | `input_field_test.sh` | Field-box corners: the Input field and the Keybind cap round with the theme's `ElementCornerRadius` as theme bindings (pixel radii, never capsule scales), re-stated on a theme switch, and shared with their element cards. |

@@ -11893,7 +11893,20 @@ local a26 = a24 + a25
 
 local a27 = 4
 
-local a28 = 22
+-- [[The bulk-action row is one line of controls, taller than the bare text
+-- [[buttons it replaced so the checkbox it now carries sits in the same 16px
+-- [[slot an option row gives its glyph. The drawn outline is the 12px square
+-- [[inside that slot - the exact width of the row glyphs - so the two states
+-- [[of the box are never a size apart.]]
+local a28 = 32
+local actionBox = 12
+local actionBoxRadius = UDim.new(0, 3)
+local actionStrokeIdle = 0.45
+local actionStrokeHover = 0.2
+local actionStrokeChecked = 1
+local actionTextIdle = 0.45
+local actionTextHover = 0.15
+
 local a29 = TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 local a30 = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 local a31 = TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
@@ -12428,6 +12441,7 @@ function state.new(tab, a49)
                 end
 
                 a63()
+                self:_syncActions()
 
                 self.window:_runGuarded(self, self.callback, self:_callbackValue())
                 self.window:_persist(self)
@@ -12645,6 +12659,7 @@ function state:_applyFilter(a78)
 
             self.emptyLabel.Visible = a79 == 0 and a78 ~= ""
     self:_updateCorners()
+    self:_syncActions()
     self:_resizeToOptions()
     self:_syncScrollHint()
 end
@@ -12673,9 +12688,16 @@ function state:_visibleOptions(): { string }
     return a85
 end
 
+-- [[The Select all / Clear row. It is the one two-ended line in the panel: the
+-- [[checkbox and its label sit at the left edge, Clear and its bin at the
+-- [[right. Both controls act on the options the list is showing, so a search
+-- [[that narrows the list narrows what they touch - and the checkbox answers
+-- [[for exactly that set (on when every visible option is selected, off when
+-- [[any of them is not, and off when the filter matches nothing).]]
 function state:_buildActions()
     if not self.multiSelect then
-        return     end
+        return
+    end
 
     self.actions = self.window:Create("Frame", {
         Name = "Actions",
@@ -12686,57 +12708,256 @@ function state:_buildActions()
         Parent = self.panel,
     })
 
-    self.window:Create("UIListLayout", {
-        Padding = UDim.new(0, 12),
-        FillDirection = Enum.FillDirection.Horizontal,
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
+    -- [[Select all: the glyph slot a row uses, then the label. Clicking it
+    -- [[toggles the visible options - everything visible already selected
+    -- [[clears them, anything else selects what is missing.]]
+    self.selectAll = self.window:Create("TextButton", {
+        Name = "SelectAll",
+        AutomaticSize = Enum.AutomaticSize.X,
+        Size = UDim2.fromOffset(0, a28),
+        Position = UDim2.new(0, 8, 0.5, 0),
+        AnchorPoint = Vector2.new(0, 0.5),
+        BackgroundTransparency = 1,
+        Text = "",
+        TextTransparency = 1,
+        AutoButtonColor = false,
 
         Parent = self.actions,
     })
 
-    local function a87(a88: string, a89: number, a90: () -> ())
-        local a91 = self.window:Create("TextButton", {
-            AutomaticSize = Enum.AutomaticSize.X,
-            Size = UDim2.fromOffset(0, a28),
-            BackgroundTransparency = 1,
-            Text = flag.t(a88),
-            TextSize = 13,
-            TextTransparency = 0.45,             LayoutOrder = a89,
+    self.window:Create("UIListLayout", {
+        Padding = UDim.new(0, 8),
+        FillDirection = Enum.FillDirection.Horizontal,
+        VerticalAlignment = Enum.VerticalAlignment.Center,
+        SortOrder = Enum.SortOrder.LayoutOrder,
 
-            Parent = self.actions,
-        }, { TextColor3 = "ContentColor", FontFace = "Font" })
+        Parent = self.selectAll,
+    })
 
-        self.window:ConnectFor(self, a91.MouseEnter, function()
-            Dropdown.tweenService:Create(a91, a29, { TextTransparency = 0.15 }):Play()
-        end)
-        self.window:ConnectFor(self, a91.MouseLeave, function()
-            Dropdown.tweenService:Create(a91, a29, { TextTransparency = 0.45 }):Play()
-        end)
-        self.window:ConnectFor(self, a91.MouseButton1Click, function()
-            a90()
-            self:_afterBulkChange()
-        end)
+    local selectAllSlot = self.window:Create("Frame", {
+        Size = UDim2.fromOffset(16, 16),
+        BackgroundTransparency = 1,
+        LayoutOrder = 1,
 
-        return a91
+        Parent = self.selectAll,
+    })
+
+    -- [[Unchecked is the drawn outline and nothing else; checked hides it and
+    -- [[shows the same pack glyph a selected row shows.]]
+    self.selectAllBox = self.window:Create("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(actionBox, actionBox),
+        BackgroundTransparency = 1,
+
+        Parent = selectAllSlot,
+    })
+
+    self.window:Create("UICorner", {
+        CornerRadius = actionBoxRadius,
+
+        Parent = self.selectAllBox,
+    })
+
+    self.selectAllStroke = self.window:Create("UIStroke", {
+        Transparency = actionStrokeIdle,
+        Thickness = 1.5,
+
+        Parent = self.selectAllBox,
+    }, { Color = "ContentColor" })
+
+    self.selectAllCheck = self.window:Create("ImageLabel", {
+        Size = UDim2.fromOffset(16, 16),
+        BackgroundTransparency = 1,
+        Image = "rbxassetid://" .. tostring(callback),
+        ImageTransparency = 1,
+
+        Parent = selectAllSlot,
+    }, { ImageColor3 = "ContentColor" })
+
+    self.window:Create("TextLabel", {
+        Text = flag.t("Select all"),
+        AutomaticSize = Enum.AutomaticSize.X,
+        Size = UDim2.fromOffset(0, 16),
+        BackgroundTransparency = 1,
+        TextSize = 16,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        LayoutOrder = 2,
+
+        Parent = self.selectAll,
+    }, { TextColor3 = "ContentColor", FontFace = "Font" })
+
+    -- [[Clear: the label, then the bin. The bin is an ordinary pack icon, so it
+    -- [[resolves (and caches) exactly like the icons everywhere else.]]
+    self.clear = self.window:Create("TextButton", {
+        Name = "Clear",
+        AutomaticSize = Enum.AutomaticSize.X,
+        Size = UDim2.fromOffset(0, a28),
+        Position = UDim2.new(1, -10, 0.5, 0),
+        AnchorPoint = Vector2.new(1, 0.5),
+        BackgroundTransparency = 1,
+        Text = "",
+        TextTransparency = 1,
+        AutoButtonColor = false,
+
+        Parent = self.actions,
+    })
+
+    self.window:Create("UIListLayout", {
+        Padding = UDim.new(0, 6),
+        FillDirection = Enum.FillDirection.Horizontal,
+        VerticalAlignment = Enum.VerticalAlignment.Center,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+
+        Parent = self.clear,
+    })
+
+    self.clearLabel = self.window:Create("TextLabel", {
+        Text = flag.t("Clear"),
+        AutomaticSize = Enum.AutomaticSize.X,
+        Size = UDim2.fromOffset(0, 15),
+        BackgroundTransparency = 1,
+        TextSize = 15,
+        TextXAlignment = Enum.TextXAlignment.Right,
+        TextTransparency = actionTextIdle,
+        LayoutOrder = 1,
+
+        Parent = self.clear,
+    }, { TextColor3 = "ContentColor", FontFace = "Font" })
+
+    self.clearIcon = self.window:Create("ImageLabel", {
+        Size = UDim2.fromOffset(16, 16),
+        BackgroundTransparency = 1,
+        Image = self.window:ResolveIcon("trash"),
+        ImageTransparency = actionTextIdle,
+        LayoutOrder = 2,
+
+        Parent = self.clear,
+    }, { ImageColor3 = "ContentColor" })
+
+    self.window:ConnectFor(self, self.selectAll.MouseEnter, function()
+        self._selectAllHovered = true
+        if self._selectAllChecked then
+            return
+        end
+        Dropdown.tweenService
+            :Create(self.selectAllStroke, a29, { Transparency = actionStrokeHover })
+            :Play()
+    end)
+    self.window:ConnectFor(self, self.selectAll.MouseLeave, function()
+        self._selectAllHovered = false
+        if self._selectAllChecked then
+            return
+        end
+        Dropdown.tweenService
+            :Create(self.selectAllStroke, a29, { Transparency = actionStrokeIdle })
+            :Play()
+    end)
+
+    local function fadeClear(transparency: number)
+        Dropdown.tweenService:Create(self.clearLabel, a29, { TextTransparency = transparency }):Play()
+        Dropdown.tweenService:Create(self.clearIcon, a29, { ImageTransparency = transparency }):Play()
+    end
+    self.window:ConnectFor(self, self.clear.MouseEnter, function()
+        fadeClear(actionTextHover)
+    end)
+    self.window:ConnectFor(self, self.clear.MouseLeave, function()
+        fadeClear(actionTextIdle)
+    end)
+
+    self.window:ConnectFor(self, self.selectAll.MouseButton1Click, function()
+        if not self._isOpen then
+            return
+        end
+        self:_toggleVisibleSelection()
+        self:_afterBulkChange()
+    end)
+    self.window:ConnectFor(self, self.clear.MouseButton1Click, function()
+        if not self._isOpen then
+            return
+        end
+        self:_clearVisibleSelection()
+        self:_afterBulkChange()
+    end)
+
+    self:_syncActions()
+end
+
+-- [[The options a bulk action applies to: what the list shows right now. Rows
+-- [[are materialised on the first open, and until then no filter can be on
+-- [[(the bar does not exist yet), so the whole option list is what is shown.]]
+function state:_actionOptions(): { string }
+    if #self._optionFrames == 0 then
+        return self.options
+    end
+    return self:_visibleOptions()
+end
+
+-- [[On when every visible option is selected. A filter that matches nothing
+-- [[leaves the box off: there is nothing there to select.]]
+function state:_visibleSelection(): boolean
+    local names = self:_actionOptions()
+    if #names == 0 then
+        return false
+    end
+    for _, name in names do
+        if not table.find(self.value, name) then
+            return false
+        end
+    end
+    return true
+end
+
+function state:_toggleVisibleSelection()
+    if self:_visibleSelection() then
+        self:_clearVisibleSelection()
+        return
+    end
+    for _, name in self:_actionOptions() do
+        if not table.find(self.value, name) then
+            table.insert(self.value, name)
+        end
+    end
+end
+
+function state:_clearVisibleSelection()
+    local names = self:_actionOptions()
+    for index = #self.value, 1, -1 do
+        if table.find(names, self.value[index]) then
+            table.remove(self.value, index)
+        end
+    end
+end
+
+-- [[Put the checkbox in step with the list. Everything that can move the
+-- [[selection or the visible set calls this, so the box never lags the rows -
+-- [[and one of those callers is the search filter, which runs on every
+-- [[keystroke: a sync that would not change either half is left alone rather
+-- [[than replaying the same two tweens per character.
+-- [[]]
+-- [[An unchecked box keeps its hover brightness: a click that empties it while
+-- [[the pointer is still on it must not drop it to the idle dim.]]
+function state:_syncActions()
+    if not self.selectAllCheck then
+        return
     end
 
-                a87("Select all", 1, function()
-        local a92 = self:_visibleOptions()
-        for _, a93 in a92 do
-            if not table.find(self.value, a93) then
-                table.insert(self.value, a93)
-            end
-        end
-    end)
-    a87("Clear", 2, function()
-        local a94 = self:_visibleOptions()
-        for a95 = #self.value, 1, -1 do
-            if table.find(a94, self.value[a95]) then
-                table.remove(self.value, a95)
-            end
-        end
-    end)
+    local checked = self:_visibleSelection()
+    local outline = if checked
+        then actionStrokeChecked
+        elseif self._selectAllHovered then actionStrokeHover
+        else actionStrokeIdle
+
+    if checked == self._selectAllChecked and outline == self._selectAllOutline then
+        return
+    end
+    self._selectAllChecked = checked
+    self._selectAllOutline = outline
+
+    Dropdown.tweenService
+        :Create(self.selectAllCheck, a29, { ImageTransparency = if checked then 0 else 1 })
+        :Play()
+    Dropdown.tweenService:Create(self.selectAllStroke, a29, { Transparency = outline }):Play()
 end
 
 function state:_afterBulkChange()
@@ -12747,6 +12968,7 @@ function state:_afterBulkChange()
     end
     self:_updateSelectedLabel()
     self:_updateCorners()
+    self:_syncActions()
     self.window:_runGuarded(self, self.callback, self:_callbackValue())
     self.window:_persist(self)
     options.click()
@@ -12920,6 +13142,7 @@ function state:_open()
         self._renderOptionState(a116, true)
     end
 
+    self:_syncActions()
     self:_syncScrollHint()
     self:_bringIntoView()
 end
@@ -13176,6 +13399,7 @@ function state:Set(a156, a157)
         self._renderOptionState(a159, true)
     end
     self._updateSelectedLabel()
+    self:_syncActions()
 
     if not a157 then
         self.window:_runGuarded(self, self.callback, self:_callbackValue())
@@ -24317,83 +24541,83 @@ local LineOffsets = {
     [27] = 11543,
     [28] = 11713,
     [29] = 11858,
-    [30] = 13233,
-    [31] = 13452,
-    [32] = 13724,
-    [33] = 14285,
-    [34] = 14733,
-    [35] = 14819,
-    [36] = 15406,
-    [37] = 16030,
-    [38] = 16426,
-    [39] = 16556,
-    [40] = 16708,
-    [42] = 17208,
-    [43] = 17231,
-    [44] = 17248,
-    [45] = 17281,
-    [46] = 17403,
-    [47] = 17427,
-    [48] = 17476,
-    [49] = 17183,
-    [50] = 17606,
-    [51] = 17909,
-    [52] = 17940,
-    [53] = 17595,
-    [54] = 17983,
-    [55] = 18003,
-    [56] = 18035,
-    [57] = 17965,
-    [58] = 18142,
-    [59] = 18201,
-    [60] = 18261,
-    [62] = 18405,
-    [63] = 18570,
-    [64] = 18390,
-    [65] = 19144,
-    [66] = 19188,
-    [67] = 19268,
-    [68] = 19461,
-    [69] = 19590,
-    [70] = 19684,
-    [71] = 19851,
-    [72] = 18646,
-    [73] = 20485,
-    [74] = 20551,
-    [75] = 20617,
-    [76] = 20692,
-    [77] = 20798,
-    [78] = 20864,
-    [79] = 20939,
-    [80] = 21014,
-    [81] = 21089,
-    [82] = 21164,
-    [83] = 20379,
-    [84] = 21230,
-    [85] = 21328,
-    [86] = 21506,
-    [87] = 21558,
-    [88] = 21588,
-    [89] = 21839,
-    [90] = 21888,
-    [91] = 22341,
-    [92] = 22359,
-    [93] = 22528,
-    [94] = 22627,
-    [95] = 22649,
-    [96] = 22699,
-    [97] = 23024,
-    [98] = 23060,
-    [99] = 23078,
-    [100] = 23427,
-    [101] = 23439,
-    [102] = 23490,
-    [103] = 23509,
-    [104] = 23760,
-    [105] = 23804,
-    [106] = 24047,
-    [107] = 24075,
-    [108] = 24086,
+    [30] = 13457,
+    [31] = 13676,
+    [32] = 13948,
+    [33] = 14509,
+    [34] = 14957,
+    [35] = 15043,
+    [36] = 15630,
+    [37] = 16254,
+    [38] = 16650,
+    [39] = 16780,
+    [40] = 16932,
+    [42] = 17432,
+    [43] = 17455,
+    [44] = 17472,
+    [45] = 17505,
+    [46] = 17627,
+    [47] = 17651,
+    [48] = 17700,
+    [49] = 17407,
+    [50] = 17830,
+    [51] = 18133,
+    [52] = 18164,
+    [53] = 17819,
+    [54] = 18207,
+    [55] = 18227,
+    [56] = 18259,
+    [57] = 18189,
+    [58] = 18366,
+    [59] = 18425,
+    [60] = 18485,
+    [62] = 18629,
+    [63] = 18794,
+    [64] = 18614,
+    [65] = 19368,
+    [66] = 19412,
+    [67] = 19492,
+    [68] = 19685,
+    [69] = 19814,
+    [70] = 19908,
+    [71] = 20075,
+    [72] = 18870,
+    [73] = 20709,
+    [74] = 20775,
+    [75] = 20841,
+    [76] = 20916,
+    [77] = 21022,
+    [78] = 21088,
+    [79] = 21163,
+    [80] = 21238,
+    [81] = 21313,
+    [82] = 21388,
+    [83] = 20603,
+    [84] = 21454,
+    [85] = 21552,
+    [86] = 21730,
+    [87] = 21782,
+    [88] = 21812,
+    [89] = 22063,
+    [90] = 22112,
+    [91] = 22565,
+    [92] = 22583,
+    [93] = 22752,
+    [94] = 22851,
+    [95] = 22873,
+    [96] = 22923,
+    [97] = 23248,
+    [98] = 23284,
+    [99] = 23302,
+    [100] = 23651,
+    [101] = 23663,
+    [102] = 23714,
+    [103] = 23733,
+    [104] = 23984,
+    [105] = 24028,
+    [106] = 24271,
+    [107] = 24299,
+    [108] = 24310,
 }
 
 -- [[Misc AOT variable imports]]

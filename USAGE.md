@@ -497,7 +497,7 @@ objects, but may yield while creating the initial UI.
 Automatic show happens on the next frame — one deferred tick plus one heartbeat,
 so the caller's first synchronous `CreateTab` calls land before the shell
 appears — and the remaining constructors keep streaming in behind the
-already-visible window at one completed control per frame until the build goes
+already-visible window in small budget-limited batches until the build goes
 quiet, so the opening tween keeps receiving frames. `window:Hide()` before the
 first reveal cancels auto-show; `window:Show()` can still be called explicitly.
 

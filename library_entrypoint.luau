@@ -69,7 +69,7 @@ local ACTIVE_WINDOW_KEY = "__ASTRA_ACTIVE_WINDOW_V1"
 -- needs. Bounded, because a host that never shows the window must still end
 -- up with its font. There is deliberately no reveal gate beside it: the
 -- window shows on the next frame and the remaining constructors stream in
--- behind it at one completed control per frame.]]
+-- behind it in small budget-limited batches.]]
 local FONT_SETTLE_BUDGET = 3
 
 local function getGlobalStore(): { [string]: any }
@@ -176,10 +176,10 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 		-- Reveal on the next frame instead of on a fixed one-second deadline.
 		-- The old gate waited out the interval even for an empty window, which
 		-- is the 1s of the reported startup lag that every script paid. The
-		-- checkpoints below keep pacing the remaining constructors (one
-		-- completed control per frame until the build goes quiet), so the
-		-- opening tween keeps receiving frames while late controls stream in
-		-- behind the already-visible shell.
+		-- checkpoints below keep pacing the remaining constructors in small
+		-- budget-limited batches until the build goes quiet, so the opening
+		-- tween keeps receiving frames while late controls stream in behind
+		-- the already-visible shell.
 		task.defer(function()
 			-- Still yield once so the caller can add its first tab before the
 			-- shell appears.
@@ -196,8 +196,8 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 				window:Show()
 			end
 
-			-- Keep post-reveal constructors at one completed control per frame
-			-- until two consecutive frames observe no construction activity.
+			-- Keep pacing post-reveal constructors until two consecutive frames
+			-- observe no construction activity.
 			local stableFrames = 0
 			while not window.unloaded and not window._autoShowCancelled and stableFrames < 2 do
 				local revision = window._constructionRevision

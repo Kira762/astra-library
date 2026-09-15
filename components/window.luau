@@ -64,10 +64,10 @@ local scrollbarWidth = 8
 
 local viewportCheckInterval = 2
 
--- Startup is deliberately paced in small, completed-object batches. Before the
--- first reveal this prevents a large host script from monopolising a frame;
--- after the reveal, one completed control is handed to the renderer per frame
--- until the host's initial build goes quiet.
+-- Startup is deliberately paced in small, completed-object batches, before the
+-- first reveal and after it alike. This prevents a large host script from
+-- monopolising a frame while still letting the opening tween render as the
+-- remaining controls stream in behind the already-visible shell.
 local constructionFrameBudget = 0.003
 local constructionInstanceBudget = 48
 
@@ -632,11 +632,11 @@ function Window.new(props)
 end
 
 -- Yield only at completed construction boundaries, never halfway through a
--- control. Limit pre-reveal batches by both CPU time and instance count. Once
--- the window is visible, yield after every completed control until the initial
--- host build goes quiet; this is what lets the entrance keep rendering while a
--- large script finishes adding the rest of its tabs and elements. The API is
--- still synchronous: each constructor resumes with a fully usable object.
+-- control. Batches are limited by both CPU time and instance count, before
+-- the first reveal and after it alike: the opening tween keeps receiving
+-- frames while a large script streams the rest of its controls in, and no
+-- single frame pays for the whole build. The API is still synchronous: each
+-- constructor resumes with a fully usable object.
 function Window:_constructionCheckpoint(force)
     if self._startupComplete or (not force and not self._constructed) then
         return
@@ -645,10 +645,8 @@ function Window:_constructionCheckpoint(force)
     local now = os.clock()
     local last = self._constructionClock or now
     local count = #self.instances
-    local visibleStartup = self.hasShownOnce == true
     if
         force
-        or visibleStartup
         or now - last >= constructionFrameBudget
         or count - (self._constructionInstances or 0) >= constructionInstanceBudget
     then

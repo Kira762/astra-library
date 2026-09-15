@@ -80,7 +80,7 @@ local ACTIVE_WINDOW_KEY = "__ASTRA_ACTIVE_WINDOW_V1"
 -- needs. Bounded, because a host that never shows the window must still end
 -- up with its font. There is deliberately no reveal gate beside it: the
 -- window shows on the next frame and the remaining constructors stream in
--- behind it at one completed control per frame.]]
+-- behind it in small budget-limited batches.]]
 local FONT_SETTLE_BUDGET = 3
 
 local function getGlobalStore(): { [string]: any }
@@ -187,10 +187,10 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 		-- Reveal on the next frame instead of on a fixed one-second deadline.
 		-- The old gate waited out the interval even for an empty window, which
 		-- is the 1s of the reported startup lag that every script paid. The
-		-- checkpoints below keep pacing the remaining constructors (one
-		-- completed control per frame until the build goes quiet), so the
-		-- opening tween keeps receiving frames while late controls stream in
-		-- behind the already-visible shell.
+		-- checkpoints below keep pacing the remaining constructors in small
+		-- budget-limited batches until the build goes quiet, so the opening
+		-- tween keeps receiving frames while late controls stream in behind
+		-- the already-visible shell.
 		task.defer(function()
 			-- Still yield once so the caller can add its first tab before the
 			-- shell appears.
@@ -207,8 +207,8 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 				window:Show()
 			end
 
-			-- Keep post-reveal constructors at one completed control per frame
-			-- until two consecutive frames observe no construction activity.
+			-- Keep pacing post-reveal constructors until two consecutive frames
+			-- observe no construction activity.
 			local stableFrames = 0
 			while not window.unloaded and not window._autoShowCancelled and stableFrames < 2 do
 				local revision = window._constructionRevision
@@ -7031,10 +7031,10 @@ local scrollbarWidth = 8
 
 local viewportCheckInterval = 2
 
--- Startup is deliberately paced in small, completed-object batches. Before the
--- first reveal this prevents a large host script from monopolising a frame;
--- after the reveal, one completed control is handed to the renderer per frame
--- until the host's initial build goes quiet.
+-- Startup is deliberately paced in small, completed-object batches, before the
+-- first reveal and after it alike. This prevents a large host script from
+-- monopolising a frame while still letting the opening tween render as the
+-- remaining controls stream in behind the already-visible shell.
 local constructionFrameBudget = 0.003
 local constructionInstanceBudget = 48
 
@@ -7599,11 +7599,11 @@ function Window.new(props)
 end
 
 -- Yield only at completed construction boundaries, never halfway through a
--- control. Limit pre-reveal batches by both CPU time and instance count. Once
--- the window is visible, yield after every completed control until the initial
--- host build goes quiet; this is what lets the entrance keep rendering while a
--- large script finishes adding the rest of its tabs and elements. The API is
--- still synchronous: each constructor resumes with a fully usable object.
+-- control. Batches are limited by both CPU time and instance count, before
+-- the first reveal and after it alike: the opening tween keeps receiving
+-- frames while a large script streams the rest of its controls in, and no
+-- single frame pays for the whole build. The API is still synchronous: each
+-- constructor resumes with a fully usable object.
 function Window:_constructionCheckpoint(force)
     if self._startupComplete or (not force and not self._constructed) then
         return
@@ -7612,10 +7612,8 @@ function Window:_constructionCheckpoint(force)
     local now = os.clock()
     local last = self._constructionClock or now
     local count = #self.instances
-    local visibleStartup = self.hasShownOnce == true
     if
         force
-        or visibleStartup
         or now - last >= constructionFrameBudget
         or count - (self._constructionInstances or 0) >= constructionInstanceBudget
     then
@@ -16134,8 +16132,8 @@ function state:_register(element)
     if not self.window.hidden and not self.window.minimised and self.window.selectedTab == self then
         -- Controls added after the startup shell is visible should join it
         -- with their normal reveal animation instead of popping in instantly.
-        -- Window:_constructionCheckpoint paces these registrations one per
-        -- frame while the initial host build is still active.
+        -- Window:_constructionCheckpoint paces these registrations in small
+        -- budget-limited batches while the initial host build is still active.
         element:_setShown(true, true)
     else
         -- [[The element stayed hidden with the window: remember that this tab
@@ -33495,89 +33493,89 @@ local LineOffsets = {
     [19] = 6148,
     [20] = 6563,
     [21] = 6968,
-    [23] = 10174,
-    [24] = 10260,
-    [25] = 10568,
-    [26] = 10989,
-    [27] = 11393,
-    [28] = 11563,
-    [29] = 11708,
-    [30] = 13083,
-    [31] = 13302,
-    [32] = 13574,
-    [33] = 14135,
-    [34] = 14583,
-    [35] = 14669,
-    [36] = 15256,
-    [37] = 15880,
-    [38] = 16276,
-    [39] = 16406,
-    [40] = 16560,
-    [42] = 17060,
-    [43] = 17083,
-    [44] = 17100,
-    [45] = 17133,
-    [46] = 17255,
-    [47] = 17279,
-    [48] = 17328,
-    [49] = 17035,
-    [50] = 17458,
-    [51] = 17761,
-    [52] = 17792,
-    [53] = 17447,
-    [54] = 17835,
-    [55] = 17855,
-    [56] = 17887,
-    [57] = 17817,
-    [58] = 17994,
-    [59] = 18053,
-    [60] = 18113,
-    [62] = 18257,
-    [63] = 18422,
-    [64] = 18242,
-    [65] = 18982,
-    [66] = 19285,
-    [67] = 19949,
-    [68] = 21741,
-    [69] = 22890,
-    [70] = 24418,
-    [71] = 18484,
-    [72] = 29670,
-    [73] = 29736,
-    [74] = 29802,
-    [75] = 29877,
-    [76] = 29983,
-    [77] = 30049,
-    [78] = 30124,
-    [79] = 30199,
-    [80] = 30274,
-    [81] = 30349,
-    [82] = 29564,
-    [83] = 30415,
-    [84] = 30513,
-    [85] = 30691,
-    [86] = 30743,
-    [87] = 30773,
-    [88] = 31024,
-    [89] = 31073,
-    [90] = 31526,
-    [91] = 31544,
-    [92] = 31713,
-    [93] = 31812,
-    [94] = 31834,
-    [95] = 31884,
-    [96] = 32209,
-    [97] = 32245,
-    [98] = 32263,
-    [99] = 32612,
-    [100] = 32624,
-    [101] = 32675,
-    [102] = 32694,
-    [103] = 32945,
-    [104] = 32989,
-    [105] = 33232,
-    [106] = 33260,
-    [107] = 33271,
+    [23] = 10172,
+    [24] = 10258,
+    [25] = 10566,
+    [26] = 10987,
+    [27] = 11391,
+    [28] = 11561,
+    [29] = 11706,
+    [30] = 13081,
+    [31] = 13300,
+    [32] = 13572,
+    [33] = 14133,
+    [34] = 14581,
+    [35] = 14667,
+    [36] = 15254,
+    [37] = 15878,
+    [38] = 16274,
+    [39] = 16404,
+    [40] = 16558,
+    [42] = 17058,
+    [43] = 17081,
+    [44] = 17098,
+    [45] = 17131,
+    [46] = 17253,
+    [47] = 17277,
+    [48] = 17326,
+    [49] = 17033,
+    [50] = 17456,
+    [51] = 17759,
+    [52] = 17790,
+    [53] = 17445,
+    [54] = 17833,
+    [55] = 17853,
+    [56] = 17885,
+    [57] = 17815,
+    [58] = 17992,
+    [59] = 18051,
+    [60] = 18111,
+    [62] = 18255,
+    [63] = 18420,
+    [64] = 18240,
+    [65] = 18980,
+    [66] = 19283,
+    [67] = 19947,
+    [68] = 21739,
+    [69] = 22888,
+    [70] = 24416,
+    [71] = 18482,
+    [72] = 29668,
+    [73] = 29734,
+    [74] = 29800,
+    [75] = 29875,
+    [76] = 29981,
+    [77] = 30047,
+    [78] = 30122,
+    [79] = 30197,
+    [80] = 30272,
+    [81] = 30347,
+    [82] = 29562,
+    [83] = 30413,
+    [84] = 30511,
+    [85] = 30689,
+    [86] = 30741,
+    [87] = 30771,
+    [88] = 31022,
+    [89] = 31071,
+    [90] = 31524,
+    [91] = 31542,
+    [92] = 31711,
+    [93] = 31810,
+    [94] = 31832,
+    [95] = 31882,
+    [96] = 32207,
+    [97] = 32243,
+    [98] = 32261,
+    [99] = 32610,
+    [100] = 32622,
+    [101] = 32673,
+    [102] = 32692,
+    [103] = 32943,
+    [104] = 32987,
+    [105] = 33230,
+    [106] = 33258,
+    [107] = 33269,
 }
 
 -- [[Misc AOT variable imports]]

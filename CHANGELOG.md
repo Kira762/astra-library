@@ -13,11 +13,12 @@ appears on the next frame and the entrance is a single staged sequence.
 - **No reveal deadline.** `STARTUP_REVEAL_DELAY` (1s) and the `STARTUP_SETTLE`
   loop are gone: auto-show runs on a `task.defer` plus one heartbeat, so the
   caller's first synchronous `CreateTab` calls still land before the shell
-  appears. The post-reveal pacing is unchanged — one completed control per
-  frame until two consecutive frames observe no construction activity — so a
-  large host script streams its controls in behind the already-visible window
-  instead of holding the entrance hostage. `Hide()` before that tick still
-  cancels auto-show via `_autoShowCancelled`.
+  appears. Pacing is budget-limited on both sides of the reveal now (3ms /
+  48 instances per frame) instead of dropping to one control per frame after
+  it — with the window visible from frame two, the old post-reveal lane
+  would have funnelled nearly every control through single-frame yields and
+  made large builds finish *slower*. `Hide()` before that tick still cancels
+  auto-show via `_autoShowCancelled`.
 - **One cascade.** `_firstShow` used to walk the visible page twice: a
   `task.delay(firstContentDelay)` reveal *and* the `_stageContentReveal` one,
   with different pacing each. The second cascade's tweens cancelled the

@@ -2,6 +2,54 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-15 — Collapsible Group corners, and icon-only rows that stayed readable
+
+A screenshot review found the Collapsible Group's top-left and top-right
+corners squared off, and the collapsed sidebar rail showing the start of every
+tab name next to its icon. Both come from the same engine rule: Roblox rounds a
+GuiObject's **own** surface with `UICorner` but never clips its **descendants**
+to those arcs, and a rebuilt row is a descendant that gets its state from how it
+was constructed, not from where it sits.
+
+- **The header band squares off the card's top corners.** `headerSurface` is a
+  child of the container spanning its full width, so it painted over the corner
+  arcs the stroke draws: the band filled the top-left and top-right corners and
+  the silhouette read as a rounded outline with square corners behind it. The
+  band now rounds its own top corners with the container's `ElementCornerRadius`
+  (`Window:_roundCorners` takes the theme token as an optional third argument),
+  and the container's own surface is the element surface the band paints
+  (`ElementGradient`, not `WindowColor`), so the arcs resolve to the band's
+  colour instead of a darker wedge. The revealed body keeps its darker window
+  surface — `bodyClip` now paints it (the clipper is flush with the container's
+  bottom edge, so it carries the container's bottom arcs and leaves the top
+  corners square under the straight divider) — and it fades in with the rest of
+  the card (`_setShown`), so a group revealed on a page entrance never shows an
+  opaque body surface first.
+- **The collapsed rail showed tab names.** Rows rebuilt *after* the rail was
+  sized came back as expanded rows: `Window:_setLayoutMode` rebuilds every row
+  (`Tab:_rebuildSelector`) after `ApplyWidth` had already sized the rail, and a
+  `Window:CreateTab` made while the rail was icon-only built a fresh row too. In
+  a 64px rail that left the 10px content padding in place with the title still
+  visible, so the first characters of the name ("El…" of *Elements*) rendered
+  past the icon against the rail edge, with the icon pushed off centre. Both
+  paths fix at the source: `tabSelector.railCollapsed(window, layout)` reads the
+  rail's current width and `tabSelector.build` collapses a row as it is built,
+  and `Window:_setLayoutMode` re-applies the rail width after its rebuild loop
+  (which also re-constrains a capped long title's wrapping slot — those came
+  back unconstrained and overflowed the rail too).
+- **The icon-only tile is square.** A collapsed row kept its full-rail width, so
+  a 64px rail produced a 34x38 tile and the icon sat 7px from the tile's sides
+  but 9px from its top and bottom. `setRowCollapsed` sizes a collapsed row to
+  `rowHeight` square (the rail's list still centres it, the icon stays 20px), so
+  the glyph has the same clearance on all four edges; an expanded row keeps the
+  full-rail recipe (inset each side).
+- Tests extended for both: the group suite asserts the band's top-corner radii
+  against the container's, the band's square bottom corners and the body
+  clipper's surface/bottom arcs; the sidebar suite asserts that a row created
+  while the rail is collapsed is born an icon-only square tile (title hidden,
+  content centred, no expanded padding) and that rebuilt rows keep the capped
+  title slot. Bundle regenerated (`version-1.luau`, 103 modules).
+
 ## 2026-09-14 — Collapsible Group rebuilt as one connected card (design reference)
 
 The previous container drew the header as a standalone card and the revealed

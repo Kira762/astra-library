@@ -215,9 +215,33 @@ local function buildSidebarStyle(tab, layout)
     buildContent(tab, layout.rowIconSize, true)
 end
 
+-- [[Whether the rail is currently at its icon-only width. The rail's own Size
+-- [[is the source of truth: it is written by ApplyWidth (the layout's Build
+-- [[sizes it too), and row rebuilds happen after that. A window whose rail has
+-- [[not been built yet falls back to the layout's requested width.]]
+function tabSelector.railCollapsed(window, layout)
+    if layout.mode ~= "sidebar" then
+        return false
+    end
+    if layout.forceCollapsed then
+        return true
+    end
+    local sidebar = window.sidebar
+    local width = if sidebar then sidebar.Size.X.Offset else (layout.railWidth :: number)
+    return width <= (layout.railCollapsedWidth :: number)
+end
+
 function tabSelector.build(tab, layoutMode)
     if layoutMode.mode == "sidebar" or layoutMode.forceCollapsed then
         buildSidebarStyle(tab, layoutMode)
+        -- [[A row has to be born in whatever state the rail is in right now.
+        -- [[Rows are rebuilt after the rail is sized (a layout switch, or a tab
+        -- [[created while the rail is icon-only), and a row built as an
+        -- [[expanded one keeps its title: in a 64px rail that leaked "El…" of
+        -- [[the tab name past the icon instead of the icon-only row.
+        if tabSelector.railCollapsed(tab.window, layoutMode) then
+            tabSelector.setRowCollapsed(tab, true, layoutMode)
+        end
     else
         buildTopStyle(tab)
     end
@@ -339,6 +363,14 @@ function tabSelector.setRowCollapsed(tab, collapsed, layout)
     if tab.topbarItemInitial then
         tab.topbarItemInitial.Visible = collapsed
     end
+    -- [[An icon-only row is a square tile the height of the row. The rail is
+    -- [[64px wide, so a full-rail row (inset 15px each side) was 34x38: the
+    -- [[icon sat 7px from its sides but 9px from its top and bottom, which
+    -- [[reads as an off-centre glyph. The square tile keeps the list's
+    -- [[centring and leaves the icon the same clearance on all four edges.
+    tab.topbarItem.Size = if collapsed
+        then UDim2.fromOffset(layout.rowHeight :: number, layout.rowHeight :: number)
+        else UDim2.new(1, -(layout.rowInset :: number) * 2, 0, layout.rowHeight :: number)
     local rowPadding = if collapsed then 0 else layout.rowPadding
     tab.topbarItemContainer.Size = UDim2.new(1, -rowPadding, 0, 24)
     tab.topbarItemContainer.Position = UDim2.new(0, rowPadding, 0.5, 0)

@@ -64,6 +64,7 @@ local ROW_INSET2 = 30 -- rowInset * 2
 local ROW_PADDING2 = 20 -- rowPadding * 2
 local ROW_ICON = 20
 local ROW_SPACING = 6
+local ROW_HEIGHT = 38
 
 -- Window is 600 wide at the 1920x1080 test viewport (windowSizing fit).
 local WINDOW_WIDE = 600
@@ -134,6 +135,24 @@ local function assertGroupSized(wantedRail, message)
 	assertRowsTrackRail(message)
 end
 
+-- [[Icon-only rows are square tiles the height of the row (a 34x38 full-rail
+-- [[row left the icon 7px from its sides but 9px from its top and bottom), and
+-- [[the row's content is centred with no expanded padding.]]
+local function assertRowsCollapsed(message)
+	local tabs = groupTabs()
+	expect(#tabs > 0, message .. " (no rows in the current rail group)")
+	for i, tab in tabs do
+		eq(tab.topbarItem.Size.X.Scale, 0, message .. " row " .. i .. " is a fixed-width icon tile")
+		eq(tab.topbarItem.Size.X.Offset, ROW_HEIGHT, message .. " row " .. i .. " tile is square")
+		eq(tab.topbarItem.Size.Y.Offset, ROW_HEIGHT, message .. " row " .. i .. " tile matches the row height")
+		eq(tab.topbarItemContainer.Size.X.Scale, 1, message .. " row " .. i .. " content spans the tile")
+		eq(tab.topbarItemContainer.Size.X.Offset, 0, message .. " row " .. i .. " content keeps no expanded padding")
+		eq(tab.topbarItemContainer.Position.X.Offset, 0, message .. " row " .. i .. " content is not pushed inward")
+		eq(tab.topbarItemLayout.HorizontalAlignment, Enum.HorizontalAlignment.Center, message .. " row " .. i .. " content is centred")
+		expect(tab.topbarItemTitle.Visible == false, message .. " row " .. i .. " shows no title")
+	end
+end
+
 local switched = window:_setLayoutMode("sidebar")
 expect(switched == true, "layout switch to the responsive sidebar")
 TestPump(1.0)
@@ -189,10 +208,7 @@ eq(window.elements.Size.X.Offset, -shortRail, "T5 elements took back the freed s
 TestViewport.set(500, 700)
 TestPump(0.2)
 assertRailWidth(RAIL_COLLAPSED, "T6 narrow window -> rail uses the collapsed width")
-assertRowsTrackRail("T6 collapsed rows track the collapsed rail")
-for i, tab in groupTabs() do
-	expect(tab.topbarItemTitle.Visible == false, "T6 row " .. i .. " hides its title when collapsed")
-end
+assertRowsCollapsed("T6 narrow window -> rows become icon tiles")
 
 -- T7: wider window again -> the rail returns to the name-driven width.
 TestViewport.set(1920, 1080)
@@ -348,25 +364,52 @@ TestPump(0.2)
 assertGroupSized(shortRail, "T12 restoring the locale restores the original rail")
 
 -- T13: the separate collapsedSidebar layout keeps its icon-only rail
--- (name-driven sizing must not leak into it; title visibility there is
--- pre-existing baseline behavior and is intentionally not asserted).
+-- (name-driven sizing must not leak into it).
 switched = window:_setLayoutMode("collapsedSidebar")
 expect(switched == true, "T13 layout switch to the collapsed sidebar")
 TestPump(1.0)
 assertRailWidth(RAIL_COLLAPSED, "T13 collapsed sidebar uses its fixed compact rail")
-assertRowsTrackRail("T13 collapsed sidebar rows stay icon-only/full-rail")
+assertRowsCollapsed("T13 collapsed sidebar rows are icon tiles")
 for i, tab in groupTabs() do
 
 	expect(tab.topbarItemTitle ~= nil, "T13 row " .. i .. " keeps its title node for restore")
-	expect(tab.topbarItemTitle.Visible == false, "T13 row " .. i .. " hides text in the dedicated collapsed sidebar")
 	expect(tab.topbarItemIcon ~= nil or tab.topbarItemInitial ~= nil, "T13 row " .. i .. " keeps an icon or initial")
 end
+
+-- T13b: rows are rebuilt by a layout switch (and by CreateTab) after the rail
+-- has already been sized, so a row has to be born in the rail's current state.
+-- Built as an expanded row, it kept its title and its 10px content padding, and
+-- a 64px rail rendered "El…" of the tab name beside the icon instead of an
+-- icon-only row centred in its tile.
+local collapsedExtra = window:CreateTab({ name = "CollapsedExtra", icon = "gauge" })
+TestPump(0.3)
+assertRowsCollapsed("T13b a row created while collapsed is born icon-only")
+collapsedExtra:Remove()
+TestPump(0.3)
+assertRailWidth(RAIL_COLLAPSED, "T13b removing the row keeps the collapsed rail")
 
 -- T14: returning to the responsive sidebar restores name-driven sizing.
 switched = window:_setLayoutMode("sidebar")
 expect(switched == true, "T14 layout switch back to the responsive sidebar")
 TestPump(1.0)
 assertGroupSized(shortRail, "T14 responsive sidebar rail is name-sized again")
+
+-- T14b: the same rebuild path has to re-apply the rail's title wrapping. A
+-- capped long name had its width constraint reset by the rebuild, so the row
+-- came back at its natural width and overflowed the rail it was capped for.
+local longAgain = window:CreateTab({ name = "ThisTabNameIsReallyQuiteLong", icon = "sliders-horizontal" })
+TestPump(0.3)
+window:_setLayoutMode("collapsedSidebar")
+TestPump(1.0)
+window:_setLayoutMode("sidebar")
+TestPump(1.0)
+assertGroupSized(RAIL_CAP, "T14b rebuilt rows keep the capped rail")
+local cappedTitle = longAgain.topbarItemTitle
+eq(cappedTitle.AutomaticSize, Enum.AutomaticSize.Y, "T14b rebuilt capped title is width-constrained again")
+eq(cappedTitle.Size.X.Offset, cappedSlot, "T14b rebuilt capped title holds the available slot")
+longAgain:Remove()
+TestPump(0.3)
+assertGroupSized(shortRail, "T14b removing the long row restores the name-driven rail")
 
 -- T15: the profile panel beside the window (it replaces the in-window
 -- profile). The window + gap + panel rest centred on screen as one unit:

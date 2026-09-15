@@ -2,6 +2,39 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-15 — Multi-select dropdowns get a real Select all / Clear row
+
+The bulk-action line was two bare text buttons with no state of their own: no
+way to see whether "Select all" still had anything left to do, and a Clear that
+read like a label rather than a control. The row is now the checkbox-and-bin
+line from the design reference.
+
+- **Select all is a checkbox.** It sits at the left edge in the same 16px glyph
+  slot an option row uses — unchecked draws a 12px rounded outline (the width
+  of the row glyphs), checked shows the check glyph a selected row shows — so
+  the box's two states are never a size apart from the rows beside them. The
+  label beside it reads at the row's own 16px instead of 13px.
+- **It toggles.** With every visible option selected the box is on and a click
+  clears that set; otherwise the click fills in what is missing. Individual
+  picks, `Set`, `Add`/`Remove`/`Refresh` and a changed search filter all move
+  the box with the list, and a filter that matches nothing leaves it off.
+- **Clear keeps its meaning** — it removes only the options the filter shows,
+  so selections it is hiding survive — and gains the bin icon, resolved through
+  the icon packs (`trash`, lucide) like every other icon, dimmed with its label
+  and brightened on hover.
+- **The row is 32px**, up from the 22px text strip, so the checkbox has the
+  room the reference gives it; `_openHeight()` carries the new height and the
+  row keeps LayoutOrder 2, between the search bar and the list. A single-select
+  dropdown is untouched: no action row, no instances.
+
+Suite: new `scripts/dropdown_actions_test.{luau,sh}` — A1 only a multi-select
+dropdown carries the row (and what it holds), A2 the box answers for the
+visible options, A3/A4 Select all fills the visible set and toggles back off,
+A5 Clear leaves the hidden options alone, A6 the box follows picks and filters,
+A7 the row is what the open panel pays for, A8 the bin is a real pack icon.
+
+Bundle regenerated (`version-1.luau`).
+
 ## 2026-09-15 — Instant startup: the window shows on the next frame
 
 The 1–3s wait before the window appeared was three deliberate gates, not slow

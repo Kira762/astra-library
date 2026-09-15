@@ -25,17 +25,6 @@ local window = Astra:CreateWindow({
     },
 })
 
-window:CreateTag({
-    icon = "flask-conical",
-    text = "Element Test",
-    color = Color3.fromRGB(88, 70, 170),
-})
-window:CreateTag({
-    icon = "gauge",
-    text = "Paced startup",
-    color = Color3.fromRGB(190, 55, 125),
-})
-
 -- [[One tab intentionally contains every supported element type.]]
 local elements = window:CreateTab({ name = "Element Test", icon = "flask-conical" })
 

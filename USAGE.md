@@ -107,13 +107,12 @@ Windows, tabs and groups, elements, secure mode — full reference below. See `e
 
 ### Windows
 
-Titles, tags, themes, and every window method.
+Titles, themes, and every window method.
 
 | Method | Description |
 |---|---|
 | `window:CreateTab({ name, icon })` | Create a tab. Returns a `Tab`. |
 | `window:CreateSection({ name, icon })` | Top-level section — a `TabSection`. |
-| `window:CreateTag({ text, title, icon, color, order })` | Small tag in the window footer. |
 | `window:Notify({ title, content, icon, duration })` | Classic notification; opens on the entrance queue (see [Startup performance](#startup-performance)). |
 | `window:Toast({ title, subtitle, icon, duration, position, ... })` | Compact toast; same queue, same one-at-a-time arrivals. |
 | `window:Popup({ title, content, boxes, options, ... })` | Modal popup. Returns `Popup:Close()`. |
@@ -321,14 +320,6 @@ log:Add(entry, false)  -- append at the end instead
 log:Set({ ... })       -- replace all entries
 log:Refresh({ ... })   -- alias of Set
 log:Clear()
-```
-
-### Tag
-
-```lua
-local tag = window:CreateTag({ text = "0.0.35", icon = "tag", color = Color3.fromRGB(88, 70, 170), order = 1 })
-tag:Set({ text = "0.0.36" })
-tag:SetText("0.0.36")  tag:SetColor(Color3.new())  tag:SetIcon("badge-check")  tag:Remove()
 ```
 
 ### Built-in Settings (window only)

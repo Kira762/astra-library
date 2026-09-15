@@ -1103,3 +1103,41 @@ TestPump = function(seconds)
 		pumpQueue(target)
 	end
 end
+
+-- ===== shared profile-card test helpers =====
+-- The profile card builds lazily: it only exists once "Show profile" is on
+-- (default off). Tests that assert card internals enable it the same way a
+-- user does - through the settings toggle - so they exercise the lazy path.
+function FindSettingsElement(targetWindow, tabName, elementName)
+	targetWindow:_buildSettingsUI()
+	for _, tab in targetWindow._settingsTabs do
+		if tab.name == tabName then
+			tab:Select()
+			TestPump(0.15)
+			local function scan(elements)
+				for _, element in elements do
+					if element.name == elementName then
+						return element
+					end
+					if element.elements then
+						local found = scan(element.elements)
+						if found then
+							return found
+						end
+					end
+				end
+				return nil
+			end
+			return scan(tab.elements)
+		end
+	end
+	return nil
+end
+
+function EnableProfileCard(targetWindow)
+	local toggle = FindSettingsElement(targetWindow, "Appearance", "Show profile")
+	assert(toggle, "test harness: 'Show profile' toggle must exist")
+	toggle:Set(true)
+	TestPump(0.4)
+	return targetWindow
+end

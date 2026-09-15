@@ -8,6 +8,7 @@ local state = require(utilities.Parent.core.state)
 local functions = require(script.Parent.Parent.functions)
 local constants = require(utilities.constants)
 local haptic = require(utilities.HapticEngine)
+local motion = require(utilities.motion)
 
 local showTween = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
 local fadeInTween = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
@@ -222,19 +223,23 @@ end
 -- dismissed before it opens (the visibility cap, a click, an unload) must not
 -- leave the next one waiting for a tween that will never finish. Idempotent,
 -- because the show path and the dismiss path can both reach it.]]
-function Notification:_entranceDone()
+function Notification:_entranceDone(early)
     local release = self._release
     if not release then
         return
     end
     self._release = nil
-    release()
+    -- [[`early` comes from a dismissal/retirement mid-entrance: the queue uses
+    -- [[it to skip its full entrance cadence (nothing is on screen to keep
+    -- [[from overlapping). The natural end of the staggered reveal passes
+    -- [[nothing, so the next card waits behind this one's transition.]]
+    release(early == true)
 end
 
 function Notification:_show()
     local totalHeight = self:_measure() + padding
     if self._dismissed or not self.main.Parent then
-        self:_entranceDone()
+        self:_entranceDone(true)
         return
     end
 
@@ -247,18 +252,26 @@ function Notification:_show()
     state.tweenService:Create(self.stroke, fadeInTween, { Transparency = 0.95 }):Play()
     state.tweenService:Create(self.shadow, textFadeTween, { Transparency = 0.6 }):Play()
 
-    task.wait(0.05)
+    -- [[The stagger beats answer the motion profile: with animation switched
+    -- [[off they cost no time and the queue drains a card per frame.]]
+    local firstBeat = motion.step(0.05)
+    if firstBeat > 0 then
+        task.wait(firstBeat)
+    end
     if self._dismissed or not self.main.Parent then
-        self:_entranceDone()
+        self:_entranceDone(true)
         return
     end
     if self.iconLabel then
         state.tweenService:Create(self.iconLabel, textFadeTween, { ImageTransparency = 0 }):Play()
     end
 
-    task.wait(0.05)
+    local secondBeat = motion.step(0.05)
+    if secondBeat > 0 then
+        task.wait(secondBeat)
+    end
     if self._dismissed or not self.main.Parent then
-        self:_entranceDone()
+        self:_entranceDone(true)
         return
     end
     if self.descriptionLabel then
@@ -266,7 +279,9 @@ function Notification:_show()
     end
 
     -- [[The card is fully on screen from here: everything that is still
-    -- running is its hold time, not its entrance, so the next one may start.]]
+    -- running is its hold time, not its entrance, so the next one may start.
+    -- The queue itself holds the lane for the entrance cadence; a dismissal
+    -- (below) releases early, which the queue reads as "skip the cadence".]]
     self:_entranceDone()
 
     local elapsed = 0
@@ -287,8 +302,9 @@ function Notification:_dismiss()
     self._dismissed = true
 
     -- [[A card retired before its entrance finished still owes the queue its
-    -- slot; `_entranceDone` is a no-op once the show path has handed it back.]]
-    self:_entranceDone()
+    -- slot; `_entranceDone` is a no-op once the show path has handed it back.
+    -- Early release tells the queue to skip the full entrance cadence.]]
+    self:_entranceDone(true)
 
     local liveNotifications = self.window._liveNotifications
     local index = liveNotifications and table.find(liveNotifications, self)

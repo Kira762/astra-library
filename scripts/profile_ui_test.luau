@@ -104,6 +104,7 @@ game.JobId = "astra-ui-server"
 
 local window = Astra:CreateWindow({ name = "Profile UI Test" })
 TestPump(1.2)
+EnableProfileCard(window) -- profile card is lazy; opt in the way a user would
 theme = window.theme
 expect(theme ~= nil, "G0 the window exposes its resolved theme")
 
@@ -336,6 +337,7 @@ local membership = player.MembershipType
 player.MembershipType = Enum.MembershipType.Premium
 local packed = Astra:CreateWindow({ name = "All-pack profile" })
 TestPump(0.6)
+EnableProfileCard(packed)
 eq(packed.profileTierLabel.Text, "PREMIUM", "G4 paid tier label")
 eq(packed.profileTierIcon.Image, TestImageUri(packed:ResolveIcon("crown")), "G4 crown uses image loader")
 local premiumIcon = packed.profileTierIcon.Image

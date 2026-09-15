@@ -85,6 +85,7 @@ game.GameId = 123456
 game.JobId = "astra-details-server"
 
 local window = Astra:CreateWindow({ name = "Profile Details Test" })
+EnableProfileCard(window) -- lazy profile card
 TestPump(1.2)
 theme = window.theme
 expect(theme ~= nil, "E0 the window exposes its resolved theme")
@@ -328,6 +329,7 @@ eq(userIdEntry.button.Visible, false, "E8 masking the card hides the copy button
 local longName = string.rep("Extremely Long Game Title ", 6)
 game.Name = longName
 local longWindow = Astra:CreateWindow({ name = "Profile Details Test (long values)" })
+EnableProfileCard(longWindow)
 TestPump(0.6)
 local longPanel = longWindow.profilePanel
 expect(longPanel ~= nil, "E5 the long-value card exists")
@@ -368,6 +370,7 @@ game.Name = "Test Place"
 local absentPlayer = state.localPlayer
 state.localPlayer = nil
 local absentWindow = Astra:CreateWindow({ name = "Profile Details Test (no player)" })
+EnableProfileCard(absentWindow)
 TestPump(0.6)
 eq(absentWindow.profilePanel.Visible, false, "E6 the card stays hidden while the local player is unknown")
 eq(absentWindow.profileName.Text, "", "E6 no display name is invented")
@@ -399,6 +402,7 @@ end
 game.GameId = nil -- force the official place -> universe lookup
 game.Name = "Some Place Title"
 local nameWindow = Astra:CreateWindow({ name = "Profile Details Test (game name)" })
+EnableProfileCard(nameWindow)
 TestPump(1.0)
 local nameGameName = findChild(nameWindow.profilePanel, "GameName")
 expect(nameGameName ~= nil, "E9 the game name row exists")

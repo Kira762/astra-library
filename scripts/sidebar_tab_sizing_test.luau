@@ -95,6 +95,8 @@ end
 local window = Astra:CreateWindow({ name = "Sidebar Sizing Test" })
 print("stage: window created")
 TestPump(0.5)
+EnableProfileCard(window) -- the profile card is lazy; T15 needs it present
+print("stage: profile card enabled")
 print("stage: initial pump done")
 
 local function groupTabs()

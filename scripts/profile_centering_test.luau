@@ -104,6 +104,7 @@ end
 -- ===== C1: a fresh window rests with the pair centred =====
 
 local window = Astra:CreateWindow({ name = "Profile Centring Test" })
+EnableProfileCard(window) -- lazy profile card
 TestPump(1.2)
 
 local main = window.main
@@ -156,6 +157,7 @@ window:Unload()
 TestPump(0.2)
 state.localPlayer = nil
 local lateWindow = Astra:CreateWindow({ name = "Profile Centring Test (late player)" })
+EnableProfileCard(lateWindow)
 -- [[The player arrives after the frame was built (so the build-time centring]]
 -- [[saw a disabled card) but before the deferred first show runs.]]
 state.localPlayer = player

@@ -494,10 +494,12 @@ work or 120 new instances. These are cooperative limits, not a hard frame-time
 cap: a single expensive control can exceed them. Calls still return fully built
 objects, but may yield while creating the initial UI.
 
-Automatic show waits for a quiet construction frame, then one short settle beat, so
-large scripts do not reveal a half-built menu and the tail of the build does not
-share a frame with the entrance. `window:Hide()` before the first reveal cancels
-auto-show; `window:Show()` can still be called explicitly.
+Automatic show happens on the next frame — one deferred tick plus one heartbeat,
+so the caller's first synchronous `CreateTab` calls land before the shell
+appears — and the remaining constructors keep streaming in behind the
+already-visible window at one completed control per frame until the build goes
+quiet, so the opening tween keeps receiving frames. `window:Hide()` before the
+first reveal cancels auto-show; `window:Show()` can still be called explicitly.
 
 The arrival itself is staged rather than instant: the window's shell (frame, surface,
 corner, topbar) animates in first, the page's controls cascade in one control per beat

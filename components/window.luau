@@ -32,7 +32,7 @@ local tweenStyle = TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirecti
 -- content — and short enough that nothing looks like it is waiting for the
 -- next thing to happen. Scaled by the motion service, and skipped entirely
 -- when animation is switched off.]]
-local contentRevealBeat = 0.22
+local contentRevealBeat = 0.12
 
 local collapsedWideSize = UDim2.fromOffset(185, 50)
 local collapsedIconOnlySize = UDim2.fromOffset(50, 50)
@@ -76,12 +76,11 @@ local constructionInstanceBudget = 48
 -- their normal stacks while the next one enters.
 local overlayEntranceCadence = 0.65
 
--- Existing controls wait briefly behind the window surface, then reveal in a
--- cascade. This makes the first open read as an entrance instead of one large
--- visibility flip.
-local firstContentDelay = 0.14
-local firstContentStep = 0.045
-local firstContentDuration = 0.9
+-- The first open reads as an entrance instead of one large visibility flip:
+-- the shell animates in, then `_stageContentReveal` walks the visible page one
+-- control per beat (see `_firstShow`). There is exactly one cascade — an older
+-- second timer used to walk the same page concurrently, restarting the first
+-- cascade's tweens mid-flight through the motion service's cancel-on-overlap.
 
 local function computeSize(mode): UDim2
     local size = state.workspace.CurrentCamera
@@ -744,6 +743,12 @@ function Window:ChangeTheme(themeInput)
         deriveStrokes(self.theme, themeTable)
     end
 
+    -- [[Before the first show the window is invisible, so routing every
+    -- Color3/number through a 0.5s tween only buys dozens of tween allocations
+    -- on the startup path — nothing can be seen animating. Assign the end
+    -- state directly; the values are identical to what the tweens would have
+    -- settled on, and everything from the first entrance on still tweens.]]
+    local instantApply = self.hidden and not self.hasShownOnce
     for instance, properties in self.themeProperties do
         for prop, binding in properties do
             local resolvedValue = if typeof(binding) == "table" then binding[2](self.theme[binding[1]]) else self.theme[binding]
@@ -751,7 +756,7 @@ function Window:ChangeTheme(themeInput)
             if instance[prop] == resolvedValue then
                 continue
             end
-            if typeof(resolvedValue) == "Color3" or typeof(resolvedValue) == "number" then
+            if not instantApply and (typeof(resolvedValue) == "Color3" or typeof(resolvedValue) == "number") then
                 state.tweenService:Create(instance, tweenStyle, { [prop] = resolvedValue }):Play()
             else
                 instance[prop] = resolvedValue
@@ -2185,7 +2190,6 @@ function Window:_revealElements(stepDelay, totalDuration, layoutTransitionId)
     if not tab then
         return
     end
-    tab._elementsPending = false
 
     -- [[The cascade is the moment this page's elements are being looked at, so]]
     -- [[it owns the pending mark `_showTabElements` would otherwise clear in]]
@@ -2482,29 +2486,19 @@ function Window:_firstShow()
         overlayQueue.resume(self)
     end
 
-    -- Let the shell establish itself before revealing the visible page. The
-    -- cascade is independently guarded, so hiding/unloading during the delay
-    -- cannot resurrect content.
-    task.delay(firstContentDelay, function()
-        if self.unloaded or self.hidden or self.minimised then
-            return
-        end
-        self:_revealElements(firstContentStep, firstContentDuration)
-    end)
-
     motion.tween(self.main, { BackgroundTransparency = windowSurfaceTransparency }, "emphasized")
     if not motion.tween(self.windowScale, { Scale = 1 }, "pop", settle) then
         settle()
     end
     motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, "pop")
 
-    -- [[Second beat of the entrance: the page's controls cascade in once the
-    -- [[frame is close to its resting size, and only then do the queued
-    -- [[notifications and toasts start arriving one at a time. Everything after
-    -- [[`CreateWindow` — the welcome toast, a host's "loaded N modules"
-    -- [[notifications, the optional-icon warning — rides that queue instead of
-    -- [[sharing the frame the window itself opens on.]]
-    self:_stageContentReveal(motion.step(contentRevealBeat), 0.02, 0.5, entranceId)
+    -- [[Second beat of the entrance: the single cascade walks the page's
+    -- [[controls in once the frame is close to its resting size, and only
+    -- [[then do the queued notifications and toasts start arriving one at a
+    -- [[time. Everything after `CreateWindow` — the welcome toast, a host's
+    -- [["loaded N modules" notifications, the optional-icon warning — rides
+    -- [[that queue instead of sharing the frame the window itself opens on.]]
+    self:_stageContentReveal(motion.step(contentRevealBeat), 0.02, 0.35, entranceId)
 
     local player = state.localPlayer
     if player and self.settings.welcomeToast and chrome.isNewUser() then

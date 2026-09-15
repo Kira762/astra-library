@@ -34,15 +34,6 @@ elements:CreateText({
     text = "This single tab builds every Astra element so startup batching and layout pacing are easy to observe.",
 })
 
-local progress = elements:CreateProgress({
-    name = "Progress",
-    range = { 0, 100 },
-    value = 42,
-    steps = 10,
-    suffix = "%",
-    showValue = true,
-})
-
 local stat = elements:CreateStat({
     name = "Stat",
     value = 128,
@@ -58,9 +49,8 @@ elements:CreateButton({
     name = "Button",
     icon = "hand-tap",
     callback = function()
-        progress:Set(math.random(0, 100))
         stat:Set(stat.value + 1)
-        window:Notify({ title = "Button", content = "Progress and stat were updated." })
+        window:Notify({ title = "Button", content = "Stat was updated." })
     end,
 })
 
@@ -79,7 +69,7 @@ elements:CreateSlider({
     increment = 5,
     suffix = "%",
     callback = function(value)
-        progress:Set(value)
+        stat:Set(value)
     end,
 })
 
@@ -165,7 +155,6 @@ elements:CreateCollapsibleGroup({
         { type = "Input", name = "Input child", placeholder = "Child input" },
         { type = "Keybind", name = "Keybind child", value = Enum.KeyCode.RightControl },
         { type = "Stat", name = "Stat child", value = 42, suffix = " checks" },
-        { type = "Progress", name = "Progress child", range = { 0, 100 }, value = 62, steps = 10, suffix = "%" },
         { type = "Divider", text = "Nested diagnostics" },
         {
             type = "Changelog",

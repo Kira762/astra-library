@@ -67,7 +67,7 @@ export type GroupProps = {
 -- `elements` is allowed only for ordinary Groups; CollapsibleGroups cannot nest.
 export type CollapsibleElementProps = {
     type: "Button" | "Toggle" | "Switch" | "Slider" | "Dropdown" | "Input" | "Keybind"
-        | "Stat" | "Progress" | "Section" | "Text" | "Changelog" | "Divider" | "Group",
+        | "Stat" | "Section" | "Text" | "Changelog" | "Divider" | "Group",
     elements: { CollapsibleElementProps }?,
     [string]: any,
 }
@@ -146,12 +146,6 @@ export type StatProps = {
     display: string?,     compact: boolean?,
     changeMode: string?,     changeBaseline: string?,     numberEasing: boolean?,
 }
-
-export type ProgressProps = {
-    name: string?,
-    icon: (string | number)?,
-    range: { number }?,     value: number?,
-    steps: number?,     text: string?,     format: ((value: number, min: number, max: number) -> string)?,     showValue: boolean?,     indeterminate: boolean?, }
 
 export type NotifyProps = {
     title: string?,
@@ -232,15 +226,6 @@ export type Stat = Moveable & {
     ResetBaseline: (self: Stat, value: number?) -> (),
 }
 
-export type Progress = Moveable & {
-    value: number,
-    Set: (self: Progress, value: number) -> (),
-    Get: (self: Progress) -> number,
-    GetPercentage: (self: Progress) -> number,     SetRange: (self: Progress, min: number, max: number) -> (),
-    SetText: (self: Progress, text: string?) -> (),     SetIndeterminate: (self: Progress, state: boolean) -> (),
-    Remove: (self: Progress) -> (),
-}
-
 export type Section = Moveable & {}
 
 export type TabSection = {
@@ -295,7 +280,6 @@ export type Tab = {
     CreateInput: (self: Tab, props: InputProps) -> Input,
     CreateKeybind: (self: Tab, props: KeybindProps) -> Keybind,
     CreateStat: (self: Tab, props: StatProps) -> Stat,
-    CreateProgress: (self: Tab, props: ProgressProps) -> Progress,
     CreateSection: (self: Tab, props: SectionProps) -> Section,
     CreateText: (self: Tab, props: TextProps) -> Text,
     CreateChangelog: (self: Tab, props: ChangelogProps) -> Changelog,

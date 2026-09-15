@@ -26,7 +26,7 @@
 --   * D8 the line reveals with its element at 0.45 transparency,
 --   * D9 locking swaps the line for the lock message, unlocking restores the
 --        original description,
---   * D10 the progress bar and the stat readouts ride up above the line,
+--   * D10 the stat readouts ride up above the line,
 --   * D11 an element without a description keeps its card height and carries
 --        no label,
 --   * D12 the Collapsible Group header grows to 61px with its own line,
@@ -149,7 +149,6 @@ local dropdown = tab:CreateDropdown({
 })
 local input = tab:CreateInput({ name = "Display name", placeholder = "Enter a name", description = "Shown to friends." })
 local keybind = tab:CreateKeybind({ name = "Push to talk", value = Enum.KeyCode.T, description = "One letter only." })
-local progress = tab:CreateProgress({ name = "Download", value = 50, description = "Hang tight." })
 local stat = tab:CreateStat({ name = "Frames", value = 240, description = "Per second." })
 local undescribed = tab:CreateToggle({ name = "No description" })
 local wrapped = more:CreateKeybind({
@@ -179,7 +178,6 @@ local cards = {
 	[dropdown.main] = true,
 	[input.main] = true,
 	[keybind.main] = true,
-	[progress.main] = true,
 	[stat.main] = true,
 	[undescribed.main] = true,
 }
@@ -232,7 +230,6 @@ for _, case in {
 	{ element = dropdown, parts = { dropdown.container, dropdown.selectedLabel, dropdown.chevron } },
 	{ element = input, parts = { input.container, input.box } },
 	{ element = keybind, parts = { keybind.container, keybind.box } },
-	{ element = progress, parts = { progress.container, progress.readout, progress.track } },
 	{ element = stat, parts = { stat.titleContainer, stat.valueHost, stat.changeHost } },
 	{ element = wrapped, parts = { wrapped.container, wrapped.box } },
 } do
@@ -300,9 +297,6 @@ TestPump(0.4)
 eq(toggle.descriptionLabel.Text, "Ping me.", "D9 unlocking restores the description")
 
 -- ===== D10: bottom-anchored bars ride above the line ======================
-near(progress.main.Size.Y.Offset, 80, "D10 the described progress card grows by the line (60 + 20)")
-local progressTrack = rectOf(progress.track, progress.main.AbsoluteSize)
-near(progressTrack.y + progressTrack.h, 44, "D10 the progress bar keeps its 44px seat 20px above the card's floor")
 local statValue = rectOf(stat.valueHost, stat.main.AbsoluteSize)
 near(statValue.y + statValue.h, 90 - 12 - 20, "D10 the stat's value host rides up above the line")
 near(stat.main.Size.Y.Offset, 90, "D10 the described stat card grows by the line (70 + 20)")

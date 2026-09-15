@@ -168,7 +168,7 @@ local col = row:CreateGroup({ direction = "column" }) -- nested column
 col:CreateToggle({ name = "Left 1" })
 ```
 
-Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateKeybind`, `CreateStat`, `CreateProgress`, `CreateSection`, `CreateText`, `CreateChangelog`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup`.
+Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateKeybind`, `CreateStat`, `CreateSection`, `CreateText`, `CreateChangelog`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup`.
 
 Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
 
@@ -266,19 +266,6 @@ s:Set(200)
 s:ResetBaseline(0)
 ```
 Extra props: `display`, `compact`, `changeMode`, `changeBaseline`, `numberEasing`.
-
-### Progress
-```lua
-local p = tab:CreateProgress({ name = "Download", range = { 0, 100 }, value = 35 })
-p:Set(80)
-p:Get()                 -- current value
-p:GetPercentage()       -- 0–100
-p:SetRange(0, 500)
-p:SetText("Downloading...")
-p:SetIndeterminate(true)
-p:Remove()
-```
-Extra props: `steps`, `text`, `format(value, min, max)`, `showValue`, `indeterminate`.
 
 ### Text / Divider / Group
 ```lua
@@ -426,8 +413,7 @@ so your own animations can use the same timing and answer the same
 "Animation speed" setting the user picked in Performance → Motion. (The
 entrance queue that spaces the notification and toast arrivals paces itself
 through `Motion.step`, so it stretches and shortens with that setting too;
-the only curves outside the vocabulary are the progress bar's ambient
-indeterminate sweep and two delayed glow beats, and those rescale with the
+the only curves outside the vocabulary are two delayed glow beats, and those rescale with the
 profile as well.)
 
 ```lua
@@ -584,7 +570,7 @@ local playerControls = tab:CreateCollapsibleGroup({
 ```
 
 **Supported types:** `Button`, `Toggle`, `Switch` (declarative alias of the
-toggle control), `Slider`, `Dropdown`, `Input`, `Keybind`, `Stat`, `Progress`,
+toggle control), `Slider`, `Dropdown`, `Input`, `Keybind`, `Stat`,
 `Section`, `Text`, `Changelog`, `Divider`, and ordinary `Group`. Each uses the
 same properties and implementation as its normal `Create…` method, including
 the optional `description` helper line. `elements` can be omitted for an empty

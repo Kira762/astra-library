@@ -8,7 +8,7 @@ local settings = {
     manager = managerModule,
     registry = registryModule,
     defaults = defaultsModule,
-    persistence = persistence,
+    persistence = persistenceModule,
 }
 
 function settings.newManager(overrides: { [string]: any }?)

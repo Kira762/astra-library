@@ -16,6 +16,7 @@ local description = require(script.Parent.description)
 -- dips on `fast` and springs back on `settle` (a small overshoot that reads
 -- as a physical press), the card nudges in on `snappy` and lands back on
 -- `settle`, and the stroke follows hover on `snappy`.]]
+local motion = require(constants.motion)
 local element = "snappy"
 local tapPress = "fast"
 local tapRelease = "settle"

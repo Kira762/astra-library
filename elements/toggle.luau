@@ -12,7 +12,14 @@ local flag = require(constants.locale)
 local value = require(constants.HapticEngine)
 local baseCard = require(script.Parent.baseCard)
 local description = require(script.Parent.description)
-local callback = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+-- [[The switch rides the shared motion vocabulary. The knob is the one
+-- genuinely mechanical surface in the library, so it gets the short Back
+-- overshoot (`settle`) — it reads as a physical slide with a landing rather
+-- than a glide. The accent glow trails the knob by a beat (accentTween's
+-- delay, rescaled with the speed profile through the service).]]
+local motion = require(constants.motion)
+local callback = "snappy"
+local knobSlide = "settle"
 
 -- [[Switch metrics, in one place. The track and the knob are both pills and
 -- [[the knob keeps the same clearance on every side it can see (`switchInset`
@@ -189,17 +196,11 @@ function state:_buildFull()
     self.window:_wireElementHover(self)
 
     self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
-        Toggle.tweenService
-            :Create(
-                self.stroke,
-                callback,
-                { Transparency = 1 }
-            )
-            :Play()
+        motion.tween(self.stroke, { Transparency = 1 }, callback)
         Toggle.tweenService
             :Create(
                 self.main,
-                TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+                motion.spec("snappy"),
                 { Size = UDim2.new(1, -26, 0, description.height(self, 41)) }
             )
             :Play()
@@ -215,17 +216,15 @@ function state:_buildFull()
         Toggle.tweenService
             :Create(
                 self.main,
-                TweenInfo.new(0.25, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+                motion.spec("settle"),
                 { Size = UDim2.new(1, -20, 0, description.height(self, 41)) }
             )
             :Play()
-        Toggle.tweenService
-            :Create(
-                self.stroke,
-                callback,
-                { Transparency = self.window:_elementStrokeTransparency(self, false) }
-            )
-            :Play()
+        motion.tween(
+            self.stroke,
+            { Transparency = self.window:_elementStrokeTransparency(self, false) },
+            callback
+        )
     end)
 end
 
@@ -314,13 +313,7 @@ function state:_buildCompact()
     self.window:_wireElementHover(self)
 
     self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
-        Toggle.tweenService
-            :Create(
-                self.stroke,
-                callback,
-                { Transparency = 1 }
-            )
-            :Play()
+        motion.tween(self.stroke, { Transparency = 1 }, callback)
 
         self:_performToggle()
 
@@ -330,13 +323,11 @@ function state:_buildCompact()
             return
         end
 
-        Toggle.tweenService
-            :Create(
-                self.stroke,
-                callback,
-                { Transparency = self.window:_elementStrokeTransparency(self, false) }
-            )
-            :Play()
+        motion.tween(
+            self.stroke,
+            { Transparency = self.window:_elementStrokeTransparency(self, false) },
+            callback
+        )
     end)
 end
 
@@ -348,40 +339,43 @@ function state:_indicatorGlow()
 end
 
 function state:_animateIndicator()
-    local track = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
+    local track = knobSlide
     local glow = if self.value then self:_indicatorGlow() else self.indicatorGlow
     if glow then
         Toggle.tweenService
-            :Create(glow, track, { Transparency = self.value and self.window.theme.AccentGlow or 1 })
+            :Create(glow, motion.spec("fast"), { Transparency = self.value and self.window.theme.AccentGlow or 1 })
             :Play()
     end
     if self.value then
         Toggle.tweenService
-            :Create(self.indicator, track, {
+            :Create(self.indicator, motion.spec(track), {
                 Position = switchKnobActive,
                 BackgroundColor3 = self.window.theme.AccentColor,
                 BackgroundTransparency = 0,
             })
             :Play()
         Toggle.tweenService
-            :Create(self.indicatorStroke, track, { Color = self.window.theme.AccentStroke, Transparency = 0 })
+            :Create(self.indicatorStroke, motion.spec("fast"), { Color = self.window.theme.AccentStroke, Transparency = 0 })
             :Play()
     else
         Toggle.tweenService
-            :Create(self.indicator, track, {
+            :Create(self.indicator, motion.spec(track), {
                 Position = switchKnobRest,
                 BackgroundColor3 = self.window.theme.ToggleKnobOff,
                 BackgroundTransparency = self.window.theme.ToggleKnobOffTransparency,
             })
             :Play()
         Toggle.tweenService
-            :Create(self.indicatorStroke, track, { Color = Color3.fromRGB(255, 255, 255), Transparency = 0.7 })
+            :Create(self.indicatorStroke, motion.spec("fast"), { Color = Color3.fromRGB(255, 255, 255), Transparency = 0.7 })
             :Play()
     end
 end
 
-local knob = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local accentTween = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out, 0, false, 0.35)
+local knob = "normal"
+local accentBase = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out, 0, false, 0.35)
+local function accentTween()
+    return motion.spec(accentBase)
+end
 
 function state:_setShown(flag, a16)
     local w = self.window
@@ -427,19 +421,19 @@ end
 
 function state:_refreshTheme()
     local t = self.window.theme
-    local a17 = TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    local a17 = "smooth"
     local ts = Toggle.tweenService
-    ts:Create(self.functionContainer, a17, { BackgroundTransparency = t.ToggleTrackTransparency }):Play()
-    ts:Create(self.indicator, a17, {
+    ts:Create(self.functionContainer, motion.spec(a17), { BackgroundTransparency = t.ToggleTrackTransparency }):Play()
+    ts:Create(self.indicator, motion.spec(a17), {
         BackgroundColor3 = self.value and t.AccentColor or t.ToggleKnobOff,
         BackgroundTransparency = self.value and 0 or t.ToggleKnobOffTransparency,
     }):Play()
-    ts:Create(self.indicatorStroke, a17, {
+    ts:Create(self.indicatorStroke, motion.spec(a17), {
         Color = self.value and t.AccentStroke or Color3.fromRGB(255, 255, 255),
     }):Play()
     local glow = if self.value then self:_indicatorGlow() else self.indicatorGlow
     if glow then
-        ts:Create(glow, a17, { Transparency = self.value and t.AccentGlow or 1 }):Play()
+        ts:Create(glow, motion.spec(a17), { Transparency = self.value and t.AccentGlow or 1 }):Play()
     end
 end
 

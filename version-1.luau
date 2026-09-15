@@ -851,7 +851,7 @@ local utilities = script.Parent.Parent.utilities
 local state = require(utilities.Parent.core.state)
 local log = require(utilities.log)
 local haptic = require(utilities.HapticEngine)
-local hoverTween = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local motion = require(utilities.motion)
 
 function Action.new(window, props)
     props = if typeof(props) == "table" then props else {}
@@ -907,13 +907,7 @@ function Action.new(window, props)
         if self.isLit and self:isLit() then
             return
         end
-        state.tweenService
-            :Create(
-                self.iconLabel,
-                hoverTween,
-                { ImageTransparency = 0.6 }
-            )
-            :Play()
+        motion.tween(self.iconLabel, { ImageTransparency = 0.6 }, "snappy")
     end
 
     self.window:Connect(self.interact.MouseButton1Click, function()
@@ -934,13 +928,7 @@ function Action.new(window, props)
         if not self.window:_interactive() then
             return
         end
-        state.tweenService
-            :Create(
-                self.iconLabel,
-                hoverTween,
-                { ImageTransparency = 0.2 }
-            )
-            :Play()
+        motion.tween(self.iconLabel, { ImageTransparency = 0.2 }, "snappy")
     end)
 
     self.window:Connect(self.interact.MouseLeave, idleTransparency)
@@ -954,6 +942,7 @@ end)() end,
     [10] = function()local wax,script,require=ImportGlobals(10)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local state = require(utilities.Parent.core.state)
+local motion = require(utilities.motion)
 local fs = require(utilities.filesystem)
 local constants = require(utilities.constants)
 local locale = require(utilities.locale)
@@ -1161,9 +1150,11 @@ function chrome.isNewUser()
     return isNew
 end
 
-function chrome.setCollapsedShown(window, shown, tweenInfo)
-    local transitionId = window._hideTransitionId
-
+-- [[The capsule's face (icon, title, subtitle) fades in with `spec` — a
+-- motion-service spec name (the fold plays "settle"), so the collapse answers
+-- the speed setting like everything else — or applies instantly when no spec
+-- is given (the silent state-sync path).]]
+function chrome.setCollapsedShown(window, shown, spec)
     local targets = {
         [window.collapsedIcon] = { ImageTransparency = if shown then 0 else 1 },
     }
@@ -1174,17 +1165,8 @@ function chrome.setCollapsedShown(window, shown, tweenInfo)
     end
 
     for instance, properties in targets do
-        if tweenInfo then
-            local tween = state.tweenService:Create(instance, tweenInfo, properties)
-            tween.Completed:Connect(function(ok)
-                if not ok or window._hideTransitionId ~= transitionId then
-                    return
-                end
-                for prop, value in properties do
-                    instance[prop] = value
-                end
-            end)
-            tween:Play()
+        if spec then
+            motion.tween(instance, properties, spec)
         else
             for prop, value in properties do
                 instance[prop] = value
@@ -1205,8 +1187,7 @@ local utilities = script.Parent.Parent.utilities
 
 local state = require(utilities.Parent.core.state)
 local constants = require(utilities.constants)
-local slowTween = TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-local fastTween = TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local motion = require(utilities.motion)
 
 function Drag.new(window, props)
     props = if typeof(props) == "table" then props else {}
@@ -1290,25 +1271,13 @@ function Drag.new(window, props)
 
     self.window:Connect(self.drag.MouseEnter, function()
         if not isDragging and not self.window.hidden then
-            state.tweenService
-                :Create(
-                    self.dragCosmetic,
-                    fastTween,
-                    { BackgroundTransparency = 0.5, Size = UDim2.new(0, 120, 0, 4) }
-                )
-                :Play()
+            motion.tween(self.dragCosmetic, { BackgroundTransparency = 0.5, Size = UDim2.new(0, 120, 0, 4) }, "fast")
         end
     end)
 
     self.window:Connect(self.drag.MouseLeave, function()
         if not isDragging and not self.window.hidden then
-            state.tweenService
-                :Create(
-                    self.dragCosmetic,
-                    fastTween,
-                    { BackgroundTransparency = 0.7, Size = UDim2.new(0, 100, 0, 4) }
-                )
-                :Play()
+            motion.tween(self.dragCosmetic, { BackgroundTransparency = 0.7, Size = UDim2.new(0, 100, 0, 4) }, "fast")
         end
     end)
 
@@ -1327,18 +1296,13 @@ function Drag.new(window, props)
             return
         end
 
-        state.tweenService
-            :Create(
-                self.dragCosmetic,
-                slowTween,
-                { Size = UDim2.new(0, 100, 0, 4), BackgroundTransparency = 0.7 }
-            )
-            :Play()
+        motion.tween(self.dragCosmetic, { Size = UDim2.new(0, 100, 0, 4), BackgroundTransparency = 0.7 }, "settle")
 
-        local settleTween = TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+        -- [[The capsule settling back after a drag is the spring's moment:
+        -- a short overshoot that reads as weight, not lag.]]
         local mainPos, dragPos = constrainPosition()
-        state.tweenService:Create(self.window.main, settleTween, { Position = mainPos }):Play()
-        state.tweenService:Create(self.drag, settleTween, { Position = dragPos }):Play()
+        motion.tween(self.window.main, { Position = mainPos }, "spring")
+        motion.tween(self.drag, { Position = dragPos }, "spring")
     end
 
     local lerpSmoothing = 1e-7
@@ -1375,13 +1339,7 @@ function Drag.new(window, props)
                 + self.window.main.AbsoluteSize * self.window.main.AnchorPoint
                 - state.userInputService:GetMouseLocation()
             if not self.window.hidden then
-                state.tweenService
-                    :Create(
-                        self.dragCosmetic,
-                        slowTween,
-                        { Size = UDim2.new(0, 110, 0, 4), BackgroundTransparency = 0 }
-                    )
-                    :Play()
+                motion.tween(self.dragCosmetic, { Size = UDim2.new(0, 110, 0, 4), BackgroundTransparency = 0 }, "fast")
             end
 
             self._dragConnection = self.window:Connect(state.runService.RenderStepped, renderStepHandler)
@@ -1436,11 +1394,12 @@ local constants = require(utilities.constants)
 local haptic = require(utilities.HapticEngine)
 local motion = require(utilities.motion)
 
-local showTween = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local fadeInTween = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local textFadeTween = TweenInfo.new(0.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local bodyFadeTween = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local dismissTween = TweenInfo.new(0.9, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
+-- [[The card's entrance rides the motion service's shared vocabulary: the
+-- shell slides in on `emphasized`, surfaces fade on `normal`, copy on
+-- `snappy`, and the whole card accelerates out on `exit` — quicker than the
+-- entrance that made it, so the stack never feels crowded by its own past.]]
+local showTween, fadeInTween, textFadeTween = "emphasized", "normal", "snappy"
+local dismissTween = "exit"
 
 local bodyHiddenPosition = UDim2.new(0.5, 360, 0.5, 0)
 local bodyShownPosition = UDim2.new(0.5, 0, 0.5, 0)
@@ -1671,12 +1630,11 @@ function Notification:_show()
 
     haptic.notify()
 
-    state.tweenService:Create(self.main, showTween, { Size = UDim2.new(1, 0, 0, totalHeight) }):Play()
-    state.tweenService:Create(self.body, bodyFadeTween, { Position = bodyShownPosition }):Play()
-    state.tweenService:Create(self.body, fadeInTween, { BackgroundTransparency = 0 }):Play()
-    state.tweenService:Create(self.titleLabel, textFadeTween, { TextTransparency = 0 }):Play()
-    state.tweenService:Create(self.stroke, fadeInTween, { Transparency = 0.95 }):Play()
-    state.tweenService:Create(self.shadow, textFadeTween, { Transparency = 0.6 }):Play()
+    motion.tween(self.main, { Size = UDim2.new(1, 0, 0, totalHeight) }, showTween)
+    motion.tween(self.body, { Position = bodyShownPosition, BackgroundTransparency = 0 }, showTween)
+    motion.tween(self.titleLabel, { TextTransparency = 0 }, textFadeTween)
+    motion.tween(self.stroke, { Transparency = 0.95 }, fadeInTween)
+    motion.tween(self.shadow, { Transparency = 0.6 }, textFadeTween)
 
     -- [[The stagger beats answer the motion profile: with animation switched
     -- [[off they cost no time and the queue drains a card per frame.]]
@@ -1689,7 +1647,7 @@ function Notification:_show()
         return
     end
     if self.iconLabel then
-        state.tweenService:Create(self.iconLabel, textFadeTween, { ImageTransparency = 0 }):Play()
+        motion.tween(self.iconLabel, { ImageTransparency = 0 }, textFadeTween)
     end
 
     local secondBeat = motion.step(0.05)
@@ -1701,7 +1659,7 @@ function Notification:_show()
         return
     end
     if self.descriptionLabel then
-        state.tweenService:Create(self.descriptionLabel, textFadeTween, { TextTransparency = 0.35 }):Play()
+        motion.tween(self.descriptionLabel, { TextTransparency = 0.35 }, textFadeTween)
     end
 
     -- [[The card is fully on screen from here: everything that is still
@@ -1742,19 +1700,18 @@ function Notification:_dismiss()
         return
     end
 
-    state.tweenService:Create(self.body, fadeInTween, { BackgroundTransparency = 1 }):Play()
-    state.tweenService:Create(self.stroke, fadeInTween, { Transparency = 1 }):Play()
-    state.tweenService:Create(self.shadow, textFadeTween, { Transparency = 1 }):Play()
-    state.tweenService:Create(self.titleLabel, textFadeTween, { TextTransparency = 1 }):Play()
+    motion.tween(self.body, { BackgroundTransparency = 1, Size = UDim2.new(1, -90, 1, 0) }, dismissTween)
+    motion.tween(self.stroke, { Transparency = 1 }, dismissTween)
+    motion.tween(self.shadow, { Transparency = 1 }, dismissTween)
+    motion.tween(self.titleLabel, { TextTransparency = 1 }, dismissTween)
     if self.descriptionLabel then
-        state.tweenService:Create(self.descriptionLabel, textFadeTween, { TextTransparency = 1 }):Play()
+        motion.tween(self.descriptionLabel, { TextTransparency = 1 }, dismissTween)
     end
     if self.iconLabel then
-        state.tweenService:Create(self.iconLabel, textFadeTween, { ImageTransparency = 1 }):Play()
+        motion.tween(self.iconLabel, { ImageTransparency = 1 }, dismissTween)
     end
 
-    state.tweenService:Create(self.body, dismissTween, { Size = UDim2.new(1, -90, 1, 0) }):Play()
-    local collapseTween = state.tweenService:Create(self.main, dismissTween, { Size = UDim2.new(1, 0, 0, 0) })
+    local collapseTween = state.tweenService:Create(self.main, motion.spec(dismissTween), { Size = UDim2.new(1, 0, 0, 0) })
     local connection
     connection = collapseTween.Completed:Connect(function(playbackState)
         if connection then
@@ -2070,6 +2027,7 @@ Popup.__index = Popup
 Popup.__type = "Popup"
 
 local utilities = script.Parent.Parent.utilities
+local motion = require(utilities.motion)
 local state = require(utilities.Parent.core.state)
 local functions = require(script.Parent.Parent.functions)
 local constants = require(utilities.constants)
@@ -2077,10 +2035,12 @@ local locale = require(utilities.locale)
 local log = require(utilities.log)
 local haptic = require(utilities.HapticEngine)
 
-local cardShowTween = TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local fadeInTween = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local textFadeTween = TweenInfo.new(0.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local backdropTween = TweenInfo.new(0.35, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
+-- [[The dialog arrives on the shared vocabulary: the card glides the last
+-- few pixels to centre on `smooth` (a large surface decelerating), surfaces
+-- fade on `normal`, copy on `snappy`, the backdrop dims quickest of all so
+-- focus lands on the card. Closing plays the same paths in reverse on
+-- `snappy` — a dialog leaves quicker than it came.]]
+local cardShowTween, fadeInTween, textFadeTween, backdropTween = "smooth", "normal", "snappy", "fast"
 
 local cardWidth = 400
 local cardPadLeft = 22
@@ -2631,20 +2591,20 @@ function Popup:_buildButton(footerFrame, option, index)
         Parent = buttonFrame,
     })
 
-    local buttonHoverTween = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    local buttonHoverTween = "snappy"
     table.insert(
         self._connections,
         window:Connect(buttonInteract.MouseEnter, function()
             if self._closed then
                 return
             end
-            state.tweenService:Create(buttonFrame, buttonHoverTween, { BackgroundColor3 = hoverColor }):Play()
+            motion.tween(buttonFrame, { BackgroundColor3 = hoverColor }, buttonHoverTween)
         end)
     )
     table.insert(
         self._connections,
         window:Connect(buttonInteract.MouseLeave, function()
-            state.tweenService:Create(buttonFrame, buttonHoverTween, { BackgroundColor3 = bgColor }):Play()
+            motion.tween(buttonFrame, { BackgroundColor3 = bgColor }, buttonHoverTween)
         end)
     )
 
@@ -2655,7 +2615,7 @@ function Popup:_buildButton(footerFrame, option, index)
                 return
             end
             haptic.click()
-            state.tweenService:Create(buttonStroke, buttonHoverTween, { Transparency = 1 }):Play()
+            motion.tween(buttonStroke, { Transparency = 1 }, buttonHoverTween)
             if callback then
                 task.spawn(function()
                     local ok, err = pcall(callback)
@@ -2724,11 +2684,11 @@ function Popup:_show()
 
     haptic.notify()
 
-    state.tweenService:Create(self.card, cardShowTween, { Position = UDim2.new(0.5, 0, 0.5, 0) }):Play()
+    motion.tween(self.card, { Position = UDim2.new(0.5, 0, 0.5, 0) }, cardShowTween)
 
     for _, reveal in self._reveal do
         local tweenInfo = if reveal.instance == self.backdrop then backdropTween else fadeInTween
-        state.tweenService:Create(reveal.instance, tweenInfo, { [reveal.prop] = reveal.to }):Play()
+        motion.tween(reveal.instance, { [reveal.prop] = reveal.to }, tweenInfo)
     end
 end
 
@@ -2759,7 +2719,7 @@ function Popup:Close()
 
     local closeTween = state.tweenService:Create(
         self.card,
-        textFadeTween,
+        motion.spec(textFadeTween),
         { Position = UDim2.new(0.5, 0, 0.5, 10) }
     )
     self._closeConnection = closeTween.Completed:Connect(function(playbackState)
@@ -2775,7 +2735,7 @@ function Popup:Close()
     closeTween:Play()
 
     for _, reveal in self._reveal do
-        state.tweenService:Create(reveal.instance, textFadeTween, { [reveal.prop] = 1 }):Play()
+        motion.tween(reveal.instance, { [reveal.prop] = 1 }, textFadeTween)
     end
 end
 
@@ -2785,6 +2745,7 @@ end)() end,
     [15] = function()local wax,script,require=ImportGlobals(15)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local state = require(utilities.Parent.core.state)
+local motion = require(utilities.motion)
 local services = require(utilities.services)
 local image = require(script.Parent.Parent.images.image)
 local functions = require(script.Parent.Parent.functions)
@@ -2910,12 +2871,11 @@ local avatarBgTransparency = 0.95
 local idleStrokeTransparency = 0.95
 local glowTransparency = 0.6
 
-local settleTween = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-local hoverTween = TweenInfo.new(0.15, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local settleTween, hoverTween = "snappy", "fast"
 
 local fallbackUri = "rbxassetid://0"
 
-profilePanel.settleInfo = settleTween
+profilePanel.settleSpec = settleTween
 
 local buildGeneration = 0
 
@@ -4201,8 +4161,8 @@ function profilePanel.showTooltip(window, text, contentY: number)
     setText(window.profileTooltipLabel, text)
     tip.Position = UDim2.fromOffset(paddingX + cardPaddingX, y)
     tip.Visible = true
-    state.tweenService:Create(tip, hoverTween, { BackgroundTransparency = 0 }):Play()
-    state.tweenService:Create(window.profileTooltipLabel, hoverTween, { TextTransparency = 0 }):Play()
+    motion.tween(tip, { BackgroundTransparency = 0 }, hoverTween)
+    motion.tween(window.profileTooltipLabel, { TextTransparency = 0 }, hoverTween)
 end
 
 function profilePanel.hideTooltip(window)
@@ -4210,9 +4170,9 @@ function profilePanel.hideTooltip(window)
     if not tip or not tip.Visible then
         return
     end
-    state.tweenService:Create(tip, hoverTween, { BackgroundTransparency = 1 }):Play()
+    motion.tween(tip, { BackgroundTransparency = 1 }, hoverTween)
     if window.profileTooltipLabel then
-        state.tweenService:Create(window.profileTooltipLabel, hoverTween, { TextTransparency = 1 }):Play()
+        motion.tween(window.profileTooltipLabel, { TextTransparency = 1 }, hoverTween)
     end
     task.delay(hoverTween.Time, function()
         if tip.Parent and tip.BackgroundTransparency >= 1 then
@@ -4914,7 +4874,7 @@ function profilePanel.build(window)
                 -- [[faded in: reveal it now instead of waiting for the
                 -- [[next show/hide cycle.]]
                 if window.profilePanel and window.profilePanel.Visible then
-                    state.tweenService:Create(avatarLabel, settleTween, { ImageTransparency = 0 }):Play()
+                    motion.tween(avatarLabel, { ImageTransparency = 0 }, settleTween)
                 end
             else
                 avatarReady[avatarLabel] = nil
@@ -5064,7 +5024,7 @@ function profilePanel.setShown(window, shown, tweenInfo)
             continue
         end
         if tweenInfo then
-            state.tweenService:Create(instance, tweenInfo, props):Play()
+            motion.tween(instance, props, tweenInfo)
         else
             for prop, value in props do
                 instance[prop] = value
@@ -5212,13 +5172,18 @@ end)() end,
     [16] = function()local wax,script,require=ImportGlobals(16)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local state = require(utilities.Parent.core.state)
+local motion = require(utilities.motion)
 local constants = require(utilities.constants)
 local locale = require(utilities.locale)
 local actionComponent = require(script.Parent.action)
 
 local search = {}
 
-local hoverTween = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+-- [[The search overlay shares the library's hover spec for its fades; the
+-- two task.delay beats below read the spec's duration so the pill never
+-- hides while its fade is still running.]]
+local HOVER_SPEC = "snappy"
+local HOVER_SPEC_TIME = 0.25
 
 local defaultTransparency = 0.6
 local hoverTransparency = 0.2
@@ -5256,16 +5221,12 @@ local function getAllElements(window)
     return elements
 end
 
-local function setPillVisibility(window, visible, tweenInfo)
-    state.tweenService
-        :Create(window.searchPill, tweenInfo, {
-            BackgroundTransparency = if visible then 0.9 else 1,
-        })
-        :Play()
-    state.tweenService:Create(window.searchStroke, tweenInfo, { Transparency = if visible then 0.85 else 1 }):Play()
-    state.tweenService:Create(window.searchShadow, tweenInfo, { Transparency = if visible then 0.92 else 1 }):Play()
-    state.tweenService:Create(window.searchIcon, tweenInfo, { ImageTransparency = if visible then 0.65 else 1 }):Play()
-    state.tweenService:Create(window.searchInput, tweenInfo, { TextTransparency = if visible then 0.2 else 1 }):Play()
+local function setPillVisibility(window, visible, spec)
+    motion.tween(window.searchPill, { BackgroundTransparency = if visible then 0.9 else 1 }, spec)
+    motion.tween(window.searchStroke, { Transparency = if visible then 0.85 else 1 }, spec)
+    motion.tween(window.searchShadow, { Transparency = if visible then 0.92 else 1 }, spec)
+    motion.tween(window.searchIcon, { ImageTransparency = if visible then 0.65 else 1 }, spec)
+    motion.tween(window.searchInput, { TextTransparency = if visible then 0.2 else 1 }, spec)
 end
 
 local function setTabVisibility(window, visible, tweenInfo)
@@ -5353,18 +5314,18 @@ function search.open(window)
     filterElements(window, "")
     window:_jumpTo(window.searchPage)
 
-    setTabVisibility(window, false, hoverTween)
-    task.delay(hoverTween.Time, function()
+    setTabVisibility(window, false, HOVER_SPEC)
+    task.delay(HOVER_SPEC_TIME, function()
         if not window.unloaded and window._searching and window.layout.mode ~= "sidebar" then
             window.tabList.Visible = false
         end
     end)
 
     window.searchPill.Visible = true
-    setPillVisibility(window, true, hoverTween)
+    setPillVisibility(window, true, HOVER_SPEC)
     window.searchInput:CaptureFocus()
 
-    state.tweenService:Create(window.searchAction.iconLabel, hoverTween, { ImageTransparency = hoverTransparency }):Play()
+    motion.tween(window.searchAction.iconLabel, { ImageTransparency = hoverTransparency }, HOVER_SPEC)
 end
 
 function search.close(window, opts)
@@ -5384,8 +5345,8 @@ function search.close(window, opts)
         window:_jumpTo(jumpTarget)
     end
 
-    setPillVisibility(window, false, hoverTween)
-    task.delay(hoverTween.Time, function()
+    setPillVisibility(window, false, HOVER_SPEC)
+    task.delay(HOVER_SPEC_TIME, function()
         if not window.unloaded and not window._searching then
             window.searchPill.Visible = false
         end
@@ -5397,10 +5358,10 @@ function search.close(window, opts)
         else
             window.tabList.Visible = true
         end
-        setTabVisibility(window, true, hoverTween)
+        setTabVisibility(window, true, HOVER_SPEC)
     end
 
-    state.tweenService:Create(window.searchAction.iconLabel, hoverTween, { ImageTransparency = defaultTransparency }):Play()
+    motion.tween(window.searchAction.iconLabel, { ImageTransparency = defaultTransparency }, HOVER_SPEC)
 end
 
 function search.toggle(window)
@@ -6258,6 +6219,7 @@ end)() end,
     [19] = function()local wax,script,require=ImportGlobals(19)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local state = require(utilities.Parent.core.state)
+local motion = require(utilities.motion)
 local functions = require(script.Parent.Parent.functions)
 local locale = require(utilities.locale)
 
@@ -6611,11 +6573,7 @@ function tabSelector.setRowCollapsed(tab, collapsed, layout)
             tab.topbarItemTitle.TextTransparency = 1
         else
             tab.topbarItemTitle.Visible = true
-            state.tweenService:Create(
-                tab.topbarItemTitle,
-                TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-                { TextTransparency = 0 }
-            ):Play()
+            motion.tween(tab.topbarItemTitle, { TextTransparency = 0 }, "fast")
         end
     end
     if tab.topbarItemInitial then
@@ -6658,7 +6616,10 @@ function tabSelector.applyVisual(tab, visualState, tweenInfo)
 
     for instance, properties in targets do
         if tweenInfo then
-            state.tweenService:Create(instance, tweenInfo, properties):Play()
+            -- [[`tweenInfo` is a motion spec (name or TweenInfo): routing the
+            -- pill states through the service gives them the shared curve,
+            -- the time scale and one owner per property.]]
+            motion.tween(instance, properties, tweenInfo)
         else
             for prop, value in properties do
                 instance[prop] = value
@@ -6683,11 +6644,14 @@ local imageModule = require(script.Parent.Parent.images.image)
 local haptic = require(utilities.HapticEngine)
 local motion = require(utilities.motion)
 
-local showTween = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local expandTween = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local fadeInTween = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local textFadeTween = TweenInfo.new(0.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local dismissTween = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
+-- [[The entrance rides the motion service's shared vocabulary: the slot
+-- opens with a small overshoot (`settle`) so the stack visibly lands, the
+-- card slides to rest on `emphasized`, fades run on `normal`, copy on
+-- `snappy`, and the dismissal accelerates out on `exit` — a card leaves
+-- faster than it arrived.]]
+local showTween, fadeInTween, textFadeTween = "emphasized", "normal", "snappy"
+local expandTween = "settle"
+local dismissTween = "exit"
 
 local avatarSize = 24
 local largeIconSize = 32
@@ -6979,12 +6943,11 @@ function Toast:_show()
     end
     self.main.Size = UDim2.new(0, width, 0, 0)
 
-    state.tweenService:Create(self.main, expandTween, { Size = UDim2.new(0, width, 0, height + outerPadding) }):Play()
-    state.tweenService:Create(self.body, showTween, { Position = centerPosition }):Play()
-    state.tweenService:Create(self.body, fadeInTween, { BackgroundTransparency = 0 }):Play()
-    state.tweenService:Create(self.stroke, fadeInTween, { Transparency = 0.9 }):Play()
-    state.tweenService:Create(self.shadow, textFadeTween, { Transparency = 0.6 }):Play()
-    state.tweenService:Create(self.titleLabel, textFadeTween, { TextTransparency = 0 }):Play()
+    motion.tween(self.main, { Size = UDim2.new(0, width, 0, height + outerPadding) }, expandTween)
+    motion.tween(self.body, { Position = centerPosition, BackgroundTransparency = 0 }, showTween)
+    motion.tween(self.stroke, { Transparency = 0.9 }, fadeInTween)
+    motion.tween(self.shadow, { Transparency = 0.6 }, textFadeTween)
+    motion.tween(self.titleLabel, { TextTransparency = 0 }, textFadeTween)
 
     -- [[The two stagger beats answer the motion profile: with animation
     -- [[switched off they collapse to immediate frames and the queue drains
@@ -6999,8 +6962,7 @@ function Toast:_show()
         return
     end
     if self.iconLabel then
-        state.tweenService:Create(self.iconLabel, textFadeTween, { BackgroundTransparency = 0.95 }):Play()
-        state.tweenService:Create(self.iconLabel, textFadeTween, { ImageTransparency = 0 }):Play()
+        motion.tween(self.iconLabel, { BackgroundTransparency = 0.95, ImageTransparency = 0 }, textFadeTween)
     end
 
     local secondBeat = motion.step(0.05)
@@ -7012,7 +6974,7 @@ function Toast:_show()
         return
     end
     if self.subtitleLabel then
-        state.tweenService:Create(self.subtitleLabel, textFadeTween, { TextTransparency = 0.5 }):Play()
+        motion.tween(self.subtitleLabel, { TextTransparency = 0.5 }, textFadeTween)
     end
 
     -- [[Everything still running is the hold time now, not the entrance.
@@ -7052,22 +7014,19 @@ function Toast:_dismiss()
         return
     end
 
-    state.tweenService:Create(self.body, fadeInTween, { BackgroundTransparency = 1 }):Play()
-    state.tweenService:Create(self.stroke, fadeInTween, { Transparency = 1 }):Play()
-    state.tweenService:Create(self.shadow, textFadeTween, { Transparency = 1 }):Play()
-    state.tweenService:Create(self.titleLabel, textFadeTween, { TextTransparency = 1 }):Play()
+    motion.tween(self.body, { BackgroundTransparency = 1, Size = UDim2.new(1, -60, 1, 0) }, dismissTween)
+    motion.tween(self.stroke, { Transparency = 1 }, dismissTween)
+    motion.tween(self.shadow, { Transparency = 1 }, dismissTween)
+    motion.tween(self.titleLabel, { TextTransparency = 1 }, dismissTween)
     if self.subtitleLabel then
-        state.tweenService:Create(self.subtitleLabel, textFadeTween, { TextTransparency = 1 }):Play()
+        motion.tween(self.subtitleLabel, { TextTransparency = 1 }, dismissTween)
     end
     if self.iconLabel then
-        state.tweenService
-            :Create(self.iconLabel, textFadeTween, { ImageTransparency = 1, BackgroundTransparency = 1 })
-            :Play()
+        motion.tween(self.iconLabel, { ImageTransparency = 1, BackgroundTransparency = 1 }, dismissTween)
     end
 
-    state.tweenService:Create(self.body, dismissTween, { Size = UDim2.new(1, -60, 1, 0) }):Play()
     local collapseTween =
-        state.tweenService:Create(self.main, dismissTween, { Size = UDim2.new(0, self.main.Size.X.Offset, 0, 0) })
+        state.tweenService:Create(self.main, motion.spec(dismissTween), { Size = UDim2.new(0, self.main.Size.X.Offset, 0, 0) })
     local connection
     connection = collapseTween.Completed:Connect(function(playbackState)
         if connection then
@@ -7116,8 +7075,10 @@ local themes = require(script.Parent.Parent.themes)
 local Window = {}
 Window.__index = Window
 
-local revealTween = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local tweenStyle = TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+-- [[Element reveals, theme cross-fades and the toast stack's lane changes all
+-- ride the motion service's shared specs (see utilities/motion.luau) instead
+-- of per-call TweenInfo values: one vocabulary, one time scale, one owner per
+-- animated property.]]
 
 -- [[The beat between the window's shell landing and its page coming in. Long
 -- enough that the two read as one entrance in the right order — frame, then
@@ -7131,7 +7092,6 @@ local collapsedIconOnlySize = UDim2.fromOffset(50, 50)
 local collapsedPosition = UDim2.new(0.5, 0, 0, 20)
 local toastsTopPosition = UDim2.new(0.5, 0, 0, 12)
 local toastsTopWhenCollapsed = UDim2.new(0.5, 0, 0, collapsedPosition.Y.Offset + collapsedWideSize.Y.Offset + 12)
-local toastPositionTween = TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
 local toastWidth = 320
 
@@ -7210,7 +7170,7 @@ local function updateToastPosition(window, animate)
         return
     end
 
-    state.tweenService:Create(toastsTop, toastPositionTween, { Position = targetPos }):Play()
+    motion.tween(toastsTop, { Position = targetPos }, "snappy")
 end
 
 function Window:ResolveIcon(value, pack)
@@ -7349,7 +7309,14 @@ function Window.new(props)
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0.5, 0, 0.5, 0),
                 Size = self.size,
-        BackgroundTransparency = 1,         Visible = false,
+        BackgroundTransparency = 1,
+        -- [[Roblox gives every GuiObject a 1px border by default. The border
+        -- draws the frame's rectangular outline — straight lines that ignore
+        -- the UICorner arcs — so on the rounded window it painted a hard
+        -- square edge across all four corners once the surface faded in.
+        -- The window's silhouette is the UICorner's job alone.]]
+        BorderSizePixel = 0,
+        Visible = false,
         Parent = self.screenGui,
     })
 
@@ -7820,8 +7787,13 @@ function Window:ChangeTheme(themeInput)
     -- Color3/number through a 0.5s tween only buys dozens of tween allocations
     -- on the startup path — nothing can be seen animating. Assign the end
     -- state directly; the values are identical to what the tweens would have
-    -- settled on, and everything from the first entrance on still tweens.]]
+    -- settled on, and everything from the first entrance on still tweens.
+    -- When the theme *can* be seen changing, the per-instance properties are
+    -- batched into one motion-service tween each (instead of one TweenService
+    -- tween per property), so a theme switch both animates as one gesture and
+    -- hands ownership of every animated property to the service.]]
     local instantApply = self.hidden and not self.hasShownOnce
+    local pendingThemeTweens: { [Instance]: { [string]: any } } = {}
     for instance, properties in self.themeProperties do
         for prop, binding in properties do
             local resolvedValue = if typeof(binding) == "table" then binding[2](self.theme[binding[1]]) else self.theme[binding]
@@ -7830,10 +7802,20 @@ function Window:ChangeTheme(themeInput)
                 continue
             end
             if not instantApply and (typeof(resolvedValue) == "Color3" or typeof(resolvedValue) == "number") then
-                state.tweenService:Create(instance, tweenStyle, { [prop] = resolvedValue }):Play()
+                local batch = pendingThemeTweens[instance]
+                if not batch then
+                    batch = {}
+                    pendingThemeTweens[instance] = batch
+                end
+                batch[prop] = resolvedValue
             else
                 instance[prop] = resolvedValue
             end
+        end
+    end
+    if not instantApply then
+        for instance, batch in pendingThemeTweens do
+            motion.tween(instance, batch, "smooth")
         end
     end
 
@@ -7852,7 +7834,7 @@ function Window:ChangeTheme(themeInput)
     if self.windowCorner and (self._collapsedShown or self.minimised) and not self.animating then
         local pill = self.theme.PillCornerRadius or UDim.new(1, 0)
         if self.windowCorner.CornerRadius ~= pill then
-            state.tweenService:Create(self.windowCorner, tweenStyle, { CornerRadius = pill }):Play()
+            motion.tween(self.windowCorner, { CornerRadius = pill }, "smooth")
         end
     end
 end
@@ -7889,7 +7871,7 @@ function Window:CreateTab(props)
             tab.topbarItem.Visible = true
             tab:_applyVisual(
                 if self.selectedTab == tab then "selected" else "unselected",
-                TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+                "normal"
             )
         end
         -- [[A runtime-created tab may belong to the other rail.]]
@@ -8125,7 +8107,12 @@ function Window:Close()
     local transitionId = self._closeTransitionId
     local originalSize = self.main.Size
     local originalPosition = self.main.Position
-    local closeTweenInfo = TweenInfo.new(0.38, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
+    -- [[A close is a departure: the shell contracts on the `glide` spec (a
+    -- symmetric ease reads as the window folding itself away) while the
+    -- surface accelerates out on `exit`, so the window never lingers at the
+    -- tail of its own goodbye.]]
+    local contractTween = "glide"
+    local fadeOutTween = "exit"
     local targetSize = UDim2.new(
         originalSize.X.Scale * 0.88,
         math.floor(originalSize.X.Offset * 0.88),
@@ -8137,15 +8124,15 @@ function Window:Close()
     self.main.AnchorPoint = Vector2.new(0.5, 0.5)
     self.main.Position = originalPosition
     self.drag.drag.Visible = false
-    self:_fadeSurfaces(false, closeTweenInfo)
+    self:_fadeSurfaces(false, fadeOutTween)
     if self.title then
-        motion.tween(self.title, { TextTransparency = 1 }, closeTweenInfo)
+        motion.tween(self.title, { TextTransparency = 1 }, fadeOutTween)
     end
     if self.subtitle then
-        motion.tween(self.subtitle, { TextTransparency = 1 }, closeTweenInfo)
+        motion.tween(self.subtitle, { TextTransparency = 1 }, fadeOutTween)
     end
     if self.topbarIcon then
-        motion.tween(self.topbarIcon, { ImageTransparency = 1 }, closeTweenInfo)
+        motion.tween(self.topbarIcon, { ImageTransparency = 1 }, fadeOutTween)
     end
     self:_fadeSelectedElementsOut()
     -- [[The contraction goes through the motion service so the close answers
@@ -8163,11 +8150,14 @@ function Window:Close()
         self:Unload()
     end
 
+    -- [[The surface accelerates out first (a separate tween from the
+    -- contraction: one owner per property, and the fade never delays the
+    -- settle path the teardown waits on).]]
+    motion.tween(self.main, { BackgroundTransparency = 1 }, fadeOutTween)
     if not motion.tween(self.main, {
         Size = targetSize,
         Position = originalPosition,
-        BackgroundTransparency = 1,
-    }, closeTweenInfo, finishClose) then
+    }, contractTween, finishClose) then
         -- [[Nothing animated, so the teardown just ran and the window's
         -- instances are gone — the corner below must not be touched.]]
         finishClose()
@@ -8176,8 +8166,12 @@ function Window:Close()
         end
     end
     -- [[Collapse to a capsule using the theme's pill radius so a custom
-    -- [[PillCornerRadius still reads on the closing shrink.]]
-    motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, closeTweenInfo)
+    -- [[PillCornerRadius still reads on the closing shrink. A synchronous
+    -- completion (the test harness plays tweens on the spot) may have torn
+    -- the window down inside the call above; never touch the corner then.]]
+    if not self.unloaded then
+        motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, contractTween)
+    end
 end
 
 function Window:Hide()
@@ -8213,17 +8207,19 @@ function Window:Hide()
 
     local collapsedPos, collapsedSize = self:_collapsedRect()
 
-    local hideTween = TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-    local surfaceTween = TweenInfo.new(0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
-    local cornerTween = TweenInfo.new(0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
-    local collapseShowTween = TweenInfo.new(0.28, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    -- [[The fold: content leaves quickly (snappy fades), the shell glides
+    -- into the capsule with the symmetric ease, and the capsule's face
+    -- appears with a small settle overshoot so the fold ends on a landing,
+    -- not a stop.]]
+    local hideTween = "snappy"
+    local surfaceTween = "glide"
+    local cornerTween = "glide"
+    local collapseShowTween = "settle"
 
             self._hideTransitionId = (self._hideTransitionId or 0) + 1
     local transitionId = self._hideTransitionId
 
-            state.tweenService
-        :Create(self.drag.dragCosmetic, hideTween, { Size = UDim2.fromOffset(0, 4), BackgroundTransparency = 1 })
-        :Play()
+            motion.tween(self.drag.dragCosmetic, { Size = UDim2.fromOffset(0, 4), BackgroundTransparency = 1 }, "fast")
     task.delay(0.18, function()
         if self.unloaded or not self.hidden or self._hideTransitionId ~= transitionId then
             return
@@ -8309,8 +8305,12 @@ function Window:ToggleMinimise()
     self.drag.drag.Visible = false
     self.collapsedInteract.Visible = false
 
-    local expandTween = TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-    local surfaceTween = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
+    -- [[Both directions of the minimise move one surface between two shapes,
+    -- so both ride the same pair of specs: `smooth` carries the geometric
+    -- unfold (a big decelerating move reads as arriving), `settle` lands the
+    -- capsule face when folding away.]]
+    local expandTween = "smooth"
+    local surfaceTween = "smooth"
 
     self._hideTransitionId = (self._hideTransitionId or 0) + 1
 
@@ -8318,7 +8318,7 @@ function Window:ToggleMinimise()
         self.minimised = false
         self.drag.drag.Visible = false
         image.assign(self.minimiseAction.iconLabel, "Image", constants.icons.minimise)
-        state.tweenService:Create(self.main, expandTween, { Size = self.size }):Play()
+        motion.tween(self.main, { Size = self.size }, expandTween)
         motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, expandTween)
         self:_fadeSurfaces(true, surfaceTween)	chrome.setCollapsedShown(self, false, surfaceTween)
 
@@ -8330,16 +8330,14 @@ function Window:ToggleMinimise()
         -- [[is off).]]
         self:_clampToScreen()
 
-        state.tweenService
-            :Create(self.drag.drag, expandTween, {
-                Position = UDim2.new(
-                    self.main.Position.X.Scale,
-                    self.main.Position.X.Offset,
-                    self.main.Position.Y.Scale,
-                    self.main.Position.Y.Offset + self.size.Y.Offset / 2 + 15
-                ),
-            })
-            :Play()
+        motion.tween(self.drag.drag, {
+            Position = UDim2.new(
+                self.main.Position.X.Scale,
+                self.main.Position.X.Offset,
+                self.main.Position.Y.Scale,
+                self.main.Position.Y.Offset + self.size.Y.Offset / 2 + 15
+            ),
+        }, expandTween)
 
                         task.delay(0.2, function()
             if self.unloaded or self.minimised or self.hidden then
@@ -8388,22 +8386,18 @@ function Window:ToggleMinimise()
         end)
 
         self:_fadeSurfaces(false, surfaceTween)	chrome.setCollapsedShown(self, true, surfaceTween)
-        state.tweenService
-            :Create(self.main, expandTween, { Size = UDim2.fromOffset(self.size.X.Offset, self.layout.topbarHeight) })
-            :Play()
+        motion.tween(self.main, { Size = UDim2.fromOffset(self.size.X.Offset, self.layout.topbarHeight) }, expandTween)
         -- [[Minimised bar reads as a theme-aware capsule (PillCornerRadius).]]
         motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, expandTween)
 
-        state.tweenService
-            :Create(self.drag.drag, expandTween, {
-                Position = UDim2.new(
-                    self.main.Position.X.Scale,
-                    self.main.Position.X.Offset,
-                    self.main.Position.Y.Scale,
-                    self.main.Position.Y.Offset + self.layout.topbarHeight / 2 + 15
-                ),
-            })
-            :Play()
+        motion.tween(self.drag.drag, {
+            Position = UDim2.new(
+                self.main.Position.X.Scale,
+                self.main.Position.X.Offset,
+                self.main.Position.Y.Scale,
+                self.main.Position.Y.Offset + self.layout.topbarHeight / 2 + 15
+            ),
+        }, expandTween)
 
         task.delay(0.5, function()
             if self.unloaded then
@@ -8482,15 +8476,12 @@ function Window:_recenterForProfile(animate)
         return
     end
     if animate and not self.animating then
-        local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-        state.tweenService:Create(self.main, tweenInfo, { Position = target }):Play()
-        state.tweenService
-            :Create(
-                self.drag.drag,
-                tweenInfo,
-                { Position = UDim2.new(target.X.Scale, target.X.Offset, target.Y.Scale, target.Y.Offset + self.size.Y.Offset / 2 + 15) }
-            )
-            :Play()
+        -- [[A recenter slides the pair sideways between resting places: the
+        -- symmetric `glide` ease reads as deliberate, not reactive.]]
+        motion.tween(self.main, { Position = target }, "glide")
+        motion.tween(self.drag.drag, {
+            Position = UDim2.new(target.X.Scale, target.X.Offset, target.Y.Scale, target.Y.Offset + self.size.Y.Offset / 2 + 15),
+        }, "glide")
     else
         self.main.Position = target
         self:_syncDragBar()
@@ -8523,7 +8514,7 @@ function Window:_armProfilePlayerWaiter()
                 connection:Disconnect()
                 if state.localPlayer and profilePanel.ensureBuilt(self) then
                     profilePanel.applyIdentity(self)
-                    profilePanel.setShown(self, true, profilePanel.settleInfo)
+                    profilePanel.setShown(self, true, profilePanel.settleSpec)
                     -- [[Centre the pair if the user has not dragged the
                     -- [[window off its resting spot.]]
                     if self.main.Position.X.Scale == 0.5 and self.main.Position.Y.Scale == 0.5 then
@@ -8943,18 +8934,18 @@ function Window:_setElementLocked(element, locked, message)
         self:_buildLockScrim(element)
     end
 
-    local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    -- [[The lock scrim arrives on the shared hover spec; the unlock delay
+    -- tracks its duration so the scrim never hides after it has faded.]]
+    local lockSpec = "snappy"
 
     if locked then
         element.lockScrim.Visible = true
     end
-    state.tweenService
-        :Create(element.lockScrim, tweenInfo, {
-            BackgroundTransparency = if locked then lockScrimTransparency else 1,
-        })
-        :Play()
+    motion.tween(element.lockScrim, {
+        BackgroundTransparency = if locked then lockScrimTransparency else 1,
+    }, lockSpec)
     if not locked then
-        task.delay(tweenInfo.Time, function()
+        task.delay(0.25, function()
             if not element.locked and element.lockScrim and element.lockScrim.Parent then
                 element.lockScrim.Visible = false             end
         end)
@@ -8973,11 +8964,9 @@ function Window:_setElementLocked(element, locked, message)
         element._descriptionBefore = nil
     end
 
-    state.tweenService
-        :Create(label, tweenInfo, {
-            TextTransparency = if locked then lockedTextTransparency else 0.45,
-        })
-        :Play()
+    motion.tween(label, {
+        TextTransparency = if locked then lockedTextTransparency else 0.45,
+    }, lockSpec)
 end
 
 function Window:_buildLockScrim(element)
@@ -9103,7 +9092,7 @@ function Window:_setLayoutMode(modeName)
     self._layoutTransitioning = true
     self._layoutTransitionId = (self._layoutTransitionId or 0) + 1
     local transitionId = self._layoutTransitionId
-    local tweenInfo = TweenInfo.new(0.16, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    local tweenInfo = "fast"
     self:_fadeSurfaces(false, tweenInfo)
     self:_fadeSelectedElementsOut()
     for _, tab in self.tabs do
@@ -9421,7 +9410,11 @@ function Window:_quickRestore()
     end
     local targetPos = self:_clampedPosition(restore)
     self._restorePosition = targetPos
-    local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    -- [[The restore unfolds one surface between two shapes: the shell glides
+    -- (symmetric ease) while the corner springs open with a small overshoot,
+    -- so the capsule visibly "pops" back into the window.]]
+    local restoreTween = "glide"
+    local restoreCornerTween = "settle"
 
     self.main.ClipsDescendants = true
     self.main.BackgroundTransparency = windowSurfaceTransparency
@@ -9494,10 +9487,10 @@ function Window:_quickRestore()
         overlayQueue.resume(self)
     end
 
-    if not motion.tween(self.main, { Size = self.size, Position = targetPos }, tweenInfo, settle) then
+    if not motion.tween(self.main, { Size = self.size, Position = targetPos }, restoreTween, settle) then
         settle()
     end
-    motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, tweenInfo)
+    motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, restoreCornerTween)
     self:_stageContentReveal(motion.step(contentRevealBeat * 0.6), 0.02, 0.4, entranceId)
 end
 function Window:_firstShow()
@@ -9518,7 +9511,7 @@ function Window:_firstShow()
     end
 
     self.main.Size = self.size
-    self.windowScale.Scale = 0.92
+    self.windowScale.Scale = 0.94
     -- [[Entrance starts as a capsule (theme pill) then opens to CornerRoundness.]]
     self.windowCorner.CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0)
     -- [[Which entrance owns the staged content reveal below. A hide, a repeat
@@ -9548,7 +9541,7 @@ function Window:_firstShow()
     -- [[for when it is opened; the staged reveal below walks the page that is
     -- [[actually on screen, one control per beat.]]
     self:_applySettingsLayout(self._settingsMode)
-    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    local tweenInfo = "smooth"
     if self.topbarIcon then
         self.topbarIcon.ImageTransparency = 1
         motion.tween(self.topbarIcon, { ImageTransparency = 0 }, tweenInfo)
@@ -9821,8 +9814,8 @@ function Window:_flashResult(element, ok)
     local flashStroke = ok and constants.accent.onStroke or self.theme.ErrorStrokeColor
     -- [[Hoisted out of the function: these two are fixed, and the flash runs
     -- on every element callback that reports a result.]]
-    local flashTween = TweenInfo.new(0.1, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-    local restoreTween = TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    local flashTween = "fast"
+    local restoreTween = "normal"
 
     motion.tween(box, { BackgroundColor3 = flashColor }, flashTween)
     if boxStroke then
@@ -9944,7 +9937,7 @@ function Window:_runGuarded(element, fn, ...)
         element._errored = true
 
         local flashTarget = element.flashTarget or element.main
-        local errorTween = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+        local errorTween = "snappy"
         motion.tween(flashTarget, { BackgroundColor3 = self.theme.ErrorColor }, errorTween)
         motion.tween(element.stroke, { Color = self.theme.ErrorStrokeColor }, errorTween)
                 if element.title then
@@ -9964,12 +9957,12 @@ function Window:_runGuarded(element, fn, ...)
         motion.tween(
             flashTarget,
             { BackgroundColor3 = Color3.fromRGB(255, 255, 255) },
-            TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+            "normal"
         )
         motion.tween(
             element.stroke,
             { Color = self.theme.ElementStroke },
-            TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+            "emphasized"
         )
         element._errored = false
     end)
@@ -10088,7 +10081,7 @@ function Window:_reveal(instance, targets, animate, tweenInfo)
         -- and cancels an in-flight tween on the same property — the cascade
         -- asks every element on the page to show on one frame, and a
         -- hidden/reshown window used to stack a second reveal on the first.]]
-        motion.tween(instance, targets, tweenInfo or revealTween)
+        motion.tween(instance, targets, tweenInfo or "normal")
     else
         for prop, value in targets do
             instance[prop] = value
@@ -10135,7 +10128,7 @@ function Window:_resetCapsulePosition()
     self._collapsedPosition = nil
     if self._collapsedShown and not self.animating then
         local position = self:_collapsedRect()
-        motion.tween(self.main, { Position = position }, tweenStyle)
+        motion.tween(self.main, { Position = position }, "glide")
     end
 end
 
@@ -10421,8 +10414,13 @@ local icon = require(constants.locale)
 local callback = require(constants.HapticEngine)
 local baseCard = require(script.Parent.baseCard)
 local description = require(script.Parent.description)
-local element = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-local tapPress = TweenInfo.new(0.11, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+-- [[The click choreography rides the motion service's specs: the tap glyph
+-- dips on `fast` and springs back on `settle` (a small overshoot that reads
+-- as a physical press), the card nudges in on `snappy` and lands back on
+-- `settle`, and the stroke follows hover on `snappy`.]]
+local element = "snappy"
+local tapPress = "fast"
+local tapRelease = "settle"
 
 -- [[Built-in "tap" glyph for the card's right edge. Candidates are tried in
 -- [[catalog order and the first hit wins: `icons.resolve` answers an
@@ -10530,19 +10528,19 @@ function state:_buildFull()
     self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
         callback.click()
         if self.tapScale then
-            Button.tweenService:Create(self.tapScale, tapPress, { Scale = 0.8 }):Play()
+            Button.tweenService:Create(self.tapScale, motion.spec(tapPress), { Scale = 0.78 }):Play()
         end
         Button.tweenService
             :Create(
                 self.stroke,
-                element,
+                motion.spec(element),
                 { Transparency = 1 }
             )
             :Play()
         Button.tweenService
             :Create(
                 self.main,
-                TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+                motion.spec("snappy"),
                 { Size = UDim2.new(1, -26, 0, description.height(self, 43)) }
             )
             :Play()
@@ -10556,19 +10554,19 @@ function state:_buildFull()
         end
 
         if self.tapScale then
-            Button.tweenService:Create(self.tapScale, element, { Scale = 1 }):Play()
+            Button.tweenService:Create(self.tapScale, motion.spec(tapRelease), { Scale = 1 }):Play()
         end
         Button.tweenService
             :Create(
                 self.main,
-                TweenInfo.new(0.25, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+                motion.spec(tapRelease),
                 { Size = UDim2.new(1, -20, 0, description.height(self, 43)) }
             )
             :Play()
         Button.tweenService
             :Create(
                 self.stroke,
-                element,
+                motion.spec(element),
                 { Transparency = self.window:_elementStrokeTransparency(self, false) }
             )
             :Play()
@@ -10657,12 +10655,12 @@ function state:_buildCompact()
     self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
         callback.click()
         if self.tapScale then
-            Button.tweenService:Create(self.tapScale, tapPress, { Scale = 0.8 }):Play()
+            Button.tweenService:Create(self.tapScale, motion.spec(tapPress), { Scale = 0.78 }):Play()
         end
         Button.tweenService
             :Create(
                 self.stroke,
-                element,
+                motion.spec(element),
                 { Transparency = 1 }
             )
             :Play()
@@ -10676,12 +10674,12 @@ function state:_buildCompact()
         end
 
         if self.tapScale then
-            Button.tweenService:Create(self.tapScale, element, { Scale = 1 }):Play()
+            Button.tweenService:Create(self.tapScale, motion.spec(tapRelease), { Scale = 1 }):Play()
         end
         Button.tweenService
             :Create(
                 self.stroke,
-                element,
+                motion.spec(element),
                 { Transparency = self.window:_elementStrokeTransparency(self, false) }
             )
             :Play()
@@ -11862,6 +11860,7 @@ state.__type = "Dropdown"
 local constants = script.Parent.Parent.utilities
 
 local Dropdown = require(constants.Parent.core.state)
+local motion = require(constants.motion)
 local tab = require(script.Parent.Parent.functions)
 local props = require(script.Parent.Parent.images.image)
 local name = require(constants.constants)
@@ -11907,14 +11906,13 @@ local actionStrokeChecked = 1
 local actionTextIdle = 0.45
 local actionTextHover = 0.15
 
-local a29 = TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-local a30 = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-local a31 = TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-local a32 = TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local a33 = TweenInfo.new(0.7, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
+-- [[The dropdown's motion vocabulary, resolved through the shared service:
+-- rows snap, panels fade on the normal reveal curve, the list opens on the
+-- smooth surface curve and the chevron spins.]]
+local a29, a30, a31 = "fast", "snappy", "normal"
+local a32, a33, a35 = "smooth", "spin", "normal"
 
 local a34 = 0.4
-local a35 = TweenInfo.new(0.35, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
 
 local function a36(a37)
     local a38 = {}
@@ -12240,11 +12238,10 @@ function state.new(tab, a49)
         props.assign(a55.checkIcon, "Image", if a57 then callback else element)
 
         if a56 then
-            local a62 = TweenInfo.new(0.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-            Dropdown.tweenService:Create(a55.frame, a62, { BackgroundTransparency = a58 }):Play()
-            Dropdown.tweenService:Create(a55.title, a62, { TextTransparency = a59 }):Play()
-            Dropdown.tweenService:Create(a55.checkIcon, a62, { ImageTransparency = a60 }):Play()
-            Dropdown.tweenService:Create(a55.stroke, a62, { Transparency = a61 }):Play()
+            motion.tween(a55.frame, { BackgroundTransparency = a58 }, "snappy")
+            motion.tween(a55.title, { TextTransparency = a59 }, "snappy")
+            motion.tween(a55.checkIcon, { ImageTransparency = a60 }, "snappy")
+            motion.tween(a55.stroke, { Transparency = a61 }, "snappy")
         else
             a55.frame.BackgroundTransparency = a58
             a55.title.TextTransparency = a59
@@ -12364,20 +12361,8 @@ function state.new(tab, a49)
                 if a52(a73.name) then
                     return
                 end
-                Dropdown.tweenService
-                    :Create(
-                        a66,
-                        a29,
-                        { BackgroundTransparency = 0.9 }
-                    )
-                    :Play()
-                Dropdown.tweenService
-                    :Create(
-                        a72,
-                        a29,
-                        { TextTransparency = 0.15 }
-                    )
-                    :Play()
+                motion.tween(a66, { BackgroundTransparency = 0.9 }, a29)
+                motion.tween(a72, { TextTransparency = 0.15 }, a29)
             end)
         )
 
@@ -12390,20 +12375,8 @@ function state.new(tab, a49)
                 if a52(a73.name) then
                     return
                 end
-                Dropdown.tweenService
-                    :Create(
-                        a66,
-                        a29,
-                        { BackgroundTransparency = 0.95 }
-                    )
-                    :Play()
-                Dropdown.tweenService
-                    :Create(
-                        a72,
-                        a29,
-                        { TextTransparency = 0.3 }
-                    )
-                    :Play()
+                motion.tween(a66, { BackgroundTransparency = 0.95 }, a29)
+                motion.tween(a72, { TextTransparency = 0.3 }, a29)
             end)
         )
 
@@ -12482,27 +12455,29 @@ function state.new(tab, a49)
         if self._isOpen or not self.window:_interactive() then
             return
         end
-        Dropdown.tweenService
-            :Create(self.title, a30, { TextColor3 = self.window.theme.ElementTextHoverColor })
-            :Play()
-        Dropdown.tweenService:Create(self.hoverOverlay, a30, { BackgroundTransparency = 0.97 }):Play()
-        Dropdown.tweenService
-            :Create(self.stroke, a30, {
+        motion.tween(self.title, { TextColor3 = self.window.theme.ElementTextHoverColor }, a30)
+        motion.tween(self.hoverOverlay, { BackgroundTransparency = 0.97 }, a30)
+        motion.tween(
+            self.stroke,
+            {
                 Transparency = self.window:_elementStrokeTransparency(self, true),
                 Color = self.window.theme.ElementStrokeHover,
-            })
-            :Play()
+            },
+            a30
+        )
     end)
 
     self.window:ConnectFor(self, self.main.MouseLeave, function()
-        Dropdown.tweenService:Create(self.title, a30, { TextColor3 = self.window.theme.ContentColor }):Play()
-        Dropdown.tweenService:Create(self.hoverOverlay, a30, { BackgroundTransparency = 1 }):Play()
-        Dropdown.tweenService
-            :Create(self.stroke, a30, {
+        motion.tween(self.title, { TextColor3 = self.window.theme.ContentColor }, a30)
+        motion.tween(self.hoverOverlay, { BackgroundTransparency = 1 }, a30)
+        motion.tween(
+            self.stroke,
+            {
                 Transparency = self.window:_elementStrokeTransparency(self, false),
                 Color = self.window.theme.ElementStroke,
-            })
-            :Play()
+            },
+            a30
+        )
     end)
 
     return self
@@ -12571,6 +12546,10 @@ function state:_buildSearch()
         Size = UDim2.fromOffset(20, 20),
         Position = UDim2.new(0, 24, 0.5, 0),         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundTransparency = 1,
+        -- [[A GuiObject border draws the square outline of the frame's
+        -- bounds (it never follows a UICorner), so every surface in the
+        -- window opts out of it.]]
+        BorderSizePixel = 0,
         ScaleType = Enum.ScaleType.Fit,
         AutoButtonColor = false,
         ZIndex = 53,
@@ -12609,16 +12588,14 @@ function state:_expandSearch()
     self.searchInput.TextEditable = true
     self.searchInput.Interactable = true
 
-    Dropdown.tweenService
-        :Create(
-            self.searchbar,
-            a35,
-            { Size = UDim2.new(1, -12, 0, selected), BackgroundTransparency = 0.92 }
-        )
-        :Play()
-    Dropdown.tweenService:Create(self.searchStroke, a35, { Transparency = 0.86 }):Play()
-    Dropdown.tweenService:Create(self.searchShadow, a35, { Transparency = 0.92 }):Play()
-    Dropdown.tweenService:Create(self.searchInput, a35, { TextTransparency = 0.3 }):Play()
+    motion.tween(
+        self.searchbar,
+        { Size = UDim2.new(1, -12, 0, selected), BackgroundTransparency = 0.92 },
+        a35
+    )
+    motion.tween(self.searchStroke, { Transparency = 0.86 }, a35)
+    motion.tween(self.searchShadow, { Transparency = 0.92 }, a35)
+    motion.tween(self.searchInput, { TextTransparency = 0.3 }, a35)
 
     self:_resizeToOptions()     self.searchInput:CaptureFocus()
 end
@@ -12632,16 +12609,14 @@ function state:_collapseSearch()
     self.searchInput.Interactable = false
     self.searchInput:ReleaseFocus()
     self.searchInput.Text = ""
-    Dropdown.tweenService
-        :Create(
-            self.searchbar,
-            a35,
-            { Size = UDim2.new(1, -12, 0, isOpen), BackgroundTransparency = 1 }
-        )
-        :Play()
-    Dropdown.tweenService:Create(self.searchStroke, a35, { Transparency = 1 }):Play()
-    Dropdown.tweenService:Create(self.searchShadow, a35, { Transparency = 1 }):Play()
-    Dropdown.tweenService:Create(self.searchInput, a35, { TextTransparency = 1 }):Play()
+    motion.tween(
+        self.searchbar,
+        { Size = UDim2.new(1, -12, 0, isOpen), BackgroundTransparency = 1 },
+        a35
+    )
+    motion.tween(self.searchStroke, { Transparency = 1 }, a35)
+    motion.tween(self.searchShadow, { Transparency = 1 }, a35)
+    motion.tween(self.searchInput, { TextTransparency = 1 }, a35)
 
     self:_resizeToOptions()
 end
@@ -12673,9 +12648,7 @@ function state:_syncScrollHint()
 
     local a84 = self._isOpen and a83.Y > 0 and a82.Y - (at.Y + a83.Y) > 1
 
-    Dropdown.tweenService
-        :Create(self.list, a29, { ScrollBarImageTransparency = if a84 then a34 else 1 })
-        :Play()
+    motion.tween(self.list, { ScrollBarImageTransparency = if a84 then a34 else 1 }, a29)
 end
 
 function state:_visibleOptions(): { string }
@@ -12840,23 +12813,19 @@ function state:_buildActions()
         if self._selectAllChecked then
             return
         end
-        Dropdown.tweenService
-            :Create(self.selectAllStroke, a29, { Transparency = actionStrokeHover })
-            :Play()
+        motion.tween(self.selectAllStroke, { Transparency = actionStrokeHover }, a29)
     end)
     self.window:ConnectFor(self, self.selectAll.MouseLeave, function()
         self._selectAllHovered = false
         if self._selectAllChecked then
             return
         end
-        Dropdown.tweenService
-            :Create(self.selectAllStroke, a29, { Transparency = actionStrokeIdle })
-            :Play()
+        motion.tween(self.selectAllStroke, { Transparency = actionStrokeIdle }, a29)
     end)
 
     local function fadeClear(transparency: number)
-        Dropdown.tweenService:Create(self.clearLabel, a29, { TextTransparency = transparency }):Play()
-        Dropdown.tweenService:Create(self.clearIcon, a29, { ImageTransparency = transparency }):Play()
+        motion.tween(self.clearLabel, { TextTransparency = transparency }, a29)
+        motion.tween(self.clearIcon, { ImageTransparency = transparency }, a29)
     end
     self.window:ConnectFor(self, self.clear.MouseEnter, function()
         fadeClear(actionTextHover)
@@ -12954,10 +12923,8 @@ function state:_syncActions()
     self._selectAllChecked = checked
     self._selectAllOutline = outline
 
-    Dropdown.tweenService
-        :Create(self.selectAllCheck, a29, { ImageTransparency = if checked then 0 else 1 })
-        :Play()
-    Dropdown.tweenService:Create(self.selectAllStroke, a29, { Transparency = outline }):Play()
+    motion.tween(self.selectAllCheck, { ImageTransparency = if checked then 0 else 1 }, a29)
+    motion.tween(self.selectAllStroke, { Transparency = outline }, a29)
 end
 
 function state:_afterBulkChange()
@@ -12978,7 +12945,7 @@ function state:_resizeToOptions()
     if not self._isOpen then
         return
     end
-    Dropdown.tweenService:Create(self.main, a35, { Size = UDim2.new(1, -20, 0, self:_openHeight()) }):Play()
+    motion.tween(self.main, { Size = UDim2.new(1, -20, 0, self:_openHeight()) }, a35)
 end
 
 function state:_updateCorners()
@@ -13102,41 +13069,19 @@ function state:_open()
         end
     end)
 
-    Dropdown.tweenService
-        :Create(
-            self.main,
-            a32,
-            { Size = UDim2.new(1, -20, 0, self:_openHeight()) }
-        )
-        :Play()
-    Dropdown.tweenService
-        :Create(
-            self.chevron,
-            a33,
-            { Rotation = 0 }
-        )
-        :Play()
-    Dropdown.tweenService
-        :Create(
-            self.panel,
-            a31,
-            { BackgroundTransparency = self.window:_elementBackgroundTransparency(self) }
-        )
-        :Play()
-    Dropdown.tweenService
-        :Create(
-            self.panelStroke,
-            a31,
-            { Transparency = self.window:_elementStrokeTransparency(self, false) }
-        )
-        :Play()
-    Dropdown.tweenService
-        :Create(
-            self.searchIcon,
-            a31,
-            { ImageTransparency = 0.5 }
-        )
-        :Play()
+    motion.tween(self.main, { Size = UDim2.new(1, -20, 0, self:_openHeight()) }, a32)
+    motion.tween(self.chevron, { Rotation = 0 }, a33)
+    motion.tween(
+        self.panel,
+        { BackgroundTransparency = self.window:_elementBackgroundTransparency(self) },
+        a31
+    )
+    motion.tween(
+        self.panelStroke,
+        { Transparency = self.window:_elementStrokeTransparency(self, false) },
+        a31
+    )
+    motion.tween(self.searchIcon, { ImageTransparency = 0.5 }, a31)
 
     for _, a116 in self._optionFrames do
         self._renderOptionState(a116, true)
@@ -13176,11 +13121,13 @@ function state:_bringIntoView()
         return     end
 
             local a124 = math.min(at.Y + a123 + 8, a121)
-    Dropdown.tweenService
-        :Create(a117, a31, {
+    motion.tween(
+        a117,
+        {
             CanvasPosition = Vector2.new(at.X, a124),
-        })
-        :Play()
+        },
+        a31
+    )
 end
 
 function state:_close()
@@ -13197,46 +13144,16 @@ function state:_close()
     self:_collapseSearch()
     self:_syncScrollHint()
 
-    Dropdown.tweenService
-        :Create(
-            self.chevron,
-            a33,
-            { Rotation = 180 }
-        )
-        :Play()
-    Dropdown.tweenService
-        :Create(
-            self.panel,
-            a31,
-            { BackgroundTransparency = 1 }
-        )
-        :Play()
-    Dropdown.tweenService
-        :Create(
-            self.panelStroke,
-            a31,
-            { Transparency = 1 }
-        )
-        :Play()
-    Dropdown.tweenService
-        :Create(
-            self.searchIcon,
-            a31,
-            { ImageTransparency = 1 }
-        )
-        :Play()
+    motion.tween(self.chevron, { Rotation = 180 }, a33)
+    motion.tween(self.panel, { BackgroundTransparency = 1 }, a31)
+    motion.tween(self.panelStroke, { Transparency = 1 }, a31)
+    motion.tween(self.searchIcon, { ImageTransparency = 1 }, a31)
 
     for _, a125 in self._optionFrames do
         self._renderOptionState(a125, true)
     end
 
-    Dropdown.tweenService
-        :Create(
-            self.main,
-            a32,
-            { Size = UDim2.new(1, -20, 0, description.height(self, 41)) }
-        )
-        :Play()
+    motion.tween(self.main, { Size = UDim2.new(1, -20, 0, description.height(self, 41)) }, a32)
 end
 
 function state:_destroyOption(a126)
@@ -13688,8 +13605,12 @@ local description = require(script.Parent.description)
 local numeric = require(constants.constants)
 local clearOnFocus = require(constants.HapticEngine)
 
-local callback = numeric.pillResizeInfo
-local element = TweenInfo.new(0.15, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+-- [[Field feedback rides the shared motion service: the box follows typing
+-- on the hover spec (quick, but never jumpy), focus fades the caret text on
+-- the press spec, and theme refreshes cross-fade on the surface spec.]]
+local motion = require(constants.motion)
+local callback = "snappy"
+local element = "fast"
 
 local function frame(textBox)
     local a, b = textBox:match("^([%d%.%-]+)%^([%d%.%-]+)$")
@@ -13841,11 +13762,11 @@ function state.new(tab, placeholderLabel)
     end)
 
     self.window:ConnectFor(self, self.input.Focused, function()
-        Input.tweenService:Create(self.input, element, { TextTransparency = 0 }):Play()
+        motion.tween(self.input, { TextTransparency = 0 }, element)
     end)
 
     self.window:ConnectFor(self, self.input.FocusLost, function()
-        Input.tweenService:Create(self.input, element, { TextTransparency = 0.6 }):Play()
+        motion.tween(self.input, { TextTransparency = 0.6 }, element)
         if self.clearOnFocus and self.input.Text == "" and self.value ~= "" then
             self.input.Text = self.value
             return
@@ -13867,7 +13788,7 @@ function state:_sizeBox(a16)
     local a18 = math.clamp(tab.textWidth(self.window.theme.Font, 15, a17) + 30, 70, 220)
     self.container.Size = UDim2.new(1, -(a18 + 35), 0, 16)
     if a16 then
-        Input.tweenService:Create(self.box, callback, { Size = UDim2.fromOffset(a18, 30) }):Play()
+        motion.tween(self.box, { Size = UDim2.fromOffset(a18, 30) }, callback)
     else
         self.box.Size = UDim2.fromOffset(a18, 30)
     end
@@ -13929,13 +13850,11 @@ function state:_setShown(a24, a25)
 end
 
 function state:_refreshTheme()
-    Input.tweenService
-        :Create(
-            self.box,
-            TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-            { BackgroundTransparency = self.window.theme.FieldTransparency }
-        )
-        :Play()
+    motion.tween(
+        self.box,
+        { BackgroundTransparency = self.window.theme.FieldTransparency },
+        "smooth"
+    )
 end
 
 props(state)
@@ -13963,7 +13882,11 @@ local hold = require(constants.enums)
 local holdThreshold = require(constants.log)
 
 local callback = value.pillResizeInfo
-local onChanged = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+-- [[The keybind cap shares the field's motion: the cap follows its label on
+-- the hover spec, recording fades run on it too, and the theme refresh
+-- cross-fades on the surface spec.]]
+local motion = require(constants.motion)
+local onChanged = "snappy"
 
 local element = {
     [Enum.UserInputType.MouseButton1] = "MB1",
@@ -14149,7 +14072,7 @@ function state.new(tab, a22)
             local shown = tostring(self.keyLabel.Text or "")
             self.keyLabel.SelectionStart = 1
             self.keyLabel.CursorPosition = #shown + 1
-            Keybind.tweenService:Create(self.keyLabel, onChanged, { TextTransparency = 0 }):Play()
+            motion.tween(self.keyLabel, { TextTransparency = 0 }, onChanged)
         else
             self:_startRecording()
         end
@@ -14168,7 +14091,7 @@ function state.new(tab, a22)
             self.keyLabel.Text = frame(self.value)
             self._editing = false
             self:_sizeBox(true)
-            Keybind.tweenService:Create(self.keyLabel, onChanged, { TextTransparency = 0.6 }):Play()
+            motion.tween(self.keyLabel, { TextTransparency = 0.6 }, onChanged)
         else
             self.keyLabel.Text = frame(self.value)
         end
@@ -14245,7 +14168,7 @@ function state:_sizeBox(a25)
     local a26 = math.clamp(tab.textWidth(self.window.theme.Font, 15, self.keyLabel.Text) + 28, 40, 200)
     self.container.Size = UDim2.new(1, -(a26 + 35), 0, 16)
     if a25 then
-        Keybind.tweenService:Create(self.box, callback, { Size = UDim2.fromOffset(a26, 30) }):Play()
+        motion.tween(self.box, { Size = UDim2.fromOffset(a26, 30) }, "snappy")
     else
         self.box.Size = UDim2.fromOffset(a26, 30)
     end
@@ -14260,8 +14183,8 @@ function state:_startRecording()
     self.window._recordingKeybind = self
     self.keyLabel.Text = flag.resolve("Recording")
     self:_sizeBox(true)
-    Keybind.tweenService:Create(self.glow, onChanged, { Transparency = 0.7 }):Play()
-    Keybind.tweenService:Create(self.keyLabel, onChanged, { TextTransparency = 0 }):Play()
+    motion.tween(self.glow, { Transparency = 0.7 }, onChanged)
+    motion.tween(self.keyLabel, { TextTransparency = 0 }, onChanged)
 end
 
 function state:_stopRecording()
@@ -14279,8 +14202,8 @@ function state:_stopRecording()
     end
     self.keyLabel.Text = frame(self.value)
     self:_sizeBox(true)
-    Keybind.tweenService:Create(self.glow, onChanged, { Transparency = 0.9 }):Play()
-    Keybind.tweenService:Create(self.keyLabel, onChanged, { TextTransparency = 0.6 }):Play()
+    motion.tween(self.glow, { Transparency = 0.9 }, onChanged)
+    motion.tween(self.keyLabel, { TextTransparency = 0.6 }, onChanged)
 end
 
 function state:_capture(a28)
@@ -14490,13 +14413,11 @@ function state:_setShown(a50, a51)
 end
 
 function state:_refreshTheme()
-    Keybind.tweenService
-        :Create(
-            self.box,
-            TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-            { BackgroundTransparency = self.window.theme.FieldTransparency }
-        )
-        :Play()
+    motion.tween(
+        self.box,
+        { BackgroundTransparency = self.window.theme.FieldTransparency },
+        "smooth"
+    )
 end
 
 props(state)
@@ -14513,6 +14434,7 @@ state.__type = "Progress"
 local constants = script.Parent.Parent.utilities
 
 local Progress = require(constants.Parent.core.state)
+local motion = require(constants.motion)
 local tab = require(script.Parent.Parent.functions)
 local props = require(constants.moveable)
 local name = require(constants.locale)
@@ -14528,7 +14450,11 @@ local fill = 16
 local textLabel = 14
 local a14 = 0.4
 
-local a15 = TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+-- [[Fills move on the shared reveal curve. The indeterminate sweep keeps its
+-- own looping TweenInfo: it is ambient motion, not a state transition, so it
+-- does not belong to the interaction vocabulary (and should not inherit the
+-- speed profiles a user tunes for interactions).]]
+local a15 = "normal"
 
 local a16 = NumberSequence.new({
     NumberSequenceKeypoint.new(0, 0.85),
@@ -14852,7 +14778,7 @@ function state:_render(a35: boolean?)
             if a35 == false then
                 a38.fill.BackgroundTransparency = a39
             else
-                Progress.tweenService:Create(a38.fill, a15, { BackgroundTransparency = a39 }):Play()
+                motion.tween(a38.fill, { BackgroundTransparency = a39 }, a15)
             end
         end
         return
@@ -14862,7 +14788,7 @@ function state:_render(a35: boolean?)
     if a35 == false then
         self.fill.Size = a40
     else
-        Progress.tweenService:Create(self.fill, a15, { Size = a40 }):Play()
+        motion.tween(self.fill, { Size = a40 }, a15)
     end
 end
 
@@ -15072,9 +14998,14 @@ local function element(frame, fill, handle)
     return math.clamp(min, frame[1], frame[2])
 end
 
-local max = TweenInfo.new(0.45, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local isDragging = TweenInfo.new(0.3, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local connection = TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+-- [[The slider's fill and handle always move through the shared service:
+-- `normal` carries value changes, `fast` follows a drag (the handle chases
+-- the pointer, so it must be quick and never fight the next frame's target),
+-- `snappy` carries hover. Glow reveals trail on the delayed accent beat.]]
+local motion = require(constants.motion)
+local max = "normal"
+local isDragging = "fast"
+local connection = "snappy"
 
 local a22 = 300
 
@@ -15242,15 +15173,11 @@ function state.new(ownerTab, a31)
         if not self.window:_interactive() then
             return
         end
-        Slider.tweenService
-            :Create(self.track, max, { BackgroundColor3 = self.window.theme.SliderBackgroundHover })
-            :Play()
+        motion.tween(self.track, { BackgroundColor3 = self.window.theme.SliderBackgroundHover }, max)
     end)
 
     self.window:ConnectFor(self, self.main.MouseLeave, function()
-        Slider.tweenService
-            :Create(self.track, max, { BackgroundColor3 = self.window.theme.SliderBackground })
-            :Play()
+        motion.tween(self.track, { BackgroundColor3 = self.window.theme.SliderBackground }, max)
     end)
 
     self.window:ConnectFor(self, self.interact.InputBegan, function(a32)
@@ -15488,8 +15415,8 @@ function state:_renderProgress(a39)
     local fill = UDim2.new(0, center, 1, 0)
     local at = UDim2.new(0, center, 0.5, 0)
     if a39 then
-        Slider.tweenService:Create(self.progress, a39, { Size = fill }):Play()
-        Slider.tweenService:Create(self.handle, a39, { Position = at }):Play()
+        motion.tween(self.progress, { Size = fill }, a39)
+        motion.tween(self.handle, { Position = at }, a39)
     else
         self.progress.Size = fill
         self.handle.Position = at
@@ -15540,13 +15467,11 @@ function state:_setHeld(a46)
     local a47 = if a46 then a24 else a23
     self._handleWidth = a47.X
 
-    Slider.tweenService
-        :Create(self.handle, isDragging, {
-            Size = UDim2.fromOffset(a47.X, a47.Y),
-            BackgroundTransparency = if a46 then 0.7 else 0,
-        })
-        :Play()
-    Slider.tweenService:Create(self.handleStroke, isDragging, { Transparency = if a46 then 0.6 else 1 }):Play()
+    motion.tween(self.handle, {
+        Size = UDim2.fromOffset(a47.X, a47.Y),
+        BackgroundTransparency = if a46 then 0.7 else 0,
+    }, isDragging)
+    motion.tween(self.handleStroke, { Transparency = if a46 then 0.6 else 1 }, isDragging)
     self:_renderProgress(isDragging)
 end
 
@@ -15569,7 +15494,10 @@ function state:Set(a49, a50)
     end
 end
 
-local a51 = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out, 0, false, 0.35)
+local glowBase = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out, 0, false, 0.35)
+local function a51()
+    return motion.spec(glowBase)
+end
 
 function state:_setShown(a52, a53)
     local w = self.window
@@ -15581,8 +15509,8 @@ function state:_setShown(a52, a53)
         if self.valueOdo then
             self.valueOdo:reveal(0.3, a53)
         end
-        w:_reveal(self.progressGlow, { Transparency = math.max(0.55, w.theme.AccentGlow) }, a53, a51)
-        w:_reveal(self.handleGlow, { Transparency = 0.8 }, a53, a51)
+        w:_reveal(self.progressGlow, { Transparency = math.max(0.55, w.theme.AccentGlow) }, a53, a51())
+        w:_reveal(self.handleGlow, { Transparency = 0.8 }, a53, a51())
     else
         w:_hideCommon(self, a53)
         w:_reveal(self.track, { BackgroundTransparency = 1 }, a53)
@@ -15591,19 +15519,17 @@ function state:_setShown(a52, a53)
         if self.valueOdo then
             self.valueOdo:reveal(1, a53)
         end
-        w:_reveal(self.progressGlow, { Transparency = 1 }, a53, a51)
-        w:_reveal(self.handleGlow, { Transparency = 1 }, a53, a51)
+        w:_reveal(self.progressGlow, { Transparency = 1 }, a53, a51())
+        w:_reveal(self.handleGlow, { Transparency = 1 }, a53, a51())
     end
 end
 
 function state:_refreshTheme()
-    Slider.tweenService
-        :Create(
-            self.progressGlow,
-            TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-            { Transparency = math.max(0.55, self.window.theme.AccentGlow) }
-        )
-        :Play()
+    motion.tween(
+        self.progressGlow,
+        { Transparency = math.max(0.55, self.window.theme.AccentGlow) },
+        "smooth"
+    )
 end
 
 function state:_minWidth()
@@ -15634,6 +15560,7 @@ state.__type = "Statistic"
 local constants = script.Parent.Parent.utilities
 
 local Stat = require(constants.Parent.core.state)
+local motion = require(constants.motion)
 local tab = require(script.Parent.Parent.functions)
 local props = require(constants.odometer)
 local name = require(constants.moveable)
@@ -15651,7 +15578,9 @@ local frame = NumberSequence.new({
 
 local valueLabel = 38
 
-local baseline = TweenInfo.new(0.6, Enum.EasingStyle.Exponential)
+-- [[The stat's accent gradient drifts to its new angle on the shared hero
+-- spec — the same surface language as the window's own gradient.]]
+local baseline = "emphasized"
 
 local function a14(a15)
     return a15.fill.Keypoints[1].Value
@@ -16073,7 +16002,7 @@ function state:_setAccent(a27, a28)
         elseif a28 == -1 then Vector2.new(-0.04, 0.5)
         else Vector2.new(0, 0.5)
     for _, a32 in self._accentGradients do
-        Stat.tweenService:Create(a32, baseline, { Rotation = a30, Offset = a31 }):Play()
+        motion.tween(a32, { Rotation = a30, Offset = a31 }, baseline)
     end
 end
 
@@ -16258,6 +16187,7 @@ state.__type = "Tab"
 local constants = script.Parent.Parent.utilities
 
 local Tab = require(constants.Parent.core.state)
+local motion = require(constants.motion)
 local window = require(constants.ordering)
 local props = require(constants.HapticEngine)
 local name = require(script.Parent.Parent.components.search)
@@ -16293,8 +16223,9 @@ local function customOrder(window, forgetState)
     end
 end
 
-local element = TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-local page = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+-- [[Tab state changes ride the motion service's shared specs: `normal` for
+-- the pill's selected/rest states, `snappy` for the page hand-off.]]
+local element, page = "normal", "snappy"
 
 local function selector(elements)
     if elements.mode == "sidebar" then
@@ -16430,9 +16361,8 @@ function state:_spinGradients()
         return
     end
 
-    local a22 = TweenInfo.new(0.7, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     for _, a23 in { self.topbarItemGradient, self.topbarItemStrokeGradient } do
-        a23.Rotation = 90 - 360         Tab.tweenService:Create(a23, a22, { Rotation = 90 }):Play()
+        a23.Rotation = 90 - 360         Tab.tweenService:Create(a23, motion.spec("spin"), { Rotation = 90 }):Play()
     end
 end
 
@@ -16483,13 +16413,7 @@ function state:Select(a24)
         if a25 then
             self.window.settingsAction.iconLabel.ImageTransparency = actionTransparency
         else
-            Tab.tweenService
-                :Create(
-                    self.window.settingsAction.iconLabel,
-                    TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-                    { ImageTransparency = actionTransparency }
-                )
-                :Play()
+            motion.tween(self.window.settingsAction.iconLabel, { ImageTransparency = actionTransparency }, "snappy")
         end
     end
 end
@@ -16943,7 +16867,14 @@ local flag = require(constants.locale)
 local value = require(constants.HapticEngine)
 local baseCard = require(script.Parent.baseCard)
 local description = require(script.Parent.description)
-local callback = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+-- [[The switch rides the shared motion vocabulary. The knob is the one
+-- genuinely mechanical surface in the library, so it gets the short Back
+-- overshoot (`settle`) — it reads as a physical slide with a landing rather
+-- than a glide. The accent glow trails the knob by a beat (accentTween's
+-- delay, rescaled with the speed profile through the service).]]
+local motion = require(constants.motion)
+local callback = "snappy"
+local knobSlide = "settle"
 
 -- [[Switch metrics, in one place. The track and the knob are both pills and
 -- [[the knob keeps the same clearance on every side it can see (`switchInset`
@@ -17120,17 +17051,11 @@ function state:_buildFull()
     self.window:_wireElementHover(self)
 
     self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
-        Toggle.tweenService
-            :Create(
-                self.stroke,
-                callback,
-                { Transparency = 1 }
-            )
-            :Play()
+        motion.tween(self.stroke, { Transparency = 1 }, callback)
         Toggle.tweenService
             :Create(
                 self.main,
-                TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+                motion.spec("snappy"),
                 { Size = UDim2.new(1, -26, 0, description.height(self, 41)) }
             )
             :Play()
@@ -17146,17 +17071,15 @@ function state:_buildFull()
         Toggle.tweenService
             :Create(
                 self.main,
-                TweenInfo.new(0.25, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out),
+                motion.spec("settle"),
                 { Size = UDim2.new(1, -20, 0, description.height(self, 41)) }
             )
             :Play()
-        Toggle.tweenService
-            :Create(
-                self.stroke,
-                callback,
-                { Transparency = self.window:_elementStrokeTransparency(self, false) }
-            )
-            :Play()
+        motion.tween(
+            self.stroke,
+            { Transparency = self.window:_elementStrokeTransparency(self, false) },
+            callback
+        )
     end)
 end
 
@@ -17245,13 +17168,7 @@ function state:_buildCompact()
     self.window:_wireElementHover(self)
 
     self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
-        Toggle.tweenService
-            :Create(
-                self.stroke,
-                callback,
-                { Transparency = 1 }
-            )
-            :Play()
+        motion.tween(self.stroke, { Transparency = 1 }, callback)
 
         self:_performToggle()
 
@@ -17261,13 +17178,11 @@ function state:_buildCompact()
             return
         end
 
-        Toggle.tweenService
-            :Create(
-                self.stroke,
-                callback,
-                { Transparency = self.window:_elementStrokeTransparency(self, false) }
-            )
-            :Play()
+        motion.tween(
+            self.stroke,
+            { Transparency = self.window:_elementStrokeTransparency(self, false) },
+            callback
+        )
     end)
 end
 
@@ -17279,40 +17194,43 @@ function state:_indicatorGlow()
 end
 
 function state:_animateIndicator()
-    local track = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
+    local track = knobSlide
     local glow = if self.value then self:_indicatorGlow() else self.indicatorGlow
     if glow then
         Toggle.tweenService
-            :Create(glow, track, { Transparency = self.value and self.window.theme.AccentGlow or 1 })
+            :Create(glow, motion.spec("fast"), { Transparency = self.value and self.window.theme.AccentGlow or 1 })
             :Play()
     end
     if self.value then
         Toggle.tweenService
-            :Create(self.indicator, track, {
+            :Create(self.indicator, motion.spec(track), {
                 Position = switchKnobActive,
                 BackgroundColor3 = self.window.theme.AccentColor,
                 BackgroundTransparency = 0,
             })
             :Play()
         Toggle.tweenService
-            :Create(self.indicatorStroke, track, { Color = self.window.theme.AccentStroke, Transparency = 0 })
+            :Create(self.indicatorStroke, motion.spec("fast"), { Color = self.window.theme.AccentStroke, Transparency = 0 })
             :Play()
     else
         Toggle.tweenService
-            :Create(self.indicator, track, {
+            :Create(self.indicator, motion.spec(track), {
                 Position = switchKnobRest,
                 BackgroundColor3 = self.window.theme.ToggleKnobOff,
                 BackgroundTransparency = self.window.theme.ToggleKnobOffTransparency,
             })
             :Play()
         Toggle.tweenService
-            :Create(self.indicatorStroke, track, { Color = Color3.fromRGB(255, 255, 255), Transparency = 0.7 })
+            :Create(self.indicatorStroke, motion.spec("fast"), { Color = Color3.fromRGB(255, 255, 255), Transparency = 0.7 })
             :Play()
     end
 end
 
-local knob = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-local accentTween = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out, 0, false, 0.35)
+local knob = "normal"
+local accentBase = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out, 0, false, 0.35)
+local function accentTween()
+    return motion.spec(accentBase)
+end
 
 function state:_setShown(flag, a16)
     local w = self.window
@@ -17358,19 +17276,19 @@ end
 
 function state:_refreshTheme()
     local t = self.window.theme
-    local a17 = TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    local a17 = "smooth"
     local ts = Toggle.tweenService
-    ts:Create(self.functionContainer, a17, { BackgroundTransparency = t.ToggleTrackTransparency }):Play()
-    ts:Create(self.indicator, a17, {
+    ts:Create(self.functionContainer, motion.spec(a17), { BackgroundTransparency = t.ToggleTrackTransparency }):Play()
+    ts:Create(self.indicator, motion.spec(a17), {
         BackgroundColor3 = self.value and t.AccentColor or t.ToggleKnobOff,
         BackgroundTransparency = self.value and 0 or t.ToggleKnobOffTransparency,
     }):Play()
-    ts:Create(self.indicatorStroke, a17, {
+    ts:Create(self.indicatorStroke, motion.spec(a17), {
         Color = self.value and t.AccentStroke or Color3.fromRGB(255, 255, 255),
     }):Play()
     local glow = if self.value then self:_indicatorGlow() else self.indicatorGlow
     if glow then
-        ts:Create(glow, a17, { Transparency = self.value and t.AccentGlow or 1 }):Play()
+        ts:Create(glow, motion.spec(a17), { Transparency = self.value and t.AccentGlow or 1 }):Play()
     end
 end
 
@@ -21732,8 +21650,6 @@ local constants = {}
 
 constants.fontAsset = "rbxassetid://12187375716"
 
-constants.pillResizeInfo = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-
 constants.icons = iconRegistry.ids
 
 constants.accent = {
@@ -22964,13 +22880,24 @@ export type MotionSpec = string | TweenInfo
 -- [[Named specs: the library's motion vocabulary. Each one is a fixed,
 -- shared TweenInfo, so a site that animates at 0.25s Quint/Out no longer
 -- allocates a new TweenInfo every time it runs. Names are stable API: a host
--- can use them through `Astra.Motion.tween` to match the window's timing.]]
+-- can use them through `Astra.Motion.tween` to match the window's timing.
+--
+-- The vocabulary follows one system, so unrelated components still read as
+-- the same interface:
+--   * entrances decelerate (Out) — things arrive fast and settle gently;
+--   * exits accelerate (In) — things leaving should not linger;
+--   * lateral state moves ease InOut — a bar that slides between states
+--     reads as deliberate, not reactive;
+--   * playful surfaces (the window shell, the capsule, oversized feedback)
+--     get a small Back overshoot; everything else stays honest.
+-- Durations step up with the size of what moves: 0.16 for a press, 0.25 for
+-- hover, 0.4 for an element, 0.5–0.6 for surfaces, 0.55 for the shell.]]
 local SPECS: { [string]: TweenInfo } = {
 	-- [[One frame's worth of movement: the "no animation" target for hosts
 	-- that want the tween-completed path without a visible transition.]]
 	instant = TweenInfo.new(0.01, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
 
-	-- [[Press/lift feedback.]]
+	-- [[Press/lift feedback: the shortest readable transition.]]
 	fast = TweenInfo.new(0.16, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
 
 	-- [[Hover feedback and dropdown rows: the most-used spec in the library.]]
@@ -22989,11 +22916,23 @@ local SPECS: { [string]: TweenInfo } = {
 	-- load transition, with a small overshoot so the shell settles softly.]]
 	pop = TweenInfo.new(0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 
-	-- [[Dismissals: slightly quicker than the entrance that mirrored them.]]
-	exit = TweenInfo.new(0.24, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+	-- [[Lateral state moves: the window folding into its capsule and back,
+	-- a bar sliding between resting places. InOut because the surface is
+	-- neither arriving nor leaving — it is moving house.]]
+	glide = TweenInfo.new(0.35, Enum.EasingStyle.Quart, Enum.EasingDirection.InOut),
+
+	-- [[Dismissals: quicker than the entrances that created them, and
+	-- accelerating (In) so a card that is leaving gains pace instead of
+	-- lingering at the end of its curve.]]
+	exit = TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
 
 	-- [[Overshoot for drag/pop feedback (the capsule settling back).]]
 	spring = TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+
+	-- [[Short overshoot for small surfaces: the collapsed capsule appearing,
+	-- a pill landing back after a press. Same family as `spring`, scaled
+	-- down so small elements never read bouncy.]]
+	settle = TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 
 	-- [[Tab selection gradient spin.]]
 	spin = TweenInfo.new(0.7, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
@@ -23022,8 +22961,10 @@ motion.specNames = {
 	"smooth",
 	"emphasized",
 	"pop",
+	"glide",
 	"exit",
 	"spring",
+	"settle",
 	"spin",
 	"drift",
 }
@@ -23300,6 +23241,7 @@ return network
 end)() end,
     [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
+local motion = require(script.Parent.motion)
 local textService = coreState.textService
 
 local odometer = {}
@@ -23532,10 +23474,14 @@ function odometer:_reelRoll(rollReel, rollDigit, up)
     rollReel.strip.Position = UDim2.new(0.5, 0, 0, -fromRow * self.height)
     rollReel.target = rollDigit
 
-        local stripTween = coreState.tweenService:Create(rollReel.strip, self.roll, {
+        -- [[`motion.spec` rescales the reel's TweenInfo with the active speed
+    -- profile (cached per info), so the digit roll answers the same
+    -- "Animation speed" setting as every other surface.]]
+    local roll = motion.spec(self.roll)
+    local stripTween = coreState.tweenService:Create(rollReel.strip, roll, {
         Position = UDim2.new(0.5, 0, 0, -toRow * self.height),
     })
-    local sizeTween = coreState.tweenService:Create(rollReel.cell, self.roll, {
+    local sizeTween = coreState.tweenService:Create(rollReel.cell, roll, {
         Size = UDim2.fromOffset(self.advance[rollDigit], self.height),
     })
     rollReel.stripTween = stripTween
@@ -24522,102 +24468,102 @@ local LineOffsets = {
     [7] = 728,
     [8] = 634,
     [9] = 845,
-    [10] = 955,
-    [11] = 1200,
-    [12] = 1427,
-    [13] = 1780,
-    [14] = 2068,
-    [15] = 2786,
-    [16] = 5213,
-    [17] = 5559,
-    [18] = 6198,
-    [19] = 6259,
-    [20] = 6674,
-    [21] = 7093,
-    [23] = 10324,
-    [24] = 10410,
-    [25] = 10718,
-    [26] = 11139,
-    [27] = 11543,
-    [28] = 11713,
-    [29] = 11858,
-    [30] = 13457,
-    [31] = 13676,
-    [32] = 13948,
-    [33] = 14509,
-    [34] = 14957,
-    [35] = 15043,
-    [36] = 15630,
-    [37] = 16254,
-    [38] = 16650,
-    [39] = 16780,
-    [40] = 16932,
-    [42] = 17432,
-    [43] = 17455,
-    [44] = 17472,
-    [45] = 17505,
-    [46] = 17627,
-    [47] = 17651,
-    [48] = 17700,
-    [49] = 17407,
-    [50] = 17830,
-    [51] = 18133,
-    [52] = 18164,
-    [53] = 17819,
-    [54] = 18207,
-    [55] = 18227,
-    [56] = 18259,
-    [57] = 18189,
-    [58] = 18366,
-    [59] = 18425,
-    [60] = 18485,
-    [62] = 18629,
-    [63] = 18794,
-    [64] = 18614,
-    [65] = 19368,
-    [66] = 19412,
-    [67] = 19492,
-    [68] = 19685,
-    [69] = 19814,
-    [70] = 19908,
-    [71] = 20075,
-    [72] = 18870,
-    [73] = 20709,
-    [74] = 20775,
-    [75] = 20841,
-    [76] = 20916,
-    [77] = 21022,
-    [78] = 21088,
-    [79] = 21163,
-    [80] = 21238,
-    [81] = 21313,
-    [82] = 21388,
-    [83] = 20603,
-    [84] = 21454,
-    [85] = 21552,
-    [86] = 21730,
-    [87] = 21782,
-    [88] = 21812,
-    [89] = 22063,
-    [90] = 22112,
-    [91] = 22565,
-    [92] = 22583,
-    [93] = 22752,
-    [94] = 22851,
-    [95] = 22873,
-    [96] = 22923,
-    [97] = 23248,
-    [98] = 23284,
-    [99] = 23302,
-    [100] = 23651,
-    [101] = 23663,
-    [102] = 23714,
-    [103] = 23733,
-    [104] = 23984,
-    [105] = 24028,
-    [106] = 24271,
-    [107] = 24299,
-    [108] = 24310,
+    [10] = 943,
+    [11] = 1182,
+    [12] = 1385,
+    [13] = 1737,
+    [14] = 2025,
+    [15] = 2746,
+    [16] = 5173,
+    [17] = 5520,
+    [18] = 6159,
+    [19] = 6220,
+    [20] = 6635,
+    [21] = 7052,
+    [23] = 10317,
+    [24] = 10403,
+    [25] = 10716,
+    [26] = 11137,
+    [27] = 11541,
+    [28] = 11711,
+    [29] = 11856,
+    [30] = 13374,
+    [31] = 13593,
+    [32] = 13867,
+    [33] = 14430,
+    [34] = 14883,
+    [35] = 14969,
+    [36] = 15556,
+    [37] = 16183,
+    [38] = 16574,
+    [39] = 16704,
+    [40] = 16856,
+    [42] = 17350,
+    [43] = 17373,
+    [44] = 17390,
+    [45] = 17423,
+    [46] = 17545,
+    [47] = 17569,
+    [48] = 17618,
+    [49] = 17325,
+    [50] = 17748,
+    [51] = 18051,
+    [52] = 18082,
+    [53] = 17737,
+    [54] = 18125,
+    [55] = 18145,
+    [56] = 18177,
+    [57] = 18107,
+    [58] = 18284,
+    [59] = 18343,
+    [60] = 18403,
+    [62] = 18547,
+    [63] = 18712,
+    [64] = 18532,
+    [65] = 19286,
+    [66] = 19330,
+    [67] = 19410,
+    [68] = 19603,
+    [69] = 19732,
+    [70] = 19826,
+    [71] = 19993,
+    [72] = 18788,
+    [73] = 20627,
+    [74] = 20693,
+    [75] = 20759,
+    [76] = 20834,
+    [77] = 20940,
+    [78] = 21006,
+    [79] = 21081,
+    [80] = 21156,
+    [81] = 21231,
+    [82] = 21306,
+    [83] = 20521,
+    [84] = 21372,
+    [85] = 21470,
+    [86] = 21648,
+    [87] = 21698,
+    [88] = 21728,
+    [89] = 21979,
+    [90] = 22028,
+    [91] = 22481,
+    [92] = 22499,
+    [93] = 22668,
+    [94] = 22767,
+    [95] = 22789,
+    [96] = 22839,
+    [97] = 23189,
+    [98] = 23225,
+    [99] = 23243,
+    [100] = 23597,
+    [101] = 23609,
+    [102] = 23660,
+    [103] = 23679,
+    [104] = 23930,
+    [105] = 23974,
+    [106] = 24217,
+    [107] = 24245,
+    [108] = 24256,
 }
 
 -- [[Misc AOT variable imports]]

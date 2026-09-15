@@ -112,6 +112,13 @@ slightly longer time-to-fully-interactive in exchange for an instant shell.
 
 ### 7. Cleanup
 
+* Motion hygiene (2026-09-15 animation pass): every component tween now runs
+  through the shared motion service — named `TweenInfo` specs created once, so
+  hover/press/reveal paths allocate nothing per event; already-satisfied
+  targets are skipped (no tween at all); and one owner per animated property
+  (rapid hover in/out cancels instead of stacking competing tweens). Theme
+  switches batch one tween per instance instead of one per property.
+
 * Dead code removed: unused `overlayEntranceCadence` (window), `epsilon`,
   `scrollbarWidth`, `layoutFor` (window), `contentSpacing` (toast), dead
   padding constants in `elements/text.luau`, and an unused require in the

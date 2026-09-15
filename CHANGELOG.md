@@ -2,6 +2,74 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-15 — The window's corners, and one motion system
+
+Two fixes that were visible together: straight 1px lines drawn across the
+window's four rounded corners, and an interface whose animations had drifted
+into a pile of one-off curves.
+
+### The corners
+
+Roblox gives every GuiObject a 1px border by default. The border draws the
+frame's *rectangular* outline — it does not follow UICorner arcs — so the
+moment the window's background faded in, a hard square outline crossed all
+four rounded corners (most visible top and bottom, where the straight line
+cuts visibly across the arc). The window frame was the last surface in the
+tree still shipping that default.
+
+- **`BorderSizePixel = 0` on the window's main frame.** The silhouette is the
+  UICorner's job alone; only the original rounded corners remain visible.
+- **The dropdown's search icon button** carried the same latent default and
+  is borderless now too.
+- **New `scripts/window_corners_test`** builds a window, exercises every
+  lazily-created surface (first show, elements, toast, dropdown, popup,
+  profile card, collapse and restore) and asserts that no visible surface
+  anywhere in the ScreenGui carries a border, and that the shell's corner
+  radius still follows the theme's `CornerRoundness`.
+
+### The motion redesign
+
+Every component used to build its own `TweenInfo` (92 construction sites, ~30
+distinct curves). Identical interactions — a hover, a dismissal, a panel
+sliding home — could ease differently depending on which file they lived in,
+dismissals lasted as long as entrances, and only some of the paths answered
+the user's "Animation speed" setting. Everything now rides the shared motion
+service and one legible vocabulary:
+
+- **A system, not a pile of curves.** Entrances decelerate (Out); exits
+  accelerate (`exit` is now a 0.3s Quart *In* — a card leaves faster than it
+  arrived); lateral state moves ease InOut (new `glide`, 0.35s Quart — the
+  window folding into its capsule and back); and the playful surfaces get a
+  short Back overshoot (`pop` for the shell, new `settle` for small elements
+  like the capsule's face and button presses, `spring` for drag landings).
+  Durations still step with scale: 0.16 press → 0.25 hover → 0.4 element →
+  0.5–0.6 surface → 0.55 shell.
+- **Every remaining bespoke tween migrated.** Window open/close/hide/restore/
+  minimise, tab pills and page hand-off, element click nudges, the toggle's
+  knob (now a physical slide with a landing), slider fill and handle, field
+  boxes and keybind caps, dropdown rows/panel/chevron, search pill, toast and
+  notification entrances and dismissals, popups, the profile card, drag
+  landings and the lock scrim all resolve through `motion.tween` or
+  `motion.spec` — so all of them follow the time scale, skip no-op writes,
+  and hand over one owner per animated property.
+- **Targeted feel changes where the old curve fought the gesture.** Close and
+  hide now contract on `glide` while their surfaces accelerate out on `exit`;
+  restore unfolds on `glide` with the corner springing open on `settle`;
+  toggle knobs slide on `settle` instead of drifting on a 0.6s curve; button
+  and toggle press-dips spring back with a small overshoot; the collapsed
+  capsule's face arrives on `settle`.
+- **Theme changes are one gesture.** `ChangeTheme` batched its per-property
+  tweens into one motion-service tween per instance (a theme switch used to
+  create a tween per property), all cross-fading on `smooth`.
+- **Bespoke curves that must stay bespoke now rescale.** The progress sweep
+  keeps its ambient loop; the delayed accent-glow beats (toggle, slider) and
+  the odometer's digit roll go through `motion.spec`, so they stretch and
+  shorten with the speed profile like everything else. The unused
+  `pillResizeInfo` constant is gone (field boxes resize on `snappy`).
+- Bundle regenerated (`version-1.luau`); `motion_test` extended for the new
+  vocabulary (registered specs, `settle`/`glide` easing family, exit being
+  quicker than its entrance).
+
 ## 2026-09-15 — Multi-select dropdowns get a real Select all / Clear row
 
 The bulk-action line was two bare text buttons with no state of their own: no

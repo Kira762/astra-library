@@ -1,5 +1,6 @@
 local utilities = script.Parent.Parent.utilities
 local state = require(utilities.Parent.core.state)
+local motion = require(utilities.motion)
 local functions = require(script.Parent.Parent.functions)
 local locale = require(utilities.locale)
 
@@ -353,11 +354,7 @@ function tabSelector.setRowCollapsed(tab, collapsed, layout)
             tab.topbarItemTitle.TextTransparency = 1
         else
             tab.topbarItemTitle.Visible = true
-            state.tweenService:Create(
-                tab.topbarItemTitle,
-                TweenInfo.new(0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-                { TextTransparency = 0 }
-            ):Play()
+            motion.tween(tab.topbarItemTitle, { TextTransparency = 0 }, "fast")
         end
     end
     if tab.topbarItemInitial then
@@ -400,7 +397,10 @@ function tabSelector.applyVisual(tab, visualState, tweenInfo)
 
     for instance, properties in targets do
         if tweenInfo then
-            state.tweenService:Create(instance, tweenInfo, properties):Play()
+            -- [[`tweenInfo` is a motion spec (name or TweenInfo): routing the
+            -- pill states through the service gives them the shared curve,
+            -- the time scale and one owner per property.]]
+            motion.tween(instance, properties, tweenInfo)
         else
             for prop, value in properties do
                 instance[prop] = value

@@ -1,4 +1,5 @@
 local coreState = require(script.Parent.Parent.core.state)
+local motion = require(script.Parent.motion)
 local textService = coreState.textService
 
 local odometer = {}
@@ -231,10 +232,14 @@ function odometer:_reelRoll(rollReel, rollDigit, up)
     rollReel.strip.Position = UDim2.new(0.5, 0, 0, -fromRow * self.height)
     rollReel.target = rollDigit
 
-        local stripTween = coreState.tweenService:Create(rollReel.strip, self.roll, {
+        -- [[`motion.spec` rescales the reel's TweenInfo with the active speed
+    -- profile (cached per info), so the digit roll answers the same
+    -- "Animation speed" setting as every other surface.]]
+    local roll = motion.spec(self.roll)
+    local stripTween = coreState.tweenService:Create(rollReel.strip, roll, {
         Position = UDim2.new(0.5, 0, 0, -toRow * self.height),
     })
-    local sizeTween = coreState.tweenService:Create(rollReel.cell, self.roll, {
+    local sizeTween = coreState.tweenService:Create(rollReel.cell, roll, {
         Size = UDim2.fromOffset(self.advance[rollDigit], self.height),
     })
     rollReel.stripTween = stripTween

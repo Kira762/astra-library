@@ -46,6 +46,7 @@ local actionBox = 12
 local actionBoxRadius = UDim.new(0, 3)
 local actionStrokeIdle = 0.45
 local actionStrokeHover = 0.2
+local actionStrokeChecked = 1
 local actionTextIdle = 0.45
 local actionTextHover = 0.15
 
@@ -978,6 +979,7 @@ function state:_buildActions()
     }, { ImageColor3 = "ContentColor" })
 
     self.window:ConnectFor(self, self.selectAll.MouseEnter, function()
+        self._selectAllHovered = true
         if self._selectAllChecked then
             return
         end
@@ -986,6 +988,7 @@ function state:_buildActions()
             :Play()
     end)
     self.window:ConnectFor(self, self.selectAll.MouseLeave, function()
+        self._selectAllHovered = false
         if self._selectAllChecked then
             return
         end
@@ -1070,21 +1073,34 @@ function state:_clearVisibleSelection()
 end
 
 -- [[Put the checkbox in step with the list. Everything that can move the
--- [[selection or the visible set calls this, so the box never lags the rows.]]
+-- [[selection or the visible set calls this, so the box never lags the rows -
+-- [[and one of those callers is the search filter, which runs on every
+-- [[keystroke: a sync that would not change either half is left alone rather
+-- [[than replaying the same two tweens per character.
+-- [[]]
+-- [[An unchecked box keeps its hover brightness: a click that empties it while
+-- [[the pointer is still on it must not drop it to the idle dim.]]
 function state:_syncActions()
     if not self.selectAllCheck then
         return
     end
 
     local checked = self:_visibleSelection()
+    local outline = if checked
+        then actionStrokeChecked
+        elseif self._selectAllHovered then actionStrokeHover
+        else actionStrokeIdle
+
+    if checked == self._selectAllChecked and outline == self._selectAllOutline then
+        return
+    end
     self._selectAllChecked = checked
+    self._selectAllOutline = outline
 
     Dropdown.tweenService
         :Create(self.selectAllCheck, a29, { ImageTransparency = if checked then 0 else 1 })
         :Play()
-    Dropdown.tweenService
-        :Create(self.selectAllStroke, a29, { Transparency = if checked then 1 else actionStrokeIdle })
-        :Play()
+    Dropdown.tweenService:Create(self.selectAllStroke, a29, { Transparency = outline }):Play()
 end
 
 function state:_afterBulkChange()

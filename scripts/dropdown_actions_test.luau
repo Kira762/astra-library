@@ -23,7 +23,9 @@
 --   * A6 the box follows individual picks and a changed filter,
 --   * A7 the taller row is what the open panel pays for, between the search
 --     bar and the list,
---   * A8 the bin resolves to a real pack icon.
+--   * A8 an unchecked box keeps its hover brightness when a click empties it
+--     under the pointer,
+--   * A9 the bin resolves to a real pack icon.
 
 local function expect(cond, message)
 	if not cond then
@@ -234,13 +236,41 @@ eq(
 	"A7 the open dropdown pays 32px for the row plus the 5px gap above it"
 )
 
--- ===== A8: the bin is a real icon =====
+-- ===== A8: the box keeps its hover brightness =====
+
+-- [[Unchecking the box with the pointer still on it must not drop the outline
+-- [[to the idle dim: the click that empties it leaves the pointer hovering.]]
+local hover = tab:CreateDropdown({
+	name = "Hover",
+	options = { "One", "Two" },
+	value = { "One" },
+	multiSelect = true,
+})
+openDropdown(hover)
+eq(boxState(hover).outline, 0.45, "A8 an untouched box draws the idle outline")
+hover.selectAll.MouseEnter:Fire()
+TestPump(0.2)
+eq(boxState(hover).outline, 0.2, "A8 hovering it brightens the outline")
+hover.selectAll.MouseButton1Click:Fire()
+TestPump(0.3)
+eq(boxState(hover).glyph, 0, "A8 clicking it fills every option in")
+eq(boxState(hover).outline, 1, "A8 ... and the outline goes with the empty box")
+hover.selectAll.MouseButton1Click:Fire()
+TestPump(0.3)
+eq(boxState(hover).glyph, 1, "A8 clicking it again empties them")
+eq(boxState(hover).outline, 0.2, "A8 ... and the outline is still the hovered one")
+hover.selectAll.MouseLeave:Fire()
+TestPump(0.2)
+eq(boxState(hover).outline, 0.45, "A8 leaving the box settles it back to the idle outline")
+closeDropdown(hover)
+
+-- ===== A9: the bin is a real icon =====
 
 local bin = Astra.Icons.resolve("trash")
-expect(type(bin) == "string" and bin ~= "trash", "A8 the bin resolves to an icon")
+expect(type(bin) == "string" and bin ~= "trash", "A9 the bin resolves to an icon")
 expect(
 	string.find(bin, "lucide-pack/t/lucideTrash.png", 1, true) ~= nil,
-	"A8 ... the pack's trash glyph (got " .. tostring(bin) .. ")"
+	"A9 ... the pack's trash glyph (got " .. tostring(bin) .. ")"
 )
 
 window:Unload()

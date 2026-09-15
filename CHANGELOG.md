@@ -17,7 +17,10 @@ line from the design reference.
 - **It toggles.** With every visible option selected the box is on and a click
   clears that set; otherwise the click fills in what is missing. Individual
   picks, `Set`, `Add`/`Remove`/`Refresh` and a changed search filter all move
-  the box with the list, and a filter that matches nothing leaves it off.
+  the box with the list, and a filter that matches nothing leaves it off. A
+  click that empties the box under the pointer leaves the outline at its hover
+  brightness, and a sync that would change neither half is skipped — the filter
+  runs on every keystroke, and it should not replay two tweens per character.
 - **Clear keeps its meaning** — it removes only the options the filter shows,
   so selections it is hiding survive — and gains the bin icon, resolved through
   the icon packs (`trash`, lucide) like every other icon, dimmed with its label
@@ -31,7 +34,8 @@ Suite: new `scripts/dropdown_actions_test.{luau,sh}` — A1 only a multi-select
 dropdown carries the row (and what it holds), A2 the box answers for the
 visible options, A3/A4 Select all fills the visible set and toggles back off,
 A5 Clear leaves the hidden options alone, A6 the box follows picks and filters,
-A7 the row is what the open panel pays for, A8 the bin is a real pack icon.
+A7 the row is what the open panel pays for, A8 an unchecked box stays hovered
+when a click empties it under the pointer, A9 the bin is a real pack icon.
 
 Bundle regenerated (`version-1.luau`).
 

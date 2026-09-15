@@ -11903,6 +11903,7 @@ local actionBox = 12
 local actionBoxRadius = UDim.new(0, 3)
 local actionStrokeIdle = 0.45
 local actionStrokeHover = 0.2
+local actionStrokeChecked = 1
 local actionTextIdle = 0.45
 local actionTextHover = 0.15
 
@@ -12835,6 +12836,7 @@ function state:_buildActions()
     }, { ImageColor3 = "ContentColor" })
 
     self.window:ConnectFor(self, self.selectAll.MouseEnter, function()
+        self._selectAllHovered = true
         if self._selectAllChecked then
             return
         end
@@ -12843,6 +12845,7 @@ function state:_buildActions()
             :Play()
     end)
     self.window:ConnectFor(self, self.selectAll.MouseLeave, function()
+        self._selectAllHovered = false
         if self._selectAllChecked then
             return
         end
@@ -12927,21 +12930,34 @@ function state:_clearVisibleSelection()
 end
 
 -- [[Put the checkbox in step with the list. Everything that can move the
--- [[selection or the visible set calls this, so the box never lags the rows.]]
+-- [[selection or the visible set calls this, so the box never lags the rows -
+-- [[and one of those callers is the search filter, which runs on every
+-- [[keystroke: a sync that would not change either half is left alone rather
+-- [[than replaying the same two tweens per character.
+-- [[]]
+-- [[An unchecked box keeps its hover brightness: a click that empties it while
+-- [[the pointer is still on it must not drop it to the idle dim.]]
 function state:_syncActions()
     if not self.selectAllCheck then
         return
     end
 
     local checked = self:_visibleSelection()
+    local outline = if checked
+        then actionStrokeChecked
+        elseif self._selectAllHovered then actionStrokeHover
+        else actionStrokeIdle
+
+    if checked == self._selectAllChecked and outline == self._selectAllOutline then
+        return
+    end
     self._selectAllChecked = checked
+    self._selectAllOutline = outline
 
     Dropdown.tweenService
         :Create(self.selectAllCheck, a29, { ImageTransparency = if checked then 0 else 1 })
         :Play()
-    Dropdown.tweenService
-        :Create(self.selectAllStroke, a29, { Transparency = if checked then 1 else actionStrokeIdle })
-        :Play()
+    Dropdown.tweenService:Create(self.selectAllStroke, a29, { Transparency = outline }):Play()
 end
 
 function state:_afterBulkChange()
@@ -24525,83 +24541,83 @@ local LineOffsets = {
     [27] = 11543,
     [28] = 11713,
     [29] = 11858,
-    [30] = 13441,
-    [31] = 13660,
-    [32] = 13932,
-    [33] = 14493,
-    [34] = 14941,
-    [35] = 15027,
-    [36] = 15614,
-    [37] = 16238,
-    [38] = 16634,
-    [39] = 16764,
-    [40] = 16916,
-    [42] = 17416,
-    [43] = 17439,
-    [44] = 17456,
-    [45] = 17489,
-    [46] = 17611,
-    [47] = 17635,
-    [48] = 17684,
-    [49] = 17391,
-    [50] = 17814,
-    [51] = 18117,
-    [52] = 18148,
-    [53] = 17803,
-    [54] = 18191,
-    [55] = 18211,
-    [56] = 18243,
-    [57] = 18173,
-    [58] = 18350,
-    [59] = 18409,
-    [60] = 18469,
-    [62] = 18613,
-    [63] = 18778,
-    [64] = 18598,
-    [65] = 19352,
-    [66] = 19396,
-    [67] = 19476,
-    [68] = 19669,
-    [69] = 19798,
-    [70] = 19892,
-    [71] = 20059,
-    [72] = 18854,
-    [73] = 20693,
-    [74] = 20759,
-    [75] = 20825,
-    [76] = 20900,
-    [77] = 21006,
-    [78] = 21072,
-    [79] = 21147,
-    [80] = 21222,
-    [81] = 21297,
-    [82] = 21372,
-    [83] = 20587,
-    [84] = 21438,
-    [85] = 21536,
-    [86] = 21714,
-    [87] = 21766,
-    [88] = 21796,
-    [89] = 22047,
-    [90] = 22096,
-    [91] = 22549,
-    [92] = 22567,
-    [93] = 22736,
-    [94] = 22835,
-    [95] = 22857,
-    [96] = 22907,
-    [97] = 23232,
-    [98] = 23268,
-    [99] = 23286,
-    [100] = 23635,
-    [101] = 23647,
-    [102] = 23698,
-    [103] = 23717,
-    [104] = 23968,
-    [105] = 24012,
-    [106] = 24255,
-    [107] = 24283,
-    [108] = 24294,
+    [30] = 13457,
+    [31] = 13676,
+    [32] = 13948,
+    [33] = 14509,
+    [34] = 14957,
+    [35] = 15043,
+    [36] = 15630,
+    [37] = 16254,
+    [38] = 16650,
+    [39] = 16780,
+    [40] = 16932,
+    [42] = 17432,
+    [43] = 17455,
+    [44] = 17472,
+    [45] = 17505,
+    [46] = 17627,
+    [47] = 17651,
+    [48] = 17700,
+    [49] = 17407,
+    [50] = 17830,
+    [51] = 18133,
+    [52] = 18164,
+    [53] = 17819,
+    [54] = 18207,
+    [55] = 18227,
+    [56] = 18259,
+    [57] = 18189,
+    [58] = 18366,
+    [59] = 18425,
+    [60] = 18485,
+    [62] = 18629,
+    [63] = 18794,
+    [64] = 18614,
+    [65] = 19368,
+    [66] = 19412,
+    [67] = 19492,
+    [68] = 19685,
+    [69] = 19814,
+    [70] = 19908,
+    [71] = 20075,
+    [72] = 18870,
+    [73] = 20709,
+    [74] = 20775,
+    [75] = 20841,
+    [76] = 20916,
+    [77] = 21022,
+    [78] = 21088,
+    [79] = 21163,
+    [80] = 21238,
+    [81] = 21313,
+    [82] = 21388,
+    [83] = 20603,
+    [84] = 21454,
+    [85] = 21552,
+    [86] = 21730,
+    [87] = 21782,
+    [88] = 21812,
+    [89] = 22063,
+    [90] = 22112,
+    [91] = 22565,
+    [92] = 22583,
+    [93] = 22752,
+    [94] = 22851,
+    [95] = 22873,
+    [96] = 22923,
+    [97] = 23248,
+    [98] = 23284,
+    [99] = 23302,
+    [100] = 23651,
+    [101] = 23663,
+    [102] = 23714,
+    [103] = 23733,
+    [104] = 23984,
+    [105] = 24028,
+    [106] = 24271,
+    [107] = 24299,
+    [108] = 24310,
 }
 
 -- [[Misc AOT variable imports]]

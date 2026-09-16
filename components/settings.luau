@@ -14,6 +14,124 @@ local function layoutKey(layout)
     return if type(layout) == "table" and layout.mode then layout.mode else "top"
 end
 
+-- [[The Settings toggle binding is an ordinary Input field: it shows the bound
+-- key's name and reads one back, so the row uses the same typed-value input as
+-- every other field in the library instead of the Keybind element's
+-- click-to-record cap. Labels and parsing follow the Keybind element's rules
+-- ("None" for a cleared binding, MB2/MB3 for mouse buttons) so
+-- window.settings.toggleKeybind stays an EnumItem — which is what
+-- Window:_bindKeybind compares against and what the settings file stores.]]
+local mouseLabels = {
+    [Enum.UserInputType.MouseButton2] = "MB2",
+    [Enum.UserInputType.MouseButton3] = "MB3",
+}
+
+-- [[The short mouse forms the key caps show. MouseButton1 is absent on purpose:
+-- a menu toggle bound to left click would fire on every click in the game, and
+-- the Keybind element's capture never offered it either.]]
+local mouseNames = {
+    mb2 = Enum.UserInputType.MouseButton2,
+    mousebutton2 = Enum.UserInputType.MouseButton2,
+    rmb = Enum.UserInputType.MouseButton2,
+    mb3 = Enum.UserInputType.MouseButton3,
+    mousebutton3 = Enum.UserInputType.MouseButton3,
+    mmb = Enum.UserInputType.MouseButton3,
+}
+
+local leftMouseNames = { mb1 = true, lmb = true, mousebutton1 = true, leftmouse = true }
+
+-- [[Canonical KeyCode names, keyed by what people actually type. A mis-cased
+-- Enum lookup is an error in the engine, so the field resolves the usual keys
+-- itself ("k", "space", "left shift") and leaves the rest to the lookup below,
+-- which keeps uncommon but real names ("KeypadPlus") working.]]
+local keyNames = {
+    esc = "Escape",
+    enter = "Return",
+    ctrl = "LeftControl",
+    control = "LeftControl",
+    shift = "LeftShift",
+    alt = "LeftAlt",
+    del = "Delete",
+    spacebar = "Space",
+    back = "Backspace",
+}
+for _, name in {
+    "Space", "Escape", "Return", "Tab", "Backspace", "Delete", "Insert", "Home", "End",
+    "PageUp", "PageDown", "Up", "Down", "Left", "Right",
+    "LeftShift", "RightShift", "LeftControl", "RightControl", "LeftAlt", "RightAlt",
+    "CapsLock", "Minus", "Equals", "LeftBracket", "RightBracket", "Semicolon", "Quote",
+    "Comma", "Period", "Slash", "BackSlash",
+} do
+    keyNames[name:lower()] = name
+end
+for letter = string.byte("A"), string.byte("Z") do
+    keyNames[string.char(letter):lower()] = string.char(letter)
+end
+for index = 1, 12 do
+    keyNames[("f%d"):format(index)] = ("F%d"):format(index)
+end
+for digit, name in { "Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine" } do
+    keyNames[tostring(digit - 1)] = name
+end
+
+local function keyLabel(item)
+    if typeof(item) ~= "EnumItem" or item == Enum.KeyCode.Unknown then
+        return "None"
+    end
+    return mouseLabels[item] or item.Name
+end
+
+-- [[Returns the key the text names, or Enum.KeyCode.Unknown for an empty or
+-- "none" field (an unbound menu key). Text that names no key returns nil, with
+-- a reason when the refusal needs its own wording.]]
+local function parseKey(text)
+    if type(text) ~= "string" then
+        return nil
+    end
+    local trimmed = (text:gsub("^%s+", ""):gsub("%s+$", ""))
+    local typed = trimmed:lower()
+    if typed == "" or typed == "none" then
+        return Enum.KeyCode.Unknown
+    end
+    -- [[Separators are dropped so "left shift" and "MB-2" read like their enum
+    -- names; whatever is left still has to be a plain word.]]
+    local name = (typed:gsub("[%s_%-]", ""))
+    if name == "" or not name:match("^%w+$") then
+        return nil
+    end
+    if leftMouseNames[name] then
+        return nil, "leftMouse"
+    end
+    local mouse = mouseNames[name]
+    if mouse then
+        return mouse
+    end
+    local canonical = keyNames[name]
+    if canonical then
+        local ok, key = pcall(function()
+            return Enum.KeyCode[canonical]
+        end)
+        if ok and typeof(key) == "EnumItem" then
+            return key
+        end
+    end
+    for _, candidate in { trimmed, trimmed:sub(1, 1):upper() .. trimmed:sub(2), trimmed:upper() } do
+        local keyOk, key = pcall(function()
+            return Enum.KeyCode[candidate]
+        end)
+        if keyOk and typeof(key) == "EnumItem" then
+            return key
+        end
+        local typeOk, inputType = pcall(function()
+            return Enum.UserInputType[candidate]
+        end)
+        if typeOk and mouseLabels[inputType] then
+            return inputType
+        end
+    end
+    return nil
+end
+
 function settingsComponent.buildUI(window)
     if window._settingsUIBuilt then
         return
@@ -86,20 +204,60 @@ function settingsComponent.buildUI(window)
     about._settingsContentBuilder = buildAbout
 
     local function buildGeneral()
-        window.rfSettings:CreateCollapsibleGroup({
+        local keybindField
+
+        -- [[A typed key becomes the menu toggle. The field is refused, with the
+        -- previous binding restored, when the text is not a key or when another
+        -- Keybind already owns it — the same conflict rule the Keybind element
+        -- enforces for isMenuToggle bindings.]]
+        local function refuseKeybind(message, previous)
+            window:Notify({ title = locale.resolve("Keybind unavailable"), content = message })
+            keybindField:Set(previous, true)
+            -- [[The field already flashed for the commit that reached here; the
+            -- refusal flash replaces it so the row reads as rejected.]]
+            window:_flashResult(keybindField, false)
+        end
+
+        local function commitKeybind(text)
+            local previous = keyLabel(window.settings.toggleKeybind)
+            local key, reason = parseKey(text)
+            if not key then
+                local message = if reason == "leftMouse"
+                    then string.format(locale.resolve("Left click can't toggle the menu. Kept %s."), previous)
+                    else string.format(locale.resolve("%s is not a key name. Kept %s."), tostring(text), previous)
+                refuseKeybind(message, previous)
+                return
+            end
+            local conflict = if key ~= Enum.KeyCode.Unknown then window:_keybindUsing(key) else nil
+            if conflict then
+                refuseKeybind(
+                    string.format(locale.resolve("%s is bound to %s. Kept %s."), keyLabel(key), conflict.name, previous),
+                    previous
+                )
+                return
+            end
+            if key == window.settings.toggleKeybind then
+                -- [[Unchanged binding: normalise the field ("k" reads "K", an
+                -- empty field reads "None") without writing settings again.]]
+                keybindField:Set(previous, true)
+                return
+            end
+            window.settings.toggleKeybind = key
+            keybindField:Set(keyLabel(key), true)
+            window:SaveSettings()
+        end
+
+        local generalControls = window.rfSettings:CreateCollapsibleGroup({
             name = "General Controls",
             icon = constants.icons.settings,
             elements = {
                 {
-                    type = "Keybind",
+                    type = "Input",
                     name = "Toggle Keybind",
-                    icon = constants.icons.search,
-                    value = window.settings.toggleKeybind,
-                    isMenuToggle = true,
-                    onChanged = function(value)
-                        window.settings.toggleKeybind = value
-                        window:SaveSettings()
-                    end,
+                    icon = "keyboard",
+                    value = keyLabel(window.settings.toggleKeybind),
+                    placeholder = "e.g. K, Space, MB2",
+                    callback = commitKeybind,
                 },
                 {
                     type = "Toggle",
@@ -121,6 +279,7 @@ function settingsComponent.buildUI(window)
                 },
             },
         })
+        keybindField = generalControls.elements[1]
 
         window.rfSettings:CreateCollapsibleGroup({
             name = "Window Behavior",

@@ -356,7 +356,7 @@ The settings tabs are:
 
 | Tab | Contents |
 |---|---|
-| **General** | Menu Toggle keybind, unlock-cursor toggle, welcome toast toggle, Window Behavior (prevent duplicate windows, keep window on screen, draggable capsule, reset window & capsule positions), and Performance & Motion (haptics, animation speed). |
+| **General** | Menu Toggle keybind field — type a key name (`K`, `Space`, `MB2`) and click away to bind it, `none` or an empty field to unbind — plus the unlock-cursor toggle, welcome toast toggle, Window Behavior (prevent duplicate windows, keep window on screen, draggable capsule, reset window & capsule positions), and Performance & Motion (haptics, animation speed). |
 | **Appearance** | Theme dropdown + Apply (popup confirm), Bar Layout dropdown (Default Topbar / Sidebar / Collapsed Sidebar), and Profile card controls (Show profile / Profile side / Reveal profile details). |
 | **Persistence** | Auto Save Config / Auto Load Config toggles; Saved-configurations dropdown + name input + Save/Load/Delete. |
 | **About** | Library info and links. |

@@ -137,6 +137,15 @@ re-clamps for the card that comes back), `_setLayoutMode`, `_toggleSettingsMode`
 
 ### `components/settings.luau`
 Dedicated settings component providing UI generation and management for Astra's built-in settings tabs (Appearance, Persistence, About, and General controls):
+- `keyLabel(item)` / `parseKey(text)` — the menu binding's display and parse
+  rules. The General → Toggle Keybind row is an ordinary `Input` field, so the
+  label writes the bound key's name into it (`None` when unbound, `MB2`/`MB3`
+  for mouse buttons) and the parse reads a typed name back into the `EnumItem`
+  `window.settings.toggleKeybind` holds: canonical names for the keys people
+  type (`k`, `space`, `left shift`, `f7`, `5`, `mb2`/`rmb`), separators dropped,
+  an empty field or `none` clearing the binding, left click refused, and any
+  unlisted name left to an `Enum.KeyCode`/`Enum.UserInputType` lookup. Text
+  that names no key is refused with the previous binding restored.
 - `buildUI(window)` — instantiates the settings tab shells on demand.
 - `buildContent(window, tab)` — lazily constructs controls within a given settings tab upon first selection.
 - `toggleSettingsMode(window)` — toggles between user tabs and settings tabs.
@@ -600,7 +609,7 @@ Per-element specifics:
 | `tab_elements_test.sh` | Tab elements: only the selected tab is walked on a show/hide, a tab opened later shows its elements in the same frame and state, the search shows every tab it renders, and a late element shows with its tab. |
 | `toggle_switch_test.sh` | Switch geometry: one set of metrics, mirrored resting states, equal clearance, the sheen under the knob, and the animated positions matching the built ones. |
 | `input_field_test.sh` | Field-box corners: the Input field and the Keybind cap round with the theme's `ElementCornerRadius` as theme bindings (pixel radii, never capsule scales), re-stated on a theme switch, and shared with their element cards. |
-| `keybind_input_test.sh` | Keybind cap/capture: the Settings menu binding uses the original `TextButton` cap plus `TextLabel`, starts/stops recording on cap clicks, captures processed keys/mouse buttons, rejects conflicts, clears on Backspace, cancels on Escape, and still toggles the window after rebinding. |
+| `keybind_input_test.sh` | Keybind input: the Settings menu binding is an `Input` field whose typed text commits an `EnumItem` (case/alias tolerant, `MB2`, `none`/empty clearing), refuses junk, left click and keys another Keybind owns without saving, keeps typing inside the field from toggling the window, and still toggles it afterwards; plus the Keybind element's own `TextButton` cap — click to record, capture a processed key, Backspace clears, Escape cancels, the menu key stays reserved and a locked cap ignores clicks. |
 | `slider_travel_test.sh` | Slider knob travel: the capsule's centre stays half a knob inside each track end (resting, held and after release), so it never overlaps the track end or card edge at max/min, and the fill ends at the knob's centre. |
 | `icons_test.sh` | Icon resolver: name-only lookup across the packs in priority order (and how lazily they load), qualified `pack:name`, case sensitivity, unknown-pack warnings, custom assets (one import per path, memoised misses, the `listfiles` index), cache-key separation, and `window:ResolveIcon`. |
 | `motion_test.sh` | Motion service: shared specs, time scale + its cache, profiles, tween ownership (cancel-on-overlap vs. unrelated properties), the no-op and animation-off paths, the window's "Animation speed" setting, and hover going through the service. |

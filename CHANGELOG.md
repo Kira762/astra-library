@@ -2,6 +2,45 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-16 — The Settings menu key is typed into an Input field
+
+Reported from the field as a Settings keybind that would not take a click: the
+row never entered its recording state, so the menu key could not be changed at
+all. That row was the only place the library asked for a key through the Keybind
+element's click-to-record cap, and it now asks the way every other typed value
+in the library asks — through the `Input` element.
+
+- **`components/settings.luau` builds General → Toggle Keybind as
+  `type = "Input"`** (icon `keyboard`, placeholder `e.g. K, Space, MB2`). The
+  field shows the bound key's name and reads one back on the commit every Input
+  makes: focus lost. The Keybind element's cap is gone from Settings, and no
+  second input widget is built for it.
+- **`window.settings.toggleKeybind` stays an `EnumItem`.** That is what
+  `Window:_bindKeybind` compares the incoming input against, what the other
+  Keybind elements refuse to take, and what
+  `utilities/persistenceSettings.luau` writes as `{ EnumType, Value }`, so
+  existing settings files keep loading unchanged.
+- **`keyLabel`/`parseKey` carry the element's display and capture rules over to
+  text**: `None` for an unbound key, `MB2`/`MB3` for mouse buttons, case and
+  separators ignored (`k`, `Space`, `left shift`, `f7`, `5`, `rmb`), an empty
+  field or `none` clearing the binding, and anything not in that table left to
+  an `Enum.KeyCode`/`Enum.UserInputType` lookup so an uncommon but real name
+  still binds.
+- **Refusals keep the rules they had.** A key another Keybind already owns is
+  rejected with the same "%s is bound to %s. Kept %s." notification; text that
+  names no key is rejected; and left click is rejected with its own reason,
+  because a toggle bound to `MouseButton1` would fire on every click in the game
+  and the cap's capture never offered it either. A rejected field restores the
+  previous binding and flashes the error colour over the commit's flash.
+- **The Keybind element itself is unchanged** — `tab:CreateKeybind` still gets
+  the button-backed cap, its click-to-record flow, hold mode and conflict
+  checks.
+- Suite: `scripts/keybind_input_test.luau` drives the field (commit, case and
+  alias parsing, mouse button, clearing, junk/left-click/conflict refusals,
+  typing the bound key inside the field not toggling the window, and the new key
+  toggling it afterwards) and keeps the element's cap covered beside it. Bundle
+  regenerated.
+
 ## 2026-09-16 — The loader stops reporting `attempt to call a nil value`
 
 Reported from the field as `dROpudBpfgnVovyLM:1: attempt to call a nil value`,

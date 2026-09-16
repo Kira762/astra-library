@@ -2,6 +2,25 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-16 — Grouped buttons keep the tap glyph after the label
+
+Compact buttons assigned sibling orders but left their `UIListLayout` at its
+name-sorting default, placing the built-in tap image before the text. The
+compact layout now explicitly uses `Enum.SortOrder.LayoutOrder`: the optional
+custom icon stays before the title and the built-in tap glyph follows it.
+
+- `elements/button.luau`: fixes only the compact/grouped layout; full-card
+  button positioning, click behavior, and `tapIcon` opt-out are unchanged.
+- `scripts/button_click_test.luau`: adds regression assertions for layout
+  sorting, trailing tap order, custom leading icons, opt-out, and unchanged
+  full-card anchoring. `version-1.luau` is regenerated from source.
+- Verification: the B7 regression fails against the previous bundle and passes
+  with the fix. All 32 runtime/smoke suites pass with a locally built Luau CLI;
+  all 103 published files plus the regression test compile. Compilation used
+  `luau-compile --binary` directly because the existing syntax wrapper passes
+  `--output`, which this CLI does not support. Require-graph, instance-field,
+  and whitespace checks pass.
+
 ## 2026-09-16 — The Theme card says which theme it is, and Reset stops vanishing
 
 Two things in Settings → Appearance → Theme read wrong. The "Current theme"

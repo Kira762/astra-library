@@ -24,7 +24,8 @@
 --   * B4 a second click repeats the whole cycle,
 --   * B5 the compact row's button (the Group layout) clicks the same way — it
 --     has its own click handler with its own `motion.spec` calls,
---   * B6 the settings surface exposes the persistence module it required.
+--   * B6 the settings surface exposes the persistence module it required,
+--   * B7 grouped buttons sort custom icon, title, then tap glyph explicitly.
 
 local function expect(cond, message)
 	if not cond then
@@ -175,4 +176,36 @@ expect(
 )
 expect(type(settings.persistence.read) == "function", "B6 the persistence module exposes read")
 
-print("B1-B6 OK")
+-- ===== B7: grouped tap glyph trails the title =============================
+-- The stubs do not run Roblox's layout engine. Pin its sorting input as well
+-- as the sibling orders: LayoutOrder values alone do nothing under Name sort.
+local function expectTrailingTap(element)
+	local layout
+	for _, child in ipairs(element.interact:GetChildren()) do
+		if child.ClassName == "UIListLayout" then
+			layout = child
+			break
+		end
+	end
+	expect(layout ~= nil, "B7 compact button has a horizontal layout")
+	eq(layout.SortOrder, Enum.SortOrder.LayoutOrder, "B7 layout honors explicit sibling order")
+	eq(layout.FillDirection, Enum.FillDirection.Horizontal, "B7 content runs left to right")
+	eq(element.title.Parent, element.interact, "B7 title participates in the layout")
+	if element.tapIcon then
+		eq(element.tapIcon.Parent, element.interact, "B7 tap glyph participates in the layout")
+		expect(element.title.LayoutOrder < element.tapIcon.LayoutOrder, "B7 built-in glyph is right of title")
+	end
+	if element.iconLabel then
+		expect(element.iconLabel.LayoutOrder < element.title.LayoutOrder, "B7 custom icon remains left of title")
+	end
+end
+
+expectTrailingTap(compactButton)
+expectTrailingTap(group:CreateButton({ name = "With icon", icon = "house" }))
+local withoutTap = group:CreateButton({ name = "No tap", tapIcon = false })
+expectTrailingTap(withoutTap)
+expect(withoutTap.tapIcon == nil, "B7 tapIcon=false still opts out")
+eq(button.tapIcon.Parent, button.main, "B7 full-card glyph stays outside the compact layout")
+eq(button.tapIcon.Position.X.Scale, 1, "B7 full-card glyph remains at the right edge")
+
+print("B1-B7 OK")

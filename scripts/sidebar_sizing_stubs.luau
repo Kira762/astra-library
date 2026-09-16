@@ -19,15 +19,81 @@ end
 
 UDim = { new = function(xs, xo) return udim(xs, xo) end }
 
+-- [[UDim2 answers the two members the drag paths use: `:Lerp` (the smooth
+-- [[follow a dragged window rides) and the Scale/Offset reads every layout
+-- [[does. UDim2 values are still plain `{ X, Y }` tables, so nothing that
+-- [[reads them changes shape.
+local udim2
+local udim2Meta = {}
+function udim2Meta.__index(v, key)
+	if key == "Lerp" then
+		return function(self, target, alpha)
+			return udim2(
+				self.X.Scale + (target.X.Scale - self.X.Scale) * alpha,
+				self.X.Offset + (target.X.Offset - self.X.Offset) * alpha,
+				self.Y.Scale + (target.Y.Scale - self.Y.Scale) * alpha,
+				self.Y.Offset + (target.Y.Offset - self.Y.Offset) * alpha
+			)
+		end
+	end
+	return nil
+end
+
+udim2 = function(xs, xo, ys, yo)
+	return setmetatable({ X = udim(xs, xo), Y = udim(ys, yo) }, udim2Meta)
+end
+
 UDim2 = {
-	new = function(xs, xo, ys, yo) return { X = udim(xs, xo), Y = udim(ys, yo) } end,
-	fromScale = function(xs, ys) return { X = udim(xs, 0), Y = udim(ys, 0) } end,
-	fromOffset = function(xo, yo) return { X = udim(0, xo), Y = udim(0, yo) } end,
+	new = function(xs, xo, ys, yo) return udim2(xs, xo, ys, yo) end,
+	fromScale = function(xs, ys) return udim2(xs, 0, ys, 0) end,
+	fromOffset = function(xo, yo) return udim2(0, xo, 0, yo) end,
 }
 
+-- [[Vectors answer the operators the engine's do. `AbsolutePosition + offset`,
+-- [[`size * anchor`, `pointer - start` and `.Magnitude` all appear in the drag
+-- [[paths, which the suites drive through real input events; without the
+-- [[arithmetic those paths die on "attempt to perform arithmetic" before any
+-- [[assertion can see them. A plain `{ X, Y }` table is still what comes out,
+-- [[so every existing reader is unaffected.
+local vector2Meta = {}
+vector2Meta.__index = function(v, key)
+	if key == "Magnitude" then
+		return math.sqrt(v.X * v.X + v.Y * v.Y)
+	end
+	return nil
+end
+vector2Meta.__add = function(a, b)
+	if type(a) == "table" and type(b) == "table" then
+		return setmetatable({ X = a.X + b.X, Y = a.Y + b.Y }, vector2Meta)
+	end
+	return nil
+end
+vector2Meta.__sub = function(a, b)
+	if type(a) == "table" and type(b) == "table" then
+		return setmetatable({ X = a.X - b.X, Y = a.Y - b.Y }, vector2Meta)
+	end
+	return nil
+end
+vector2Meta.__mul = function(a, b)
+	if type(a) == "table" and type(b) == "table" then
+		return setmetatable({ X = a.X * b.X, Y = a.Y * b.Y }, vector2Meta)
+	end
+	if type(a) == "table" and type(b) == "number" then
+		return setmetatable({ X = a.X * b, Y = a.Y * b }, vector2Meta)
+	end
+	if type(a) == "number" and type(b) == "table" then
+		return setmetatable({ X = a * b.X, Y = a * b.Y }, vector2Meta)
+	end
+	return nil
+end
+
+local function vector2(x, y)
+	return setmetatable({ X = x or 0, Y = y or 0 }, vector2Meta)
+end
+
 Vector2 = {
-	new = function(x, y) return { X = x or 0, Y = y or 0 } end,
-	zero = { X = 0, Y = 0 },
+	new = function(x, y) return vector2(x, y) end,
+	zero = vector2(0, 0),
 }
 
 Vector3 = { new = function(x, y, z) return { X = x or 0, Y = y or 0, Z = z or 0 } end }
@@ -376,33 +442,33 @@ end
 
 local function absoluteSize(inst)
 	if not inst then
-		return { X = viewportSize.X, Y = viewportSize.Y }
+		return vector2(viewportSize.X, viewportSize.Y)
 	end
 	local class = inst.__props and inst.__props.ClassName
 	if class == "ScreenGui" or class == "CoreGui" then
-		return { X = viewportSize.X, Y = viewportSize.Y }
+		return vector2(viewportSize.X, viewportSize.Y)
 	end
 	local parent = inst.__props and inst.__props.Parent
 	local parentSize = absoluteSize(parent)
 	local size = (inst.__props and inst.__props.Size) or { X = udim(0, 0), Y = udim(0, 0) }
-	return {
-		X = size.X.Scale * parentSize.X + size.X.Offset,
-		Y = size.Y.Scale * parentSize.Y + size.Y.Offset,
-	}
+	return vector2(
+		size.X.Scale * parentSize.X + size.X.Offset,
+		size.Y.Scale * parentSize.Y + size.Y.Offset
+	)
 end
 
 local function absolutePosition(inst)
 	if not inst then
-		return { X = 0, Y = 0 }
+		return vector2(0, 0)
 	end
 	local parent = inst.__props and inst.__props.Parent
 	local parentPos = absolutePosition(parent)
 	local parentSize = absoluteSize(parent)
 	local pos = (inst.__props and inst.__props.Position) or { X = udim(0, 0), Y = udim(0, 0) }
-	return {
-		X = parentPos.X + pos.X.Scale * parentSize.X + pos.X.Offset,
-		Y = parentPos.Y + pos.Y.Scale * parentSize.Y + pos.Y.Offset,
-	}
+	return vector2(
+		parentPos.X + pos.X.Scale * parentSize.X + pos.X.Offset,
+		parentPos.Y + pos.Y.Scale * parentSize.Y + pos.Y.Offset
+	)
 end
 
 local instanceMethods = {}
@@ -688,7 +754,7 @@ do
 	input.InputEnded = newSignal()
 	input.WindowFocusReleased = newSignal()
 	input.GetMouseLocation = function()
-		return { X = viewportSize.X / 2, Y = viewportSize.Y / 2 }
+		return vector2(viewportSize.X / 2, viewportSize.Y / 2)
 	end
 	input.IsMouseButtonPressed = function()
 		return false

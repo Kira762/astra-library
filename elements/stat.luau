@@ -27,6 +27,29 @@ local valueLabel = 38
 -- spec — the same surface language as the window's own gradient.]]
 local baseline = "emphasized"
 
+-- [[Letter presentation: a stat whose value is not a number drops its numeric
+-- readouts and carries the value's first letter as a glyph badge instead. The
+-- glyph answer order is the value itself, then the stat's name, then "A", so
+-- a badge always has exactly one letter — never an icon, digit or symbol.
+-- Byte iteration keeps this free of any utf8 dependency.]]
+local function firstGlyphChar(candidate)
+    if candidate == nil then
+        return nil
+    end
+    local plain = (tostring(candidate):gsub("%s+", ""))
+    for index = 1, #plain do
+        local char = plain:sub(index, index)
+        if char:match("%a") then
+            return string.upper(char)
+        end
+    end
+    return nil
+end
+
+local function glyphText(value, fallbackName)
+    return firstGlyphChar(value) or firstGlyphChar(fallbackName) or "A"
+end
+
 local function a14(a15)
     return a15.fill.Keypoints[1].Value
 end
@@ -68,14 +91,24 @@ end
 function state.new(tab, a25)
     a25 = if typeof(a25) == "table" then a25 else {}
 
+    -- [[Non-numeric values switch the card to letter mode: the numeric
+    -- readouts are skipped and the first letter of the value (or of the stat's
+    -- own name) renders as a glyph badge instead. String values adopted the
+    -- same passthrough the description already has, so "Default" reads as the
+    -- letter D rather than a number roll.]]
+    local desiredValue = if (a25.value or a25.Value) ~= nil then (a25.value or a25.Value) else 0
+    local numeric = type(desiredValue) == "number"
+
+    local resolvedIcon = tab.window:ResolveIcon(a25.icon or a25.Icon)
+
     local self = setmetatable({
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = a25.name or a25.Name or "Statistic",
-        icon = tab.window:ResolveIcon(a25.icon or a25.Icon),
+        icon = resolvedIcon,
         description = a25.description or a25.Description,
 
-        value = if (a25.value or a25.Value) ~= nil then (a25.value or a25.Value) else 0,
+        value = desiredValue,
                         _hasValue = (a25.value or a25.Value) ~= nil,
 
         numberEasing = if (a25.numberEasing ~= nil)
@@ -90,6 +123,13 @@ function state.new(tab, a25)
 
                         compact = a25.compact or a25.Compact or tab.compact or false,
         display = (a25.display or a25.Display or "value"),
+        -- [[The glyph badge replaces the numeric readouts for text values and
+        -- whenever the caller asks for a letter explicitly (a placeholder slot
+        -- now that the settings Theme card uses it for the active-theme
+        -- letter). A provided icon keeps the normal leading icon.]]
+        letter = if (a25.letter ~= nil or a25.Letter ~= nil)
+            then (a25.letter or a25.Letter) == true
+            else not numeric,
         _initialValue = if (a25.value or a25.Value) ~= nil
             then (a25.value or a25.Value)
             else nil,
@@ -220,6 +260,39 @@ function state:_buildFull()
 
         Parent = self.titleContainer,
     })
+
+    -- [[Letter mode: a single glyph badge replaces the bottom-anchored value
+    -- and change readouts, so a text-named value still reads as one character
+    -- (never an icon, digit or symbol — just the letter the value starts
+    -- with). Everything above the line keeps the normal stat recipe.]]
+    if self.letter then
+        self.letterHost = window:Create("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            Position = UDim2.new(0, 15, 1, -12 - (self._descriptionExtra or 0)),
+            Size = UDim2.new(1, -30, 0, 22),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            ZIndex = 10,
+
+            Parent = self.main,
+        })
+
+        self.letterGlyph = window:Create("TextLabel", {
+            Text = glyphText(self.value, self.name),
+            Size = UDim2.new(1, 0, 0, 22),
+            BorderSizePixel = 0,
+            BackgroundTransparency = 1,
+            TextSize = 20,
+            TextXAlignment = Enum.TextXAlignment.Center,
+            TextYAlignment = Enum.TextYAlignment.Center,
+            TextTransparency = 1,
+            ZIndex = 11,
+
+            Parent = self.letterHost,
+        }, { TextColor3 = "TitlingColor", FontFace = "TitleFont" })
+
+        return
+    end
 
     self.valueHost = window:Create("Frame", {
         AnchorPoint = Vector2.new(0, 1),
@@ -503,6 +576,17 @@ function state:_updateCompactReadout(a45, a46, a47, a48, a49, a50)
 end
 
 function state:Set(a51)
+    -- [[Letter mode never builds the numeric readouts, so a Set() there keeps
+    -- the glyph badge in step instead of driving odometers that do not exist.]]
+    if self.letter then
+        self.value = a51
+        self._hasValue = a51 ~= nil
+        if self.letterGlyph then
+            self.letterGlyph.Text = glyphText(a51, self.name)
+        end
+        return
+    end
+
     assert(typeof(a51) == "number", "Statistic:Set() - value must be a number, got " .. typeof(a51))
 
     local a52 = self.value
@@ -548,6 +632,18 @@ function state:Set(a51)
 end
 
 function state:ResetBaseline(a62)
+    -- [[Letter mode has no numeric readouts or baselines; clearing the badge
+    -- is the closest equivalent.]]
+    if self.letter then
+        self._initialValue = a62
+        self.value = a62
+        self._hasValue = a62 ~= nil
+        if self.letterGlyph then
+            self.letterGlyph.Text = glyphText(a62, self.name)
+        end
+        return
+    end
+
     local a63 = self.value
     local a64 = not self._hasValue
     local a65 = if typeof(a62) == "number" then a62 else self.value
@@ -570,8 +666,38 @@ function state:ResetBaseline(a62)
     self:_setAccent("neutral", 0)
 end
 
+-- [[Letter readout update: swaps the glyph badge to the value's first letter.
+-- Only meaningful on a stat built in letter mode (text value or letter=true);
+-- numeric stats keep their own Set() path.]]
+function state:SetText(text)
+    if type(text) == "number" then
+        self:Set(text)
+        return
+    end
+    self.value = text
+    self._hasValue = text ~= nil
+    if self.letterGlyph then
+        self.letterGlyph.Text = glyphText(text, self.name)
+    end
+end
+
 function state:_setShown(a66, a67)
     local w = self.window
+
+    if self.letter then
+        if a66 then
+            w:_revealCommon(self, a67)
+            w:_reveal(self.gradientContainer, { BackgroundTransparency = 0 }, a67)
+            w:_reveal(self.glow, { Transparency = 0.82 }, a67)
+            w:_reveal(self.letterGlyph, { TextTransparency = 0 }, a67)
+        else
+            w:_hideCommon(self, a67)
+            w:_reveal(self.gradientContainer, { BackgroundTransparency = 1 }, a67)
+            w:_reveal(self.glow, { Transparency = 1 }, a67)
+            w:_reveal(self.letterGlyph, { TextTransparency = 1 }, a67)
+        end
+        return
+    end
 
     if self.compact then
         w:_reveal(

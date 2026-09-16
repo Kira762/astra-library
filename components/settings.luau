@@ -357,6 +357,7 @@ function settingsComponent.buildUI(window)
     window.rfSettings._settingsContentBuilder = buildGeneral
 
     local function buildAppearance()
+        local themeOrder = { "default", "amethyst", "cobalt", "crimson", "ember", "emerald", "frost", "gold", "onyx", "rose" }
         local themes = {
             default = "Default",
             amethyst = "Amethyst",
@@ -369,61 +370,150 @@ function settingsComponent.buildUI(window)
             onyx = "Onyx",
             rose = "Rose",
         }
-        local selectedTheme = window.settings.theme
+        local themeOptions = {}
+        for _, key in ipairs(themeOrder) do
+            table.insert(themeOptions, themes[key])
+        end
+
         local function themeLabel(key)
             return themes[key] or themes.default
         end
-        if not themes[selectedTheme] then
-            selectedTheme = "default"
+        local function themeKey(label)
+            for key, candidate in themes do
+                if candidate == label then
+                    return key
+                end
+            end
+            return nil
         end
 
-        appearance:CreateCollapsibleGroup({
+        -- [[The theme row follows a staged apply: the dropdown only *selects*
+        -- a candidate (currentTheme stays untouched until the Apply button is
+        -- confirmed), while the stat above shows the theme in effect — as a
+        -- single letter badge, no icon. While a candidate differs from the
+        -- active theme, the reset/apply pair appears.]]
+        local currentTheme = if themes[window.settings.theme] then window.settings.theme else "default"
+        local pendingTheme
+
+        -- Forward-declared so the element callbacks below can capture them;
+        -- their bodies are assigned after the group is built.
+        local themeStat, themeDropdown, themeButtonGroup
+        local setPendingThemeButtons, syncThemeControls, confirmThemeReset
+
+        local themeGroup = appearance:CreateCollapsibleGroup({
             name = "Theme",
             icon = "palette",
             elements = {
                 {
+                    type = "Stat",
+                    name = "Current theme",
+                    value = themeLabel(currentTheme),
+                    letter = true,
+                },
+                {
                     type = "Dropdown",
                     name = "Theme",
-                    options = { "Default", "Amethyst", "Cobalt", "Crimson", "Ember", "Emerald", "Frost", "Gold", "Onyx", "Rose" },
-                    value = themeLabel(selectedTheme),
+                    options = themeOptions,
+                    value = themeLabel(currentTheme),
                     callback = function(value)
-                        for key, label in themes do
-                            if value == label then
-                                selectedTheme = key
-                                break
-                            end
+                        local candidate = themeKey(value)
+                        if not candidate or candidate == currentTheme then
+                            pendingTheme = nil
+                            setPendingThemeButtons(false)
+                            return
                         end
+                        pendingTheme = candidate
+                        setPendingThemeButtons(true)
                     end,
                 },
                 {
-                    type = "Button",
-                    name = "Apply theme",
-                    callback = function()
-                        if selectedTheme == window.settings.theme then
-                            window:Notify({ title = "Theme", content = "The " .. themeLabel(selectedTheme) .. " theme is already active." })
-                            return
-                        end
-                        window:Popup({
-                            title = "Apply theme?",
-                            content = "Apply the " .. themeLabel(selectedTheme) .. " theme to this window?",
-                            options = {
-                                { text = "Cancel" },
-                                {
-                                    text = "Apply",
-                                    style = "primary",
-                                    callback = function()
-                                        window.settings.theme = selectedTheme
-                                        window:ChangeTheme(selectedTheme)
-                                        window:SaveSettings()
-                                        window:Notify({ title = "Theme applied", subtitle = themeLabel(selectedTheme) })
-                                    end,
-                                },
-                            },
-                        })
-                    end,
+                    type = "Group",
+                    elements = {
+                        {
+                            type = "Button",
+                            name = "Reset to Default",
+                            icon = "rotate-ccw",
+                            callback = function()
+                                window:Popup({
+                                    title = "Reset theme?",
+                                    content = "Set this window back to the " .. themeLabel("default") .. " theme?",
+                                    options = {
+                                        { text = "Cancel" },
+                                        {
+                                            text = "Reset",
+                                            style = "primary",
+                                            callback = confirmThemeReset,
+                                        },
+                                    },
+                                })
+                            end,
+                        },
+                        {
+                            type = "Button",
+                            name = "Apply Theme",
+                            icon = "check",
+                            callback = function()
+                                if not pendingTheme then
+                                    return
+                                end
+                                window:Popup({
+                                    title = "Apply theme?",
+                                    content = "Apply the " .. themeLabel(pendingTheme) .. " theme to this window?",
+                                    options = {
+                                        { text = "Cancel" },
+                                        {
+                                            text = "Apply",
+                                            style = "primary",
+                                            callback = function()
+                                                currentTheme = pendingTheme
+                                                pendingTheme = nil
+                                                window.settings.theme = currentTheme
+                                                window:ChangeTheme(currentTheme)
+                                                window:SaveSettings()
+                                                syncThemeControls()
+                                                window:Notify({ title = "Theme applied", subtitle = themeLabel(currentTheme) })
+                                            end,
+                                        },
+                                    },
+                                })
+                            end,
+                        },
+                    },
                 },
             },
         })
+
+        themeStat = themeGroup.elements[1]
+        themeDropdown = themeGroup.elements[2]
+        themeButtonGroup = themeGroup.elements[3]
+        function setPendingThemeButtons(show)
+            if not themeButtonGroup or not themeButtonGroup.main then
+                return
+            end
+            -- Hidden outright until there is a pending change, so the pair
+            -- does not sit as a dead "Apply" button when nothing changed.
+            themeButtonGroup.main.Visible = show == true
+        end
+        function syncThemeControls()
+            if themeDropdown then
+                themeDropdown:Set(themeLabel(currentTheme), true)
+            end
+            if themeStat then
+                themeStat:SetText(themeLabel(currentTheme))
+            end
+            setPendingThemeButtons(pendingTheme ~= nil and pendingTheme ~= currentTheme)
+        end
+        function confirmThemeReset()
+            pendingTheme = nil
+            currentTheme = "default"
+            window.settings.theme = "default"
+            window:ChangeTheme("default")
+            window:SaveSettings()
+            syncThemeControls()
+            window:Notify({ title = "Theme reset", subtitle = themeLabel("default") })
+        end
+
+        setPendingThemeButtons(false)
 
         local layoutMap = { top = "Default Topbar", sidebar = "Sidebar (Responsive)", collapsedSidebar = "Collapsed Sidebar" }
         local layoutDropdown

@@ -95,9 +95,13 @@ function state.new(tab, a25)
     -- readouts are skipped and the first letter of the value (or of the stat's
     -- own name) renders as a glyph badge instead. String values adopted the
     -- same passthrough the description already has, so "Default" reads as the
-    -- letter D rather than a number roll.]]
+    -- letter D rather than a number roll. `letter = false` opts a text value
+    -- out of the badge: the whole value then renders as a text readout.]]
     local desiredValue = if (a25.value or a25.Value) ~= nil then (a25.value or a25.Value) else 0
     local numeric = type(desiredValue) == "number"
+    local letterMode = if (a25.letter ~= nil or a25.Letter ~= nil)
+        then (a25.letter or a25.Letter) == true
+        else not numeric
 
     local resolvedIcon = tab.window:ResolveIcon(a25.icon or a25.Icon)
 
@@ -124,12 +128,14 @@ function state.new(tab, a25)
                         compact = a25.compact or a25.Compact or tab.compact or false,
         display = (a25.display or a25.Display or "value"),
         -- [[The glyph badge replaces the numeric readouts for text values and
-        -- whenever the caller asks for a letter explicitly (a placeholder slot
-        -- now that the settings Theme card uses it for the active-theme
-        -- letter). A provided icon keeps the normal leading icon.]]
-        letter = if (a25.letter ~= nil or a25.Letter ~= nil)
-            then (a25.letter or a25.Letter) == true
-            else not numeric,
+        -- whenever the caller asks for a letter explicitly. A provided icon
+        -- keeps the normal leading icon.]]
+        letter = letterMode,
+        -- [[A text value that opts out of the badge (`letter = false`) reads
+        -- as a plain text readout: one label carrying the whole value. The
+        -- odometer stays out of it — it is a digit machine, so a word would
+        -- cost it a label per character.]]
+        textValue = not numeric and not letterMode,
         _initialValue = if (a25.value or a25.Value) ~= nil
             then (a25.value or a25.Value)
             else nil,
@@ -290,6 +296,31 @@ function state:_buildFull()
 
             Parent = self.letterHost,
         }, { TextColor3 = "TitlingColor", FontFace = "TitleFont" })
+
+        return
+    end
+
+    -- [[Text readout: the same slot as the badge, but carrying the whole
+    -- value. No change readout rides along — a percentage delta has no
+    -- meaning for a word — and no odometer is built, so a text stat is
+    -- cheaper than either of the numeric paths.]]
+    if self.textValue then
+        self.textLabel = window:Create("TextLabel", {
+            Text = self:_formatValue(self.value),
+            AnchorPoint = Vector2.new(0, 1),
+            Position = UDim2.new(0, 15, 1, -12 - (self._descriptionExtra or 0)),
+            Size = UDim2.new(1, -30, 0, 18),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            TextSize = 17,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Center,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            TextTransparency = 1,
+            ZIndex = 10,
+
+            Parent = self.main,
+        }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
         return
     end
@@ -485,23 +516,46 @@ function state:_buildCompact()
         Parent = self.title,
     })
 
-    self.readoutHost = window:Create("Frame", {
-        AutomaticSize = Enum.AutomaticSize.X,
-        Size = UDim2.fromOffset(0, 16),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        LayoutOrder = 1,
-        ZIndex = 6,
+    if self.textValue then
+        -- [[Text readout in the compact card: the whole value in one label.
+        -- It joins the card's own flex row directly rather than sitting in
+        -- the odometer's host frame — an AutomaticSize host with no layout
+        -- inside it measures zero and would clip the word away.]]
+        self.textLabel = window:Create("TextLabel", {
+            Text = self:_formatValue(self.value),
+            Size = UDim2.fromOffset(0, 15),
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            LayoutOrder = 1,
+            TextSize = 15,
+            TextXAlignment = Enum.TextXAlignment.Right,
+            TextYAlignment = Enum.TextYAlignment.Center,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            TextTransparency = 1,
+            ZIndex = 6,
 
-        Parent = self.card,
-    })
+            Parent = self.card,
+        }, { TextColor3 = "ContentColor", FontFace = "Font" })
+    else
+        self.readoutHost = window:Create("Frame", {
+            AutomaticSize = Enum.AutomaticSize.X,
+            Size = UDim2.fromOffset(0, 16),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            LayoutOrder = 1,
+            ZIndex = 6,
 
-    self.readoutOdo = props.new(window, self.readoutHost, {
-        textSize = 15,
-        alignment = Enum.HorizontalAlignment.Right,
-        transparency = 1,
-    })
-    self.readoutOdo:snap(self.display == "change" and self:_formatChange(0) or self:_formatValue(self.value))
+            Parent = self.card,
+        })
+
+        self.readoutOdo = props.new(window, self.readoutHost, {
+            textSize = 15,
+            alignment = Enum.HorizontalAlignment.Right,
+            transparency = 1,
+        })
+        self.readoutOdo:snap(self.display == "change" and self:_formatChange(0) or self:_formatValue(self.value))
+    end
 
     self._accentGradients = { self.strokeGradient, self.mainGradient }
 end
@@ -587,6 +641,15 @@ function state:Set(a51)
         return
     end
 
+    -- [[A text stat has no odometers or baselines either: Set() writes the
+    -- value straight into the whole-value label.]]
+    if self.textValue then
+        self.value = a51
+        self._hasValue = a51 ~= nil
+        self:_writeTextReadout()
+        return
+    end
+
     assert(typeof(a51) == "number", "Statistic:Set() - value must be a number, got " .. typeof(a51))
 
     local a52 = self.value
@@ -644,6 +707,16 @@ function state:ResetBaseline(a62)
         return
     end
 
+    -- [[Same for the text readout: the value is rewritten, there is no
+    -- baseline to clear.]]
+    if self.textValue then
+        self._initialValue = a62
+        self.value = a62
+        self._hasValue = a62 ~= nil
+        self:_writeTextReadout()
+        return
+    end
+
     local a63 = self.value
     local a64 = not self._hasValue
     local a65 = if typeof(a62) == "number" then a62 else self.value
@@ -666,9 +739,17 @@ function state:ResetBaseline(a62)
     self:_setAccent("neutral", 0)
 end
 
--- [[Letter readout update: swaps the glyph badge to the value's first letter.
--- Only meaningful on a stat built in letter mode (text value or letter=true);
--- numeric stats keep their own Set() path.]]
+-- [[Text readout update: rewrites the whole-value label. Text stats only —
+-- the numeric paths drive their odometers and the badge path its glyph.]]
+function state:_writeTextReadout()
+    if self.textLabel then
+        self.textLabel.Text = self:_formatValue(self.value)
+    end
+end
+
+-- [[Text readout update: swaps the value's own text. Only meaningful on a
+-- stat built in text mode (a text value with letter = false); letter stats
+-- keep their badge and numeric stats keep their own Set() path.]]
 function state:SetText(text)
     if type(text) == "number" then
         self:Set(text)
@@ -678,6 +759,8 @@ function state:SetText(text)
     self._hasValue = text ~= nil
     if self.letterGlyph then
         self.letterGlyph.Text = glyphText(text, self.name)
+    else
+        self:_writeTextReadout()
     end
 end
 
@@ -715,7 +798,11 @@ function state:_setShown(a66, a67)
         if self.iconLabel then
             w:_reveal(self.iconLabel, { ImageTransparency = if a66 then 0 else 1 }, a67)
         end
-        self.readoutOdo:reveal(if a66 then 0 else 1, a67)
+        if self.readoutOdo then
+            self.readoutOdo:reveal(if a66 then 0 else 1, a67)
+        else
+            w:_reveal(self.textLabel, { TextTransparency = if a66 then 0 else 1 }, a67)
+        end
         return
     end
 
@@ -723,14 +810,23 @@ function state:_setShown(a66, a67)
         w:_revealCommon(self, a67)
         w:_reveal(self.gradientContainer, { BackgroundTransparency = 0 }, a67)
         w:_reveal(self.glow, { Transparency = 0.82 }, a67)
-        self.valueOdo:reveal(0, a67)
-        self.changeOdo:reveal(0, a67)
+        if self.valueOdo then
+            self.valueOdo:reveal(0, a67)
+            self.changeOdo:reveal(0, a67)
+        else
+            -- Text readout: one label where the value/change pair would be.
+            w:_reveal(self.textLabel, { TextTransparency = 0 }, a67)
+        end
     else
         w:_hideCommon(self, a67)
         w:_reveal(self.gradientContainer, { BackgroundTransparency = 1 }, a67)
         w:_reveal(self.glow, { Transparency = 1 }, a67)
-        self.valueOdo:reveal(1, a67)
-        self.changeOdo:reveal(1, a67)
+        if self.valueOdo then
+            self.valueOdo:reveal(1, a67)
+            self.changeOdo:reveal(1, a67)
+        else
+            w:_reveal(self.textLabel, { TextTransparency = 1 }, a67)
+        end
     end
 end
 

@@ -129,7 +129,7 @@ line on `CreateCollapsibleGroup`.
 | `CreateSlider({ name, range = { min, max }, value, increment, suffix, minimal, flag, callback })` | `callback(value, dragging)` | `:Set(value)` |
 | `CreateDropdown({ name, options, value, multiSelect, placeholder, flag, callback })` | multi-select value is a table | `:Refresh(options)`, `:Add(option)`, `:Remove(option)` |
 | `CreateInput({ name, value, placeholder, numeric, clearOnFocus, flag, callback })` | text field, `callback(text)` | `:Set(text)` |
-| `CreateStat({ name, value, prefix, suffix, display, compact, changeMode, changeBaseline })` | readout card | `:Set(value)`, `:ResetBaseline(n)` |
+| `CreateStat({ name, value, prefix, suffix, display, compact, letter, changeMode, changeBaseline })` | readout card; a string `value` shows one letter unless `letter = false`, which reads the whole value | `:Set(value)`, `:SetText(text)`, `:ResetBaseline(n)` |
 | `CreateDivider({ text, line, spacing })` | rule between controls | — |
 | `CreateGroup({ direction = "row" \| "column" })` | horizontal row by default | nesting via `Create…` |
 | `CreateChangelog({ name, entries, emptyText })` | `+`/`-`/`~` change symbols | `:Add(entry, prepend?)`, `:Set(entries)`, `:Refresh(entries)`, `:Clear()` |

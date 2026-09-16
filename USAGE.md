@@ -285,7 +285,14 @@ local s = tab:CreateStat({ name = "Kills", value = 128, prefix = "", suffix = " 
 s:Set(200)
 s:ResetBaseline(0)
 ```
-Extra props: `display` (`"value"` | `"change"`), `compact`, `changeMode` (`"percentage"` | `"delta"`), `changeBaseline` (`"previous"` (default) | `"initial"` — which value a change is measured against; any other value, a number included, is read as `"previous"`, so `stat:ResetBaseline(number)` is the way to set a numeric baseline), `numberEasing`.
+Extra props: `display` (`"value"` | `"change"`), `compact`, `changeMode` (`"percentage"` | `"delta"`), `changeBaseline` (`"previous"` (default) | `"initial"` — which value a change is measured against; any other value, a number included, is read as `"previous"`, so `stat:ResetBaseline(number)` is the way to set a numeric baseline), `numberEasing`, `letter`.
+
+A stat's `value` may be a string. Text values render as a single-letter badge by default (`letter = true` is the same thing explicitly); `letter = false` reads the whole value out as text instead — one label, no digit roll and no change readout — and `Set` / `SetText` / `ResetBaseline` all write to it:
+
+```lua
+local theme = tab:CreateStat({ name = "Current theme", value = "Default", letter = false })
+theme:SetText("Emerald")  -- the card reads "Emerald", not "E"
+```
 
 ### Text / Divider / Group
 ```lua

@@ -389,15 +389,18 @@ function settingsComponent.buildUI(window)
 
         -- [[The theme row follows a staged apply: the dropdown only *selects*
         -- a candidate (currentTheme stays untouched until the Apply button is
-        -- confirmed), while the stat above shows the theme in effect — as a
-        -- single letter badge, no icon. While a candidate differs from the
-        -- active theme, the reset/apply pair appears.]]
+        -- confirmed), while the stat above shows the theme in effect — the
+        -- full theme name, no icon, via the stat's text readout. Reset to
+        -- Default is always on the row; only the Apply half is staged, and it
+        -- appears beside Reset while a candidate differs from the active
+        -- theme, then goes back to being absent once that candidate is
+        -- applied (or dropped by picking the active theme again).]]
         local currentTheme = if themes[window.settings.theme] then window.settings.theme else "default"
         local pendingTheme
 
         -- Forward-declared so the element callbacks below can capture them;
         -- their bodies are assigned after the group is built.
-        local themeStat, themeDropdown, themeButtonGroup
+        local themeStat, themeDropdown, themeButtonGroup, themeApplyButton
         local setPendingThemeButtons, syncThemeControls, confirmThemeReset
 
         local themeGroup = appearance:CreateCollapsibleGroup({
@@ -407,8 +410,10 @@ function settingsComponent.buildUI(window)
                 {
                     type = "Stat",
                     name = "Current theme",
+                    -- Reads the whole theme name out; letter = false opts this
+                    -- text value out of the stat's single-letter badge.
                     value = themeLabel(currentTheme),
-                    letter = true,
+                    letter = false,
                 },
                 {
                     type = "Dropdown",
@@ -486,13 +491,17 @@ function settingsComponent.buildUI(window)
         themeStat = themeGroup.elements[1]
         themeDropdown = themeGroup.elements[2]
         themeButtonGroup = themeGroup.elements[3]
+        themeApplyButton = themeButtonGroup and themeButtonGroup.elements[2]
         function setPendingThemeButtons(show)
-            if not themeButtonGroup or not themeButtonGroup.main then
+            if not themeApplyButton or not themeApplyButton.main then
                 return
             end
-            -- Hidden outright until there is a pending change, so the pair
-            -- does not sit as a dead "Apply" button when nothing changed.
-            themeButtonGroup.main.Visible = show == true
+            -- [[Only the Apply half of the row is staged: Reset to Default is
+            -- permanent, so the row is never hidden and Reset never appears
+            -- and disappears. Apply is absent until a candidate differs from
+            -- the active theme, and returns to absent the moment that
+            -- candidate is applied or dropped again.]]
+            themeApplyButton.main.Visible = show == true
         end
         function syncThemeControls()
             if themeDropdown then

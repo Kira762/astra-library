@@ -2,6 +2,50 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-16 — The Theme card says which theme it is, and Reset stops vanishing
+
+Two things in Settings → Appearance → Theme read wrong. The "Current theme"
+stat showed one letter — `D` for Default, `F` for Frost — because the stat was
+built with `letter = true`, the single-glyph badge, and a name people pick from
+a list is not a badge. Underneath, the button row was hidden as a whole, so
+"Reset to Default" appeared and disappeared with the selection instead of
+being the permanent way back: with nothing pending, both buttons were gone.
+
+- **The stat reads the whole theme name.** `elements/stat.luau` gains a text
+  readout — the third presentation next to the numeric odometers and the letter
+  badge: a stat whose value is a string *and* which opts out of the badge
+  (`letter = false`) builds one TextLabel carrying the whole value, skips the
+  change readout (a percentage delta of a word is noise) and routes `Set`,
+  `SetText` and `ResetBaseline` through it, in the full card and in the compact
+  row card alike. The odometer stays out of it: it is a digit machine, so a word
+  would cost a label per character. `letter` keeps the default it documents —
+  text values still get the badge unless they say otherwise — so no existing
+  script changes. `components/settings.luau` passes `letter = false` and the
+  card now reads "Default", "Emerald", "Rose".
+- **Reset to Default is permanent; only Apply is staged.**
+  `components/settings.luau` no longer hides the row
+  (`themeButtonGroup.main`); `setPendingThemeButtons` writes
+  `themeApplyButton.main.Visible` instead. Apply is absent until the dropdown
+  holds a theme other than the one in effect, appears beside Reset, and goes
+  back to absent the moment that theme is applied — or the dropdown is put back
+  on the active theme. Reset holds still through the whole cycle, tab switches
+  included, and both confirmations popups are unchanged.
+- **Docs follow the behaviour:** `Types.luau` now says what `letter = false`
+  does, and the Stat sections of `USAGE.md`, `skills/astra/SKILL.md` and
+  `skills/astra/references/elements.md` document `letter` and the text readout.
+- **Verification:** new suite `scripts/stat_text_test.sh` /
+  `scripts/stat_text_test.luau` pins the text readout in both card shapes (one
+  label, no odometer, no change readout, affixes intact, reveal/hide, every
+  write path) and asserts the numeric path and the letter-badge default are
+  untouched; `scripts/theme_settings_test.luau` is rewritten around the new
+  contract — full name in the readout, Reset always visible, Apply staged
+  through select → confirm → apply → absent again, both states surviving a
+  switch to another settings tab and back — and fails against the previous
+  bundle on its first new assertion. `node scripts/generate_bundle.js`,
+  `sh scripts/check_syntax.sh` (103 files), `python3
+  scripts/check_requires.py`, `python3 scripts/check_instance_fields.py`,
+  `sh scripts/smoke_test_bundle.sh` and all 31 runtime suites pass.
+
 ## 2026-09-16 — The drag handle shows up again (and answers the pointer)
 
 The small detached pill under the window never appeared. It is built

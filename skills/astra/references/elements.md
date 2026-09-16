@@ -150,7 +150,13 @@ print(st.value)
 Extra props: `display` (`"value"` | `"change"`), `compact`, `changeMode`
 (`"percentage"` | `"delta"`), `changeBaseline` (`"previous"` default | `"initial"`;
 any other value, numbers included, is read as `"previous"` — use
-`stat:ResetBaseline(number)` for a numeric baseline), `numberEasing`.
+`stat:ResetBaseline(number)` for a numeric baseline), `numberEasing`, `letter`.
+
+`value` may be a string. A text value shows as a one-letter badge unless
+`letter = false`, which reads the whole value out as text instead (no odometer,
+no change readout): `tab:CreateStat({ name = "Current theme", value = "Default",
+letter = false })` reads "Default". `Set`, `SetText` and `ResetBaseline` all
+write that label.
 
 ## Text, Section, Divider
 

@@ -381,7 +381,9 @@ export type StatProps = {
     value: (number | string)?,
     display: string?,     compact: boolean?,
     -- Show the value as a single letter badge (no icon) instead of the numeric
-    -- readouts; text values use this automatically unless set to false.
+    -- readouts; text values use this automatically unless set to false, in
+    -- which case the whole value reads out as a text readout (no odometer, no
+    -- change readout) that Set / SetText / ResetBaseline all write to.
     letter: boolean?,
     changeMode: string?,     changeBaseline: string?,     numberEasing: boolean?,
 }
@@ -6021,15 +6023,18 @@ function settingsComponent.buildUI(window)
 
         -- [[The theme row follows a staged apply: the dropdown only *selects*
         -- a candidate (currentTheme stays untouched until the Apply button is
-        -- confirmed), while the stat above shows the theme in effect — as a
-        -- single letter badge, no icon. While a candidate differs from the
-        -- active theme, the reset/apply pair appears.]]
+        -- confirmed), while the stat above shows the theme in effect — the
+        -- full theme name, no icon, via the stat's text readout. Reset to
+        -- Default is always on the row; only the Apply half is staged, and it
+        -- appears beside Reset while a candidate differs from the active
+        -- theme, then goes back to being absent once that candidate is
+        -- applied (or dropped by picking the active theme again).]]
         local currentTheme = if themes[window.settings.theme] then window.settings.theme else "default"
         local pendingTheme
 
         -- Forward-declared so the element callbacks below can capture them;
         -- their bodies are assigned after the group is built.
-        local themeStat, themeDropdown, themeButtonGroup
+        local themeStat, themeDropdown, themeButtonGroup, themeApplyButton
         local setPendingThemeButtons, syncThemeControls, confirmThemeReset
 
         local themeGroup = appearance:CreateCollapsibleGroup({
@@ -6039,8 +6044,10 @@ function settingsComponent.buildUI(window)
                 {
                     type = "Stat",
                     name = "Current theme",
+                    -- Reads the whole theme name out; letter = false opts this
+                    -- text value out of the stat's single-letter badge.
                     value = themeLabel(currentTheme),
-                    letter = true,
+                    letter = false,
                 },
                 {
                     type = "Dropdown",
@@ -6118,13 +6125,17 @@ function settingsComponent.buildUI(window)
         themeStat = themeGroup.elements[1]
         themeDropdown = themeGroup.elements[2]
         themeButtonGroup = themeGroup.elements[3]
+        themeApplyButton = themeButtonGroup and themeButtonGroup.elements[2]
         function setPendingThemeButtons(show)
-            if not themeButtonGroup or not themeButtonGroup.main then
+            if not themeApplyButton or not themeApplyButton.main then
                 return
             end
-            -- Hidden outright until there is a pending change, so the pair
-            -- does not sit as a dead "Apply" button when nothing changed.
-            themeButtonGroup.main.Visible = show == true
+            -- [[Only the Apply half of the row is staged: Reset to Default is
+            -- permanent, so the row is never hidden and Reset never appears
+            -- and disappears. Apply is absent until a candidate differs from
+            -- the active theme, and returns to absent the moment that
+            -- candidate is applied or dropped again.]]
+            themeApplyButton.main.Visible = show == true
         end
         function syncThemeControls()
             if themeDropdown then
@@ -15000,9 +15011,13 @@ function state.new(tab, a25)
     -- readouts are skipped and the first letter of the value (or of the stat's
     -- own name) renders as a glyph badge instead. String values adopted the
     -- same passthrough the description already has, so "Default" reads as the
-    -- letter D rather than a number roll.]]
+    -- letter D rather than a number roll. `letter = false` opts a text value
+    -- out of the badge: the whole value then renders as a text readout.]]
     local desiredValue = if (a25.value or a25.Value) ~= nil then (a25.value or a25.Value) else 0
     local numeric = type(desiredValue) == "number"
+    local letterMode = if (a25.letter ~= nil or a25.Letter ~= nil)
+        then (a25.letter or a25.Letter) == true
+        else not numeric
 
     local resolvedIcon = tab.window:ResolveIcon(a25.icon or a25.Icon)
 
@@ -15029,12 +15044,14 @@ function state.new(tab, a25)
                         compact = a25.compact or a25.Compact or tab.compact or false,
         display = (a25.display or a25.Display or "value"),
         -- [[The glyph badge replaces the numeric readouts for text values and
-        -- whenever the caller asks for a letter explicitly (a placeholder slot
-        -- now that the settings Theme card uses it for the active-theme
-        -- letter). A provided icon keeps the normal leading icon.]]
-        letter = if (a25.letter ~= nil or a25.Letter ~= nil)
-            then (a25.letter or a25.Letter) == true
-            else not numeric,
+        -- whenever the caller asks for a letter explicitly. A provided icon
+        -- keeps the normal leading icon.]]
+        letter = letterMode,
+        -- [[A text value that opts out of the badge (`letter = false`) reads
+        -- as a plain text readout: one label carrying the whole value. The
+        -- odometer stays out of it — it is a digit machine, so a word would
+        -- cost it a label per character.]]
+        textValue = not numeric and not letterMode,
         _initialValue = if (a25.value or a25.Value) ~= nil
             then (a25.value or a25.Value)
             else nil,
@@ -15195,6 +15212,31 @@ function state:_buildFull()
 
             Parent = self.letterHost,
         }, { TextColor3 = "TitlingColor", FontFace = "TitleFont" })
+
+        return
+    end
+
+    -- [[Text readout: the same slot as the badge, but carrying the whole
+    -- value. No change readout rides along — a percentage delta has no
+    -- meaning for a word — and no odometer is built, so a text stat is
+    -- cheaper than either of the numeric paths.]]
+    if self.textValue then
+        self.textLabel = window:Create("TextLabel", {
+            Text = self:_formatValue(self.value),
+            AnchorPoint = Vector2.new(0, 1),
+            Position = UDim2.new(0, 15, 1, -12 - (self._descriptionExtra or 0)),
+            Size = UDim2.new(1, -30, 0, 18),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            TextSize = 17,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Center,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            TextTransparency = 1,
+            ZIndex = 10,
+
+            Parent = self.main,
+        }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
         return
     end
@@ -15390,23 +15432,46 @@ function state:_buildCompact()
         Parent = self.title,
     })
 
-    self.readoutHost = window:Create("Frame", {
-        AutomaticSize = Enum.AutomaticSize.X,
-        Size = UDim2.fromOffset(0, 16),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        LayoutOrder = 1,
-        ZIndex = 6,
+    if self.textValue then
+        -- [[Text readout in the compact card: the whole value in one label.
+        -- It joins the card's own flex row directly rather than sitting in
+        -- the odometer's host frame — an AutomaticSize host with no layout
+        -- inside it measures zero and would clip the word away.]]
+        self.textLabel = window:Create("TextLabel", {
+            Text = self:_formatValue(self.value),
+            Size = UDim2.fromOffset(0, 15),
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            LayoutOrder = 1,
+            TextSize = 15,
+            TextXAlignment = Enum.TextXAlignment.Right,
+            TextYAlignment = Enum.TextYAlignment.Center,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            TextTransparency = 1,
+            ZIndex = 6,
 
-        Parent = self.card,
-    })
+            Parent = self.card,
+        }, { TextColor3 = "ContentColor", FontFace = "Font" })
+    else
+        self.readoutHost = window:Create("Frame", {
+            AutomaticSize = Enum.AutomaticSize.X,
+            Size = UDim2.fromOffset(0, 16),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            LayoutOrder = 1,
+            ZIndex = 6,
 
-    self.readoutOdo = props.new(window, self.readoutHost, {
-        textSize = 15,
-        alignment = Enum.HorizontalAlignment.Right,
-        transparency = 1,
-    })
-    self.readoutOdo:snap(self.display == "change" and self:_formatChange(0) or self:_formatValue(self.value))
+            Parent = self.card,
+        })
+
+        self.readoutOdo = props.new(window, self.readoutHost, {
+            textSize = 15,
+            alignment = Enum.HorizontalAlignment.Right,
+            transparency = 1,
+        })
+        self.readoutOdo:snap(self.display == "change" and self:_formatChange(0) or self:_formatValue(self.value))
+    end
 
     self._accentGradients = { self.strokeGradient, self.mainGradient }
 end
@@ -15492,6 +15557,15 @@ function state:Set(a51)
         return
     end
 
+    -- [[A text stat has no odometers or baselines either: Set() writes the
+    -- value straight into the whole-value label.]]
+    if self.textValue then
+        self.value = a51
+        self._hasValue = a51 ~= nil
+        self:_writeTextReadout()
+        return
+    end
+
     assert(typeof(a51) == "number", "Statistic:Set() - value must be a number, got " .. typeof(a51))
 
     local a52 = self.value
@@ -15549,6 +15623,16 @@ function state:ResetBaseline(a62)
         return
     end
 
+    -- [[Same for the text readout: the value is rewritten, there is no
+    -- baseline to clear.]]
+    if self.textValue then
+        self._initialValue = a62
+        self.value = a62
+        self._hasValue = a62 ~= nil
+        self:_writeTextReadout()
+        return
+    end
+
     local a63 = self.value
     local a64 = not self._hasValue
     local a65 = if typeof(a62) == "number" then a62 else self.value
@@ -15571,9 +15655,17 @@ function state:ResetBaseline(a62)
     self:_setAccent("neutral", 0)
 end
 
--- [[Letter readout update: swaps the glyph badge to the value's first letter.
--- Only meaningful on a stat built in letter mode (text value or letter=true);
--- numeric stats keep their own Set() path.]]
+-- [[Text readout update: rewrites the whole-value label. Text stats only —
+-- the numeric paths drive their odometers and the badge path its glyph.]]
+function state:_writeTextReadout()
+    if self.textLabel then
+        self.textLabel.Text = self:_formatValue(self.value)
+    end
+end
+
+-- [[Text readout update: swaps the value's own text. Only meaningful on a
+-- stat built in text mode (a text value with letter = false); letter stats
+-- keep their badge and numeric stats keep their own Set() path.]]
 function state:SetText(text)
     if type(text) == "number" then
         self:Set(text)
@@ -15583,6 +15675,8 @@ function state:SetText(text)
     self._hasValue = text ~= nil
     if self.letterGlyph then
         self.letterGlyph.Text = glyphText(text, self.name)
+    else
+        self:_writeTextReadout()
     end
 end
 
@@ -15620,7 +15714,11 @@ function state:_setShown(a66, a67)
         if self.iconLabel then
             w:_reveal(self.iconLabel, { ImageTransparency = if a66 then 0 else 1 }, a67)
         end
-        self.readoutOdo:reveal(if a66 then 0 else 1, a67)
+        if self.readoutOdo then
+            self.readoutOdo:reveal(if a66 then 0 else 1, a67)
+        else
+            w:_reveal(self.textLabel, { TextTransparency = if a66 then 0 else 1 }, a67)
+        end
         return
     end
 
@@ -15628,14 +15726,23 @@ function state:_setShown(a66, a67)
         w:_revealCommon(self, a67)
         w:_reveal(self.gradientContainer, { BackgroundTransparency = 0 }, a67)
         w:_reveal(self.glow, { Transparency = 0.82 }, a67)
-        self.valueOdo:reveal(0, a67)
-        self.changeOdo:reveal(0, a67)
+        if self.valueOdo then
+            self.valueOdo:reveal(0, a67)
+            self.changeOdo:reveal(0, a67)
+        else
+            -- Text readout: one label where the value/change pair would be.
+            w:_reveal(self.textLabel, { TextTransparency = 0 }, a67)
+        end
     else
         w:_hideCommon(self, a67)
         w:_reveal(self.gradientContainer, { BackgroundTransparency = 1 }, a67)
         w:_reveal(self.glow, { Transparency = 1 }, a67)
-        self.valueOdo:reveal(1, a67)
-        self.changeOdo:reveal(1, a67)
+        if self.valueOdo then
+            self.valueOdo:reveal(1, a67)
+            self.changeOdo:reveal(1, a67)
+        else
+            w:_reveal(self.textLabel, { TextTransparency = 1 }, a67)
+        end
     end
 end
 
@@ -23928,105 +24035,105 @@ end)() end,
 local LineOffsets = {
     [2] = 12,
     [3] = 244,
-    [5] = 618,
-    [6] = 653,
-    [7] = 698,
-    [8] = 604,
-    [9] = 815,
-    [10] = 913,
-    [11] = 1152,
-    [12] = 1498,
-    [13] = 1850,
-    [14] = 2138,
-    [15] = 2859,
-    [16] = 5286,
-    [17] = 5633,
-    [18] = 6508,
-    [19] = 6569,
-    [20] = 6984,
-    [21] = 7401,
-    [23] = 10688,
-    [24] = 10774,
-    [25] = 11084,
-    [26] = 11505,
-    [27] = 11907,
-    [28] = 12077,
-    [29] = 12222,
-    [30] = 13740,
-    [31] = 13959,
-    [32] = 14233,
-    [33] = 14319,
-    [34] = 14906,
-    [35] = 15659,
-    [36] = 16039,
-    [37] = 16169,
-    [38] = 16321,
-    [40] = 16815,
-    [41] = 16838,
-    [42] = 16855,
-    [43] = 16888,
-    [44] = 17010,
-    [45] = 17034,
-    [46] = 17083,
-    [47] = 16790,
-    [48] = 17213,
-    [49] = 17516,
-    [50] = 17547,
-    [51] = 17202,
-    [52] = 17590,
-    [53] = 17610,
-    [54] = 17642,
-    [55] = 17572,
-    [56] = 17749,
-    [57] = 17808,
-    [58] = 17868,
-    [60] = 18012,
-    [61] = 18177,
-    [62] = 17997,
-    [63] = 18751,
-    [64] = 18795,
-    [65] = 18875,
-    [66] = 19068,
-    [67] = 19197,
-    [68] = 19291,
-    [69] = 19458,
-    [70] = 18253,
-    [71] = 20092,
-    [72] = 20158,
-    [73] = 20224,
-    [74] = 20299,
-    [75] = 20405,
-    [76] = 20471,
-    [77] = 20546,
-    [78] = 20621,
-    [79] = 20696,
-    [80] = 20771,
-    [81] = 19986,
-    [82] = 20837,
-    [83] = 20935,
-    [84] = 21113,
-    [85] = 21163,
-    [86] = 21193,
-    [87] = 21444,
-    [88] = 21493,
-    [89] = 21946,
-    [90] = 21964,
-    [91] = 22133,
-    [92] = 22232,
-    [93] = 22254,
-    [94] = 22304,
-    [95] = 22654,
-    [96] = 22690,
-    [97] = 22708,
-    [98] = 23062,
-    [99] = 23074,
-    [100] = 23125,
-    [101] = 23144,
-    [102] = 23395,
-    [103] = 23439,
-    [104] = 23682,
-    [105] = 23710,
-    [106] = 23721,
+    [5] = 620,
+    [6] = 655,
+    [7] = 700,
+    [8] = 606,
+    [9] = 817,
+    [10] = 915,
+    [11] = 1154,
+    [12] = 1500,
+    [13] = 1852,
+    [14] = 2140,
+    [15] = 2861,
+    [16] = 5288,
+    [17] = 5635,
+    [18] = 6519,
+    [19] = 6580,
+    [20] = 6995,
+    [21] = 7412,
+    [23] = 10699,
+    [24] = 10785,
+    [25] = 11095,
+    [26] = 11516,
+    [27] = 11918,
+    [28] = 12088,
+    [29] = 12233,
+    [30] = 13751,
+    [31] = 13970,
+    [32] = 14244,
+    [33] = 14330,
+    [34] = 14917,
+    [35] = 15766,
+    [36] = 16146,
+    [37] = 16276,
+    [38] = 16428,
+    [40] = 16922,
+    [41] = 16945,
+    [42] = 16962,
+    [43] = 16995,
+    [44] = 17117,
+    [45] = 17141,
+    [46] = 17190,
+    [47] = 16897,
+    [48] = 17320,
+    [49] = 17623,
+    [50] = 17654,
+    [51] = 17309,
+    [52] = 17697,
+    [53] = 17717,
+    [54] = 17749,
+    [55] = 17679,
+    [56] = 17856,
+    [57] = 17915,
+    [58] = 17975,
+    [60] = 18119,
+    [61] = 18284,
+    [62] = 18104,
+    [63] = 18858,
+    [64] = 18902,
+    [65] = 18982,
+    [66] = 19175,
+    [67] = 19304,
+    [68] = 19398,
+    [69] = 19565,
+    [70] = 18360,
+    [71] = 20199,
+    [72] = 20265,
+    [73] = 20331,
+    [74] = 20406,
+    [75] = 20512,
+    [76] = 20578,
+    [77] = 20653,
+    [78] = 20728,
+    [79] = 20803,
+    [80] = 20878,
+    [81] = 20093,
+    [82] = 20944,
+    [83] = 21042,
+    [84] = 21220,
+    [85] = 21270,
+    [86] = 21300,
+    [87] = 21551,
+    [88] = 21600,
+    [89] = 22053,
+    [90] = 22071,
+    [91] = 22240,
+    [92] = 22339,
+    [93] = 22361,
+    [94] = 22411,
+    [95] = 22761,
+    [96] = 22797,
+    [97] = 22815,
+    [98] = 23169,
+    [99] = 23181,
+    [100] = 23232,
+    [101] = 23251,
+    [102] = 23502,
+    [103] = 23546,
+    [104] = 23789,
+    [105] = 23817,
+    [106] = 23828,
 }
 
 -- [[Misc AOT variable imports]]

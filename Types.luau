@@ -138,7 +138,9 @@ export type StatProps = {
     value: (number | string)?,
     display: string?,     compact: boolean?,
     -- Show the value as a single letter badge (no icon) instead of the numeric
-    -- readouts; text values use this automatically unless set to false.
+    -- readouts; text values use this automatically unless set to false, in
+    -- which case the whole value reads out as a text readout (no odometer, no
+    -- change readout) that Set / SetText / ResetBaseline all write to.
     letter: boolean?,
     changeMode: string?,     changeBaseline: string?,     numberEasing: boolean?,
 }

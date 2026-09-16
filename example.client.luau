@@ -2,48 +2,10 @@
 -- [[Everything lives in one tab so startup pacing and every element type can be
 -- [[tested without navigating through a collection of duplicate demo tabs.]]
 
--- [[Loader contract. `attempt to call a nil value` pointing at line 1 of a
--- [[randomly named chunk is the classic shape of a *failed compile*, not a
--- [[runtime bug: the compiled chunk does not exist yet, so Roblox can only
--- [[report the `()` that received nil. Every step below is therefore checked,
--- [[so the real reason (private repo, wrong branch, a truncated file, a
--- [[syntax error in the source) is printed instead of that dead end.]]
-local bundleUrl = "https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"
-
--- [[`load` compiles functions, not strings, in runtimes without `loadstring`,
--- [[which is why the fallback is only a fallback: name it when it is the reason.]]
-local compile = loadstring or load
-assert(type(compile) == "function", "[Astra] No loadstring/load in this runtime, so no bundle can be compiled here.")
-
-local bundleSource = game:HttpGet(bundleUrl)
--- [[A private repository, a wrong branch or a rate limit all answer with a small
--- [[error page. Catching that here is what keeps the failure honest: an HTML page
--- [[does not compile, and a compile failure only ever shows up as a nil call.]]
-assert(
-    type(bundleSource) == "string" and #bundleSource > 1024,
-    "[Astra] " .. bundleUrl .. " returned "
-    .. (type(bundleSource) == "string" and #bundleSource .. " bytes" or "nothing")
-    .. " - not the bundle. Is the repository private, or the branch/file wrong?"
-)
-assert(
-    not bundleSource:sub(1, 400):find("<html", 1, true) and not bundleSource:sub(1, 400):find("Not Found", 1, true),
-    "[Astra] " .. bundleUrl .. " answered with an error page instead of Luau source."
-)
-
-local bundleLoader, compileError = compile(bundleSource)
-assert(
-    type(bundleLoader) == "function",
-    "[Astra] The fetched source did not compile: " .. tostring(compileError)
-    .. if type(loadstring) ~= "function"
-        then " (this runtime has no loadstring; use an executor, or require the Rojo tree in Studio)"
-        else ""
-)
-local Astra = bundleLoader()
-
-assert(
-    type(Astra) == "table" and type(Astra.CreateWindow) == "function",
-    "[Astra] Failed to load Astra bundle."
-)
+-- [[The one and only bundle loader: fetch the published bundle and call the
+-- [[chunk it compiles to. `loadstring` needs an executor — plain Studio does
+-- [[not provide it — and the URL must be the raw file of a public repo.]]
+local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"))()
 
 local window = Astra:CreateWindow({
     name = "Astra Element Test",
@@ -71,7 +33,7 @@ local stat = elements:CreateStat({
     suffix = " requests",
     compact = true,
     changeMode = "delta",
-    changeBaseline = 100,
+    changeBaseline = "initial",
 })
 
 elements:CreateDivider({ text = "Interactive elements" })

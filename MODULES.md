@@ -589,6 +589,7 @@ Per-element specifics:
 | `generate_bundle.js` | Rebuilds `version-1.luau` from the modular tree. |
 | `check_requires.py` | Static require graph: every module resolves, no cycles. |
 | `check_instance_fields.py` | Fails on custom-field writes on instances (the `_profileGeneration` crash class). |
+| `check_syntax.sh` | Compiles every published file (modular tree, `example.client.luau`, `version-1.luau`). A syntax error in a loadstring'd bundle is invisible to the user — it only shows up as `attempt to call a nil value` at line 1 of the executor's chunk — so this is the gate that catches it here. |
 | `profile_{compact,centering,reveal,details}_test.sh` | Profile card suites: geometry/visibility, window-pair centring, the reveal toggle, and the redesigned card (tokens, pinned header + scrolling, live server/session values, license rows, tooltip, no-player case). |
 | `sidebar_tab_sizing_test.sh`, `smoke_test_bundle.sh` | Rail sizing (name-driven width, cap, restore) and a bundle smoke run; also the collapsed rail: rows are icon-only (title hidden, content centred, no expanded padding) whether they were collapsed in place, rebuilt by a layout switch, or created while the rail was already icon-only, and a capped title re-constrains after that rebuild. |
 | `collapsible_group_test.sh` | Collapsible groups: every declarative element type, state/callbacks, the connected-card geometry and surface recipe, and the corner treatment (band's top arcs matching the container, body clipper's bottom arcs). |

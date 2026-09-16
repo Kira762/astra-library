@@ -906,29 +906,6 @@ function Window:_unregisterControl(element)
     end
 end
 
-function Window:_keybindUsing(keybind, source)
-    if typeof(keybind) ~= "EnumItem" or keybind == Enum.KeyCode.Unknown then
-        return nil
-    end
-    local function find(elements)
-        for _, element in ipairs(elements) do
-            if element ~= source and element.__type == "Keybind" and element.value == keybind then
-                return element
-            end
-            if element.elements then
-                local match = find(element.elements)
-                if match then return match end
-            end
-        end
-        return nil
-    end
-    for _, tab in self.tabs do
-        local match = find(tab.elements)
-        if match then return match end
-    end
-    return nil
-end
-
 function Window:_copyOverlayProps(props)
     local copy = {}
     if typeof(props) == "table" then
@@ -1138,10 +1115,6 @@ function Window:Hide()
 
             if self._searching then
         search.close(self, { showTabs = false, jumpTo = self.selectedTab and self.selectedTab.tabPage })
-    end
-
-            if self._recordingKeybind then
-        self._recordingKeybind:_stopRecording()
     end
 
     self.animating = true
@@ -1600,8 +1573,9 @@ end
 
 function Window:_bindKeybind()
     self:Connect(state.userInputService.InputBegan, function(input, gameProcessed)
-        if gameProcessed or self._recordingKeybind then
-            return         end
+        if gameProcessed then
+            return
+        end
         if input.KeyCode == self.settings.toggleKeybind or input.UserInputType == self.settings.toggleKeybind then
             self:ToggleHide()
         end

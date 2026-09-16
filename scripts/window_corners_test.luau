@@ -46,7 +46,6 @@ expect(window.main.BorderSizePixel == 0, "C1 the window's main frame carries Bor
 -- Exercise every lazily-built surface so the audit below sees them.
 tab:CreateDropdown({ name = "Options", options = { "One", "Two", "Three" } })
 tab:CreateInput({ name = "Field", value = "value" })
-tab:CreateKeybind({ name = "Key", value = Enum.KeyCode.P })
 tab:CreateButton({ name = "Button", callback = function() end })
 TestPump(0.8)
 

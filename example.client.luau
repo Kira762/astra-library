@@ -131,14 +131,6 @@ elements:CreateInput({
     end,
 })
 
-elements:CreateKeybind({
-    name = "Keybind",
-    value = Enum.KeyCode.RightShift,
-    callback = function()
-        window:Toast({ title = "Keybind", subtitle = "Shortcut activated" })
-    end,
-})
-
 elements:CreateChangelog({
     name = "Changelog",
     entries = {
@@ -178,7 +170,6 @@ elements:CreateCollapsibleGroup({
         { type = "Switch", name = "Switch alias child", value = false },
         { type = "Slider", name = "Slider child", range = { 0, 100 }, value = 25 },
         { type = "Dropdown", name = "Dropdown child", options = { "One", "Two" }, value = "One" },
-        { type = "Keybind", name = "Keybind child", value = Enum.KeyCode.RightControl },
         { type = "Stat", name = "Stat child", value = 42, suffix = " checks" },
         { type = "Divider", text = "Nested diagnostics" },
         {

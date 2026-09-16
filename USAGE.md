@@ -207,7 +207,7 @@ local col = row:CreateGroup({ direction = "column" }) -- nested column
 col:CreateToggle({ name = "Left 1" })
 ```
 
-Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateKeybind`, `CreateStat`, `CreateSection`, `CreateText`, `CreateChangelog`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup`.
+Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateStat`, `CreateSection`, `CreateText`, `CreateChangelog`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup`.
 
 Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
 
@@ -220,7 +220,6 @@ tab:CreateButton({ name = "Click Me", icon = "play", callback = function() end }
 tab:CreateSlider({ name = "Sensitivity", range = { 1, 10 }, value = 5, suffix = "x", minimal = true, callback = function(v, dragging) end })
 tab:CreateDropdown({ name = "Preset", options = { "Low", "Medium", "High" }, value = "Medium", multiSelect = true, placeholder = "Pick items", callback = function(s) end })
 tab:CreateInput({ name = "Name", placeholder = "Type here", numeric = true, clearOnFocus = true, callback = function(t) end })
-tab:CreateKeybind({ name = "Toggle Panel", value = Enum.KeyCode.F3, isMenuToggle = true, callback = function(v) end })
 ```
 
 ### Button
@@ -286,15 +285,6 @@ tab:CreateInput({
     name = "Name", placeholder = "Type here",
     value = "Initial", numeric = true, clearOnFocus = true,
     callback = function(text) end,
-})
-```
-
-### Keybind
-```lua
-tab:CreateKeybind({
-    name = "Toggle Panel", value = Enum.KeyCode.F3,
-    isMenuToggle = true, hold = true, holdThreshold = 0.2,
-    callback = function(value) end, onChanged = function(key) end,
 })
 ```
 
@@ -609,7 +599,7 @@ local playerControls = tab:CreateCollapsibleGroup({
 ```
 
 **Supported types:** `Button`, `Toggle`, `Switch` (declarative alias of the
-toggle control), `Slider`, `Dropdown`, `Input`, `Keybind`, `Stat`,
+toggle control), `Slider`, `Dropdown`, `Input`, `Stat`,
 `Section`, `Text`, `Changelog`, `Divider`, and ordinary `Group`. Each uses the
 same properties and implementation as its normal `Create…` method, including
 the optional `description` helper line. `elements` can be omitted for an empty
@@ -628,8 +618,8 @@ are rejected before creating any UI.
 - Expansion uses Astra's motion service, including the instant-motion setting.
 - Values, flags and running features remain active when collapsed. Closing and
   reopening do not recreate controls, reset them, or rerun their value callbacks.
-- Closing cancels an uncommitted input edit, closes open dropdowns, and ends
-  keybind recording; already committed values remain unchanged.
+- Closing cancels an uncommitted input edit and closes open dropdowns;
+  already committed values remain unchanged.
 - Search includes child names and temporarily expands matching groups. Closing
   search restores their previous expansion state.
 - Children render at the same width as standalone elements, and the header
@@ -642,6 +632,6 @@ are rejected before creating any UI.
 - `MoveTo`, `MoveToTop`, `MoveToBottom`, `MoveUp`, `MoveDown`, `Lock`, and `Unlock`
   work on the container. Created child handles are also available in its
   `elements` array, in definition order, just like an ordinary Group.
-- Controls are built in startup batches even while collapsed, so keybinds and
-  saved flags are usable before the first expansion. The optional feature adds
+- Controls are built in startup batches even while collapsed, so saved flags
+  are usable before the first expansion. The optional feature adds
   no container instances unless you explicitly create one.

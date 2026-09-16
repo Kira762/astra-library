@@ -66,7 +66,7 @@ export type GroupProps = {
 -- Definitions use the corresponding element's normal properties plus `type`.
 -- `elements` is allowed only for ordinary Groups; CollapsibleGroups cannot nest.
 export type CollapsibleElementProps = {
-    type: "Button" | "Toggle" | "Switch" | "Slider" | "Dropdown" | "Input" | "Keybind"
+    type: "Button" | "Toggle" | "Switch" | "Slider" | "Dropdown" | "Input"
         | "Stat" | "Section" | "Text" | "Changelog" | "Divider" | "Group",
     elements: { CollapsibleElementProps }?,
     [string]: any,
@@ -129,13 +129,6 @@ export type InputProps = {
     forgetState: boolean?,
     callback: ((value: string) -> ())?,
 }
-
-export type KeybindProps = {
-    name: string?,
-    icon: (string | number)?,
-    flag: string?,
-    value: (EnumItem | string)?,     forgetState: boolean?,
-    isMenuToggle: boolean?,     hold: boolean?,     holdThreshold: number?,     callback: ((value: EnumItem | boolean) -> ())?,     onChanged: ((key: EnumItem) -> ())?, }
 
 export type StatProps = {
     name: string?,
@@ -215,11 +208,6 @@ export type Input = Moveable & Lockable & {
     Set: (self: Input, value: string, skipCallback: boolean?) -> (),
 }
 
-export type Keybind = Moveable & Lockable & {
-    value: EnumItem,
-    Set: (self: Keybind, value: EnumItem | string, skipChanged: boolean?) -> (),
-}
-
 export type Stat = Moveable & {
     value: number,
     Set: (self: Stat, value: number) -> (),
@@ -278,7 +266,6 @@ export type Tab = {
     CreateSlider: (self: Tab, props: SliderProps) -> Slider,
     CreateDropdown: (self: Tab, props: DropdownProps) -> Dropdown,
     CreateInput: (self: Tab, props: InputProps) -> Input,
-    CreateKeybind: (self: Tab, props: KeybindProps) -> Keybind,
     CreateStat: (self: Tab, props: StatProps) -> Stat,
     CreateSection: (self: Tab, props: SectionProps) -> Section,
     CreateText: (self: Tab, props: TextProps) -> Text,

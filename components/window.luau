@@ -1141,7 +1141,7 @@ function Window:Hide()
             self._hideTransitionId = (self._hideTransitionId or 0) + 1
     local transitionId = self._hideTransitionId
 
-            motion.tween(self.drag.dragCosmetic, { Size = UDim2.fromOffset(0, 4), BackgroundTransparency = 1 }, "fast")
+            motion.tween(self.drag.dragCosmetic, { Size = UDim2.fromOffset(0, 3), BackgroundTransparency = 1 }, "fast")
     task.delay(0.18, function()
         if self.unloaded or not self.hidden or self._hideTransitionId ~= transitionId then
             return
@@ -1257,7 +1257,7 @@ function Window:ToggleMinimise()
                 self.main.Position.X.Scale,
                 self.main.Position.X.Offset,
                 self.main.Position.Y.Scale,
-                self.main.Position.Y.Offset + self.size.Y.Offset / 2 + 15
+                self.main.Position.Y.Offset + self.size.Y.Offset / 2 + 22
             ),
         }, expandTween)
 
@@ -1317,7 +1317,7 @@ function Window:ToggleMinimise()
                 self.main.Position.X.Scale,
                 self.main.Position.X.Offset,
                 self.main.Position.Y.Scale,
-                self.main.Position.Y.Offset + self.layout.topbarHeight / 2 + 15
+                self.main.Position.Y.Offset + self.layout.topbarHeight / 2 + 22
             ),
         }, expandTween)
 
@@ -1340,7 +1340,7 @@ function Window:_syncDragBar()
         return
     end
     local pos = self.main.Position
-    local dragOffset = if self.minimised then self.layout.topbarHeight / 2 + 15 else self.size.Y.Offset / 2 + 15
+    local dragOffset = if self.minimised then self.layout.topbarHeight / 2 + 22 else self.size.Y.Offset / 2 + 22
     dragFrame.Position = UDim2.new(pos.X.Scale, pos.X.Offset, pos.Y.Scale, pos.Y.Offset + dragOffset)
 end
 
@@ -1402,7 +1402,7 @@ function Window:_recenterForProfile(animate)
         -- symmetric `glide` ease reads as deliberate, not reactive.]]
         motion.tween(self.main, { Position = target }, "glide")
         motion.tween(self.drag.drag, {
-            Position = UDim2.new(target.X.Scale, target.X.Offset, target.Y.Scale, target.Y.Offset + self.size.Y.Offset / 2 + 15),
+            Position = UDim2.new(target.X.Scale, target.X.Offset, target.Y.Scale, target.Y.Offset + self.size.Y.Offset / 2 + 22),
         }, "glide")
     else
         self.main.Position = target
@@ -1684,7 +1684,7 @@ function Window:_bindTopbarDrag()
                 mainPos.X.Scale,
                 mainPos.X.Offset,
                 mainPos.Y.Scale,
-                mainPos.Y.Offset + (self.main.Size.Y.Offset / 2 + 15)
+                mainPos.Y.Offset + (self.main.Size.Y.Offset / 2 + 22)
             )
         end
     end

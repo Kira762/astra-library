@@ -1163,11 +1163,13 @@ function Drag.new(window, props)
         window = assert(window, "Missing argument #1 (Window expected)"),
     }, Drag)
 
+    -- Small centered detached handle below window, not overlapping
+    -- Gap = 22px from window bottom edge to handle center
     self.drag = self.window:Create("Frame", {
         BackgroundTransparency = 1,
-        Size = UDim2.fromOffset(150, 20),
+        Size = UDim2.fromOffset(80, 16),
         AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.new(0.5, 0, 0.5, self.window.size.Y.Offset / 2 + 15),
+        Position = UDim2.new(0.5, 0, 0.5, self.window.size.Y.Offset / 2 + 22),
         ZIndex = constants.zIndex.drag,
         Visible = false,
         Parent = self.window.screenGui,
@@ -1176,10 +1178,10 @@ function Drag.new(window, props)
     self.dragCosmetic = self.window:Create("Frame", {
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.3),
+        Position = UDim2.fromScale(0.5, 0.5),
         ZIndex = constants.zIndex.drag,
         BackgroundTransparency = 1,
-        Size = UDim2.fromOffset(0, 4),
+        Size = UDim2.fromOffset(0, 3),
         Parent = self.drag,
     })
 
@@ -1188,7 +1190,7 @@ function Drag.new(window, props)
         Parent = self.dragCosmetic,
     })
 
-    self.window:CreateGlow(self.dragCosmetic, Color3.fromRGB(255, 255, 255), 10, 0.5)
+    self.window:CreateGlow(self.dragCosmetic, Color3.fromRGB(255, 255, 255), 8, 0.6)
 
     self.dragInteract = self.window:Create("TextButton", {
         Active = true,
@@ -1232,19 +1234,19 @@ function Drag.new(window, props)
         end
 
         local mainPos = UDim2.fromOffset(x, y)
-        local dragPos = UDim2.fromOffset(x, y + (self.window.main.Size.Y.Offset / 2 + 15))
+        local dragPos = UDim2.fromOffset(x, y + (self.window.main.Size.Y.Offset / 2 + 22))
         return mainPos, dragPos
     end
 
     self.window:Connect(self.drag.MouseEnter, function()
         if not isDragging and not self.window.hidden then
-            motion.tween(self.dragCosmetic, { BackgroundTransparency = 0.5, Size = UDim2.new(0, 120, 0, 4) }, "fast")
+            motion.tween(self.dragCosmetic, { BackgroundTransparency = 0.5, Size = UDim2.new(0, 64, 0, 3) }, "fast")
         end
     end)
 
     self.window:Connect(self.drag.MouseLeave, function()
         if not isDragging and not self.window.hidden then
-            motion.tween(self.dragCosmetic, { BackgroundTransparency = 0.7, Size = UDim2.new(0, 100, 0, 4) }, "fast")
+            motion.tween(self.dragCosmetic, { BackgroundTransparency = 0.7, Size = UDim2.new(0, 48, 0, 3) }, "fast")
         end
     end)
 
@@ -1263,7 +1265,7 @@ function Drag.new(window, props)
             return
         end
 
-        motion.tween(self.dragCosmetic, { Size = UDim2.new(0, 100, 0, 4), BackgroundTransparency = 0.7 }, "settle")
+        motion.tween(self.dragCosmetic, { Size = UDim2.new(0, 48, 0, 3), BackgroundTransparency = 0.7 }, "settle")
 
         -- [[The capsule settling back after a drag is the spring's moment:
         -- a short overshoot that reads as weight, not lag.]]
@@ -1306,7 +1308,7 @@ function Drag.new(window, props)
                 + self.window.main.AbsoluteSize * self.window.main.AnchorPoint
                 - state.userInputService:GetMouseLocation()
             if not self.window.hidden then
-                motion.tween(self.dragCosmetic, { Size = UDim2.new(0, 110, 0, 4), BackgroundTransparency = 0 }, "fast")
+                motion.tween(self.dragCosmetic, { Size = UDim2.new(0, 56, 0, 3), BackgroundTransparency = 0 }, "fast")
             end
 
             self._dragConnection = self.window:Connect(state.runService.RenderStepped, renderStepHandler)
@@ -8305,7 +8307,7 @@ function Window:Hide()
             self._hideTransitionId = (self._hideTransitionId or 0) + 1
     local transitionId = self._hideTransitionId
 
-            motion.tween(self.drag.dragCosmetic, { Size = UDim2.fromOffset(0, 4), BackgroundTransparency = 1 }, "fast")
+            motion.tween(self.drag.dragCosmetic, { Size = UDim2.fromOffset(0, 3), BackgroundTransparency = 1 }, "fast")
     task.delay(0.18, function()
         if self.unloaded or not self.hidden or self._hideTransitionId ~= transitionId then
             return
@@ -8421,7 +8423,7 @@ function Window:ToggleMinimise()
                 self.main.Position.X.Scale,
                 self.main.Position.X.Offset,
                 self.main.Position.Y.Scale,
-                self.main.Position.Y.Offset + self.size.Y.Offset / 2 + 15
+                self.main.Position.Y.Offset + self.size.Y.Offset / 2 + 22
             ),
         }, expandTween)
 
@@ -8481,7 +8483,7 @@ function Window:ToggleMinimise()
                 self.main.Position.X.Scale,
                 self.main.Position.X.Offset,
                 self.main.Position.Y.Scale,
-                self.main.Position.Y.Offset + self.layout.topbarHeight / 2 + 15
+                self.main.Position.Y.Offset + self.layout.topbarHeight / 2 + 22
             ),
         }, expandTween)
 
@@ -8504,7 +8506,7 @@ function Window:_syncDragBar()
         return
     end
     local pos = self.main.Position
-    local dragOffset = if self.minimised then self.layout.topbarHeight / 2 + 15 else self.size.Y.Offset / 2 + 15
+    local dragOffset = if self.minimised then self.layout.topbarHeight / 2 + 22 else self.size.Y.Offset / 2 + 22
     dragFrame.Position = UDim2.new(pos.X.Scale, pos.X.Offset, pos.Y.Scale, pos.Y.Offset + dragOffset)
 end
 
@@ -8566,7 +8568,7 @@ function Window:_recenterForProfile(animate)
         -- symmetric `glide` ease reads as deliberate, not reactive.]]
         motion.tween(self.main, { Position = target }, "glide")
         motion.tween(self.drag.drag, {
-            Position = UDim2.new(target.X.Scale, target.X.Offset, target.Y.Scale, target.Y.Offset + self.size.Y.Offset / 2 + 15),
+            Position = UDim2.new(target.X.Scale, target.X.Offset, target.Y.Scale, target.Y.Offset + self.size.Y.Offset / 2 + 22),
         }, "glide")
     else
         self.main.Position = target
@@ -8848,7 +8850,7 @@ function Window:_bindTopbarDrag()
                 mainPos.X.Scale,
                 mainPos.X.Offset,
                 mainPos.Y.Scale,
-                mainPos.Y.Offset + (self.main.Size.Y.Offset / 2 + 15)
+                mainPos.Y.Offset + (self.main.Size.Y.Offset / 2 + 22)
             )
         end
     end
@@ -23529,98 +23531,98 @@ local LineOffsets = {
     [9] = 812,
     [10] = 910,
     [11] = 1149,
-    [12] = 1352,
-    [13] = 1704,
-    [14] = 1992,
-    [15] = 2713,
-    [16] = 5140,
-    [17] = 5487,
-    [18] = 6272,
-    [19] = 6333,
-    [20] = 6748,
-    [21] = 7165,
-    [23] = 10404,
-    [24] = 10490,
-    [25] = 10804,
-    [26] = 11225,
-    [27] = 11627,
-    [28] = 11797,
-    [29] = 11942,
-    [30] = 13460,
-    [31] = 13679,
-    [32] = 13953,
-    [33] = 14039,
-    [34] = 14626,
-    [35] = 15253,
-    [36] = 15633,
-    [37] = 15763,
-    [38] = 15915,
-    [40] = 16409,
-    [41] = 16432,
-    [42] = 16449,
-    [43] = 16482,
-    [44] = 16604,
-    [45] = 16628,
-    [46] = 16677,
-    [47] = 16384,
-    [48] = 16807,
-    [49] = 17110,
-    [50] = 17141,
-    [51] = 16796,
-    [52] = 17184,
-    [53] = 17204,
-    [54] = 17236,
-    [55] = 17166,
-    [56] = 17343,
-    [57] = 17402,
-    [58] = 17462,
-    [60] = 17606,
-    [61] = 17771,
-    [62] = 17591,
-    [63] = 18345,
-    [64] = 18389,
-    [65] = 18469,
-    [66] = 18662,
-    [67] = 18791,
-    [68] = 18885,
-    [69] = 19052,
-    [70] = 17847,
-    [71] = 19686,
-    [72] = 19752,
-    [73] = 19818,
-    [74] = 19893,
-    [75] = 19999,
-    [76] = 20065,
-    [77] = 20140,
-    [78] = 20215,
-    [79] = 20290,
-    [80] = 20365,
-    [81] = 19580,
-    [82] = 20431,
-    [83] = 20529,
-    [84] = 20707,
-    [85] = 20757,
-    [86] = 20787,
-    [87] = 21038,
-    [88] = 21087,
-    [89] = 21540,
-    [90] = 21558,
-    [91] = 21727,
-    [92] = 21826,
-    [93] = 21848,
-    [94] = 21898,
-    [95] = 22248,
-    [96] = 22284,
-    [97] = 22302,
-    [98] = 22656,
-    [99] = 22668,
-    [100] = 22719,
-    [101] = 22738,
-    [102] = 22989,
-    [103] = 23033,
-    [104] = 23276,
-    [105] = 23304,
-    [106] = 23315,
+    [12] = 1354,
+    [13] = 1706,
+    [14] = 1994,
+    [15] = 2715,
+    [16] = 5142,
+    [17] = 5489,
+    [18] = 6274,
+    [19] = 6335,
+    [20] = 6750,
+    [21] = 7167,
+    [23] = 10406,
+    [24] = 10492,
+    [25] = 10806,
+    [26] = 11227,
+    [27] = 11629,
+    [28] = 11799,
+    [29] = 11944,
+    [30] = 13462,
+    [31] = 13681,
+    [32] = 13955,
+    [33] = 14041,
+    [34] = 14628,
+    [35] = 15255,
+    [36] = 15635,
+    [37] = 15765,
+    [38] = 15917,
+    [40] = 16411,
+    [41] = 16434,
+    [42] = 16451,
+    [43] = 16484,
+    [44] = 16606,
+    [45] = 16630,
+    [46] = 16679,
+    [47] = 16386,
+    [48] = 16809,
+    [49] = 17112,
+    [50] = 17143,
+    [51] = 16798,
+    [52] = 17186,
+    [53] = 17206,
+    [54] = 17238,
+    [55] = 17168,
+    [56] = 17345,
+    [57] = 17404,
+    [58] = 17464,
+    [60] = 17608,
+    [61] = 17773,
+    [62] = 17593,
+    [63] = 18347,
+    [64] = 18391,
+    [65] = 18471,
+    [66] = 18664,
+    [67] = 18793,
+    [68] = 18887,
+    [69] = 19054,
+    [70] = 17849,
+    [71] = 19688,
+    [72] = 19754,
+    [73] = 19820,
+    [74] = 19895,
+    [75] = 20001,
+    [76] = 20067,
+    [77] = 20142,
+    [78] = 20217,
+    [79] = 20292,
+    [80] = 20367,
+    [81] = 19582,
+    [82] = 20433,
+    [83] = 20531,
+    [84] = 20709,
+    [85] = 20759,
+    [86] = 20789,
+    [87] = 21040,
+    [88] = 21089,
+    [89] = 21542,
+    [90] = 21560,
+    [91] = 21729,
+    [92] = 21828,
+    [93] = 21850,
+    [94] = 21900,
+    [95] = 22250,
+    [96] = 22286,
+    [97] = 22304,
+    [98] = 22658,
+    [99] = 22670,
+    [100] = 22721,
+    [101] = 22740,
+    [102] = 22991,
+    [103] = 23035,
+    [104] = 23278,
+    [105] = 23306,
+    [106] = 23317,
 }
 
 -- [[Misc AOT variable imports]]

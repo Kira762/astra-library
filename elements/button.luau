@@ -21,13 +21,9 @@ local element = "snappy"
 local tapPress = "fast"
 local tapRelease = "settle"
 
--- [[Built-in "tap" glyph for the card's right edge. Candidates are tried in
--- [[catalog order and the first hit wins: `icons.resolve` answers an
--- [[unresolved request with the request itself, so a changed string is the
--- [[signal that a name (or a `custom_asset/` file) actually loaded. `hand-tap`
--- [[is the phosphor hand-with-tap-lines glyph the affordance is named after;
--- [[the rest keep the icon present when a host strips a pack.]]
-local tapCandidates = { "hand-tap", "touch_app", "tabler:hand-click", "mouse-pointer-click", "hand" }
+-- [[Built-in "tap" glyph for the card's right edge. Uses `mouse-pointer-click`
+-- [[(lucide) as the trailing affordance, revealed at 50% transparency.]]
+local tapCandidates = { "mouse-pointer-click" }
 
 local function resolveTapIcon(window, override)
     if override ~= nil and override ~= true then

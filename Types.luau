@@ -135,8 +135,11 @@ export type StatProps = {
     icon: (string | number)?,
     prefix: string?,
     suffix: string?,
-    value: number?,
+    value: (number | string)?,
     display: string?,     compact: boolean?,
+    -- Show the value as a single letter badge (no icon) instead of the numeric
+    -- readouts; text values use this automatically unless set to false.
+    letter: boolean?,
     changeMode: string?,     changeBaseline: string?,     numberEasing: boolean?,
 }
 

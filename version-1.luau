@@ -378,8 +378,11 @@ export type StatProps = {
     icon: (string | number)?,
     prefix: string?,
     suffix: string?,
-    value: number?,
+    value: (number | string)?,
     display: string?,     compact: boolean?,
+    -- Show the value as a single letter badge (no icon) instead of the numeric
+    -- readouts; text values use this automatically unless set to false.
+    letter: boolean?,
     changeMode: string?,     changeBaseline: string?,     numberEasing: boolean?,
 }
 
@@ -5986,6 +5989,7 @@ function settingsComponent.buildUI(window)
     window.rfSettings._settingsContentBuilder = buildGeneral
 
     local function buildAppearance()
+        local themeOrder = { "default", "amethyst", "cobalt", "crimson", "ember", "emerald", "frost", "gold", "onyx", "rose" }
         local themes = {
             default = "Default",
             amethyst = "Amethyst",
@@ -5998,61 +6002,150 @@ function settingsComponent.buildUI(window)
             onyx = "Onyx",
             rose = "Rose",
         }
-        local selectedTheme = window.settings.theme
+        local themeOptions = {}
+        for _, key in ipairs(themeOrder) do
+            table.insert(themeOptions, themes[key])
+        end
+
         local function themeLabel(key)
             return themes[key] or themes.default
         end
-        if not themes[selectedTheme] then
-            selectedTheme = "default"
+        local function themeKey(label)
+            for key, candidate in themes do
+                if candidate == label then
+                    return key
+                end
+            end
+            return nil
         end
 
-        appearance:CreateCollapsibleGroup({
+        -- [[The theme row follows a staged apply: the dropdown only *selects*
+        -- a candidate (currentTheme stays untouched until the Apply button is
+        -- confirmed), while the stat above shows the theme in effect — as a
+        -- single letter badge, no icon. While a candidate differs from the
+        -- active theme, the reset/apply pair appears.]]
+        local currentTheme = if themes[window.settings.theme] then window.settings.theme else "default"
+        local pendingTheme
+
+        -- Forward-declared so the element callbacks below can capture them;
+        -- their bodies are assigned after the group is built.
+        local themeStat, themeDropdown, themeButtonGroup
+        local setPendingThemeButtons, syncThemeControls, confirmThemeReset
+
+        local themeGroup = appearance:CreateCollapsibleGroup({
             name = "Theme",
             icon = "palette",
             elements = {
                 {
+                    type = "Stat",
+                    name = "Current theme",
+                    value = themeLabel(currentTheme),
+                    letter = true,
+                },
+                {
                     type = "Dropdown",
                     name = "Theme",
-                    options = { "Default", "Amethyst", "Cobalt", "Crimson", "Ember", "Emerald", "Frost", "Gold", "Onyx", "Rose" },
-                    value = themeLabel(selectedTheme),
+                    options = themeOptions,
+                    value = themeLabel(currentTheme),
                     callback = function(value)
-                        for key, label in themes do
-                            if value == label then
-                                selectedTheme = key
-                                break
-                            end
+                        local candidate = themeKey(value)
+                        if not candidate or candidate == currentTheme then
+                            pendingTheme = nil
+                            setPendingThemeButtons(false)
+                            return
                         end
+                        pendingTheme = candidate
+                        setPendingThemeButtons(true)
                     end,
                 },
                 {
-                    type = "Button",
-                    name = "Apply theme",
-                    callback = function()
-                        if selectedTheme == window.settings.theme then
-                            window:Notify({ title = "Theme", content = "The " .. themeLabel(selectedTheme) .. " theme is already active." })
-                            return
-                        end
-                        window:Popup({
-                            title = "Apply theme?",
-                            content = "Apply the " .. themeLabel(selectedTheme) .. " theme to this window?",
-                            options = {
-                                { text = "Cancel" },
-                                {
-                                    text = "Apply",
-                                    style = "primary",
-                                    callback = function()
-                                        window.settings.theme = selectedTheme
-                                        window:ChangeTheme(selectedTheme)
-                                        window:SaveSettings()
-                                        window:Notify({ title = "Theme applied", subtitle = themeLabel(selectedTheme) })
-                                    end,
-                                },
-                            },
-                        })
-                    end,
+                    type = "Group",
+                    elements = {
+                        {
+                            type = "Button",
+                            name = "Reset to Default",
+                            icon = "rotate-ccw",
+                            callback = function()
+                                window:Popup({
+                                    title = "Reset theme?",
+                                    content = "Set this window back to the " .. themeLabel("default") .. " theme?",
+                                    options = {
+                                        { text = "Cancel" },
+                                        {
+                                            text = "Reset",
+                                            style = "primary",
+                                            callback = confirmThemeReset,
+                                        },
+                                    },
+                                })
+                            end,
+                        },
+                        {
+                            type = "Button",
+                            name = "Apply Theme",
+                            icon = "check",
+                            callback = function()
+                                if not pendingTheme then
+                                    return
+                                end
+                                window:Popup({
+                                    title = "Apply theme?",
+                                    content = "Apply the " .. themeLabel(pendingTheme) .. " theme to this window?",
+                                    options = {
+                                        { text = "Cancel" },
+                                        {
+                                            text = "Apply",
+                                            style = "primary",
+                                            callback = function()
+                                                currentTheme = pendingTheme
+                                                pendingTheme = nil
+                                                window.settings.theme = currentTheme
+                                                window:ChangeTheme(currentTheme)
+                                                window:SaveSettings()
+                                                syncThemeControls()
+                                                window:Notify({ title = "Theme applied", subtitle = themeLabel(currentTheme) })
+                                            end,
+                                        },
+                                    },
+                                })
+                            end,
+                        },
+                    },
                 },
             },
         })
+
+        themeStat = themeGroup.elements[1]
+        themeDropdown = themeGroup.elements[2]
+        themeButtonGroup = themeGroup.elements[3]
+        function setPendingThemeButtons(show)
+            if not themeButtonGroup or not themeButtonGroup.main then
+                return
+            end
+            -- Hidden outright until there is a pending change, so the pair
+            -- does not sit as a dead "Apply" button when nothing changed.
+            themeButtonGroup.main.Visible = show == true
+        end
+        function syncThemeControls()
+            if themeDropdown then
+                themeDropdown:Set(themeLabel(currentTheme), true)
+            end
+            if themeStat then
+                themeStat:SetText(themeLabel(currentTheme))
+            end
+            setPendingThemeButtons(pendingTheme ~= nil and pendingTheme ~= currentTheme)
+        end
+        function confirmThemeReset()
+            pendingTheme = nil
+            currentTheme = "default"
+            window.settings.theme = "default"
+            window:ChangeTheme("default")
+            window:SaveSettings()
+            syncThemeControls()
+            window:Notify({ title = "Theme reset", subtitle = themeLabel("default") })
+        end
+
+        setPendingThemeButtons(false)
 
         local layoutMap = { top = "Default Topbar", sidebar = "Sidebar (Responsive)", collapsedSidebar = "Collapsed Sidebar" }
         local layoutDropdown
@@ -10701,12 +10794,8 @@ local element = "snappy"
 local tapPress = "fast"
 local tapRelease = "settle"
 
--- [[Built-in "tap" glyph for the card's right edge. Candidates are tried in
--- [[catalog order and the first hit wins: `icons.resolve` answers an
--- [[unresolved request with the request itself, so a changed string is the
--- [[signal that a name (or a `custom_asset/` file) actually loaded. `hand-tap`
--- [[is the phosphor hand-with-tap-lines glyph the affordance is named after;
--- [[the rest keep the icon present when a host strips a pack.]]
+-- [[Built-in "tap" glyph for the card's right edge. Uses `mouse-pointer-click`
+-- [[(lucide) as the trailing affordance, revealed at 50% transparency.]]
 local tapCandidates = { "mouse-pointer-click" }
 
 local function resolveTapIcon(window, override)
@@ -14843,6 +14932,29 @@ local valueLabel = 38
 -- spec — the same surface language as the window's own gradient.]]
 local baseline = "emphasized"
 
+-- [[Letter presentation: a stat whose value is not a number drops its numeric
+-- readouts and carries the value's first letter as a glyph badge instead. The
+-- glyph answer order is the value itself, then the stat's name, then "A", so
+-- a badge always has exactly one letter — never an icon, digit or symbol.
+-- Byte iteration keeps this free of any utf8 dependency.]]
+local function firstGlyphChar(candidate)
+    if candidate == nil then
+        return nil
+    end
+    local plain = (tostring(candidate):gsub("%s+", ""))
+    for index = 1, #plain do
+        local char = plain:sub(index, index)
+        if char:match("%a") then
+            return string.upper(char)
+        end
+    end
+    return nil
+end
+
+local function glyphText(value, fallbackName)
+    return firstGlyphChar(value) or firstGlyphChar(fallbackName) or "A"
+end
+
 local function a14(a15)
     return a15.fill.Keypoints[1].Value
 end
@@ -14884,14 +14996,24 @@ end
 function state.new(tab, a25)
     a25 = if typeof(a25) == "table" then a25 else {}
 
+    -- [[Non-numeric values switch the card to letter mode: the numeric
+    -- readouts are skipped and the first letter of the value (or of the stat's
+    -- own name) renders as a glyph badge instead. String values adopted the
+    -- same passthrough the description already has, so "Default" reads as the
+    -- letter D rather than a number roll.]]
+    local desiredValue = if (a25.value or a25.Value) ~= nil then (a25.value or a25.Value) else 0
+    local numeric = type(desiredValue) == "number"
+
+    local resolvedIcon = tab.window:ResolveIcon(a25.icon or a25.Icon)
+
     local self = setmetatable({
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = a25.name or a25.Name or "Statistic",
-        icon = tab.window:ResolveIcon(a25.icon or a25.Icon),
+        icon = resolvedIcon,
         description = a25.description or a25.Description,
 
-        value = if (a25.value or a25.Value) ~= nil then (a25.value or a25.Value) else 0,
+        value = desiredValue,
                         _hasValue = (a25.value or a25.Value) ~= nil,
 
         numberEasing = if (a25.numberEasing ~= nil)
@@ -14906,6 +15028,13 @@ function state.new(tab, a25)
 
                         compact = a25.compact or a25.Compact or tab.compact or false,
         display = (a25.display or a25.Display or "value"),
+        -- [[The glyph badge replaces the numeric readouts for text values and
+        -- whenever the caller asks for a letter explicitly (a placeholder slot
+        -- now that the settings Theme card uses it for the active-theme
+        -- letter). A provided icon keeps the normal leading icon.]]
+        letter = if (a25.letter ~= nil or a25.Letter ~= nil)
+            then (a25.letter or a25.Letter) == true
+            else not numeric,
         _initialValue = if (a25.value or a25.Value) ~= nil
             then (a25.value or a25.Value)
             else nil,
@@ -15036,6 +15165,39 @@ function state:_buildFull()
 
         Parent = self.titleContainer,
     })
+
+    -- [[Letter mode: a single glyph badge replaces the bottom-anchored value
+    -- and change readouts, so a text-named value still reads as one character
+    -- (never an icon, digit or symbol — just the letter the value starts
+    -- with). Everything above the line keeps the normal stat recipe.]]
+    if self.letter then
+        self.letterHost = window:Create("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            Position = UDim2.new(0, 15, 1, -12 - (self._descriptionExtra or 0)),
+            Size = UDim2.new(1, -30, 0, 22),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            ZIndex = 10,
+
+            Parent = self.main,
+        })
+
+        self.letterGlyph = window:Create("TextLabel", {
+            Text = glyphText(self.value, self.name),
+            Size = UDim2.new(1, 0, 0, 22),
+            BorderSizePixel = 0,
+            BackgroundTransparency = 1,
+            TextSize = 20,
+            TextXAlignment = Enum.TextXAlignment.Center,
+            TextYAlignment = Enum.TextYAlignment.Center,
+            TextTransparency = 1,
+            ZIndex = 11,
+
+            Parent = self.letterHost,
+        }, { TextColor3 = "TitlingColor", FontFace = "TitleFont" })
+
+        return
+    end
 
     self.valueHost = window:Create("Frame", {
         AnchorPoint = Vector2.new(0, 1),
@@ -15319,6 +15481,17 @@ function state:_updateCompactReadout(a45, a46, a47, a48, a49, a50)
 end
 
 function state:Set(a51)
+    -- [[Letter mode never builds the numeric readouts, so a Set() there keeps
+    -- the glyph badge in step instead of driving odometers that do not exist.]]
+    if self.letter then
+        self.value = a51
+        self._hasValue = a51 ~= nil
+        if self.letterGlyph then
+            self.letterGlyph.Text = glyphText(a51, self.name)
+        end
+        return
+    end
+
     assert(typeof(a51) == "number", "Statistic:Set() - value must be a number, got " .. typeof(a51))
 
     local a52 = self.value
@@ -15364,6 +15537,18 @@ function state:Set(a51)
 end
 
 function state:ResetBaseline(a62)
+    -- [[Letter mode has no numeric readouts or baselines; clearing the badge
+    -- is the closest equivalent.]]
+    if self.letter then
+        self._initialValue = a62
+        self.value = a62
+        self._hasValue = a62 ~= nil
+        if self.letterGlyph then
+            self.letterGlyph.Text = glyphText(a62, self.name)
+        end
+        return
+    end
+
     local a63 = self.value
     local a64 = not self._hasValue
     local a65 = if typeof(a62) == "number" then a62 else self.value
@@ -15386,8 +15571,38 @@ function state:ResetBaseline(a62)
     self:_setAccent("neutral", 0)
 end
 
+-- [[Letter readout update: swaps the glyph badge to the value's first letter.
+-- Only meaningful on a stat built in letter mode (text value or letter=true);
+-- numeric stats keep their own Set() path.]]
+function state:SetText(text)
+    if type(text) == "number" then
+        self:Set(text)
+        return
+    end
+    self.value = text
+    self._hasValue = text ~= nil
+    if self.letterGlyph then
+        self.letterGlyph.Text = glyphText(text, self.name)
+    end
+end
+
 function state:_setShown(a66, a67)
     local w = self.window
+
+    if self.letter then
+        if a66 then
+            w:_revealCommon(self, a67)
+            w:_reveal(self.gradientContainer, { BackgroundTransparency = 0 }, a67)
+            w:_reveal(self.glow, { Transparency = 0.82 }, a67)
+            w:_reveal(self.letterGlyph, { TextTransparency = 0 }, a67)
+        else
+            w:_hideCommon(self, a67)
+            w:_reveal(self.gradientContainer, { BackgroundTransparency = 1 }, a67)
+            w:_reveal(self.glow, { Transparency = 1 }, a67)
+            w:_reveal(self.letterGlyph, { TextTransparency = 1 }, a67)
+        end
+        return
+    end
 
     if self.compact then
         w:_reveal(
@@ -23713,105 +23928,105 @@ end)() end,
 local LineOffsets = {
     [2] = 12,
     [3] = 244,
-    [5] = 615,
-    [6] = 650,
-    [7] = 695,
-    [8] = 601,
-    [9] = 812,
-    [10] = 910,
-    [11] = 1149,
-    [12] = 1495,
-    [13] = 1847,
-    [14] = 2135,
-    [15] = 2856,
-    [16] = 5283,
-    [17] = 5630,
-    [18] = 6415,
-    [19] = 6476,
-    [20] = 6891,
-    [21] = 7308,
-    [23] = 10595,
-    [24] = 10681,
-    [25] = 10995,
-    [26] = 11416,
-    [27] = 11818,
-    [28] = 11988,
-    [29] = 12133,
-    [30] = 13651,
-    [31] = 13870,
-    [32] = 14144,
-    [33] = 14230,
-    [34] = 14817,
-    [35] = 15444,
-    [36] = 15824,
-    [37] = 15954,
-    [38] = 16106,
-    [40] = 16600,
-    [41] = 16623,
-    [42] = 16640,
-    [43] = 16673,
-    [44] = 16795,
-    [45] = 16819,
-    [46] = 16868,
-    [47] = 16575,
-    [48] = 16998,
-    [49] = 17301,
-    [50] = 17332,
-    [51] = 16987,
-    [52] = 17375,
-    [53] = 17395,
-    [54] = 17427,
-    [55] = 17357,
-    [56] = 17534,
-    [57] = 17593,
-    [58] = 17653,
-    [60] = 17797,
-    [61] = 17962,
-    [62] = 17782,
-    [63] = 18536,
-    [64] = 18580,
-    [65] = 18660,
-    [66] = 18853,
-    [67] = 18982,
-    [68] = 19076,
-    [69] = 19243,
-    [70] = 18038,
-    [71] = 19877,
-    [72] = 19943,
-    [73] = 20009,
-    [74] = 20084,
-    [75] = 20190,
-    [76] = 20256,
-    [77] = 20331,
-    [78] = 20406,
-    [79] = 20481,
-    [80] = 20556,
-    [81] = 19771,
-    [82] = 20622,
-    [83] = 20720,
-    [84] = 20898,
-    [85] = 20948,
-    [86] = 20978,
-    [87] = 21229,
-    [88] = 21278,
-    [89] = 21731,
-    [90] = 21749,
-    [91] = 21918,
-    [92] = 22017,
-    [93] = 22039,
-    [94] = 22089,
-    [95] = 22439,
-    [96] = 22475,
-    [97] = 22493,
-    [98] = 22847,
-    [99] = 22859,
-    [100] = 22910,
-    [101] = 22929,
-    [102] = 23180,
-    [103] = 23224,
-    [104] = 23467,
-    [105] = 23495,
-    [106] = 23506,
+    [5] = 618,
+    [6] = 653,
+    [7] = 698,
+    [8] = 604,
+    [9] = 815,
+    [10] = 913,
+    [11] = 1152,
+    [12] = 1498,
+    [13] = 1850,
+    [14] = 2138,
+    [15] = 2859,
+    [16] = 5286,
+    [17] = 5633,
+    [18] = 6508,
+    [19] = 6569,
+    [20] = 6984,
+    [21] = 7401,
+    [23] = 10688,
+    [24] = 10774,
+    [25] = 11084,
+    [26] = 11505,
+    [27] = 11907,
+    [28] = 12077,
+    [29] = 12222,
+    [30] = 13740,
+    [31] = 13959,
+    [32] = 14233,
+    [33] = 14319,
+    [34] = 14906,
+    [35] = 15659,
+    [36] = 16039,
+    [37] = 16169,
+    [38] = 16321,
+    [40] = 16815,
+    [41] = 16838,
+    [42] = 16855,
+    [43] = 16888,
+    [44] = 17010,
+    [45] = 17034,
+    [46] = 17083,
+    [47] = 16790,
+    [48] = 17213,
+    [49] = 17516,
+    [50] = 17547,
+    [51] = 17202,
+    [52] = 17590,
+    [53] = 17610,
+    [54] = 17642,
+    [55] = 17572,
+    [56] = 17749,
+    [57] = 17808,
+    [58] = 17868,
+    [60] = 18012,
+    [61] = 18177,
+    [62] = 17997,
+    [63] = 18751,
+    [64] = 18795,
+    [65] = 18875,
+    [66] = 19068,
+    [67] = 19197,
+    [68] = 19291,
+    [69] = 19458,
+    [70] = 18253,
+    [71] = 20092,
+    [72] = 20158,
+    [73] = 20224,
+    [74] = 20299,
+    [75] = 20405,
+    [76] = 20471,
+    [77] = 20546,
+    [78] = 20621,
+    [79] = 20696,
+    [80] = 20771,
+    [81] = 19986,
+    [82] = 20837,
+    [83] = 20935,
+    [84] = 21113,
+    [85] = 21163,
+    [86] = 21193,
+    [87] = 21444,
+    [88] = 21493,
+    [89] = 21946,
+    [90] = 21964,
+    [91] = 22133,
+    [92] = 22232,
+    [93] = 22254,
+    [94] = 22304,
+    [95] = 22654,
+    [96] = 22690,
+    [97] = 22708,
+    [98] = 23062,
+    [99] = 23074,
+    [100] = 23125,
+    [101] = 23144,
+    [102] = 23395,
+    [103] = 23439,
+    [104] = 23682,
+    [105] = 23710,
+    [106] = 23721,
 }
 
 -- [[Misc AOT variable imports]]

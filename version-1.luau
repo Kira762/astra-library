@@ -5515,6 +5515,124 @@ local function layoutKey(layout)
     return if type(layout) == "table" and layout.mode then layout.mode else "top"
 end
 
+-- [[The Settings toggle binding is an ordinary Input field: it shows the bound
+-- key's name and reads one back, so the row uses the same typed-value input as
+-- every other field in the library instead of the Keybind element's
+-- click-to-record cap. Labels and parsing follow the Keybind element's rules
+-- ("None" for a cleared binding, MB2/MB3 for mouse buttons) so
+-- window.settings.toggleKeybind stays an EnumItem — which is what
+-- Window:_bindKeybind compares against and what the settings file stores.]]
+local mouseLabels = {
+    [Enum.UserInputType.MouseButton2] = "MB2",
+    [Enum.UserInputType.MouseButton3] = "MB3",
+}
+
+-- [[The short mouse forms the key caps show. MouseButton1 is absent on purpose:
+-- a menu toggle bound to left click would fire on every click in the game, and
+-- the Keybind element's capture never offered it either.]]
+local mouseNames = {
+    mb2 = Enum.UserInputType.MouseButton2,
+    mousebutton2 = Enum.UserInputType.MouseButton2,
+    rmb = Enum.UserInputType.MouseButton2,
+    mb3 = Enum.UserInputType.MouseButton3,
+    mousebutton3 = Enum.UserInputType.MouseButton3,
+    mmb = Enum.UserInputType.MouseButton3,
+}
+
+local leftMouseNames = { mb1 = true, lmb = true, mousebutton1 = true, leftmouse = true }
+
+-- [[Canonical KeyCode names, keyed by what people actually type. A mis-cased
+-- Enum lookup is an error in the engine, so the field resolves the usual keys
+-- itself ("k", "space", "left shift") and leaves the rest to the lookup below,
+-- which keeps uncommon but real names ("KeypadPlus") working.]]
+local keyNames = {
+    esc = "Escape",
+    enter = "Return",
+    ctrl = "LeftControl",
+    control = "LeftControl",
+    shift = "LeftShift",
+    alt = "LeftAlt",
+    del = "Delete",
+    spacebar = "Space",
+    back = "Backspace",
+}
+for _, name in {
+    "Space", "Escape", "Return", "Tab", "Backspace", "Delete", "Insert", "Home", "End",
+    "PageUp", "PageDown", "Up", "Down", "Left", "Right",
+    "LeftShift", "RightShift", "LeftControl", "RightControl", "LeftAlt", "RightAlt",
+    "CapsLock", "Minus", "Equals", "LeftBracket", "RightBracket", "Semicolon", "Quote",
+    "Comma", "Period", "Slash", "BackSlash",
+} do
+    keyNames[name:lower()] = name
+end
+for letter = string.byte("A"), string.byte("Z") do
+    keyNames[string.char(letter):lower()] = string.char(letter)
+end
+for index = 1, 12 do
+    keyNames[("f%d"):format(index)] = ("F%d"):format(index)
+end
+for digit, name in { "Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine" } do
+    keyNames[tostring(digit - 1)] = name
+end
+
+local function keyLabel(item)
+    if typeof(item) ~= "EnumItem" or item == Enum.KeyCode.Unknown then
+        return "None"
+    end
+    return mouseLabels[item] or item.Name
+end
+
+-- [[Returns the key the text names, or Enum.KeyCode.Unknown for an empty or
+-- "none" field (an unbound menu key). Text that names no key returns nil, with
+-- a reason when the refusal needs its own wording.]]
+local function parseKey(text)
+    if type(text) ~= "string" then
+        return nil
+    end
+    local trimmed = (text:gsub("^%s+", ""):gsub("%s+$", ""))
+    local typed = trimmed:lower()
+    if typed == "" or typed == "none" then
+        return Enum.KeyCode.Unknown
+    end
+    -- [[Separators are dropped so "left shift" and "MB-2" read like their enum
+    -- names; whatever is left still has to be a plain word.]]
+    local name = (typed:gsub("[%s_%-]", ""))
+    if name == "" or not name:match("^%w+$") then
+        return nil
+    end
+    if leftMouseNames[name] then
+        return nil, "leftMouse"
+    end
+    local mouse = mouseNames[name]
+    if mouse then
+        return mouse
+    end
+    local canonical = keyNames[name]
+    if canonical then
+        local ok, key = pcall(function()
+            return Enum.KeyCode[canonical]
+        end)
+        if ok and typeof(key) == "EnumItem" then
+            return key
+        end
+    end
+    for _, candidate in { trimmed, trimmed:sub(1, 1):upper() .. trimmed:sub(2), trimmed:upper() } do
+        local keyOk, key = pcall(function()
+            return Enum.KeyCode[candidate]
+        end)
+        if keyOk and typeof(key) == "EnumItem" then
+            return key
+        end
+        local typeOk, inputType = pcall(function()
+            return Enum.UserInputType[candidate]
+        end)
+        if typeOk and mouseLabels[inputType] then
+            return inputType
+        end
+    end
+    return nil
+end
+
 function settingsComponent.buildUI(window)
     if window._settingsUIBuilt then
         return
@@ -5587,20 +5705,60 @@ function settingsComponent.buildUI(window)
     about._settingsContentBuilder = buildAbout
 
     local function buildGeneral()
-        window.rfSettings:CreateCollapsibleGroup({
+        local keybindField
+
+        -- [[A typed key becomes the menu toggle. The field is refused, with the
+        -- previous binding restored, when the text is not a key or when another
+        -- Keybind already owns it — the same conflict rule the Keybind element
+        -- enforces for isMenuToggle bindings.]]
+        local function refuseKeybind(message, previous)
+            window:Notify({ title = locale.resolve("Keybind unavailable"), content = message })
+            keybindField:Set(previous, true)
+            -- [[The field already flashed for the commit that reached here; the
+            -- refusal flash replaces it so the row reads as rejected.]]
+            window:_flashResult(keybindField, false)
+        end
+
+        local function commitKeybind(text)
+            local previous = keyLabel(window.settings.toggleKeybind)
+            local key, reason = parseKey(text)
+            if not key then
+                local message = if reason == "leftMouse"
+                    then string.format(locale.resolve("Left click can't toggle the menu. Kept %s."), previous)
+                    else string.format(locale.resolve("%s is not a key name. Kept %s."), tostring(text), previous)
+                refuseKeybind(message, previous)
+                return
+            end
+            local conflict = if key ~= Enum.KeyCode.Unknown then window:_keybindUsing(key) else nil
+            if conflict then
+                refuseKeybind(
+                    string.format(locale.resolve("%s is bound to %s. Kept %s."), keyLabel(key), conflict.name, previous),
+                    previous
+                )
+                return
+            end
+            if key == window.settings.toggleKeybind then
+                -- [[Unchanged binding: normalise the field ("k" reads "K", an
+                -- empty field reads "None") without writing settings again.]]
+                keybindField:Set(previous, true)
+                return
+            end
+            window.settings.toggleKeybind = key
+            keybindField:Set(keyLabel(key), true)
+            window:SaveSettings()
+        end
+
+        local generalControls = window.rfSettings:CreateCollapsibleGroup({
             name = "General Controls",
             icon = constants.icons.settings,
             elements = {
                 {
-                    type = "Keybind",
+                    type = "Input",
                     name = "Toggle Keybind",
-                    icon = constants.icons.search,
-                    value = window.settings.toggleKeybind,
-                    isMenuToggle = true,
-                    onChanged = function(value)
-                        window.settings.toggleKeybind = value
-                        window:SaveSettings()
-                    end,
+                    icon = "keyboard",
+                    value = keyLabel(window.settings.toggleKeybind),
+                    placeholder = "e.g. K, Space, MB2",
+                    callback = commitKeybind,
                 },
                 {
                     type = "Toggle",
@@ -5622,6 +5780,7 @@ function settingsComponent.buildUI(window)
                 },
             },
         })
+        keybindField = generalControls.elements[1]
 
         window.rfSettings:CreateCollapsibleGroup({
             name = "Window Behavior",
@@ -23911,93 +24070,93 @@ local LineOffsets = {
     [15] = 2728,
     [16] = 5155,
     [17] = 5502,
-    [18] = 6140,
-    [19] = 6201,
-    [20] = 6616,
-    [21] = 7033,
-    [23] = 10298,
-    [24] = 10384,
-    [25] = 10698,
-    [26] = 11119,
-    [27] = 11522,
-    [28] = 11692,
-    [29] = 11837,
-    [30] = 13355,
-    [31] = 13574,
-    [32] = 13848,
-    [33] = 14322,
-    [34] = 14408,
-    [35] = 14995,
-    [36] = 15622,
-    [37] = 16009,
-    [38] = 16139,
-    [39] = 16291,
-    [41] = 16785,
-    [42] = 16808,
-    [43] = 16825,
-    [44] = 16858,
-    [45] = 16980,
-    [46] = 17004,
-    [47] = 17053,
-    [48] = 16760,
-    [49] = 17183,
-    [50] = 17486,
-    [51] = 17517,
-    [52] = 17172,
-    [53] = 17560,
-    [54] = 17580,
-    [55] = 17612,
-    [56] = 17542,
-    [57] = 17719,
-    [58] = 17778,
-    [59] = 17838,
-    [61] = 17982,
-    [62] = 18147,
-    [63] = 17967,
-    [64] = 18721,
-    [65] = 18765,
-    [66] = 18845,
-    [67] = 19038,
-    [68] = 19167,
-    [69] = 19261,
-    [70] = 19428,
-    [71] = 18223,
-    [72] = 20062,
-    [73] = 20128,
-    [74] = 20194,
-    [75] = 20269,
-    [76] = 20375,
-    [77] = 20441,
-    [78] = 20516,
-    [79] = 20591,
-    [80] = 20666,
-    [81] = 20741,
-    [82] = 19956,
-    [83] = 20807,
-    [84] = 20905,
-    [85] = 21083,
-    [86] = 21133,
-    [87] = 21163,
-    [88] = 21414,
-    [89] = 21463,
-    [90] = 21916,
-    [91] = 21934,
-    [92] = 22103,
-    [93] = 22202,
-    [94] = 22224,
-    [95] = 22274,
-    [96] = 22624,
-    [97] = 22660,
-    [98] = 22678,
-    [99] = 23032,
-    [100] = 23044,
-    [101] = 23095,
-    [102] = 23114,
-    [103] = 23365,
-    [104] = 23409,
-    [105] = 23652,
-    [106] = 23680,
-    [107] = 23691,
+    [18] = 6299,
+    [19] = 6360,
+    [20] = 6775,
+    [21] = 7192,
+    [23] = 10457,
+    [24] = 10543,
+    [25] = 10857,
+    [26] = 11278,
+    [27] = 11681,
+    [28] = 11851,
+    [29] = 11996,
+    [30] = 13514,
+    [31] = 13733,
+    [32] = 14007,
+    [33] = 14481,
+    [34] = 14567,
+    [35] = 15154,
+    [36] = 15781,
+    [37] = 16168,
+    [38] = 16298,
+    [39] = 16450,
+    [41] = 16944,
+    [42] = 16967,
+    [43] = 16984,
+    [44] = 17017,
+    [45] = 17139,
+    [46] = 17163,
+    [47] = 17212,
+    [48] = 16919,
+    [49] = 17342,
+    [50] = 17645,
+    [51] = 17676,
+    [52] = 17331,
+    [53] = 17719,
+    [54] = 17739,
+    [55] = 17771,
+    [56] = 17701,
+    [57] = 17878,
+    [58] = 17937,
+    [59] = 17997,
+    [61] = 18141,
+    [62] = 18306,
+    [63] = 18126,
+    [64] = 18880,
+    [65] = 18924,
+    [66] = 19004,
+    [67] = 19197,
+    [68] = 19326,
+    [69] = 19420,
+    [70] = 19587,
+    [71] = 18382,
+    [72] = 20221,
+    [73] = 20287,
+    [74] = 20353,
+    [75] = 20428,
+    [76] = 20534,
+    [77] = 20600,
+    [78] = 20675,
+    [79] = 20750,
+    [80] = 20825,
+    [81] = 20900,
+    [82] = 20115,
+    [83] = 20966,
+    [84] = 21064,
+    [85] = 21242,
+    [86] = 21292,
+    [87] = 21322,
+    [88] = 21573,
+    [89] = 21622,
+    [90] = 22075,
+    [91] = 22093,
+    [92] = 22262,
+    [93] = 22361,
+    [94] = 22383,
+    [95] = 22433,
+    [96] = 22783,
+    [97] = 22819,
+    [98] = 22837,
+    [99] = 23191,
+    [100] = 23203,
+    [101] = 23254,
+    [102] = 23273,
+    [103] = 23524,
+    [104] = 23568,
+    [105] = 23811,
+    [106] = 23839,
+    [107] = 23850,
 }
 
 -- [[Misc AOT variable imports]]

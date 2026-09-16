@@ -10375,7 +10375,7 @@ function Window:_revealCommon(element, animate)
         self:_reveal(element.iconLabel, { ImageTransparency = 0 }, animate)
     end
     if element.tapIcon then
-        self:_reveal(element.tapIcon, { ImageTransparency = 0 }, animate)
+        self:_reveal(element.tapIcon, { ImageTransparency = 0.5 }, animate)
     end
     if element.descriptionLabel then
         self:_reveal(element.descriptionLabel, { TextTransparency = 0.45 }, animate)
@@ -10707,7 +10707,7 @@ local tapRelease = "settle"
 -- [[signal that a name (or a `custom_asset/` file) actually loaded. `hand-tap`
 -- [[is the phosphor hand-with-tap-lines glyph the affordance is named after;
 -- [[the rest keep the icon present when a host strips a pack.]]
-local tapCandidates = { "hand-tap", "touch_app", "tabler:hand-click", "mouse-pointer-click", "hand" }
+local tapCandidates = { "mouse-pointer-click" }
 
 local function resolveTapIcon(window, override)
     if override ~= nil and override ~= true then

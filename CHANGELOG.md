@@ -2,6 +2,38 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-16 — The bundle loader is a single `loadstring` line
+
+`example.client.luau` and `USAGE.md` now load the published bundle with exactly one
+statement, the one every host pastes:
+
+```lua
+local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"))()
+```
+
+- **The guarded loader is gone.** The `loadstring or load` fallback, the byte-size and
+  HTML-page probes, and the `assert`s that named each failure are removed from the
+  example; there is no second way to compile the bundle.
+- **The trailing `()` is load-bearing.** `loadstring(text)` only compiles — without the
+  call `Astra` is a function and the first `Astra:CreateWindow` dies with `attempt to
+  index a function value`, which is why the docs state it explicitly.
+- **Studio keeps only its load path.** `loadstring` is an executor function, so the docs
+  say the line needs one, and in Studio/Rojo the ModuleScript tree is `require`d instead.
+- **The failure modes stay documented.** A text that does not compile still surfaces as
+  `attempt to call a nil value` at line 1, so `USAGE.md` keeps a short "what a failed
+  load looks like" list (an HTML error page, or a real syntax error caught by
+  `scripts/check_syntax.sh`) instead of putting the checks back in the loader.
+- **No bundle change:** `version-1.luau` is generated from the modular tree, and the
+  loader is not part of it — `example.client.luau` is only compiled by
+  `scripts/check_syntax.sh`. `MODULES.md`'s and `USAGE.md`'s descriptions of the example
+  now match the one-tab file it actually is.
+- **Carry-over fix found while re-checking the example:** its `CreateStat` passed
+  `changeBaseline = 100`, but that prop is a mode string (`"previous"` | `"initial"`) and
+  any other value — a number included — is read as `"previous"`, so the line never did
+  anything. The example now passes `"initial"`, and `USAGE.md` lists the accepted values
+  for `display`, `changeMode` and `changeBaseline` (a numeric baseline is
+  `stat:ResetBaseline(number)`).
+
 ## 2026-09-16 — The Keybind element is removed
 
 The only remaining first-party use of the Keybind element was the Settings menu

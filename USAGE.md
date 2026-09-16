@@ -6,34 +6,29 @@ Load Astra and build your first window in a few lines.
 
 ## Load the library
 
-Two ways in, depending on where you run:
+One loader, one line — this is what `example.client.luau` does:
 
 ```lua
--- Studio / Rojo (recommended): Astra is a ModuleScript in ReplicatedStorage
-local Astra = require(game:GetService("ReplicatedStorage").Astra)
+local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"))()
 ```
 
-```lua
--- Executor: the example loads the bundle from the repo and compiles it.
--- This is what example.client.luau does:
-local bundleUrl = "https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"
+Three things have to be right for that line to return a table:
 
-local compile = loadstring or load
-assert(type(compile) == "function", "[Astra] loadstring/load is unavailable here")
+- **The URL is the raw file of a public repo**, pointing at the published bundle
+  `version-1.luau`. It is a generated artifact — load the single bundle, never the
+  modular tree. `game:HttpGet` also needs `HttpService` requests enabled.
+- **The runtime has `loadstring`.** Executors provide it; plain Studio does not, so in
+  Studio / Rojo the library is a ModuleScript and you `require` it instead
+  (`require(game:GetService("ReplicatedStorage").Astra)`). That is a load path, not a
+  second loader — nothing that fetches the bundle does anything else.
+- **The trailing `()` is there.** `loadstring(text)` only *compiles*; it returns the
+  chunk, and calling it is what runs Astra and hands back the module table. `local
+  Astra = loadstring(...)` without the call gives you a function, and every later
+  `Astra:CreateWindow` fails with `attempt to index a function value`.
 
-local bundleSource = game:HttpGet(bundleUrl)
-local bundleLoader, compileError = compile(bundleSource)
-assert(type(bundleLoader) == "function", "[Astra] Bundle compilation failed: " .. tostring(compileError))
-
-local Astra = bundleLoader()
-```
-
-The bundle (`version-1.luau`) is a generated artifact — require/load the single
-bundle, never the modular tree, when running outside Rojo.
-
-**Keep the `assert`s.** `loadstring`/`load` do not throw when the text will not
-compile — they return `nil` plus the error, so a one-liner such as
-`loadstring(game:HttpGet(url))()` reports nothing more useful than
+**What a failed load looks like.** `loadstring` does not throw when the text will not
+compile — it returns `nil` plus the error, so the one-liner reports nothing more useful
+than
 
 ```
 rAnDoMcHuNkNaMe:1: attempt to call a nil value
@@ -42,24 +37,20 @@ Script 'LocalScript', Line 1
 Stack End
 ```
 
-That message is about the *loader*, not about a bug inside Astra: the random
-name is the executor's chunk, `Line 1` is the line holding the call, and
-"attempt to call a nil value" only means the compiled chunk was `nil`. Read it
-as "the text I fetched never compiled" and check, in order:
+That message is about the *loader*, not about a bug inside Astra: the random name is the
+executor's chunk, `Line 1` is the line holding the call, and "attempt to call a nil
+value" only means the compiled chunk was `nil`. Read it as "the text I fetched never
+compiled" and check, in order:
 
-1. **The fetch returned something that is not Luau.** A private repository, a
-   wrong branch/file name, or a rate limit all hand back an HTML error page
-   (`404: Not Found`, `<html>…`) which never compiles. `print(bundleSource:sub(1, 120))`
+1. **The fetch returned something that is not Luau.** A private repository, a wrong
+   branch/file name, or a rate limit all hand back an HTML error page (`404: Not
+   Found`, `<html>…`) which never compiles. `print(game:HttpGet(url):sub(1, 120))`
    settles it in one line.
-2. **`load` was used with a string.** Plain Studio has no `loadstring`, and its
-   `load` accepts only functions, so `load(source)` returns `nil` with
-   `"string arguments are not executable"`. Run the bundle through an executor,
-   or `require` the Rojo tree in Studio.
-3. **The source really does have a syntax error.** Published files are compile-
-   checked with `scripts/check_syntax.sh`; run it after editing anything here,
-   then regenerate with `node scripts/generate_bundle.js`.
+2. **The source really does have a syntax error.** Published files are compile-checked
+   with `scripts/check_syntax.sh`; run it after editing anything here, then regenerate
+   with `node scripts/generate_bundle.js`.
 
-Once the loader returns a table the compile is fine, and any later
+Once the line returns a table the compile is fine, and any later
 `attempt to call a nil value` names the Astra line that called it — a missing
 element method, a `Create…` on the wrong parent (Collapsible Groups live on a
 Tab, not on a Group), or props passed positionally instead of as one table.
@@ -294,7 +285,7 @@ local s = tab:CreateStat({ name = "Kills", value = 128, prefix = "", suffix = " 
 s:Set(200)
 s:ResetBaseline(0)
 ```
-Extra props: `display`, `compact`, `changeMode`, `changeBaseline`, `numberEasing`.
+Extra props: `display` (`"value"` | `"change"`), `compact`, `changeMode` (`"percentage"` | `"delta"`), `changeBaseline` (`"previous"` (default) | `"initial"` — which value a change is measured against; any other value, a number included, is read as `"previous"`, so `stat:ResetBaseline(number)` is the way to set a numeric baseline), `numberEasing`.
 
 ### Text / Divider / Group
 ```lua
@@ -487,7 +478,7 @@ window:SetTranslator(function(source, localeId) return ... end)
 
 ### Full example
 
-See `example.client.luau` — a 20-tab example (Home, Controls, Appearance, Information, Changelog, Updates, plus 15 labelled test tabs) that loads the bundle with the remote loader and exercises tags, every element type, groups, and the Changelog element end to end.
+See `example.client.luau` — a single-tab example that loads the bundle with the one-line loader above and builds every element type (including ordinary and Collapsible Groups and the Changelog element) end to end.
 
 ---
 

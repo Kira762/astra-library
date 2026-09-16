@@ -1156,6 +1156,41 @@ local state = require(utilities.Parent.core.state)
 local constants = require(utilities.constants)
 local motion = require(utilities.motion)
 
+-- [[The handle's look, written once. The window's settle paths and this
+-- [[module's own hover/drag states all land on these four specs, so the pill
+-- [[can never be left at a size or a transparency nothing owns:
+--
+-- [[  * `hover`  — the pointer is on the handle;
+-- [[  * `grab`   — the handle is what is being dragged (the window follows);
+-- [[  * `idle`   — the faint hint it rests at once the window has been moved:
+-- [[               48px wide, 3px tall, centred under the window. This is the
+-- [[               pill in the reference screenshot — it shows up on a move
+-- [[               and stays as a "you can grab me" affordance until the
+-- [[               window leaves the screen;
+-- [[  * `parked` — off the screen: the pill shrinks to nothing instead of
+-- [[               being left mid-hover for the next entrance to inherit.
+local handleHover = { Size = UDim2.fromOffset(64, 3), BackgroundTransparency = 0.5 }
+local handleGrab = { Size = UDim2.fromOffset(56, 3), BackgroundTransparency = 0 }
+local handleIdle = { Size = UDim2.fromOffset(48, 3), BackgroundTransparency = 0.7 }
+local handleParked = { Size = UDim2.fromOffset(0, 3), BackgroundTransparency = 1 }
+
+-- [[How long the pill takes to shrink away before the hitbox that carries it
+-- [[may be switched off without cutting the fade short: the `fast` spec the
+-- [[fade itself rides (0.16s) plus a frame.
+local handleFadeTime = 0.18
+
+-- [[The handoff between the window and this module, named so the two ends
+-- [[cannot drift: `Window:_syncDragBar` and every position this file writes
+-- [[place the handle's centre this far below the window's bottom edge.
+local handleGap = 22
+
+-- [[Where the pill comes to rest: the hover look when the pointer is already
+-- [[on the handle, the idle hint otherwise. Both the end of the handle's own
+-- [[drag and the end of a topbar move settle through here.
+local function restingLook(self)
+    return if self.hovering then handleHover else handleIdle
+end
+
 function Drag.new(window, props)
     props = if typeof(props) == "table" then props else {}
 
@@ -1165,11 +1200,23 @@ function Drag.new(window, props)
 
     -- Small centered detached handle below window, not overlapping
     -- Gap = 22px from window bottom edge to handle center
+    --
+    -- [[The hitbox is deliberately wider than the pill it carries (80px vs the
+    -- [[48px idle pill): a 3px-tall white line is a hard thing to point at, so
+    -- [[the region that answers the pointer is generous and the pill grows
+    -- [[into it.
+    --
+    -- [[It starts off. A hidden parent takes MouseEnter/MouseLeave with it, so
+    -- [[the window owns the moment the handle becomes reachable: `Drag:enable`
+    -- [[from each of its settle paths (_firstShow, _quickRestore, the minimise
+    -- [[settle), `Drag:disable` / `Drag:fadeOut` from Hide, Close and the fold.
+    -- [[Without that the reveal below could never fire in the expanded window —
+    -- [[the handle was left off by ten writes and turned on by one.
     self.drag = self.window:Create("Frame", {
         BackgroundTransparency = 1,
         Size = UDim2.fromOffset(80, 16),
         AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.new(0.5, 0, 0.5, self.window.size.Y.Offset / 2 + 22),
+        Position = UDim2.new(0.5, 0, 0.5, self.window.size.Y.Offset / 2 + handleGap),
         ZIndex = constants.zIndex.drag,
         Visible = false,
         Parent = self.window.screenGui,
@@ -1180,8 +1227,8 @@ function Drag.new(window, props)
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
         ZIndex = constants.zIndex.drag,
-        BackgroundTransparency = 1,
-        Size = UDim2.fromOffset(0, 3),
+        BackgroundTransparency = handleParked.BackgroundTransparency,
+        Size = handleParked.Size,
         Parent = self.drag,
     })
 
@@ -1201,7 +1248,20 @@ function Drag.new(window, props)
         Parent = self.drag,
     })
 
-    local isDragging = false
+    -- [[Handle state. `dragging` is the handle itself being dragged (the
+    -- [[window follows it), `moving` the window being moved by its topbar
+    -- [[(the pill brightens for that, and the hover reveal must not fight it)
+    -- [[and `hovering` the pointer resting on the handle — what `restingLook`
+    -- [[reads when a move ends.
+    self.dragging = false
+    self.moving = false
+    self.hovering = false
+
+    -- [[Bumped by every transition that takes the handle over. A `fadeOut`
+    -- [[waiting to switch the hitbox off stands down when a later entrance
+    -- [[(or a move) has claimed the handle in the meantime.
+    self._handleToken = 0
+
     local dragOffset = nil
 
     local guiInset = Vector2.zero
@@ -1234,27 +1294,36 @@ function Drag.new(window, props)
         end
 
         local mainPos = UDim2.fromOffset(x, y)
-        local dragPos = UDim2.fromOffset(x, y + (self.window.main.Size.Y.Offset / 2 + 22))
+        local dragPos = UDim2.fromOffset(x, y + (self.window.main.Size.Y.Offset / 2 + handleGap))
         return mainPos, dragPos
     end
 
+    -- [[Hover reveal. `hovering` is recorded even while a move is running —
+    -- [[it is where the pill has to settle when that move ends — but the tween
+    -- [[stands down then: a window being dragged under the pointer would
+    -- [[otherwise flicker the pill between the hover and idle looks as its own
+    -- [[movement sweeps the handle past the cursor.
     self.window:Connect(self.drag.MouseEnter, function()
-        if not isDragging and not self.window.hidden then
-            motion.tween(self.dragCosmetic, { BackgroundTransparency = 0.5, Size = UDim2.new(0, 64, 0, 3) }, "fast")
+        self.hovering = true
+        if self.dragging or self.moving or self.window.hidden then
+            return
         end
+        motion.tween(self.dragCosmetic, handleHover, "fast")
     end)
 
     self.window:Connect(self.drag.MouseLeave, function()
-        if not isDragging and not self.window.hidden then
-            motion.tween(self.dragCosmetic, { BackgroundTransparency = 0.7, Size = UDim2.new(0, 48, 0, 3) }, "fast")
+        self.hovering = false
+        if self.dragging or self.moving or self.window.hidden then
+            return
         end
+        motion.tween(self.dragCosmetic, handleIdle, "fast")
     end)
 
     local function endDrag()
-        if not isDragging then
+        if not self.dragging then
             return
         end
-        isDragging = false
+        self.dragging = false
 
         if self._dragConnection then
             self.window:Disconnect(self._dragConnection)
@@ -1265,7 +1334,7 @@ function Drag.new(window, props)
             return
         end
 
-        motion.tween(self.dragCosmetic, { Size = UDim2.new(0, 48, 0, 3), BackgroundTransparency = 0.7 }, "settle")
+        motion.tween(self.dragCosmetic, restingLook(self), "settle")
 
         -- [[The capsule settling back after a drag is the spring's moment:
         -- a short overshoot that reads as weight, not lag.]]
@@ -1293,7 +1362,7 @@ function Drag.new(window, props)
                 return
             end
 
-            isDragging = true
+            self.dragging = true
 
             if self._dragConnection then
                 self.window:Disconnect(self._dragConnection)
@@ -1308,7 +1377,7 @@ function Drag.new(window, props)
                 + self.window.main.AbsoluteSize * self.window.main.AnchorPoint
                 - state.userInputService:GetMouseLocation()
             if not self.window.hidden then
-                motion.tween(self.dragCosmetic, { Size = UDim2.new(0, 56, 0, 3), BackgroundTransparency = 0 }, "fast")
+                motion.tween(self.dragCosmetic, handleGrab, "fast")
             end
 
             self._dragConnection = self.window:Connect(state.runService.RenderStepped, renderStepHandler)
@@ -1325,7 +1394,7 @@ function Drag.new(window, props)
     self.window:Connect(state.userInputService.WindowFocusReleased, endDrag)
 
     renderStepHandler = function(dt)
-        if not isDragging then
+        if not self.dragging then
             if self._dragConnection then
                 self.window:Disconnect(self._dragConnection)
                 self._dragConnection = nil
@@ -1345,6 +1414,78 @@ function Drag.new(window, props)
     end
 
     return self
+end
+
+-- [[The handle's lifecycle, driven by the window — the only thing that knows
+-- [[whether the window is on screen, settled, or on its way out.
+--
+-- [[`enable` is called from every settle path (Window:_firstShow,
+-- [[_quickRestore, the minimise settle): the hitbox turns on so the pointer
+-- [[can find the handle, and the pill keeps whatever look its own states left
+-- [[it at — a handle that has just helped move the window stays faintly
+-- [[visible (that is the reveal the user is looking for), while one that has
+-- [[never been touched waits unseen instead of announcing itself under every
+-- [[window that opens.
+function Drag:enable()
+    self._handleToken += 1
+    self.drag.Visible = true
+end
+
+-- [[Off the screen at once — a close, or the entrance a Show starts with: the
+-- [[hitbox goes and the pill is parked at nothing, so the next entrance starts
+-- [[from an unseen handle rather than at whatever look the last hover left
+-- [[behind.
+function Drag:disable()
+    self._handleToken += 1
+    self.drag.Visible = false
+    motion.tween(self.dragCosmetic, handleParked, "fast")
+end
+
+-- [[Off the screen with the fade read first, for the exits that fold or fade
+-- [[the window away: the pill shrinks away now and the hitbox follows once the
+-- [[fade is over, so the handle never cuts out from under the pointer. The
+-- [[token makes a pending hide stand down when a later entrance (or a move)
+-- [[has claimed the handle in the meantime.
+function Drag:fadeOut(spec: string?)
+    self._handleToken += 1
+    local token = self._handleToken
+    local window = self.window
+
+    motion.tween(self.dragCosmetic, handleParked, spec or "fast")
+    task.delay(handleFadeTime, function()
+        if token ~= self._handleToken or window.unloaded then
+            return
+        end
+        self.drag.Visible = false
+    end)
+end
+
+-- [[The window is being moved by its topbar (or by a drag started while it is
+-- [[minimised): the pill brightens for the length of the move and settles back
+-- [[to its resting look when the move ends. This is the one moment the handle
+-- [[has to show itself without being pointed at — the drag began on the
+-- [[topbar, so no MouseEnter is coming. It also re-arms the hitbox, so a
+-- [[handle that some earlier exit switched off cannot swallow the move.
+function Drag:setMoving(active: boolean)
+    active = active == true
+    if self.moving == active then
+        return
+    end
+    self.moving = active
+
+    if active then
+        self._handleToken += 1
+        self.drag.Visible = true
+        motion.tween(self.dragCosmetic, handleHover, "fast")
+        return
+    end
+
+    if self.window.hidden then
+        -- [[The window left the screen mid-move (a hide, a close): the pill
+        -- [[belongs to that exit now and stays parked.
+        return
+    end
+    motion.tween(self.dragCosmetic, restingLook(self), "settle")
 end
 
 return Drag
@@ -7212,6 +7353,12 @@ local toastWidth = 320
 
 local compactRowHeight = 41
 
+-- [[The drag handle's centre sits this far below the window's bottom edge
+-- [[(the same `handleGap` components/drag.luau owns). Every place that puts
+-- [[the handle under the window reads it, so the two files cannot drift apart
+-- [[and leave the pill floating a few pixels off the window it belongs to.
+local dragHandleGap = 22
+
 -- [[The window's own surface, defined once. Everything that has to read as
 -- [["the window background" — the frame itself and the profile card beside it —
 -- [[is styled through Window:StyleWindowSurface, so the two can never drift
@@ -8215,7 +8362,9 @@ function Window:Close()
     self.main.ClipsDescendants = true
     self.main.AnchorPoint = Vector2.new(0.5, 0.5)
     self.main.Position = originalPosition
-    self.drag.drag.Visible = false
+    -- [[The handle leaves with the window it belongs to, and leaves parked:
+    -- [[a close is not a state the next entrance should inherit a look from.
+    self.drag:disable()
     self:_fadeSurfaces(false, fadeOutTween)
     if self.title then
         motion.tween(self.title, { TextTransparency = 1 }, fadeOutTween)
@@ -8238,7 +8387,7 @@ function Window:Close()
             return
         end
         closed = true
-        self.drag.drag.Visible = false
+        self.drag:disable()
         self:Unload()
     end
 
@@ -8307,13 +8456,10 @@ function Window:Hide()
             self._hideTransitionId = (self._hideTransitionId or 0) + 1
     local transitionId = self._hideTransitionId
 
-            motion.tween(self.drag.dragCosmetic, { Size = UDim2.fromOffset(0, 3), BackgroundTransparency = 1 }, "fast")
-    task.delay(0.18, function()
-        if self.unloaded or not self.hidden or self._hideTransitionId ~= transitionId then
-            return
-        end
-        self.drag.drag.Visible = false
-    end)
+    -- [[The handle folds away with the surface: the pill shrinks out first
+    -- [[and the hitbox follows once the fade has read (the handle owns that
+    -- [[timing, and stands down if a Show claims it back in the meantime).
+    self.drag:fadeOut("fast")
 
             self:_fadeSurfaces(false, hideTween)
 
@@ -8390,7 +8536,11 @@ function Window:ToggleMinimise()
     end
 
     self.animating = true
-    self.drag.drag.Visible = false
+    -- [[Either direction moves one surface between two shapes, and the handle
+    -- [[is not one of them: it fades out with the shell and is handed back by
+    -- [[the settle below (the fold's own `minimised` write turns it on again
+    -- [[under the capsule, exactly as before).
+    self.drag:fadeOut("fast")
     self.collapsedInteract.Visible = false
 
     -- [[Both directions of the minimise move one surface between two shapes,
@@ -8404,7 +8554,6 @@ function Window:ToggleMinimise()
 
     if self.minimised then
         self.minimised = false
-        self.drag.drag.Visible = false
         image.assign(self.minimiseAction.iconLabel, "Image", constants.icons.minimise)
         motion.tween(self.main, { Size = self.size }, expandTween)
         motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, expandTween)
@@ -8423,7 +8572,7 @@ function Window:ToggleMinimise()
                 self.main.Position.X.Scale,
                 self.main.Position.X.Offset,
                 self.main.Position.Y.Scale,
-                self.main.Position.Y.Offset + self.size.Y.Offset / 2 + 22
+                self.main.Position.Y.Offset + self.size.Y.Offset / 2 + dragHandleGap
             ),
         }, expandTween)
 
@@ -8447,11 +8596,18 @@ function Window:ToggleMinimise()
         end)
 
         task.delay(0.5, function()
+            if self.unloaded or self.minimised or self.hidden then
+                return
+            end
+            -- [[The window is back to its full size, so the handle is
+            -- [[reachable again. It is handed back unseen (the pill was
+            -- [[parked when the fold started) and waits for the pointer,
+            -- [[exactly like the handle of a freshly opened window.
+            self.drag:enable()
             self.animating = false
         end)
     else
         self.minimised = true
-        self.drag.drag.Visible = false
         image.assign(self.minimiseAction.iconLabel, "Image", self:ResolveIcon(constants.icons.maximise))
                         self:_fadeSelectedElementsOut()
         for _, tab in pairs(self.tabs) do
@@ -8483,7 +8639,7 @@ function Window:ToggleMinimise()
                 self.main.Position.X.Scale,
                 self.main.Position.X.Offset,
                 self.main.Position.Y.Scale,
-                self.main.Position.Y.Offset + self.layout.topbarHeight / 2 + 22
+                self.main.Position.Y.Offset + self.layout.topbarHeight / 2 + dragHandleGap
             ),
         }, expandTween)
 
@@ -8493,7 +8649,7 @@ function Window:ToggleMinimise()
             end
             if self.minimised and not self.hidden then
                 self:_syncDragBar()
-                self.drag.drag.Visible = true
+                self.drag:enable()
             end
             self.animating = false
         end)
@@ -8506,7 +8662,7 @@ function Window:_syncDragBar()
         return
     end
     local pos = self.main.Position
-    local dragOffset = if self.minimised then self.layout.topbarHeight / 2 + 22 else self.size.Y.Offset / 2 + 22
+    local dragOffset = if self.minimised then self.layout.topbarHeight / 2 + dragHandleGap else self.size.Y.Offset / 2 + dragHandleGap
     dragFrame.Position = UDim2.new(pos.X.Scale, pos.X.Offset, pos.Y.Scale, pos.Y.Offset + dragOffset)
 end
 
@@ -8568,7 +8724,7 @@ function Window:_recenterForProfile(animate)
         -- symmetric `glide` ease reads as deliberate, not reactive.]]
         motion.tween(self.main, { Position = target }, "glide")
         motion.tween(self.drag.drag, {
-            Position = UDim2.new(target.X.Scale, target.X.Offset, target.Y.Scale, target.Y.Offset + self.size.Y.Offset / 2 + 22),
+            Position = UDim2.new(target.X.Scale, target.X.Offset, target.Y.Scale, target.Y.Offset + self.size.Y.Offset / 2 + dragHandleGap),
         }, "glide")
     else
         self.main.Position = target
@@ -8785,6 +8941,7 @@ end
 function Window:_bindTopbarDrag()
     local inputService = state.userInputService
     local isDragging = false
+    local hasMoved = false
     local dragOffset = Vector2.zero
     local renderConnection
     local startMousePos = Vector2.zero
@@ -8816,6 +8973,15 @@ function Window:_bindTopbarDrag()
 
     local function endDrag()
         isDragging = false
+        if hasMoved then
+            -- [[The move is over: the handle drops back to its resting look
+            -- [[and stays where it is — that faint pill under the window is
+            -- [[the affordance the next drag starts from.
+            hasMoved = false
+            if self.drag then
+                self.drag:setMoving(false)
+            end
+        end
         if renderConnection then
             self:Disconnect(renderConnection)
             renderConnection = nil
@@ -8839,6 +9005,18 @@ function Window:_bindTopbarDrag()
             return
         end
 
+        if not hasMoved then
+            -- [[The pointer has left the threshold, so this is a move and not
+            -- [[a click: bring the handle out for the length of it. Nothing is
+            -- [[pointing at the handle (the gesture started on the topbar), so
+            -- [[this is the one moment it has to show itself — the pill
+            -- [[brightens here and settles back when the move ends.
+            hasMoved = true
+            if self.drag then
+                self.drag:setMoving(true)
+            end
+        end
+
         local constrainedPos = getConstrainedPosition()
         if self.main.Position == constrainedPos then
             return
@@ -8850,7 +9028,7 @@ function Window:_bindTopbarDrag()
                 mainPos.X.Scale,
                 mainPos.X.Offset,
                 mainPos.Y.Scale,
-                mainPos.Y.Offset + (self.main.Size.Y.Offset / 2 + 22)
+                mainPos.Y.Offset + (self.main.Size.Y.Offset / 2 + dragHandleGap)
             )
         end
     end
@@ -9456,7 +9634,10 @@ function Window:Show()
     end
     self.animating = true
     self._revealing = true
-    self.drag.drag.Visible = false
+    -- [[The handle waits while the shell is in the air: it is handed back by
+    -- [[whichever settle path this entrance takes (_firstShow or
+    -- [[_quickRestore), and only an entrance that actually lands gets one.
+    self.drag:disable()
 
     -- General's heavier content is never built here: settings panels build
     -- lazily on first open through _buildSettingsContent / buildContent.
@@ -9565,7 +9746,11 @@ function Window:_quickRestore()
         self.main.ClipsDescendants = false
         self._collapsedShown = false
         self:_syncDragBar()
-        self.drag.drag.Visible = false
+        -- [[The window is on screen and settled, so the handle is reachable
+        -- [[again. Note it is *enabled*, not revealed: the pill was parked on
+        -- [[the way out, so a restored window offers its handle to the pointer
+        -- [[instead of announcing it.
+        self.drag:enable()
         self.animating = false
         self._revealing = false
         updateToastPosition(self, true)
@@ -9583,7 +9768,7 @@ function Window:_quickRestore()
     self:_stageContentReveal(motion.step(contentRevealBeat * 0.6), 0.02, 0.4, entranceId)
 end
 function Window:_firstShow()
-    self.drag.drag.Visible = false
+    self.drag:disable()
     self.main.Visible = true
     self.main.ClipsDescendants = true
     self.main.BackgroundTransparency = 1
@@ -9668,7 +9853,11 @@ function Window:_firstShow()
         settled = true
         self.main.ClipsDescendants = false
         self:_syncDragBar()
-        self.drag.drag.Visible = false
+        -- [[The shell has landed: the handle becomes reachable (unseen, at the
+        -- [[parked look the entrance started from) and the hover reveal takes
+        -- [[it from there. This is the write that used to keep the handle off
+        -- [[for the whole life of an expanded window.
+        self.drag:enable()
         self.animating = false
         self._revealing = false
         -- [[The window is stable now, so park the selected tab in view and
@@ -23531,98 +23720,98 @@ local LineOffsets = {
     [9] = 812,
     [10] = 910,
     [11] = 1149,
-    [12] = 1354,
-    [13] = 1706,
-    [14] = 1994,
-    [15] = 2715,
-    [16] = 5142,
-    [17] = 5489,
-    [18] = 6274,
-    [19] = 6335,
-    [20] = 6750,
-    [21] = 7167,
-    [23] = 10406,
-    [24] = 10492,
-    [25] = 10806,
-    [26] = 11227,
-    [27] = 11629,
-    [28] = 11799,
-    [29] = 11944,
-    [30] = 13462,
-    [31] = 13681,
-    [32] = 13955,
-    [33] = 14041,
-    [34] = 14628,
-    [35] = 15255,
-    [36] = 15635,
-    [37] = 15765,
-    [38] = 15917,
-    [40] = 16411,
-    [41] = 16434,
-    [42] = 16451,
-    [43] = 16484,
-    [44] = 16606,
-    [45] = 16630,
-    [46] = 16679,
-    [47] = 16386,
-    [48] = 16809,
-    [49] = 17112,
-    [50] = 17143,
-    [51] = 16798,
-    [52] = 17186,
-    [53] = 17206,
-    [54] = 17238,
-    [55] = 17168,
-    [56] = 17345,
-    [57] = 17404,
-    [58] = 17464,
-    [60] = 17608,
-    [61] = 17773,
-    [62] = 17593,
-    [63] = 18347,
-    [64] = 18391,
-    [65] = 18471,
-    [66] = 18664,
-    [67] = 18793,
-    [68] = 18887,
-    [69] = 19054,
-    [70] = 17849,
-    [71] = 19688,
-    [72] = 19754,
-    [73] = 19820,
-    [74] = 19895,
-    [75] = 20001,
-    [76] = 20067,
-    [77] = 20142,
-    [78] = 20217,
-    [79] = 20292,
-    [80] = 20367,
-    [81] = 19582,
-    [82] = 20433,
-    [83] = 20531,
-    [84] = 20709,
-    [85] = 20759,
-    [86] = 20789,
-    [87] = 21040,
-    [88] = 21089,
-    [89] = 21542,
-    [90] = 21560,
-    [91] = 21729,
-    [92] = 21828,
-    [93] = 21850,
-    [94] = 21900,
-    [95] = 22250,
-    [96] = 22286,
-    [97] = 22304,
-    [98] = 22658,
-    [99] = 22670,
-    [100] = 22721,
-    [101] = 22740,
-    [102] = 22991,
-    [103] = 23035,
-    [104] = 23278,
-    [105] = 23306,
-    [106] = 23317,
+    [12] = 1495,
+    [13] = 1847,
+    [14] = 2135,
+    [15] = 2856,
+    [16] = 5283,
+    [17] = 5630,
+    [18] = 6415,
+    [19] = 6476,
+    [20] = 6891,
+    [21] = 7308,
+    [23] = 10595,
+    [24] = 10681,
+    [25] = 10995,
+    [26] = 11416,
+    [27] = 11818,
+    [28] = 11988,
+    [29] = 12133,
+    [30] = 13651,
+    [31] = 13870,
+    [32] = 14144,
+    [33] = 14230,
+    [34] = 14817,
+    [35] = 15444,
+    [36] = 15824,
+    [37] = 15954,
+    [38] = 16106,
+    [40] = 16600,
+    [41] = 16623,
+    [42] = 16640,
+    [43] = 16673,
+    [44] = 16795,
+    [45] = 16819,
+    [46] = 16868,
+    [47] = 16575,
+    [48] = 16998,
+    [49] = 17301,
+    [50] = 17332,
+    [51] = 16987,
+    [52] = 17375,
+    [53] = 17395,
+    [54] = 17427,
+    [55] = 17357,
+    [56] = 17534,
+    [57] = 17593,
+    [58] = 17653,
+    [60] = 17797,
+    [61] = 17962,
+    [62] = 17782,
+    [63] = 18536,
+    [64] = 18580,
+    [65] = 18660,
+    [66] = 18853,
+    [67] = 18982,
+    [68] = 19076,
+    [69] = 19243,
+    [70] = 18038,
+    [71] = 19877,
+    [72] = 19943,
+    [73] = 20009,
+    [74] = 20084,
+    [75] = 20190,
+    [76] = 20256,
+    [77] = 20331,
+    [78] = 20406,
+    [79] = 20481,
+    [80] = 20556,
+    [81] = 19771,
+    [82] = 20622,
+    [83] = 20720,
+    [84] = 20898,
+    [85] = 20948,
+    [86] = 20978,
+    [87] = 21229,
+    [88] = 21278,
+    [89] = 21731,
+    [90] = 21749,
+    [91] = 21918,
+    [92] = 22017,
+    [93] = 22039,
+    [94] = 22089,
+    [95] = 22439,
+    [96] = 22475,
+    [97] = 22493,
+    [98] = 22847,
+    [99] = 22859,
+    [100] = 22910,
+    [101] = 22929,
+    [102] = 23180,
+    [103] = 23224,
+    [104] = 23467,
+    [105] = 23495,
+    [106] = 23506,
 }
 
 -- [[Misc AOT variable imports]]

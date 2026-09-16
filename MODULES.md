@@ -315,8 +315,33 @@ that ran while hidden only parks `_restorePosition`) and `_applyWindowSize`
 the screen lacks room for the pair (portrait phones) and with
 hide/minimise/close.
 
-### `components/drag.luau`
-- `utility` — `core.state` alias. Locals `a1..a8` — drag input state (start pos, delta thresholds, RenderStepped connection).
+### `components/drag.luau` (the detached drag handle)
+- `Drag.new(window)` — builds the handle under the window: an 80x16 invisible
+  hitbox (`self.drag`) holding the visible pill (`self.dragCosmetic`, 48x3 at
+  rest) and the `dragInteract` TextButton, all parented to `window.screenGui`
+  so the handle rides screen coordinates. `handleGap` (22) is how far the
+  pill's centre sits below the window's bottom edge; `Window:_syncDragBar` and
+  the window's own `dragHandleGap` place it with the same number.
+- The pill's look is four named specs — `handleHover` (64x3, 0.5), `handleGrab`
+  (56x3, 0), `handleIdle` (48x3, 0.7) and `handleParked` (0x3, 1.0) — so every
+  state writes the same values. Hovering the hitbox reveals the hover look;
+  dragging from it shows the grab look and moves the window with the pointer
+  (positions lerped per frame, `constrainPosition` clamps through
+  `settings.keepOnScreen`); letting go settles the pill through
+  `restingLook(self)` — the hover look while the pointer is still on the
+  handle, the idle hint otherwise.
+- Lifecycle, driven by the window: `Drag:enable()` (the hitbox becomes
+  reachable, the pill is left where its own states put it), `Drag:disable()`
+  (off at once, pill parked), `Drag:fadeOut(spec)` (pill shrinks away first,
+  hitbox follows when the fade has read — a token makes a pending hide stand
+  down if an entrance claims the handle first) and `Drag:setMoving(active)`
+  (the window is being moved by its topbar: pill brightened for the move,
+  settled back when it ends). `Window:Show`/`Hide`/`Close`/`ToggleMinimise`
+  and both settle paths (`_firstShow`, `_quickRestore`) call these; nothing
+  pokes `self.drag.drag.Visible` any more.
+- State fields a test can read: `dragging`, `moving`, `hovering` and
+  `_handleToken`; the observable handle is `window.drag.drag.Visible` plus the
+  pill's `Size`/`BackgroundTransparency`.
 
 ### `components/action.luau`, `chrome.luau`, `tabSelector.luau`
 Small window-furniture classes; top-level `utility` require + constructor locals for created frames/buttons.

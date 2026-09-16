@@ -2,6 +2,58 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-16 — The drag handle shows up again (and answers the pointer)
+
+The small detached pill under the window never appeared. It is built
+`Visible = false`, and the window wrote that flag to `false` in ten places
+while writing it `true` in exactly one — the minimise settle, 0.5s after
+folding. So in the normal expanded state the hitbox was invisible, a hidden
+parent takes `MouseEnter`/`MouseLeave` with it, and the pill could not be
+revealed by a hover, could not be grabbed, and did not exist as far as the
+window's own topbar drag was concerned.
+
+- **The handle now leaves its visibility to the handle.** `components/drag.luau`
+  gains the four live states it already had values for — `handleHover` (64x3,
+  0.5), `handleGrab` (56x3, 0), `handleIdle` (48x3, 0.7, the faint hint) and
+  `handleParked` (0x3, 1.0) — plus `Drag:enable`, `Drag:disable`,
+  `Drag:fadeOut` and `Drag:setMoving`. `components/window.luau` no longer writes
+  `self.drag.drag.Visible` anywhere; it calls the lifecycle instead, and every
+  write that used to switch the handle off now *parks* the pill as well, so an
+  entrance can never inherit a look from the hover the previous one was
+  interrupted in.
+- **Reachable after every settle.** `_firstShow`'s settle and `_quickRestore`'s
+  settle call `enable`, as does `ToggleMinimise` in both directions (the expand
+  branch previously never brought the handle back at all — un-minimising left
+  it dead until the next hide/show cycle). Enabled means *reachable*, not
+  revealed: the pill stays unseen until the pointer finds it, so a window
+  that has never been moved does not announce a handle it does not need.
+- **Shown when the window is moved.** `Window:_bindTopbarDrag` now distinguishes
+  a click from a move (the existing 4px threshold) and calls
+  `Drag:setMoving(true)` on the first real movement: the pill brightens to the
+  hover look for the length of the drag, follows the window at the same 22px
+  gap, then settles to the idle hint when the move ends. It stays there — the
+  faint pill under the window is the affordance the next interaction starts
+  from — until the window is hidden, folded or closed. A press that never
+  crosses the threshold is a click and leaves the handle untouched.
+- **Hovering and dragging it works again** for the same reason: a reachable
+  hitbox fires `MouseEnter`/`MouseLeave`, so the pill fades in at the hover
+  size and can be grabbed to move the window (with the grab look while held).
+  While the window is being moved by its topbar the hover tweens stand down —
+  `moving` is recorded but the pill is not fought over — so the sweep of the
+  handle past the cursor cannot flicker it between looks.
+- **The 22px offset is named.** `dragHandleGap` in `window.luau` (next to the
+  other local layout constants) and `handleGap` in `drag.luau`; the five places
+  that place the handle all read the constant instead of a bare `22`.
+- **Verification:** new suite `scripts/drag_handle_test.sh` /
+  `scripts/drag_handle_test.luau` (H1-H9) pins the reachability of a settled
+  window, the hover reveal, the move reveal (topbar and handle drag, both
+  driven through real input events), the 22px ride, the click-versus-move
+  threshold, hide/show, minimise/expand and close. The stub environment grew
+  the vector/UDim2 arithmetic those paths need (`__add`/`__sub`/`__mul`,
+  `Magnitude`, `UDim2:Lerp`) — without it the drag code could not run under a
+  suite at all. All 29 runtime suites plus a compile of every published
+  `.luau` pass.
+
 ## 2026-09-16 — The bundle loader is a single `loadstring` line
 
 `example.client.luau` and `USAGE.md` now load the published bundle with exactly one

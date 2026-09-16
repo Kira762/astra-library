@@ -46,6 +46,12 @@ local toastWidth = 320
 
 local compactRowHeight = 41
 
+-- [[The drag handle's centre sits this far below the window's bottom edge
+-- [[(the same `handleGap` components/drag.luau owns). Every place that puts
+-- [[the handle under the window reads it, so the two files cannot drift apart
+-- [[and leave the pill floating a few pixels off the window it belongs to.
+local dragHandleGap = 22
+
 -- [[The window's own surface, defined once. Everything that has to read as
 -- [["the window background" — the frame itself and the profile card beside it —
 -- [[is styled through Window:StyleWindowSurface, so the two can never drift
@@ -1049,7 +1055,9 @@ function Window:Close()
     self.main.ClipsDescendants = true
     self.main.AnchorPoint = Vector2.new(0.5, 0.5)
     self.main.Position = originalPosition
-    self.drag.drag.Visible = false
+    -- [[The handle leaves with the window it belongs to, and leaves parked:
+    -- [[a close is not a state the next entrance should inherit a look from.
+    self.drag:disable()
     self:_fadeSurfaces(false, fadeOutTween)
     if self.title then
         motion.tween(self.title, { TextTransparency = 1 }, fadeOutTween)
@@ -1072,7 +1080,7 @@ function Window:Close()
             return
         end
         closed = true
-        self.drag.drag.Visible = false
+        self.drag:disable()
         self:Unload()
     end
 
@@ -1141,13 +1149,10 @@ function Window:Hide()
             self._hideTransitionId = (self._hideTransitionId or 0) + 1
     local transitionId = self._hideTransitionId
 
-            motion.tween(self.drag.dragCosmetic, { Size = UDim2.fromOffset(0, 3), BackgroundTransparency = 1 }, "fast")
-    task.delay(0.18, function()
-        if self.unloaded or not self.hidden or self._hideTransitionId ~= transitionId then
-            return
-        end
-        self.drag.drag.Visible = false
-    end)
+    -- [[The handle folds away with the surface: the pill shrinks out first
+    -- [[and the hitbox follows once the fade has read (the handle owns that
+    -- [[timing, and stands down if a Show claims it back in the meantime).
+    self.drag:fadeOut("fast")
 
             self:_fadeSurfaces(false, hideTween)
 
@@ -1224,7 +1229,11 @@ function Window:ToggleMinimise()
     end
 
     self.animating = true
-    self.drag.drag.Visible = false
+    -- [[Either direction moves one surface between two shapes, and the handle
+    -- [[is not one of them: it fades out with the shell and is handed back by
+    -- [[the settle below (the fold's own `minimised` write turns it on again
+    -- [[under the capsule, exactly as before).
+    self.drag:fadeOut("fast")
     self.collapsedInteract.Visible = false
 
     -- [[Both directions of the minimise move one surface between two shapes,
@@ -1238,7 +1247,6 @@ function Window:ToggleMinimise()
 
     if self.minimised then
         self.minimised = false
-        self.drag.drag.Visible = false
         image.assign(self.minimiseAction.iconLabel, "Image", constants.icons.minimise)
         motion.tween(self.main, { Size = self.size }, expandTween)
         motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, expandTween)
@@ -1257,7 +1265,7 @@ function Window:ToggleMinimise()
                 self.main.Position.X.Scale,
                 self.main.Position.X.Offset,
                 self.main.Position.Y.Scale,
-                self.main.Position.Y.Offset + self.size.Y.Offset / 2 + 22
+                self.main.Position.Y.Offset + self.size.Y.Offset / 2 + dragHandleGap
             ),
         }, expandTween)
 
@@ -1281,11 +1289,18 @@ function Window:ToggleMinimise()
         end)
 
         task.delay(0.5, function()
+            if self.unloaded or self.minimised or self.hidden then
+                return
+            end
+            -- [[The window is back to its full size, so the handle is
+            -- [[reachable again. It is handed back unseen (the pill was
+            -- [[parked when the fold started) and waits for the pointer,
+            -- [[exactly like the handle of a freshly opened window.
+            self.drag:enable()
             self.animating = false
         end)
     else
         self.minimised = true
-        self.drag.drag.Visible = false
         image.assign(self.minimiseAction.iconLabel, "Image", self:ResolveIcon(constants.icons.maximise))
                         self:_fadeSelectedElementsOut()
         for _, tab in pairs(self.tabs) do
@@ -1317,7 +1332,7 @@ function Window:ToggleMinimise()
                 self.main.Position.X.Scale,
                 self.main.Position.X.Offset,
                 self.main.Position.Y.Scale,
-                self.main.Position.Y.Offset + self.layout.topbarHeight / 2 + 22
+                self.main.Position.Y.Offset + self.layout.topbarHeight / 2 + dragHandleGap
             ),
         }, expandTween)
 
@@ -1327,7 +1342,7 @@ function Window:ToggleMinimise()
             end
             if self.minimised and not self.hidden then
                 self:_syncDragBar()
-                self.drag.drag.Visible = true
+                self.drag:enable()
             end
             self.animating = false
         end)
@@ -1340,7 +1355,7 @@ function Window:_syncDragBar()
         return
     end
     local pos = self.main.Position
-    local dragOffset = if self.minimised then self.layout.topbarHeight / 2 + 22 else self.size.Y.Offset / 2 + 22
+    local dragOffset = if self.minimised then self.layout.topbarHeight / 2 + dragHandleGap else self.size.Y.Offset / 2 + dragHandleGap
     dragFrame.Position = UDim2.new(pos.X.Scale, pos.X.Offset, pos.Y.Scale, pos.Y.Offset + dragOffset)
 end
 
@@ -1402,7 +1417,7 @@ function Window:_recenterForProfile(animate)
         -- symmetric `glide` ease reads as deliberate, not reactive.]]
         motion.tween(self.main, { Position = target }, "glide")
         motion.tween(self.drag.drag, {
-            Position = UDim2.new(target.X.Scale, target.X.Offset, target.Y.Scale, target.Y.Offset + self.size.Y.Offset / 2 + 22),
+            Position = UDim2.new(target.X.Scale, target.X.Offset, target.Y.Scale, target.Y.Offset + self.size.Y.Offset / 2 + dragHandleGap),
         }, "glide")
     else
         self.main.Position = target
@@ -1619,6 +1634,7 @@ end
 function Window:_bindTopbarDrag()
     local inputService = state.userInputService
     local isDragging = false
+    local hasMoved = false
     local dragOffset = Vector2.zero
     local renderConnection
     local startMousePos = Vector2.zero
@@ -1650,6 +1666,15 @@ function Window:_bindTopbarDrag()
 
     local function endDrag()
         isDragging = false
+        if hasMoved then
+            -- [[The move is over: the handle drops back to its resting look
+            -- [[and stays where it is — that faint pill under the window is
+            -- [[the affordance the next drag starts from.
+            hasMoved = false
+            if self.drag then
+                self.drag:setMoving(false)
+            end
+        end
         if renderConnection then
             self:Disconnect(renderConnection)
             renderConnection = nil
@@ -1673,6 +1698,18 @@ function Window:_bindTopbarDrag()
             return
         end
 
+        if not hasMoved then
+            -- [[The pointer has left the threshold, so this is a move and not
+            -- [[a click: bring the handle out for the length of it. Nothing is
+            -- [[pointing at the handle (the gesture started on the topbar), so
+            -- [[this is the one moment it has to show itself — the pill
+            -- [[brightens here and settles back when the move ends.
+            hasMoved = true
+            if self.drag then
+                self.drag:setMoving(true)
+            end
+        end
+
         local constrainedPos = getConstrainedPosition()
         if self.main.Position == constrainedPos then
             return
@@ -1684,7 +1721,7 @@ function Window:_bindTopbarDrag()
                 mainPos.X.Scale,
                 mainPos.X.Offset,
                 mainPos.Y.Scale,
-                mainPos.Y.Offset + (self.main.Size.Y.Offset / 2 + 22)
+                mainPos.Y.Offset + (self.main.Size.Y.Offset / 2 + dragHandleGap)
             )
         end
     end
@@ -2290,7 +2327,10 @@ function Window:Show()
     end
     self.animating = true
     self._revealing = true
-    self.drag.drag.Visible = false
+    -- [[The handle waits while the shell is in the air: it is handed back by
+    -- [[whichever settle path this entrance takes (_firstShow or
+    -- [[_quickRestore), and only an entrance that actually lands gets one.
+    self.drag:disable()
 
     -- General's heavier content is never built here: settings panels build
     -- lazily on first open through _buildSettingsContent / buildContent.
@@ -2399,7 +2439,11 @@ function Window:_quickRestore()
         self.main.ClipsDescendants = false
         self._collapsedShown = false
         self:_syncDragBar()
-        self.drag.drag.Visible = false
+        -- [[The window is on screen and settled, so the handle is reachable
+        -- [[again. Note it is *enabled*, not revealed: the pill was parked on
+        -- [[the way out, so a restored window offers its handle to the pointer
+        -- [[instead of announcing it.
+        self.drag:enable()
         self.animating = false
         self._revealing = false
         updateToastPosition(self, true)
@@ -2417,7 +2461,7 @@ function Window:_quickRestore()
     self:_stageContentReveal(motion.step(contentRevealBeat * 0.6), 0.02, 0.4, entranceId)
 end
 function Window:_firstShow()
-    self.drag.drag.Visible = false
+    self.drag:disable()
     self.main.Visible = true
     self.main.ClipsDescendants = true
     self.main.BackgroundTransparency = 1
@@ -2502,7 +2546,11 @@ function Window:_firstShow()
         settled = true
         self.main.ClipsDescendants = false
         self:_syncDragBar()
-        self.drag.drag.Visible = false
+        -- [[The shell has landed: the handle becomes reachable (unseen, at the
+        -- [[parked look the entrance started from) and the hover reveal takes
+        -- [[it from there. This is the write that used to keep the handle off
+        -- [[for the whole life of an expanded window.
+        self.drag:enable()
         self.animating = false
         self._revealing = false
         -- [[The window is stable now, so park the selected tab in view and

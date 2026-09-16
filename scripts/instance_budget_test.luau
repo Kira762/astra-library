@@ -63,7 +63,6 @@ local ceilings = {
 	slider = 40,
 	dropdown = 28,
 	input = 18,
-	keybind = 18,
 	stat = 28,
 	statCompact = 24,
 	section = 8,
@@ -80,7 +79,6 @@ local builders = {
 		return tab:CreateDropdown({ name = "Dropdown", options = { "A", "B", "C" }, value = "A" })
 	end,
 	input = function() return tab:CreateInput({ name = "Input", placeholder = "x" }) end,
-	keybind = function() return tab:CreateKeybind({ name = "Keybind", value = Enum.KeyCode.K }) end,
 	stat = function() return tab:CreateStat({ name = "Stat", value = 1, suffix = "" }) end,
 	statCompact = function() return tab:CreateStat({ name = "StatC", value = 1, suffix = "", compact = true }) end,
 	section = function() return tab:CreateSection({ name = "Section" }) end,
@@ -145,7 +143,6 @@ page:CreateButton({ name = "Apply", callback = function() end })
 page:CreateButton({ name = "Reset", callback = function() end })
 page:CreateDropdown({ name = "Mode", options = { "Auto", "Manual", "Custom", "Expert" }, value = "Auto" })
 page:CreateInput({ name = "Nickname", placeholder = "..." })
-page:CreateKeybind({ name = "Toggle key", value = Enum.KeyCode.K })
 page:CreateText({ name = "Note", text = "A realistic page." })
 TestPump(0.6)
 

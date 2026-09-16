@@ -148,12 +148,11 @@ local dropdown = tab:CreateDropdown({
 	value = "Low",
 })
 local input = tab:CreateInput({ name = "Display name", placeholder = "Enter a name", description = "Shown to friends." })
-local keybind = tab:CreateKeybind({ name = "Push to talk", value = Enum.KeyCode.T, description = "One letter only." })
 local stat = tab:CreateStat({ name = "Frames", value = 240, description = "Per second." })
 local undescribed = tab:CreateToggle({ name = "No description" })
-local wrapped = more:CreateKeybind({
+local wrapped = more:CreateInput({
 	name = "Wrapped",
-	value = Enum.KeyCode.Y,
+	placeholder = "Enter a name",
 	description = "Type one letter. Extra characters are removed automatically, which makes this line wrap.",
 })
 local group = more:CreateCollapsibleGroup({
@@ -177,7 +176,6 @@ local cards = {
 	[minimal.main] = true,
 	[dropdown.main] = true,
 	[input.main] = true,
-	[keybind.main] = true,
 	[stat.main] = true,
 	[undescribed.main] = true,
 }
@@ -197,7 +195,6 @@ eq(toggle.descriptionLabel.TextSize, 14, "D2 the line uses the 14px in-UI descri
 eq(toggle.descriptionLabel.TextWrapped, true, "D2 the line wraps")
 near(button.main.Size.Y.Offset, 63, "D2 a described 43px button card grows to 63px")
 near(input.main.Size.Y.Offset, 61, "D2 a described input card grows to 61px")
-near(keybind.main.Size.Y.Offset, 61, "D2 a described keybind card grows to 61px")
 near(dropdown.main.Size.Y.Offset, 61, "D2 a described dropdown card grows to 61px")
 
 -- ===== D3: controls keep the base region ==================================
@@ -207,8 +204,6 @@ local inputTitle = rectOf(input.container, input.main.AbsoluteSize)
 near(inputTitle.y + inputTitle.h / 2, 20.5, "D3 the input's title row keeps the base region")
 local inputField = rectOf(input.box, input.main.AbsoluteSize)
 near(inputField.y + inputField.h / 2, 20.5, "D3 the input's field box keeps the base region")
-local keybindCap = rectOf(keybind.box, keybind.main.AbsoluteSize)
-near(keybindCap.y + keybindCap.h / 2, 20.5, "D3 the keybind cap keeps the base region")
 local dropdownTitle = rectOf(dropdown.container, dropdown.main.AbsoluteSize)
 near(dropdownTitle.y + dropdownTitle.h / 2, 20.5, "D3 the dropdown's title row keeps the base region")
 
@@ -229,7 +224,6 @@ for _, case in {
 	{ element = minimal, parts = { minimal.track } },
 	{ element = dropdown, parts = { dropdown.container, dropdown.selectedLabel, dropdown.chevron } },
 	{ element = input, parts = { input.container, input.box } },
-	{ element = keybind, parts = { keybind.container, keybind.box } },
 	{ element = stat, parts = { stat.titleContainer, stat.valueHost, stat.changeHost } },
 	{ element = wrapped, parts = { wrapped.container, wrapped.box } },
 } do

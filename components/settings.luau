@@ -16,19 +16,17 @@ end
 
 -- [[The Settings toggle binding is an ordinary Input field: it shows the bound
 -- key's name and reads one back, so the row uses the same typed-value input as
--- every other field in the library instead of the Keybind element's
--- click-to-record cap. Labels and parsing follow the Keybind element's rules
--- ("None" for a cleared binding, MB2/MB3 for mouse buttons) so
--- window.settings.toggleKeybind stays an EnumItem — which is what
--- Window:_bindKeybind compares against and what the settings file stores.]]
+-- every other field in the library. Labels read "None" for a cleared binding
+-- and MB2/MB3 for mouse buttons, so window.settings.toggleKeybind stays an
+-- EnumItem — which is what Window:_bindKeybind compares against and what the
+-- settings file stores.]]
 local mouseLabels = {
     [Enum.UserInputType.MouseButton2] = "MB2",
     [Enum.UserInputType.MouseButton3] = "MB3",
 }
 
--- [[The short mouse forms the key caps show. MouseButton1 is absent on purpose:
--- a menu toggle bound to left click would fire on every click in the game, and
--- the Keybind element's capture never offered it either.]]
+-- [[The short mouse forms the field accepts. MouseButton1 is absent on purpose:
+-- a menu toggle bound to left click would fire on every click in the game.]]
 local mouseNames = {
     mb2 = Enum.UserInputType.MouseButton2,
     mousebutton2 = Enum.UserInputType.MouseButton2,
@@ -207,9 +205,7 @@ function settingsComponent.buildUI(window)
         local keybindField
 
         -- [[A typed key becomes the menu toggle. The field is refused, with the
-        -- previous binding restored, when the text is not a key or when another
-        -- Keybind already owns it — the same conflict rule the Keybind element
-        -- enforces for isMenuToggle bindings.]]
+        -- previous binding restored, when the text is not a key.]]
         local function refuseKeybind(message, previous)
             window:Notify({ title = locale.resolve("Keybind unavailable"), content = message })
             keybindField:Set(previous, true)
@@ -226,14 +222,6 @@ function settingsComponent.buildUI(window)
                     then string.format(locale.resolve("Left click can't toggle the menu. Kept %s."), previous)
                     else string.format(locale.resolve("%s is not a key name. Kept %s."), tostring(text), previous)
                 refuseKeybind(message, previous)
-                return
-            end
-            local conflict = if key ~= Enum.KeyCode.Unknown then window:_keybindUsing(key) else nil
-            if conflict then
-                refuseKeybind(
-                    string.format(locale.resolve("%s is bound to %s. Kept %s."), keyLabel(key), conflict.name, previous),
-                    previous
-                )
                 return
             end
             if key == window.settings.toggleKeybind then

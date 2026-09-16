@@ -79,19 +79,6 @@ eq(
 	"F3 field and card round with the same token"
 )
 
--- ===== F4: the keybind's key cap wears the same corner =====================
-
-local keybind = tab:CreateKeybind({ name = "Hotkey", value = Enum.KeyCode.K })
-TestPump(0.3)
-local keyCorner = cornerOf(keybind.box)
-expect(keyCorner ~= nil, "F4 the key cap carries a corner")
-eq(keyCorner.CornerRadius.Scale, 0, "F4 the key cap corner is a pixel radius, not a capsule scale")
-eq(
-	tostring(keyCorner.CornerRadius.Offset),
-	tostring(window.theme.ElementCornerRadius.Offset),
-	"F4 the key cap wears the element corner radius"
-)
-
 window:Unload()
 TestPump(0.2)
 

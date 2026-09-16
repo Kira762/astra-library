@@ -31,9 +31,6 @@ local function customOrder(window, forgetState)
             element._dragConnection:Disconnect()
             element._dragConnection = nil
         end
-                        if window._recordingKeybind == element then
-            window._recordingKeybind = nil
-        end
         if element._outsideClickConn then
             window:Disconnect(element._outsideClickConn)
             element._outsideClickConn = nil
@@ -302,10 +299,6 @@ end
 
 function state:CreateInput(a38)
     return self:_register(require(script.Parent.input).new(self, a38))
-end
-
-function state:CreateKeybind(a39)
-    return self:_register(require(script.Parent.keybind).new(self, a39))
 end
 
 function state:CreateCollapsibleGroup(props)

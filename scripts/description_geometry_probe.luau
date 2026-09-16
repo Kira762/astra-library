@@ -126,10 +126,9 @@ local elements = {
 	{ "minimal", "Sensitivity", tab:CreateSlider({ name = "Sensitivity", range = { 0, 100 }, value = 40, minimal = true, description = "Narrow cards keep the line." }) },
 	{ "dropdown", "Quality", tab:CreateDropdown({ name = "Quality", description = "Applies instantly.", options = { "Low", "High" }, value = "Low" }) },
 	{ "input", "Display name", tab:CreateInput({ name = "Display name", description = "Shown to friends.", placeholder = "Enter a name" }) },
-	{ "keybind", "Push to talk", tab:CreateKeybind({ name = "Push to talk", description = "One letter only.", value = Enum.KeyCode.T }) },
 	{ "stat", "Frames", tab:CreateStat({ name = "Frames", value = 240, description = "Per second." }) },
 	{ "toggle", "No description", tab:CreateToggle({ name = "No description" }) },
-	{ "keybind", "Wrapped hint", more:CreateKeybind({ name = "Wrapped hint", description = "Type one letter. Extra characters are removed automatically, which makes this line wrap.", value = Enum.KeyCode.Y }) },
+	{ "input", "Wrapped hint", more:CreateInput({ name = "Wrapped hint", description = "Type one letter. Extra characters are removed automatically, which makes this line wrap.", placeholder = "Enter a name" }) },
 	{ "group", "Player Preferences", more:CreateCollapsibleGroup({ name = "Player Preferences", description = "Click to expand. Closing keeps the values active.", elements = {} }) },
 	{
 		"grouped",

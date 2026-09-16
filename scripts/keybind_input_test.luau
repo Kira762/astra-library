@@ -1,5 +1,4 @@
--- Settings binds the menu key through the shared Input element (a typed field);
--- the Keybind element keeps its click-to-record cap for everything else.
+-- Settings binds the menu key through the shared Input element (a typed field).
 local window = Astra:CreateWindow({ name = "Keybind input test" })
 TestPump(0.6)
 window:Show()
@@ -30,12 +29,6 @@ assert(field, "Settings must expose the menu binding")
 assert(field.__type == "Input", "Settings must bind the menu key through the Input element")
 assert(field.input.ClassName == "TextBox", "The binding must be a typed field")
 assert(field.value == "K", "The field shows the bound key's name")
-assert(
-    scan(window.rfSettings.elements, function(control)
-        return control.__type == "Keybind"
-    end) == nil,
-    "Settings must no longer build a Keybind element"
-)
 assert(typeof(window.settings.toggleKeybind) == "EnumItem", "The setting stays an EnumItem")
 
 local saves = 0
@@ -104,15 +97,8 @@ typeKey("")
 assert(window.settings.toggleKeybind == Enum.KeyCode.Unknown and saves == 4, "An empty field stays cleared")
 assert(field.value == "None", "An empty field reads None back")
 
--- A key another Keybind owns is refused, the same rule the element enforced.
-local tab = window:CreateTab({ name = "Other controls" })
-local reserved = tab:CreateKeybind({ name = "Reserved", value = Enum.KeyCode.R })
-typeKey("R")
-assert(window.settings.toggleKeybind == Enum.KeyCode.Unknown and saves == 4, "Conflicts must not bind or save")
-assert(field.value == "None", "A refused conflict must restore the field")
-
 typeKey("T")
-assert(window.settings.toggleKeybind == Enum.KeyCode.T, "A free key must bind after a refusal")
+assert(window.settings.toggleKeybind == Enum.KeyCode.T, "A key must bind after clearing")
 assert(saves == 5, "A changed binding must be saved")
 
 -- Outside the field, the newly saved key still toggles the window.
@@ -123,43 +109,4 @@ press(Enum.KeyCode.T, false)
 TestPump(0.6)
 assert(not window.hidden, "The new key must toggle the window back")
 
--- ===== The Keybind element keeps its own click-to-record cap =================
-assert(reserved.box.ClassName == "TextButton", "Keybinds keep the clickable key cap")
-assert(reserved.keyLabel.ClassName == "TextLabel", "Keybinds keep the cap's label")
-assert(reserved.recording == false, "A keybind starts idle")
-
-reserved.box.MouseButton1Click:Fire()
-TestPump(0.1)
-assert(reserved.recording, "Clicking the cap must start recording")
-assert(reserved.keyLabel.Text == "Recording", "Recording state must show on the key cap")
-
-press(Enum.KeyCode.Y, true) -- Processed input must still capture while recording.
-assert(reserved.value == Enum.KeyCode.Y, "A captured key must bind")
-assert(not reserved.recording, "Capture must end after a key")
-assert(reserved.keyLabel.Text == "Y", "The cap must show the new binding")
-
-reserved.box.MouseButton1Click:Fire()
-TestPump(0.1)
-press(Enum.KeyCode.Escape, true)
-assert(reserved.value == Enum.KeyCode.Y, "Escape must cancel without changing the binding")
-
-reserved.box.MouseButton1Click:Fire()
-TestPump(0.1)
-press(Enum.KeyCode.Backspace, true)
-assert(reserved.value == Enum.KeyCode.Unknown, "Backspace must clear")
-assert(reserved.keyLabel.Text == "None", "A cleared binding shows None on the cap")
-
--- The rule runs both ways: a Keybind element refuses to take the key Settings
--- holds, so the menu toggle stays the only owner of it.
-reserved.box.MouseButton1Click:Fire()
-TestPump(0.1)
-press(Enum.KeyCode.T, true)
-assert(reserved.value == Enum.KeyCode.Unknown, "A keybind must not take the menu toggle key")
-
-reserved:Lock()
-reserved.box.MouseButton1Click:Fire()
-TestPump(0.1)
-assert(not reserved.recording, "A locked cap must ignore clicks")
-reserved:Unlock()
-
-print("Keybind field commits, refusals, conflicts, toggle and the element cap passed")
+print("Keybind field commits, refusals and toggle passed")

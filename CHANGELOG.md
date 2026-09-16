@@ -2,6 +2,34 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-16 — The Keybind element is removed
+
+The only remaining first-party use of the Keybind element was the Settings menu
+binding, and that row moved to an `Input` field in the entry below. The element
+is now gone from the library rather than left as an unused public surface.
+
+- **`tab:CreateKeybind` no longer exists.** `elements/keybind.luau` is deleted,
+  the `Keybind` declarative type is no longer accepted by
+  `CreateCollapsibleGroup`, and the `Keybind`/`KeybindProps` types are gone
+  from `Types.luau`, `library_entrypoint.luau` and the bundle.
+- **The window drops the plumbing that only served the element.**
+  `Window:_keybindUsing` (the conflict check), `_recordingKeybind` (the
+  capture guard in `_bindKeybind`, `ToggleHide` and tab teardown) and the
+  Settings field's "bound to another Keybind" refusal are removed. The
+  menu-toggle key still refuses junk text and left click, still clears on
+  `none`/empty, and still toggles the window.
+- **`window.settings.toggleKeybind` is unchanged.** It stays an `EnumItem`, is
+  persisted the same way, and `Window:_bindKeybind` still compares against it.
+- `example.client.luau` no longer shows a Keybind element or a `Keybind`
+  collapsible child.
+- Suites: `keybind_input_test` now covers only the Settings field;
+  `collapsible_group_test`, `inline_description_test`, `input_field_test`,
+  `instance_budget_test`, `window_corners_test` and the description geometry
+  probe drop their Keybind rows (the wrapped-description probe uses an Input).
+  `collapsible_group_test` also had its child indices re-pinned; the row/column
+  Group assertions were pointing one element past their targets.
+  `USAGE.md` and `MODULES.md` no longer document the element.
+
 ## 2026-09-16 — The Settings menu key is typed into an Input field
 
 Reported from the field as a Settings keybind that would not take a click: the

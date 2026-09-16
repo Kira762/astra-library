@@ -2,6 +2,33 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-16 — The loader stops reporting `attempt to call a nil value`
+
+Reported from the field as `dROpudBpfgnVovyLM:1: attempt to call a nil value`,
+`Script 'LocalScript', Line 1`. Nothing in the library was at fault and nothing
+in the message is a location: the random name is the executor's chunk for the
+fetched string, and a one-line script means the failing call is on line 1. The
+nil being called is the *compiled chunk* — `loadstring` returns
+`nil, compileError` instead of throwing, so a bundle that never compiles shows
+up as a nil call, and the real reason (a syntax error, or an HTML error page
+where a repo was expected) is thrown away.
+
+- **`example.client.luau` did not compile.** `CreateCollapsibleGroup` was
+  missing the comma between `description` and `elements`, which is exactly the
+  kind of defect the message hides: parse fails at line 141, the user sees a
+  nil call at line 1. Fixed, and a Luau parse of all 136 `.luau` files in the
+  tree is now clean.
+- **`scripts/check_syntax.sh`** compiles the modular tree, the example and the
+  bundle with the Luau CLI, so this class of defect stops shipping. It exits 2
+  ("not checked") rather than 0 when no CLI is installed.
+- **The example's loader now checks both steps** it used to assume: that the
+  fetch returned Luau rather than an error page or a truncation, and that
+  `loadstring` — not Studio's function-only `load` — is what compiled it. Each
+  failure names itself instead of leaving the caller to read a nil call.
+- **`USAGE.md` documents the message.** The loader snippet keeps its `assert`s,
+  and the section that follows says what `attempt to call a nil value` means
+  and the three things to check in order.
+
 ## 2026-09-15 — Keybinds use the original cap again
 
 - Removed the editable TextBox path from `Keybind`; the key cap is a `TextButton`

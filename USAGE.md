@@ -16,14 +16,53 @@ local Astra = require(game:GetService("ReplicatedStorage").Astra)
 ```lua
 -- Executor: the example loads the bundle from the repo and compiles it.
 -- This is what example.client.luau does:
-local bundleSource = game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau")
+local bundleUrl = "https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"
+
 local compile = loadstring or load
-local bundleLoader = compile(bundleSource)
+assert(type(compile) == "function", "[Astra] loadstring/load is unavailable here")
+
+local bundleSource = game:HttpGet(bundleUrl)
+local bundleLoader, compileError = compile(bundleSource)
+assert(type(bundleLoader) == "function", "[Astra] Bundle compilation failed: " .. tostring(compileError))
+
 local Astra = bundleLoader()
 ```
 
 The bundle (`version-1.luau`) is a generated artifact — require/load the single
 bundle, never the modular tree, when running outside Rojo.
+
+**Keep the `assert`s.** `loadstring`/`load` do not throw when the text will not
+compile — they return `nil` plus the error, so a one-liner such as
+`loadstring(game:HttpGet(url))()` reports nothing more useful than
+
+```
+rAnDoMcHuNkNaMe:1: attempt to call a nil value
+Stack Begin
+Script 'LocalScript', Line 1
+Stack End
+```
+
+That message is about the *loader*, not about a bug inside Astra: the random
+name is the executor's chunk, `Line 1` is the line holding the call, and
+"attempt to call a nil value" only means the compiled chunk was `nil`. Read it
+as "the text I fetched never compiled" and check, in order:
+
+1. **The fetch returned something that is not Luau.** A private repository, a
+   wrong branch/file name, or a rate limit all hand back an HTML error page
+   (`404: Not Found`, `<html>…`) which never compiles. `print(bundleSource:sub(1, 120))`
+   settles it in one line.
+2. **`load` was used with a string.** Plain Studio has no `loadstring`, and its
+   `load` accepts only functions, so `load(source)` returns `nil` with
+   `"string arguments are not executable"`. Run the bundle through an executor,
+   or `require` the Rojo tree in Studio.
+3. **The source really does have a syntax error.** Published files are compile-
+   checked with `scripts/check_syntax.sh`; run it after editing anything here,
+   then regenerate with `node scripts/generate_bundle.js`.
+
+Once the loader returns a table the compile is fine, and any later
+`attempt to call a nil value` names the Astra line that called it — a missing
+element method, a `Create…` on the wrong parent (Collapsible Groups live on a
+Tab, not on a Group), or props passed positionally instead of as one table.
 
 ---
 

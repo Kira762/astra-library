@@ -182,6 +182,7 @@ function state:_buildCompact()
     })
 
     window:Create("UIListLayout", {
+        SortOrder = Enum.SortOrder.LayoutOrder,
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalAlignment = Enum.HorizontalAlignment.Center,

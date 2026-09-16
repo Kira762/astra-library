@@ -465,7 +465,7 @@ Per-element specifics:
 - `group.luau`, `section.luau`, `tabSection.luau` — container classes with UIListLayout locals.
 - `changelog.luau` — release-history element (`__type = "Changelog"`): normalizes `ChangelogEntry`/`ChangelogChange` props, maps symbols (`+`/`-`/`~`, or words like "added"/"removed"/"changed") to green/red/amber, fades entries in, supports `Set`/`Refresh`/`Add(entry, prepend?)`/`Clear`.
 - `divider.luau`, `stat.luau`, `text.luau` — display and interaction elements.
-- `button.luau` — action card with a built-in right-edge tap glyph (`tapIcon` opts out or replaces it), themed through `ContentColor`, revealed with the card, and pulsed on press.
+- `button.luau` — action card with a built-in right-edge tap glyph (`tapIcon` opts out or replaces it), themed through `ContentColor`, revealed with the card, and pulsed on press. Compact/grouped buttons explicitly sort their horizontal layout by `LayoutOrder`: optional custom icon, title, then built-in tap glyph.
 - `baseCard.luau` — shared card container and header layout helper for element modules.
 
 ---

@@ -15,11 +15,13 @@ function Drag.new(window, props)
         window = assert(window, "Missing argument #1 (Window expected)"),
     }, Drag)
 
+    -- Small centered detached handle below window, not overlapping
+    -- Gap = 22px from window bottom edge to handle center
     self.drag = self.window:Create("Frame", {
         BackgroundTransparency = 1,
-        Size = UDim2.fromOffset(150, 20),
+        Size = UDim2.fromOffset(80, 16),
         AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.new(0.5, 0, 0.5, self.window.size.Y.Offset / 2 + 15),
+        Position = UDim2.new(0.5, 0, 0.5, self.window.size.Y.Offset / 2 + 22),
         ZIndex = constants.zIndex.drag,
         Visible = false,
         Parent = self.window.screenGui,
@@ -28,10 +30,10 @@ function Drag.new(window, props)
     self.dragCosmetic = self.window:Create("Frame", {
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.3),
+        Position = UDim2.fromScale(0.5, 0.5),
         ZIndex = constants.zIndex.drag,
         BackgroundTransparency = 1,
-        Size = UDim2.fromOffset(0, 4),
+        Size = UDim2.fromOffset(0, 3),
         Parent = self.drag,
     })
 
@@ -40,7 +42,7 @@ function Drag.new(window, props)
         Parent = self.dragCosmetic,
     })
 
-    self.window:CreateGlow(self.dragCosmetic, Color3.fromRGB(255, 255, 255), 10, 0.5)
+    self.window:CreateGlow(self.dragCosmetic, Color3.fromRGB(255, 255, 255), 8, 0.6)
 
     self.dragInteract = self.window:Create("TextButton", {
         Active = true,
@@ -84,19 +86,19 @@ function Drag.new(window, props)
         end
 
         local mainPos = UDim2.fromOffset(x, y)
-        local dragPos = UDim2.fromOffset(x, y + (self.window.main.Size.Y.Offset / 2 + 15))
+        local dragPos = UDim2.fromOffset(x, y + (self.window.main.Size.Y.Offset / 2 + 22))
         return mainPos, dragPos
     end
 
     self.window:Connect(self.drag.MouseEnter, function()
         if not isDragging and not self.window.hidden then
-            motion.tween(self.dragCosmetic, { BackgroundTransparency = 0.5, Size = UDim2.new(0, 120, 0, 4) }, "fast")
+            motion.tween(self.dragCosmetic, { BackgroundTransparency = 0.5, Size = UDim2.new(0, 64, 0, 3) }, "fast")
         end
     end)
 
     self.window:Connect(self.drag.MouseLeave, function()
         if not isDragging and not self.window.hidden then
-            motion.tween(self.dragCosmetic, { BackgroundTransparency = 0.7, Size = UDim2.new(0, 100, 0, 4) }, "fast")
+            motion.tween(self.dragCosmetic, { BackgroundTransparency = 0.7, Size = UDim2.new(0, 48, 0, 3) }, "fast")
         end
     end)
 
@@ -115,7 +117,7 @@ function Drag.new(window, props)
             return
         end
 
-        motion.tween(self.dragCosmetic, { Size = UDim2.new(0, 100, 0, 4), BackgroundTransparency = 0.7 }, "settle")
+        motion.tween(self.dragCosmetic, { Size = UDim2.new(0, 48, 0, 3), BackgroundTransparency = 0.7 }, "settle")
 
         -- [[The capsule settling back after a drag is the spring's moment:
         -- a short overshoot that reads as weight, not lag.]]
@@ -158,7 +160,7 @@ function Drag.new(window, props)
                 + self.window.main.AbsoluteSize * self.window.main.AnchorPoint
                 - state.userInputService:GetMouseLocation()
             if not self.window.hidden then
-                motion.tween(self.dragCosmetic, { Size = UDim2.new(0, 110, 0, 4), BackgroundTransparency = 0 }, "fast")
+                motion.tween(self.dragCosmetic, { Size = UDim2.new(0, 56, 0, 3), BackgroundTransparency = 0 }, "fast")
             end
 
             self._dragConnection = self.window:Connect(state.runService.RenderStepped, renderStepHandler)

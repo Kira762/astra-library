@@ -817,7 +817,11 @@ function settingsComponent.buildContent(window, tab)
 end
 
 function settingsComponent.applySettingsLayout(window, isSettings)
-    window._settingsLayoutActive = isSettings == true
+    -- [[isSettings is retained for callers; the flags derive from the live]]
+    -- [[rail so settings and changelog modes share one layout switch.]]
+    local rail = window:_activeRail()
+    window._settingsLayoutActive = rail == "settings"
+    window._changelogLayoutActive = rail == "changelog"
     if window.tabList then
         window.tabList.Visible = not window.hidden and not window.minimised
     end
@@ -827,7 +831,7 @@ function settingsComponent.applySettingsLayout(window, isSettings)
     for _, tab in window.tabs do
         if tab.topbarItem then
             tab.topbarItem.Visible = not window.hidden and not window.minimised
-                and (window._settingsMode == (tab._isSettingsTab == true))
+                and (window:_railGroup(tab) == window:_activeRail())
         end
     end
     if window.selectedTab and window.selectedTab.tabPage then
@@ -866,13 +870,16 @@ function settingsComponent.setSettingsMode(window, active)
         settingsComponent.buildUI(window)
     end
     window._settingsMode = active
+    if active then
+        window._changelogMode = false
+    end
     if active and window._previousTab == nil and window.selectedTab and not window.selectedTab._isSettingsTab then
         window._previousTab = window.selectedTab
     end
     for _, tab in window.tabs do
         if tab.topbarItem then
             tab.topbarItem.Visible = not window.hidden and not window.minimised
-                and (active == (tab._isSettingsTab == true))
+                and (window:_railGroup(tab) == window:_activeRail())
         end
     end
     settingsComponent.applySettingsLayout(window, active)

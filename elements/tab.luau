@@ -70,6 +70,7 @@ function state.new(window, a17)
         customOrder = a17.customOrder or a17.CustomOrder or 0,
                 forgetState = a17.forgetState or a17.ForgetState or false,
         _isSettingsTab = a17.isSettingsTab == true or a17.IsSettingsTab == true,
+        _isChangelogTab = a17.isChangelogTab == true or a17.IsChangelogTab == true,
         deriveFlagFromName = flagNames.deriveFlagFromName,
 
         elements = {},
@@ -192,10 +193,17 @@ function state:Select(a24)
     elseif self.window._applySettingsLayout then
         self.window:_applySettingsLayout(self == self.window.rfSettings)
     end
+    if self.window._setChangelogMode then
+        self.window:_setChangelogMode(self._isChangelogTab == true)
+    end
     -- [[Settings tab content is created lazily (after construction):]]
     -- [[make sure it exists before the page is shown.]]
     if self._isSettingsTab and self.window._constructed and self.window._buildSettingsContent ~= nil then
         self.window:_buildSettingsContent(self)
+    end
+    -- [[Changelog content is created lazily like settings content.]]
+    if self._isChangelogTab and self.window._constructed and self.window._buildChangelogContent ~= nil then
+        self.window:_buildChangelogContent(self)
     end
     self.window:_jumpTo(self.tabPage)
 
@@ -229,6 +237,15 @@ function state:Select(a24)
             self.window.settingsAction.iconLabel.ImageTransparency = actionTransparency
         else
             motion.tween(self.window.settingsAction.iconLabel, { ImageTransparency = actionTransparency }, "snappy")
+        end
+    end
+
+    if self.window.changelogAction then
+        local changelogTransparency = if self._isChangelogTab then 0 else 0.6
+        if a25 then
+            self.window.changelogAction.iconLabel.ImageTransparency = changelogTransparency
+        else
+            motion.tween(self.window.changelogAction.iconLabel, { ImageTransparency = changelogTransparency }, "snappy")
         end
     end
 end
@@ -278,7 +295,10 @@ function state:CreateText(a31)
 end
 
 function state:CreateChangelog(a32)
-    return self:_register(require(script.Parent.changelog).new(self, a32))
+    if self._isChangelogTab then
+        return self:_register(require(script.Parent.changelog).new(self, a32))
+    end
+    return self.window:_forwardChangelog(a32)
 end
 
 function state:CreateDivider(a32)
@@ -342,7 +362,7 @@ function state:Remove()
         for _, tab in ipairs(window.tabs) do
             if not tab.neglectSelector then
                 fallback = fallback or tab
-                if (tab._isSettingsTab == true) == (self._isSettingsTab == true) then
+                if window:_railGroup(tab) == window:_railGroup(self) then
                     fallback = tab
                     break
                 end

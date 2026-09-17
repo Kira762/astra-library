@@ -52,9 +52,11 @@ trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$WORK/out"
 
 # compile_one <file> — silent on success, prints the tool's diagnostics otherwise.
+# luau-compile writes bytecode to stdout (it has no --output flag), so the
+# blob is redirected into the work dir; only the exit code matters.
 compile_one() {
 	if [ -n "$LUAU_COMPILE" ]; then
-		"$LUAU_COMPILE" --binary --output "$WORK/out" "$1" >"$WORK/log" 2>&1
+		"$LUAU_COMPILE" --binary "$1" >"$WORK/out/blob" 2>"$WORK/log"
 	else
 		"$LUAU_BIN" --compile=binary "$1" >"$WORK/blob" 2>"$WORK/log"
 	fi
@@ -66,7 +68,7 @@ for dir in core components elements settings cache functions layouts images icon
 		FILES="$FILES $(find "$dir" -name '*.luau' | sort)"
 	fi
 done
-FILES="$FILES library_entrypoint.luau Types.luau example.client.luau version-1.luau"
+FILES="$FILES library_entrypoint.luau Types.luau example.client.luau changelog.example.luau version-1.luau"
 
 checked=0
 failed=0

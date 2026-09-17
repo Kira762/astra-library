@@ -2,6 +2,75 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-17 — Release history moves into a dedicated changelog panel
+
+Changelogs are no longer tab elements. Every window now ships a changelog view
+behind its own topbar action (left of search, separated by a divider):
+clicking it switches into changelog mode — only the release history is
+shown — and clicking again returns to the previous tab, exactly like the
+settings gear. Entering settings exits changelog mode and vice versa.
+
+- **Exclusivity, both directions.** The changelog view hosts only the
+  changelog renderer, and `Tab:CreateChangelog` (plus declarative
+  `{ type = "Changelog" }`) no longer builds UI anywhere else: calls from
+  tabs forward their entries into the window store with a one-time warning
+  and return a handle whose `Set`/`Refresh`/`Add`/`Clear` write the store,
+  so existing scripts keep running with their content moved. Declarative
+  children forward and build nothing (a handle has no `.main`, so it cannot
+  join the element tree).
+- **Data API.** `CreateWindow({ changelog = ... })` plus
+  `window:SetChangelog` (entries array or a full `{ name, entries, ... }`
+  table), `window:AddChangelogEntry(entry, prepend?)` and
+  `window:ClearChangelog()`. The store is the single source of truth; the
+  open view re-renders from it. Hosts are expected to keep history in its
+  own file — see the new `changelog.example.luau`, which
+  `example.client.luau` now points at.
+- **Red unread dot.** The action carries a fixed-red badge while the newest
+  entry (version + date + count) is newer than what was last viewed.
+  Opening the view records the marker in the changelog's own
+  `astra-changelog.rfld` file — config save/load/delete never touch it —
+  and first boot captures the construction entries as its baseline
+  silently, so the dot means strictly "changed since created or last
+  viewed".
+- Files: new `components/changelogPanel.luau` (store, marker, badge, lazy
+  shell/content, mode toggle) and `utilities/persistenceChangelog.luau`
+  (seen-store over the atomic writer); `Window:_railGroup`/`Window:_activeRail`
+  unify the three rail filters (settings, changelog, responsive width);
+  `Action` gains an optional badge; the topbar hide/settle loops fade badge
+  + divider with the actions (the hide loop also gains the `ImageLabel`
+  guard its siblings already had). `log.warn` no longer assumes a Roblox
+  `warn` global, so logging can never crash plain-Luau runtimes.
+- Verification: new `scripts/changelog_panel_test.sh` (construction,
+  toggle, settings exclusion, data API, redirect, cross-window seen
+  persistence, hide/show); the collapsible-group suite updated for the
+  forward; all 32 suites + smoke pass with a locally built Luau CLI; all
+  107 published files compile; require-graph and instance-field checks
+  pass. `version-1.luau` regenerated.
+
+## 2026-09-17 — Seventh icon pack: Remix Icon (3,229 glyphs)
+
+- `assets/icons/remix-pack/` gains 3,229 white-on-transparent 64x64 PNGs
+  rendered from upstream Remix Icon SVGs (c) Remix Design, Apache-2.0) via
+  the new `scripts/render_remix_pack.js` (@resvg/resvg-js);
+  `icons/remix.luau` catalogs them in the compact key-list form and
+  `icons/init.luau` appends `remix` last in priority order, so no existing
+  bare-name resolution changes. `Types.luau` (`IconPack`,
+  `IconCatalog.Remix`), the `assets/icons/README.md` index, the
+  seven-pack priority lists in `USAGE`/`README`/`MODULES`/skill references,
+  and `guides/remix.md` follow.
+- `scripts/generate_icon_guides.py` is rewritten for the compact catalog
+  form (it still parsed the old verbose tables, so re-running it produced
+  empty guides); regenerating leaves the six existing guides byte-identical.
+- `scripts/icons_test.luau` covers seven packs, last-pack laziness via a
+  remix-only name, and mixed-pack elements.
+- `scripts/check_syntax.sh` is repaired: it passed a bare `--output` path
+  the compiler never accepted into a target that is a directory, failing
+  every file; it now redirects the stdout blob, and the gate compiles all
+  107 published files.
+- Verification: icons suite + full 32-suite run + smoke pass with a
+  locally built Luau CLI; require-graph and instance-field checks pass.
+  `version-1.luau` regenerated (104 modules).
+
 ## 2026-09-16 — Grouped buttons keep the tap glyph after the label
 
 Compact buttons assigned sibling orders but left their `UIListLayout` at its

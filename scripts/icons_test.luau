@@ -47,7 +47,7 @@ local function eq(actual, wanted, message)
 end
 
 local Icons = Astra.Icons
-local PACK_ORDER = { "lucide", "material", "tabler", "phosphor", "heroicons", "feather" }
+local PACK_ORDER = { "lucide", "material", "tabler", "phosphor", "heroicons", "feather", "remix" }
 local ASSET_BASE = "https://raw.githubusercontent.com/Kira762/astra-version-1/main/"
 
 local function urlOf(path)
@@ -68,7 +68,7 @@ eq(type(Icons.loaded), "function", "I1 loaded")
 eq(type(Icons.refreshCustom), "function", "I1 refreshCustom")
 
 local packs = Icons.packs()
-eq(#packs, #PACK_ORDER, "I1 packs() lists all six packs")
+eq(#packs, #PACK_ORDER, "I1 packs() lists all seven packs")
 for index, name in ipairs(PACK_ORDER) do
 	eq(packs[index], name, "I1 packs() keeps its documented order (" .. name .. ")")
 	expect(Icons.isPack(name), "I1 isPack(" .. name .. ")")
@@ -76,6 +76,7 @@ for index, name in ipairs(PACK_ORDER) do
 end
 eq(Icons.Lucide, "lucide", "I1 Icons.Lucide")
 eq(Icons.Feather, "feather", "I1 Icons.Feather")
+eq(Icons.Remix, "remix", "I1 Icons.Remix")
 expect(not Icons.isPack("Lucide"), "I1 pack names are case-sensitive")
 expect(not Icons.isPack("nope"), "I1 unknown packs are not packs")
 
@@ -109,9 +110,12 @@ expect(tablerHome ~= nil, "I3 tabler has home")
 eq(Icons.get("home"), materialHome, "I3 the first pack in priority order wins a duplicate")
 expect(Icons.get("home") ~= tablerHome, "I3 the duplicate is not answered from a later pack")
 
-eq(Icons.get("bar-chart"), Icons.get("bar-chart", "feather"), "I3 the search reaches the last pack")
+eq(Icons.get("bar-chart"), Icons.get("bar-chart", "feather"), "I3 the search reaches a late pack")
 eq(Icons.resolve("bar-chart"), urlOf(Icons.get("bar-chart", "feather")), "I3 resolve of a late-pack name")
-expect(#Icons.loaded() == 6, "I3 only a name from the last pack loads all six")
+expect(#Icons.loaded() == 6, "I3 feather loads without touching the packs after it")
+eq(Icons.get("arrow-down-box-line"), Icons.get("arrow-down-box-line", "remix"), "I3 the search reaches the last pack")
+eq(Icons.resolve("arrow-down-box-line"), urlOf(Icons.get("arrow-down-box-line", "remix")), "I3 resolve of a last-pack name")
+expect(#Icons.loaded() == 7, "I3 only a name from the last pack loads all seven")
 
 -- ===== I4: every pack still reports its catalog ============================
 
@@ -121,6 +125,7 @@ for _, name in ipairs(PACK_ORDER) do
 end
 expect(type(Icons.lucide) == "table", "I4 direct pack access (Icons.lucide) still works")
 expect(type(Icons.feather) == "table", "I4 direct pack access (Icons.feather) still works")
+expect(type(Icons.remix) == "table", "I4 direct pack access (Icons.remix) works")
 
 -- ===== I5: explicit packs and pack-qualified names =========================
 
@@ -280,7 +285,7 @@ eq(window:ResolveIcon("rbxassetid://7"), "rbxassetid://7", "I12 the window passe
 eq(window:ResolveIcon("nope-nope"), "nope-nope", "I12 the window keeps the old fallback")
 
 local mixed = window:CreateTab({ name = "Mixed", icon = "tabler:brand-discord" })
-for _, name in { "lucide:house", "material:access_time", "feather:home", "tabler:brand-discord" } do
+for _, name in { "lucide:house", "material:access_time", "feather:home", "tabler:brand-discord", "remix:arrow-down-box-line" } do
     local button = mixed:CreateButton({ name = name, icon = name })
     eq(button.icon, Icons.resolve(name), "I12 elements in one window can use different packs")
 end

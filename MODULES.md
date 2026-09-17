@@ -25,7 +25,7 @@ Exported names (typed surface is `Types.luau`'s `Astra`): `CreateWindow`, `Icons
 `CreateWindow` side effects: enforces the anti-duplicate guard (persisted `antiWindowDuplicate` setting, per-window opt-out via `settings.antiWindowDuplicate`), in secure mode preloads window images (`Image.preload` → failure `Notify`) and swaps in the brand fonts via `ChangeTheme({ Font, TitleFont })` once the entrance has landed (a theme pass over every instance the window owns is not something to spend while the window is still arriving; `FONT_SETTLE_BUDGET` bounds the wait so a window that never shows still gets its font), then auto-`Show()`s the window on the next frame (a `task.defer` plus one heartbeat, so a script's first synchronous `CreateTab` calls land before the shell appears; remaining constructors stream in behind it in small budget-limited batches until the build goes quiet, and an explicit `Hide()` before that tick cancels it via `_autoShowCancelled`). The two secure-mode branches (optional-icon preload, brand-font swap) run as sibling threads under one guard.
 
 ### `example.client.luau`
-Usage example (not minified). Loads the bundle with the single-line loader — `local Astra = loadstring(game:HttpGet(url))()` — then builds one tab holding every supported element type: Section, Text, Stat, Divider, Button, Toggle, Slider, a single-select and a multi-select Dropdown, Input, Changelog, an ordinary Group and a Collapsible Group of declarative children. It ends with an explicit `elements:Select()` so the run is deterministic.
+Usage example (not minified). Loads the bundle with the single-line loader — `local Astra = loadstring(game:HttpGet(url))()` — then builds one tab holding every supported element type: Section, Text, Stat, Divider, Button, Toggle, Slider, a single-select and a multi-select Dropdown, Input, an ordinary Group and a Collapsible Group of declarative children; release history arrives via the `CreateWindow({ changelog })` prop (see `changelog.example.luau`). It ends with an explicit `elements:Select()` so the run is deterministic.
 
 ---
 
@@ -109,6 +109,11 @@ Public surface:
   property recording (`themeProperties`), locale-token binding
   (`_bindLocale`), image-guessed property assignment; tracks every instance
   for `Unload`.
+- `SetChangelog(entries)` / `AddChangelogEntry(entry, prepend?)` /
+  `ClearChangelog()` — window changelog data (store → view → badge);
+  `_forwardChangelog(props)` — the option-A redirect behind the legacy
+  `Tab:CreateChangelog`; `_railGroup(tab)` / `_activeRail()` — the
+  main/settings/changelog rail filters every visibility site shares.
 - `ChangeTheme`, `CreateTab`/`CreateSection`, `Notify`/`Toast`
   (both construct their card on the entrance queue's turn, see
   `components/overlayQueue.luau`)/`Popup`, `Show`/`Hide`/`ToggleHide`/`ToggleMinimise`, `Close` (animated
@@ -151,6 +156,19 @@ Dedicated settings component providing UI generation and management for Astra's 
 - `toggleSettingsMode(window)` — toggles between user tabs and settings tabs.
 - `setSettingsMode(window, active)` — applies visibility and layout for settings mode.
 - `applySettingsLayout(window, isSettings)` — manages tablist and layout visibility between modes.
+
+### `components/changelogPanel.luau`
+Window changelog data + dedicated mode (the settings-mode mirror for release
+history): `storeFromProps` (the `CreateWindow({ changelog })` shape),
+`marker` (newest version + date + entry count — what "new" means),
+`captureBaseline` (silent first boot: no stored marker yet, so the
+construction entries are written, not shown), `isNew` / `refreshBadge` (the
+red dot on the changelog topbar action), `markSeen` (viewing catches the
+stored marker up through `persistenceChangelog`), `buildUI` (lazy shell tab,
+`customOrder` 1005, `forgetState`, `isChangelogTab`) / `buildContent` (the
+single `elements/changelog` renderer, registered once), `toggleMode` /
+`setMode` (enter/exit with `_previousTab` restore and mutual exclusion with
+settings mode).
 
 ### `components/sidebar.luau`
 Tab-rail reflow (the profile system moved to `components/profilePanel.luau`):
@@ -461,9 +479,9 @@ Per-element specifics:
   silhouette on the same radius token.
 - `description.luau` — legacy in-card helper-line utility kept for bundle
   compatibility; public element constructors no longer read `description` props.
-- `tab.luau` — tab class: `tabPage` (ScrollingFrame), `_register(element)` pipeline into `window.controls[flag]`, selector button visuals.
+- `tab.luau` — tab class: `tabPage` (ScrollingFrame), `_register(element)` pipeline into `window.controls[flag]`, selector button visuals. `CreateChangelog` on a non-changelog tab forwards into the window store (option-A facade); only the changelog tab builds the real element.
 - `group.luau`, `section.luau`, `tabSection.luau` — container classes with UIListLayout locals.
-- `changelog.luau` — release-history element (`__type = "Changelog"`): normalizes `ChangelogEntry`/`ChangelogChange` props, maps symbols (`+`/`-`/`~`, or words like "added"/"removed"/"changed") to green/red/amber, fades entries in, supports `Set`/`Refresh`/`Add(entry, prepend?)`/`Clear`.
+- `changelog.luau` — release-history element (`__type = "Changelog"`): normalizes `ChangelogEntry`/`ChangelogChange` props, maps symbols (`+`/`-`/`~`, or words like "added"/"removed"/"changed") to green/red/amber, fades entries in, supports `Set`/`Refresh`/`Add(entry, prepend?)`/`Clear`. Renders only inside the changelog panel (`components/changelogPanel.luau` constructs it); `Tab:CreateChangelog` from anywhere else forwards into the window store.
 - `divider.luau`, `stat.luau`, `text.luau` — display and interaction elements.
 - `button.luau` — action card with a built-in right-edge tap glyph (`tapIcon` opts out or replaces it), themed through `ContentColor`, revealed with the card, and pulsed on press. Compact/grouped buttons explicitly sort their horizontal layout by `LayoutOrder`: optional custom icon, title, then built-in tap glyph.
 - `baseCard.luau` — shared card container and header layout helper for element modules.
@@ -538,7 +556,7 @@ Per-element specifics:
   `packs`, `count`, `isPack`, `priority`, `loaded`, `refreshCustom`) with lazy
   metatables per pack: a pack's data module is required on first lookup, then
   cached (`packLoaders` / `loadedPacks`). Name-only lookup walks the packs in
-  `PACK_ORDER` (lucide, material, tabler, phosphor, heroicons, feather) and
+  `PACK_ORDER` (lucide, material, tabler, phosphor, heroicons, feather, remix) and
   stops at the first hit, so the search is lazy as well as deterministic;
   `"pack:name"` (and the `pack` argument) address one pack exactly, and a
   mis-cased or unknown pack resolves to nothing rather than to a neighbouring
@@ -599,6 +617,9 @@ Per-element specifics:
   surface (`getPath`, `save`, `load`, `applyTo`, `list`, `delete`,
   `getSettingsPath`, `saveSettings`, `loadSettings`); required by the window
   and by `settings/persistence`.
+- `persistenceChangelog.luau` — the changelog seen-store (`astra-changelog.rfld`
+  beside settings, keyed by config identity): `getChangelogPath`,
+  `windowKey`, `loadSeen` (with temp-file fallback), `saveSeen` (atomic).
 - `layouts.luau` — per-mode metric tables (`chromeHeight`, `fadeSize`,
   `cardCorners`, …) and dispatch into the `layouts/` builders
   (`get`, `implementation`, `railWidthFor`).
@@ -636,6 +657,7 @@ Per-element specifics:
 | `keybind_input_test.sh` | Menu-toggle binding: the Settings menu binding is an `Input` field whose typed text commits an `EnumItem` (case/alias tolerant, `MB2`, `none`/empty clearing), refuses junk and left click without saving, keeps typing inside the field from toggling the window, and still toggles it afterwards. |
 | `slider_travel_test.sh` | Slider knob travel: the capsule's centre stays half a knob inside each track end (resting, held and after release), so it never overlaps the track end or card edge at max/min, and the fill ends at the knob's centre. |
 | `icons_test.sh` | Icon resolver: name-only lookup across the packs in priority order (and how lazily they load), qualified `pack:name`, case sensitivity, unknown-pack warnings, custom assets (one import per path, memoised misses, the `listfiles` index), cache-key separation, and `window:ResolveIcon`. |
+| `changelog_panel_test.sh` | Changelog panel: topbar action + divider order, lazy exclusive view, settings mutual exclusion, Set/Add/Clear, the CreateChangelog redirect, badge + seen persistence across windows, hide/show chrome. |
 | `motion_test.sh` | Motion service: shared specs, time scale + its cache, profiles, tween ownership (cancel-on-overlap vs. unrelated properties), the no-op and animation-off paths, the window's "Animation speed" setting, and hover going through the service. |
 
 All of them assemble `scripts/sidebar_sizing_stubs.luau` + `version-1.luau`
@@ -655,3 +677,4 @@ When touching a minified file, re-minify only that file, then
 `luau-compile` it and run `scripts/check_requires.py`,
 `scripts/check_instance_fields.py`, and `node scripts/generate_bundle.js`.
 (Validate against the full tree with `scripts/smoke_test_bundle.sh`.)
+h`.)

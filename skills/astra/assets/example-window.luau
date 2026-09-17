@@ -149,17 +149,15 @@ about:CreateText({
     icon = "sparkles",
 })
 
-about:CreateChangelog({
-    name = "Release history",
-    entries = {
-        {
-            version = "v1",
-            date = "Live",
-            title = "Starter hub",
-            changes = {
-                { symbol = "+", category = "Added", text = "Tabs, every element type and a Collapsible Group." },
-                { symbol = "~", text = "Flags belong to the built-in Save/Load system." },
-            },
+-- [[Release history feeds the window changelog panel (topbar action).]]
+window:SetChangelog({
+    {
+        version = "v1",
+        date = "Live",
+        title = "Starter hub",
+        changes = {
+            { symbol = "+", category = "Added", text = "Tabs, every element type and a Collapsible Group." },
+            { symbol = "~", text = "Flags belong to the built-in Save/Load system." },
         },
     },
 })

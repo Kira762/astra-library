@@ -15,6 +15,7 @@ local search = require(script.Parent.search)
 local tabSelector = require(script.Parent.tabSelector)
 local profilePanel = require(script.Parent.profilePanel)
 local settingsComponent = require(script.Parent.settings)
+local changelogPanel = require(script.Parent.changelogPanel)
 local overlayQueue = require(script.Parent.overlayQueue)
 
 local state = require(utilities.Parent.core.state)
@@ -185,6 +186,7 @@ function Window.new(props)
         _settingsLayoutActive = false,
         _settingsTabs = {},
         _settingsMode = false,
+        _changelogMode = false,
         theme = resolveTheme(props.theme or props.Theme),
 
         controls = {},
@@ -497,6 +499,15 @@ function Window.new(props)
 
     self:_constructionCheckpoint(true)
 
+    -- [[Window-level changelog store. Entries come from CreateWindow's]]
+    -- [[`changelog` prop or the Set/Add/Clear methods; the built-in changelog]]
+    -- [[tab is the only surface that renders them (see changelogPanel).]]
+    self._changelog = changelogPanel.storeFromProps(props.changelog or props.Changelog)
+    self._changelogSeen = changelogPanel.loadSeen(self)
+    changelogPanel.captureBaseline(self)
+    self._changelogRedirectWarned = false
+
+
     self.rfSettings = self:CreateTab({
         name = "General",
         icon = "sliders-horizontal",
@@ -553,6 +564,28 @@ function Window.new(props)
             self:_toggleSettingsMode()
         end,
     })
+
+    self.changelogDivider = self:Create("Frame", {
+        Name = "Divider",
+        LayoutOrder = -5,
+        Size = UDim2.fromOffset(1, 14),
+        BorderSizePixel = 0,
+        BackgroundTransparency = 1,
+        Parent = self.actionContainer,
+    }, { BackgroundColor3 = "ActionColor" })
+
+    self.changelogAction = require(script.Parent.action).new(self, {
+        name = "Changelog",
+        icon = "scroll-text",
+        order = 6,
+        badge = true,
+
+        callback = function()
+            self:_toggleChangelogMode()
+        end,
+    })
+    changelogPanel.refreshBadge(self, false)
+
 
     search.build(self)
         self:_applyRailWidth()
@@ -813,7 +846,7 @@ function Window:CreateTab(props)
     if not tab.neglectSelector then
         local isFirst = true
         for _, existingTab in self.tabs do
-            if existingTab ~= tab and not existingTab.neglectSelector and existingTab._isSettingsTab == tab._isSettingsTab then
+            if existingTab ~= tab and not existingTab.neglectSelector and self:_railGroup(existingTab) == self:_railGroup(tab) then
                 isFirst = false
                 break
             end
@@ -1167,8 +1200,11 @@ function Window:Hide()
     end
 
     for _, actionFrame in ipairs(self.actionContainer:GetChildren()) do
-        if actionFrame:IsA("Frame") then
+        if actionFrame:IsA("Frame") and actionFrame.ImageLabel then
             motion.tween(actionFrame.ImageLabel, { ImageTransparency = 1 }, hideTween)
+        end
+        if actionFrame:IsA("Frame") then
+            self:_syncActionChrome(actionFrame, false, hideTween)
         end
     end
 
@@ -1540,7 +1576,7 @@ function Window:_applyRailWidth()
     local implementation = layouts.implementation(layoutKey(self.layout))
     implementation.ApplyWidth(self, self:_railWidth())
 
-    if self._settingsLayoutActive or self.selectedTab == self.rfSettings then
+    if self._settingsLayoutActive or self._changelogLayoutActive or self.selectedTab == self.rfSettings then
         self:_applySettingsLayout(true)
     end
 end
@@ -2148,6 +2184,169 @@ function Window:_applySettingsLayout(isSettings)
     settingsComponent.applySettingsLayout(self, isSettings)
 end
 
+-- [[Rail groups: the rail shows exactly one group at a time - main tabs,]]
+-- [[settings tabs, or the changelog tab. Every rail filter reads these two]]
+-- [[helpers so the three of them cannot drift apart.]]
+function Window:_railGroup(tab)
+    if tab._isChangelogTab then
+        return "changelog"
+    end
+    if tab._isSettingsTab then
+        return "settings"
+    end
+    return "main"
+end
+
+function Window:_activeRail()
+    if self._changelogMode then
+        return "changelog"
+    end
+    if self._settingsMode then
+        return "settings"
+    end
+    return "main"
+end
+
+-- [[Badge + divider follow their action frame: hidden with them, restored]]
+-- [[with them. The badge restores to opaque only while it is meant to show.]]
+function Window:_syncActionChrome(actionFrame, shown, tween)
+    local badge = actionFrame:FindFirstChild("Badge")
+    if badge then
+        local badgeTarget = if shown and badge.Visible then 0 else 1
+        if tween then
+            motion.tween(badge, { BackgroundTransparency = badgeTarget }, tween)
+        else
+            badge.BackgroundTransparency = badgeTarget
+        end
+    end
+    if actionFrame.Name == "Divider" then
+        local dividerTarget = if shown then 0.8 else 1
+        if tween then
+            motion.tween(actionFrame, { BackgroundTransparency = dividerTarget }, tween)
+        else
+            actionFrame.BackgroundTransparency = dividerTarget
+        end
+    end
+end
+
+function Window:_toggleChangelogMode()
+    changelogPanel.toggleMode(self)
+end
+
+function Window:_setChangelogMode(active)
+    changelogPanel.setMode(self, active)
+end
+
+function Window:_buildChangelogUI()
+    changelogPanel.buildUI(self)
+end
+
+function Window:_buildChangelogContent(tab)
+    changelogPanel.buildContent(self, tab)
+end
+
+function Window:_pushChangelogToView()
+    local tab = self._changelogTab
+    if tab and tab._changelogElement then
+        tab._changelogElement:Set(self._changelog.entries)
+    end
+end
+
+-- [[Window changelog data. The store is the single source of truth; the]]
+-- [[built-in view (once opened) re-renders from it, and the badge answers]]
+-- [[whether the newest entry is newer than what was last seen. SetChangelog]]
+-- [[takes an entries array, or a full props table ({ name, entries, ... })]]
+-- [[like the one required from a changelog data file.]]
+function Window:SetChangelog(entries)
+    assert(not self.unloaded, "Cannot set the changelog on an unloaded window.")
+    local props = if typeof(entries) == "table"
+            and (entries.entries ~= nil or entries.Entries ~= nil)
+        then entries
+        else { entries = entries }
+    local store = changelogPanel.storeFromProps(props)
+    self._changelog.entries = store.entries
+    local name = props.name or props.Name
+    if name ~= nil then
+        self._changelog.name = tostring(name)
+    end
+    local emptyText = props.emptyText or props.EmptyText
+    if emptyText ~= nil then
+        self._changelog.emptyText = tostring(emptyText)
+    end
+    self:_pushChangelogToView()
+    changelogPanel.refreshBadge(self, true)
+end
+
+function Window:AddChangelogEntry(entry, prepend)
+    assert(not self.unloaded, "Cannot add a changelog entry on an unloaded window.")
+    if prepend == false then
+        table.insert(self._changelog.entries, entry)
+    else
+        table.insert(self._changelog.entries, 1, entry)
+    end
+    self:_pushChangelogToView()
+    changelogPanel.refreshBadge(self, true)
+end
+
+function Window:ClearChangelog()
+    assert(not self.unloaded, "Cannot clear the changelog on an unloaded window.")
+    table.clear(self._changelog.entries)
+    self:_pushChangelogToView()
+    changelogPanel.refreshBadge(self, true)
+end
+
+-- [[Option-A deprecation: changelogs render only in the changelog space, so a]]
+-- [[CreateChangelog call from anywhere else forwards its entries into the]]
+-- [[window store (where the changelog view shows them) and hands back a]]
+-- [[handle shaped like the old element, so existing scripts keep running.]]
+function Window:_forwardChangelog(props)
+    props = if typeof(props) == "table" then props else {}
+    if not self._changelogRedirectWarned then
+        self._changelogRedirectWarned = true
+        log.warn("Astra: CreateChangelog now feeds the window changelog - entries render in the changelog panel, not on the tab. Pass entries to CreateWindow ({ changelog = ... }) or window:SetChangelog instead.")
+    end
+    local raw = props.entries or props.Entries
+    if typeof(raw) == "table" then
+        for _, entry in ipairs(raw) do
+            table.insert(self._changelog.entries, entry)
+        end
+        self:_pushChangelogToView()
+        changelogPanel.refreshBadge(self, true)
+    end
+    local window = self
+    local facade = {
+        window = window,
+        name = tostring(props.name or props.Name or window._changelog.name),
+    }
+    function facade:Set(entries)
+        window:SetChangelog(entries)
+    end
+    function facade:Refresh(entries)
+        window:SetChangelog(entries)
+    end
+    function facade:Add(entry, prepend)
+        window:AddChangelogEntry(entry, prepend)
+    end
+    function facade:Clear()
+        window:ClearChangelog()
+    end
+    function facade:MoveTo(_index) end
+    function facade:MoveToTop() end
+    function facade:MoveToBottom() end
+    function facade:MoveUp() end
+    function facade:MoveDown() end
+    setmetatable(facade, {
+        __index = function(_, key)
+            if key == "entries" then
+                return window._changelog.entries
+            end
+            return nil
+        end,
+    })
+    return facade
+end
+
+
 -- [[Shared by the topbar gear action and the profile panel's gear.]]
 function Window:_toggleSettingsMode()
     settingsComponent.toggleSettingsMode(self)
@@ -2425,6 +2624,9 @@ function Window:_quickRestore()
         if actionFrame:IsA("Frame") and actionFrame.ImageLabel then
             actionFrame.ImageLabel.ImageTransparency = 0.6
         end
+        if actionFrame:IsA("Frame") then
+            self:_syncActionChrome(actionFrame, true)
+        end
     end
 
     -- [[Same contract as the first show: run the settle path from the tween's
@@ -2525,6 +2727,9 @@ function Window:_firstShow()
         if actionFrame:IsA("Frame") and actionFrame.ImageLabel then
             actionFrame.ImageLabel.ImageTransparency = 1
             motion.tween(actionFrame.ImageLabel, { ImageTransparency = 0.6 }, tweenInfo)
+        end
+        if actionFrame:IsA("Frame") then
+            self:_syncActionChrome(actionFrame, true, tweenInfo)
         end
     end
 

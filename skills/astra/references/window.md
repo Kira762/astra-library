@@ -16,6 +16,7 @@
 | `window:Save(name?)` / `window:Load(name?)` | Write/read a saved config of flagged values. |
 | `window:ListConfigs()` / `DeleteConfig(name)` | Saved-config bookkeeping. |
 | `window:Get(flag)` / `window:Set(flag, value)` | Read/write a registered flag. |
+| `window:SetChangelog(entries)` / `AddChangelogEntry(entry, prepend?)` / `ClearChangelog()` | Window changelog data (entries newest-first). |
 | `window.Flags` | Table of every registered flag's current value. |
 | `window:ChangeTheme(theme)` | Built-in name or a partial theme table. |
 | `window:SetLocale(id)` / `SetTranslator(fn)` / `RegisterTranslations(t)` | Localisation. |
@@ -95,6 +96,16 @@ previous tab. User code does not build these tabs.
 | **Persistence** | Auto Save Config, Auto Load Config, saved-configurations dropdown with name input and Save/Load/Delete. |
 | **About** | Library info and links. |
 
+## Changelog panel (window-scoped)
+
+Reached through the document action in the topbar (left of search); clicking it
+again returns to the previous tab, and entering settings exits changelog mode
+and vice versa. The view hosts only the release history — user code feeds it
+data via the `changelog` prop or `SetChangelog`/`AddChangelogEntry`/
+`ClearChangelog`, never builds UI inside it. A red dot on the action marks
+entries newer than last viewed (own config file, cleared on open, silent on
+first boot).
+
 ## Themes
 
 Built-ins: `default`, `amethyst`, `cobalt`, `crimson`, `ember`, `emerald`, `frost`,
@@ -125,7 +136,7 @@ Astra.Icons.priority() Astra.Icons.loaded()
 Astra.Icons.refreshCustom()           -- re-read custom_asset/
 ```
 
-- Pack priority: **lucide → material → tabler → phosphor → heroicons → feather**.
+- Pack priority: **lucide → material → tabler → phosphor → heroicons → feather → remix**.
   The first pack containing a bare name wins; the search is lazy, so a lucide name
   reads one pack.
 - Lookups are exact and case-sensitive: `Home`, `HOME` and `Lucide:house` do not

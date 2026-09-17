@@ -1200,8 +1200,9 @@ function Window:Hide()
     end
 
     for _, actionFrame in ipairs(self.actionContainer:GetChildren()) do
-        if actionFrame:IsA("Frame") and actionFrame.ImageLabel then
-            motion.tween(actionFrame.ImageLabel, { ImageTransparency = 1 }, hideTween)
+        local iconLabel = self:_actionIconLabel(actionFrame)
+        if iconLabel then
+            motion.tween(iconLabel, { ImageTransparency = 1 }, hideTween)
         end
         if actionFrame:IsA("Frame") then
             self:_syncActionChrome(actionFrame, false, hideTween)
@@ -2207,6 +2208,17 @@ function Window:_activeRail()
     return "main"
 end
 
+-- [[The icon label of a topbar action frame, or nil. `frame.ImageLabel` is a]]
+-- [[direct child read on Roblox, not a safe one: the action container also]]
+-- [[holds chrome with no icon - the changelog divider, the search pill, a]]
+-- [[future element - and indexing a missing child raises "ImageLabel is not]]
+-- [[a valid member of Frame". That is how the divider added with the]]
+-- [[changelog panel took the first Show() down, so every action-loop read]]
+-- [[goes through here instead.]]
+function Window:_actionIconLabel(actionFrame)
+    return actionFrame:FindFirstChild("ImageLabel")
+end
+
 -- [[Badge + divider follow their action frame: hidden with them, restored]]
 -- [[with them. The badge restores to opaque only while it is meant to show.]]
 function Window:_syncActionChrome(actionFrame, shown, tween)
@@ -2621,8 +2633,9 @@ function Window:_quickRestore()
         self.subtitle.TextTransparency = 0.7
     end
     for _, actionFrame in ipairs(self.actionContainer:GetChildren()) do
-        if actionFrame:IsA("Frame") and actionFrame.ImageLabel then
-            actionFrame.ImageLabel.ImageTransparency = 0.6
+        local iconLabel = self:_actionIconLabel(actionFrame)
+        if iconLabel then
+            iconLabel.ImageTransparency = 0.6
         end
         if actionFrame:IsA("Frame") then
             self:_syncActionChrome(actionFrame, true)
@@ -2724,9 +2737,10 @@ function Window:_firstShow()
         motion.tween(self.subtitle, { TextTransparency = 0.7 }, tweenInfo)
     end
     for _, actionFrame in ipairs(self.actionContainer:GetChildren()) do
-        if actionFrame:IsA("Frame") and actionFrame.ImageLabel then
-            actionFrame.ImageLabel.ImageTransparency = 1
-            motion.tween(actionFrame.ImageLabel, { ImageTransparency = 0.6 }, tweenInfo)
+        local iconLabel = self:_actionIconLabel(actionFrame)
+        if iconLabel then
+            iconLabel.ImageTransparency = 1
+            motion.tween(iconLabel, { ImageTransparency = 0.6 }, tweenInfo)
         end
         if actionFrame:IsA("Frame") then
             self:_syncActionChrome(actionFrame, true, tweenInfo)

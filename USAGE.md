@@ -154,6 +154,7 @@ Titles, themes, and every window method.
 | `window:ListConfigs()` | Array of saved config names. |
 | `window:DeleteConfig(name)` | Delete a saved config. |
 | `window:Get(flag)` / `window:Set(flag, value)` | Read/write by flag. |
+| `window:SetChangelog(entries)` / `window:AddChangelogEntry(entry, prepend?)` / `window:ClearChangelog()` | Window changelog data (entries newest-first). |
 | `window:ChangeTheme(theme)` | Swap theme at runtime. |
 | `window:SetLocale(id)` / `window:SetTranslator(fn)` / `window:RegisterTranslations(t)` | Localisation. |
 | `window:ResolveIcon(value, pack?)` | Icon name → asset id. |
@@ -198,7 +199,7 @@ local col = row:CreateGroup({ direction = "column" }) -- nested column
 col:CreateToggle({ name = "Left 1" })
 ```
 
-Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateStat`, `CreateSection`, `CreateText`, `CreateChangelog`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup`.
+Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup`.
 
 Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
 
@@ -306,35 +307,45 @@ local col = row:CreateGroup({ direction = "column" })
 col:CreateToggle({ name = "Left 1" })
 ```
 
-### Changelog
+### Changelog panel (window only)
 
-Scrollable release-history element with `+` (added), `-` (removed) and `~` (changed) change symbols, rendered in green/red/amber.
+Every window ships a dedicated changelog view (document action in the topbar, left of search). Clicking it switches into changelog mode — only the release history is shown — and clicking it again returns to the previous tab. Entering settings exits changelog mode and vice versa.
+
+Changelogs render **only** here: tabs, settings tabs and Collapsible Groups cannot host them. Feed the view with data instead of building UI:
 
 ```lua
-local log = tab:CreateChangelog({
-    name = "Release history",
-    emptyText = "No entries yet.",   -- optional
-    entries = {
-        {
-            version = "0.0.35",
-            date = "2026-09-11",
-            game = "Game Name",      -- optional, game = "..." or gameId = number
-            title = "Settings highlight",
-            changes = {
-                { symbol = "~", category = "Fixed", text = "Settings stays highlighted while its tab is active." },
-                { symbol = "+", text = "Added the Changelog element." },
-                { symbol = "-", text = "Removed the old sub-tab API." },
+local window = Astra:CreateWindow({
+    name = "My Hub",
+    changelog = {
+        name = "Release history",
+        emptyText = "No entries yet.",   -- optional
+        entries = {                      -- newest-first
+            {
+                version = "0.0.35",
+                date = "2026-09-11",
+                game = "Game Name",      -- optional, game = "..." or gameId = number
+                title = "Settings highlight",
+                changes = {
+                    { symbol = "~", category = "Fixed", text = "Settings stays highlighted while its tab is active." },
+                    { symbol = "+", text = "Added the changelog panel." },
+                    { symbol = "-", text = "Removed the old sub-tab API." },
+                },
             },
         },
     },
 })
 
-log:Add({ version = "Test", date = "Live", changes = { { symbol = "+", text = "Runtime entry." } } })  -- prepends by default
-log:Add(entry, false)  -- append at the end instead
-log:Set({ ... })       -- replace all entries
-log:Refresh({ ... })   -- alias of Set
-log:Clear()
+window:AddChangelogEntry({ version = "Test", date = "Live", changes = { { symbol = "+", text = "Runtime entry." } } })  -- prepends by default
+window:AddChangelogEntry(entry, false)  -- append at the end instead
+window:SetChangelog({ ... })           -- replace all entries (a full { name, entries, ... } table works too)
+window:ClearChangelog()
 ```
+
+Symbols work as before: `+` (added, green), `-` (removed, red), `~` (changed, amber), with word forms (`"added"`, `"removed"`, `"changed"`) mapping to the same colours. Keep the history in its own file (see `changelog.example.luau`) and require it into the `changelog` prop.
+
+A red dot on the action marks entries newer than what was last viewed: opening the view clears it and records the newest entry in the changelog's own config file (untouched by config save/load/delete), and the dot returns only when a newer entry arrives.
+
+`tab:CreateChangelog` from older scripts keeps working by forwarding its entries into the window store (with a one-time warning) and returning a handle whose `Set`/`Refresh`/`Add`/`Clear` write the store — but new code should use the window API above.
 
 ### Built-in Settings (window only)
 
@@ -392,7 +403,7 @@ window:ResolveIcon("feather:home")      -- selects one exact icon
 No window-wide `iconPack` option is needed.
 
 **Name-only lookup.** A bare name is searched in every pack, in a fixed order —
-lucide, material, tabler, phosphor, heroicons, feather (`Astra.Icons.priority()`) —
+lucide, material, tabler, phosphor, heroicons, feather, remix (`Astra.Icons.priority()`) —
 and the first pack that has it wins. Nothing to pick, nothing to configure: lucide
 spells the home glyph `house`, material has no `house` but has `home`, so both
 `get("house")` and `get("home")` work, the latter from material. A name that exists
@@ -420,7 +431,7 @@ Icon names resolve to 48x48 PNGs that ship in this repo under
 `rbxassetid` lookups are needed. Values already usable as-is — numbers,
 `rbxassetid://…`, `rbxasset://…`, `rbxthumb://…`, `http(s)://…` — pass through
 untouched, and an unresolved value comes back unchanged. See
-[the visual icon catalog](assets/icons/README.md) for previews and copyable names across all six packs.
+[the visual icon catalog](assets/icons/README.md) for previews and copyable names across all seven packs.
 
 **Custom assets.** A `custom_asset/` folder next to your script takes precedence
 over the packs at resolve time: one file per icon name, in `.png`, `.jpg`, `.jpeg`,
@@ -485,7 +496,7 @@ window:SetTranslator(function(source, localeId) return ... end)
 
 ### Full example
 
-See `example.client.luau` — a single-tab example that loads the bundle with the one-line loader above and builds every element type (including ordinary and Collapsible Groups and the Changelog element) end to end.
+See `example.client.luau` — a single-tab example that loads the bundle with the one-line loader above and builds every element type (including ordinary and Collapsible Groups; release history arrives via the window's changelog prop) end to end.
 
 ---
 
@@ -503,6 +514,7 @@ local window = Astra:CreateWindow({
     translator = function(source, localeId) return ... end,  -- optional custom translator
     locale = "en",
     translations = { ... },
+    changelog = { ... },       -- release history for the changelog panel (see Changelog panel)
 })
 ```
 Layout is **not** a CreateWindow prop — switch it in **Settings → Appearance → Bar Layout**.
@@ -598,7 +610,7 @@ local playerControls = tab:CreateCollapsibleGroup({
 
 **Supported types:** `Button`, `Toggle`, `Switch` (declarative alias of the
 toggle control), `Slider`, `Dropdown`, `Input`, `Stat`,
-`Section`, `Text`, `Changelog`, `Divider`, and ordinary `Group`. Each uses the
+`Section`, `Text`, `Divider`, and ordinary `Group`. Each uses the
 same properties and implementation as its normal `Create…` method, including
 the optional `description` helper line. `elements` can be omitted for an empty
 header.
@@ -611,6 +623,7 @@ chosen element is silently discarded. Ordinary Groups may contain ordinary Group
 Group. Invalid types, sparse lists, and cyclic/nested Collapsible Group definitions
 are rejected before creating any UI.
 
+- A `{ type = "Changelog", ... }` child still validates but forwards its entries into the window changelog instead of building UI (changelogs render only in the changelog panel).
 - Every Collapsible Group starts collapsed; there is no `expanded` usage property.
 - Click the header to open/close. Multiple groups operate independently.
 - Expansion uses Astra's motion service, including the instant-motion setting.

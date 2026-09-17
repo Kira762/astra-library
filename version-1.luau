@@ -246,38 +246,7 @@ export type Theme = string | { [string]: any }
 export type Translator = (source: string, localeId: string) -> string?
 
 export type Translations = { [string]: { [string]: string } }
-export type IconPack = "lucide" | "material" | "tabler" | "phosphor" | "heroicons" | "feather"
-
-export type WindowConfiguration = {
-    autoSave: boolean?,
-    autoLoad: boolean?,
-    fileName: string?,
-    customFolder: string?,
-}
-
-export type WindowProps = {
-    name: string?,
-    subtitle: string?,
-    theme: Theme?,
-    icon: (string | number)?,
-    showName: string?,
-    showIcon: (string | number)?,
-    showIconOnly: boolean?,     profile: string?,     configuration: WindowConfiguration?,
-    fallbackFont: (Font | Enum.Font)?,     locale: string?,     translations: Translations?,     translator: Translator?, }
-
-export type TabProps = {
-    name: string?,
-    icon: (string | number)?,
-}
-
-export type SectionProps = {
-    name: string?,
-    icon: (string | number)?,
-}
-
-export type TextProps = {
-    name: string?,     text: string?,     icon: (string | number)?,
-}
+export type IconPack = "lucide" | "material" | "tabler" | "phosphor" | "heroicons" | "feather" | "remix"
 
 export type ChangelogChange = {
     symbol: string?,
@@ -298,6 +267,37 @@ export type ChangelogProps = {
     name: string?,
     emptyText: string?,
     entries: { ChangelogEntry }?,
+}
+
+export type WindowConfiguration = {
+    autoSave: boolean?,
+    autoLoad: boolean?,
+    fileName: string?,
+    customFolder: string?,
+}
+
+export type WindowProps = {
+    name: string?,
+    subtitle: string?,
+    theme: Theme?,
+    icon: (string | number)?,
+    showName: string?,
+    showIcon: (string | number)?,
+    showIconOnly: boolean?,     profile: string?,     configuration: WindowConfiguration?,
+    fallbackFont: (Font | Enum.Font)?,     locale: string?,     translations: Translations?,     translator: Translator?,     changelog: ChangelogProps?, }
+
+export type TabProps = {
+    name: string?,
+    icon: (string | number)?,
+}
+
+export type SectionProps = {
+    name: string?,
+    icon: (string | number)?,
+}
+
+export type TextProps = {
+    name: string?,     text: string?,     icon: (string | number)?,
 }
 
 export type DividerProps = {
@@ -517,6 +517,7 @@ export type Tab = {
     CreateStat: (self: Tab, props: StatProps) -> Stat,
     CreateSection: (self: Tab, props: SectionProps) -> Section,
     CreateText: (self: Tab, props: TextProps) -> Text,
+    -- Redirected into the window changelog store (see Window:SetChangelog).
     CreateChangelog: (self: Tab, props: ChangelogProps) -> Changelog,
     CreateDivider: (self: Tab, props: DividerProps?) -> Divider,
     CreateGroup: (self: Tab, props: GroupProps?) -> Group,
@@ -546,6 +547,9 @@ export type Window = {
     GetPath: (self: Window) -> (string, string),
     Get: (self: Window, flag: string) -> any,
     Set: (self: Window, flag: string, value: any) -> boolean,
+    SetChangelog: (self: Window, entries: { ChangelogEntry } | ChangelogProps) -> (),
+    AddChangelogEntry: (self: Window, entry: ChangelogEntry, prepend: boolean?) -> (),
+    ClearChangelog: (self: Window) -> (),
     Unload: (self: Window) -> (),
 }
 
@@ -556,6 +560,7 @@ export type IconCatalog = {
     Phosphor: IconPack,
     Heroicons: IconPack,
     Feather: IconPack,
+    Remix: IconPack,
     -- [[`name` may be a bare icon name (searched in every pack, in priority]]
     -- [[order) or a pack-qualified `"pack:name"`; `pack` addresses one pack.]]
     get: (name: string, pack: IconPack?) -> string?,
@@ -866,6 +871,28 @@ function Action.new(window, props)
         Parent = self.action,
     })
 
+    -- [[Optional unread dot (changelog): a fixed red badge pinned to the]]
+    -- [[action's top-right corner. Fixed red like the changelog's symbol]]
+    -- [[colors, so it always reads as red on any theme. Created after the]]
+    -- [[interact button so it renders above it; frames sink no input.]]
+    if props.badge or props.Badge then
+        self.badge = self.window:Create("Frame", {
+            Name = "Badge",
+            AnchorPoint = Vector2.new(1, 0),
+            Position = UDim2.new(1, 1, 0, -1),
+            Size = UDim2.fromOffset(8, 8),
+            BorderSizePixel = 0,
+            BackgroundColor3 = Color3.fromRGB(239, 68, 68),
+            BackgroundTransparency = 1,
+            Visible = false,
+            Parent = self.action,
+        })
+        self.window:Create("UICorner", {
+            CornerRadius = UDim.new(1, 0),
+            Parent = self.badge,
+        })
+    end
+
     local function idleTransparency()
         if self.window.unloaded then
             return
@@ -908,10 +935,244 @@ function Action.new(window, props)
     return self
 end
 
+function Action:SetBadge(shown, animate)
+    if not self.badge or self.window.unloaded then
+        return
+    end
+    self.badge.Visible = shown == true
+    local target = if shown then 0 else 1
+    if animate == false or not self.window:_interactive() then
+        self.badge.BackgroundTransparency = target
+        return
+    end
+    motion.tween(self.badge, { BackgroundTransparency = target }, "snappy")
+end
+
+
 return Action
 
 end)() end,
     [10] = function()local wax,script,require=ImportGlobals(10)local ImportGlobals return (function(...)
+local utilities = script.Parent.Parent.utilities
+
+local persistence = require(utilities.persistence)
+
+local changelogPanel = {}
+
+local DEFAULT_NAME = "Changelog"
+local DEFAULT_EMPTY = "No changelog entries yet."
+
+local function readRaw(entry, lower, upper)
+    if type(entry) ~= "table" then
+        return nil
+    end
+    local value = entry[lower]
+    if value == nil then
+        value = entry[upper]
+    end
+    return value
+end
+
+-- [[What "new" means: the newest entry's version + date plus the entry count,]]
+-- [[so a new release, a re-dated entry, or any add/remove trips the dot.]]
+-- [[Entries are newest-first (window:AddChangelogEntry prepends).]]
+function changelogPanel.marker(entries): string?
+    if type(entries) ~= "table" or #entries == 0 then
+        return nil
+    end
+    local newest = entries[1]
+    if type(newest) ~= "table" then
+        return "count:" .. #entries
+    end
+    local version = readRaw(newest, "version", "Version") or ""
+    local date = readRaw(newest, "date", "Date")
+    if date == nil then
+        date = readRaw(newest, "updatedAt", "UpdatedAt")
+    end
+    return tostring(version) .. "\n" .. tostring(date or "") .. "\n" .. #entries
+end
+
+function changelogPanel.storeFromProps(props)
+    props = if typeof(props) == "table" then props else {}
+    local entries = {}
+    local raw = props.entries or props.Entries
+    if typeof(raw) == "table" then
+        for _, entry in ipairs(raw) do
+            table.insert(entries, entry)
+        end
+    end
+    return {
+        name = tostring(props.name or props.Name or DEFAULT_NAME),
+        emptyText = tostring(props.emptyText or props.EmptyText or DEFAULT_EMPTY),
+        entries = entries,
+    }
+end
+
+function changelogPanel.loadSeen(window): { [string]: string }
+    local ok, seen = pcall(persistence.loadChangelogSeen)
+    if not ok or type(seen) ~= "table" then
+        return {}
+    end
+    return seen
+end
+
+function changelogPanel.isNew(window): boolean
+    local store = window._changelog
+    if not store then
+        return false
+    end
+    local marker = changelogPanel.marker(store.entries)
+    if not marker then
+        return false
+    end
+    local key = persistence.windowChangelogKey(window)
+    return window._changelogSeen[key] ~= marker
+end
+
+function changelogPanel.refreshBadge(window, animate)
+    if not window.changelogAction then
+        return
+    end
+    window.changelogAction:SetBadge(changelogPanel.isNew(window), animate)
+end
+
+-- [[Viewing marks seen: the stored marker catches up, the file is written]]
+-- [[through, and the dot fades out. Idempotent - re-opening the same history]]
+-- [[writes nothing. With no entries there is nothing to mark.]]
+function changelogPanel.markSeen(window)
+    local store = window._changelog
+    if not store then
+        return
+    end
+    local marker = changelogPanel.marker(store.entries)
+    if not marker then
+        changelogPanel.refreshBadge(window, true)
+        return
+    end
+    local key = persistence.windowChangelogKey(window)
+    if window._changelogSeen[key] == marker then
+        changelogPanel.refreshBadge(window, true)
+        return
+    end
+    window._changelogSeen[key] = marker
+    pcall(persistence.saveChangelogSeen, window._changelogSeen)
+    changelogPanel.refreshBadge(window, true)
+end
+
+-- [[Silent first boot: when the window has no stored marker yet, the entries]]
+-- [[it was constructed with become the baseline (written, not shown). Without]]
+-- [[this, every install would open with a dot for history nobody missed; with]]
+-- [[it, the dot means strictly "changed since the window was created or last]]
+-- [[viewed". Entries arriving later (runtime Set/Add) still raise the dot.]]
+function changelogPanel.captureBaseline(window)
+    local key = persistence.windowChangelogKey(window)
+    if window._changelogSeen[key] ~= nil then
+        return
+    end
+    local marker = changelogPanel.marker(window._changelog.entries)
+    if not marker then
+        return
+    end
+    window._changelogSeen[key] = marker
+    pcall(persistence.saveChangelogSeen, window._changelogSeen)
+end
+
+function changelogPanel.buildUI(window)
+    if window._changelogUIBuilt then
+        return
+    end
+    window._changelogUIBuilt = true
+    local store = window._changelog
+    local tab = window:CreateTab({
+        name = store.name,
+        icon = "scroll-text",
+        customOrder = 1005,
+        forgetState = true,
+        isChangelogTab = true,
+    })
+    tab._isChangelogTab = true
+    window._changelogTab = tab
+    if window.changelogAction then
+        window.changelogAction.linkedTab = tab
+    end
+end
+
+function changelogPanel.buildContent(window, tab)
+    if tab._changelogElement or window._changelogContentBuilt then
+        return
+    end
+    window._changelogContentBuilt = true
+    local store = window._changelog
+    local ok, err = pcall(function()
+        local element = require(script.Parent.Parent.elements.changelog).new(tab, {
+            name = store.name,
+            emptyText = store.emptyText,
+            entries = store.entries,
+        })
+        tab:_register(element)
+        tab._changelogElement = element
+    end)
+    if not ok then
+        window:Notify({ title = "Changelog", content = "Changelog content failed to load: " .. tostring(err) })
+    end
+end
+
+function changelogPanel.toggleMode(window)
+    if window._changelogMode then
+        local previousTab = window._previousTab
+        window._previousTab = nil
+        if previousTab and previousTab.window == window and previousTab.tabPage
+            and not previousTab._isSettingsTab and not previousTab._isChangelogTab then
+            previousTab:Select()
+            return
+        end
+        for _, tab in window.tabs do
+            if not tab._isSettingsTab and not tab._isChangelogTab
+                and tab.window == window and tab.tabPage then
+                tab:Select()
+                return
+            end
+        end
+        return
+    end
+
+    if window._previousTab == nil and window.selectedTab
+        and not window.selectedTab._isSettingsTab and not window.selectedTab._isChangelogTab then
+        window._previousTab = window.selectedTab
+    end
+    changelogPanel.buildUI(window)
+    window._changelogTab:Select()
+end
+
+function changelogPanel.setMode(window, active)
+    active = active == true
+    if active and window._constructed then
+        changelogPanel.buildUI(window)
+    end
+    if active then
+        window._settingsMode = false
+    end
+    window._changelogMode = active
+    if active and window._previousTab == nil and window.selectedTab
+        and not window.selectedTab._isSettingsTab and not window.selectedTab._isChangelogTab then
+        window._previousTab = window.selectedTab
+    end
+    for _, tab in window.tabs do
+        if tab.topbarItem then
+            tab.topbarItem.Visible = not window.hidden and not window.minimised
+                and (window:_railGroup(tab) == window:_activeRail())
+        end
+    end
+    window:_applySettingsLayout(window._settingsMode)
+    if active then
+        changelogPanel.markSeen(window)
+    end
+end
+
+return changelogPanel
+
+end)() end,
+    [11] = function()local wax,script,require=ImportGlobals(11)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local state = require(utilities.Parent.core.state)
 local motion = require(utilities.motion)
@@ -1150,7 +1411,7 @@ end
 return chrome
 
 end)() end,
-    [11] = function()local wax,script,require=ImportGlobals(11)local ImportGlobals return (function(...)
+    [12] = function()local wax,script,require=ImportGlobals(12)local ImportGlobals return (function(...)
 local Drag = {}
 Drag.__index = Drag
 Drag.__type = "Drag"
@@ -1496,7 +1757,7 @@ end
 return Drag
 
 end)() end,
-    [12] = function()local wax,script,require=ImportGlobals(12)local ImportGlobals return (function(...)
+    [13] = function()local wax,script,require=ImportGlobals(13)local ImportGlobals return (function(...)
 local Notification = {}
 Notification.__index = Notification
 Notification.__type = "Notification"
@@ -1848,7 +2109,7 @@ end
 return Notification
 
 end)() end,
-    [13] = function()local wax,script,require=ImportGlobals(13)local ImportGlobals return (function(...)
+    [14] = function()local wax,script,require=ImportGlobals(14)local ImportGlobals return (function(...)
 -- [[Astra overlay entrance queue.
 --
 -- Notifications and toasts are the cheapest thing in the interface to look at
@@ -2136,7 +2397,7 @@ end
 return OverlayQueue
 
 end)() end,
-    [14] = function()local wax,script,require=ImportGlobals(14)local ImportGlobals return (function(...)
+    [15] = function()local wax,script,require=ImportGlobals(15)local ImportGlobals return (function(...)
 local Popup = {}
 Popup.__index = Popup
 Popup.__type = "Popup"
@@ -2857,7 +3118,7 @@ end
 return Popup
 
 end)() end,
-    [15] = function()local wax,script,require=ImportGlobals(15)local ImportGlobals return (function(...)
+    [16] = function()local wax,script,require=ImportGlobals(16)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local state = require(utilities.Parent.core.state)
 local motion = require(utilities.motion)
@@ -5284,7 +5545,7 @@ end
 return profilePanel
 
 end)() end,
-    [16] = function()local wax,script,require=ImportGlobals(16)local ImportGlobals return (function(...)
+    [17] = function()local wax,script,require=ImportGlobals(17)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local state = require(utilities.Parent.core.state)
 local motion = require(utilities.motion)
@@ -5631,7 +5892,7 @@ end
 return search
 
 end)() end,
-    [17] = function()local wax,script,require=ImportGlobals(17)local ImportGlobals return (function(...)
+    [18] = function()local wax,script,require=ImportGlobals(18)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local constants = require(utilities.constants)
 local locale = require(utilities.locale)
@@ -6451,7 +6712,11 @@ function settingsComponent.buildContent(window, tab)
 end
 
 function settingsComponent.applySettingsLayout(window, isSettings)
-    window._settingsLayoutActive = isSettings == true
+    -- [[isSettings is retained for callers; the flags derive from the live]]
+    -- [[rail so settings and changelog modes share one layout switch.]]
+    local rail = window:_activeRail()
+    window._settingsLayoutActive = rail == "settings"
+    window._changelogLayoutActive = rail == "changelog"
     if window.tabList then
         window.tabList.Visible = not window.hidden and not window.minimised
     end
@@ -6461,7 +6726,7 @@ function settingsComponent.applySettingsLayout(window, isSettings)
     for _, tab in window.tabs do
         if tab.topbarItem then
             tab.topbarItem.Visible = not window.hidden and not window.minimised
-                and (window._settingsMode == (tab._isSettingsTab == true))
+                and (window:_railGroup(tab) == window:_activeRail())
         end
     end
     if window.selectedTab and window.selectedTab.tabPage then
@@ -6500,13 +6765,16 @@ function settingsComponent.setSettingsMode(window, active)
         settingsComponent.buildUI(window)
     end
     window._settingsMode = active
+    if active then
+        window._changelogMode = false
+    end
     if active and window._previousTab == nil and window.selectedTab and not window.selectedTab._isSettingsTab then
         window._previousTab = window.selectedTab
     end
     for _, tab in window.tabs do
         if tab.topbarItem then
             tab.topbarItem.Visible = not window.hidden and not window.minimised
-                and (active == (tab._isSettingsTab == true))
+                and (window:_railGroup(tab) == window:_activeRail())
         end
     end
     settingsComponent.applySettingsLayout(window, active)
@@ -6515,7 +6783,7 @@ end
 return settingsComponent
 
 end)() end,
-    [18] = function()local wax,script,require=ImportGlobals(18)local ImportGlobals return (function(...)
+    [19] = function()local wax,script,require=ImportGlobals(19)local ImportGlobals return (function(...)
 local tabSelector = require(script.Parent.tabSelector)
 local search = require(script.Parent.search)
 
@@ -6576,7 +6844,7 @@ end
 return sidebar
 
 end)() end,
-    [19] = function()local wax,script,require=ImportGlobals(19)local ImportGlobals return (function(...)
+    [20] = function()local wax,script,require=ImportGlobals(20)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local state = require(utilities.Parent.core.state)
 local motion = require(utilities.motion)
@@ -6841,7 +7109,7 @@ local function inCurrentRail(window, tab)
     return not tab.neglectSelector
         and tab.topbarItem ~= nil
         and tab.topbarItem.Parent ~= nil
-        and (tab._isSettingsTab == true) == (window._settingsMode == true)
+        and window:_railGroup(tab) == window:_activeRail()
 end
 
 local function rowNaturalWidth(tab, window, layout)
@@ -6991,7 +7259,7 @@ end
 return tabSelector
 
 end)() end,
-    [20] = function()local wax,script,require=ImportGlobals(20)local ImportGlobals return (function(...)
+    [21] = function()local wax,script,require=ImportGlobals(21)local ImportGlobals return (function(...)
 local Toast = {}
 Toast.__index = Toast
 Toast.__type = "Toast"
@@ -7408,7 +7676,7 @@ end
 return Toast
 
 end)() end,
-    [21] = function()local wax,script,require=ImportGlobals(21)local ImportGlobals return (function(...)
+    [22] = function()local wax,script,require=ImportGlobals(22)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local image = require(script.Parent.Parent.images.image)
 local icons = require(script.Parent.Parent.icons)
@@ -7426,6 +7694,7 @@ local search = require(script.Parent.search)
 local tabSelector = require(script.Parent.tabSelector)
 local profilePanel = require(script.Parent.profilePanel)
 local settingsComponent = require(script.Parent.settings)
+local changelogPanel = require(script.Parent.changelogPanel)
 local overlayQueue = require(script.Parent.overlayQueue)
 
 local state = require(utilities.Parent.core.state)
@@ -7596,6 +7865,7 @@ function Window.new(props)
         _settingsLayoutActive = false,
         _settingsTabs = {},
         _settingsMode = false,
+        _changelogMode = false,
         theme = resolveTheme(props.theme or props.Theme),
 
         controls = {},
@@ -7908,6 +8178,15 @@ function Window.new(props)
 
     self:_constructionCheckpoint(true)
 
+    -- [[Window-level changelog store. Entries come from CreateWindow's]]
+    -- [[`changelog` prop or the Set/Add/Clear methods; the built-in changelog]]
+    -- [[tab is the only surface that renders them (see changelogPanel).]]
+    self._changelog = changelogPanel.storeFromProps(props.changelog or props.Changelog)
+    self._changelogSeen = changelogPanel.loadSeen(self)
+    changelogPanel.captureBaseline(self)
+    self._changelogRedirectWarned = false
+
+
     self.rfSettings = self:CreateTab({
         name = "General",
         icon = "sliders-horizontal",
@@ -7964,6 +8243,28 @@ function Window.new(props)
             self:_toggleSettingsMode()
         end,
     })
+
+    self.changelogDivider = self:Create("Frame", {
+        Name = "Divider",
+        LayoutOrder = -5,
+        Size = UDim2.fromOffset(1, 14),
+        BorderSizePixel = 0,
+        BackgroundTransparency = 1,
+        Parent = self.actionContainer,
+    }, { BackgroundColor3 = "ActionColor" })
+
+    self.changelogAction = require(script.Parent.action).new(self, {
+        name = "Changelog",
+        icon = "scroll-text",
+        order = 6,
+        badge = true,
+
+        callback = function()
+            self:_toggleChangelogMode()
+        end,
+    })
+    changelogPanel.refreshBadge(self, false)
+
 
     search.build(self)
         self:_applyRailWidth()
@@ -8224,7 +8525,7 @@ function Window:CreateTab(props)
     if not tab.neglectSelector then
         local isFirst = true
         for _, existingTab in self.tabs do
-            if existingTab ~= tab and not existingTab.neglectSelector and existingTab._isSettingsTab == tab._isSettingsTab then
+            if existingTab ~= tab and not existingTab.neglectSelector and self:_railGroup(existingTab) == self:_railGroup(tab) then
                 isFirst = false
                 break
             end
@@ -8578,8 +8879,11 @@ function Window:Hide()
     end
 
     for _, actionFrame in ipairs(self.actionContainer:GetChildren()) do
-        if actionFrame:IsA("Frame") then
+        if actionFrame:IsA("Frame") and actionFrame.ImageLabel then
             motion.tween(actionFrame.ImageLabel, { ImageTransparency = 1 }, hideTween)
+        end
+        if actionFrame:IsA("Frame") then
+            self:_syncActionChrome(actionFrame, false, hideTween)
         end
     end
 
@@ -8951,7 +9255,7 @@ function Window:_applyRailWidth()
     local implementation = layouts.implementation(layoutKey(self.layout))
     implementation.ApplyWidth(self, self:_railWidth())
 
-    if self._settingsLayoutActive or self.selectedTab == self.rfSettings then
+    if self._settingsLayoutActive or self._changelogLayoutActive or self.selectedTab == self.rfSettings then
         self:_applySettingsLayout(true)
     end
 end
@@ -9559,6 +9863,169 @@ function Window:_applySettingsLayout(isSettings)
     settingsComponent.applySettingsLayout(self, isSettings)
 end
 
+-- [[Rail groups: the rail shows exactly one group at a time - main tabs,]]
+-- [[settings tabs, or the changelog tab. Every rail filter reads these two]]
+-- [[helpers so the three of them cannot drift apart.]]
+function Window:_railGroup(tab)
+    if tab._isChangelogTab then
+        return "changelog"
+    end
+    if tab._isSettingsTab then
+        return "settings"
+    end
+    return "main"
+end
+
+function Window:_activeRail()
+    if self._changelogMode then
+        return "changelog"
+    end
+    if self._settingsMode then
+        return "settings"
+    end
+    return "main"
+end
+
+-- [[Badge + divider follow their action frame: hidden with them, restored]]
+-- [[with them. The badge restores to opaque only while it is meant to show.]]
+function Window:_syncActionChrome(actionFrame, shown, tween)
+    local badge = actionFrame:FindFirstChild("Badge")
+    if badge then
+        local badgeTarget = if shown and badge.Visible then 0 else 1
+        if tween then
+            motion.tween(badge, { BackgroundTransparency = badgeTarget }, tween)
+        else
+            badge.BackgroundTransparency = badgeTarget
+        end
+    end
+    if actionFrame.Name == "Divider" then
+        local dividerTarget = if shown then 0.8 else 1
+        if tween then
+            motion.tween(actionFrame, { BackgroundTransparency = dividerTarget }, tween)
+        else
+            actionFrame.BackgroundTransparency = dividerTarget
+        end
+    end
+end
+
+function Window:_toggleChangelogMode()
+    changelogPanel.toggleMode(self)
+end
+
+function Window:_setChangelogMode(active)
+    changelogPanel.setMode(self, active)
+end
+
+function Window:_buildChangelogUI()
+    changelogPanel.buildUI(self)
+end
+
+function Window:_buildChangelogContent(tab)
+    changelogPanel.buildContent(self, tab)
+end
+
+function Window:_pushChangelogToView()
+    local tab = self._changelogTab
+    if tab and tab._changelogElement then
+        tab._changelogElement:Set(self._changelog.entries)
+    end
+end
+
+-- [[Window changelog data. The store is the single source of truth; the]]
+-- [[built-in view (once opened) re-renders from it, and the badge answers]]
+-- [[whether the newest entry is newer than what was last seen. SetChangelog]]
+-- [[takes an entries array, or a full props table ({ name, entries, ... })]]
+-- [[like the one required from a changelog data file.]]
+function Window:SetChangelog(entries)
+    assert(not self.unloaded, "Cannot set the changelog on an unloaded window.")
+    local props = if typeof(entries) == "table"
+            and (entries.entries ~= nil or entries.Entries ~= nil)
+        then entries
+        else { entries = entries }
+    local store = changelogPanel.storeFromProps(props)
+    self._changelog.entries = store.entries
+    local name = props.name or props.Name
+    if name ~= nil then
+        self._changelog.name = tostring(name)
+    end
+    local emptyText = props.emptyText or props.EmptyText
+    if emptyText ~= nil then
+        self._changelog.emptyText = tostring(emptyText)
+    end
+    self:_pushChangelogToView()
+    changelogPanel.refreshBadge(self, true)
+end
+
+function Window:AddChangelogEntry(entry, prepend)
+    assert(not self.unloaded, "Cannot add a changelog entry on an unloaded window.")
+    if prepend == false then
+        table.insert(self._changelog.entries, entry)
+    else
+        table.insert(self._changelog.entries, 1, entry)
+    end
+    self:_pushChangelogToView()
+    changelogPanel.refreshBadge(self, true)
+end
+
+function Window:ClearChangelog()
+    assert(not self.unloaded, "Cannot clear the changelog on an unloaded window.")
+    table.clear(self._changelog.entries)
+    self:_pushChangelogToView()
+    changelogPanel.refreshBadge(self, true)
+end
+
+-- [[Option-A deprecation: changelogs render only in the changelog space, so a]]
+-- [[CreateChangelog call from anywhere else forwards its entries into the]]
+-- [[window store (where the changelog view shows them) and hands back a]]
+-- [[handle shaped like the old element, so existing scripts keep running.]]
+function Window:_forwardChangelog(props)
+    props = if typeof(props) == "table" then props else {}
+    if not self._changelogRedirectWarned then
+        self._changelogRedirectWarned = true
+        log.warn("Astra: CreateChangelog now feeds the window changelog - entries render in the changelog panel, not on the tab. Pass entries to CreateWindow ({ changelog = ... }) or window:SetChangelog instead.")
+    end
+    local raw = props.entries or props.Entries
+    if typeof(raw) == "table" then
+        for _, entry in ipairs(raw) do
+            table.insert(self._changelog.entries, entry)
+        end
+        self:_pushChangelogToView()
+        changelogPanel.refreshBadge(self, true)
+    end
+    local window = self
+    local facade = {
+        window = window,
+        name = tostring(props.name or props.Name or window._changelog.name),
+    }
+    function facade:Set(entries)
+        window:SetChangelog(entries)
+    end
+    function facade:Refresh(entries)
+        window:SetChangelog(entries)
+    end
+    function facade:Add(entry, prepend)
+        window:AddChangelogEntry(entry, prepend)
+    end
+    function facade:Clear()
+        window:ClearChangelog()
+    end
+    function facade:MoveTo(_index) end
+    function facade:MoveToTop() end
+    function facade:MoveToBottom() end
+    function facade:MoveUp() end
+    function facade:MoveDown() end
+    setmetatable(facade, {
+        __index = function(_, key)
+            if key == "entries" then
+                return window._changelog.entries
+            end
+            return nil
+        end,
+    })
+    return facade
+end
+
+
 -- [[Shared by the topbar gear action and the profile panel's gear.]]
 function Window:_toggleSettingsMode()
     settingsComponent.toggleSettingsMode(self)
@@ -9836,6 +10303,9 @@ function Window:_quickRestore()
         if actionFrame:IsA("Frame") and actionFrame.ImageLabel then
             actionFrame.ImageLabel.ImageTransparency = 0.6
         end
+        if actionFrame:IsA("Frame") then
+            self:_syncActionChrome(actionFrame, true)
+        end
     end
 
     -- [[Same contract as the first show: run the settle path from the tween's
@@ -9936,6 +10406,9 @@ function Window:_firstShow()
         if actionFrame:IsA("Frame") and actionFrame.ImageLabel then
             actionFrame.ImageLabel.ImageTransparency = 1
             motion.tween(actionFrame.ImageLabel, { ImageTransparency = 0.6 }, tweenInfo)
+        end
+        if actionFrame:IsA("Frame") then
+            self:_syncActionChrome(actionFrame, true, tweenInfo)
         end
     end
 
@@ -10695,7 +11168,7 @@ end
 return Window
 
 end)() end,
-    [23] = function()local wax,script,require=ImportGlobals(23)local ImportGlobals return (function(...)
+    [24] = function()local wax,script,require=ImportGlobals(24)local ImportGlobals return (function(...)
 -- [[Shared base card layout and styling for Astra UI elements.]]
 -- [[Handles standard background frame, theme strokes, hover overlay,]]
 -- [[content container, icon, and title label.]]
@@ -10781,7 +11254,7 @@ end
 return baseCard
 
 end)() end,
-    [24] = function()local wax,script,require=ImportGlobals(24)local ImportGlobals return (function(...)
+    [25] = function()local wax,script,require=ImportGlobals(25)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Button"
@@ -11092,7 +11565,7 @@ name(state)
 return state
 
 end)() end,
-    [25] = function()local wax,script,require=ImportGlobals(25)local ImportGlobals return (function(...)
+    [26] = function()local wax,script,require=ImportGlobals(26)local ImportGlobals return (function(...)
 local Changelog = {}
 Changelog.__index = Changelog
 Changelog.__type = "Changelog"
@@ -11513,7 +11986,7 @@ moveable(Changelog)
 return Changelog
 
 end)() end,
-    [26] = function()local wax,script,require=ImportGlobals(26)local ImportGlobals return (function(...)
+    [27] = function()local wax,script,require=ImportGlobals(27)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local motion = require(utilities.motion)
 local locale = require(utilities.locale)
@@ -11538,7 +12011,9 @@ local constructors = {
     Stat = function(parent, props) return require(script.Parent.stat).new(parent, props) end,
     Section = function(parent, props) return require(script.Parent.section).new(parent, props) end,
     Text = function(parent, props) return require(script.Parent.text).new(parent, props) end,
-    Changelog = function(parent, props) return require(script.Parent.changelog).new(parent, props) end,
+    -- [[Kept so validate() still accepts the kind; buildChildren forwards]]
+    -- [[Changelog specs to the window store before this ever runs.]]
+    Changelog = function(parent, props) return parent.window:_forwardChangelog(props) end,
     Divider = function(parent, props) return require(script.Parent.divider).new(parent, props) end,
     Group = function(parent, props) return require(script.Parent.group).new(parent, props) end,
 }
@@ -11595,6 +12070,14 @@ end
 local function buildChildren(parent, definitions)
     for _, spec in ipairs(definitions) do
         local kind = spec.type or spec.Type
+        if kind == "Changelog" then
+            -- [[Changelogs render only in the changelog space: forward the]]
+            -- [[entries into the window store and build no child here (a]]
+            -- [[facade has no .main, so it cannot join the element tree).]]
+            parent.window:_forwardChangelog(spec)
+            parent.window:_constructionCheckpoint(false)
+            continue
+        end
         local child
         if parent.__type == "Group" then
             if kind == "Group" then
@@ -11915,7 +12398,7 @@ lockable(Collapsible)
 return Collapsible
 
 end)() end,
-    [27] = function()local wax,script,require=ImportGlobals(27)local ImportGlobals return (function(...)
+    [28] = function()local wax,script,require=ImportGlobals(28)local ImportGlobals return (function(...)
 -- [[The in-card description line. An element created with a `description` prop
 -- [[grows its own card by the measured height of this line instead of spawning
 -- [[a standalone row beneath the card, so the description can never sit on top
@@ -12085,7 +12568,7 @@ end
 return description
 
 end)() end,
-    [28] = function()local wax,script,require=ImportGlobals(28)local ImportGlobals return (function(...)
+    [29] = function()local wax,script,require=ImportGlobals(29)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Divider"
@@ -12230,7 +12713,7 @@ constants(state)
 return state
 
 end)() end,
-    [29] = function()local wax,script,require=ImportGlobals(29)local ImportGlobals return (function(...)
+    [30] = function()local wax,script,require=ImportGlobals(30)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Dropdown"
@@ -13748,7 +14231,7 @@ multiSelect(state)
 return state
 
 end)() end,
-    [30] = function()local wax,script,require=ImportGlobals(30)local ImportGlobals return (function(...)
+    [31] = function()local wax,script,require=ImportGlobals(31)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Group"
@@ -13967,7 +14450,7 @@ constants(state)
 return state
 
 end)() end,
-    [31] = function()local wax,script,require=ImportGlobals(31)local ImportGlobals return (function(...)
+    [32] = function()local wax,script,require=ImportGlobals(32)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Input"
@@ -14241,7 +14724,7 @@ name(state)
 return state
 
 end)() end,
-    [32] = function()local wax,script,require=ImportGlobals(32)local ImportGlobals return (function(...)
+    [33] = function()local wax,script,require=ImportGlobals(33)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Section"
@@ -14327,7 +14810,7 @@ constants(state)
 return state
 
 end)() end,
-    [33] = function()local wax,script,require=ImportGlobals(33)local ImportGlobals return (function(...)
+    [34] = function()local wax,script,require=ImportGlobals(34)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Slider"
@@ -14914,7 +15397,7 @@ flag(state)
 return state
 
 end)() end,
-    [34] = function()local wax,script,require=ImportGlobals(34)local ImportGlobals return (function(...)
+    [35] = function()local wax,script,require=ImportGlobals(35)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Statistic"
@@ -15763,7 +16246,7 @@ name(state)
 return state
 
 end)() end,
-    [35] = function()local wax,script,require=ImportGlobals(35)local ImportGlobals return (function(...)
+    [36] = function()local wax,script,require=ImportGlobals(36)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Tab"
@@ -15836,6 +16319,7 @@ function state.new(window, a17)
         customOrder = a17.customOrder or a17.CustomOrder or 0,
                 forgetState = a17.forgetState or a17.ForgetState or false,
         _isSettingsTab = a17.isSettingsTab == true or a17.IsSettingsTab == true,
+        _isChangelogTab = a17.isChangelogTab == true or a17.IsChangelogTab == true,
         deriveFlagFromName = flagNames.deriveFlagFromName,
 
         elements = {},
@@ -15958,10 +16442,17 @@ function state:Select(a24)
     elseif self.window._applySettingsLayout then
         self.window:_applySettingsLayout(self == self.window.rfSettings)
     end
+    if self.window._setChangelogMode then
+        self.window:_setChangelogMode(self._isChangelogTab == true)
+    end
     -- [[Settings tab content is created lazily (after construction):]]
     -- [[make sure it exists before the page is shown.]]
     if self._isSettingsTab and self.window._constructed and self.window._buildSettingsContent ~= nil then
         self.window:_buildSettingsContent(self)
+    end
+    -- [[Changelog content is created lazily like settings content.]]
+    if self._isChangelogTab and self.window._constructed and self.window._buildChangelogContent ~= nil then
+        self.window:_buildChangelogContent(self)
     end
     self.window:_jumpTo(self.tabPage)
 
@@ -15995,6 +16486,15 @@ function state:Select(a24)
             self.window.settingsAction.iconLabel.ImageTransparency = actionTransparency
         else
             motion.tween(self.window.settingsAction.iconLabel, { ImageTransparency = actionTransparency }, "snappy")
+        end
+    end
+
+    if self.window.changelogAction then
+        local changelogTransparency = if self._isChangelogTab then 0 else 0.6
+        if a25 then
+            self.window.changelogAction.iconLabel.ImageTransparency = changelogTransparency
+        else
+            motion.tween(self.window.changelogAction.iconLabel, { ImageTransparency = changelogTransparency }, "snappy")
         end
     end
 end
@@ -16044,7 +16544,10 @@ function state:CreateText(a31)
 end
 
 function state:CreateChangelog(a32)
-    return self:_register(require(script.Parent.changelog).new(self, a32))
+    if self._isChangelogTab then
+        return self:_register(require(script.Parent.changelog).new(self, a32))
+    end
+    return self.window:_forwardChangelog(a32)
 end
 
 function state:CreateDivider(a32)
@@ -16108,7 +16611,7 @@ function state:Remove()
         for _, tab in ipairs(window.tabs) do
             if not tab.neglectSelector then
                 fallback = fallback or tab
-                if (tab._isSettingsTab == true) == (self._isSettingsTab == true) then
+                if window:_railGroup(tab) == window:_railGroup(self) then
                     fallback = tab
                     break
                 end
@@ -16143,7 +16646,7 @@ end
 return state
 
 end)() end,
-    [36] = function()local wax,script,require=ImportGlobals(36)local ImportGlobals return (function(...)
+    [37] = function()local wax,script,require=ImportGlobals(37)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "TabSection"
@@ -16273,7 +16776,7 @@ end
 return state
 
 end)() end,
-    [37] = function()local wax,script,require=ImportGlobals(37)local ImportGlobals return (function(...)
+    [38] = function()local wax,script,require=ImportGlobals(38)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Text"
@@ -16425,7 +16928,7 @@ constants(state)
 return state
 
 end)() end,
-    [38] = function()local wax,script,require=ImportGlobals(38)local ImportGlobals return (function(...)
+    [39] = function()local wax,script,require=ImportGlobals(39)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Toggle"
@@ -16894,7 +17397,7 @@ end
 return state
 
 end)() end,
-    [47] = function()local wax,script,require=ImportGlobals(47)local ImportGlobals return (function(...)
+    [48] = function()local wax,script,require=ImportGlobals(48)local ImportGlobals return (function(...)
 
 local managerModule = require(script.manager)
 local registryModule = require(script.registry)
@@ -16919,7 +17422,7 @@ end
 return settings
 
 end)() end,
-    [40] = function()local wax,script,require=ImportGlobals(40)local ImportGlobals return (function(...)
+    [41] = function()local wax,script,require=ImportGlobals(41)local ImportGlobals return (function(...)
 
 local appearance = {}
 
@@ -16942,7 +17445,7 @@ end
 return appearance
 
 end)() end,
-    [41] = function()local wax,script,require=ImportGlobals(41)local ImportGlobals return (function(...)
+    [42] = function()local wax,script,require=ImportGlobals(42)local ImportGlobals return (function(...)
 
 local behavior = {}
 
@@ -16959,7 +17462,7 @@ end
 return behavior
 
 end)() end,
-    [42] = function()local wax,script,require=ImportGlobals(42)local ImportGlobals return (function(...)
+    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)
 
 local defaults = {}
 
@@ -16992,7 +17495,7 @@ end
 return defaults
 
 end)() end,
-    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)
+    [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)
 
 local registry = require(script.Parent.registry)
 local defaults = require(script.Parent.defaults)
@@ -17114,7 +17617,7 @@ end
 return SettingsManager
 
 end)() end,
-    [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)
+    [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
 
 local motion = require(script.Parent.Parent.utilities.motion)
 
@@ -17138,7 +17641,7 @@ end
 return performance
 
 end)() end,
-    [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
+    [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
 
 local settingsPersistence = require(script.Parent.Parent.utilities.persistenceSettings)
 local settingsCache = require(script.Parent.Parent.cache.persistenceCache)
@@ -17187,7 +17690,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
+    [47] = function()local wax,script,require=ImportGlobals(47)local ImportGlobals return (function(...)
 
 local registry = {}
 
@@ -17306,7 +17809,7 @@ end
 return registry
 
 end)() end,
-    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
+    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
 
 local imageCache = require(script.moduleCache)
 
@@ -17317,7 +17820,7 @@ local moduleCache = {
 return moduleCache
 
 end)() end,
-    [48] = function()local wax,script,require=ImportGlobals(48)local ImportGlobals return (function(...)
+    [49] = function()local wax,script,require=ImportGlobals(49)local ImportGlobals return (function(...)
 local filesystem = require(script.Parent.Parent.utilities.filesystem)
 local path = require(script.Parent.Parent.utilities.path)
 local variables = require(script.Parent.Parent.core.state)
@@ -17620,7 +18123,7 @@ end
 return imageCache
 
 end)() end,
-    [49] = function()local wax,script,require=ImportGlobals(49)local ImportGlobals return (function(...)
+    [50] = function()local wax,script,require=ImportGlobals(50)local ImportGlobals return (function(...)
 
 local moduleCache = {}
 
@@ -17651,7 +18154,7 @@ end
 return moduleCache
 
 end)() end,
-    [50] = function()local wax,script,require=ImportGlobals(50)local ImportGlobals return (function(...)
+    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
 
 local persistenceCache = {}
 
@@ -17676,7 +18179,7 @@ end
 return persistenceCache
 
 end)() end,
-    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
+    [56] = function()local wax,script,require=ImportGlobals(56)local ImportGlobals return (function(...)
 
 local textMetrics = require(script.textMetrics)
 local colors = require(script.colors)
@@ -17694,7 +18197,7 @@ functions.contrastText = colors.contrastText
 return functions
 
 end)() end,
-    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
+    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
 local colors = {}
 
 function colors.contrastColor(color: Color3): Color3
@@ -17714,7 +18217,7 @@ end
 return colors
 
 end)() end,
-    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
+    [54] = function()local wax,script,require=ImportGlobals(54)local ImportGlobals return (function(...)
 local flagNames = {}
 
 local offsetBasis = 2166136261
@@ -17746,7 +18249,7 @@ end
 return flagNames
 
 end)() end,
-    [54] = function()local wax,script,require=ImportGlobals(54)local ImportGlobals return (function(...)
+    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
 local state = require(script.Parent.Parent.core.state)
 local textService = state.textService
 
@@ -17853,7 +18356,7 @@ end
 return textMetrics
 
 end)() end,
-    [56] = function()local wax,script,require=ImportGlobals(56)local ImportGlobals return (function(...)
+    [57] = function()local wax,script,require=ImportGlobals(57)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local Sidebar = {}
@@ -17912,7 +18415,7 @@ end
 return Sidebar
 
 end)() end,
-    [57] = function()local wax,script,require=ImportGlobals(57)local ImportGlobals return (function(...)
+    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local SidebarCollapsed = {}
@@ -17972,7 +18475,7 @@ end
 return SidebarCollapsed
 
 end)() end,
-    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
+    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
 local search = require(script.Parent.Parent.components.search)
 local functions = require(script.Parent.Parent.functions)
 local utilities = script.Parent.Parent.utilities
@@ -18101,7 +18604,7 @@ end
 return Topbar
 
 end)() end,
-    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
+    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
 
 local image = require(script.image)
 
@@ -18116,7 +18619,7 @@ local windowIcons = {
 return windowIcons
 
 end)() end,
-    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
+    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
 local imageCache = require(script.Parent.Parent.cache.imageCache)
 local variables = require(script.Parent.Parent.core.state)
 
@@ -18281,7 +18784,7 @@ end
 return image
 
 end)() end,
-    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
+    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
 
 local windowIcons = {}
 
@@ -18357,7 +18860,7 @@ end
 return windowIcons
 
 end)() end,
-    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
+    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
 -- [[Icon resolver service.]]
 -- [[]]
 -- [[Public API is compatible with the previous single-module catalog:]]
@@ -18378,8 +18881,8 @@ end)() end,
 -- [[Lookups are exact. Icon names and pack names are case-sensitive: nothing]]
 -- [[is lowercased, corrected or fuzzy-matched, so a miss is a miss. A name]]
 -- [[that exists in several packs resolves to the first pack listed by]]
--- [[`Icons.priority()` (lucide, material, tabler, phosphor, heroicons,]]
--- [[feather); an explicit pack - `get(name, pack)` or the `"pack:name"` form -]]
+-- [[`Icons.priority()` (lucide, material, tabler, phosphor, heroicons, feather,]]
+-- [[remix); an explicit pack - `get(name, pack)` or the `"pack:name"` form -]]
 -- [[is never overridden by that order, and an unknown or mis-cased pack name]]
 -- [[resolves to nothing rather than to some other pack.]]
 
@@ -18390,8 +18893,8 @@ icons.BASE = "https://raw.githubusercontent.com/Haijo12/sisys_ididh/main"
 
 -- [[Pack priority for a bare name. Deterministic, and also the order packs]]
 -- [[load in: the search stops at the first pack that has the name, so a lucide]]
--- [[icon never pulls in the other five tables.]]
-local PACK_ORDER = { "lucide", "material", "tabler", "phosphor", "heroicons", "feather" }
+-- [[icon never pulls in the other six tables.]]
+local PACK_ORDER = { "lucide", "material", "tabler", "phosphor", "heroicons", "feather", "remix" }
 
 -- [[Pack registry: pack name -> lazy loader. Each loader requires the pack]]
 -- [[module on demand; require() itself caches the module table afterwards.]]
@@ -18414,6 +18917,9 @@ local packLoaders = {
     feather = function()
         return require(script.feather)
     end,
+    remix = function()
+        return require(script.remix)
+    end,
 }
 
 local loadedPacks: { [string]: { [string]: string } } = {}
@@ -18425,6 +18931,7 @@ icons.Tabler = "tabler"
 icons.Phosphor = "phosphor"
 icons.Heroicons = "heroicons"
 icons.Feather = "feather"
+icons.Remix = "remix"
 
 -- [[Lazily exposed pack tables (Icons.lucide, Icons.material, ...).]]
 setmetatable(icons, {
@@ -18474,7 +18981,7 @@ function icons.priority(): { string }
 end
 
 -- [[Which packs have been loaded so far. Laziness is part of the contract]]
--- [[(startup must not read 10.6k lines of tables to show one icon), so it is]]
+-- [[(startup must not read 13.7k lines of tables to show one icon), so it is]]
 -- [[observable: a suite asserts that one lucide name loads one pack.]]
 function icons.loaded(): { string }
     local names = {}
@@ -18855,7 +19362,7 @@ end
 return icons
 
 end)() end,
-    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
+    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
 -- [[feather icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -18899,7 +19406,7 @@ x-square x youtube zap-off zap zoom-in zoom-out
 )
 
 end)() end,
-    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
+    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
 -- [[heroicons icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -18979,7 +19486,7 @@ wrench-screwdriver wrench-screwdriver_solid wrench wrench_solid x-circle x-circl
 )
 
 end)() end,
-    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
+    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
 -- [[lucide icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -19172,7 +19679,7 @@ zodiac-sagittarius zodiac-scorpio zodiac-taurus zodiac-virgo zoom-in zoom-out
 )
 
 end)() end,
-    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
+    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
 -- [[material icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -19301,7 +19808,7 @@ zoom_in zoom_out zoom_out_map
 )
 
 end)() end,
-    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
+    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
 -- [[Lazy icon-pack builder.
 -- [[]]
 -- [[A pack is a compact newline-separated list of kebab names plus the shared
@@ -19395,7 +19902,7 @@ end
 return PackBuilder
 
 end)() end,
-    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
+    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
 -- [[phosphor icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -19562,7 +20069,345 @@ yin-yang youtube-logo
 )
 
 end)() end,
-    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
+    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
+-- [[remix icon pack.]]
+-- [[Compact catalog: names only. PNG URLs are derived on demand by]]
+-- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
+-- [[parses as one string constant instead of thousands of table]]
+-- [[constructors. Render with scripts/render_remix_pack.js.]]
+
+return require(script.Parent.packBuilder).create(
+	"assets/icons/remix-pack/",
+	"remix",
+[==[
+24-hours-fill 24-hours-line 4k-fill 4k-line a-b accessibility-fill accessibility-line account-box-2-fill account-box-2-line account-box-fill
+account-box-line account-circle-2-fill account-circle-2-line account-circle-fill account-circle-line account-pin-box-fill account-pin-box-line account-pin-circle-fill account-pin-circle-line add-box-fill
+add-box-line add-circle-fill add-circle-line add-fill add-large-fill add-large-line add-line admin-fill admin-line advertisement-fill
+advertisement-line aed-electrodes-fill aed-electrodes-line aed-fill aed-line ai ai-agent-fill ai-agent-line ai-generate ai-generate-2
+ai-generate-2-fill ai-generate-2-line ai-generate-3d-fill ai-generate-3d-line ai-generate-text airplay-fill airplay-line alarm-add-fill alarm-add-line alarm-fill
+alarm-line alarm-snooze-fill alarm-snooze-line alarm-warning-fill alarm-warning-line album-fill album-line alert-fill alert-line alibaba-cloud-fill
+alibaba-cloud-line aliens-fill aliens-line align-bottom align-center align-item-bottom-fill align-item-bottom-line align-item-horizontal-center-fill align-item-horizontal-center-line align-item-left-fill
+align-item-left-line align-item-right-fill align-item-right-line align-item-top-fill align-item-top-line align-item-vertical-center-fill align-item-vertical-center-line align-justify align-left align-right
+align-top align-vertically alipay-fill alipay-line amazon-fill amazon-line anchor-fill anchor-line ancient-gate-fill ancient-gate-line
+ancient-pavilion-fill ancient-pavilion-line android-fill android-line angularjs-fill angularjs-line anthropic-fill anthropic-line anticlockwise-2-fill anticlockwise-2-line
+anticlockwise-fill anticlockwise-line app-store-fill app-store-line apple-fill apple-line apps-2-add-fill apps-2-add-line apps-2-ai-fill apps-2-ai-line
+apps-2-fill apps-2-line apps-ai-fill apps-ai-line apps-fill apps-line archive-2-fill archive-2-line archive-drawer-fill archive-drawer-line
+archive-fill archive-line archive-stack-fill archive-stack-line area-chart-fill area-chart-line armchair-fill armchair-line arrow-down-box-fill arrow-down-box-line
+arrow-down-circle-fill arrow-down-circle-line arrow-down-double-fill arrow-down-double-line arrow-down-fill arrow-down-line arrow-down-long-fill arrow-down-long-line arrow-down-s-fill arrow-down-s-line
+arrow-down-wide-fill arrow-down-wide-line arrow-drop-down-fill arrow-drop-down-line arrow-drop-left-fill arrow-drop-left-line arrow-drop-right-fill arrow-drop-right-line arrow-drop-up-fill arrow-drop-up-line
+arrow-go-back-fill arrow-go-back-line arrow-go-forward-fill arrow-go-forward-line arrow-left-box-fill arrow-left-box-line arrow-left-circle-fill arrow-left-circle-line arrow-left-double-fill arrow-left-double-line
+arrow-left-down-box-fill arrow-left-down-box-line arrow-left-down-fill arrow-left-down-line arrow-left-down-long-fill arrow-left-down-long-line arrow-left-fill arrow-left-line arrow-left-long-fill arrow-left-long-line
+arrow-left-right-fill arrow-left-right-line arrow-left-s-fill arrow-left-s-line arrow-left-up-box-fill arrow-left-up-box-line arrow-left-up-fill arrow-left-up-line arrow-left-up-long-fill arrow-left-up-long-line
+arrow-left-wide-fill arrow-left-wide-line arrow-right-box-fill arrow-right-box-line arrow-right-circle-fill arrow-right-circle-line arrow-right-double-fill arrow-right-double-line arrow-right-down-box-fill arrow-right-down-box-line
+arrow-right-down-fill arrow-right-down-line arrow-right-down-long-fill arrow-right-down-long-line arrow-right-fill arrow-right-line arrow-right-long-fill arrow-right-long-line arrow-right-s-fill arrow-right-s-line
+arrow-right-up-box-fill arrow-right-up-box-line arrow-right-up-fill arrow-right-up-line arrow-right-up-long-fill arrow-right-up-long-line arrow-right-wide-fill arrow-right-wide-line arrow-turn-back-fill arrow-turn-back-line
+arrow-turn-forward-fill arrow-turn-forward-line arrow-up-box-fill arrow-up-box-line arrow-up-circle-fill arrow-up-circle-line arrow-up-double-fill arrow-up-double-line arrow-up-down-fill arrow-up-down-line
+arrow-up-fill arrow-up-line arrow-up-long-fill arrow-up-long-line arrow-up-s-fill arrow-up-s-line arrow-up-wide-fill arrow-up-wide-line artboard-2-fill artboard-2-line
+artboard-fill artboard-line article-fill article-line aspect-ratio-fill aspect-ratio-line asterisk at-fill at-line atom-fill
+atom-line attachment-2 attachment-fill attachment-line auction-fill auction-line award-fill award-line baidu-fill baidu-line
+ball-pen-fill ball-pen-line bank-card-2-fill bank-card-2-line bank-card-fill bank-card-line bank-fill bank-line bar-chart-2-fill bar-chart-2-line
+bar-chart-box-ai-fill bar-chart-box-ai-line bar-chart-box-fill bar-chart-box-line bar-chart-fill bar-chart-grouped-fill bar-chart-grouped-line bar-chart-horizontal-fill bar-chart-horizontal-line bar-chart-line
+barcode-box-fill barcode-box-line barcode-fill barcode-line bard-fill bard-line barricade-fill barricade-line base-station-fill base-station-line
+baseball-fill baseball-line basketball-fill basketball-line battery-2-charge-fill battery-2-charge-line battery-2-fill battery-2-line battery-charge-fill battery-charge-line
+battery-fill battery-line battery-low-fill battery-low-line battery-saver-fill battery-saver-line battery-share-fill battery-share-line bear-smile-fill bear-smile-line
+beer-fill beer-line behance-fill behance-line bell-fill bell-line bike-fill bike-line bilibili-fill bilibili-line
+bill-fill bill-line billiards-fill billiards-line binoculars-fill binoculars-line bit-coin-fill bit-coin-line blaze-fill blaze-line
+blender-fill blender-line blogger-fill blogger-line bluesky-fill bluesky-line bluetooth-connect-fill bluetooth-connect-line bluetooth-fill bluetooth-line
+blur-off-fill blur-off-line bnb-fill bnb-line body-scan-fill body-scan-line bold book-2-fill book-2-line book-3-fill
+book-3-line book-ai-fill book-ai-line book-fill book-line book-marked-fill book-marked-line book-open-fill book-open-line book-read-fill
+book-read-line book-shelf-fill book-shelf-line booklet-fill booklet-line bookmark-2-fill bookmark-2-line bookmark-3-fill bookmark-3-line bookmark-fill
+bookmark-line bootstrap-fill bootstrap-line bowl-fill bowl-line box-1-fill box-1-line box-2-fill box-2-line box-3-fill
+box-3-line boxing-fill boxing-line braces-fill braces-line brackets-fill brackets-line brain-2-fill brain-2-line brain-3-fill
+brain-3-line brain-4-fill brain-4-line brain-ai-3-fill brain-ai-3-line brain-fill brain-line bread-fill bread-line briefcase-2-fill
+briefcase-2-line briefcase-3-fill briefcase-3-line briefcase-4-fill briefcase-4-line briefcase-5-fill briefcase-5-line briefcase-fill briefcase-line bring-forward
+bring-to-front broadcast-fill broadcast-line brush-2-fill brush-2-line brush-3-fill brush-3-line brush-4-fill brush-4-line brush-ai-3-fill
+brush-ai-3-line brush-ai-fill brush-ai-line brush-fill brush-line btc-fill btc-line bubble-chart-fill bubble-chart-line bug-2-fill
+bug-2-line bug-fill bug-line building-2-fill building-2-line building-3-fill building-3-line building-4-fill building-4-line building-fill
+building-line bus-2-fill bus-2-line bus-fill bus-line bus-wifi-fill bus-wifi-line cactus-fill cactus-line cake-2-fill
+cake-2-line cake-3-fill cake-3-line cake-fill cake-line calculator-fill calculator-line calendar-2-fill calendar-2-line calendar-check-fill
+calendar-check-line calendar-close-fill calendar-close-line calendar-event-fill calendar-event-line calendar-fill calendar-line calendar-schedule-fill calendar-schedule-line calendar-todo-fill
+calendar-todo-line calendar-view camera-2-fill camera-2-line camera-3-fill camera-3-line camera-4-fill camera-4-line camera-ai-2-fill camera-ai-2-line
+camera-ai-fill camera-ai-line camera-fill camera-lens-ai-fill camera-lens-ai-line camera-lens-fill camera-lens-line camera-line camera-off-fill camera-off-line
+camera-switch-fill camera-switch-line candle-fill candle-line capsule-fill capsule-line car-fill car-line car-washing-fill car-washing-line
+caravan-fill caravan-line carousel-view cash-fill cash-line cast-fill cast-line cellphone-fill cellphone-line celsius-fill
+celsius-line centos-fill centos-line certificate-2-fill certificate-2-line certificate-fill certificate-line character-recognition-fill character-recognition-line charging-pile-2-fill
+charging-pile-2-line charging-pile-fill charging-pile-line chat-1-fill chat-1-line chat-2-fill chat-2-line chat-3-fill chat-3-line chat-4-fill
+chat-4-line chat-ai-2-fill chat-ai-2-line chat-ai-3-fill chat-ai-3-line chat-ai-4-fill chat-ai-4-line chat-ai-fill chat-ai-line chat-check-fill
+chat-check-line chat-delete-fill chat-delete-line chat-download-fill chat-download-line chat-follow-up-fill chat-follow-up-line chat-forward-fill chat-forward-line chat-heart-fill
+chat-heart-line chat-history-fill chat-history-line chat-new-fill chat-new-line chat-off-fill chat-off-line chat-poll-fill chat-poll-line chat-private-fill
+chat-private-line chat-quote-fill chat-quote-line chat-search-fill chat-search-line chat-settings-fill chat-settings-line chat-smile-2-fill chat-smile-2-line chat-smile-3-fill
+chat-smile-3-line chat-smile-ai-3-fill chat-smile-ai-3-line chat-smile-ai-fill chat-smile-ai-line chat-smile-fill chat-smile-line chat-thread-fill chat-thread-line chat-unread-fill
+chat-unread-line chat-upload-fill chat-upload-line chat-voice-ai-fill chat-voice-ai-line chat-voice-fill chat-voice-line check-double-fill check-double-line check-fill
+check-line checkbox-blank-circle-fill checkbox-blank-circle-line checkbox-blank-fill checkbox-blank-line checkbox-circle-fill checkbox-circle-line checkbox-fill checkbox-indeterminate-fill checkbox-indeterminate-line
+checkbox-line checkbox-multiple-blank-fill checkbox-multiple-blank-line checkbox-multiple-fill checkbox-multiple-line chess-fill chess-line china-railway-fill china-railway-line chrome-fill
+chrome-line circle-fill circle-line clapperboard-ai-fill clapperboard-ai-line clapperboard-fill clapperboard-line claude-fill claude-line clipboard-fill
+clipboard-line clockwise-2-fill clockwise-2-line clockwise-fill clockwise-line close-circle-fill close-circle-line close-fill close-large-fill close-large-line
+close-line closed-captioning-ai-fill closed-captioning-ai-line closed-captioning-fill closed-captioning-line cloud-fill cloud-line cloud-off-fill cloud-off-line cloud-windy-fill
+cloud-windy-line cloudy-2-fill cloudy-2-line cloudy-fill cloudy-line code-ai-fill code-ai-line code-block code-box-fill code-box-line
+code-fill code-line code-s-fill code-s-line code-s-slash-fill code-s-slash-line code-view codepen-fill codepen-line coin-fill
+coin-line coins-fill coins-line collage-fill collage-line collapse-diagonal-2-fill collapse-diagonal-2-line collapse-diagonal-fill collapse-diagonal-line collapse-horizontal-fill
+collapse-horizontal-line collapse-vertical-fill collapse-vertical-line color-filter-ai-fill color-filter-ai-line color-filter-fill color-filter-line command-fill command-line community-fill
+community-line compass-2-fill compass-2-line compass-3-fill compass-3-line compass-4-fill compass-4-line compass-discover-fill compass-discover-line compass-fill
+compass-line compasses-2-fill compasses-2-line compasses-fill compasses-line computer-fill computer-line connector-fill connector-line contacts-book-2-fill
+contacts-book-2-line contacts-book-3-fill contacts-book-3-line contacts-book-fill contacts-book-line contacts-book-upload-fill contacts-book-upload-line contacts-fill contacts-line contract-fill
+contract-left-fill contract-left-line contract-left-right-fill contract-left-right-line contract-line contract-right-fill contract-right-line contract-up-down-fill contract-up-down-line contrast-2-fill
+contrast-2-line contrast-drop-2-fill contrast-drop-2-line contrast-drop-fill contrast-drop-line contrast-fill contrast-line cookie-fill cookie-line copilot-fill
+copilot-line copper-coin-fill copper-coin-line copper-diamond-fill copper-diamond-line copyleft-fill copyleft-line copyright-fill copyright-line coreos-fill
+coreos-line corner-down-left-fill corner-down-left-line corner-down-right-fill corner-down-right-line corner-left-down-fill corner-left-down-line corner-left-up-fill corner-left-up-line corner-right-down-fill
+corner-right-down-line corner-right-up-fill corner-right-up-line corner-up-left-double-fill corner-up-left-double-line corner-up-left-fill corner-up-left-line corner-up-right-double-fill corner-up-right-double-line corner-up-right-fill
+corner-up-right-line coupon-2-fill coupon-2-line coupon-3-fill coupon-3-line coupon-4-fill coupon-4-line coupon-5-fill coupon-5-line coupon-fill
+coupon-line cpu-fill cpu-line creative-commons-by-fill creative-commons-by-line creative-commons-fill creative-commons-line creative-commons-nc-fill creative-commons-nc-line creative-commons-nd-fill
+creative-commons-nd-line creative-commons-sa-fill creative-commons-sa-line creative-commons-zero-fill creative-commons-zero-line criminal-fill criminal-line crop-2-fill crop-2-line crop-fill
+crop-line cross-fill cross-line crosshair-2-fill crosshair-2-line crosshair-fill crosshair-line css3-fill css3-line cup-fill
+cup-line currency-fill currency-line cursor-ai-fill cursor-ai-line cursor-fill cursor-hand cursor-line custom-size customer-service-2-fill
+customer-service-2-line customer-service-fill customer-service-line dashboard-2-fill dashboard-2-line dashboard-3-fill dashboard-3-line dashboard-fill dashboard-horizontal-fill dashboard-horizontal-line
+dashboard-line database-2-fill database-2-line database-fill database-line deepseek-fill deepseek-line delete-back-2-fill delete-back-2-line delete-back-fill
+delete-back-line delete-bin-2-fill delete-bin-2-line delete-bin-3-fill delete-bin-3-line delete-bin-4-fill delete-bin-4-line delete-bin-5-fill delete-bin-5-line delete-bin-6-fill
+delete-bin-6-line delete-bin-7-fill delete-bin-7-line delete-bin-fill delete-bin-line delete-column delete-row device-fill device-line device-recover-fill
+device-recover-line diamond-fill diamond-line diamond-ring-fill diamond-ring-line dice-1-fill dice-1-line dice-2-fill dice-2-line dice-3-fill
+dice-3-line dice-4-fill dice-4-line dice-5-fill dice-5-line dice-6-fill dice-6-line dice-fill dice-line dingding-fill
+dingding-line direction-fill direction-line disc-fill disc-line discord-fill discord-line discount-percent-fill discount-percent-line discuss-fill
+discuss-line dislike-fill dislike-line disqus-fill disqus-line divide-fill divide-line dna-fill dna-line donut-chart-fill
+donut-chart-line door-closed-fill door-closed-line door-fill door-line door-lock-box-fill door-lock-box-line door-lock-fill door-lock-line door-open-fill
+door-open-line dossier-fill dossier-line douban-fill douban-line double-quotes-l double-quotes-r download-2-fill download-2-line download-cloud-2-fill
+download-cloud-2-line download-cloud-fill download-cloud-line download-fill download-line draft-fill draft-line drag-drop-fill drag-drop-line drag-move-2-fill
+drag-move-2-line drag-move-fill drag-move-line draggable draw-fill draw-line dribbble-fill dribbble-line drinks-2-fill drinks-2-line
+drinks-fill drinks-line drive-fill drive-line drizzle-fill drizzle-line drop-fill drop-line dropbox-fill dropbox-line
+dropdown-list dropper-fill dropper-line dual-sim-1-fill dual-sim-1-line dual-sim-2-fill dual-sim-2-line dv-fill dv-line dvd-ai-fill
+dvd-ai-line dvd-fill dvd-line e-bike-2-fill e-bike-2-line e-bike-fill e-bike-line earth-fill earth-line earthquake-fill
+earthquake-line edge-fill edge-line edge-new-fill edge-new-line edit-2-fill edit-2-line edit-box-fill edit-box-line edit-circle-fill
+edit-circle-line edit-fill edit-line eject-fill eject-line emoji-sticker-fill emoji-sticker-line emotion-2-fill emotion-2-line emotion-add-fill
+emotion-add-line emotion-fill emotion-happy-fill emotion-happy-line emotion-laugh-fill emotion-laugh-line emotion-line emotion-normal-fill emotion-normal-line emotion-sad-fill
+emotion-sad-line emotion-unhappy-fill emotion-unhappy-line empathize-fill empathize-line emphasis emphasis-cn english-input equal-fill equal-line
+equalizer-2-fill equalizer-2-line equalizer-3-fill equalizer-3-line equalizer-fill equalizer-line eraser-fill eraser-line error-warning-fill error-warning-line
+eth-fill eth-line evernote-fill evernote-line exchange-2-fill exchange-2-line exchange-box-fill exchange-box-line exchange-cny-fill exchange-cny-line
+exchange-dollar-fill exchange-dollar-line exchange-fill exchange-funds-fill exchange-funds-line exchange-line expand-diagonal-2-fill expand-diagonal-2-line expand-diagonal-fill expand-diagonal-line
+expand-diagonal-s-2-fill expand-diagonal-s-2-line expand-diagonal-s-fill expand-diagonal-s-line expand-height-fill expand-height-line expand-horizontal-fill expand-horizontal-line expand-horizontal-s-fill expand-horizontal-s-line
+expand-left-fill expand-left-line expand-left-right-fill expand-left-right-line expand-right-fill expand-right-line expand-up-down-fill expand-up-down-line expand-vertical-fill expand-vertical-line
+expand-vertical-s-fill expand-vertical-s-line expand-width-fill expand-width-line export-fill export-line external-link-fill external-link-line eye-2-fill eye-2-line
+eye-close-fill eye-close-line eye-fill eye-line eye-off-fill eye-off-line facebook-box-fill facebook-box-line facebook-circle-fill facebook-circle-line
+facebook-fill facebook-line fahrenheit-fill fahrenheit-line fediverse-fill fediverse-line feedback-fill feedback-line figma-fill figma-line
+file-2-fill file-2-line file-3-fill file-3-line file-4-fill file-4-line file-add-fill file-add-line file-ai-2-fill file-ai-2-line
+file-ai-fill file-ai-line file-chart-2-fill file-chart-2-line file-chart-fill file-chart-line file-check-fill file-check-line file-close-fill file-close-line
+file-cloud-fill file-cloud-line file-code-fill file-code-line file-copy-2-fill file-copy-2-line file-copy-fill file-copy-line file-damage-fill file-damage-line
+file-download-fill file-download-line file-edit-fill file-edit-line file-excel-2-fill file-excel-2-line file-excel-fill file-excel-line file-fill file-forbid-fill
+file-forbid-line file-gif-fill file-gif-line file-history-fill file-history-line file-hwp-fill file-hwp-line file-image-fill file-image-line file-info-fill
+file-info-line file-line file-list-2-fill file-list-2-line file-list-3-fill file-list-3-line file-list-fill file-list-line file-lock-fill file-lock-line
+file-marked-fill file-marked-line file-music-fill file-music-line file-paper-2-fill file-paper-2-line file-paper-fill file-paper-line file-pdf-2-fill file-pdf-2-line
+file-pdf-fill file-pdf-line file-ppt-2-fill file-ppt-2-line file-ppt-fill file-ppt-line file-reduce-fill file-reduce-line file-scan-fill file-scan-line
+file-search-fill file-search-line file-settings-fill file-settings-line file-shield-2-fill file-shield-2-line file-shield-fill file-shield-line file-shred-fill file-shred-line
+file-text-fill file-text-line file-transfer-fill file-transfer-line file-unknow-fill file-unknow-line file-upload-fill file-upload-line file-user-fill file-user-line
+file-video-fill file-video-line file-warning-fill file-warning-line file-word-2-fill file-word-2-line file-word-fill file-word-line file-zip-fill file-zip-line
+film-ai-fill film-ai-line film-fill film-line filter-2-fill filter-2-line filter-3-fill filter-3-line filter-fill filter-line
+filter-off-fill filter-off-line find-replace-fill find-replace-line finder-fill finder-line fingerprint-2-fill fingerprint-2-line fingerprint-fill fingerprint-line
+fire-fill fire-line firebase-fill firebase-line firefox-browser-fill firefox-browser-line firefox-fill firefox-line first-aid-kit-fill first-aid-kit-line
+fiverr-fill fiverr-line flag-2-fill flag-2-line flag-fill flag-line flag-off-fill flag-off-line flashlight-fill flashlight-line
+flask-fill flask-line flickr-fill flickr-line flight-land-fill flight-land-line flight-takeoff-fill flight-takeoff-line flip-horizontal-2-fill flip-horizontal-2-line
+flip-horizontal-fill flip-horizontal-line flip-vertical-2-fill flip-vertical-2-line flip-vertical-fill flip-vertical-line flood-fill flood-line flow-chart flower-fill
+flower-line flutter-fill flutter-line focus-2-fill focus-2-line focus-3-fill focus-3-line focus-fill focus-line focus-mode
+foggy-fill foggy-line folder-2-fill folder-2-line folder-3-fill folder-3-line folder-4-fill folder-4-line folder-5-fill folder-5-line
+folder-6-fill folder-6-line folder-add-fill folder-add-line folder-chart-2-fill folder-chart-2-line folder-chart-fill folder-chart-line folder-check-fill folder-check-line
+folder-close-fill folder-close-line folder-cloud-fill folder-cloud-line folder-download-fill folder-download-line folder-fill folder-forbid-fill folder-forbid-line folder-history-fill
+folder-history-line folder-image-fill folder-image-line folder-info-fill folder-info-line folder-keyhole-fill folder-keyhole-line folder-line folder-lock-fill folder-lock-line
+folder-music-fill folder-music-line folder-open-fill folder-open-line folder-received-fill folder-received-line folder-reduce-fill folder-reduce-line folder-settings-fill folder-settings-line
+folder-shared-fill folder-shared-line folder-shield-2-fill folder-shield-2-line folder-shield-fill folder-shield-line folder-transfer-fill folder-transfer-line folder-unknow-fill folder-unknow-line
+folder-upload-fill folder-upload-line folder-user-fill folder-user-line folder-video-fill folder-video-line folder-warning-fill folder-warning-line folder-zip-fill folder-zip-line
+folders-fill folders-line font-color font-family font-mono font-sans-serif font-serif font-size font-size-2 font-size-ai
+football-fill football-line footprint-fill footprint-line forbid-2-fill forbid-2-line forbid-fill forbid-line format-clear formula
+forward-10-fill forward-10-line forward-15-fill forward-15-line forward-30-fill forward-30-line forward-5-fill forward-5-line forward-end-fill forward-end-line
+forward-end-mini-fill forward-end-mini-line fridge-fill fridge-line friendica-fill friendica-line fullscreen-exit-fill fullscreen-exit-line fullscreen-fill fullscreen-line
+function-add-fill function-add-line function-ai-fill function-ai-line function-fill function-line functions funds-box-fill funds-box-line funds-fill
+funds-line gallery-fill gallery-line gallery-upload-fill gallery-upload-line gallery-view gallery-view-2 game-2-fill game-2-line game-fill
+game-line gamepad-fill gamepad-line gas-station-fill gas-station-line gatsby-fill gatsby-line gemini-fill gemini-line genderless-fill
+genderless-line ghost-2-fill ghost-2-line ghost-3-fill ghost-3-line ghost-4-fill ghost-4-line ghost-fill ghost-line ghost-smile-fill
+ghost-smile-line gift-2-fill gift-2-line gift-fill gift-line git-branch-fill git-branch-line git-close-pull-request-fill git-close-pull-request-line git-commit-fill
+git-commit-line git-fork-fill git-fork-line git-merge-fill git-merge-line git-pr-draft-fill git-pr-draft-line git-pull-request-fill git-pull-request-line git-repository-commits-fill
+git-repository-commits-line git-repository-fill git-repository-line git-repository-private-fill git-repository-private-line gitbook-fill gitbook-line gitee-fill gitee-line github-fill
+github-line gitlab-fill gitlab-line glasses-2-fill glasses-2-line glasses-fill glasses-line global-fill global-line global-off-fill
+global-off-line globe-fill globe-line goblet-2-fill goblet-2-line goblet-broken-fill goblet-broken-line goblet-fill goblet-line goggles-fill
+goggles-line golf-ball-fill golf-ball-line google-fill google-line google-play-fill google-play-line government-fill government-line gps-fill
+gps-line gradienter-fill gradienter-line graduation-cap-fill graduation-cap-line grid-fill grid-line grok-ai-fill grok-ai-line group-2-fill
+group-2-line group-3-fill group-3-line group-fill group-line guide-fill guide-line h-1 h-2 h-3
+h-4 h-5 h-6 hail-fill hail-line hammer-fill hammer-line hand hand-2 hand-coin-fill
+hand-coin-line hand-heart-fill hand-heart-line hand-sanitizer-fill hand-sanitizer-line handbag-fill handbag-line hard-drive-2-fill hard-drive-2-line hard-drive-3-fill
+hard-drive-3-line hard-drive-fill hard-drive-line hashtag haze-2-fill haze-2-line haze-fill haze-line hd-fill hd-line
+heading headphone-fill headphone-line health-book-fill health-book-line heart-2-fill heart-2-line heart-3-fill heart-3-line heart-add-2-fill
+heart-add-2-line heart-add-fill heart-add-line heart-fill heart-line heart-pulse-fill heart-pulse-line hearts-fill hearts-line heavy-showers-fill
+heavy-showers-line hexagon-fill hexagon-line history-fill history-line home-2-fill home-2-line home-3-fill home-3-line home-4-fill
+home-4-line home-5-fill home-5-line home-6-fill home-6-line home-7-fill home-7-line home-8-fill home-8-line home-9-fill
+home-9-line home-fill home-gear-fill home-gear-line home-heart-fill home-heart-line home-line home-office-fill home-office-line home-smile-2-fill
+home-smile-2-line home-smile-fill home-smile-line home-wifi-fill home-wifi-line honor-of-kings-fill honor-of-kings-line honour-fill honour-line hospital-fill
+hospital-line hotel-bed-fill hotel-bed-line hotel-fill hotel-line hotspot-fill hotspot-line hourglass-2-fill hourglass-2-line hourglass-fill
+hourglass-line hq-fill hq-line html5-fill html5-line id-card-fill id-card-line ie-fill ie-line image-2-fill
+image-2-line image-add-fill image-add-line image-ai-fill image-ai-line image-circle-ai-fill image-circle-ai-line image-circle-fill image-circle-line image-download-fill
+image-download-line image-edit-fill image-edit-line image-fill image-line image-upload-fill image-upload-line import-fill import-line inbox-2-fill
+inbox-2-line inbox-archive-fill inbox-archive-line inbox-fill inbox-line inbox-unarchive-fill inbox-unarchive-line increase-decrease-fill increase-decrease-line indent-decrease
+indent-increase indeterminate-circle-fill indeterminate-circle-line infinity-fill infinity-line info-card-fill info-card-line info-i information-2-fill information-2-line
+information-fill information-line information-off-fill information-off-line infrared-thermometer-fill infrared-thermometer-line ink-bottle-fill ink-bottle-line input-cursor-move input-field
+input-method-fill input-method-line insert-column-left insert-column-right insert-row-bottom insert-row-top instagram-fill instagram-line install-fill install-line
+instance-fill instance-line invision-fill invision-line issues-fill issues-line issues-reopen-fill issues-reopen-line italic java-fill
+java-line javascript-fill javascript-line jewelry-fill jewelry-line kakao-talk-fill kakao-talk-line kanban-view kanban-view-2 key-2-fill
+key-2-line key-fill key-line keyboard-box-fill keyboard-box-line keyboard-fill keyboard-line keynote-fill keynote-line kick-fill
+kick-line knife-blood-fill knife-blood-line knife-fill knife-line landscape-ai-fill landscape-ai-line landscape-fill landscape-line layout-2-fill
+layout-2-line layout-3-fill layout-3-line layout-4-fill layout-4-line layout-5-fill layout-5-line layout-6-fill layout-6-line layout-bottom-2-fill
+layout-bottom-2-line layout-bottom-fill layout-bottom-line layout-column-fill layout-column-line layout-fill layout-grid-2-fill layout-grid-2-line layout-grid-fill layout-grid-line
+layout-horizontal-fill layout-horizontal-line layout-left-2-fill layout-left-2-line layout-left-fill layout-left-line layout-line layout-masonry-fill layout-masonry-line layout-right-2-fill
+layout-right-2-line layout-right-fill layout-right-line layout-row-fill layout-row-line layout-top-2-fill layout-top-2-line layout-top-fill layout-top-line layout-vertical-fill
+layout-vertical-line leaf-fill leaf-line letter-spacing-2 lifebuoy-fill lifebuoy-line lightbulb-ai-fill lightbulb-ai-line lightbulb-fill lightbulb-flash-fill
+lightbulb-flash-line lightbulb-line line-chart-fill line-chart-line line-fill line-height line-height-2 line-line link link-m
+link-unlink link-unlink-m linkedin-box-fill linkedin-box-line linkedin-fill linkedin-line links-fill links-line list-check list-check-2
+list-check-3 list-indefinite list-ordered list-ordered-2 list-radio list-settings-fill list-settings-line list-unordered list-view live-fill
+live-line loader-2-fill loader-2-line loader-3-fill loader-3-line loader-4-fill loader-4-line loader-5-fill loader-5-line loader-fill
+loader-line lock-2-fill lock-2-line lock-fill lock-line lock-password-fill lock-password-line lock-star-fill lock-star-line lock-unlock-fill
+lock-unlock-line login-box-fill login-box-line login-circle-fill login-circle-line logout-box-fill logout-box-line logout-box-r-fill logout-box-r-line logout-circle-fill
+logout-circle-line logout-circle-r-fill logout-circle-r-line loop-left-ai-fill loop-left-ai-line loop-left-fill loop-left-line loop-right-ai-fill loop-right-ai-line loop-right-fill
+loop-right-line luggage-cart-fill luggage-cart-line luggage-deposit-fill luggage-deposit-line lungs-fill lungs-line mac-fill mac-line macbook-fill
+macbook-line magic-fill magic-line mail-add-fill mail-add-line mail-ai-fill mail-ai-line mail-check-fill mail-check-line mail-close-fill
+mail-close-line mail-download-fill mail-download-line mail-fill mail-forbid-fill mail-forbid-line mail-line mail-lock-fill mail-lock-line mail-open-fill
+mail-open-line mail-send-fill mail-send-line mail-settings-fill mail-settings-line mail-star-fill mail-star-line mail-unread-fill mail-unread-line mail-volume-fill
+mail-volume-line map-2-fill map-2-line map-fill map-line map-pin-2-fill map-pin-2-line map-pin-3-fill map-pin-3-line map-pin-4-fill
+map-pin-4-line map-pin-5-fill map-pin-5-line map-pin-add-fill map-pin-add-line map-pin-fill map-pin-line map-pin-range-fill map-pin-range-line map-pin-time-fill
+map-pin-time-line map-pin-user-fill map-pin-user-line mark-pen-fill mark-pen-line markdown-fill markdown-line markup-fill markup-line mastercard-fill
+mastercard-line mastodon-fill mastodon-line medal-2-fill medal-2-line medal-fill medal-line medicine-bottle-fill medicine-bottle-line medium-fill
+medium-line megaphone-2-fill megaphone-2-line megaphone-fill megaphone-line memories-fill memories-line men-fill men-line mental-health-fill
+mental-health-line menu-2-fill menu-2-line menu-3-fill menu-3-line menu-4-fill menu-4-line menu-5-fill menu-5-line menu-add-fill
+menu-add-line menu-fill menu-fold-2-fill menu-fold-2-line menu-fold-3-fill menu-fold-3-line menu-fold-4-fill menu-fold-4-line menu-fold-fill menu-fold-line
+menu-line menu-search-fill menu-search-line menu-unfold-2-fill menu-unfold-2-line menu-unfold-3-fill menu-unfold-3-line menu-unfold-4-fill menu-unfold-4-line menu-unfold-fill
+menu-unfold-line merge-cells-horizontal merge-cells-vertical message-2-fill message-2-line message-3-fill message-3-line message-ai-3-fill message-ai-3-line message-fill
+message-line messenger-fill messenger-line meta-fill meta-line meteor-fill meteor-line mic-2-ai-fill mic-2-ai-line mic-2-fill
+mic-2-line mic-ai-fill mic-ai-line mic-fill mic-line mic-off-fill mic-off-line mickey-fill mickey-line microscope-fill
+microscope-line microsoft-copilot-fill microsoft-copilot-line microsoft-fill microsoft-line microsoft-loop-fill microsoft-loop-line mind-map mini-program-fill mini-program-line
+mist-fill mist-line mixtral-fill mixtral-line mobile-download-fill mobile-download-line money-cny-box-fill money-cny-box-line money-cny-circle-fill money-cny-circle-line
+money-dollar-box-fill money-dollar-box-line money-dollar-circle-fill money-dollar-circle-line money-euro-box-fill money-euro-box-line money-euro-circle-fill money-euro-circle-line money-pound-box-fill money-pound-box-line
+money-pound-circle-fill money-pound-circle-line money-rupee-circle-fill money-rupee-circle-line moon-clear-fill moon-clear-line moon-cloudy-fill moon-cloudy-line moon-fill moon-foggy-fill
+moon-foggy-line moon-line more-2-fill more-2-line more-fill more-line mosaic-fill mosaic-line motorbike-fill motorbike-line
+mouse-fill mouse-line movie-2-ai-fill movie-2-ai-line movie-2-fill movie-2-line movie-ai-fill movie-ai-line movie-fill movie-line
+multi-image-fill multi-image-line music-2-fill music-2-line music-ai-fill music-ai-line music-fill music-line mv-ai-fill mv-ai-line
+mv-fill mv-line navigation-fill navigation-line netease-cloud-music-fill netease-cloud-music-line netflix-fill netflix-line network-error-fill network-error-line
+network-fill network-line network-off-fill network-off-line news-fill news-line newspaper-fill newspaper-line nextjs-fill nextjs-line
+nft-fill nft-line no-credit-card-fill no-credit-card-line node-tree nodejs-fill nodejs-line notification-2-fill notification-2-line notification-3-fill
+notification-3-line notification-4-fill notification-4-line notification-badge-fill notification-badge-line notification-fill notification-line notification-off-fill notification-off-line notification-snooze-fill
+notification-snooze-line notion-fill notion-line npmjs-fill npmjs-line number-0 number-1 number-2 number-3 number-4
+number-5 number-6 number-7 number-8 number-9 numbers-fill numbers-line nurse-fill nurse-line octagon-fill
+octagon-line oil-fill oil-line omega open-arm-fill open-arm-line open-source-fill open-source-line openai-fill openai-line
+openbase-fill openbase-line opera-fill opera-line order-play-fill order-play-line organization-chart outlet-2-fill outlet-2-line outlet-fill
+outlet-line overline p2p-fill p2p-line page-separator pages-fill pages-line paint-brush-fill paint-brush-line paint-fill
+paint-line painting-ai-fill painting-ai-line painting-fill painting-line palette-fill palette-line pantone-fill pantone-line paragraph
+parent-fill parent-line parentheses-fill parentheses-line parking-box-fill parking-box-line parking-fill parking-line pass-expired-fill pass-expired-line
+pass-pending-fill pass-pending-line pass-valid-fill pass-valid-line passport-fill passport-line patreon-fill patreon-line pause-circle-fill pause-circle-line
+pause-fill pause-large-fill pause-large-line pause-line pause-mini-fill pause-mini-line paypal-fill paypal-line pen-nib-fill pen-nib-line
+pencil-ai-2-fill pencil-ai-2-line pencil-ai-fill pencil-ai-line pencil-fill pencil-line pencil-ruler-2-fill pencil-ruler-2-line pencil-ruler-fill pencil-ruler-line
+pentagon-fill pentagon-line percent-fill percent-line perplexity-fill perplexity-line phone-camera-fill phone-camera-line phone-fill phone-find-fill
+phone-find-line phone-line phone-lock-fill phone-lock-line php-fill php-line piano-fill piano-grand-fill piano-grand-line piano-line
+picture-in-picture-2-fill picture-in-picture-2-line picture-in-picture-exit-fill picture-in-picture-exit-line picture-in-picture-fill picture-in-picture-line pie-chart-2-fill pie-chart-2-line pie-chart-box-fill pie-chart-box-line
+pie-chart-fill pie-chart-line pin-distance-fill pin-distance-line ping-pong-fill ping-pong-line pinterest-fill pinterest-line pinyin-input pix-fill
+pix-line pixelfed-fill pixelfed-line plane-fill plane-line planet-fill planet-line plant-fill plant-line play-circle-fill
+play-circle-line play-fill play-large-fill play-large-line play-line play-list-2-fill play-list-2-line play-list-add-fill play-list-add-line play-list-fill
+play-list-line play-mini-fill play-mini-line play-reverse-fill play-reverse-large-fill play-reverse-large-line play-reverse-line play-reverse-mini-fill play-reverse-mini-line playstation-fill
+playstation-line plug-2-fill plug-2-line plug-3-fill plug-3-line plug-fill plug-line poker-clubs-fill poker-clubs-line poker-diamonds-fill
+poker-diamonds-line poker-hearts-fill poker-hearts-line poker-spades-fill poker-spades-line polaroid-2-fill polaroid-2-line polaroid-fill polaroid-line police-badge-fill
+police-badge-line police-car-fill police-car-line presentation-fill presentation-line price-tag-2-fill price-tag-2-line price-tag-3-fill price-tag-3-line price-tag-fill
+price-tag-line printer-cloud-fill printer-cloud-line printer-fill printer-line product-hunt-fill product-hunt-line profile-fill profile-line progress-1-fill
+progress-1-line progress-2-fill progress-2-line progress-3-fill progress-3-line progress-4-fill progress-4-line progress-5-fill progress-5-line progress-6-fill
+progress-6-line progress-7-fill progress-7-line progress-8-fill progress-8-line prohibited-2-fill prohibited-2-line prohibited-fill prohibited-line projector-2-fill
+projector-2-line projector-fill projector-line psychotherapy-fill psychotherapy-line pulse-ai-fill pulse-ai-line pulse-fill pulse-line pushpin-2-fill
+pushpin-2-line pushpin-fill pushpin-line puzzle-2-fill puzzle-2-line puzzle-fill puzzle-line qq-fill qq-line qr-code-fill
+qr-code-line qr-scan-2-fill qr-scan-2-line qr-scan-ai-fill qr-scan-ai-line qr-scan-fill qr-scan-line question-answer-fill question-answer-line question-fill
+question-line question-mark questionnaire-fill questionnaire-line quill-pen-ai-fill quill-pen-ai-line quill-pen-fill quill-pen-line quote-text qwen-ai-fill
+qwen-ai-line radar-fill radar-line radio-2-fill radio-2-line radio-button-fill radio-button-line radio-fill radio-line rainbow-fill
+rainbow-line rainy-fill rainy-line ram-2-fill ram-2-line ram-fill ram-line reactjs-fill reactjs-line receipt-fill
+receipt-line record-circle-fill record-circle-line record-mail-fill record-mail-line rectangle-fill rectangle-line recycle-fill recycle-line red-packet-fill
+red-packet-line reddit-2-fill reddit-2-line reddit-fill reddit-line refresh-fill refresh-line refund-2-fill refund-2-line refund-fill
+refund-line registered-fill registered-line remix-fill remix-line remix-run-fill remix-run-line remixicon-fill remixicon-line remote-control-2-fill
+remote-control-2-line remote-control-fill remote-control-line repeat-2-fill repeat-2-line repeat-fill repeat-line repeat-one-fill repeat-one-line replay-10-fill
+replay-10-line replay-15-fill replay-15-line replay-30-fill replay-30-line replay-5-fill replay-5-line reply-all-fill reply-all-line reply-fill
+reply-line reserved-fill reserved-line reset-left-fill reset-left-line reset-right-fill reset-right-line rest-time-fill rest-time-line restart-fill
+restart-line restaurant-2-fill restaurant-2-line restaurant-fill restaurant-line rewind-fill rewind-line rewind-mini-fill rewind-mini-line rewind-start-fill
+rewind-start-line rewind-start-mini-fill rewind-start-mini-line rfid-fill rfid-line rhythm-fill rhythm-line riding-fill riding-line road-map-fill
+road-map-line roadster-fill roadster-line robot-2-fill robot-2-line robot-3-fill robot-3-line robot-fill robot-line rocket-2-fill
+rocket-2-line rocket-fill rocket-line rotate-lock-fill rotate-lock-line rounded-corner route-fill route-line router-fill router-line
+rss-fill rss-line ruler-2-fill ruler-2-line ruler-fill ruler-line run-fill run-line safari-fill safari-line
+safe-2-fill safe-2-line safe-3-fill safe-3-line safe-fill safe-line sailboat-fill sailboat-line save-2-fill save-2-line
+save-3-fill save-3-line save-fill save-line scales-2-fill scales-2-line scales-3-fill scales-3-line scales-fill scales-line
+scan-2-fill scan-2-line scan-fill scan-line school-fill school-line scissors-2-fill scissors-2-line scissors-cut-fill scissors-cut-line
+scissors-fill scissors-line screenshot-2-fill screenshot-2-line screenshot-fill screenshot-line scroll-to-bottom-fill scroll-to-bottom-line sd-card-fill sd-card-line
+sd-card-mini-fill sd-card-mini-line search-2-fill search-2-line search-ai-2-fill search-ai-2-line search-ai-3-fill search-ai-3-line search-ai-4-fill search-ai-4-line
+search-ai-fill search-ai-line search-eye-fill search-eye-line search-fill search-line secure-payment-fill secure-payment-line seedling-fill seedling-line
+send-backward send-ins-fill send-ins-line send-plane-2-fill send-plane-2-line send-plane-fill send-plane-line send-to-back sensor-fill sensor-line
+seo-fill seo-line separator server-fill server-line service-bell-fill service-bell-line service-fill service-line settings-2-fill
+settings-2-line settings-3-fill settings-3-line settings-4-fill settings-4-line settings-5-fill settings-5-line settings-6-fill settings-6-line settings-fill
+settings-line shadow-fill shadow-line shake-hands-fill shake-hands-line shape-2-fill shape-2-line shape-fill shape-line shapes-fill
+shapes-line share-2-fill share-2-line share-box-fill share-box-line share-circle-fill share-circle-line share-fill share-forward-2-fill share-forward-2-line
+share-forward-box-fill share-forward-box-line share-forward-fill share-forward-line share-line shield-check-fill shield-check-line shield-cross-fill shield-cross-line shield-fill
+shield-flash-fill shield-flash-line shield-keyhole-fill shield-keyhole-line shield-line shield-star-fill shield-star-line shield-user-fill shield-user-line shining-2-fill
+shining-2-line shining-fill shining-line ship-2-fill ship-2-line ship-fill ship-line shirt-fill shirt-line shopping-bag-2-fill
+shopping-bag-2-line shopping-bag-3-fill shopping-bag-3-line shopping-bag-4-fill shopping-bag-4-line shopping-bag-fill shopping-bag-line shopping-basket-2-fill shopping-basket-2-line shopping-basket-fill
+shopping-basket-line shopping-cart-2-fill shopping-cart-2-line shopping-cart-fill shopping-cart-line showers-fill showers-line shuffle-fill shuffle-line shut-down-fill
+shut-down-line side-bar-fill side-bar-line sidebar-fold-fill sidebar-fold-line sidebar-unfold-fill sidebar-unfold-line signal-cellular-1-fill signal-cellular-1-line signal-cellular-2-fill
+signal-cellular-2-line signal-cellular-3-fill signal-cellular-3-line signal-cellular-off-fill signal-cellular-off-line signal-tower-fill signal-tower-line signal-wifi-1-fill signal-wifi-1-line signal-wifi-2-fill
+signal-wifi-2-line signal-wifi-3-fill signal-wifi-3-line signal-wifi-error-fill signal-wifi-error-line signal-wifi-fill signal-wifi-line signal-wifi-off-fill signal-wifi-off-line signpost-fill
+signpost-line sim-card-2-fill sim-card-2-line sim-card-fill sim-card-line sim-card-warning-fill sim-card-warning-line single-quotes-l single-quotes-r sip-fill
+sip-line sketching skip-back-fill skip-back-line skip-back-mini-fill skip-back-mini-line skip-down-fill skip-down-line skip-forward-fill skip-forward-line
+skip-forward-mini-fill skip-forward-mini-line skip-left-fill skip-left-line skip-right-fill skip-right-line skip-up-fill skip-up-line skull-2-fill skull-2-line
+skull-fill skull-line skype-fill skype-line slack-fill slack-line slash-commands slash-commands-2 slice-fill slice-line
+slideshow-2-fill slideshow-2-line slideshow-3-fill slideshow-3-line slideshow-4-fill slideshow-4-line slideshow-fill slideshow-line slideshow-view slow-down-fill
+slow-down-line smartphone-fill smartphone-line snapchat-fill snapchat-line snowflake-fill snowflake-line snowy-fill snowy-line sofa-fill
+sofa-line sort-alphabet-asc sort-alphabet-desc sort-asc sort-desc sort-number-asc sort-number-desc sound-module-fill sound-module-line soundcloud-fill
+soundcloud-line space space-ship-2-fill space-ship-2-line space-ship-fill space-ship-line spam-2-fill spam-2-line spam-3-fill spam-3-line
+spam-fill spam-line sparkling-2-fill sparkling-2-line sparkling-fill sparkling-line speak-ai-fill speak-ai-line speak-fill speak-line
+speaker-2-fill speaker-2-line speaker-3-fill speaker-3-line speaker-fill speaker-line spectrum-fill spectrum-line speech-to-text-fill speech-to-text-line
+speed-fill speed-line speed-mini-fill speed-mini-line speed-up-fill speed-up-line split-cells-horizontal split-cells-vertical spotify-fill spotify-line
+spy-fill spy-line square-fill square-line square-root stack-fill stack-line stack-overflow-fill stack-overflow-line stacked-chart-fill
+stacked-chart-line stacked-view stackshare-fill stackshare-line stairs-fill stairs-line star-fill star-half-fill star-half-line star-half-s-fill
+star-half-s-line star-line star-off-fill star-off-line star-s-fill star-s-line star-smile-fill star-smile-line steam-fill steam-line
+steering-2-fill steering-2-line steering-fill steering-line stethoscope-fill stethoscope-line sticky-note-2-fill sticky-note-2-line sticky-note-add-fill sticky-note-add-line
+sticky-note-fill sticky-note-line stock-fill stock-line stop-circle-fill stop-circle-line stop-fill stop-large-fill stop-large-line stop-line
+stop-mini-fill stop-mini-line store-2-fill store-2-line store-3-fill store-3-line store-fill store-line strikethrough strikethrough-2
+subreddit-fill subreddit-line subscript subscript-2 subtract-fill subtract-line subway-fill subway-line subway-wifi-fill subway-wifi-line
+suitcase-2-fill suitcase-2-line suitcase-3-fill suitcase-3-line suitcase-fill suitcase-line sun-cloudy-fill sun-cloudy-line sun-fill sun-foggy-fill
+sun-foggy-line sun-line supabase-fill supabase-line superscript superscript-2 surgical-mask-fill surgical-mask-line surround-sound-fill surround-sound-line
+survey-fill survey-line svelte-fill svelte-line swap-2-fill swap-2-line swap-3-fill swap-3-line swap-box-fill swap-box-line
+swap-fill swap-line switch-fill switch-line sword-fill sword-line syringe-fill syringe-line t-box-fill t-box-line
+t-shirt-2-fill t-shirt-2-line t-shirt-air-fill t-shirt-air-line t-shirt-fill t-shirt-line table-2 table-3 table-alt-fill table-alt-line
+table-fill table-line table-view tablet-fill tablet-line tailwind-css-fill tailwind-css-line takeaway-fill takeaway-line taobao-fill
+taobao-line tape-fill tape-line target-fill target-line task-fill task-line taxi-fill taxi-line taxi-wifi-fill
+taxi-wifi-line team-fill team-line telegram-2-fill telegram-2-line telegram-fill telegram-line temp-cold-fill temp-cold-line temp-hot-fill
+temp-hot-line tent-fill tent-line terminal-box-fill terminal-box-line terminal-fill terminal-line terminal-window-fill terminal-window-line test-tube-fill
+test-tube-line text text-block text-direction-l text-direction-r text-snippet text-spacing text-to-speech-fill text-to-speech-line text-wrap
+thermometer-fill thermometer-line threads-fill threads-line thumb-down-fill thumb-down-line thumb-up-fill thumb-up-line thunderstorms-fill thunderstorms-line
+ticket-2-fill ticket-2-line ticket-fill ticket-line tiktok-fill tiktok-line time-fill time-line time-zone-fill time-zone-line
+timeline-view timer-2-fill timer-2-line timer-fill timer-flash-fill timer-flash-line timer-line todo-fill todo-line toggle-fill
+toggle-line token-swap-fill token-swap-line tools-fill tools-line tooth-fill tooth-line tornado-fill tornado-line trademark-fill
+trademark-line traffic-light-fill traffic-light-line train-fill train-line train-wifi-fill train-wifi-line translate translate-2 translate-ai
+translate-ai-2 travesti-fill travesti-line treasure-map-fill treasure-map-line tree-fill tree-line trello-fill trello-line triangle-fill
+triangle-line triangular-flag-fill triangular-flag-line trophy-fill trophy-line truck-fill truck-line tumblr-fill tumblr-line tv-2-fill
+tv-2-line tv-fill tv-line twitch-fill twitch-line twitter-fill twitter-line twitter-x-fill twitter-x-line typhoon-fill
+typhoon-line u-disk-fill u-disk-line ubuntu-fill ubuntu-line umbrella-fill umbrella-line underline uninstall-fill uninstall-line
+unpin-fill unpin-line unsplash-fill unsplash-line upload-2-fill upload-2-line upload-cloud-2-fill upload-cloud-2-line upload-cloud-fill upload-cloud-line
+upload-fill upload-line upwork-fill upwork-line usb-fill usb-line user-2-fill user-2-line user-3-fill user-3-line
+user-4-fill user-4-line user-5-fill user-5-line user-6-fill user-6-line user-add-fill user-add-line user-community-fill user-community-line
+user-fill user-follow-fill user-follow-line user-forbid-fill user-forbid-line user-heart-fill user-heart-line user-line user-location-fill user-location-line
+user-minus-fill user-minus-line user-received-2-fill user-received-2-line user-received-fill user-received-line user-search-fill user-search-line user-settings-fill user-settings-line
+user-shared-2-fill user-shared-2-line user-shared-fill user-shared-line user-smile-fill user-smile-line user-star-fill user-star-line user-unfollow-fill user-unfollow-line
+user-voice-fill user-voice-line vercel-fill vercel-line verified-badge-fill verified-badge-line video-add-fill video-add-line video-ai-fill video-ai-line
+video-chat-fill video-chat-line video-download-fill video-download-line video-fill video-line video-off-fill video-off-line video-on-ai-fill video-on-ai-line
+video-on-fill video-on-line video-upload-fill video-upload-line vidicon-2-fill vidicon-2-line vidicon-fill vidicon-line vimeo-fill vimeo-line
+vip-crown-2-fill vip-crown-2-line vip-crown-fill vip-crown-line vip-diamond-fill vip-diamond-line vip-fill vip-line virus-fill virus-line
+visa-fill visa-line vk-fill vk-line voice-ai-fill voice-ai-line voice-recognition-fill voice-recognition-line voiceprint-fill voiceprint-line
+volume-down-fill volume-down-line volume-mute-fill volume-mute-line volume-off-vibrate-fill volume-off-vibrate-line volume-up-fill volume-up-line volume-vibrate-fill volume-vibrate-line
+vuejs-fill vuejs-line walk-fill walk-line wallet-2-fill wallet-2-line wallet-3-fill wallet-3-line wallet-fill wallet-line
+water-flash-fill water-flash-line water-percent-fill water-percent-line webcam-fill webcam-line webhook-fill webhook-line wechat-2-fill wechat-2-line
+wechat-channels-fill wechat-channels-line wechat-fill wechat-line wechat-pay-fill wechat-pay-line weibo-fill weibo-line weight-fill weight-line
+whatsapp-fill whatsapp-line wheelchair-fill wheelchair-line wifi-fill wifi-line wifi-off-fill wifi-off-line window-2-fill window-2-line
+window-fill window-line windows-fill windows-line windy-fill windy-line wireless-charging-fill wireless-charging-line women-fill women-line
+wordpress-fill wordpress-line wrench-fill wrench-line wubi-input xbox-fill xbox-line xing-fill xing-line xrp-fill
+xrp-line xtz-fill xtz-line youtube-fill youtube-line yuque-fill yuque-line zcool-fill zcool-line zhihu-fill
+zhihu-line zhipu-ai-fill zhipu-ai-line zoom-in-fill zoom-in-line zoom-out-fill zoom-out-line zzz-fill zzz-line
+]==]
+)
+
+end)() end,
+    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
 -- [[tabler icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -20090,7 +20935,7 @@ zoom-out-area zoom-out zoom-pan zoom-question zoom-replace zoom-reset zoom-scan 
 )
 
 end)() end,
-    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
+    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
 -- [[Theme resolution engine (themes/init.luau).]]
 -- [[]]
 -- [[Extracted verbatim from components/window.luau so the window no longer owns]]
@@ -20196,7 +21041,7 @@ end
 return themes
 
 end)() end,
-    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
+    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(16, 13, 24),
@@ -20262,7 +21107,7 @@ return {
 }
 
 end)() end,
-    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
+    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(11, 16, 25),
@@ -20328,7 +21173,7 @@ return {
 }
 
 end)() end,
-    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
+    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
 local crimson = require(script.Parent.Parent.core.state)
 
 return {
@@ -20403,7 +21248,7 @@ return {
 }
 
 end)() end,
-    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
+    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
 local default = require(script.Parent.Parent.core.state)
 
 -- [[Rayfield Gen2 default palette, ported 1:1 for shared keys. Astra-only
@@ -20509,7 +21354,7 @@ return {
 }
 
 end)() end,
-    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
+    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(22, 18, 16),
@@ -20575,7 +21420,7 @@ return {
 }
 
 end)() end,
-    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
+    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
 local emerald = require(script.Parent.Parent.core.state)
 
 return {
@@ -20650,7 +21495,7 @@ return {
 }
 
 end)() end,
-    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
+    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
 local frost = require(script.Parent.Parent.core.state)
 
 return {
@@ -20725,7 +21570,7 @@ return {
 }
 
 end)() end,
-    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
+    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
 local gold = require(script.Parent.Parent.core.state)
 
 return {
@@ -20800,7 +21645,7 @@ return {
 }
 
 end)() end,
-    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
+    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
 local onyx = require(script.Parent.Parent.core.state)
 
 return {
@@ -20875,7 +21720,7 @@ return {
 }
 
 end)() end,
-    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
+    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(23, 15, 19),
@@ -20941,7 +21786,7 @@ return {
 }
 
 end)() end,
-    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
+    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 
 local hapticService = {}
@@ -21039,7 +21884,7 @@ end
 return hapticService
 
 end)() end,
-    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
+    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
 local networkUtil = require(script.Parent.network)
 local logger = require(script.Parent.log)
 
@@ -21217,7 +22062,7 @@ end
 return assetResolver
 
 end)() end,
-    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
+    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
 local iconRegistry = require(script.Parent.Parent.images.windowIcons)
 local constants = {}
 
@@ -21267,7 +22112,7 @@ constants.displayOrder = {
 return constants
 
 end)() end,
-    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
+    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
 local enums = {}
 
 function enums.itemFromValue(enumType, value)
@@ -21297,7 +22142,7 @@ end
 return enums
 
 end)() end,
-    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
+    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
 local serviceProvider = require(script.Parent.services)
 local filesystem = {}
 
@@ -21548,7 +22393,7 @@ end
 return filesystem
 
 end)() end,
-    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
+    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 local pathUtil = require(script.Parent.path)
 
@@ -21597,7 +22442,7 @@ end
 return filesystemManager
 
 end)() end,
-    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
+    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
 local fontManager = require(script.Parent.services)
 local a2 = fontManager.getService("HttpService")
 local a3 = fontManager.getService("RunService")
@@ -22050,7 +22895,7 @@ end
 return a16
 
 end)() end,
-    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
+    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
 
 local functions = {}
 
@@ -22068,7 +22913,7 @@ functions.contrastText = textMetrics.contrastText
 return functions
 
 end)() end,
-    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
+    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
 local layouts = {}
 
 local topbarLayout = require(script.Parent.Parent.layouts.Topbar)
@@ -22237,7 +23082,7 @@ end
 return layouts
 
 end)() end,
-    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
+    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local logger = require(script.Parent.log)
 
@@ -22336,7 +23181,7 @@ end
 return locale
 
 end)() end,
-    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
+    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
 local function lockable<T>(element: T): T
     local target = element :: any
 
@@ -22358,7 +23203,7 @@ end
 return lockable
 
 end)() end,
-    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
+    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
 local log = {}
 
 type SuppressPredicate = () -> boolean
@@ -22395,7 +23240,11 @@ function log.warn(...)
     if shouldSuppress() then
         return
     end
-    warn(...)
+    -- [[`warn` is a Roblox global; plain Luau runtimes (the CLI suites) do]]
+    -- [[not provide it. Logging must never crash the library.]]
+    if typeof(warn) == "function" then
+        warn(...)
+    end
 end
 
 function log.print(...)
@@ -22408,7 +23257,7 @@ end
 return log
 
 end)() end,
-    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
+    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
 -- [[Astra motion service.
 --
 -- Every animation in the library used to build its own TweenInfo and call
@@ -22758,7 +23607,7 @@ end
 return motion
 
 end)() end,
-    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
+    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
 local function moveable<T>(dragState: T): T
     local target = dragState :: any
 
@@ -22794,7 +23643,7 @@ end
 return moveable
 
 end)() end,
-    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
+    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
 local network = {}
 network.__index = network
 
@@ -22812,7 +23661,7 @@ end
 return network
 
 end)() end,
-    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
+    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local motion = require(script.Parent.motion)
 local textService = coreState.textService
@@ -23166,7 +24015,7 @@ end
 return odometer
 
 end)() end,
-    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
+    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
 type OrderedElement = {
     main: GuiObject,
 }
@@ -23178,7 +24027,7 @@ end
 return ordering
 
 end)() end,
-    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
+    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
 local path = {}
 
 function path.join(base: string, suffix: string?): string
@@ -23229,11 +24078,12 @@ end
 return path
 
 end)() end,
-    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
+    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
 local persistence = {}
 
 local configPersistence = require(script.Parent.persistenceConfig)
 local settingsPersistence = require(script.Parent.persistenceSettings)
+local changelogPersistence = require(script.Parent.persistenceChangelog)
 
 persistence.getPath = configPersistence.getPath
 persistence.save = configPersistence.save
@@ -23244,11 +24094,111 @@ persistence.delete = configPersistence.delete
 persistence.getSettingsPath = settingsPersistence.getSettingsPath
 persistence.saveSettings = settingsPersistence.saveSettings
 persistence.loadSettings = settingsPersistence.loadSettings
+persistence.getChangelogPath = changelogPersistence.getChangelogPath
+persistence.windowChangelogKey = changelogPersistence.windowKey
+persistence.loadChangelogSeen = changelogPersistence.loadSeen
+persistence.saveChangelogSeen = changelogPersistence.saveSeen
 
 return persistence
 
 end)() end,
-    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
+    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
+local coreState = require(script.Parent.Parent.core.state)
+local fs = require(script.Parent.filesystem)
+local pathUtil = require(script.Parent.path)
+local writer = require(script.Parent.persistenceWrite)
+
+local persistenceChangelog = {}
+
+-- [[Seen-state lives in its own file next to settings, keyed by window. It is]]
+-- [[window metadata, not control state, so config save/load/delete never touch]]
+-- [[it and resetting settings cannot resurrect the dot.]]
+function persistenceChangelog.getChangelogPath(): (string, string)
+    local folder = coreState.fileSystemManager:getPath("settings")
+    return folder, pathUtil.join(folder, "astra-changelog.rfld")
+end
+
+-- [[Same identity as the default config (custom folder + file name or window]]
+-- [[name), so hubs sharing install defaults share "seen" exactly like they]]
+-- [[share values.]]
+function persistenceChangelog.windowKey(window): string
+    local configuration = window.configuration or {}
+    local base = pathUtil.sanitizeFile(configuration.fileName or window.name)
+    if base == "" then
+        base = pathUtil.sanitizeFile(window.name)
+    end
+    if base == "" then
+        base = "Configuration"
+    end
+    local folder = ""
+    if configuration.customFolder then
+        folder = pathUtil.sanitizeFolder(configuration.customFolder)
+    end
+    if folder == "" then
+        return base
+    end
+    return folder .. "/" .. base
+end
+
+local function readDecoded(path: string): ({ [string]: string }?, string?)
+    local exists = false
+    pcall(function()
+        exists = fs.isfile(path)
+    end)
+    if not exists then
+        return nil, nil
+    end
+
+    local readOk, raw = pcall(fs.readfile, path)
+    if not readOk or type(raw) ~= "string" then
+        return nil, nil
+    end
+
+    local decodeOk, decoded = pcall(coreState.httpService.JSONDecode, coreState.httpService, raw)
+    if not decodeOk or type(decoded) ~= "table" then
+        return nil, raw
+    end
+
+    return decoded, raw
+end
+
+function persistenceChangelog.loadSeen(): { [string]: string }
+    local folder, filePath = persistenceChangelog.getChangelogPath()
+    local decoded = readDecoded(filePath)
+    if decoded then
+        return decoded
+    end
+
+    local tempDecoded, tempRaw = readDecoded(writer.tempPathFor(filePath))
+    if tempDecoded and tempRaw then
+        pcall(writer.write, folder, filePath, tempRaw)
+        return tempDecoded
+    end
+
+    return {}
+end
+
+function persistenceChangelog.saveSeen(seen: { [string]: string }): boolean
+    local folder, filePath = persistenceChangelog.getChangelogPath()
+
+    local ok, encoded = pcall(coreState.httpService.JSONEncode, coreState.httpService, seen)
+    if not ok then
+        return false
+    end
+
+    local writeOk = pcall(writer.write, folder, filePath, encoded)
+
+    if not writeOk then
+        return false
+    end
+
+    return true
+end
+
+return persistenceChangelog
+
+end)() end,
+    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local logger = require(script.Parent.log)
@@ -23499,7 +24449,7 @@ end
 return persistenceConfig
 
 end)() end,
-    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
+    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local pathUtil = require(script.Parent.path)
 
@@ -23543,7 +24493,7 @@ end
 return persistencePaths
 
 end)() end,
-    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
+    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local paths = require(script.Parent.persistencePaths)
@@ -23786,7 +24736,7 @@ end
 return persistenceSettings
 
 end)() end,
-    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
+    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 
 local persistenceWrite = {}
@@ -23814,7 +24764,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
+    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
 local services = {}
 
 function services.getService(serviceName)
@@ -23825,7 +24775,7 @@ end
 return services
 
 end)() end,
-    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
+    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
 local layoutMetrics = require(script.Parent.layouts)
 local coreState = require(script.Parent.Parent.core.state)
 
@@ -24036,105 +24986,108 @@ end)() end,
 local LineOffsets = {
     [2] = 12,
     [3] = 244,
-    [5] = 620,
-    [6] = 655,
-    [7] = 700,
-    [8] = 606,
-    [9] = 817,
-    [10] = 915,
-    [11] = 1154,
-    [12] = 1500,
-    [13] = 1852,
-    [14] = 2140,
-    [15] = 2861,
-    [16] = 5288,
-    [17] = 5635,
-    [18] = 6519,
-    [19] = 6580,
-    [20] = 6995,
-    [21] = 7412,
-    [23] = 10699,
-    [24] = 10785,
-    [25] = 11096,
-    [26] = 11517,
-    [27] = 11919,
-    [28] = 12089,
-    [29] = 12234,
-    [30] = 13752,
-    [31] = 13971,
-    [32] = 14245,
-    [33] = 14331,
-    [34] = 14918,
-    [35] = 15767,
-    [36] = 16147,
-    [37] = 16277,
-    [38] = 16429,
-    [40] = 16923,
-    [41] = 16946,
-    [42] = 16963,
-    [43] = 16996,
-    [44] = 17118,
-    [45] = 17142,
-    [46] = 17191,
-    [47] = 16898,
-    [48] = 17321,
-    [49] = 17624,
-    [50] = 17655,
-    [51] = 17310,
-    [52] = 17698,
-    [53] = 17718,
-    [54] = 17750,
-    [55] = 17680,
-    [56] = 17857,
-    [57] = 17916,
-    [58] = 17976,
-    [60] = 18120,
-    [61] = 18285,
-    [62] = 18105,
-    [63] = 18859,
-    [64] = 18903,
-    [65] = 18983,
-    [66] = 19176,
-    [67] = 19305,
-    [68] = 19399,
-    [69] = 19566,
-    [70] = 18361,
-    [71] = 20200,
-    [72] = 20266,
-    [73] = 20332,
-    [74] = 20407,
-    [75] = 20513,
-    [76] = 20579,
-    [77] = 20654,
-    [78] = 20729,
-    [79] = 20804,
-    [80] = 20879,
-    [81] = 20094,
-    [82] = 20945,
-    [83] = 21043,
-    [84] = 21221,
-    [85] = 21271,
-    [86] = 21301,
-    [87] = 21552,
-    [88] = 21601,
-    [89] = 22054,
-    [90] = 22072,
-    [91] = 22241,
-    [92] = 22340,
-    [93] = 22362,
-    [94] = 22412,
-    [95] = 22762,
-    [96] = 22798,
-    [97] = 22816,
-    [98] = 23170,
-    [99] = 23182,
-    [100] = 23233,
-    [101] = 23252,
-    [102] = 23503,
-    [103] = 23547,
-    [104] = 23790,
-    [105] = 23818,
-    [106] = 23829,
+    [5] = 625,
+    [6] = 660,
+    [7] = 705,
+    [8] = 611,
+    [9] = 822,
+    [10] = 956,
+    [11] = 1176,
+    [12] = 1415,
+    [13] = 1761,
+    [14] = 2113,
+    [15] = 2401,
+    [16] = 3122,
+    [17] = 5549,
+    [18] = 5896,
+    [19] = 6787,
+    [20] = 6848,
+    [21] = 7263,
+    [22] = 7680,
+    [24] = 11172,
+    [25] = 11258,
+    [26] = 11569,
+    [27] = 11990,
+    [28] = 12402,
+    [29] = 12572,
+    [30] = 12717,
+    [31] = 14235,
+    [32] = 14454,
+    [33] = 14728,
+    [34] = 14814,
+    [35] = 15401,
+    [36] = 16250,
+    [37] = 16650,
+    [38] = 16780,
+    [39] = 16932,
+    [41] = 17426,
+    [42] = 17449,
+    [43] = 17466,
+    [44] = 17499,
+    [45] = 17621,
+    [46] = 17645,
+    [47] = 17694,
+    [48] = 17401,
+    [49] = 17824,
+    [50] = 18127,
+    [51] = 18158,
+    [52] = 17813,
+    [53] = 18201,
+    [54] = 18221,
+    [55] = 18253,
+    [56] = 18183,
+    [57] = 18360,
+    [58] = 18419,
+    [59] = 18479,
+    [61] = 18623,
+    [62] = 18788,
+    [63] = 18608,
+    [64] = 19366,
+    [65] = 19410,
+    [66] = 19490,
+    [67] = 19683,
+    [68] = 19812,
+    [69] = 19906,
+    [70] = 20073,
+    [71] = 20411,
+    [72] = 18864,
+    [73] = 21045,
+    [74] = 21111,
+    [75] = 21177,
+    [76] = 21252,
+    [77] = 21358,
+    [78] = 21424,
+    [79] = 21499,
+    [80] = 21574,
+    [81] = 21649,
+    [82] = 21724,
+    [83] = 20939,
+    [84] = 21790,
+    [85] = 21888,
+    [86] = 22066,
+    [87] = 22116,
+    [88] = 22146,
+    [89] = 22397,
+    [90] = 22446,
+    [91] = 22899,
+    [92] = 22917,
+    [93] = 23086,
+    [94] = 23185,
+    [95] = 23207,
+    [96] = 23261,
+    [97] = 23611,
+    [98] = 23647,
+    [99] = 23665,
+    [100] = 24019,
+    [101] = 24031,
+    [102] = 24082,
+    [103] = 24106,
+    [104] = 24202,
+    [105] = 24453,
+    [106] = 24497,
+    [107] = 24740,
+    [108] = 24768,
+    [109] = 24779,
 }
 
 -- [[Misc AOT variable imports]]
@@ -24202,7 +25155,7 @@ local ObjectTree = {
                 },
             },
             {
-                22,
+                23,
                 1,
                 {
                     "components",
@@ -24219,81 +25172,88 @@ local ObjectTree = {
                         10,
                         2,
                         {
-                            "chrome",
+                            "changelogPanel",
                         },
                     },
                     {
                         11,
                         2,
                         {
-                            "drag",
+                            "chrome",
                         },
                     },
                     {
                         12,
                         2,
                         {
-                            "notification",
+                            "drag",
                         },
                     },
                     {
                         13,
                         2,
                         {
-                            "overlayQueue",
+                            "notification",
                         },
                     },
                     {
                         14,
                         2,
                         {
-                            "popup",
+                            "overlayQueue",
                         },
                     },
                     {
                         15,
                         2,
                         {
-                            "profilePanel",
+                            "popup",
                         },
                     },
                     {
                         16,
                         2,
                         {
-                            "search",
+                            "profilePanel",
                         },
                     },
                     {
                         17,
                         2,
                         {
-                            "settings",
+                            "search",
                         },
                     },
                     {
                         18,
                         2,
                         {
-                            "sidebar",
+                            "settings",
                         },
                     },
                     {
                         19,
                         2,
                         {
-                            "tabSelector",
+                            "sidebar",
                         },
                     },
                     {
                         20,
                         2,
                         {
-                            "toast",
+                            "tabSelector",
                         },
                     },
                     {
                         21,
+                        2,
+                        {
+                            "toast",
+                        },
+                    },
+                    {
+                        22,
                         2,
                         {
                             "window",
@@ -24302,119 +25262,119 @@ local ObjectTree = {
                 },
             },
             {
-                39,
+                40,
                 1,
                 {
                     "elements",
                 },
                 {
                     {
-                        23,
+                        24,
                         2,
                         {
                             "baseCard",
                         },
                     },
                     {
-                        24,
+                        25,
                         2,
                         {
                             "button",
                         },
                     },
                     {
-                        25,
+                        26,
                         2,
                         {
                             "changelog",
                         },
                     },
                     {
-                        26,
+                        27,
                         2,
                         {
                             "collapsibleGroup",
                         },
                     },
                     {
-                        27,
+                        28,
                         2,
                         {
                             "description",
                         },
                     },
                     {
-                        28,
+                        29,
                         2,
                         {
                             "divider",
                         },
                     },
                     {
-                        29,
+                        30,
                         2,
                         {
                             "dropdown",
                         },
                     },
                     {
-                        30,
+                        31,
                         2,
                         {
                             "group",
                         },
                     },
                     {
-                        31,
+                        32,
                         2,
                         {
                             "input",
                         },
                     },
                     {
-                        32,
+                        33,
                         2,
                         {
                             "section",
                         },
                     },
                     {
-                        33,
+                        34,
                         2,
                         {
                             "slider",
                         },
                     },
                     {
-                        34,
+                        35,
                         2,
                         {
                             "stat",
                         },
                     },
                     {
-                        35,
+                        36,
                         2,
                         {
                             "tab",
                         },
                     },
                     {
-                        36,
+                        37,
                         2,
                         {
                             "tabSection",
                         },
                     },
                     {
-                        37,
+                        38,
                         2,
                         {
                             "text",
                         },
                     },
                     {
-                        38,
+                        39,
                         2,
                         {
                             "toggle",
@@ -24423,56 +25383,56 @@ local ObjectTree = {
                 },
             },
             {
-                47,
+                48,
                 2,
                 {
                     "settings",
                 },
                 {
                     {
-                        40,
+                        41,
                         2,
                         {
                             "appearance",
                         },
                     },
                     {
-                        41,
+                        42,
                         2,
                         {
                             "behavior",
                         },
                     },
                     {
-                        42,
+                        43,
                         2,
                         {
                             "defaults",
                         },
                     },
                     {
-                        43,
+                        44,
                         2,
                         {
                             "manager",
                         },
                     },
                     {
-                        44,
+                        45,
                         2,
                         {
                             "performance",
                         },
                     },
                     {
-                        45,
+                        46,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        46,
+                        47,
                         2,
                         {
                             "registry",
@@ -24481,28 +25441,28 @@ local ObjectTree = {
                 },
             },
             {
-                51,
+                52,
                 2,
                 {
                     "cache",
                 },
                 {
                     {
-                        48,
+                        49,
                         2,
                         {
                             "imageCache",
                         },
                     },
                     {
-                        49,
+                        50,
                         2,
                         {
                             "moduleCache",
                         },
                     },
                     {
-                        50,
+                        51,
                         2,
                         {
                             "persistenceCache",
@@ -24511,28 +25471,28 @@ local ObjectTree = {
                 },
             },
             {
-                55,
+                56,
                 2,
                 {
                     "functions",
                 },
                 {
                     {
-                        52,
+                        53,
                         2,
                         {
                             "colors",
                         },
                     },
                     {
-                        53,
+                        54,
                         2,
                         {
                             "flagNames",
                         },
                     },
                     {
-                        54,
+                        55,
                         2,
                         {
                             "textMetrics",
@@ -24541,28 +25501,28 @@ local ObjectTree = {
                 },
             },
             {
-                59,
+                60,
                 1,
                 {
                     "layouts",
                 },
                 {
                     {
-                        56,
+                        57,
                         2,
                         {
                             "Sidebar",
                         },
                     },
                     {
-                        57,
+                        58,
                         2,
                         {
                             "SidebarCollapsed",
                         },
                     },
                     {
-                        58,
+                        59,
                         2,
                         {
                             "Topbar",
@@ -24571,21 +25531,21 @@ local ObjectTree = {
                 },
             },
             {
-                62,
+                63,
                 2,
                 {
                     "images",
                 },
                 {
                     {
-                        60,
+                        61,
                         2,
                         {
                             "image",
                         },
                     },
                     {
-                        61,
+                        62,
                         2,
                         {
                             "windowIcons",
@@ -24594,56 +25554,63 @@ local ObjectTree = {
                 },
             },
             {
-                70,
+                72,
                 2,
                 {
                     "icons",
                 },
                 {
                     {
-                        63,
+                        64,
                         2,
                         {
                             "feather",
                         },
                     },
                     {
-                        64,
+                        65,
                         2,
                         {
                             "heroicons",
                         },
                     },
                     {
-                        65,
+                        66,
                         2,
                         {
                             "lucide",
                         },
                     },
                     {
-                        66,
+                        67,
                         2,
                         {
                             "material",
                         },
                     },
                     {
-                        67,
+                        68,
                         2,
                         {
                             "packBuilder",
                         },
                     },
                     {
-                        68,
+                        69,
                         2,
                         {
                             "phosphor",
                         },
                     },
                     {
-                        69,
+                        70,
+                        2,
+                        {
+                            "remix",
+                        },
+                    },
+                    {
+                        71,
                         2,
                         {
                             "tabler",
@@ -24652,77 +25619,77 @@ local ObjectTree = {
                 },
             },
             {
-                81,
+                83,
                 2,
                 {
                     "themes",
                 },
                 {
                     {
-                        71,
+                        73,
                         2,
                         {
                             "amethyst",
                         },
                     },
                     {
-                        72,
+                        74,
                         2,
                         {
                             "cobalt",
                         },
                     },
                     {
-                        73,
+                        75,
                         2,
                         {
                             "crimson",
                         },
                     },
                     {
-                        74,
+                        76,
                         2,
                         {
                             "default",
                         },
                     },
                     {
-                        75,
+                        77,
                         2,
                         {
                             "ember",
                         },
                     },
                     {
-                        76,
+                        78,
                         2,
                         {
                             "emerald",
                         },
                     },
                     {
-                        77,
+                        79,
                         2,
                         {
                             "frost",
                         },
                     },
                     {
-                        78,
+                        80,
                         2,
                         {
                             "gold",
                         },
                     },
                     {
-                        79,
+                        81,
                         2,
                         {
                             "onyx",
                         },
                     },
                     {
-                        80,
+                        82,
                         2,
                         {
                             "rose",
@@ -24731,182 +25698,189 @@ local ObjectTree = {
                 },
             },
             {
-                107,
+                110,
                 1,
                 {
                     "utilities",
                 },
                 {
                     {
-                        82,
+                        84,
                         2,
                         {
                             "HapticEngine",
                         },
                     },
                     {
-                        83,
+                        85,
                         2,
                         {
                             "assetResolver",
                         },
                     },
                     {
-                        84,
+                        86,
                         2,
                         {
                             "constants",
                         },
                     },
                     {
-                        85,
+                        87,
                         2,
                         {
                             "enums",
                         },
                     },
                     {
-                        86,
+                        88,
                         2,
                         {
                             "filesystem",
                         },
                     },
                     {
-                        87,
+                        89,
                         2,
                         {
                             "filesystemManager",
                         },
                     },
                     {
-                        88,
+                        90,
                         2,
                         {
                             "fontManager",
                         },
                     },
                     {
-                        89,
+                        91,
                         2,
                         {
                             "functions",
                         },
                     },
                     {
-                        90,
+                        92,
                         2,
                         {
                             "layouts",
                         },
                     },
                     {
-                        91,
+                        93,
                         2,
                         {
                             "locale",
                         },
                     },
                     {
-                        92,
+                        94,
                         2,
                         {
                             "lockable",
                         },
                     },
                     {
-                        93,
+                        95,
                         2,
                         {
                             "log",
                         },
                     },
                     {
-                        94,
+                        96,
                         2,
                         {
                             "motion",
                         },
                     },
                     {
-                        95,
+                        97,
                         2,
                         {
                             "moveable",
                         },
                     },
                     {
-                        96,
+                        98,
                         2,
                         {
                             "network",
                         },
                     },
                     {
-                        97,
+                        99,
                         2,
                         {
                             "odometer",
                         },
                     },
                     {
-                        98,
+                        100,
                         2,
                         {
                             "ordering",
                         },
                     },
                     {
-                        99,
+                        101,
                         2,
                         {
                             "path",
                         },
                     },
                     {
-                        100,
+                        102,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        101,
-                        2,
-                        {
-                            "persistenceConfig",
-                        },
-                    },
-                    {
-                        102,
-                        2,
-                        {
-                            "persistencePaths",
-                        },
-                    },
-                    {
                         103,
                         2,
                         {
-                            "persistenceSettings",
+                            "persistenceChangelog",
                         },
                     },
                     {
                         104,
                         2,
                         {
-                            "persistenceWrite",
+                            "persistenceConfig",
                         },
                     },
                     {
                         105,
                         2,
                         {
-                            "services",
+                            "persistencePaths",
                         },
                     },
                     {
                         106,
+                        2,
+                        {
+                            "persistenceSettings",
+                        },
+                    },
+                    {
+                        107,
+                        2,
+                        {
+                            "persistenceWrite",
+                        },
+                    },
+                    {
+                        108,
+                        2,
+                        {
+                            "services",
+                        },
+                    },
+                    {
+                        109,
                         2,
                         {
                             "windowSizing",

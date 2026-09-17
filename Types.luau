@@ -3,38 +3,7 @@ export type Theme = string | { [string]: any }
 export type Translator = (source: string, localeId: string) -> string?
 
 export type Translations = { [string]: { [string]: string } }
-export type IconPack = "lucide" | "material" | "tabler" | "phosphor" | "heroicons" | "feather"
-
-export type WindowConfiguration = {
-    autoSave: boolean?,
-    autoLoad: boolean?,
-    fileName: string?,
-    customFolder: string?,
-}
-
-export type WindowProps = {
-    name: string?,
-    subtitle: string?,
-    theme: Theme?,
-    icon: (string | number)?,
-    showName: string?,
-    showIcon: (string | number)?,
-    showIconOnly: boolean?,     profile: string?,     configuration: WindowConfiguration?,
-    fallbackFont: (Font | Enum.Font)?,     locale: string?,     translations: Translations?,     translator: Translator?, }
-
-export type TabProps = {
-    name: string?,
-    icon: (string | number)?,
-}
-
-export type SectionProps = {
-    name: string?,
-    icon: (string | number)?,
-}
-
-export type TextProps = {
-    name: string?,     text: string?,     icon: (string | number)?,
-}
+export type IconPack = "lucide" | "material" | "tabler" | "phosphor" | "heroicons" | "feather" | "remix"
 
 export type ChangelogChange = {
     symbol: string?,
@@ -55,6 +24,37 @@ export type ChangelogProps = {
     name: string?,
     emptyText: string?,
     entries: { ChangelogEntry }?,
+}
+
+export type WindowConfiguration = {
+    autoSave: boolean?,
+    autoLoad: boolean?,
+    fileName: string?,
+    customFolder: string?,
+}
+
+export type WindowProps = {
+    name: string?,
+    subtitle: string?,
+    theme: Theme?,
+    icon: (string | number)?,
+    showName: string?,
+    showIcon: (string | number)?,
+    showIconOnly: boolean?,     profile: string?,     configuration: WindowConfiguration?,
+    fallbackFont: (Font | Enum.Font)?,     locale: string?,     translations: Translations?,     translator: Translator?,     changelog: ChangelogProps?, }
+
+export type TabProps = {
+    name: string?,
+    icon: (string | number)?,
+}
+
+export type SectionProps = {
+    name: string?,
+    icon: (string | number)?,
+}
+
+export type TextProps = {
+    name: string?,     text: string?,     icon: (string | number)?,
 }
 
 export type DividerProps = {
@@ -274,6 +274,7 @@ export type Tab = {
     CreateStat: (self: Tab, props: StatProps) -> Stat,
     CreateSection: (self: Tab, props: SectionProps) -> Section,
     CreateText: (self: Tab, props: TextProps) -> Text,
+    -- Redirected into the window changelog store (see Window:SetChangelog).
     CreateChangelog: (self: Tab, props: ChangelogProps) -> Changelog,
     CreateDivider: (self: Tab, props: DividerProps?) -> Divider,
     CreateGroup: (self: Tab, props: GroupProps?) -> Group,
@@ -303,6 +304,9 @@ export type Window = {
     GetPath: (self: Window) -> (string, string),
     Get: (self: Window, flag: string) -> any,
     Set: (self: Window, flag: string, value: any) -> boolean,
+    SetChangelog: (self: Window, entries: { ChangelogEntry } | ChangelogProps) -> (),
+    AddChangelogEntry: (self: Window, entry: ChangelogEntry, prepend: boolean?) -> (),
+    ClearChangelog: (self: Window) -> (),
     Unload: (self: Window) -> (),
 }
 
@@ -313,6 +317,7 @@ export type IconCatalog = {
     Phosphor: IconPack,
     Heroicons: IconPack,
     Feather: IconPack,
+    Remix: IconPack,
     -- [[`name` may be a bare icon name (searched in every pack, in priority]]
     -- [[order) or a pack-qualified `"pack:name"`; `pack` addresses one pack.]]
     get: (name: string, pack: IconPack?) -> string?,

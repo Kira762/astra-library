@@ -1,6 +1,6 @@
 ---
 name: astra
-description: "Build and edit Roblox UIs and executor GUI hubs with Astra v1, the Luau UI library loaded as one bundle (version-1.luau) through loadstring plus game:HttpGet. Use for Astra:CreateWindow scripts and everything they build — windows, tabs, groups and elements (Button, Toggle, Slider, Dropdown, Input, Stat, Text, Section, Divider, Changelog, Collapsible Group), flags, saved configs, themes, icons, motion, toasts, popups and localisation. Also use when changing the Astra repository itself (modular tree, generated bundle, syntax gate, runtime tests)."
+description: "Build and edit Roblox UIs and executor GUI hubs with Astra v1, the Luau UI library loaded as one bundle (version-1.luau) through loadstring plus game:HttpGet. Use for Astra:CreateWindow scripts and everything they build — windows, tabs, groups and elements (Button, Toggle, Slider, Dropdown, Input, Stat, Text, Section, Divider, Collapsible Group), flags, saved configs, themes, icons, motion, toasts, popups and localisation. Also use when changing the Astra repository itself (modular tree, generated bundle, syntax gate, runtime tests)."
 ---
 
 # Astra v1
@@ -90,7 +90,7 @@ The first tab opens on its own and layout is a user setting (**Settings → Appe
 7. **Flags are shared key space.** Give every control that must restore a unique,
    stable `flag`; elements with `forgetState = true` stay out of save/load.
 8. **Icons are pack-qualified or global, and case-sensitive.** A bare name is
-   searched across lucide, material, tabler, phosphor, heroicons, feather in that
+   searched across lucide, material, tabler, phosphor, heroicons, feather, remix in that
    order; `"tabler:home"` pins one pack. An unresolved value is returned unchanged,
    so a typo silently yields a bad image, not an error — check with
    `Astra.Icons.get("house")`.
@@ -132,12 +132,12 @@ line on `CreateCollapsibleGroup`.
 | `CreateStat({ name, value, prefix, suffix, display, compact, letter, changeMode, changeBaseline })` | readout card; a string `value` shows one letter unless `letter = false`, which reads the whole value | `:Set(value)`, `:SetText(text)`, `:ResetBaseline(n)` |
 | `CreateDivider({ text, line, spacing })` | rule between controls | — |
 | `CreateGroup({ direction = "row" \| "column" })` | horizontal row by default | nesting via `Create…` |
-| `CreateChangelog({ name, entries, emptyText })` | `+`/`-`/`~` change symbols | `:Add(entry, prepend?)`, `:Set(entries)`, `:Refresh(entries)`, `:Clear()` |
+| `window:SetChangelog(entries)` / `:AddChangelogEntry(entry, prepend?)` / `:ClearChangelog()` | window changelog data (panel only, entries newest-first) | — |
 
 Tab-only declarative container: `tab:CreateCollapsibleGroup({ name, icon, description, elements = { ... } })`
-where each child is `{ type = "Toggle" | "Button" | "Slider" | "Dropdown" | "Input" | "Switch" | "Stat" | "Section" | "Text" | "Changelog" | "Divider" | "Group", ...same props }`.
+where each child is `{ type = "Toggle" | "Button" | "Slider" | "Dropdown" | "Input" | "Switch" | "Stat" | "Section" | "Text" | "Divider" | "Group", ...same props }`.
 Groups may nest inside it; collapsible groups never nest, and every collapsible
-starts collapsed.
+starts collapsed. A `{ type = "Changelog" }` child still validates but forwards its entries into the window changelog instead of building UI.
 
 Elements support `:MoveTo(index)`, `:MoveUp()`, `:MoveDown()`, `:MoveToTop()`,
 `:MoveToBottom()`; most also support `:Lock()`, `:Unlock()`, `:IsLocked()`.

@@ -262,7 +262,7 @@ local function inCurrentRail(window, tab)
     return not tab.neglectSelector
         and tab.topbarItem ~= nil
         and tab.topbarItem.Parent ~= nil
-        and (tab._isSettingsTab == true) == (window._settingsMode == true)
+        and window:_railGroup(tab) == window:_activeRail()
 end
 
 local function rowNaturalWidth(tab, window, layout)

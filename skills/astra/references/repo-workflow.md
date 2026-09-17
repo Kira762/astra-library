@@ -17,7 +17,7 @@ scripts load).
 | `settings/` | `defaults`, `manager`, `registry`, `appearance`, `behavior`, `performance`, `persistence`. |
 | `themes/` | `init` resolver + one module per built-in theme. |
 | `utilities/` | Motion, haptics, persistence pieces, icon/asset resolution, text metrics, layouts, locale, locks/ordering. |
-| `icons/` | Six icon packs, `packBuilder`, custom-asset resolution. |
+| `icons/` | Seven icon packs, `packBuilder`, custom-asset resolution. |
 | `scripts/` | Build, syntax gate, static checkers and runtime tests. |
 | `skills/astra/` | The Agent Skill published to skills.sh (this folder). |
 | `default.project.json`, `wax.project.json` | Rojo / Wax project mapping for Studio. |

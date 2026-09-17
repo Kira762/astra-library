@@ -11,6 +11,7 @@ local defs = {
     { type = "Stat", name = "Score", value = 10 },
     { type = "Section", name = "Section" },
     { type = "Text", name = "Help", text = "Contents" },
+    -- [[Changelog children forward into the window store (no child UI).]]
     { type = "Changelog", name = "Changes", entries = { { version = "1", changes = { { text = "Added" } } } } },
     { type = "Divider", text = "End" },
     { type = "Group", elements = {
@@ -24,9 +25,10 @@ local defs = {
 local group = tab:CreateCollapsibleGroup({ name = "LocalPlayer", icon = "user-round", elements = defs })
 local other = tab:CreateCollapsibleGroup({ name = "Other", elements = { { type = "Text", name = "Independent", text = "text" } } })
 TestPump(1)
-assert(#group.elements == #defs, "Every tab element type must be supported")
-assert(group.elements[12].compact, "Compact ordinary Groups remain rows")
-assert(not group.elements[13].compact, "Noncompact elements in ordinary Groups become columns")
+assert(#group.elements == #defs - 1, "Every tab element type must be supported (Changelog forwards, builds no child)")
+assert(#window._changelog.entries == 1 and window._changelog.entries[1].version == "1", "Declarative Changelog entries land in the window store")
+assert(group.elements[11].compact, "Compact ordinary Groups remain rows")
+assert(not group.elements[12].compact, "Noncompact elements in ordinary Groups become columns")
 assert(not group._expanded and not group.body.Visible, "Starts collapsed without a usage option")
 assert(window:Get("active") == true and window:Get("speed") == 50, "Collapsed controls register their values")
 

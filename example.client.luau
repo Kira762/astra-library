@@ -7,9 +7,28 @@
 -- [[not provide it — and the URL must be the raw file of a public repo.]]
 local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"))()
 
+-- [[Release history lives in its own data file (see changelog.example.luau):]]
+-- [[require it and hand it to the window. Single-file scripts can paste the]]
+-- [[table inline instead, as this example does - entries are newest-first.]]
+local changelogData = {
+    name = "Release history",
+    emptyText = "No entries yet.",
+    entries = {
+        {
+            version = "Element Test",
+            date = "Live",
+            title = "All supported elements",
+            changes = {
+                { symbol = "+", category = "Added", text = "This changelog renders in the window's changelog panel." },
+            },
+        },
+    },
+}
+
 local window = Astra:CreateWindow({
     name = "Astra Element Test",
     subtitle = "All elements in one paced tab",
+    changelog = changelogData,
     configuration = {
         fileName = "Astra-Example",
         customFolder = "AstraExamples",
@@ -93,19 +112,8 @@ elements:CreateInput({
     end,
 })
 
-elements:CreateChangelog({
-    name = "Changelog",
-    entries = {
-        {
-            version = "Element Test",
-            date = "Live",
-            title = "All supported elements",
-            changes = {
-                { symbol = "+", category = "Added", text = "This changelog is part of the single-tab startup test." },
-            },
-        },
-    },
-})
+-- [[Changelogs render only in the window's changelog panel (topbar icon), fed]]
+-- [[by the CreateWindow prop above - tabs can no longer host them.]]
 
 -- [[A normal Group is an element too. Its children use the compact row layout.]]
 local group = elements:CreateGroup({ direction = "column" })
@@ -134,20 +142,7 @@ elements:CreateCollapsibleGroup({
         { type = "Dropdown", name = "Dropdown child", options = { "One", "Two" }, value = "One" },
         { type = "Stat", name = "Stat child", value = 42, suffix = " checks" },
         { type = "Divider", text = "Nested diagnostics" },
-        {
-            type = "Changelog",
-            name = "Changelog child",
-            entries = {
-                {
-                    version = "Test",
-                    date = "Live",
-                    title = "Nested changelog",
-                    changes = {
-                        { symbol = "+", text = "Changelog works inside a Collapsible Group." },
-                    },
-                },
-            },
-        },
+        -- [[A Changelog child here would forward into the window store (see above).]]
         {
             type = "Group",
             direction = "column",

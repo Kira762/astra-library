@@ -18,8 +18,8 @@
 -- [[Lookups are exact. Icon names and pack names are case-sensitive: nothing]]
 -- [[is lowercased, corrected or fuzzy-matched, so a miss is a miss. A name]]
 -- [[that exists in several packs resolves to the first pack listed by]]
--- [[`Icons.priority()` (lucide, material, tabler, phosphor, heroicons,]]
--- [[feather); an explicit pack - `get(name, pack)` or the `"pack:name"` form -]]
+-- [[`Icons.priority()` (lucide, material, tabler, phosphor, heroicons, feather,]]
+-- [[remix); an explicit pack - `get(name, pack)` or the `"pack:name"` form -]]
 -- [[is never overridden by that order, and an unknown or mis-cased pack name]]
 -- [[resolves to nothing rather than to some other pack.]]
 
@@ -30,8 +30,8 @@ icons.BASE = "https://raw.githubusercontent.com/Haijo12/sisys_ididh/main"
 
 -- [[Pack priority for a bare name. Deterministic, and also the order packs]]
 -- [[load in: the search stops at the first pack that has the name, so a lucide]]
--- [[icon never pulls in the other five tables.]]
-local PACK_ORDER = { "lucide", "material", "tabler", "phosphor", "heroicons", "feather" }
+-- [[icon never pulls in the other six tables.]]
+local PACK_ORDER = { "lucide", "material", "tabler", "phosphor", "heroicons", "feather", "remix" }
 
 -- [[Pack registry: pack name -> lazy loader. Each loader requires the pack]]
 -- [[module on demand; require() itself caches the module table afterwards.]]
@@ -54,6 +54,9 @@ local packLoaders = {
     feather = function()
         return require(script.feather)
     end,
+    remix = function()
+        return require(script.remix)
+    end,
 }
 
 local loadedPacks: { [string]: { [string]: string } } = {}
@@ -65,6 +68,7 @@ icons.Tabler = "tabler"
 icons.Phosphor = "phosphor"
 icons.Heroicons = "heroicons"
 icons.Feather = "feather"
+icons.Remix = "remix"
 
 -- [[Lazily exposed pack tables (Icons.lucide, Icons.material, ...).]]
 setmetatable(icons, {
@@ -114,7 +118,7 @@ function icons.priority(): { string }
 end
 
 -- [[Which packs have been loaded so far. Laziness is part of the contract]]
--- [[(startup must not read 10.6k lines of tables to show one icon), so it is]]
+-- [[(startup must not read 13.7k lines of tables to show one icon), so it is]]
 -- [[observable: a suite asserts that one lucide name loads one pack.]]
 function icons.loaded(): { string }
     local names = {}

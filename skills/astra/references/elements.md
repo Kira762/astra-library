@@ -20,7 +20,7 @@ tab:Remove()      -- destroy the tab
 ```
 
 Tab constructors: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`,
-`CreateInput`, `CreateStat`, `CreateSection`, `CreateText`, `CreateChangelog`,
+`CreateInput`, `CreateStat`, `CreateSection`, `CreateText`,
 `CreateDivider`, `CreateGroup`, and `CreateCollapsibleGroup`.
 
 ## Group
@@ -57,8 +57,9 @@ tab:CreateCollapsibleGroup({
 ```
 
 - Supported `type` values: `Button`, `Toggle`, `Switch` (alias of Toggle), `Slider`,
-  `Dropdown`, `Input`, `Stat`, `Section`, `Text`, `Changelog`, `Divider`, `Group`.
-  Each entry uses exactly the same props as its `Create…` method.
+  `Dropdown`, `Input`, `Stat`, `Section`, `Text`, `Divider`, `Group`.
+  Each entry uses exactly the same props as its `Create…` method. `{ type = "Changelog" }`
+  still validates but forwards its entries into the window changelog (no child UI).
 - `elements` may be omitted for an empty header. Every group starts **collapsed**;
   there is no `expanded` prop.
 - Collapsible groups cannot contain collapsible groups, directly or via a Group.
@@ -171,36 +172,30 @@ tab:CreateDivider({ text = "or" })           -- labelled rule
 tab:CreateDivider({ line = false, spacing = 8 })
 ```
 
-## Changelog
+## Changelog (window panel, not a tab element)
 
-Scrollable release history with `+` (added, green), `-` (removed, red) and `~`
-(changed, amber) symbols; symbol words such as `"added"`, `"removed"`, `"changed"`
-map to the same colours.
+Release history renders only in the window's changelog view (topbar action).
+Feed it data; never build UI for it:
 
 ```lua
-local log = tab:CreateChangelog({
+local window = Astra:CreateWindow({ name = "Hub", changelog = {
     name = "Release history",
     emptyText = "No entries yet.",
-    entries = {
-        {
-            version = "0.0.35",
-            date = "2026-09-11",
-            game = "Game Name",              -- optional; gameId = number also accepted
-            title = "Settings highlight",
-            changes = {
-                { symbol = "~", category = "Fixed", text = "Settings stays highlighted while its tab is active." },
-                { symbol = "+", text = "Added the Changelog element." },
-                { symbol = "-", text = "Removed the old sub-tab API." },
-            },
-        },
-    },
-})
+    entries = { { version = "0.0.35", date = "2026-09-11", changes = {
+        { symbol = "~", category = "Fixed", text = "Settings stays highlighted while its tab is active." },
+    } } },
+} })
 
-log:Add({ version = "Live", date = "Today", changes = { { symbol = "+", text = "Runtime entry." } } })  -- prepends
-log:Add(entry, false)   -- append instead
-log:Set({ ... })        -- replace all entries (`:Refresh` is an alias)
-log:Clear()
+window:AddChangelogEntry({ version = "Live", date = "Today", changes = { { symbol = "+", text = "Runtime entry." } } })  -- prepends
+window:AddChangelogEntry(entry, false)   -- append instead
+window:SetChangelog({ ... })            -- replace all entries (full { name, entries, ... } tables accepted)
+window:ClearChangelog()
 ```
+
+Symbols: `+` added (green), `-` removed (red), `~` changed (amber); the words
+`"added"`/`"removed"`/`"changed"` map to the same colours. A red dot on the
+action marks unviewed entries (own config file, cleared on open).
+`tab:CreateChangelog` still runs but forwards into the store with a warning.
 
 ## Moveable & Lockable
 

@@ -50,6 +50,28 @@ function Action.new(window, props)
         Parent = self.action,
     })
 
+    -- [[Optional unread dot (changelog): a fixed red badge pinned to the]]
+    -- [[action's top-right corner. Fixed red like the changelog's symbol]]
+    -- [[colors, so it always reads as red on any theme. Created after the]]
+    -- [[interact button so it renders above it; frames sink no input.]]
+    if props.badge or props.Badge then
+        self.badge = self.window:Create("Frame", {
+            Name = "Badge",
+            AnchorPoint = Vector2.new(1, 0),
+            Position = UDim2.new(1, 1, 0, -1),
+            Size = UDim2.fromOffset(8, 8),
+            BorderSizePixel = 0,
+            BackgroundColor3 = Color3.fromRGB(239, 68, 68),
+            BackgroundTransparency = 1,
+            Visible = false,
+            Parent = self.action,
+        })
+        self.window:Create("UICorner", {
+            CornerRadius = UDim.new(1, 0),
+            Parent = self.badge,
+        })
+    end
+
     local function idleTransparency()
         if self.window.unloaded then
             return
@@ -91,5 +113,19 @@ function Action.new(window, props)
 
     return self
 end
+
+function Action:SetBadge(shown, animate)
+    if not self.badge or self.window.unloaded then
+        return
+    end
+    self.badge.Visible = shown == true
+    local target = if shown then 0 else 1
+    if animate == false or not self.window:_interactive() then
+        self.badge.BackgroundTransparency = target
+        return
+    end
+    motion.tween(self.badge, { BackgroundTransparency = target }, "snappy")
+end
+
 
 return Action

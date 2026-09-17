@@ -2,6 +2,42 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-17 — The window shows again: icon-less topbar chrome no longer crashes the first `Show()`
+
+`frame.ImageLabel` reads as a child lookup on Roblox, not as a safe member
+read: a Frame without an `ImageLabel` child raises `ImageLabel is not a valid
+member of Frame`. The changelog panel added a `Divider` frame to the action
+container next to the buttons, and the three loops that walk that container's
+children — `Window:_firstShow`, `Window:_quickRestore` and `Window:Hide` — still
+indexed `actionFrame.ImageLabel` directly. The first `Show()`, which
+`CreateWindow` runs during construction, therefore died on the divider before
+the tab content settled: the window rendered, and the console filled with
+`LocalScript:Line … function _firstShow` stack traces.
+
+- `components/window.luau`: new `Window:_actionIconLabel(actionFrame)`, a
+  `FindFirstChild("ImageLabel")` lookup, now used by all three loops. Chrome
+  with no icon (the changelog divider, the search pill) is skipped the way any
+  other frame without an icon is; the action icons, the unread badge and the
+  divider's own transparency behave exactly as before.
+- `scripts/sidebar_sizing_stubs.luau`: the harness now models the two engine
+  rules it had been lenient about, so this class of bug cannot pass a suite
+  again — class-only members (`ImageLabel`/`ImageButton`, `TextBox`'s
+  `PlaceholderText`/`TextEditable`/`ClearTextOnFocus`/`MultiLine`,
+  `ScrollingFrame`'s scroll members) raise `<name> is not a valid member of
+  <class>` outside their hierarchy, and a child-name read on a GuiObject raises
+  when no child carries that name instead of quietly answering `nil`.
+- `scripts/changelog_panel_test.luau`: new C8 block — a fresh window asserts its
+  action container really holds icon-less chrome, then survives `Hide()`/
+  `Show()` with the divider settling back in.
+- Verification: with the library fix reverted, the updated harness fails all 32
+  runtime suites on the first window show with the exact engine message
+  (`ImageLabel is not a valid member of Frame`); with the fix in place all 32
+  suites plus the bundle smoke test pass, `scripts/check_syntax.sh` compiles all
+  107 published files, the require-graph (306 edges) and instance-field checks
+  pass, and `version-1.luau` is regenerated (104 modules). An end-to-end
+  simulation of the example script — changelog prop, every element, hide/show,
+  changelog toggle — runs clean.
+
 ## 2026-09-17 — Release history moves into a dedicated changelog panel
 
 Changelogs are no longer tab elements. Every window now ships a changelog view

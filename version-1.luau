@@ -8879,8 +8879,9 @@ function Window:Hide()
     end
 
     for _, actionFrame in ipairs(self.actionContainer:GetChildren()) do
-        if actionFrame:IsA("Frame") and actionFrame.ImageLabel then
-            motion.tween(actionFrame.ImageLabel, { ImageTransparency = 1 }, hideTween)
+        local iconLabel = self:_actionIconLabel(actionFrame)
+        if iconLabel then
+            motion.tween(iconLabel, { ImageTransparency = 1 }, hideTween)
         end
         if actionFrame:IsA("Frame") then
             self:_syncActionChrome(actionFrame, false, hideTween)
@@ -9886,6 +9887,17 @@ function Window:_activeRail()
     return "main"
 end
 
+-- [[The icon label of a topbar action frame, or nil. `frame.ImageLabel` is a]]
+-- [[direct child read on Roblox, not a safe one: the action container also]]
+-- [[holds chrome with no icon - the changelog divider, the search pill, a]]
+-- [[future element - and indexing a missing child raises "ImageLabel is not]]
+-- [[a valid member of Frame". That is how the divider added with the]]
+-- [[changelog panel took the first Show() down, so every action-loop read]]
+-- [[goes through here instead.]]
+function Window:_actionIconLabel(actionFrame)
+    return actionFrame:FindFirstChild("ImageLabel")
+end
+
 -- [[Badge + divider follow their action frame: hidden with them, restored]]
 -- [[with them. The badge restores to opaque only while it is meant to show.]]
 function Window:_syncActionChrome(actionFrame, shown, tween)
@@ -10300,8 +10312,9 @@ function Window:_quickRestore()
         self.subtitle.TextTransparency = 0.7
     end
     for _, actionFrame in ipairs(self.actionContainer:GetChildren()) do
-        if actionFrame:IsA("Frame") and actionFrame.ImageLabel then
-            actionFrame.ImageLabel.ImageTransparency = 0.6
+        local iconLabel = self:_actionIconLabel(actionFrame)
+        if iconLabel then
+            iconLabel.ImageTransparency = 0.6
         end
         if actionFrame:IsA("Frame") then
             self:_syncActionChrome(actionFrame, true)
@@ -10403,9 +10416,10 @@ function Window:_firstShow()
         motion.tween(self.subtitle, { TextTransparency = 0.7 }, tweenInfo)
     end
     for _, actionFrame in ipairs(self.actionContainer:GetChildren()) do
-        if actionFrame:IsA("Frame") and actionFrame.ImageLabel then
-            actionFrame.ImageLabel.ImageTransparency = 1
-            motion.tween(actionFrame.ImageLabel, { ImageTransparency = 0.6 }, tweenInfo)
+        local iconLabel = self:_actionIconLabel(actionFrame)
+        if iconLabel then
+            iconLabel.ImageTransparency = 1
+            motion.tween(iconLabel, { ImageTransparency = 0.6 }, tweenInfo)
         end
         if actionFrame:IsA("Frame") then
             self:_syncActionChrome(actionFrame, true, tweenInfo)
@@ -25004,90 +25018,90 @@ local LineOffsets = {
     [20] = 6848,
     [21] = 7263,
     [22] = 7680,
-    [24] = 11172,
-    [25] = 11258,
-    [26] = 11569,
-    [27] = 11990,
-    [28] = 12402,
-    [29] = 12572,
-    [30] = 12717,
-    [31] = 14235,
-    [32] = 14454,
-    [33] = 14728,
-    [34] = 14814,
-    [35] = 15401,
-    [36] = 16250,
-    [37] = 16650,
-    [38] = 16780,
-    [39] = 16932,
-    [41] = 17426,
-    [42] = 17449,
-    [43] = 17466,
-    [44] = 17499,
-    [45] = 17621,
-    [46] = 17645,
-    [47] = 17694,
-    [48] = 17401,
-    [49] = 17824,
-    [50] = 18127,
-    [51] = 18158,
-    [52] = 17813,
-    [53] = 18201,
-    [54] = 18221,
-    [55] = 18253,
-    [56] = 18183,
-    [57] = 18360,
-    [58] = 18419,
-    [59] = 18479,
-    [61] = 18623,
-    [62] = 18788,
-    [63] = 18608,
-    [64] = 19366,
-    [65] = 19410,
-    [66] = 19490,
-    [67] = 19683,
-    [68] = 19812,
-    [69] = 19906,
-    [70] = 20073,
-    [71] = 20411,
-    [72] = 18864,
-    [73] = 21045,
-    [74] = 21111,
-    [75] = 21177,
-    [76] = 21252,
-    [77] = 21358,
-    [78] = 21424,
-    [79] = 21499,
-    [80] = 21574,
-    [81] = 21649,
-    [82] = 21724,
-    [83] = 20939,
-    [84] = 21790,
-    [85] = 21888,
-    [86] = 22066,
-    [87] = 22116,
-    [88] = 22146,
-    [89] = 22397,
-    [90] = 22446,
-    [91] = 22899,
-    [92] = 22917,
-    [93] = 23086,
-    [94] = 23185,
-    [95] = 23207,
-    [96] = 23261,
-    [97] = 23611,
-    [98] = 23647,
-    [99] = 23665,
-    [100] = 24019,
-    [101] = 24031,
-    [102] = 24082,
-    [103] = 24106,
-    [104] = 24202,
-    [105] = 24453,
-    [106] = 24497,
-    [107] = 24740,
-    [108] = 24768,
-    [109] = 24779,
+    [24] = 11186,
+    [25] = 11272,
+    [26] = 11583,
+    [27] = 12004,
+    [28] = 12416,
+    [29] = 12586,
+    [30] = 12731,
+    [31] = 14249,
+    [32] = 14468,
+    [33] = 14742,
+    [34] = 14828,
+    [35] = 15415,
+    [36] = 16264,
+    [37] = 16664,
+    [38] = 16794,
+    [39] = 16946,
+    [41] = 17440,
+    [42] = 17463,
+    [43] = 17480,
+    [44] = 17513,
+    [45] = 17635,
+    [46] = 17659,
+    [47] = 17708,
+    [48] = 17415,
+    [49] = 17838,
+    [50] = 18141,
+    [51] = 18172,
+    [52] = 17827,
+    [53] = 18215,
+    [54] = 18235,
+    [55] = 18267,
+    [56] = 18197,
+    [57] = 18374,
+    [58] = 18433,
+    [59] = 18493,
+    [61] = 18637,
+    [62] = 18802,
+    [63] = 18622,
+    [64] = 19380,
+    [65] = 19424,
+    [66] = 19504,
+    [67] = 19697,
+    [68] = 19826,
+    [69] = 19920,
+    [70] = 20087,
+    [71] = 20425,
+    [72] = 18878,
+    [73] = 21059,
+    [74] = 21125,
+    [75] = 21191,
+    [76] = 21266,
+    [77] = 21372,
+    [78] = 21438,
+    [79] = 21513,
+    [80] = 21588,
+    [81] = 21663,
+    [82] = 21738,
+    [83] = 20953,
+    [84] = 21804,
+    [85] = 21902,
+    [86] = 22080,
+    [87] = 22130,
+    [88] = 22160,
+    [89] = 22411,
+    [90] = 22460,
+    [91] = 22913,
+    [92] = 22931,
+    [93] = 23100,
+    [94] = 23199,
+    [95] = 23221,
+    [96] = 23275,
+    [97] = 23625,
+    [98] = 23661,
+    [99] = 23679,
+    [100] = 24033,
+    [101] = 24045,
+    [102] = 24096,
+    [103] = 24120,
+    [104] = 24216,
+    [105] = 24467,
+    [106] = 24511,
+    [107] = 24754,
+    [108] = 24782,
+    [109] = 24793,
 }
 
 -- [[Misc AOT variable imports]]

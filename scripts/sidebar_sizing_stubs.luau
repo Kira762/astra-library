@@ -406,6 +406,55 @@ local propertyDefaults = {
 	},
 }
 
+-- [[Members only some classes answer, in the engine's own vocabulary:
+-- [[indexing them anywhere else raises "<name> is not a valid member of
+-- [[<class>". Each of these reads as its own class's default (see
+-- [[propertyDefaults above), so a read on the wrong class used to answer a
+-- [[value here and now throws like the engine does. Values name the class
+-- [[the member belongs to.
+local classOnlyMembers = {
+	ImageLabel = "ImageLabel",
+	ImageButton = "ImageButton",
+	Image = "ImageLabel",
+	PlaceholderText = "TextBox",
+	TextEditable = "TextBox",
+	ClearTextOnFocus = "TextBox",
+	MultiLine = "TextBox",
+	ScrollBarThickness = "ScrollingFrame",
+	ScrollBarImageTransparency = "ScrollingFrame",
+	ScrollingDirection = "ScrollingFrame",
+	ElasticBehavior = "ScrollingFrame",
+}
+
+-- [[Class names a GuiObject child lookup may resolve to. Roblox raises
+-- [["<name> is not a valid member of <class>" for anything else, so a panel
+-- [[that indexes a child that is not there cannot quietly read nil (and pass
+-- [[a suite) while the engine throws on the first frame it is shown.
+local CHILD_CLASS_NAMES = {
+	Frame = true,
+	ScrollingFrame = true,
+	TextLabel = true,
+	TextButton = true,
+	TextBox = true,
+	ImageLabel = true,
+	ImageButton = true,
+	ViewportFrame = true,
+	CanvasGroup = true,
+	VideoFrame = true,
+	UIListLayout = true,
+	UIGridLayout = true,
+	UIPageLayout = true,
+	UIPadding = true,
+	UICorner = true,
+	UIStroke = true,
+	UIGradient = true,
+	UIScale = true,
+	UISizeConstraint = true,
+	UIAspectRatioConstraint = true,
+	UITextSizeConstraint = true,
+	UIShadow = true,
+}
+
 -- [[EnumItem-valued defaults are read from Enum so identity comparison works;
 -- [[a raw string would not equal Enum.AutomaticSize.None under typeof/marker
 -- [[rules. Keep the mapping tiny and explicit.]]
@@ -633,6 +682,13 @@ local function newInstance(className)
 			end
 			return signals[key]
 		end
+		-- [[Class-only members: the engine raises for every class outside]]
+		-- [[their real hierarchy, so the same read that works on the right]]
+		-- [[element throws on a stray one instead of reading nil.]]
+		local owner = classOnlyMembers[key]
+		if owner and not isA(props.ClassName, owner) then
+			error(key .. " is not a valid member of " .. tostring(props.ClassName), 2)
+		end
 		-- [[Roblox semantics: instance.ChildName finds a child by Name.]]
 		local children = rawget(self, "__children")
 		if children then
@@ -643,6 +699,13 @@ local function newInstance(className)
 					return child
 				end
 			end
+		end
+		-- [[...and indexing a child name that is not there is an error, not]]
+		-- [[nil. Only names that a real GuiObject child can carry raise: a]]
+		-- [[mistyped property still falls through to its default, so this]]
+		-- [[models the engine instead of second-guessing the library.]]
+		if CHILD_CLASS_NAMES[key] then
+			error(key .. " is not a valid member of " .. tostring(props.ClassName), 2)
 		end
 		-- [[Nothing assigned: answer the engine's default for the member (see
 		-- [[propertyDefaults above) instead of nil.]]

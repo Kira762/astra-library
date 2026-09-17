@@ -10,7 +10,11 @@
 -- [[C4  Set/Add/Clear update the store, the open view, and the badge.
 -- [[C5  Tab:CreateChangelog forwards into the store and returns a working handle.
 -- [[C6  seen state persists across windows sharing a key.
--- [[C7  divider + badge survive hide/show.]]
+-- [[C7  divider + badge survive hide/show.
+-- [[C8  every action-container child is walked safely: chrome with no icon]]
+-- [[    (the divider, the search pill) must not be read as `frame.ImageLabel`,
+-- [[    which is what took the first Show() down before the harness modelled]]
+-- [[    the engine's "not a valid member" rule for child reads.]]
 
 local function expect(cond, message)
     if not cond then
@@ -164,9 +168,41 @@ TestPump(0.5)
 expect(w3.changelogAction.badge.Visible, "C7 dot survives hide/show")
 expect(w3.changelogAction.badge.BackgroundTransparency == 0, "C7 dot restores opaque")
 expect(w3.changelogDivider.BackgroundTransparency < 1, "C7 divider restores with the topbar")
+
+-- ===== C8: icon-less action chrome ======================================
+-- [[The divider and the search pill share the action container with the
+-- [[buttons but carry no ImageLabel. The engine answers a child name that is
+-- [[not there with an error, so the hide/settle/show loops must look the icon
+-- [[up (`FindFirstChild`) instead of reading `frame.ImageLabel` - the read
+-- [[that took every window's first Show() down. A fresh window is the case:
+-- [[the container is populated and shown during construction, so this asserts
+-- [[on the window that has just been through it.]]]
+local w4 = Astra:CreateWindow({
+    name = "Chrome",
+    configuration = { fileName = "ChromeHub", customFolder = "ChromeFolder" },
+})
+TestPump(0.5)
+local iconless = 0
+for _, child in ipairs(w4.actionContainer:GetChildren()) do
+    if child.ClassName == "Frame" and child:FindFirstChild("ImageLabel") == nil then
+        iconless += 1
+    end
+end
+expect(iconless >= 1, "C8 container holds icon-less chrome")
+expect(w4.changelogDivider.Parent == w4.actionContainer, "C8 divider is action-container chrome")
+local okShow = pcall(function()
+    w4:Hide()
+    TestPump(0.3)
+    w4:Show()
+    TestPump(0.5)
+end)
+expect(okShow, "C8 hide/show survives icon-less action chrome")
+expect(w4.changelogDivider.BackgroundTransparency < 1, "C8 divider settles back in")
+
 window:Unload()
 w2:Unload()
 w3:Unload()
+w4:Unload()
 TestPump(0.2)
 
-print("CHANGELOG: panel, badge, seen persistence and redirect passed")
+print("CHANGELOG: panel, badge, seen persistence, safe chrome and redirect passed")

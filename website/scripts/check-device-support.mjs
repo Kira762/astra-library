@@ -108,13 +108,30 @@ const CSS_GUARANTEES = [
   ["Long inline code wraps instead of pushing the page", "overflow-wrap:break-word"],
   ["The preview slider is styled for Blink/WebKit", ".range::-webkit-slider-thumb"],
   ["The preview slider is styled for Gecko", ".range::-moz-range-thumb"],
-  ["Sticky panes size against the visible viewport", "max-height:calc(100dvh-3.5rem)"],
   ["Reduced-motion support", "@media(prefers-reduced-motion:reduce)"],
 ];
 
 for (const [label, needle] of CSS_GUARANTEES) {
   check(`CSS: ${label}`, css.includes(squash(needle)));
 }
+
+/* The sticky panes are sized as `100dvh - <header height>`, so the two numbers
+   live in different files and only work when they agree. Read the header
+   height from the component that draws it rather than hard-coding a copy of it
+   here: the check then fails when the two drift apart, which is exactly the
+   mistake that took this page off the air once. */
+const headerSource = read(join(websiteDir, "components", "site-header.tsx"));
+const headerHeight = (headerSource.match(/flex h-(\d+)/) ?? [])[1];
+const headerRem = headerHeight ? Number(headerHeight) / 4 : NaN;
+const stickyNeedle = Number.isFinite(headerRem)
+  ? `max-height:calc(100dvh-${headerRem}rem)`
+  : null;
+
+check(
+  "Sticky panes size against the visible viewport",
+  stickyNeedle !== null && css.includes(squash(stickyNeedle)),
+  headerHeight ? `header is h-${headerHeight} -> expected ${stickyNeedle}` : "no header height found",
+);
 
 /* ------------------------------------------------------------------ *
  * 4. Source rules that keep the layout from growing wider than a phone

@@ -40,7 +40,9 @@ export default function Themes() {
       </div>
       <div className="my-4 grid gap-2 sm:grid-cols-2">
         {THEMES.map(([name, rgb, hex]) => (
-          <div key={name} className="card flex items-center gap-3 px-3 py-2.5">
+          // Swatches wrap instead of overflowing: at 280-360px the accent
+          // values are the part that has to give.
+          <div key={name} className="card flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5">
             <span
               aria-hidden
               className="h-6 w-6 shrink-0 rounded-full border border-line"

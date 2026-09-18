@@ -87,7 +87,7 @@ export function CommandLine({ command, caption }: { command: string; caption?: s
         <span aria-hidden className="select-none font-mono text-sm text-accent">
           $
         </span>
-        <code className="flex-1 overflow-x-auto whitespace-pre font-mono text-sm text-ink/90">
+        <code className="scroll-x flex-1 whitespace-pre font-mono text-sm text-ink/90">
           {command}
         </code>
         <CopyButton text={command} label={`Copy ${caption ?? "command"}`} />

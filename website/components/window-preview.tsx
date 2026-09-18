@@ -93,16 +93,17 @@ export function WindowPreview() {
   // Clicking anywhere else closes the dropdown.
   useEffect(() => {
     if (!dropdownOpen) return;
-    function onPointerDown(event: MouseEvent) {
+    function onPointerDown(event: Event) {
       if (!dropdownRef.current?.contains(event.target as Node)) setDropdownOpen(false);
     }
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") setDropdownOpen(false);
     }
-    document.addEventListener("mousedown", onPointerDown);
+    // pointerdown covers mouse, touch and pen, so a tap elsewhere closes it too.
+    document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKey);
     return () => {
-      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKey);
     };
   }, [dropdownOpen]);
@@ -119,7 +120,7 @@ export function WindowPreview() {
       >
         {/* topbar */}
         <div className="flex items-center gap-3 border-b border-[var(--w-line)] bg-[var(--w-surface)] px-3.5 py-2.5">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="truncate font-display text-sm font-semibold text-[var(--w-ink)]">
               Example Hub
             </p>
@@ -148,7 +149,7 @@ export function WindowPreview() {
                     setToast({ title: "Search", content: "Search opens over the tab, lazily." });
                   }
                 }}
-                className={`grid h-6 w-6 place-items-center rounded-[7px] text-[var(--w-muted)] transition-colors hover:bg-[var(--w-raised)] hover:text-[var(--w-ink)] ${
+                className={`grid h-7 w-7 place-items-center rounded-[7px] text-[var(--w-muted)] transition-colors hover:bg-[var(--w-raised)] hover:text-[var(--w-ink)] ${
                   label === "Settings" && settingsMode ? "bg-[var(--w-raised)] text-[var(--w-accent)]" : ""
                 }`}
               >
@@ -168,6 +169,7 @@ export function WindowPreview() {
                   key={item.id}
                   type="button"
                   onClick={() => setTab(item.id)}
+                  aria-label={item.label}
                   aria-current={current ? "true" : undefined}
                   className={`flex items-center gap-2 rounded-[9px] px-2 py-2 text-left text-[0.78125rem] transition-colors ${
                     current
@@ -204,15 +206,15 @@ export function WindowPreview() {
                       aria-checked={autoSprint}
                       aria-label="Auto Sprint"
                       onClick={() => setAutoSprint((on) => !on)}
-                      className="relative h-[20px] w-[36px] shrink-0 rounded-full border transition-colors duration-200"
+                      className="relative h-[22px] w-[40px] shrink-0 rounded-full border transition-colors duration-200"
                       style={{
                         background: autoSprint ? theme.accent : mix(theme.bg, theme.accent, 0.14),
                         borderColor: autoSprint ? theme.accent : mix(theme.bg, theme.accent, 0.3),
                       }}
                     >
                       <span
-                        className="absolute left-[2px] top-[2px] h-[14px] w-[14px] rounded-full bg-white transition-transform duration-200"
-                        style={{ transform: `translateX(${autoSprint ? 16 : 0}px)` }}
+                        className="absolute left-[3px] top-[3px] h-[16px] w-[16px] rounded-full bg-white transition-transform duration-200"
+                        style={{ transform: `translateX(${autoSprint ? 18 : 0}px)` }}
                       />
                     </button>
                   </Row>
@@ -225,6 +227,9 @@ export function WindowPreview() {
                       {sensitivity}x
                     </span>
                   </div>
+                  {/* A real range input, styled in globals.css (.range) so the
+                      track, the thumb and the hit area work in Blink, WebKit
+                      and Gecko — and on a finger, not just a mouse. */}
                   <input
                     type="range"
                     name="sensitivity"
@@ -233,12 +238,15 @@ export function WindowPreview() {
                     step={1}
                     value={sensitivity}
                     aria-label="Sensitivity"
+                    aria-valuetext={`${sensitivity}x`}
                     onChange={(event) => setSensitivity(Number(event.target.value))}
-                    className="mt-2 h-1.5 w-full cursor-pointer appearance-none rounded-full"
-                    style={{
-                      accentColor: theme.accent,
-                      background: `linear-gradient(to right, ${theme.accent} ${((sensitivity - 1) / 9) * 100}%, ${mix(theme.bg, theme.accent, 0.22)} ${((sensitivity - 1) / 9) * 100}%)`,
-                    }}
+                    className="range mt-1.5 w-full"
+                    style={
+                      {
+                        "--range-fill": `linear-gradient(to right, ${theme.accent} ${((sensitivity - 1) / 9) * 100}%, ${mix(theme.bg, theme.accent, 0.22)} ${((sensitivity - 1) / 9) * 100}%)`,
+                        "--range-accent": theme.accent,
+                      } as React.CSSProperties
+                    }
                   />
                 </Card>
 
@@ -272,7 +280,7 @@ export function WindowPreview() {
                                   setPreset(option);
                                   setDropdownOpen(false);
                                 }}
-                                className="block w-full px-2.5 py-1.5 text-left text-[0.75rem] text-[var(--w-muted)] hover:bg-[var(--w-raised)] hover:text-[var(--w-ink)]"
+                                className="block w-full px-2.5 py-2 text-left text-[0.75rem] text-[var(--w-muted)] hover:bg-[var(--w-raised)] hover:text-[var(--w-ink)] sm:py-1.5"
                               >
                                 {option}
                               </button>
@@ -285,8 +293,8 @@ export function WindowPreview() {
                 </Card>
 
                 <Card>
-                  <div className="flex items-center gap-3">
-                    <div>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <div className="min-w-0">
                       <p className="text-[0.75rem] text-[var(--w-muted)]">Kills</p>
                       <p className="font-display text-xl font-semibold text-[var(--w-ink)] tabular-nums">
                         {kills}
@@ -304,7 +312,7 @@ export function WindowPreview() {
                         setKills(next);
                         setToast({ title: "Stat updated", content: `Kills is now ${next}.` });
                       }}
-                      className="ml-auto flex items-center gap-2 rounded-[10px] px-3 py-1.5 text-[0.75rem] font-medium transition-opacity hover:opacity-90"
+                      className="ml-auto flex items-center gap-2 rounded-[10px] px-3 py-2 text-[0.75rem] font-medium transition-opacity hover:opacity-90 sm:py-1.5"
                       style={{ background: theme.accent, color: onAccent }}
                     >
                       Say hello
@@ -363,7 +371,7 @@ export function WindowPreview() {
         </div>
 
         {/* notification, the way window:Notify draws one */}
-        <div className="pointer-events-none absolute bottom-3 right-3 flex w-[248px] flex-col gap-2">
+        <div className="pointer-events-none absolute bottom-3 left-3 right-3 flex flex-col gap-2 sm:left-auto sm:w-[248px]">
           {toast ? (
             <div
               role="status"
@@ -392,7 +400,7 @@ export function WindowPreview() {
                 type="button"
                 onClick={() => setTheme(item)}
                 aria-pressed={current}
-                className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs transition-colors sm:py-1.5 ${
                   current
                     ? "border-accent bg-accent/15 text-ink"
                     : "border-line text-muted hover:border-line-strong hover:text-ink"

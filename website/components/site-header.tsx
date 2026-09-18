@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { REPO_URL, normalizePath } from "@/lib/docs";
 import { Icon } from "./icon";
 import { SearchDialog } from "./search-dialog";
@@ -44,6 +44,11 @@ function ThemeToggle() {
     } catch {
       /* storage may be unavailable — the toggle still works for this page view */
     }
+    // On a phone the browser draws its own chrome around the page: keep the
+    // status bar / address bar in step with the theme the reader picked.
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute("content", nextDark ? "#0A0913" : "#FBFAFF");
   }
 
   return (
@@ -59,21 +64,54 @@ export function SiteHeader() {
   const pathname = normalizePath(usePathname() ?? "/");
   const [menuOpen, setMenuOpen] = useState(false);
   const isDocs = pathname.startsWith("/docs");
+  const menuRef = useRef<HTMLDivElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => setMenuOpen(false), [pathname]);
 
+  // Dismiss the phone menu the three ways people expect: Escape, a tap
+  // outside it, or picking a link (handled by the pathname effect above).
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      setMenuOpen(false);
+      toggleRef.current?.focus();
+    }
+    function onPointerDown(event: PointerEvent) {
+      const target = event.target as Node;
+      if (menuRef.current?.contains(target) || toggleRef.current?.contains(target)) return;
+      setMenuOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [menuOpen]);
+
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-base/85 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-shell items-center gap-3 px-4 lg:px-6">
-        <Link href="/" className="flex items-center gap-2.5" aria-label="Astra v1 — home">
+    <header className="sticky top-0 z-50 border-b border-line bg-base/85 backdrop-blur-md print:hidden">
+      <div className="mx-auto flex h-14 max-w-shell items-center gap-2 px-3 sm:px-4 lg:gap-3 lg:px-6">
+        <Link
+          href="/"
+          className="flex min-w-0 items-center gap-2.5"
+          aria-label="Astra v1 — home"
+        >
           <AstraMark />
           <span className="flex items-baseline gap-1.5">
             <span className="font-display text-[0.95rem] font-semibold tracking-tight">Astra</span>
-            <span className="rounded-full border border-line px-1.5 py-px text-2xs text-subtle">v1</span>
+            {/* The version chip is decoration; below 360px the logo needs the room. */}
+            <span className="hidden rounded-full border border-line px-1.5 py-px text-2xs text-subtle min-[360px]:inline">
+              v1
+            </span>
           </span>
         </Link>
 
-        <nav aria-label="Sections" className="ml-4 hidden items-center gap-1 md:flex">
+        {/* Full navigation from 1024px up. Between a phone and that width a
+            hamburger is more honest than five links squeezed into a row. */}
+        <nav aria-label="Sections" className="ml-4 hidden items-center gap-1 lg:flex">
           {LINKS.map((link) => {
             const current = pathname === link.href || pathname.startsWith(`${link.href}/`);
             return (
@@ -91,22 +129,23 @@ export function SiteHeader() {
           })}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
           <SearchDialog />
           <ThemeToggle />
           <a
             href={REPO_URL}
             target="_blank"
             rel="noreferrer"
-            className="icon-btn hidden sm:inline-flex"
+            className="icon-btn hidden lg:inline-flex"
             aria-label="Astra on GitHub"
           >
             <Icon name="github" className="h-4 w-4" />
           </a>
           <button
+            ref={toggleRef}
             type="button"
             onClick={() => setMenuOpen((open) => !open)}
-            className="icon-btn md:hidden"
+            className="icon-btn lg:hidden"
             aria-expanded={menuOpen}
             aria-controls="site-menu"
             aria-label={menuOpen ? "Close menu" : "Open menu"}
@@ -117,34 +156,41 @@ export function SiteHeader() {
       </div>
 
       {menuOpen ? (
-        <nav
-          id="site-menu"
-          aria-label="Sections"
-          className="border-t border-line bg-base px-4 py-3 md:hidden"
+        <div
+          ref={menuRef}
+          className="sticky-scroll overflow-y-auto overscroll-contain border-t border-line bg-base px-3 py-3 sm:px-4 lg:hidden"
         >
-          <ul className="grid gap-1">
-            {LINKS.map((link) => (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  className="block rounded-lg px-3 py-2 text-sm text-muted hover:bg-raised hover:text-ink"
+          <nav id="site-menu" aria-label="Sections">
+            <ul className="grid gap-1">
+              {LINKS.map((link) => {
+                const current = pathname === link.href || pathname.startsWith(`${link.href}/`);
+                return (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      aria-current={current ? "page" : undefined}
+                      className={`block rounded-lg px-3 py-2.5 text-sm transition-colors ${
+                        current ? "bg-raised text-ink" : "text-muted hover:bg-raised hover:text-ink"
+                      }`}
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                );
+              })}
+              <li>
+                <a
+                  href={REPO_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block rounded-lg px-3 py-2.5 text-sm text-muted hover:bg-raised hover:text-ink"
                 >
-                  {link.label}
-                </Link>
+                  GitHub
+                </a>
               </li>
-            ))}
-            <li>
-              <a
-                href={REPO_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="block rounded-lg px-3 py-2 text-sm text-muted hover:bg-raised hover:text-ink"
-              >
-                GitHub
-              </a>
-            </li>
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        </div>
       ) : null}
 
       {/* Breadcrumb bar on narrow screens: the docs sidebar is a drawer there. */}

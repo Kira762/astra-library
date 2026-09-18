@@ -91,8 +91,10 @@ export function SiteHeader() {
     };
   }, [menuOpen]);
 
+  // With viewport-fit:cover the layout reaches under a notch, so the bar
+  // itself reads the top inset — otherwise the logo hides under it.
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-base/85 backdrop-blur-md print:hidden">
+    <header className="sticky top-0 z-50 border-b border-line bg-base/85 pt-[env(safe-area-inset-top)] backdrop-blur-md print:hidden">
       <div className="mx-auto flex h-14 max-w-shell items-center gap-2 px-3 sm:px-4 lg:gap-3 lg:px-6">
         <Link
           href="/"

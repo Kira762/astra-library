@@ -124,14 +124,15 @@
   }
 
   /* Anchors land below the sticky header — and, below the docs breakpoint,
-     below the sticky "Documentation" bar that sits under it. */
+     below the sticky "Documentation" bar that sits under it. The inset term
+     covers the extra header padding on notched, cover-fit devices. */
   [id] {
-    scroll-margin-top: 6.5rem;
+    scroll-margin-top: calc(6.5rem + env(safe-area-inset-top));
   }
 
   @media (max-width: 1023.98px) {
     [id] {
-      scroll-margin-top: 7.5rem;
+      scroll-margin-top: calc(7.5rem + env(safe-area-inset-top));
     }
   }
 
@@ -408,7 +409,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    scroll-margin-top: 6.5rem;
+    scroll-margin-top: calc(6.5rem + env(safe-area-inset-top));
   }
 
   .anchor-title a.anchor-link {
@@ -557,12 +558,12 @@
      whose toolbars slide in and out never leave the list hanging off-screen.
      The vh line is the fallback for engines without dvh. */
   .sticky-scroll {
-    max-height: calc(100vh - 3.5rem);
+    max-height: calc(100vh - 3.5rem - env(safe-area-inset-top));
   }
 
   @supports (height: 100dvh) {
     .sticky-scroll {
-      max-height: calc(100dvh - 3.5rem);
+      max-height: calc(100dvh - 3.5rem - env(safe-area-inset-top));
     }
   }
 

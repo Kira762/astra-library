@@ -121,7 +121,7 @@ export function SearchDialog() {
 
       {open ? (
         <div
-          className="fixed inset-0 z-[70] flex items-start justify-center bg-base/80 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[6vh] backdrop-blur-sm sm:px-4 sm:pt-[12vh]"
+          className="fixed inset-0 z-[70] flex items-start justify-center bg-base/80 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(6vh,env(safe-area-inset-top))] backdrop-blur-sm sm:px-4 sm:pt-[max(12vh,env(safe-area-inset-top))]"
           role="dialog"
           aria-modal="true"
           aria-label="Search the documentation"

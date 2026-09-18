@@ -106,7 +106,7 @@ export function DocsSidebar() {
   return (
     <>
       {/* Narrow screens: a sticky bar that opens the full nav as a drawer. */}
-      <div className="sticky top-14 z-40 -mx-4 mb-2 border-b border-line bg-base/90 px-4 py-2 backdrop-blur lg:hidden print:hidden">
+      <div className="sticky top-[calc(3.5rem_+_env(safe-area-inset-top))] z-40 -mx-4 mb-2 border-b border-line bg-base/90 px-4 py-2 backdrop-blur lg:hidden print:hidden">
         <button
           ref={triggerRef}
           type="button"
@@ -133,7 +133,7 @@ export function DocsSidebar() {
           <div
             id="docs-drawer"
             ref={drawerRef}
-            className="absolute inset-y-0 left-0 w-[92%] max-w-sm overflow-y-auto overscroll-contain border-r border-line bg-base py-4 pl-[max(1rem,env(safe-area-inset-left))] pr-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:w-[86%]"
+            className="absolute inset-y-0 left-0 w-[92%] max-w-sm overflow-y-auto overscroll-contain border-r border-line bg-base pt-[max(1rem,env(safe-area-inset-top))] pl-[max(1rem,env(safe-area-inset-left))] pr-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:w-[86%]"
           >
             <div className="mb-4 flex items-center justify-between">
               <span className="font-display text-sm font-semibold">Documentation</span>
@@ -154,7 +154,7 @@ export function DocsSidebar() {
 
       {/* Wide screens: the nav sits beside the article. */}
       <aside className="hidden w-[248px] shrink-0 print:hidden lg:block">
-        <div className="sticky-scroll sticky top-14 overflow-y-auto py-8 pr-4">
+        <div className="sticky-scroll sticky top-[calc(3.5rem_+_env(safe-area-inset-top))] overflow-y-auto py-8 pr-4">
           <NavList />
         </div>
       </aside>
@@ -200,7 +200,7 @@ export function DocsToc() {
 
   return (
     <aside className="hidden w-[200px] shrink-0 print:hidden xl:block">
-      <div className="sticky-scroll sticky top-14 overflow-y-auto py-8 pl-2">
+      <div className="sticky-scroll sticky top-[calc(3.5rem_+_env(safe-area-inset-top))] overflow-y-auto py-8 pl-2">
         <p className="pb-2 font-display text-xs font-semibold text-subtle">On this page</p>
         <ul className="grid gap-0.5">
           {page.toc.map((item) => (

@@ -77,6 +77,29 @@ skills/astra/
 | [assets/icons/README.md](assets/icons/README.md) | Visual icon catalog with copyable names across all seven packs. |
 | [example.client.luau](example.client.luau) | End-to-end example that builds every element type in one tab. |
 | [changelog.example.luau](changelog.example.luau) | Host-side changelog data file consumed by the Changelog element. |
+| [website/](website/README.md) | The interactive version of USAGE.md, published to GitHub Pages. |
+
+## Docs website (GitHub Pages)
+
+The usage guide is also a static site: <https://kira762.github.io/astra-version-1/>
+
+It is a Next.js app in `website/` that exports to `website/out/`, published by
+[.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml) on every
+push to `main` that touches `website/**`. No other host, no build output committed,
+and nothing outside `website/` is ever uploaded.
+
+One-time switch for the repo owner — Settings → Pages → Build and deployment →
+Source: **GitHub Actions** (<https://github.com/Kira762/astra-version-1/settings/pages>).
+Because a project site is served from the `/astra-version-1` sub-path, the workflow
+exports `NEXT_PUBLIC_BASE_PATH` so every asset URL is prefixed; building without it
+produces a page with no CSS.
+
+```sh
+npm run build:pages    # reproduce the Pages build locally → website/out/
+cd website && npm run dev   # local dev at http://localhost:3000
+```
+
+Details and troubleshooting: [website/README.md](website/README.md).
 
 ## Repository layout
 
@@ -90,6 +113,7 @@ settings/ themes/ icons/  settings registry, theme modules, icon packs
 utilities/                motion, persistence, icons, locale, layouts, diagnostics
 scripts/                  bundle generator, static checkers, runtime tests
 skills/astra/             the published Agent Skill
+website/                  Next.js docs site → GitHub Pages (outside the Rojo tree)
 ```
 
 ## Development

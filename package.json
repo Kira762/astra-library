@@ -1,10 +1,11 @@
 {
   "name": "astra-version-1",
   "private": true,
-  "description": "Monorepo root — website lives in ./website (Next.js static export)",
+  "description": "Monorepo root — Luau library at the root, docs website in ./website (Next.js static export published to GitHub Pages)",
   "scripts": {
     "install:website": "npm ci --prefix website",
+    "dev": "npm run dev --prefix website",
     "build": "npm run build --prefix website",
-    "build:website": "./build-website.sh"
+    "build:pages": "NEXT_PUBLIC_BASE_PATH=/astra-version-1 npm run build --prefix website"
   }
 }

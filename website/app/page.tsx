@@ -29,7 +29,7 @@ const TOC = [
   { id: "startup", label: "Startup performance" },
   { id: "collapsible", label: "Collapsible Group" },
   { id: "props", label: "CreateWindow props" },
-  { id: "repo", label: "Monorepo & Vercel" },
+  { id: "repo", label: "Monorepo & Pages" },
   { id: "verify", label: "Path verification" },
 ];
 
@@ -107,7 +107,7 @@ export default function Home() {
             <div className="mb-10">
               <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-xs font-medium text-violet-300">
                 <span className="h-2 w-2 rounded-full bg-violet-400 animate-pulse" />
-                USAGE GUIDE • Deployed from <code className="rounded bg-violet-500/20 px-1.5 py-0.5 text-violet-200">website/</code> — Luau never deployed
+                USAGE GUIDE • GitHub Pages, built from <code className="rounded bg-violet-500/20 px-1.5 py-0.5 text-violet-200">website/</code> — Luau never deployed
               </div>
               <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">Astra v1 — Usage Guide</h1>
               <p className="mt-3 max-w-3xl text-lg leading-7 text-zinc-400">Load Astra and build your first window in a few lines. One loader line, one <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-sm text-zinc-200">CreateWindow</code> call, tabs full of elements — with built-in saving, themes, 7 icon packs and staged startup. This site is the human version of <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-sm text-zinc-200">USAGE.md</code>.</p>
@@ -523,15 +523,16 @@ window:SetTranslator(function(source, localeId) return ... end)`}</Code>
 
             {/* Repo */}
             <section id="repo" className="scroll-mt-20 mt-12">
-              <h2 className="text-2xl font-bold tracking-tight">Monorepo & Vercel — why website/ doesn’t break Luau</h2>
-              <p className="mt-2 text-zinc-400 leading-7">This repo is a monorepo: Luau library at the root, Next.js site in <code className="rounded bg-zinc-900 px-1 py-0.5 text-zinc-200">website/</code>. Root <code className="rounded bg-zinc-900 px-1 py-0.5 text-zinc-200">vercel.json</code> builds and publishes <code className="rounded bg-zinc-900 px-1 py-0.5 text-zinc-200">website/out</code> — no dashboard Root Directory setting required.</p>
+              <h2 className="text-2xl font-bold tracking-tight">Monorepo & GitHub Pages — why website/ doesn’t break Luau</h2>
+              <p className="mt-2 text-zinc-400 leading-7">This repo is a monorepo: Luau library at the root, Next.js site in <code className="rounded bg-zinc-900 px-1 py-0.5 text-zinc-200">website/</code>. <code className="rounded bg-zinc-900 px-1 py-0.5 text-zinc-200">.github/workflows/deploy-pages.yml</code> exports it to <code className="rounded bg-zinc-900 px-1 py-0.5 text-zinc-200">website/out</code> and publishes that to <Link href="https://kira762.github.io/astra-version-1/" target="_blank" className="text-violet-400 hover:underline">kira762.github.io/astra-version-1</Link> — no build output committed, no third-party host.</p>
               <div className="mt-4 grid gap-4 lg:grid-cols-2">
                 <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
                   <div className="border-b border-zinc-800 bg-zinc-900 px-4 py-2 text-xs font-semibold tracking-widest text-zinc-500">REPOSITORY LAYOUT</div>
                   <pre className="p-4 font-mono text-xs leading-6 text-zinc-300">{`website/              ← Next.js docs (static export → out/)
   app/page.tsx       your docs (this page)
   package.json       next, react, tailwind
-vercel.json          install/build website → output website/out
+.github/workflows/
+  deploy-pages.yml   build website/out → GitHub Pages
 components/          Luau window shell (not in web build)
 elements/            Luau elements (not in web build)
 core/ settings/ ...  Luau runtime (not in web build)
@@ -540,17 +541,18 @@ skills/              agent skill (not in web build)`}</pre>
                 </div>
                 <div className="space-y-4">
                   <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-                    <div className="text-xs font-semibold tracking-widest text-violet-400">ROOT vercel.json</div>
-                    <p className="mt-2 text-sm leading-6 text-zinc-400">Builds from the monorepo root so production works without a dashboard Root Directory.</p>
+                    <div className="text-xs font-semibold tracking-widest text-violet-400">GITHUB ACTIONS PIPELINE</div>
+                    <p className="mt-2 text-sm leading-6 text-zinc-400">Runs on every push to <code className="text-zinc-300">main</code> that touches <code className="text-zinc-300">website/**</code> — Luau-only commits never trigger a redeploy.</p>
                     <div className="mt-3 rounded-lg bg-zinc-950 p-3 font-mono text-xs leading-5 text-zinc-400">
-                      <div><span className="text-violet-400">&quot;installCommand&quot;</span>: <span className="text-amber-300">&quot;cd website &amp;&amp; npm ci&quot;</span></div>
-                      <div><span className="text-violet-400">&quot;buildCommand&quot;</span>: <span className="text-amber-300">&quot;cd website &amp;&amp; npm run build&quot;</span></div>
-                      <div><span className="text-violet-400">&quot;outputDirectory&quot;</span>: <span className="text-amber-300">&quot;website/out&quot;</span></div>
+                      <div><span className="text-violet-400">npm ci</span> <span className="text-zinc-600">--prefix website</span></div>
+                      <div><span className="text-violet-400">NEXT_PUBLIC_BASE_PATH</span>=<span className="text-amber-300">/astra-version-1</span> <span className="text-violet-400">npm run build</span></div>
+                      <div><span className="text-violet-400">upload-pages-artifact</span> <span className="text-zinc-600">→ website/out</span></div>
+                      <div><span className="text-violet-400">deploy-pages</span> <span className="text-zinc-600">→ github.io</span></div>
                     </div>
                   </div>
                   <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-                    <div className="text-xs font-semibold tracking-widest text-zinc-500">OPTIONAL</div>
-                    <p className="mt-2 text-sm leading-6 text-zinc-400">Dashboard Root Directory = <code className="text-zinc-300">website</code> is still fine — then <code className="text-zinc-300">website/vercel.json</code> uses <code className="text-zinc-300">outputDirectory: &quot;out&quot;</code>. <code className="text-zinc-300">ignoreCommand</code> skips redeploys when only Luau files change.</p>
+                    <div className="text-xs font-semibold tracking-widest text-zinc-500">ONE-TIME SETTING</div>
+                    <p className="mt-2 text-sm leading-6 text-zinc-400"><strong className="text-zinc-300">Settings → Pages → Source: GitHub Actions.</strong> The base path matters too: a project site is served from <code className="text-zinc-300">/astra-version-1</code>, so Next must prefix every <code className="text-zinc-300">_next/</code> asset URL or the page loads unstyled.</p>
                   </div>
                 </div>
               </div>
@@ -586,7 +588,7 @@ skills/              agent skill (not in web build)`}</pre>
             <footer className="mt-12 border-t border-zinc-800 pt-8">
               <div className="flex flex-col gap-2 text-sm text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
                 <div>Astra v1 • MIT • <Link href="https://github.com/Kira762/astra-version-1" target="_blank" className="text-zinc-300 hover:text-white">Kira762/astra-version-1</Link> • Docs from USAGE.md</div>
-                <div className="text-xs">Deployed from <code className="rounded bg-zinc-900 px-1 py-0.5 text-zinc-400">website/</code> • Luau outside Root Directory never uploaded</div>
+                <div className="text-xs">GitHub Pages • static export of <code className="rounded bg-zinc-900 px-1 py-0.5 text-zinc-400">website/</code> • Luau library never part of the web build</div>
               </div>
             </footer>
           </main>

@@ -19,9 +19,6 @@ dist
 .env.test.local
 .env.production.local
 
-# vercel
-.vercel
-
 # misc
 .DS_Store
 *.tsbuildinfo

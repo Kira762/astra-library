@@ -115,8 +115,10 @@
     background: rgb(var(--c-accent) / 0.32);
   }
 
+  /* With viewport-fit=cover the header grows by the notch/status-bar inset,
+     so anchors must clear that too or headings land under the docs bar. */
   [id] {
-    scroll-margin-top: 6.5rem;
+    scroll-margin-top: calc(6.5rem + env(safe-area-inset-top, 0px));
   }
 
   * {
@@ -390,7 +392,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    scroll-margin-top: 6.5rem;
+    scroll-margin-top: calc(6.5rem + env(safe-area-inset-top, 0px));
   }
 
   .anchor-title a.anchor-link {
@@ -553,7 +555,7 @@
   .skip-link {
     position: absolute;
     left: 1rem;
-    top: 0.75rem;
+    top: calc(0.75rem + env(safe-area-inset-top, 0px));
     z-index: 60;
     transform: translateY(-160%);
     transition: transform 140ms ease;

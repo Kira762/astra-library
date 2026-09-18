@@ -1,7 +1,3 @@
 {
-  "framework": "nextjs",
-  "buildCommand": "./build-website.sh",
-  "outputDirectory": "website/.next",
-  "installCommand": "echo 'Dependencies installed by build script'",
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- ./website/ ./vercel.json"
 }

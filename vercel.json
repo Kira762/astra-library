@@ -1,8 +1,0 @@
-{
-  "framework": null,
-  "installCommand": "npm run install:website || true",
-  "buildCommand": "npm run build || cp -a public website/out 2>/dev/null || true",
-  "outputDirectory": "public",
-  "cleanUrls": true,
-  "trailingSlash": true
-}

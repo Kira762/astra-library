@@ -1,81 +1,91 @@
 # Astra Website
 
-This folder is the Next.js docs site. The Luau library lives outside it and is never part of the web build.
+The Next.js docs site, published to **GitHub Pages** at
+<https://kira762.github.io/astra-version-1/>.
 
-## How Vercel deploys (no dashboard setup required)
+The Luau library lives at the repository root and is never part of the web build.
 
-Root `vercel.json` builds this folder from the **repo root**:
+## One-time setup (repo owner)
 
-```json
-{
-  "installCommand": "cd website && npm ci",
-  "buildCommand": "cd website && npm run build",
-  "outputDirectory": "website/out"
-}
+GitHub Pages must be pointed at Actions once — the workflow cannot always flip it
+by itself:
+
+1. Open <https://github.com/Kira762/astra-version-1/settings/pages>
+2. **Build and deployment → Source:** `GitHub Actions`
+
+Nothing else to configure: no `CNAME`, no `gh-pages` branch, no build command.
+
+## How it deploys
+
+`.github/workflows/deploy-pages.yml` runs on every push to `main` that touches
+`website/**` (and on demand via **Actions → Deploy website to GitHub Pages →
+Run workflow**):
+
+```
+checkout → configure-pages → npm ci → npm run build → upload website/out → deploy
 ```
 
-`next.config.mjs` uses `output: "export"` so the build emits static HTML into `website/out/`. That works whether or not Dashboard → Root Directory is set.
+`next.config.mjs` sets `output: "export"`, so the build writes plain static HTML
+to `website/out/`. The workflow exports `NEXT_PUBLIC_BASE_PATH` (taken from
+`configure-pages`, falling back to the repo name) because a project site is served
+from a sub-path — without it every `/_next/...` asset URL would 404.
 
-Optional (slightly faster uploads): Dashboard → Settings → General → Root Directory → `website`. Then `website/vercel.json` takes over (`outputDirectory: "out"`).
-
-`ignoreCommand` skips redeploys when only Luau/library files change.
-
-## This scaffold — Next.js (recommended for Vercel)
-
-This is a minimal Next.js 15 + Tailwind site (App Router). Replace `app/page.tsx` with your real design.
+## Local development
 
 ```bash
 cd website
 npm install
-npm run dev    # http://localhost:3000
-npm run build  # production build
+npm run dev     # http://localhost:3000  (no base path, like GitHub Actions dev previews)
+npm run build   # static export → website/out/
 ```
 
-### Structure
+To reproduce the exact Pages build (assets under `/astra-version-1`) from the repo
+root:
+
+```bash
+npm run build:pages     # = NEXT_PUBLIC_BASE_PATH=/astra-version-1 npm run build --prefix website
+npx serve website/out   # or any static server
+```
+
+`website/out/` and `website/node_modules/` are git-ignored — GitHub Actions
+rebuilds them on every deploy, so no build output is committed.
+
+## Structure
 
 ```
 website/
   app/
-    layout.tsx   # metadata + globals
-    page.tsx     # landing page (replace with your design)
-    globals.css  # tailwind directives
-  vercel.json    # ignoreCommand for monorepo
-  package.json   # next, react, tailwind
+    layout.tsx       # metadata + globals
+    page.tsx         # the docs page (all sections, TOC anchors)
+    globals.css      # tailwind directives
+  public/
+    .nojekyll        # keeps /_next/ intact if out/ is ever served from a branch
+  next.config.mjs    # output: export, trailingSlash, basePath from env
+  package.json       # next, react, tailwind
   tailwind.config.ts
-  next.config.mjs
 ```
 
-### If you prefer Vite or Astro
-
-You can replace this scaffold. Examples (run inside `website/`):
-
-```bash
-# Vite
-rm -rf app package.json && npm create vite@latest . -- --template react-ts
-# then update website/vercel.json:
-# { "ignoreCommand": "git diff --quiet HEAD^ HEAD -- ./", "buildCommand": "npm run build", "outputDirectory": "dist", "framework": "vite" }
-
-# Astro
-rm -rf app package.json && npm create astro@latest . -- --template minimal
-```
-
-For Next.js you don't need `buildCommand`/`outputDirectory` — Vercel auto-detects it.
-
-## Monorepo layout reminder
+## Monorepo layout
 
 ```
-/website/          <- Vercel Root Directory (this Next.js app)
-  app/  package.json  vercel.json
-/components/       <- Luau library (ignored via Root Directory)
-/elements/
-version-1.luau
-skills/
+/website/            <- this Next.js app (the only thing Pages publishes)
+/components/         <- Luau window shell
+/elements/           <- Luau elements
+/core/ /settings/ …  <- Luau runtime
+version-1.luau       <- generated bundle
+skills/              <- agent skill
 ```
 
-Edits to Luau files won't trigger a website deploy when ignoreCommand is active.
+Because Pages only ever receives `website/out/`, edits to Luau files cannot affect
+the site — and the path filter in the workflow means they do not even trigger a
+redeploy.
 
-## Alternatives already configured
+## Troubleshooting
 
-- **Option 2: `.vercelignore` at repo root** — if you deploy from root *without* Root Directory, it excludes `components/`, `elements/`, `*.luau`, etc. and keeps `!website/`. You don't need it when using Root Directory, but it's kept as safety net.
-
-- **Option 3: `vercel.json` build config from root** — e.g. `{ "buildCommand": "cd website && npm run build", "outputDirectory": "website/dist" }`. Prefer Root Directory instead; only use this if you must deploy from repo root.
+| Symptom | Cause / fix |
+|---|---|
+| `deploy` job fails: `Failed to create deployment (status: 404)` | Pages source is not `GitHub Actions` yet — see **One-time setup**. |
+| `Resource not accessible by integration` on *Setup Pages* | The workflow token cannot enable Pages. Harmless (the step is `continue-on-error`); enable it by hand once. |
+| Page loads but CSS/JS 404 | Built without `NEXT_PUBLIC_BASE_PATH`. Use the workflow (or `npm run build:pages`) — never a plain `npm run build` for Pages. |
+| Site unchanged after a push | The path filter only watches `website/**`; use **Run workflow** for a manual redeploy. |
+| Blank 404 for deep links | Expected — the site is a single page plus `404.html`; anchors (`#icons`) are on that page. |

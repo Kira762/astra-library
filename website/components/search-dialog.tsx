@@ -133,7 +133,7 @@ export function SearchDialog() {
         >
           <div
             ref={panelRef}
-            className="flex max-h-full w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl"
+            className="flex max-h-full w-full max-w-xl flex-col overflow-hidden rounded-card border border-line bg-surface shadow-pop"
           >
             <div className="flex items-center gap-3 border-b border-line px-4 py-3">
               <Icon name="search" className="h-4 w-4 shrink-0 text-subtle" />
@@ -185,7 +185,7 @@ export function SearchDialog() {
                       type="button"
                       onMouseEnter={() => setActive(index)}
                       onClick={() => go(entry)}
-                      className={`flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
+                      className={`flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-150 ease-out ${
                         index === active ? "bg-accent/15" : "hover:bg-raised"
                       }`}
                     >
@@ -214,7 +214,7 @@ export function SearchDialog() {
 
             {/* Keyboard hints: pointless on a touch phone, where the list
                 simply fills the dialog instead. */}
-            <div className="hidden shrink-0 items-center gap-4 border-t border-line px-4 py-2 text-2xs text-subtle sm:flex">
+            <div className="hidden shrink-0 items-center gap-4 border-t border-line px-4 py-2.5 text-2xs text-subtle sm:flex">
               <span className="flex items-center gap-1">
                 <kbd className="kbd">↑</kbd>
                 <kbd className="kbd">↓</kbd> to move

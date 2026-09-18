@@ -23,10 +23,14 @@
   --c-surface: 18 16 34; /* cards, code blocks */
   --c-raised: 25 22 48; /* nested surfaces, hover */
   --c-line: 38 32 70; /* hairlines */
+  --c-line-soft: 29 25 53; /* hairlines inside a surface */
   --c-line-strong: 53 45 92;
   --c-ink: 238 235 250;
   --c-muted: 163 157 196;
-  --c-subtle: 122 116 156;
+  /* Measured: 4.57:1 on --c-raised, the lightest surface it renders on.
+     Anything dimmer fails WCAG AA for the captions and table headers it
+     is used for — see DESIGN.md. */
+  --c-subtle: 134 128 166;
 
   --c-accent: 155 123 247; /* violet — matches Astra's default accent family */
   --c-accent-soft: 60 45 110;
@@ -38,8 +42,28 @@
   --c-danger: 248 122 122;
   --c-info: 103 199 240;
 
-  --shadow-card: 0 1px 0 0 rgb(255 255 255 / 0.03) inset,
-    0 18px 40px -28px rgb(0 0 0 / 0.9);
+  /* Elevation is a ring plus a soft, short throw: depth without a grey
+     smear under every card. */
+  --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.02),
+    0 1px 2px -1px rgb(0 0 0 / 0.5), 0 16px 40px -34px rgb(0 0 0 / 0.95);
+  --shadow-lift: 0 0 0 1px rgb(var(--c-line-strong)),
+    0 2px 4px -2px rgb(0 0 0 / 0.5), 0 22px 48px -36px rgb(0 0 0 / 1);
+
+  /* Miniature syntax palette for the docs' code blocks. Five tones, each
+     doing one job — see .tok-* below. */
+  --tok-keyword: 170 143 252;
+  --tok-string: 130 214 176;
+  --tok-number: 242 199 130;
+  --tok-function: 128 199 240;
+  --tok-comment: 134 128 166;
+
+  /* One easing vocabulary for the whole site. `--ease-out` is the house
+     curve: quick to start, gently settled, never bouncy. */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-swift: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 140ms;
+  --dur: 200ms;
+
   --star-opacity: 0.5;
 }
 
@@ -50,22 +74,36 @@
   --c-surface: 255 255 255;
   --c-raised: 244 241 252;
   --c-line: 228 223 245;
+  --c-line-soft: 236 232 249;
   --c-line-strong: 205 197 236;
   --c-ink: 23 20 42;
   --c-muted: 89 82 125;
-  --c-subtle: 124 118 152;
+  /* Measured: 4.58:1 on --c-raised. Was 3.84:1. */
+  --c-subtle: 110 104 134;
 
   --c-accent: 109 63 224;
   --c-accent-soft: 228 220 253;
   --c-accent-ink: 255 255 255;
 
-  --c-gold: 168 118 42;
-  --c-success: 15 157 110;
-  --c-warning: 178 106 18;
-  --c-danger: 194 65 63;
-  --c-info: 30 127 184;
+  /* Status tones are re-picked for lightness, not hue, so they stay
+     recognisable and clear 4.5:1 on the surfaces they render on. */
+  --c-gold: 145 102 36; /* 4.56:1 on raised */
+  --c-success: 12 125 87; /* 4.61:1 on raised */
+  --c-warning: 160 95 16; /* 4.55:1 on raised */
+  --c-danger: 194 65 63; /* 4.57:1 on raised */
+  --c-info: 27 116 168; /* 4.58:1 on raised */
 
-  --shadow-card: 0 1px 2px rgb(30 20 70 / 0.04), 0 12px 32px -24px rgb(30 20 70 / 0.35);
+  --shadow-card: 0 0 0 1px rgb(30 20 70 / 0.03), 0 1px 2px rgb(30 20 70 / 0.05),
+    0 12px 32px -26px rgb(30 20 70 / 0.4);
+  --shadow-lift: 0 0 0 1px rgb(var(--c-line-strong)), 0 2px 4px -2px rgb(30 20 70 / 0.12),
+    0 18px 40px -30px rgb(30 20 70 / 0.45);
+
+  --tok-keyword: 109 63 224;
+  --tok-string: 16 122 84;
+  --tok-number: 158 104 18;
+  --tok-function: 27 116 168;
+  --tok-comment: 110 104 134;
+
   --star-opacity: 0.25;
 }
 
@@ -109,8 +147,23 @@
   h3,
   h4 {
     font-family: theme("fontFamily.display");
+    font-weight: 600;
     text-wrap: balance;
-    letter-spacing: -0.021em;
+    /* Display type wants negative tracking; body copy does not. */
+    letter-spacing: -0.022em;
+  }
+
+  h1 {
+    letter-spacing: -0.028em;
+  }
+
+  h3,
+  h4 {
+    letter-spacing: -0.012em;
+  }
+
+  p {
+    text-wrap: pretty;
   }
 
   :where(a, button, input, summary, [tabindex]):focus-visible {
@@ -126,12 +179,12 @@
   /* Anchors land below the sticky header — and, below the docs breakpoint,
      below the sticky "Documentation" bar that sits under it. */
   [id] {
-    scroll-margin-top: 6.5rem;
+    scroll-margin-top: 7rem;
   }
 
   @media (max-width: 1023.98px) {
     [id] {
-      scroll-margin-top: 7.5rem;
+      scroll-margin-top: 8.25rem;
     }
   }
 
@@ -171,29 +224,33 @@
   .prose-docs {
     color: rgb(var(--c-muted));
     font-size: 1rem;
-    line-height: 1.75;
-    max-width: 72ch;
+    line-height: 1.68;
+    max-width: 65ch;
   }
 
   .prose-docs p {
-    margin-block: 0 1rem;
-    text-wrap: pretty;
+    margin-block: 0 1.1rem;
   }
 
   .prose-docs > p:first-child {
-    color: rgb(var(--c-ink) / 0.88);
+    color: rgb(var(--c-ink) / 0.9);
     font-size: 1.0625rem;
+    line-height: 1.7;
   }
 
   .prose-docs a {
     color: rgb(var(--c-accent));
     text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 2px;
+    text-decoration-thickness: from-font;
+    text-underline-offset: 0.18em;
+    text-underline-position: from-font;
+    text-decoration-color: rgb(var(--c-accent) / 0.45);
+    transition: text-decoration-color 180ms var(--ease-out), color 180ms var(--ease-out);
   }
 
   .prose-docs a:hover {
     color: rgb(var(--c-ink));
+    text-decoration-color: currentColor;
   }
 
   .prose-docs strong {
@@ -223,7 +280,7 @@
     content: "";
     position: absolute;
     left: -0.85rem;
-    top: 0.68em;
+    top: 0.72em;
     width: 5px;
     height: 5px;
     border-radius: 999px;
@@ -249,7 +306,7 @@
     color: rgb(var(--c-ink));
     background: rgb(var(--c-raised));
     border: 1px solid rgb(var(--c-line));
-    border-radius: 5px;
+    border-radius: 6px;
     padding: 0.08em 0.34em;
     white-space: pre-wrap;
     overflow-wrap: break-word;
@@ -271,29 +328,39 @@
   .card {
     background: rgb(var(--c-surface));
     border: 1px solid rgb(var(--c-line));
-    border-radius: 14px;
+    border-radius: 16px;
     box-shadow: var(--shadow-card);
   }
 
   .card-quiet {
-    background: rgb(var(--c-surface) / 0.6);
+    background: rgb(var(--c-surface) / 0.55);
     border: 1px solid rgb(var(--c-line));
-    border-radius: 14px;
+    border-radius: 16px;
   }
 
   .card-link {
     display: block;
+    height: 100%;
     background: rgb(var(--c-surface));
     border: 1px solid rgb(var(--c-line));
-    border-radius: 14px;
-    padding: 1rem 1.1rem;
-    transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease;
+    border-radius: 16px;
+    padding: 1.15rem 1.25rem;
+    box-shadow: var(--shadow-card);
+    transition-property: border-color, background-color, box-shadow, transform;
+    transition-duration: var(--dur);
+    transition-timing-function: var(--ease-out);
   }
 
   .card-link:hover {
-    border-color: rgb(var(--c-accent) / 0.5);
-    background: rgb(var(--c-raised));
-    transform: translateY(-1px);
+    border-color: rgb(var(--c-accent) / 0.45);
+    background: rgb(var(--c-raised) / 0.75);
+    box-shadow: var(--shadow-lift);
+    transform: translateY(-2px);
+  }
+
+  .card-link:active {
+    transform: translateY(0);
+    transition-duration: var(--dur-fast);
   }
 
   /* ---------- controls ---------- */
@@ -303,17 +370,33 @@
     gap: 0.5rem;
     border-radius: 10px;
     border: 1px solid rgb(var(--c-line));
-    padding: 0.5rem 0.85rem;
+    padding: 0.5rem 0.9rem;
     font-size: 0.875rem;
+    line-height: 1.25rem;
     font-weight: 500;
     color: rgb(var(--c-ink));
     background: rgb(var(--c-surface));
-    transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+    box-shadow: 0 1px 2px -1px rgb(0 0 0 / 0.3);
+    transition-property: background-color, border-color, color, box-shadow, transform;
+    transition-duration: var(--dur);
+    transition-timing-function: var(--ease-out);
+  }
+
+  /* Optical alignment: a trailing glyph carries weight the text side does
+     not, so it gets two pixels less padding. */
+  .btn:has(> svg:last-child) {
+    padding-inline-end: 0.78rem;
   }
 
   .btn:hover {
     background: rgb(var(--c-raised));
     border-color: rgb(var(--c-line-strong));
+    box-shadow: 0 2px 6px -2px rgb(0 0 0 / 0.4);
+  }
+
+  .btn:active {
+    transform: scale(0.98);
+    transition-duration: var(--dur-fast);
   }
 
   .btn-primary {
@@ -321,11 +404,13 @@
     border-color: rgb(var(--c-accent));
     color: rgb(var(--c-accent-ink));
     font-weight: 600;
+    box-shadow: 0 1px 2px -1px rgb(0 0 0 / 0.4), 0 8px 24px -18px rgb(var(--c-accent) / 0.9);
   }
 
   .btn-primary:hover {
-    background: rgb(var(--c-accent) / 0.88);
-    border-color: rgb(var(--c-accent) / 0.88);
+    background: rgb(var(--c-accent) / 0.9);
+    border-color: rgb(var(--c-accent) / 0.9);
+    box-shadow: 0 2px 8px -2px rgb(0 0 0 / 0.45), 0 12px 28px -18px rgb(var(--c-accent));
   }
 
   .icon-btn {
@@ -338,12 +423,20 @@
     border: 1px solid rgb(var(--c-line));
     color: rgb(var(--c-muted));
     background: rgb(var(--c-surface) / 0.7);
-    transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
+    transition-property: color, background-color, border-color, transform;
+    transition-duration: var(--dur);
+    transition-timing-function: var(--ease-out);
   }
 
   .icon-btn:hover {
     color: rgb(var(--c-ink));
     background: rgb(var(--c-raised));
+    border-color: rgb(var(--c-line-strong));
+  }
+
+  .icon-btn:active {
+    transform: scale(0.96);
+    transition-duration: var(--dur-fast);
   }
 
   .pill {
@@ -352,9 +445,10 @@
     gap: 0.375rem;
     border-radius: 999px;
     border: 1px solid rgb(var(--c-line));
-    background: rgb(var(--c-surface));
+    background: rgb(var(--c-surface) / 0.8);
     padding: 0.2rem 0.6rem;
     font-size: 0.75rem;
+    line-height: 1.25rem;
     color: rgb(var(--c-muted));
   }
 
@@ -371,10 +465,69 @@
 
   /* ---------- code ---------- */
   .code-frame {
+    position: relative;
     background: rgb(var(--c-surface));
     border: 1px solid rgb(var(--c-line));
-    border-radius: 14px;
+    border-radius: 16px;
     overflow: hidden;
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Chrome row: language or variant tabs on the leading edge, copy on the
+     trailing one. Same height whether or not there are tabs, so a page of
+     mixed blocks keeps one baseline. */
+  .code-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-height: 2.75rem;
+    padding: 0.375rem 0.5rem 0.375rem 0.75rem;
+    border-bottom: 1px solid rgb(var(--c-line));
+    background: rgb(var(--c-raised) / 0.45);
+  }
+
+  .code-meta {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.625rem;
+    font-family: theme("fontFamily.mono");
+    font-size: 0.75rem;
+    line-height: 1.25rem;
+    color: rgb(var(--c-subtle));
+  }
+
+  .code-tabs {
+    display: flex;
+    align-items: center;
+    gap: 0.125rem;
+    padding: 0.125rem;
+    border-radius: 10px;
+    border: 1px solid rgb(var(--c-line));
+    background: rgb(var(--c-base) / 0.5);
+  }
+
+  .code-tab {
+    border-radius: 7px;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.8125rem;
+    line-height: 1.125rem;
+    font-weight: 500;
+    color: rgb(var(--c-muted));
+    transition-property: color, background-color, box-shadow;
+    transition-duration: var(--dur);
+    transition-timing-function: var(--ease-out);
+  }
+
+  .code-tab:hover {
+    color: rgb(var(--c-ink));
+  }
+
+  .code-tab[aria-selected="true"] {
+    color: rgb(var(--c-ink));
+    background: rgb(var(--c-raised));
+    box-shadow: 0 0 0 1px rgb(var(--c-line-strong));
   }
 
   .code-frame pre {
@@ -382,23 +535,60 @@
     overflow-x: auto;
     overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch;
-    padding: 0.9rem 1rem 1.1rem;
+    padding: 1rem 1.15rem 1.15rem;
     font-family: theme("fontFamily.mono");
     font-size: 0.8125rem;
-    line-height: 1.7;
-    color: rgb(var(--c-ink) / 0.92);
+    line-height: 1.75;
+    tab-size: 4;
+    color: rgb(var(--c-ink) / 0.94);
+  }
+
+  /* Both the sample and the scrolling table sit inside an `overflow: hidden`
+     frame, so a focus ring drawn outside them would be clipped away. Draw
+     these two inside instead. */
+  .code-frame pre:focus-visible {
+    outline-offset: -3px;
+    border-radius: 0 0 15px 15px;
+  }
+
+  .code-head :where(button):focus-visible,
+  .scroll-x:focus-visible {
+    outline-offset: -2px;
+  }
+
+  /* Five tones, five jobs. Colour alone never carries the meaning: the
+     glyph shapes already say what kind of token it is. */
+  .tok-keyword {
+    color: rgb(var(--tok-keyword));
+  }
+
+  .tok-string {
+    color: rgb(var(--tok-string));
+  }
+
+  .tok-number {
+    color: rgb(var(--tok-number));
+  }
+
+  .tok-function {
+    color: rgb(var(--tok-function));
+  }
+
+  .tok-comment {
+    color: rgb(var(--tok-comment));
   }
 
   /* ---------- callouts ---------- */
   .callout {
-    border-radius: 12px;
+    border-radius: 14px;
     border: 1px solid rgb(var(--c-line));
-    background: rgb(var(--c-surface) / 0.7);
-    padding: 0.9rem 1rem;
+    background: rgb(var(--c-surface) / 0.6);
+    padding: 1rem 1.15rem;
   }
 
   .callout-title {
     font-size: 0.8125rem;
+    line-height: 1.25rem;
     font-weight: 600;
     color: rgb(var(--c-ink));
   }
@@ -408,7 +598,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    scroll-margin-top: 6.5rem;
+    scroll-margin-top: 7rem;
   }
 
   .anchor-title a.anchor-link {
@@ -416,7 +606,7 @@
     color: rgb(var(--c-subtle));
     font-size: 0.85em;
     text-decoration: none;
-    transition: opacity 120ms ease, color 120ms ease;
+    transition: opacity var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
   }
 
   .anchor-title:hover a.anchor-link,
@@ -428,39 +618,59 @@
     color: rgb(var(--c-accent));
   }
 
-  /* ---------- tables ---------- */
+  /* ---------- tables ----------
+     Reference tables are read by scanning a column, so the row has to hold
+     its shape: a rule between rows, a whisper of tint on alternate rows, and
+     a hover band that follows the pointer (or the focused link inside it,
+     for keyboard readers). */
   .data-table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
     font-size: 0.875rem;
+    line-height: 1.55;
   }
 
   .data-table th {
     text-align: left;
     font-family: theme("fontFamily.display");
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     font-weight: 600;
-    letter-spacing: 0.02em;
-    color: rgb(var(--c-subtle));
-    background: rgb(var(--c-raised) / 0.6);
-    padding: 0.6rem 0.9rem;
+    letter-spacing: 0.005em;
+    color: rgb(var(--c-muted));
+    background: rgb(var(--c-raised) / 0.55);
+    padding: 0.7rem 1rem;
     border-bottom: 1px solid rgb(var(--c-line));
+    white-space: nowrap;
   }
 
   .data-table td {
-    padding: 0.65rem 0.9rem;
-    border-bottom: 1px solid rgb(var(--c-line));
+    padding: 0.8rem 1rem;
+    border-bottom: 1px solid rgb(var(--c-line-soft));
     color: rgb(var(--c-muted));
     vertical-align: top;
+    transition: background-color var(--dur-fast) linear;
   }
 
-  .data-table tr:last-child td {
+  .data-table tbody tr:nth-child(even) td {
+    background: rgb(var(--c-raised) / 0.28);
+  }
+
+  .data-table tbody tr:hover td,
+  .data-table tbody tr:focus-within td {
+    background: rgb(var(--c-accent) / 0.07);
+  }
+
+  .data-table tbody tr:last-child td {
     border-bottom: 0;
   }
 
   .data-table td:first-child {
     color: rgb(var(--c-ink));
+  }
+
+  .data-table td code {
+    white-space: nowrap;
   }
 
   /* ---------- range slider (the live preview's Slider) ----------
@@ -518,12 +728,19 @@
     border-radius: 999px;
   }
 
-  /* ---------- starfield backdrop ---------- */
-  .starfield::before {
+  /* ---------- starfield backdrop ----------
+     Two layers: the field itself, then a wash that falls from the top of the
+     section so the stars thin out as the hero content begins. Both fade to
+     nothing at the bottom edge, so the section ends without a seam. */
+  .starfield::before,
+  .starfield::after {
     content: "";
     position: absolute;
     inset: 0;
     pointer-events: none;
+  }
+
+  .starfield::before {
     opacity: var(--star-opacity);
     background-image: radial-gradient(1px 1px at 12% 22%, rgb(var(--c-ink) / 0.55) 50%, transparent 51%),
       radial-gradient(1px 1px at 78% 12%, rgb(var(--c-ink) / 0.4) 50%, transparent 51%),
@@ -531,6 +748,16 @@
       radial-gradient(1px 1px at 88% 62%, rgb(var(--c-ink) / 0.35) 50%, transparent 51%),
       radial-gradient(1px 1px at 28% 88%, rgb(var(--c-ink) / 0.3) 50%, transparent 51%),
       radial-gradient(1.5px 1.5px at 62% 34%, rgb(var(--c-gold) / 0.4) 50%, transparent 51%);
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
+  }
+
+  .starfield::after {
+    background: radial-gradient(
+      120% 80% at 50% 0%,
+      rgb(var(--c-accent) / 0.09) 0%,
+      transparent 60%
+    );
   }
 }
 
@@ -539,14 +766,43 @@
     text-wrap: balance;
   }
 
+  /* What the brief calls "let the design breathe": one rhythm for every
+     landing section, instead of a different padding per section. */
+  .section {
+    padding-block: 3.5rem;
+  }
+
+  @media (min-width: 640px) {
+    .section {
+      padding-block: 4.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .section {
+      padding-block: 6rem;
+    }
+  }
+
+  /* A theme flip changes colour on nearly every element at once. With
+     transitions live, the whole page cross-fades and the switch smears
+     instead of snapping. The toggle adds this class for one frame. */
+  .theme-swap,
+  .theme-swap *,
+  .theme-swap *::before,
+  .theme-swap *::after {
+    transition: none !important;
+    animation-duration: 0s !important;
+  }
+
   /* A focusable skip target that is only visible when focused. */
   .skip-link {
     position: absolute;
-    left: 1rem;
+    inset-inline-start: 1rem;
     top: 0.75rem;
     z-index: 60;
     transform: translateY(-160%);
-    transition: transform 140ms ease;
+    transition: transform var(--dur) var(--ease-out);
   }
 
   .skip-link:focus {
@@ -557,12 +813,12 @@
      whose toolbars slide in and out never leave the list hanging off-screen.
      The vh line is the fallback for engines without dvh. */
   .sticky-scroll {
-    max-height: calc(100vh - 3.5rem);
+    max-height: calc(100vh - 4rem);
   }
 
   @supports (height: 100dvh) {
     .sticky-scroll {
-      max-height: calc(100dvh - 3.5rem);
+      max-height: calc(100dvh - 4rem);
     }
   }
 
@@ -672,9 +928,24 @@
   .card,
   .callout,
   .code-frame,
+  .code-tabs,
+  .code-tab[aria-selected="true"],
   .data-table th,
   .data-table td {
     border-color: CanvasText;
+  }
+
+  /* The syntax palette is a colour-only cue here; the UA palette takes over. */
+  .tok-keyword,
+  .tok-string,
+  .tok-number,
+  .tok-function {
+    color: CanvasText;
+  }
+
+  .data-table tbody tr:nth-child(even) td,
+  .data-table tbody tr:hover td {
+    background: Canvas;
   }
 
   .range::-webkit-slider-thumb,
@@ -718,14 +989,33 @@
     --c-accent: 109 63 224;
     --c-accent-soft: 228 220 253;
     --c-accent-ink: 255 255 255;
-    --c-gold: 168 118 42;
-    --c-success: 15 157 110;
-    --c-warning: 178 106 18;
+    --c-gold: 145 102 36;
+    --c-success: 12 125 87;
+    --c-warning: 160 95 16;
     --c-danger: 194 65 63;
-    --c-info: 30 127 184;
+    --c-info: 27 116 168;
+
+    /* Same reason, one layer down: the code blocks print as ink on paper. */
+    --tok-keyword: 109 63 224;
+    --tok-string: 16 122 84;
+    --tok-number: 133 86 12;
+    --tok-function: 27 116 168;
+    --tok-comment: 96 94 116;
 
     --star-opacity: 0;
     --shadow-card: none;
+    --shadow-lift: none;
+  }
+
+  /* Ink on paper: the code frame keeps its rule but drops its tint, so a
+     printed sample reads as a quotation rather than a grey block. */
+  .code-frame,
+  .code-head {
+    background: #fff;
+  }
+
+  .code-frame pre {
+    padding-inline: 0;
   }
 
   .prose-docs {

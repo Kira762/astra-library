@@ -21,7 +21,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
     <nav aria-label="Documentation" className="docs-nav-list grid gap-6">
       {NAV.map((group) => (
         <div key={group.label}>
-          <p className="px-3 pb-1.5 font-display text-xs font-semibold text-subtle">{group.label}</p>
+          <p className="px-3 pb-2 font-display text-xs font-semibold text-subtle">{group.label}</p>
           <ul className="grid gap-0.5 border-l border-line pl-0">
             {group.pages.map((page) => {
               const current = pathname === page.href;
@@ -31,7 +31,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
                     href={page.href}
                     onClick={onNavigate}
                     aria-current={current ? "page" : undefined}
-                    className={`-ml-px block border-l py-2 pl-3 pr-2 text-sm transition-colors ${
+                    className={`-ml-px block border-l py-2 pl-3 pr-2 text-sm transition-colors duration-150 ease-out ${
                       current
                         ? "border-accent font-medium text-accent"
                         : "border-transparent text-muted hover:border-line-strong hover:text-ink"
@@ -55,7 +55,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
                 href={link.href}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 text-sm text-muted transition-colors hover:text-ink"
+                className="flex items-center gap-1.5 px-3 py-2 text-sm text-muted transition-colors duration-150 ease-out hover:text-ink"
               >
                 {link.label}
                 <Icon name="external" className="h-3 w-3 text-subtle" />
@@ -106,7 +106,7 @@ export function DocsSidebar() {
   return (
     <>
       {/* Narrow screens: a sticky bar that opens the full nav as a drawer. */}
-      <div className="sticky top-14 z-40 -mx-4 mb-2 border-b border-line bg-base/90 px-4 py-2 backdrop-blur lg:hidden print:hidden">
+      <div className="sticky top-16 z-40 -mx-4 mb-2 border-b border-line bg-base/90 px-4 py-2.5 backdrop-blur-md lg:hidden print:hidden">
         <button
           ref={triggerRef}
           type="button"
@@ -154,7 +154,7 @@ export function DocsSidebar() {
 
       {/* Wide screens: the nav sits beside the article. */}
       <aside className="hidden w-[248px] shrink-0 print:hidden lg:block">
-        <div className="sticky-scroll sticky top-14 overflow-y-auto py-8 pr-4">
+        <div className="sticky-scroll sticky top-16 overflow-y-auto py-10 pr-4">
           <NavList />
         </div>
       </aside>
@@ -200,15 +200,15 @@ export function DocsToc() {
 
   return (
     <aside className="hidden w-[200px] shrink-0 print:hidden xl:block">
-      <div className="sticky-scroll sticky top-14 overflow-y-auto py-8 pl-2">
-        <p className="pb-2 font-display text-xs font-semibold text-subtle">On this page</p>
+      <div className="sticky-scroll sticky top-16 overflow-y-auto py-10 pl-2">
+        <p className="pb-3 font-display text-xs font-semibold text-subtle">On this page</p>
         <ul className="docs-toc grid gap-0.5">
           {page.toc.map((item) => (
             <li key={item.id}>
               <a
                 href={`#${item.id}`}
                 aria-current={activeId === item.id ? "location" : undefined}
-                className={`block py-1 pl-3 text-[0.8125rem] leading-5 transition-colors ${
+                className={`block py-1.5 pl-3 text-[0.8125rem] leading-5 transition-colors duration-150 ease-out ${
                   activeId === item.id
                     ? "border-l border-accent text-accent"
                     : "border-l border-transparent text-subtle hover:text-ink"
@@ -231,7 +231,7 @@ export function DocsPager() {
   if (!prev && !next) return null;
 
   return (
-    <nav aria-label="Pagination" className="mt-14 grid gap-3 border-t border-line pt-6 sm:grid-cols-2 print:hidden">
+    <nav aria-label="Pagination" className="mt-16 grid gap-4 border-t border-line pt-8 sm:grid-cols-2 print:hidden">
       {prev ? (
         <Link href={prev.href} className="card-link group">
           <span className="flex items-center gap-2 text-2xs text-subtle">

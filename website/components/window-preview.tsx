@@ -114,7 +114,7 @@ export function WindowPreview() {
     <div className="w-full">
       <div
         style={style}
-        className="relative mx-auto w-full max-w-[600px] overflow-hidden rounded-[16px] border border-[var(--w-line)] bg-[var(--w-bg)] shadow-[0_40px_80px_-50px_rgba(0,0,0,0.95)] transition-colors duration-300"
+        className="relative mx-auto w-full max-w-[600px] overflow-hidden rounded-[18px] border border-[var(--w-line)] bg-[var(--w-bg)] shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_1px_1px_rgba(0,0,0,0.4),0_40px_80px_-50px_rgba(0,0,0,0.95)] transition-colors duration-300"
         role="group"
         aria-label="Interactive preview of an Astra window"
       >
@@ -124,7 +124,7 @@ export function WindowPreview() {
             <p className="truncate font-display text-sm font-semibold text-[var(--w-ink)]">
               Example Hub
             </p>
-            <p className="truncate text-[0.6875rem] text-[var(--w-muted)]">Astra · theme {theme.name}</p>
+            <p className="truncate text-[0.75rem] text-[var(--w-muted)]">Astra · theme {theme.name}</p>
           </div>
           <div className="ml-auto flex items-center gap-1">
             {(
@@ -298,7 +298,7 @@ export function WindowPreview() {
                       <p className="text-[0.75rem] text-[var(--w-muted)]">Kills</p>
                       <p className="font-display text-xl font-semibold text-[var(--w-ink)] tabular-nums">
                         {kills}
-                        <span className="ml-2 align-middle font-mono text-[0.6875rem] text-[var(--w-accent)]">
+                        <span className="ml-2 align-middle font-mono text-[0.75rem] text-[var(--w-accent)]">
                           {delta >= 0 ? "+" : ""}
                           {delta}
                         </span>
@@ -327,17 +327,17 @@ export function WindowPreview() {
               <>
                 <Card>
                   <Row icon="layers" title="LocalPlayer" hint="Collapsible group · closed">
-                    <span className="text-[0.6875rem] text-[var(--w-muted)]">3 controls</span>
+                    <span className="text-[0.75rem] text-[var(--w-muted)]">3 controls</span>
                   </Row>
                 </Card>
                 <Card>
                   <Row icon="zap" title="Infinite Jump" hint="Toggle inside a group">
-                    <span className="font-mono text-[0.6875rem] text-[var(--w-accent)]">flag: infiniteJump</span>
+                    <span className="font-mono text-[0.75rem] text-[var(--w-accent)]">flag: infiniteJump</span>
                   </Row>
                 </Card>
                 <Card>
                   <Row icon="sliders" title="Walk Speed" hint="Slider 16 – 100">
-                    <span className="font-mono text-[0.6875rem] text-[var(--w-muted)]">16</span>
+                    <span className="font-mono text-[0.75rem] text-[var(--w-muted)]">16</span>
                   </Row>
                 </Card>
               </>
@@ -347,22 +347,22 @@ export function WindowPreview() {
               <>
                 <Card>
                   <Row icon="package" title="Auto Save Config" hint="Persistence">
-                    <span className="text-[0.6875rem] text-[var(--w-accent)]">on</span>
+                    <span className="text-[0.75rem] text-[var(--w-accent)]">on</span>
                   </Row>
                 </Card>
                 <Card>
                   <Row icon="package" title="Auto Load Config" hint="Persistence">
-                    <span className="text-[0.6875rem] text-[var(--w-accent)]">on</span>
+                    <span className="text-[0.75rem] text-[var(--w-accent)]">on</span>
                   </Row>
                 </Card>
                 <Card>
                   <Row icon="sliders" title="Animation speed" hint="Performance & motion">
-                    <span className="font-mono text-[0.6875rem] text-[var(--w-muted)]">normal</span>
+                    <span className="font-mono text-[0.75rem] text-[var(--w-muted)]">normal</span>
                   </Row>
                 </Card>
                 <Card>
                   <Row icon="star" title="Bar layout" hint="Appearance">
-                    <span className="text-[0.6875rem] text-[var(--w-muted)]">Topbar</span>
+                    <span className="text-[0.75rem] text-[var(--w-muted)]">Topbar</span>
                   </Row>
                 </Card>
               </>
@@ -400,10 +400,10 @@ export function WindowPreview() {
                 type="button"
                 onClick={() => setTheme(item)}
                 aria-pressed={current}
-                className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs transition-colors sm:py-1.5 ${
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs transition-colors duration-200 ease-out sm:py-1.5 ${
                   current
                     ? "border-accent bg-accent/15 text-ink"
-                    : "border-line text-muted hover:border-line-strong hover:text-ink"
+                    : "border-line text-muted hover:border-line-strong hover:bg-raised/60 hover:text-ink"
                 }`}
               >
                 <span
@@ -423,7 +423,7 @@ export function WindowPreview() {
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-[11px] border border-[var(--w-line)] bg-[var(--w-surface)] px-3 py-2.5 transition-colors duration-300">
+    <div className="rounded-[12px] border border-[var(--w-line)] bg-[var(--w-surface)] px-3 py-2.5 transition-colors duration-300">
       {children}
     </div>
   );
@@ -447,7 +447,7 @@ function Row({
       </span>
       <span className="min-w-0">
         <span className="block truncate text-[0.8125rem] text-[var(--w-ink)]">{title}</span>
-        <span className="block truncate text-[0.6875rem] text-[var(--w-muted)]">{hint}</span>
+        <span className="block truncate text-[0.75rem] text-[var(--w-muted)]">{hint}</span>
       </span>
       <span className="ml-auto flex items-center">{children}</span>
     </div>
@@ -501,7 +501,7 @@ function Glyph({ name }: { name: string }) {
       className="h-3.5 w-3.5"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.7}
+      strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden

@@ -19,11 +19,11 @@ export function PageHeader({
   meta?: ReactNode;
 }) {
   return (
-    <header className="mb-8 border-b border-line pb-6">
-      <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
-      <p className="mt-2 max-w-prose text-base leading-7 text-muted">{description}</p>
-      {lead ? <div className="prose-docs mt-4">{lead}</div> : null}
-      {meta ? <div className="mt-4 flex flex-wrap items-center gap-2">{meta}</div> : null}
+    <header className="mb-10 border-b border-line pb-8">
+      <h1 className="text-3xl sm:text-4xl">{title}</h1>
+      <p className="mt-3 max-w-prose text-base text-muted">{description}</p>
+      {lead ? <div className="prose-docs mt-5">{lead}</div> : null}
+      {meta ? <div className="mt-5 flex flex-wrap items-center gap-2">{meta}</div> : null}
     </header>
   );
 }
@@ -38,7 +38,7 @@ function Anchor({ id }: { id: string }) {
 
 export function H2({ id, children }: { id: string; children: ReactNode }) {
   return (
-    <h2 id={id} className="anchor-title mt-12 text-2xl font-semibold tracking-tight first:mt-0">
+    <h2 id={id} className="anchor-title mt-14 text-2xl first:mt-0">
       <span>{children}</span>
       <Anchor id={id} />
     </h2>
@@ -47,7 +47,7 @@ export function H2({ id, children }: { id: string; children: ReactNode }) {
 
 export function H3({ id, children }: { id: string; children: ReactNode }) {
   return (
-    <h3 id={id} className="anchor-title mt-8 text-lg font-semibold tracking-tight">
+    <h3 id={id} className="anchor-title mt-10 text-lg">
       <span>{children}</span>
       <Anchor id={id} />
     </h3>
@@ -76,11 +76,11 @@ export function Callout({
 }) {
   const config = CALLOUTS[type] ?? CALLOUTS.note;
   return (
-    <aside className="callout my-4 flex gap-3">
+    <aside className="callout my-5 flex gap-3">
       <Icon name={config.icon} className={`mt-0.5 h-4 w-4 shrink-0 ${config.tone}`} />
       <div className="min-w-0">
         <p className={`callout-title ${config.tone}`}>{title ?? config.title}</p>
-        <div className="prose-docs mt-1 text-sm leading-6 [&>p:last-child]:mb-0">{children}</div>
+        <div className="prose-docs mt-1.5 text-sm [&>p:last-child]:mb-0">{children}</div>
       </div>
     </aside>
   );
@@ -96,7 +96,7 @@ export function CardGrid({
 }) {
   return (
     <div
-      className={`my-5 grid gap-3 ${columns === 3 ? "sm:grid-cols-2 lg:grid-cols-3" : "sm:grid-cols-2"}`}
+      className={`my-6 grid gap-4 ${columns === 3 ? "sm:grid-cols-2 lg:grid-cols-3" : "sm:grid-cols-2"}`}
     >
       {children}
     </div>
@@ -123,7 +123,7 @@ export function DocCard({
         <span className="font-display text-sm font-semibold text-ink">{title}</span>
         {external ? <Icon name="external" className="h-3.5 w-3.5 text-subtle" /> : null}
       </div>
-      <p className="mt-1.5 text-sm leading-6 text-muted">{description}</p>
+      <p className="mt-2 text-sm text-muted">{description}</p>
     </>
   );
 
@@ -146,7 +146,7 @@ type Row = [string, string] | [string, string, string];
 /** Two-column prop table: name → description. */
 export function PropTable({ rows, headers = ["Prop", "Description"] }: { rows: Row[]; headers?: [string, string] }) {
   return (
-    <div className="my-4 overflow-hidden rounded-xl border border-line">
+    <div className="my-5 overflow-hidden rounded-card border border-line bg-surface">
       <div
         className="scroll-x"
         tabIndex={0}
@@ -190,7 +190,7 @@ export function TypeTable({
   headers?: [string, string, string];
 }) {
   return (
-    <div className="my-4 overflow-hidden rounded-xl border border-line">
+    <div className="my-5 overflow-hidden rounded-card border border-line bg-surface">
       <div
         className="scroll-x"
         tabIndex={0}
@@ -232,7 +232,7 @@ export function C({ children }: { children: ReactNode }) {
 /** A sentence-list used for "where to go next" blocks. */
 export function NextLinks({ items }: { items: { href: string; label: string; description: string }[] }) {
   return (
-    <ul className="my-4 grid gap-2 sm:grid-cols-2">
+    <ul className="my-5 grid gap-3 sm:grid-cols-2">
       {items.map((item) => (
         <li key={item.href}>
           <Link href={item.href} className="group flex items-start gap-2 text-sm">

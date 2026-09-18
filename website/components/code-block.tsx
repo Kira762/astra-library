@@ -1,6 +1,7 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
+import { tokenClass, tokenizeLuau } from "@/lib/highlight";
 import { CopyButton } from "./copy-button";
 
 export type CodeVariant = {
@@ -20,6 +21,25 @@ type CodeBlockProps = {
   className?: string;
 };
 
+/** Colours the code with the tokeniser in lib/highlight — no dependency. */
+function Highlighted({ code }: { code: string }) {
+  const tokens = useMemo(() => tokenizeLuau(code), [code]);
+  return (
+    <>
+      {tokens.map((token, index) => {
+        const className = tokenClass(token.kind);
+        return className ? (
+          <span key={index} className={className}>
+            {token.value}
+          </span>
+        ) : (
+          token.value
+        );
+      })}
+    </>
+  );
+}
+
 export function CodeBlock({ code, tabs, title, lang = "Luau", className = "" }: CodeBlockProps) {
   const [active, setActive] = useState(0);
   const panelId = useId();
@@ -29,10 +49,10 @@ export function CodeBlock({ code, tabs, title, lang = "Luau", className = "" }: 
 
   return (
     <figure className={`code-frame my-4 ${className}`}>
-      <figcaption className="flex items-center justify-between gap-3 border-b border-line bg-raised/50 px-3 py-1.5">
-        <div className="flex min-w-0 items-center gap-2">
+      <figcaption className="code-head">
+        <div className="code-meta min-w-0">
           {hasTabs ? (
-            <div role="tablist" aria-label={title ?? "Code variants"} className="flex items-center gap-1">
+            <div role="tablist" aria-label={title ?? "Code variants"} className="code-tabs">
               {variants.map((variant, index) => (
                 <button
                   key={variant.label}
@@ -53,27 +73,25 @@ export function CodeBlock({ code, tabs, title, lang = "Luau", className = "" }: 
                     setActive(next);
                     document.getElementById(`${panelId}-tab-${next}`)?.focus();
                   }}
-                  className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
-                    index === active
-                      ? "bg-accent/15 text-accent"
-                      : "text-subtle hover:bg-raised hover:text-ink"
-                  }`}
+                  className="code-tab"
                 >
                   {variant.label}
                 </button>
               ))}
             </div>
           ) : (
-            <span className="truncate font-mono text-2xs text-subtle">{title ?? lang}</span>
+            <span className="shrink-0 rounded-md border border-line px-1.5 py-0.5 text-2xs leading-4 text-subtle">
+              {lang}
+            </span>
           )}
-          {hasTabs && title ? (
-            <span className="hidden truncate font-mono text-2xs text-subtle sm:inline">{title}</span>
-          ) : null}
+          {title ? <span className="truncate">{title}</span> : null}
         </div>
-        <CopyButton text={current.code} />
+        <CopyButton text={current.code} showLabel />
       </figcaption>
       <pre id={panelId} role={hasTabs ? "tabpanel" : undefined} tabIndex={0}>
-        <code className="font-mono whitespace-pre">{current.code}</code>
+        <code className="font-mono whitespace-pre">
+          <Highlighted code={current.code} />
+        </code>
       </pre>
     </figure>
   );
@@ -83,14 +101,14 @@ export function CodeBlock({ code, tabs, title, lang = "Luau", className = "" }: 
 export function CommandLine({ command, caption }: { command: string; caption?: string }) {
   return (
     <div className="code-frame my-4">
-      <div className="flex items-center gap-3 px-3 py-2.5">
+      <div className="flex items-center gap-3 px-3.5 py-3">
         <span aria-hidden className="select-none font-mono text-sm text-accent">
           $
         </span>
         <code className="scroll-x flex-1 whitespace-pre font-mono text-sm text-ink/90">
           {command}
         </code>
-        <CopyButton text={command} label={`Copy ${caption ?? "command"}`} />
+        <CopyButton text={command} label={`Copy ${caption ?? "command"}`} showLabel />
       </div>
     </div>
   );

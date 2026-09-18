@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Astra v1 — Roblox Luau UI Library",
+  title: "Astra Usage Guide — Load, Build Windows, Elements, Themes, Icons",
   description:
-    "A Roblox/Luau interface library for executor scripts: one loader line, one CreateWindow call, and tabs full of elements with built-in themes, icon packs and persistence.",
+    "Complete Astra v1 Luau usage guide: loader, CreateWindow, tabs, groups, every element (Button/Toggle/Slider/Dropdown/Input/Stat/Changelog), saving, themes, 7 icon packs, motion, localisation and startup performance. Monorepo-safe with Vercel Root Directory = website.",
   openGraph: {
-    title: "Astra v1 — Roblox Luau UI Library",
+    title: "Astra v1 — Usage Guide",
     description:
-      "One loader line, one CreateWindow call. Buttons, toggles, sliders, dropdowns, themes, 7 icon packs and staged startup.",
+      "Load Astra with one line, build windows with tabs & elements, themes & 7 icon packs. Full usage docs for the Luau UI library.",
     type: "website",
   },
 };

@@ -1,0 +1,4 @@
+{
+  "$comment": "Option 1 (recommended): Root Directory = website. This file is read when Vercel's Root Directory is set to 'website'. Skips build if website/ didn't change.",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- ./"
+}

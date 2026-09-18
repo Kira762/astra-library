@@ -1,0 +1,40 @@
+# Astra library - not needed for website deploy
+# =========================================================
+# Option 2: Use this ONLY if you deploy from repo root WITHOUT setting Root Directory.
+# If you use Root Directory = website (Option 1, recommended), Vercel only uploads
+# website/ anyway and this file is ignored. Kept as fallback safety net.
+#
+# To use Option 1 (recommended): Vercel Dashboard -> Settings -> General -> Root Directory -> website
+# Then delete or keep this file - it won't affect Root Directory builds.
+
+# Luau source - library bundle + modules
+*.luau
+!website/**/*.luau
+
+# Library folders
+components/
+elements/
+core/
+settings/
+themes/
+icons/
+utilities/
+images/
+cache/
+layouts/
+functions/
+scripts/
+skills/
+assets/
+
+# Rojo / Luau project config (not needed for web)
+default.project.json
+wax.project.json
+
+# Docs that are library-only (optional - remove ! if you want them in deploy)
+# CHANGELOG.md
+# MODULES.md
+
+# Keep the website itself
+!website/
+!website/**

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Astra — Website</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; background: #0a0a0f; color: #e4e4e7; min-height: 100vh; display: grid; place-items: center; padding: 2rem; }
+    .card { max-width: 560px; width: 100%; background: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 2rem; }
+    h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+    h1 span { color: #a78bfa; }
+    p { color: #a1a1aa; line-height: 1.6; margin-top: 0.75rem; }
+    code { background: #27272a; border: 1px solid #3f3f46; padding: 0.15rem 0.4rem; border-radius: 6px; font-size: 0.875em; color: #e4e4e7; }
+    .steps { margin-top: 1.25rem; background: #09090b; border: 1px solid #27272a; border-radius: 12px; padding: 1rem 1.25rem; }
+    .steps ol { padding-left: 1.2rem; color: #d4d4d8; line-height: 1.7; }
+    .steps li::marker { color: #71717a; }
+    .badge { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #a78bfa; background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.25); padding: 0.25rem 0.6rem; border-radius: 999px; margin-bottom: 1rem; }
+    a { color: #a78bfa; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">● Vercel Root Directory = website</div>
+    <h1><span>Astra</span> Website</h1>
+    <p>This is a placeholder. Your site lives in <code>/website</code> — Vercel only builds this folder, so the Luau library (<code>components/</code>, <code>elements/</code>, <code>version-1.luau</code>) is never uploaded.</p>
+    <div class="steps">
+      <ol>
+        <li>Scaffold your framework <em>inside</em> <code>website/</code>:<br><code>npx create-next-app@latest . --typescript --tailwind --app</code><br><code>npm create vite@latest . -- --template react-ts</code><br><code>npm create astro@latest .</code></li>
+        <li>In Vercel: <strong>Settings → General → Root Directory → <code>website</code></strong></li>
+        <li>Push — deploys now skip when only library files changed.</li>
+      </ol>
+    </div>
+    <p style="margin-top:1rem;font-size:0.875rem">See <code>website/README.md</code> and root <code>vercel.json</code> / <code>.vercelignore</code> for the 3 ignore options. Delete this <code>index.html</code> when your framework scaffold replaces it.</p>
+  </div>
+</body>
+</html>

@@ -34,7 +34,12 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   colorScheme: "dark light",
-  themeColor: "#0A0913",
+  // One browser-chrome colour per scheme so the address bar matches whichever
+  // palette the device is showing.
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0A0913" },
+    { media: "(prefers-color-scheme: light)", color: "#FBFAFF" },
+  ],
 };
 
 /**
@@ -43,11 +48,17 @@ export const viewport: Viewport = {
  */
 const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("astra-theme");var dark=t?t==="dark":true;var r=document.documentElement;r.classList.toggle("dark",dark);r.classList.toggle("light",!dark);}catch(e){}})();`;
 
+// GitHub Pages builds set NEXT_PUBLIC_BASE_PATH (see next.config.mjs).
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        {/* Next only emits the PNG favicon; offer the vector mark to browsers
+            that understand SVG favicons, ahead of the raster fallback. */}
+        <link rel="icon" type="image/svg+xml" href={`${basePath}/icon.svg`} />
       </head>
       <body className="min-h-screen antialiased">
         <a href="#content" className="skip-link btn">

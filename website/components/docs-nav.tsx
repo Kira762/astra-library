@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   NAV,
   SIDEBAR_LINKS,
@@ -29,7 +29,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
                     href={page.href}
                     onClick={onNavigate}
                     aria-current={current ? "page" : undefined}
-                    className={`-ml-px block border-l py-1.5 pl-3 pr-2 text-sm transition-colors ${
+                    className={`-ml-px block border-l py-2 pl-3 pr-2 text-sm transition-colors ${
                       current
                         ? "border-accent font-medium text-accent"
                         : "border-transparent text-muted hover:border-line-strong hover:text-ink"
@@ -70,16 +70,53 @@ export function DocsSidebar() {
   const pathname = normalizePath(usePathname() ?? "/");
   const [open, setOpen] = useState(false);
   const page = findPage(pathname);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const wasOpen = useRef(false);
 
   useEffect(() => setOpen(false), [pathname]);
 
+  // While the drawer is open: lock page scroll behind it, move focus to the
+  // close button, and keep Tab cycling inside the panel. When it closes,
+  // hand focus back to the bar button that opened it.
   useEffect(() => {
-    if (!open) return;
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
+    if (!open) {
+      if (wasOpen.current) triggerRef.current?.focus();
+      wasOpen.current = false;
+      return;
     }
+    wasOpen.current = true;
+    closeButtonRef.current?.focus();
+    const previousOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !drawerRef.current) return;
+      const focusable = drawerRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled])',
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.documentElement.style.overflow = previousOverflow;
+    };
   }, [open]);
 
   return (
@@ -87,9 +124,10 @@ export function DocsSidebar() {
       {/* Narrow screens: a sticky bar that opens the full nav as a drawer. */}
       <div className="sticky top-14 z-40 -mx-4 mb-2 border-b border-line bg-base/90 px-4 py-2 backdrop-blur lg:hidden">
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setOpen(true)}
-          className="btn w-full justify-between"
+          className="btn w-full justify-between py-2.5"
           aria-expanded={open}
           aria-controls="docs-drawer"
         >
@@ -110,22 +148,52 @@ export function DocsSidebar() {
           />
           <div
             id="docs-drawer"
+            ref={drawerRef}
             className="absolute inset-y-0 left-0 w-[86%] max-w-sm overflow-y-auto overscroll-contain border-r border-line bg-base px-4 py-4"
           >
             <div className="mb-4 flex items-center justify-between">
               <span className="font-display text-sm font-semibold">Documentation</span>
-              <button type="button" onClick={() => setOpen(false)} className="icon-btn" aria-label="Close menu">
+              <button
+                ref={closeButtonRef}
+                type="button"
+                onClick={() => setOpen(false)}
+                className="icon-btn"
+                aria-label="Close menu"
+              >
                 <Icon name="close" className="h-4 w-4" />
               </button>
             </div>
             <NavList onNavigate={() => setOpen(false)} />
+
+            {/* Small screens lose the right-hand "on this page" rail, so the
+                current page's sections join the drawer instead. */}
+            {page && page.toc.length > 0 ? (
+              <div className="mt-6 border-t border-line pt-4">
+                <p className="px-3 pb-1.5 font-display text-xs font-semibold text-subtle">
+                  On this page
+                </p>
+                <ul className="grid gap-0.5">
+                  {page.toc.map((item) => (
+                    <li key={item.id}>
+                      <a
+                        href={`#${item.id}`}
+                        onClick={() => setOpen(false)}
+                        className="block px-3 py-1.5 text-sm text-muted transition-colors hover:text-ink"
+                      >
+                        {item.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
 
       {/* Wide screens: the nav sits beside the article. */}
       <aside className="hidden w-[248px] shrink-0 lg:block">
-        <div className="sticky top-14 max-h-[calc(100vh-3.5rem)] overflow-y-auto py-8 pr-4">
+        <div className="screenbar-pane sticky top-14 overflow-y-auto py-8 pr-4">
           <NavList />
         </div>
       </aside>
@@ -171,7 +239,7 @@ export function DocsToc() {
 
   return (
     <aside className="hidden w-[200px] shrink-0 xl:block">
-      <div className="sticky top-14 max-h-[calc(100vh-3.5rem)] overflow-y-auto py-8 pl-2">
+      <div className="screenbar-pane sticky top-14 overflow-y-auto py-8 pl-2">
         <p className="pb-2 font-display text-xs font-semibold text-subtle">On this page</p>
         <ul className="grid gap-0.5">
           {page.toc.map((item) => (

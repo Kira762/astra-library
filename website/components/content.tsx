@@ -187,7 +187,9 @@ export function TypeTable({
   return (
     <div className="my-4 overflow-hidden rounded-xl border border-line">
       <div className="overflow-x-auto">
-        <table className="data-table">
+        {/* Three columns need room to breathe; below 560px the wrapper
+            scrolls sideways rather than squashing the description column. */}
+        <table className="data-table min-w-[560px]">
           <thead>
             <tr>
               <th className="w-[26%]">{headers[0]}</th>

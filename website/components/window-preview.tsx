@@ -148,7 +148,7 @@ export function WindowPreview() {
                     setToast({ title: "Search", content: "Search opens over the tab, lazily." });
                   }
                 }}
-                className={`grid h-6 w-6 place-items-center rounded-[7px] text-[var(--w-muted)] transition-colors hover:bg-[var(--w-raised)] hover:text-[var(--w-ink)] ${
+                className={`grid h-7 w-7 place-items-center rounded-[7px] text-[var(--w-muted)] transition-colors hover:bg-[var(--w-raised)] hover:text-[var(--w-ink)] sm:h-6 sm:w-6 ${
                   label === "Settings" && settingsMode ? "bg-[var(--w-raised)] text-[var(--w-accent)]" : ""
                 }`}
               >
@@ -234,7 +234,7 @@ export function WindowPreview() {
                     value={sensitivity}
                     aria-label="Sensitivity"
                     onChange={(event) => setSensitivity(Number(event.target.value))}
-                    className="mt-2 h-1.5 w-full cursor-pointer appearance-none rounded-full"
+                    className="w-range mt-2 h-1.5 w-full cursor-pointer appearance-none rounded-full"
                     style={{
                       accentColor: theme.accent,
                       background: `linear-gradient(to right, ${theme.accent} ${((sensitivity - 1) / 9) * 100}%, ${mix(theme.bg, theme.accent, 0.22)} ${((sensitivity - 1) / 9) * 100}%)`,
@@ -363,7 +363,7 @@ export function WindowPreview() {
         </div>
 
         {/* notification, the way window:Notify draws one */}
-        <div className="pointer-events-none absolute bottom-3 right-3 flex w-[248px] flex-col gap-2">
+        <div className="pointer-events-none absolute bottom-3 right-3 flex w-[min(248px,calc(100%-1.5rem))] flex-col gap-2">
           {toast ? (
             <div
               role="status"
@@ -392,7 +392,7 @@ export function WindowPreview() {
                 type="button"
                 onClick={() => setTheme(item)}
                 aria-pressed={current}
-                className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs transition-colors sm:py-1 ${
                   current
                     ? "border-accent bg-accent/15 text-ink"
                     : "border-line text-muted hover:border-line-strong hover:text-ink"

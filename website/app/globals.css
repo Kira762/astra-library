@@ -216,7 +216,10 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* inline code — quiet unless it is inside a sentence that needs it */
+  /* inline code — quiet unless it is inside a sentence that needs it.
+     `overflow-wrap: anywhere` keeps a token on one line until it is wider
+     than its container, then lets it break — so long names can never force
+     horizontal page scroll on narrow phones. */
   .prose-docs code,
   .icode {
     font-family: theme("fontFamily.mono");
@@ -226,7 +229,7 @@
     border: 1px solid rgb(var(--c-line));
     border-radius: 5px;
     padding: 0.08em 0.34em;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
   }
 
   .prose-docs hr {
@@ -426,6 +429,62 @@
 
   .data-table td:first-child {
     color: rgb(var(--c-ink));
+  }
+
+  /* ---------- device ergonomics ---------- */
+
+  /* Sticky panes (docs sidebar, table of contents) size against the dynamic
+     viewport where supported, so iOS's collapsing URL bar never clips their
+     bottom edge. Falls back to 100vh everywhere else. */
+  .screenbar-pane {
+    max-height: calc(100vh - 3.5rem);
+  }
+
+  @supports (height: 100dvh) {
+    .screenbar-pane {
+      max-height: calc(100dvh - 3.5rem);
+    }
+  }
+
+  /* Touch devices: inputs below 16px make iOS Safari zoom the page on
+     focus, so every field gets at least 16px there. */
+  @media (pointer: coarse) {
+    input,
+    select,
+    textarea {
+      font-size: max(16px, 1em);
+    }
+
+    /* Bigger hit areas where fingers, not cursors, do the pointing. */
+    .icon-btn {
+      height: 2.5rem;
+      width: 2.5rem;
+    }
+  }
+
+  /* Range input in the live window preview. The track colour comes from an
+     inline gradient; the thumb needs explicit styling per engine or Blink
+     and WebKit draw nothing once the native appearance is switched off. */
+  .w-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 16px;
+    width: 16px;
+    border-radius: 999px;
+    background: #fff;
+    border: 2px solid var(--w-accent, rgb(var(--c-accent)));
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.45);
+    cursor: pointer;
+  }
+
+  .w-range::-moz-range-thumb {
+    height: 12px;
+    width: 12px;
+    border-radius: 999px;
+    background: #fff;
+    border: 2px solid var(--w-accent, rgb(var(--c-accent)));
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.45);
+    cursor: pointer;
   }
 
   /* ---------- starfield backdrop ---------- */

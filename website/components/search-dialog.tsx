@@ -22,6 +22,7 @@ export function SearchDialog() {
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   const results = useMemo(() => {
@@ -95,6 +96,29 @@ export function SearchDialog() {
     };
   }, [open]);
 
+  // Keep Tab / Shift+Tab inside the dialog while it is open.
+  useEffect(() => {
+    if (!open) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key !== "Tab" || !panelRef.current) return;
+      const focusable = panelRef.current.querySelectorAll<HTMLElement>(
+        'input, button:not([disabled])',
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   function go(entry: SearchEntry) {
     const href = entry.anchor ? `${entry.href}#${entry.anchor}` : entry.href;
     setOpen(false);
@@ -119,7 +143,7 @@ export function SearchDialog() {
 
       {open ? (
         <div
-          className="fixed inset-0 z-[70] flex items-start justify-center bg-base/80 px-4 pt-[12vh] backdrop-blur-sm"
+          className="fixed inset-0 z-[70] flex items-start justify-center bg-base/80 px-4 pt-[7vh] backdrop-blur-sm sm:pt-[12vh]"
           role="dialog"
           aria-modal="true"
           aria-label="Search the documentation"
@@ -127,7 +151,10 @@ export function SearchDialog() {
             if (event.target === event.currentTarget) close();
           }}
         >
-          <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl">
+          <div
+            ref={panelRef}
+            className="w-full max-w-xl overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl"
+          >
             <div className="flex items-center gap-3 border-b border-line px-4 py-3">
               <Icon name="search" className="h-4 w-4 shrink-0 text-subtle" />
               <input
@@ -203,7 +230,7 @@ export function SearchDialog() {
               )}
             </ul>
 
-            <div className="flex items-center gap-4 border-t border-line px-4 py-2 text-2xs text-subtle">
+            <div className="flex items-center gap-4 border-t border-line px-4 py-2 text-2xs text-subtle [@media(pointer:coarse)]:hidden">
               <span className="flex items-center gap-1">
                 <kbd className="kbd">↑</kbd>
                 <kbd className="kbd">↓</kbd> to move

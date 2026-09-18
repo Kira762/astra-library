@@ -312,7 +312,10 @@ tab:Select()`,
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th className="w-[220px]">Element</th>
+                    {/* Narrow screens: the name column shrinks and the
+                        description wraps, so the table never needs sideways
+                        scrolling. Wider screens get the roomier layout. */}
+                    <th className="whitespace-nowrap sm:w-[220px]">Element</th>
                     <th>What it does</th>
                   </tr>
                 </thead>

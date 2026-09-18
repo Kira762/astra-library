@@ -5,8 +5,8 @@ import { Icon } from "./icon";
 export function SiteFooter() {
   return (
     <footer className="mt-20 border-t border-line">
-      <div className="mx-auto grid max-w-shell gap-8 px-4 py-12 lg:grid-cols-[1.3fr_1fr_1fr_1fr] lg:px-6">
-        <div>
+      <div className="mx-auto grid max-w-shell gap-8 px-4 py-12 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr] lg:px-6">
+        <div className="sm:col-span-2 lg:col-span-1">
           <p className="font-display text-sm font-semibold">Astra v1</p>
           <p className="mt-2 max-w-xs text-sm leading-6 text-muted">
             A Luau interface library for Roblox executor scripts — one loader line, windows with

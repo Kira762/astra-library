@@ -19,6 +19,10 @@ A multi-page documentation site rather than one long page:
 | Code blocks | `components/code-block.tsx` | Copy button plus tabbed variants (for example Executor vs Studio). |
 | Design tokens | `app/globals.css`, `tailwind.config.ts` | Dark and light palettes as CSS channel variables; self-hosted typefaces. |
 | SEO | `app/layout.tsx`, `lib/docs.ts`, `app/sitemap.ts`, `app/robots.ts` | Per-page metadata and Open Graph, canonical URLs, sitemap and robots. |
+| Device support | `app/manifest.ts`, `app/apple-icon.png`, `app/icon.png`, `scripts/render-icons.py` | Installable on phones and desktops (web manifest + touch icons). Touch-friendly targets, scroll-locked drawers with focus traps, dvh-aware sticky panes and no-zoom form fields. |
+
+Icons are rasterised from the header mark by `scripts/render-icons.py`
+(pure standard library, no image tooling) — rerun it after changing the mark.
 
 Adding a page means adding it to `NAV` in `lib/docs.ts` and creating the route —
 it then appears in the sidebar, the search dialog, the pager and the sitemap.

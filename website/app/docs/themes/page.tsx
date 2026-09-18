@@ -86,6 +86,13 @@ window:ChangeTheme({
           answer rather than a second full palette to maintain.
         </p>
       </div>
+      <H2 id="keys">Theme keys</H2>
+      <div className="prose-docs">
+        <p>
+          These are the keys worth knowing. Everything a theme declares is a colour, a ColorSequence
+          or a number the window reads once and binds wherever it is used.
+        </p>
+      </div>
       <PropTable
         headers={["Key", "What it colours"]}
         rows={[

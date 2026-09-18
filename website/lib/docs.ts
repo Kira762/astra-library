@@ -74,6 +74,7 @@ export const NAV: NavGroup[] = [
           { id: "what-it-is", label: "What Astra is" },
           { id: "requirements", label: "Requirements" },
           { id: "in-the-box", label: "What ships in the box" },
+          { id: "next-steps", label: "Where to go next" },
           { id: "agent-skill", label: "Install the agent skill" },
         ],
         keywords: ["overview", "intro", "install", "features"],
@@ -354,6 +355,7 @@ export const NAV: NavGroup[] = [
         description: "Every property the window constructor accepts.",
         toc: [
           { id: "props", label: "Props" },
+          { id: "configuration", label: "The configuration override" },
           { id: "example", label: "Full example" },
         ],
         kind: "api",
@@ -368,6 +370,7 @@ export const NAV: NavGroup[] = [
           { id: "tab", label: "Tab" },
           { id: "group", label: "Group" },
           { id: "handles", label: "Element handles" },
+          { id: "shared", label: "Shared surface" },
         ],
         kind: "api",
         keywords: ["methods", "index", "reference", "MoveTo", "Lock", "Select", "Unload"],

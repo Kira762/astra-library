@@ -144,7 +144,6 @@ Titles, themes, and every window method.
 | `window:CreateTab({ name, icon })` | Create a tab. Returns a `Tab`. |
 | `window:CreateSection({ name, icon })` | Top-level section — a `TabSection`. |
 | `window:Notify({ title, content, icon, duration })` | Classic notification; opens on the entrance queue (see [Startup performance](#startup-performance)). |
-| `window:Toast({ title, subtitle, icon, duration, position, ... })` | Compact toast; same queue, same one-at-a-time arrivals. |
 | `window:Popup({ title, content, boxes, options, ... })` | Modal popup. Returns `Popup:Close()`. |
 | `window:Navigate(tab)` | Select a tab by name or Tab object. |
 | `window:Show()` / `window:Hide()` / `window:ToggleHide()` | Visibility. |
@@ -154,7 +153,6 @@ Titles, themes, and every window method.
 | `window:ListConfigs()` | Array of saved config names. |
 | `window:DeleteConfig(name)` | Delete a saved config. |
 | `window:Get(flag)` / `window:Set(flag, value)` | Read/write by flag. |
-| `window:SetChangelog(entries)` / `window:AddChangelogEntry(entry, prepend?)` / `window:ClearChangelog()` | Window changelog data (entries newest-first). |
 | `window:ChangeTheme(theme)` | Swap theme at runtime. |
 | `window:SetLocale(id)` / `window:SetTranslator(fn)` / `window:RegisterTranslations(t)` | Localisation. |
 | `window:ResolveIcon(value, pack?)` | Icon name → asset id. |
@@ -307,45 +305,33 @@ local col = row:CreateGroup({ direction = "column" })
 col:CreateToggle({ name = "Left 1" })
 ```
 
-### Changelog panel (window only)
+### Changelog (element)
 
-Every window ships a dedicated changelog view (document action in the topbar, left of search). Clicking it switches into changelog mode — only the release history is shown — and clicking it again returns to the previous tab. Entering settings exits changelog mode and vice versa.
-
-Changelogs render **only** here: tabs, settings tabs and Collapsible Groups cannot host them. Feed the view with data instead of building UI:
+Release history renders as a standalone element wherever it is declared:
 
 ```lua
-local window = Astra:CreateWindow({
-    name = "My Hub",
-    changelog = {
-        name = "Release history",
-        emptyText = "No entries yet.",   -- optional
-        entries = {                      -- newest-first
-            {
-                version = "0.0.35",
-                date = "2026-09-11",
-                game = "Game Name",      -- optional, game = "..." or gameId = number
-                title = "Settings highlight",
-                changes = {
-                    { symbol = "~", category = "Fixed", text = "Settings stays highlighted while its tab is active." },
-                    { symbol = "+", text = "Added the changelog panel." },
-                    { symbol = "-", text = "Removed the old sub-tab API." },
-                },
+local log = tab:CreateChangelog({
+    name = "Release history",
+    emptyText = "No entries yet.",
+    entries = {
+        {
+            version = "0.0.35",
+            date = "2026-09-11",
+            title = "Settings highlight",
+            changes = {
+                { symbol = "~", category = "Fixed", text = "Settings stays highlighted while its tab is active." },
+                { symbol = "+", text = "Added the changelog element." },
             },
         },
     },
 })
 
-window:AddChangelogEntry({ version = "Test", date = "Live", changes = { { symbol = "+", text = "Runtime entry." } } })  -- prepends by default
-window:AddChangelogEntry(entry, false)  -- append at the end instead
-window:SetChangelog({ ... })           -- replace all entries (a full { name, entries, ... } table works too)
-window:ClearChangelog()
+log:Add({ version = "Live", date = "Today", changes = { { symbol = "+", text = "Runtime entry." } } })
+log:Set({ ... })
+log:Clear()
 ```
 
-Symbols work as before: `+` (added, green), `-` (removed, red), `~` (changed, amber), with word forms (`"added"`, `"removed"`, `"changed"`) mapping to the same colours. Keep the history in its own file (see `changelog.example.luau`) and require it into the `changelog` prop.
-
-A red dot on the action marks entries newer than what was last viewed: opening the view clears it and records the newest entry in the changelog's own config file (untouched by config save/load/delete), and the dot returns only when a newer entry arrives.
-
-`tab:CreateChangelog` from older scripts keeps working by forwarding its entries into the window store (with a one-time warning) and returning a handle whose `Set`/`Refresh`/`Add`/`Clear` write the store — but new code should use the window API above.
+Symbols: `+` added (green), `-` removed (red), `~` changed (amber); words `"added"`/`"removed"`/`"changed"` map to the same colours. Keep the history in its own file (see `changelog.example.luau`) and require it into the element props. The element supports `MoveTo`, `Lock`, etc. like other elements.
 
 ### Built-in Settings (window only)
 
@@ -496,7 +482,7 @@ window:SetTranslator(function(source, localeId) return ... end)
 
 ### Full example
 
-See `example.client.luau` — a single-tab example that loads the bundle with the one-line loader above and builds every element type (including ordinary and Collapsible Groups; release history arrives via the window's changelog prop) end to end.
+See `example.client.luau` — a single-tab example that loads the bundle with the one-line loader above and builds every element type (including ordinary and Collapsible Groups and Changelog) end to end.
 
 ---
 
@@ -514,7 +500,7 @@ local window = Astra:CreateWindow({
     translator = function(source, localeId) return ... end,  -- optional custom translator
     locale = "en",
     translations = { ... },
-    changelog = { ... },       -- release history for the changelog panel (see Changelog panel)
+
 })
 ```
 Layout is **not** a CreateWindow prop — switch it in **Settings → Appearance → Bar Layout**.
@@ -536,7 +522,7 @@ first reveal cancels auto-show; `window:Show()` can still be called explicitly.
 
 The arrival itself is staged rather than instant: the window's shell (frame, surface,
 corner, topbar) animates in first, the page's controls cascade in one control per beat
-a beat later, and overlays follow the content. `window:Notify` and `window:Toast` are
+a beat later, and overlays follow the content. `window:Notify` overlays are
 therefore queued — the card is *built* on its own turn, one entrance at a time, with a
 cooldown between two of them — instead of all landing on the frame the window opens
 on. A backlog stays bounded: past six waiting requests the oldest one that has not
@@ -623,7 +609,7 @@ chosen element is silently discarded. Ordinary Groups may contain ordinary Group
 Group. Invalid types, sparse lists, and cyclic/nested Collapsible Group definitions
 are rejected before creating any UI.
 
-- A `{ type = "Changelog", ... }` child still validates but forwards its entries into the window changelog instead of building UI (changelogs render only in the changelog panel).
+- `{ type = "Changelog", ... }` renders as a regular Changelog element.
 - Every Collapsible Group starts collapsed; there is no `expanded` usage property.
 - Click the header to open/close. Multiple groups operate independently.
 - Expansion uses Astra's motion service, including the instant-motion setting.

@@ -9,7 +9,7 @@
 -- the whole tree to borderless surfaces.
 --
 --   C1 the window's main frame explicitly opts out of the border,
---   C2 after a full exercise (first show, elements, toast, settings mode,
+--   C2 after a full exercise (first show, elements, notification, settings mode,
 --      profile card, dropdown, popup, collapse and restore) no visible
 --      surface anywhere in the ScreenGui carries a non-zero border,
 --   C3 the window's corner radius is the theme's CornerRoundness (the
@@ -49,7 +49,7 @@ tab:CreateInput({ name = "Field", value = "value" })
 tab:CreateButton({ name = "Button", callback = function() end })
 TestPump(0.8)
 
-window:Toast({ title = "Corner audit", subtitle = "toast body" })
+window:Notify({ title = "Corner audit", content = "notification body" })
 TestPump(0.8)
 
 for _, element in tab.elements do

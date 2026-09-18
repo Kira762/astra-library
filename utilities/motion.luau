@@ -18,7 +18,7 @@
 -- over the same property, and everything animated through it answers to a
 -- single time scale (`motion.setProfile`, the "Animation speed" setting).
 -- Sites that still call `TweenService:Create` directly (component-local
--- flourishes such as the toast queue) keep their own timing until they are
+-- flourishes such as the notification queue) keep their own timing until they are
 -- moved over.
 --
 -- Behaviour contract, deliberately conservative:

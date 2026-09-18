@@ -256,15 +256,6 @@ function settingsComponent.buildUI(window)
                         window:SaveSettings()
                     end,
                 },
-                {
-                    type = "Toggle",
-                    name = "Welcome toast",
-                    value = window.settings.welcomeToast,
-                    callback = function(value)
-                        window.settings.welcomeToast = value
-                        window:SaveSettings()
-                    end,
-                },
             },
         })
         keybindField = generalControls.elements[1]
@@ -733,15 +724,15 @@ function settingsComponent.buildUI(window)
                                     end
                                     selected = name
                                     refresh()
-                                    window:Toast({
+                                    window:Notify({
                                         title = locale.resolve("Saved configuration"),
-                                        subtitle = name,
+                                        content = name,
                                         icon = constants.icons.config,
                                     })
                                 else
-                                    window:Toast({
+                                    window:Notify({
                                         title = locale.resolve("Couldn't save configuration"),
-                                        subtitle = name,
+                                        content = name,
                                     })
                                 end
                             end,
@@ -751,18 +742,18 @@ function settingsComponent.buildUI(window)
                             name = "Load",
                             callback = function()
                                 if not selected or selected == "" then
-                                    window:Toast({ title = locale.resolve("Pick a configuration to load") })
+                                    window:Notify({ title = locale.resolve("Pick a configuration to load") })
                                     return
                                 end
                                 if window:_applyNamedConfig(selected) then
-                                    window:Toast({
+                                    window:Notify({
                                         title = locale.resolve("Loaded configuration"),
-                                        subtitle = selected,
+                                        content = selected,
                                     })
                                 else
-                                    window:Toast({
+                                    window:Notify({
                                         title = locale.resolve("Couldn't load configuration"),
-                                        subtitle = selected,
+                                        content = selected,
                                     })
                                 end
                             end,
@@ -773,20 +764,20 @@ function settingsComponent.buildUI(window)
                             callback = function()
                                 local name = selected
                                 if not name or name == "" then
-                                    window:Toast({ title = locale.resolve("Pick a configuration to delete") })
+                                    window:Notify({ title = locale.resolve("Pick a configuration to delete") })
                                     return
                                 end
                                 if window:DeleteConfig(name) then
                                     selected = nil
                                     refresh()
-                                    window:Toast({
+                                    window:Notify({
                                         title = locale.resolve("Deleted configuration"),
-                                        subtitle = name,
+                                        content = name,
                                     })
                                 else
-                                    window:Toast({
+                                    window:Notify({
                                         title = locale.resolve("Couldn't delete configuration"),
-                                        subtitle = name,
+                                        content = name,
                                     })
                                 end
                             end,
@@ -818,10 +809,9 @@ end
 
 function settingsComponent.applySettingsLayout(window, isSettings)
     -- [[isSettings is retained for callers; the flags derive from the live]]
-    -- [[rail so settings and changelog modes share one layout switch.]]
+    -- [[rail so settings modes share one layout switch.]]
     local rail = window:_activeRail()
     window._settingsLayoutActive = rail == "settings"
-    window._changelogLayoutActive = rail == "changelog"
     if window.tabList then
         window.tabList.Visible = not window.hidden and not window.minimised
     end
@@ -870,9 +860,6 @@ function settingsComponent.setSettingsMode(window, active)
         settingsComponent.buildUI(window)
     end
     window._settingsMode = active
-    if active then
-        window._changelogMode = false
-    end
     if active and window._previousTab == nil and window.selectedTab and not window.selectedTab._isSettingsTab then
         window._previousTab = window.selectedTab
     end

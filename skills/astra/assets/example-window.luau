@@ -50,7 +50,7 @@ home:CreateButton({
                     text = "Confirm",
                     style = "primary",
                     callback = function()
-                        window:Toast({ title = "Confirmed", subtitle = "The popup callback ran." })
+                        window:Notify({ title = "Confirmed", content = "The popup callback ran." }))
                     end,
                 },
             },
@@ -65,7 +65,7 @@ home:CreateToggle({
     flag = "autoSprint",
     value = false,
     callback = function(on)
-        window:Toast({ title = "Auto Sprint", subtitle = if on then "Enabled" else "Disabled" })
+        window:Notify({ title = "Auto Sprint", content = if on then "Enabled" else "Disabled" }))
     end,
 })
 
@@ -78,7 +78,7 @@ home:CreateSlider({
     suffix = " studs",
     callback = function(value, dragging)
         if not dragging then
-            window:Toast({ title = "Walk Speed", subtitle = tostring(value) })
+            window:Notify({ title = "Walk Speed", content = tostring(value) }))
         end
     end,
 })
@@ -149,15 +149,18 @@ about:CreateText({
     icon = "sparkles",
 })
 
--- [[Release history feeds the window changelog panel (topbar action).]]
-window:SetChangelog({
-    {
-        version = "v1",
-        date = "Live",
-        title = "Starter hub",
-        changes = {
-            { symbol = "+", category = "Added", text = "Tabs, every element type and a Collapsible Group." },
-            { symbol = "~", text = "Flags belong to the built-in Save/Load system." },
+-- [[Release history renders as a standalone element.]]
+about:CreateChangelog({
+    name = "Release history",
+    entries = {
+        {
+            version = "v1",
+            date = "Live",
+            title = "Starter hub",
+            changes = {
+                { symbol = "+", category = "Added", text = "Tabs, every element type and a Collapsible Group." },
+                { symbol = "~", text = "Flags belong to the built-in Save/Load system." },
+            },
         },
     },
 })
@@ -167,7 +170,7 @@ about:CreateButton({
     icon = "palette",
     callback = function()
         window:ChangeTheme("amethyst")
-        window:Toast({ title = "Theme", subtitle = "Amethyst applied." })
+        window:Notify({ title = "Theme", content = "Amethyst applied." }))
     end,
 })
 

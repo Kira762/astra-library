@@ -15,7 +15,6 @@ local search = require(script.Parent.search)
 local tabSelector = require(script.Parent.tabSelector)
 local profilePanel = require(script.Parent.profilePanel)
 local settingsComponent = require(script.Parent.settings)
-local changelogPanel = require(script.Parent.changelogPanel)
 local overlayQueue = require(script.Parent.overlayQueue)
 
 local state = require(utilities.Parent.core.state)
@@ -25,7 +24,7 @@ local themes = require(script.Parent.Parent.themes)
 local Window = {}
 Window.__index = Window
 
--- [[Element reveals, theme cross-fades and the toast stack's lane changes all
+-- [[Element reveals, theme cross-fades and the notification stack's lane changes all
 -- ride the motion service's shared specs (see utilities/motion.luau) instead
 -- of per-call TweenInfo values: one vocabulary, one time scale, one owner per
 -- animated property.]]
@@ -40,10 +39,7 @@ local contentRevealBeat = 0.12
 local collapsedWideSize = UDim2.fromOffset(185, 50)
 local collapsedIconOnlySize = UDim2.fromOffset(50, 50)
 local collapsedPosition = UDim2.new(0.5, 0, 0, 20)
-local toastsTopPosition = UDim2.new(0.5, 0, 0, 12)
-local toastsTopWhenCollapsed = UDim2.new(0.5, 0, 0, collapsedPosition.Y.Offset + collapsedWideSize.Y.Offset + 12)
 
-local toastWidth = 320
 
 local compactRowHeight = 41
 
@@ -76,7 +72,7 @@ local viewportCheckInterval = 2
 local constructionFrameBudget = 0.003
 local constructionInstanceBudget = 48
 
--- Toasts and notifications share one entrance lane. Their 0.6s transitions do
+-- Notifications share one entrance lane. Their 0.6s transitions do
 -- not overlap, but already-visible messages are still allowed to remain in
 -- their normal stacks while the next one enters.
 -- The first open reads as an entrance instead of one large visibility flip:
@@ -113,21 +109,6 @@ local coerceValue = themes.coerceValue
 local firstColor = themes.firstColor
 local deriveStrokes = themes.deriveStrokes
 local resolveTheme = themes.resolve
-
-local function updateToastPosition(window, animate)
-    local toastsTop = window._toastsTop
-    if not toastsTop then
-        return
-    end
-
-    local targetPos = if window._collapsedShown then toastsTopWhenCollapsed else toastsTopPosition
-    if not animate or toastsTop.Position == targetPos then
-        toastsTop.Position = targetPos
-        return
-    end
-
-    motion.tween(toastsTop, { Position = targetPos }, "snappy")
-end
 
 function Window:ResolveIcon(value, pack)
     return icons.resolve(value, pack)
@@ -186,7 +167,6 @@ function Window.new(props)
         _settingsLayoutActive = false,
         _settingsTabs = {},
         _settingsMode = false,
-        _changelogMode = false,
         theme = resolveTheme(props.theme or props.Theme),
 
         controls = {},
@@ -236,7 +216,7 @@ function Window.new(props)
             self.settings = {
         toggleKeybind = Enum.KeyCode.K,
         theme = if type(props.theme or props.Theme) == "string" then string.lower(props.theme or props.Theme) else "default",
-        mouseOverride = false,         keepOnScreen = true,         welcomeToast = false,         haptics = false,
+        mouseOverride = false,         keepOnScreen = true,         haptics = false,
         dragMinimisedBar = false,
         showProfile = false,
         showFullUsername = false,
@@ -499,15 +479,6 @@ function Window.new(props)
 
     self:_constructionCheckpoint(true)
 
-    -- [[Window-level changelog store. Entries come from CreateWindow's]]
-    -- [[`changelog` prop or the Set/Add/Clear methods; the built-in changelog]]
-    -- [[tab is the only surface that renders them (see changelogPanel).]]
-    self._changelog = changelogPanel.storeFromProps(props.changelog or props.Changelog)
-    self._changelogSeen = changelogPanel.loadSeen(self)
-    changelogPanel.captureBaseline(self)
-    self._changelogRedirectWarned = false
-
-
     self.rfSettings = self:CreateTab({
         name = "General",
         icon = "sliders-horizontal",
@@ -564,28 +535,6 @@ function Window.new(props)
             self:_toggleSettingsMode()
         end,
     })
-
-    self.changelogDivider = self:Create("Frame", {
-        Name = "Divider",
-        LayoutOrder = -5,
-        Size = UDim2.fromOffset(1, 14),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        Parent = self.actionContainer,
-    }, { BackgroundColor3 = "ActionColor" })
-
-    self.changelogAction = require(script.Parent.action).new(self, {
-        name = "Changelog",
-        icon = "scroll-text",
-        order = 6,
-        badge = true,
-
-        callback = function()
-            self:_toggleChangelogMode()
-        end,
-    })
-    changelogPanel.refreshBadge(self, false)
-
 
     search.build(self)
         self:_applyRailWidth()
@@ -644,7 +593,7 @@ function Window.new(props)
     -- [[Overlays wait for the window's own entrance before any of them starts]]
     -- [[building: the gate opens when that entrance lands (in `_firstShow`,]]
     -- [[after its settle and the reveal cascade that follows it). A host that]]
-    -- [[fires a toast between CreateWindow and the first show still gets it —]]
+    -- [[fires a notification between CreateWindow and the first show still gets it —]]
     -- [[just behind the window instead of on top of it.]]
     overlayQueue.pause(self)
 
@@ -1001,59 +950,6 @@ function Window:_showNotification(props)
     end)
 end
 
-function Window:Toast(props)
-    if self.unloaded then
-        return
-    end
-
-        -- [[Cloned before anything is read off it: the card is built on the
-    -- [[queue's turn (see `Window:Notify`), and the resolved `position` below
-    -- [[belongs to this call rather than to the table the host handed in —
-    -- [[which also means the call no longer writes through to the caller's
-    -- [[props.]]
-    props = if typeof(props) == "table" then table.clone(props) else {}
-    local position = props.position or props.Position or "Top"
-    local isTop = typeof(position) ~= "string" or position:lower() ~= "bottom"
-    props.position = if isTop then "Top" else "Bottom"
-    local toastKey = if isTop then "_toastsTop" else "_toastsBottom"
-    local container = self[toastKey]
-
-    if not container then
-        container = self:Create("Frame", {
-            Name = "Toasts",
-            Size = UDim2.new(0, toastWidth, 1, -24),
-            Position = if isTop then toastsTopPosition else UDim2.new(0.5, 0, 1, -12),
-            AnchorPoint = if isTop then Vector2.new(0.5, 0) else Vector2.new(0.5, 1),
-            BackgroundTransparency = 1,
-            ZIndex = constants.zIndex.toast,
-
-            Parent = self.screenGui,
-        })
-
-        self:Create("UIListLayout", {
-            FillDirection = Enum.FillDirection.Vertical,
-            VerticalAlignment = if isTop then Enum.VerticalAlignment.Top else Enum.VerticalAlignment.Bottom,
-            HorizontalAlignment = Enum.HorizontalAlignment.Center,
-            SortOrder = Enum.SortOrder.LayoutOrder,
-            Padding = UDim.new(0, 0),
-
-            Parent = container,
-        })
-
-        self[toastKey] = container
-        if isTop then
-            updateToastPosition(self, false)
-        end
-    end
-
-    -- [[Queued with the notifications rather than beside them: the two overlay
-    -- kinds share one turn at a time, because the cost being spread is the same
-    -- one — a card's instances and its entrance tweens landing on one frame.]]
-    overlayQueue.request(self, function(release)
-        require(script.Parent.Parent.components.toast).new(self, props, container, release)
-    end)
-end
-
 function Window:Popup(props)
     if self.unloaded then
         return
@@ -1228,7 +1124,6 @@ function Window:Hide()
         collapsed = true
 
                         self._collapsedShown = true
-        updateToastPosition(self, true)
         self.collapsedInteract.Visible = true
         self.animating = false
         self._revealing = false
@@ -1577,7 +1472,7 @@ function Window:_applyRailWidth()
     local implementation = layouts.implementation(layoutKey(self.layout))
     implementation.ApplyWidth(self, self:_railWidth())
 
-    if self._settingsLayoutActive or self._changelogLayoutActive or self.selectedTab == self.rfSettings then
+    if self._settingsLayoutActive or self.selectedTab == self.rfSettings then
         self:_applySettingsLayout(true)
     end
 end
@@ -2189,9 +2084,6 @@ end
 -- [[settings tabs, or the changelog tab. Every rail filter reads these two]]
 -- [[helpers so the three of them cannot drift apart.]]
 function Window:_railGroup(tab)
-    if tab._isChangelogTab then
-        return "changelog"
-    end
     if tab._isSettingsTab then
         return "settings"
     end
@@ -2199,9 +2091,6 @@ function Window:_railGroup(tab)
 end
 
 function Window:_activeRail()
-    if self._changelogMode then
-        return "changelog"
-    end
     if self._settingsMode then
         return "settings"
     end
@@ -2240,124 +2129,6 @@ function Window:_syncActionChrome(actionFrame, shown, tween)
         end
     end
 end
-
-function Window:_toggleChangelogMode()
-    changelogPanel.toggleMode(self)
-end
-
-function Window:_setChangelogMode(active)
-    changelogPanel.setMode(self, active)
-end
-
-function Window:_buildChangelogUI()
-    changelogPanel.buildUI(self)
-end
-
-function Window:_buildChangelogContent(tab)
-    changelogPanel.buildContent(self, tab)
-end
-
-function Window:_pushChangelogToView()
-    local tab = self._changelogTab
-    if tab and tab._changelogElement then
-        tab._changelogElement:Set(self._changelog.entries)
-    end
-end
-
--- [[Window changelog data. The store is the single source of truth; the]]
--- [[built-in view (once opened) re-renders from it, and the badge answers]]
--- [[whether the newest entry is newer than what was last seen. SetChangelog]]
--- [[takes an entries array, or a full props table ({ name, entries, ... })]]
--- [[like the one required from a changelog data file.]]
-function Window:SetChangelog(entries)
-    assert(not self.unloaded, "Cannot set the changelog on an unloaded window.")
-    local props = if typeof(entries) == "table"
-            and (entries.entries ~= nil or entries.Entries ~= nil)
-        then entries
-        else { entries = entries }
-    local store = changelogPanel.storeFromProps(props)
-    self._changelog.entries = store.entries
-    local name = props.name or props.Name
-    if name ~= nil then
-        self._changelog.name = tostring(name)
-    end
-    local emptyText = props.emptyText or props.EmptyText
-    if emptyText ~= nil then
-        self._changelog.emptyText = tostring(emptyText)
-    end
-    self:_pushChangelogToView()
-    changelogPanel.refreshBadge(self, true)
-end
-
-function Window:AddChangelogEntry(entry, prepend)
-    assert(not self.unloaded, "Cannot add a changelog entry on an unloaded window.")
-    if prepend == false then
-        table.insert(self._changelog.entries, entry)
-    else
-        table.insert(self._changelog.entries, 1, entry)
-    end
-    self:_pushChangelogToView()
-    changelogPanel.refreshBadge(self, true)
-end
-
-function Window:ClearChangelog()
-    assert(not self.unloaded, "Cannot clear the changelog on an unloaded window.")
-    table.clear(self._changelog.entries)
-    self:_pushChangelogToView()
-    changelogPanel.refreshBadge(self, true)
-end
-
--- [[Option-A deprecation: changelogs render only in the changelog space, so a]]
--- [[CreateChangelog call from anywhere else forwards its entries into the]]
--- [[window store (where the changelog view shows them) and hands back a]]
--- [[handle shaped like the old element, so existing scripts keep running.]]
-function Window:_forwardChangelog(props)
-    props = if typeof(props) == "table" then props else {}
-    if not self._changelogRedirectWarned then
-        self._changelogRedirectWarned = true
-        log.warn("Astra: CreateChangelog now feeds the window changelog - entries render in the changelog panel, not on the tab. Pass entries to CreateWindow ({ changelog = ... }) or window:SetChangelog instead.")
-    end
-    local raw = props.entries or props.Entries
-    if typeof(raw) == "table" then
-        for _, entry in ipairs(raw) do
-            table.insert(self._changelog.entries, entry)
-        end
-        self:_pushChangelogToView()
-        changelogPanel.refreshBadge(self, true)
-    end
-    local window = self
-    local facade = {
-        window = window,
-        name = tostring(props.name or props.Name or window._changelog.name),
-    }
-    function facade:Set(entries)
-        window:SetChangelog(entries)
-    end
-    function facade:Refresh(entries)
-        window:SetChangelog(entries)
-    end
-    function facade:Add(entry, prepend)
-        window:AddChangelogEntry(entry, prepend)
-    end
-    function facade:Clear()
-        window:ClearChangelog()
-    end
-    function facade:MoveTo(_index) end
-    function facade:MoveToTop() end
-    function facade:MoveToBottom() end
-    function facade:MoveUp() end
-    function facade:MoveDown() end
-    setmetatable(facade, {
-        __index = function(_, key)
-            if key == "entries" then
-                return window._changelog.entries
-            end
-            return nil
-        end,
-    })
-    return facade
-end
-
 
 -- [[Shared by the topbar gear action and the profile panel's gear.]]
 function Window:_toggleSettingsMode()
@@ -2661,7 +2432,6 @@ function Window:_quickRestore()
         self.drag:enable()
         self.animating = false
         self._revealing = false
-        updateToastPosition(self, true)
         -- [[The overlay gate opens with the shell, exactly as on the first
         -- [[show, and the staged reveal below re-opens it after the page has
         -- [[committed: whichever lands last is the one that lets a waiting
@@ -2779,7 +2549,7 @@ function Window:_firstShow()
         -- [[The shell has landed, so the entrance is over as far as the
         -- [[overlay queue is concerned. The staged reveal below opens the same
         -- [[gate again when it has committed the page; whichever of the two
-        -- [[happens last is what lets a waiting toast through.]]
+        -- [[happens last is what lets a waiting notification through.]]
         overlayQueue.resume(self)
     end
 
@@ -2791,22 +2561,13 @@ function Window:_firstShow()
 
     -- [[Second beat of the entrance: the single cascade walks the page's
     -- [[controls in once the frame is close to its resting size, and only
-    -- [[then do the queued notifications and toasts start arriving one at a
-    -- [[time. Everything after `CreateWindow` — the welcome toast, a host's
+    -- [[then do the queued notifications start arriving one at a
+    -- [[time. Everything after `CreateWindow` — a host's
     -- [["loaded N modules" notifications, the optional-icon warning — rides
     -- [[that queue instead of sharing the frame the window itself opens on.]]
     self:_stageContentReveal(motion.step(contentRevealBeat), 0.02, 0.35, entranceId)
 
     local player = state.localPlayer
-    if player and self.settings.welcomeToast and chrome.isNewUser() then
-        self:Toast({
-            title = player.DisplayName,
-            subtitle = locale.resolve("Signed in as"),
-            subtitleAbove = true,
-            avatar = player.UserId,
-            minWidth = 220,
-        })
-    end
 end
 
 function Window:GetPath()

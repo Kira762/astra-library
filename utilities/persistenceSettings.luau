@@ -19,7 +19,6 @@ type SettingsWindow = {
         mouseOverride: boolean,
         keepOnScreen: boolean,
         dragMinimisedBar: boolean,
-        welcomeToast: boolean,
         haptics: boolean,
         showProfile: boolean,
         showFullUsername: boolean,
@@ -40,7 +39,6 @@ type DecodedSettings = {
     mouseOverride: unknown?,
     keepOnScreen: unknown?,
     dragMinimisedBar: unknown?,
-    welcomeToast: unknown?,
         haptics: unknown?,
         showProfile: unknown?,
         showFullUsername: unknown?,    profileSide: unknown?,
@@ -69,7 +67,6 @@ function persistenceSettings.saveSettings(window: SettingsWindow): boolean
         mouseOverride = window.settings.mouseOverride,
         keepOnScreen = window.settings.keepOnScreen,
         dragMinimisedBar = window.settings.dragMinimisedBar,
-        welcomeToast = window.settings.welcomeToast,
         haptics = window.settings.haptics,
         showProfile = window.settings.showProfile,
         showFullUsername = window.settings.showFullUsername,
@@ -191,10 +188,6 @@ function persistenceSettings.loadSettings(window: SettingsWindow): (boolean, boo
 
     if type(decodedSettings.dragMinimisedBar) == "boolean" then
         window.settings.dragMinimisedBar = decodedSettings.dragMinimisedBar
-    end
-
-    if type(decodedSettings.welcomeToast) == "boolean" then
-        window.settings.welcomeToast = decodedSettings.welcomeToast
     end
 
     if type(decodedSettings.haptics) == "boolean" then

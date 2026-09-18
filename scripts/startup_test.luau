@@ -13,7 +13,6 @@ local frames = 0
 local first, second
 task.spawn(function()
     window = Astra:CreateWindow({ name = "Staged startup" })
-    window.settings.welcomeToast = false
     shellInstances = #window.instances
     first = window:CreateTab({ name = "Visible" })
     second = window:CreateTab({ name = "Later" })
@@ -51,18 +50,14 @@ assert(not window.searchPage and not window.searchInput, "Search content must st
 assert(#window._settingsTabs == 1, "Unused settings tab shells must stay lazy")
 assert(not window._settingsUIBuilt, "Startup must not build the settings panels")
 
--- Notifications and toasts share one rate-limited entrance queue. A burst
+-- Notifications share one rate-limited entrance queue. A burst
 -- allocates only the first overlay, then starts each following transition once
 -- the previous 0.6s entrance has finished.
 local function launchedOverlays()
-    local count = #(window._liveNotifications or {})
-    for _, list in window._liveToasts or {} do
-        count += #list
-    end
-    return count
+    return #(window._liveNotifications or {})
 end
 window:Notify({ title = "Queued 1", content = "First" })
-window:Toast({ title = "Queued 2", subtitle = "Second" })
+window:Notify({ title = "Queued 2", content = "Second" })
 window:Notify({ title = "Queued 3", content = "Third" })
 assert(#window._overlayQueue.pending == 3, "Overlay burst is queued before any component allocation")
 TestPump(0.1)

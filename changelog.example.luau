@@ -1,10 +1,9 @@
 -- [[Astra changelog data file (host-side example).]]
 -- [[Keep your release history in its own file like this one, require it, and]]
--- [[hand it to the window:]]
--- [[  local window = Astra:CreateWindow({ name = "My Hub", changelog = require(path.to["changelog-data"]) })]]
--- [[Entries are newest-first; the topbar's red dot tracks entries[1] and]]
--- [[reappears whenever it (or the entry count) changes. Update at runtime]]
--- [[with window:SetChangelog(entries) / window:AddChangelogEntry(entry).]]
+-- [[hand it to a Changelog element:]]
+-- [[  local tab = window:CreateTab({ name = "Changelog" })]]
+-- [[  tab:CreateChangelog(require(path.to["changelog-data"]))]]
+-- [[Entries are newest-first. Update at runtime with changelog:Add(entry) / Set / Clear.]]
 
 return {
     name = "Release history",
@@ -13,10 +12,10 @@ return {
         {
             version = "1.2.0",
             date = "2026-09-17",
-            title = "Changelog panel",
+            title = "Changelog element",
             changes = {
-                { symbol = "+", text = "Release history moved into its own topbar panel." },
-                { symbol = "~", category = "Changed", text = "Tab:CreateChangelog forwards into the window store." },
+                { symbol = "+", text = "Changelog renders as a standalone element." },
+                { symbol = "~", category = "Changed", text = "Removed window changelog panel; use tab:CreateChangelog." },
             },
         },
         {

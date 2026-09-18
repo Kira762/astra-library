@@ -70,7 +70,7 @@ local function pumpUntilShown(targetWindow, limit)
 	return false
 end
 
--- [[Let anything the window queued for itself (the welcome toast) finish before
+-- [[Let anything the window queued for itself (a notification) finish before
 -- [[the assertions start counting, so a number below is always about the cards
 -- [[this test asked for.]]
 local function drainOverlays(targetWindow, limit)
@@ -106,7 +106,7 @@ local paced = Astra:CreateWindow({ name = "Overlay pacing" })
 paced:CreateTab({ name = "Home" }):CreateToggle({ name = "Control", value = false })
 expect(pumpUntilShown(paced), "Q2 the window must reach its shown state inside the pump budget")
 expect(drainOverlays(paced), "Q2 the queue must come to rest once it has nothing to do")
-expect(builtCount(paced) == 0, "Q2 a quiet window had nothing queued but its own welcome toast")
+expect(builtCount(paced) == 0, "Q2 a quiet window had nothing queued but its own notification")
 
 for index = 1, 20 do
 	paced:Notify({ title = "Module " .. index, content = "Loaded module " .. index })

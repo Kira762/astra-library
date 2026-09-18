@@ -5,7 +5,6 @@ defaults.values = {
     toggleKeybind = Enum.KeyCode.K,
     mouseOverride = false,
     keepOnScreen = true,
-    welcomeToast = false,
     haptics = false,
     showProfile = false,
     showFullUsername = false,

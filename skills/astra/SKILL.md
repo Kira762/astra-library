@@ -1,6 +1,6 @@
 ---
 name: astra
-description: "Build and edit Roblox UIs and executor GUI hubs with Astra v1, the Luau UI library loaded as one bundle (version-1.luau) through loadstring plus game:HttpGet. Use for Astra:CreateWindow scripts and everything they build — windows, tabs, groups and elements (Button, Toggle, Slider, Dropdown, Input, Stat, Text, Section, Divider, Collapsible Group), flags, saved configs, themes, icons, motion, toasts, popups and localisation. Also use when changing the Astra repository itself (modular tree, generated bundle, syntax gate, runtime tests)."
+description: "Build and edit Roblox UIs and executor GUI hubs with Astra v1, the Luau UI library loaded as one bundle (version-1.luau) through loadstring plus game:HttpGet. Use for Astra:CreateWindow scripts and everything they build — windows, tabs, groups and elements (Button, Toggle, Slider, Dropdown, Input, Stat, Text, Section, Divider, Collapsible Group, Changelog), flags, saved configs, themes, icons, motion, notifications, popups and localisation. Also use when changing the Astra repository itself (modular tree, generated bundle, syntax gate, runtime tests)."
 ---
 
 # Astra v1
@@ -158,7 +158,7 @@ Read only what the task needs:
 
 - `references/elements.md` — full props and handle methods for every element, plus
   tab/group rules and the Collapsible Group declarative schema.
-- `references/window.md` — window methods, popups/toasts/notifications, themes,
+- `references/window.md` — window methods, popups/notifications, themes,
   icon packs, motion service, localisation, profile card, persistence, startup pacing.
 - `references/repo-workflow.md` — working inside this repository: bundle generation,
   syntax and checker scripts, runtime tests, docs/changelog conventions.

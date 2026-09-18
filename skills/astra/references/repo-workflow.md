@@ -12,7 +12,7 @@ scripts load).
 | `library_entrypoint.luau` | Public API singleton (`CreateWindow`, `Icons`, `Core`, `Settings`, `Motion`). |
 | `Types.luau` | Typed public surface (`export type …`). |
 | `core/` | `state` (runtime singletons, `secureMode`), `registry`, `loader`. |
-| `components/` | `window`, `sidebar`, `chrome`, `drag`, `notification`, `overlayQueue`, `popup`, `profilePanel`, `search`, `settings`, `tabSelector`, `toast`, `action`. |
+| `components/` | `window`, `sidebar`, `chrome`, `drag`, `notification`, `overlayQueue`, `popup`, `profilePanel`, `search`, `settings`, `tabSelector`, `action`. |
 | `elements/` | One module per element plus `tab`, `group`, `section`, `tabSection`, `baseCard`, `description`. |
 | `settings/` | `defaults`, `manager`, `registry`, `appearance`, `behavior`, `performance`, `persistence`. |
 | `themes/` | `init` resolver + one module per built-in theme. |

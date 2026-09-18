@@ -109,11 +109,9 @@ Public surface:
   property recording (`themeProperties`), locale-token binding
   (`_bindLocale`), image-guessed property assignment; tracks every instance
   for `Unload`.
-  `_forwardChangelog(props)` — the option-A redirect behind the legacy
-  `Tab:CreateChangelog`; `_railGroup(tab)` / `_activeRail()` — the
-  main/settings/changelog rail filters every visibility site shares.
+  `_railGroup(tab)` / `_activeRail()` — the main/settings rail filters every visibility site shares.
 - `ChangeTheme`, `CreateTab`/`CreateSection`, `Notify`
-  (both construct their card on the entrance queue's turn, see
+  (constructs its card on the entrance queue's turn, see
   `components/overlayQueue.luau`)/`Popup`, `Show`/`Hide`/`ToggleHide`/`ToggleMinimise`, `Close` (animated
   close → `Unload`), `Save`/`Load`/`ListConfigs`/`DeleteConfig`/`GetPath`,
   `Get`/`Set`, `Navigate`, `SetLocale`/`SetTranslator`/
@@ -156,7 +154,7 @@ Dedicated settings component providing UI generation and management for Astra's 
 - `applySettingsLayout(window, isSettings)` — manages tablist and layout visibility between modes.
 
 ### `components/changelogPanel.luau`
-Removed. Release history now renders as a regular `elements/changelog` element; no window-scoped store, badge, or dedicated mode remains. The persistence file `utilities/persistenceChangelog.luau` is kept only for backward compatibility and is no longer read by the window.
+Deleted. Release history now renders as a regular `elements/changelog` element; no window-scoped store, badge, or dedicated mode remains. `utilities/persistenceChangelog.luau` was deleted with it.
 
 ### `components/sidebar.luau`
 Tab-rail reflow (the profile system moved to `components/profilePanel.luau`):
@@ -405,12 +403,12 @@ card that never reports back nor a gate nobody opens can park the pump),
 accumulated from `task.wait()` deltas and the gaps go through `motion.step`,
 so the queue answers the "Animation speed" setting instead of the wall clock.
 
-### `components/notification.luau`, `toast.luau`, `popup.luau`
+### `components/notification.luau`, `popup.luau`
 Overlay queues: `a1..a4` — container frame, TweenInfo presets, queue table, active-instance guard.
-`Notification.new(window, props, release)` takes the entrance slot from `components/overlayQueue.luau` and hand it
-back from `_entranceDone` when their staged fades are committed (icon, then
+`Notification.new(window, props, release)` takes the entrance slot from `components/overlayQueue.luau` and hands it
+back from `_entranceDone` when its staged fades are committed (icon, then
 description); `Window:Notify` builds the layer
-immediately but construct the card only on its turn, so a burst at load time
+immediately but constructs the card only on its turn, so a burst at load time
 costs one card per frame instead of all of them at once. `Popup` is modal and
 stays outside the queue.
 
@@ -604,9 +602,6 @@ Per-element specifics:
   surface (`getPath`, `save`, `load`, `applyTo`, `list`, `delete`,
   `getSettingsPath`, `saveSettings`, `loadSettings`); required by the window
   and by `settings/persistence`.
-- `persistenceChangelog.luau` — the changelog seen-store (`astra-changelog.rfld`
-  beside settings, keyed by config identity): `getChangelogPath`,
-  `windowKey`, `loadSeen` (with temp-file fallback), `saveSeen` (atomic).
 - `layouts.luau` — per-mode metric tables (`chromeHeight`, `fadeSize`,
   `cardCorners`, …) and dispatch into the `layouts/` builders
   (`get`, `implementation`, `railWidthFor`).
@@ -644,7 +639,6 @@ Per-element specifics:
 | `keybind_input_test.sh` | Menu-toggle binding: the Settings menu binding is an `Input` field whose typed text commits an `EnumItem` (case/alias tolerant, `MB2`, `none`/empty clearing), refuses junk and left click without saving, keeps typing inside the field from toggling the window, and still toggles it afterwards. |
 | `slider_travel_test.sh` | Slider knob travel: the capsule's centre stays half a knob inside each track end (resting, held and after release), so it never overlaps the track end or card edge at max/min, and the fill ends at the knob's centre. |
 | `icons_test.sh` | Icon resolver: name-only lookup across the packs in priority order (and how lazily they load), qualified `pack:name`, case sensitivity, unknown-pack warnings, custom assets (one import per path, memoised misses, the `listfiles` index), cache-key separation, and `window:ResolveIcon`. |
-| `changelog_panel_test.sh` | Changelog panel: topbar action + divider order, lazy exclusive view, settings mutual exclusion, Set/Add/Clear, the CreateChangelog redirect, badge + seen persistence across windows, hide/show chrome. |
 | `motion_test.sh` | Motion service: shared specs, time scale + its cache, profiles, tween ownership (cancel-on-overlap vs. unrelated properties), the no-op and animation-off paths, the window's "Animation speed" setting, and hover going through the service. |
 
 All of them assemble `scripts/sidebar_sizing_stubs.luau` + `version-1.luau`

@@ -2080,9 +2080,9 @@ function Window:_applySettingsLayout(isSettings)
     settingsComponent.applySettingsLayout(self, isSettings)
 end
 
--- [[Rail groups: the rail shows exactly one group at a time - main tabs,]]
--- [[settings tabs, or the changelog tab. Every rail filter reads these two]]
--- [[helpers so the three of them cannot drift apart.]]
+-- [[Rail groups: the rail shows exactly one group at a time - main tabs]]
+-- [[or settings tabs. Every rail filter reads these helpers so the two]]
+-- [[of them cannot drift apart.]]
 function Window:_railGroup(tab)
     if tab._isSettingsTab then
         return "settings"
@@ -2099,11 +2099,10 @@ end
 
 -- [[The icon label of a topbar action frame, or nil. `frame.ImageLabel` is a]]
 -- [[direct child read on Roblox, not a safe one: the action container also]]
--- [[holds chrome with no icon - the changelog divider, the search pill, a]]
--- [[future element - and indexing a missing child raises "ImageLabel is not]]
--- [[a valid member of Frame". That is how the divider added with the]]
--- [[changelog panel took the first Show() down, so every action-loop read]]
--- [[goes through here instead.]]
+-- [[holds chrome with no icon - the search pill and other dividers - and]]
+-- [[indexing a missing child raises "ImageLabel is not a valid member of]]
+-- [[Frame". Every action-loop read goes through here instead of reading]]
+-- [[frame.ImageLabel directly.]]
 function Window:_actionIconLabel(actionFrame)
     return actionFrame:FindFirstChild("ImageLabel")
 end

@@ -4,8 +4,8 @@
 
 A Roblox/Luau interface library for executor scripts: one loader line, one
 `CreateWindow` call, and tabs full of elements — buttons, toggles, sliders,
-dropdowns, inputs, stats, text, dividers, groups and collapsible
-groups — with a built-in changelog panel, settings, themes, icon packs, saved configs and staged
+dropdowns, inputs, stats, text, dividers, groups, collapsible
+groups and changelog — with built-in settings, themes, icon packs, saved configs and staged
 startup.
 
 ## Use the library
@@ -35,8 +35,8 @@ source, not a runtime entry point.
 
 | Area | Highlights |
 |---|---|
-| Window | Topbar / sidebar / collapsed-sidebar layouts, minimise-to-capsule, draggable, notifications, toasts, modal popups, search, profile card, changelog panel with unread dot, per-window settings. |
-| Elements | Section, Text, Button, Toggle (and `Switch` alias), Slider, Dropdown (single + multi-select, searchable), Input, Stat, Divider, Group, Collapsible Group. |
+| Window | Topbar / sidebar / collapsed-sidebar layouts, minimise-to-capsule, draggable, notifications, modal popups, search, profile card, per-window settings. |
+| Elements | Section, Text, Button, Toggle (and `Switch` alias), Slider, Dropdown (single + multi-select, searchable), Input, Stat, Divider, Group, Collapsible Group, Changelog. |
 | State | Flags with built-in auto save/load, named configs, `forgetState` opt-out, writable-storage persistence. |
 | Look | 10 built-in themes plus custom theme tables, seven icon packs (lucide, material, tabler, phosphor, heroicons, feather, remix) and a `custom_asset/` folder override. |
 | Motion | One motion service behind every transition, driven by the user's animation-speed setting. |
@@ -76,7 +76,7 @@ skills/astra/
 | [PERFORMANCE_CHANGES.md](PERFORMANCE_CHANGES.md) | Startup and instance-budget work with measured numbers. |
 | [assets/icons/README.md](assets/icons/README.md) | Visual icon catalog with copyable names across all seven packs. |
 | [example.client.luau](example.client.luau) | End-to-end example that builds every element type in one tab. |
-| [changelog.example.luau](changelog.example.luau) | Host-side changelog data file consumed by the window's changelog panel. |
+| [changelog.example.luau](changelog.example.luau) | Host-side changelog data file consumed by the Changelog element. |
 
 ## Repository layout
 

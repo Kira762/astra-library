@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SEARCH_INDEX, type SearchEntry } from "@/lib/docs";
 import { Icon } from "./icon";
+import { ShortcutKey } from "./shortcut-key";
 
 const POPULAR = ["/docs/getting-started", "/docs/windows", "/docs/elements", "/docs/themes", "/docs/icons", "/docs/saving"];
 
@@ -114,12 +115,14 @@ export function SearchDialog() {
       >
         <Icon name="search" className="h-4 w-4" />
         <span className="hidden sm:inline">Search docs</span>
-        <kbd className="kbd ml-1 hidden md:inline">⌘&nbsp;K</kbd>
+        <kbd className="kbd ml-1 hidden md:inline">
+          <ShortcutKey />
+        </kbd>
       </button>
 
       {open ? (
         <div
-          className="fixed inset-0 z-[70] flex items-start justify-center bg-base/80 px-4 pt-[12vh] backdrop-blur-sm"
+          className="fade-in fixed inset-0 z-[70] flex items-start justify-center bg-base/80 px-4 pt-[max(1.25rem,6dvh)] backdrop-blur-sm sm:pt-[max(2rem,10vh)]"
           role="dialog"
           aria-modal="true"
           aria-label="Search the documentation"
@@ -135,6 +138,9 @@ export function SearchDialog() {
                 type="search"
                 name="docs-search"
                 value={query}
+                enterKeyHint="search"
+                autoCapitalize="off"
+                autoCorrect="off"
                 onChange={(event) => {
                   setQuery(event.target.value);
                   setActive(0);
@@ -157,14 +163,14 @@ export function SearchDialog() {
                 aria-label="Search the documentation"
                 autoComplete="off"
                 spellCheck={false}
-                className="w-full bg-transparent text-sm text-ink placeholder:text-subtle"
+                className="w-full bg-transparent text-base text-ink placeholder:text-subtle sm:text-sm"
               />
-              <button type="button" onClick={close} className="icon-btn h-7 w-7" aria-label="Close search">
-                <Icon name="close" className="h-3.5 w-3.5" />
+              <button type="button" onClick={close} className="icon-btn h-8 w-8" aria-label="Close search">
+                <Icon name="close" className="h-4 w-4" />
               </button>
             </div>
 
-            <ul className="max-h-[52vh] overflow-y-auto overscroll-contain p-2">
+            <ul className="max-h-dvh-56 overflow-y-auto overscroll-contain p-2">
               {results.length === 0 ? (
                 <li className="px-3 py-6 text-center text-sm text-subtle">
                   Nothing matches “{query}”. Try “toggle”, “saving” or “themes”.
@@ -203,7 +209,14 @@ export function SearchDialog() {
               )}
             </ul>
 
-            <div className="flex items-center gap-4 border-t border-line px-4 py-2 text-2xs text-subtle">
+            {/* Keyboard hints only matter where there is a keyboard. */}
+            <div className="hidden items-center gap-4 border-t border-line px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] text-2xs text-subtle sm:flex">
+              <span className="flex items-center gap-1">
+                <kbd className="kbd">
+                  <ShortcutKey />
+                </kbd>{" "}
+                to open
+              </span>
               <span className="flex items-center gap-1">
                 <kbd className="kbd">↑</kbd>
                 <kbd className="kbd">↓</kbd> to move

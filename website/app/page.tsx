@@ -76,35 +76,46 @@ export default function Home() {
       <section className="starfield relative overflow-hidden border-b border-line">
         <div
           aria-hidden
-          className="pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[900px] -translate-x-1/2 rounded-full bg-accent/15 blur-[120px]"
+          className="pointer-events-none absolute -top-40 left-1/2 h-[400px] w-[600px] -translate-x-1/2 rounded-full bg-accent/15 blur-[120px] sm:h-[520px] sm:w-[900px]"
         />
-        <div className="relative mx-auto grid max-w-shell items-start gap-12 px-4 py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,470px)] lg:px-6 lg:py-20 xl:grid-cols-[minmax(0,1fr)_minmax(0,620px)]">
+        <div className="relative mx-auto grid max-w-shell items-start gap-12 px-4 py-10 sm:py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,470px)] lg:px-6 lg:py-20 xl:grid-cols-[minmax(0,1fr)_minmax(0,620px)]">
           <div className="lg:pt-6">
             <p className="pill">
               <Icon name="star" className="h-3 w-3 text-gold" />
-              Luau interface library for Roblox executor scripts
+              <span className="sm:hidden">Luau UI library for Roblox scripts</span>
+              <span className="hidden sm:inline">Luau interface library for Roblox executor scripts</span>
             </p>
 
-            <h1 className="mt-5 text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl xl:text-6xl">
+            <h1 className="mt-4 text-3xl font-semibold leading-[1.1] tracking-tight sm:mt-5 sm:text-4xl sm:leading-[1.05] lg:text-5xl xl:text-6xl">
               One line to load.
               <span className="block text-muted">One call to build.</span>
             </h1>
 
-            <p className="mt-5 max-w-xl text-lg leading-8 text-muted">
+            <p className="mt-4 max-w-xl text-base leading-7 text-muted sm:mt-5 sm:text-lg sm:leading-8">
               Load the bundle, call <code className="icode">CreateWindow</code>, and fill it with tabs
               and elements. Saving, ten themes, seven icon packs and staged startup are already
               inside — no model to download, nothing to wire up twice.
             </p>
 
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Link href="/docs/getting-started" className="btn btn-primary">
+            {/* Buttons stack full-width on phones — thumb-sized targets —
+                and sit in a row from sm up. */}
+            <div className="mt-5 flex flex-col gap-2.5 sm:mt-6 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+              <Link
+                href="/docs/getting-started"
+                className="btn btn-primary justify-center sm:justify-start"
+              >
                 Start the guide
                 <Icon name="arrow-right" className="h-4 w-4" />
               </Link>
-              <Link href="/docs/elements" className="btn">
+              <Link href="/docs/elements" className="btn justify-center sm:justify-start">
                 Browse the elements
               </Link>
-              <a href={REPO_URL} target="_blank" rel="noreferrer" className="btn">
+              <a
+                href={REPO_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="btn justify-center sm:justify-start"
+              >
                 <Icon name="github" className="h-4 w-4" />
                 GitHub
               </a>
@@ -125,7 +136,7 @@ export default function Home() {
       </section>
 
       {/* ---------------------------------------------------------------- */}
-      <section className="mx-auto max-w-shell px-4 py-14 lg:px-6">
+      <section className="mx-auto max-w-shell px-4 py-10 sm:py-14 lg:px-6">
         <div className="grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)]">
           <div>
             <h2 className="text-xl font-semibold tracking-tight">Start here</h2>
@@ -179,7 +190,7 @@ export default function Home() {
 
       {/* ---------------------------------------------------------------- */}
       <section className="border-y border-line bg-surface/40">
-        <div className="mx-auto max-w-shell px-4 py-14 lg:px-6">
+        <div className="mx-auto max-w-shell px-4 py-10 sm:py-14 lg:px-6">
           <h2 className="max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">
             What makes it worth the loader line
           </h2>
@@ -208,7 +219,7 @@ export default function Home() {
       </section>
 
       {/* ---------------------------------------------------------------- */}
-      <section className="mx-auto max-w-shell px-4 py-14 lg:px-6">
+      <section className="mx-auto max-w-shell px-4 py-10 sm:py-14 lg:px-6">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,560px)]">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight">Your first window</h2>
@@ -302,17 +313,19 @@ tab:Select()`,
 
       {/* ---------------------------------------------------------------- */}
       <section className="border-y border-line bg-surface/40">
-        <div className="mx-auto max-w-shell px-4 py-14 lg:px-6">
+        <div className="mx-auto max-w-shell px-4 py-10 sm:py-14 lg:px-6">
           <h2 className="text-2xl font-semibold tracking-tight">Every element, one table</h2>
           <p className="mt-2 max-w-prose text-sm leading-7 text-muted">
             Each element has a page with its props, its handle methods and a copy-pasteable example.
           </p>
           <div className="mt-6 overflow-hidden rounded-xl border border-line">
             <div className="overflow-x-auto">
-              <table className="data-table">
+              {/* min-width keeps the two columns readable; narrow screens
+                  scroll the table sideways inside its frame. */}
+              <table className="data-table min-w-[460px]">
                 <thead>
                   <tr>
-                    <th className="w-[220px]">Element</th>
+                    <th className="w-[180px] sm:w-[220px]">Element</th>
                     <th>What it does</th>
                   </tr>
                 </thead>
@@ -338,7 +351,7 @@ tab:Select()`,
       </section>
 
       {/* ---------------------------------------------------------------- */}
-      <section className="mx-auto max-w-shell px-4 py-14 lg:px-6">
+      <section className="mx-auto max-w-shell px-4 py-10 sm:py-14 lg:px-6">
         <div className="grid items-center gap-8 rounded-2xl border border-line bg-surface px-6 py-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:px-10">
           <div>
             <h2 className="text-xl font-semibold tracking-tight">

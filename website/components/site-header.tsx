@@ -62,8 +62,24 @@ export function SiteHeader() {
 
   useEffect(() => setMenuOpen(false), [pathname]);
 
+  // While the menu is open the page behind it stays put, and Escape closes
+  // it the same way the burger button does.
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setMenuOpen(false);
+    }
+    const previous = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.documentElement.style.overflow = previous;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-base/85 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-line bg-base/85 pt-[env(safe-area-inset-top,0px)] backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-shell items-center gap-3 px-4 lg:px-6">
         <Link href="/" className="flex items-center gap-2.5" aria-label="Astra v1 — home">
           <AstraMark />
@@ -120,27 +136,50 @@ export function SiteHeader() {
         <nav
           id="site-menu"
           aria-label="Sections"
-          className="border-t border-line bg-base px-4 py-3 md:hidden"
+          className="menu-pop overflow-y-auto overscroll-contain border-t border-line bg-base px-4 py-3 md:hidden"
         >
           <ul className="grid gap-1">
-            {LINKS.map((link) => (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  className="block rounded-lg px-3 py-2 text-sm text-muted hover:bg-raised hover:text-ink"
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
             <li>
+              <Link
+                href="/"
+                aria-current={pathname === "/" ? "page" : undefined}
+                className={`block rounded-lg px-3 py-2.5 text-sm ${
+                  pathname === "/"
+                    ? "bg-raised font-medium text-ink"
+                    : "text-muted hover:bg-raised hover:text-ink"
+                }`}
+              >
+                Overview
+              </Link>
+            </li>
+            {LINKS.map((link) => {
+              const current = pathname === link.href || pathname.startsWith(`${link.href}/`);
+              return (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    aria-current={current ? "page" : undefined}
+                    className={`block rounded-lg px-3 py-2.5 text-sm ${
+                      current
+                        ? "bg-raised font-medium text-ink"
+                        : "text-muted hover:bg-raised hover:text-ink"
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              );
+            })}
+            <li className="mt-1 border-t border-line pt-2">
               <a
                 href={REPO_URL}
                 target="_blank"
                 rel="noreferrer"
-                className="block rounded-lg px-3 py-2 text-sm text-muted hover:bg-raised hover:text-ink"
+                className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-muted hover:bg-raised hover:text-ink"
               >
+                <Icon name="github" className="h-4 w-4" />
                 GitHub
+                <Icon name="external" className="h-3 w-3 text-subtle" />
               </a>
             </li>
           </ul>

@@ -33,8 +33,16 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Let the page extend under the status bar / notch; components pad
+  // themselves with env(safe-area-inset-*) where content must stay clear.
+  viewportFit: "cover",
   colorScheme: "dark light",
-  themeColor: "#0A0913",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0A0913" },
+    { media: "(prefers-color-scheme: light)", color: "#FBFAFF" },
+  ],
 };
 
 /**

@@ -72,7 +72,7 @@ registry.definitions = {
         key = "layoutMode",
         kind = "enum",
         domain = "appearance",
-        description = "Bar layout mode: top, sidebar, or collapsedSidebar.",
+        description = "Bar layout mode: sidebar or collapsedSidebar.",
     },
     activeSubTab = {
         key = "activeSubTab",

@@ -50,7 +50,7 @@ local window = Astra:CreateWindow({
 ```
 
 Layout is **not** a prop — it is the user's **Settings → Appearance → Bar Layout**
-choice (Default Topbar / Sidebar / Collapsed Sidebar).
+choice (Sidebar / Collapsed Sidebar).
 
 ### Popup options
 

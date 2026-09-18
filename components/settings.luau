@@ -11,7 +11,7 @@ local function layoutKey(layout)
     if type(layout) == "table" and layout.mode == "sidebar" and layout.forceCollapsed then
         return "collapsedSidebar"
     end
-    return if type(layout) == "table" and layout.mode then layout.mode else "top"
+    return if type(layout) == "table" and layout.mode then layout.mode else "sidebar"
 end
 
 -- [[The Settings toggle binding is an ordinary Input field: it shows the bound
@@ -515,7 +515,7 @@ function settingsComponent.buildUI(window)
 
         setPendingThemeButtons(false)
 
-        local layoutMap = { top = "Default Topbar", sidebar = "Sidebar (Responsive)", collapsedSidebar = "Collapsed Sidebar" }
+        local layoutMap = { sidebar = "Sidebar (Responsive)", collapsedSidebar = "Collapsed Sidebar" }
         local layoutDropdown
         local currentLayout = window.settings.layoutMode or window.layout.mode
 
@@ -526,7 +526,7 @@ function settingsComponent.buildUI(window)
                 {
                     type = "Dropdown",
                     name = "Bar Layout",
-                    options = { layoutMap.top, layoutMap.sidebar, layoutMap.collapsedSidebar },
+                    options = { layoutMap.sidebar, layoutMap.collapsedSidebar },
                     value = layoutMap[currentLayout],
                     callback = function(choice)
                         local requested
@@ -825,8 +825,8 @@ function settingsComponent.applySettingsLayout(window, isSettings)
         end
     end
     if window.selectedTab and window.selectedTab.tabPage then
-        window.selectedTab.tabPage.Size = if window.layout.mode == "sidebar" then UDim2.new(1, -35, 1, 0) else UDim2.new(1, -20, 1, 0)
-        window.selectedTab.tabPage.Position = if window.layout.mode == "sidebar" then UDim2.new(0, 35, 0, 0) else UDim2.new(0, 0, 0, 0)
+        window.selectedTab.tabPage.Size = UDim2.new(1, -35, 1, 0)
+        window.selectedTab.tabPage.Position = UDim2.new(0, 35, 0, 0)
     end
     -- [[The visible rail group changed: re-derive the responsive rail's]]
     -- [[width from the tabs now shown (no-op for the other layouts).]]

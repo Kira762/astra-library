@@ -16,12 +16,6 @@ local function getInitial(str: string?): string
 end
 
 tabSelector.states = {
-    top = {
-        selected = { background = 0, stroke = 0, content = 0 },
-        hover = { background = 0.4, stroke = 0.3, content = 0.3 },
-        unselected = { background = 0.8, stroke = 0.65, content = 0.5 },
-        hidden = { background = 1, stroke = 1, content = 1 },
-    },
     sidebar = {
         selected = { background = 0.4, stroke = 0.5, content = 0, shadow = 0.8 },
         hover = { background = 0.7, stroke = 0.8, content = 0.3, shadow = 1 },
@@ -84,69 +78,6 @@ local function buildContent(tab, iconSize, useInitial)
             Parent = tab.topbarItemContainer,
         }, { TextColor3 = "TabColor", FontFace = "Font" })
     end
-end
-
-local function buildTopStyle(tab)
-    tab.topbarItem = tab.window:Create("Frame", {
-        Name = tab.name,
-        Size = UDim2.fromOffset(0, 34),
-        AutomaticSize = Enum.AutomaticSize.X,
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        Visible = false,
-        LayoutOrder = tab.customOrder or 0,
-        Parent = tab.window.tabList,
-    })
-
-    tab.topbarItemInteract = tab.window:Create("TextButton", {
-        Active = false,
-        BackgroundTransparency = 1,
-        Size = UDim2.fromScale(1, 1),
-        BorderSizePixel = 0,
-        Text = "",
-        TextTransparency = 1,
-        Parent = tab.topbarItem,
-    })
-
-    tab.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 14),
-        Parent = tab.topbarItem,
-    })
-
-    tab.topbarItemStroke = tab.window:Create("UIStroke", {
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-        Color = Color3.fromRGB(255, 255, 255),
-        Transparency = 1,
-        Parent = tab.topbarItem,
-    })
-
-    buildGradients(tab, tab.topbarItem, tab.topbarItemStroke)
-
-    tab.topbarItemContainer = tab.window:Create("Frame", {
-        Size = UDim2.fromOffset(0, 34),
-        AutomaticSize = Enum.AutomaticSize.X,
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        Parent = tab.topbarItem,
-    })
-
-    tab.window:Create("UIPadding", {
-        PaddingLeft = UDim.new(0, 13),
-        PaddingRight = UDim.new(0, 14),
-        Parent = tab.topbarItemContainer,
-    })
-
-    tab.topbarItemLayout = tab.window:Create("UIListLayout", {
-        Padding = UDim.new(0, 6),
-        FillDirection = Enum.FillDirection.Horizontal,
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        HorizontalAlignment = Enum.HorizontalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = tab.topbarItemContainer,
-    })
-
-    buildContent(tab, 16, false)
 end
 
 local function buildSidebarStyle(tab, layout)
@@ -233,18 +164,14 @@ function tabSelector.railCollapsed(window, layout)
 end
 
 function tabSelector.build(tab, layoutMode)
-    if layoutMode.mode == "sidebar" or layoutMode.forceCollapsed then
-        buildSidebarStyle(tab, layoutMode)
-        -- [[A row has to be born in whatever state the rail is in right now.
-        -- [[Rows are rebuilt after the rail is sized (a layout switch, or a tab
-        -- [[created while the rail is icon-only), and a row built as an
-        -- [[expanded one keeps its title: in a 64px rail that leaked "El…" of
-        -- [[the tab name past the icon instead of the icon-only row.
-        if tabSelector.railCollapsed(tab.window, layoutMode) then
-            tabSelector.setRowCollapsed(tab, true, layoutMode)
-        end
-    else
-        buildTopStyle(tab)
+    buildSidebarStyle(tab, layoutMode)
+    -- [[A row has to be born in whatever state the rail is in right now.
+    -- [[Rows are rebuilt after the rail is sized (a layout switch, or a tab
+    -- [[created while the rail is icon-only), and a row built as an
+    -- [[expanded one keeps its title: in a 64px rail that leaked "El…" of
+    -- [[the tab name past the icon instead of the icon-only row.
+    if tabSelector.railCollapsed(tab.window, layoutMode) then
+        tabSelector.setRowCollapsed(tab, true, layoutMode)
     end
 end
 

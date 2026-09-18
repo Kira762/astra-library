@@ -206,8 +206,7 @@ function persistenceSettings.loadSettings(window: SettingsWindow): (boolean, boo
     if type(decodedSettings.antiWindowDuplicate) == "boolean" then
         window.settings.antiWindowDuplicate = decodedSettings.antiWindowDuplicate
     end
-    if decodedSettings.layoutMode == "top"
-        or decodedSettings.layoutMode == "sidebar"
+    if decodedSettings.layoutMode == "sidebar"
         or decodedSettings.layoutMode == "collapsedSidebar"
     then
         window.settings.layoutMode = decodedSettings.layoutMode

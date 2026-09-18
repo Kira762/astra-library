@@ -28,31 +28,10 @@ local mobileBreakpoint = 700
 -- [[Fixed mobile footprint (per layout mode). Mobile no longer recomputes its]]
 -- [[window from live viewport occupancy: it opens at one stable size, so]]
 -- [[rotation / on-screen keyboard / inset changes never resize the window.]]
--- [[The values are the existing phone-tier result (maxOccupancyX width,]]
--- [[availableHeight / aspect-limited height) evaluated once at a 360x390]]
--- [[reference: 360 is the narrowest mainstream phone width, 390 the short side]]
--- [[of the reference phone scaleForViewport documents. Measuring against the]]
--- [[short side keeps the fixed window inside a phone held in portrait AND in]]
--- [[landscape (no clipping, no recalculation):]]
--- [[   top     -> 360 * 0.88 = 316 wide, 390 - 36 * 2 = 318 tall]]
--- [[   sidebar -> 360 * 0.92 = 331 wide, min(390 * 0.84, 331 / 1.18) = 280 tall]]
 -- [[Desktop/PC keeps the responsive profiles below: 600x420 default target,]]
 -- [[responsive shrink on smaller screens, maxSize caps so large screens stay]]
 -- [[responsive without growing into an oversized window.]]
 local profiles = {
-	top = {
-		defaultSize = Vector2.new(600, 420),
-		minSize = Vector2.new(500, 330),
-		maxSize = Vector2.new(720, 480),
-		mobileSize = Vector2.new(560, 380),
-		maxOccupancyX = 0.88,
-		topbarClearance = 36,
-		marginFloorX = 20,
-		marginFloorY = 20,
-		maxAspectRatio = 2.3,
-		widthCompensation = 80,
-		chromeHeight = layoutMetrics.top.chromeHeight,
-	} :: Profile,
 	sidebar = {
 		defaultSize = Vector2.new(600, 420),
 		minSize = Vector2.new(540, 360),
@@ -69,10 +48,7 @@ local profiles = {
 }
 
 function breakpoints.profile(mode: layouts.Mode?): Profile
-	if mode == "sidebar" then
-		return profiles.sidebar
-	end
-	return profiles.top
+	return profiles.sidebar
 end
 
 function breakpoints.pageHeight(totalHeight: number?, modeForHeight: layouts.Mode?): number
@@ -90,17 +66,6 @@ local function availableHeight(heightProfile: Profile, viewportHeight: number): 
 		available = math.min(available, viewportHeight * heightProfile.maxOccupancyY)
 	end
 	return available
-end
-
-local function shrinkFactor(current: number, upper: number, lower: number): number
-	return math.clamp((upper - current) / (upper - lower), 0, 1)
-end
-
-local function fitTop(topProfile: Profile, maxWidth: number, requestedHeight: number): UDim2
-	local clampedHeight = math.floor(math.min(math.clamp(requestedHeight, topProfile.minSize.Y, topProfile.defaultSize.Y), requestedHeight))
-	local blend = shrinkFactor(clampedHeight, topProfile.defaultSize.Y, topProfile.minSize.Y)
-	local width = math.max(topProfile.defaultSize.X + (topProfile.widthCompensation :: number) * blend, topProfile.minSize.X)
-	return UDim2.fromOffset(math.floor(math.min(width, maxWidth, clampedHeight * topProfile.maxAspectRatio)), clampedHeight)
 end
 
 local function fitSidebar(sidebarProfile: Profile, requestedWidth: number, requestedSidebarHeight: number): UDim2
@@ -166,15 +131,11 @@ local function fitViewport(fitProfile: Profile, fitTarget: Vector2): UDim2
 		availY = math.min(availY, fitProfile.maxSize.Y)
 	end
 	local targetHeight = availY
-	if fitProfile.minAspectRatio then
-		return fitSidebar(fitProfile, targetWidth, targetHeight)
-	end
-	return fitTop(fitProfile, targetWidth, targetHeight)
+	return fitSidebar(fitProfile, targetWidth, targetHeight)
 end
 
 function breakpoints.fit(viewport: Vector2?, modeOrProfile: layouts.Mode?): UDim2
-	-- [[Fix: respect mode (old code always used sidebar)]]
-	local fitProfile = if modeOrProfile == "top" then profiles.top else profiles.sidebar
+	local fitProfile = profiles.sidebar
 	if not viewport or viewport.X < minTrackedViewport or viewport.Y < minTrackedViewport then
 		return UDim2.fromOffset(fitProfile.defaultSize.X, fitProfile.defaultSize.Y)
 	end

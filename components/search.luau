@@ -58,17 +58,6 @@ local function setPillVisibility(window, visible, spec)
 end
 
 local function setTabVisibility(window, visible, tweenInfo)
-    if window.layout.mode == "sidebar" then
-        return
-    end
-    for _, tab in window.tabs do
-        if not tab.neglectSelector and tab.topbarItem then
-            tab:_applyVisual(
-                if visible then (if window.selectedTab == tab then "selected" else "unselected") else "hidden",
-                tweenInfo
-            )
-        end
-    end
 end
 
 local function filterElements(window, query)
@@ -142,13 +131,6 @@ function search.open(window)
     filterElements(window, "")
     window:_jumpTo(window.searchPage)
 
-    setTabVisibility(window, false, HOVER_SPEC)
-    task.delay(HOVER_SPEC_TIME, function()
-        if not window.unloaded and window._searching and window.layout.mode ~= "sidebar" then
-            window.tabList.Visible = false
-        end
-    end)
-
     window.searchPill.Visible = true
     setPillVisibility(window, true, HOVER_SPEC)
     window.searchInput:CaptureFocus()
@@ -181,12 +163,11 @@ function search.close(window, opts)
     end)
 
     if opts.showTabs then
-        if window.layout.mode == "sidebar" and window._applySettingsLayout then
+        if window._applySettingsLayout then
             window:_applySettingsLayout(window._settingsMode)
         else
             window.tabList.Visible = true
         end
-        setTabVisibility(window, true, HOVER_SPEC)
     end
 
     motion.tween(window.searchAction.iconLabel, { ImageTransparency = defaultTransparency }, HOVER_SPEC)
@@ -235,7 +216,7 @@ function search.buildContent(window)
     })
 
     window:Create("UIPadding", {
-        PaddingTop = UDim.new(0, if window.layout.mode == "sidebar" then 53 else 10),
+        PaddingTop = UDim.new(0, 53),
         PaddingBottom = UDim.new(0, 33),
         Parent = window.searchPage,
     })
@@ -255,14 +236,13 @@ function search.buildContent(window)
         Parent = window.main,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-    local isSidebar = window.layout.mode == "sidebar"
-    local pillTop = if isSidebar then window.layout.chromeHeight + 8 else window.layout.tabStripTop + 1
+    local pillTop = window.layout.chromeHeight + 8
 
     window.searchPill = window:Create("Frame", {
         Name = "SearchBar",
-        AnchorPoint = Vector2.new(if isSidebar then 1 else 0.5, 0),
-        Position = UDim2.new(if isSidebar then 1 else 0.5, if isSidebar then -15 else 0, 0, pillTop),
-        Size = UDim2.new(1, if isSidebar then -(window.layout.railWidth + 30) else -35, 0, 35),
+        AnchorPoint = Vector2.new(1, 0),
+        Position = UDim2.new(1, -15, 0, pillTop),
+        Size = UDim2.new(1, -(window.layout.railWidth + 30), 0, 35),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BorderSizePixel = 0,
         ZIndex = 10,

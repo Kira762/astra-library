@@ -42,7 +42,7 @@ export default function Settings() {
           ],
           [
             "Appearance",
-            "Theme dropdown with an Apply confirmation, Bar Layout (Default Topbar / Sidebar / Collapsed Sidebar), and the profile card controls: Show profile, Profile side and Reveal profile details.",
+            "Theme dropdown with an Apply confirmation, Bar Layout (Sidebar / Collapsed Sidebar), and the profile card controls: Show profile, Profile side and Reveal profile details.",
           ],
           [
             "Persistence",

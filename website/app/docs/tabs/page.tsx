@@ -90,8 +90,7 @@ col:CreateToggle({ name = "Left 1" })`}
         <ul>
           <li>
             <C>window:CreateSection(&#123; name, icon &#125;)</C> adds a heading to the rail, above the
-            tabs that follow it. It needs the sidebar layout — on the topbar layout it warns and does
-            nothing. The returned <C>TabSection</C> handle exposes only <C>Remove()</C>, because the
+            tabs that follow it. The returned <C>TabSection</C> handle exposes only <C>Remove()</C>, because the
             tabs underneath it are the content.
           </li>
           <li>

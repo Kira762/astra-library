@@ -12,7 +12,7 @@
 --   * the window's available space caps the rail, so the elements area
 --     always keeps at least half the window and takes back freed space,
 --   * capped long names wrap in place instead of overflowing,
---   * topbar / collapsedSidebar layouts are untouched.
+--   * collapsedSidebar layout is untouched.
 
 local function expect(cond, message)
 	if not cond then
@@ -155,9 +155,7 @@ local function assertRowsCollapsed(message)
 	end
 end
 
-local switched = window:_setLayoutMode("sidebar")
-expect(switched == true, "layout switch to the responsive sidebar")
-TestPump(1.0)
+expect(window.layout.mode == "sidebar", "window opens in responsive sidebar mode")
 expect(window.sidebar ~= nil, "responsive sidebar rail exists")
 
 -- T1: several tabs with identical short names.
@@ -220,25 +218,7 @@ for _, tab in groupTabs() do
 	expect(tab.topbarItemTitle.Visible == true, "T7 titles visible again when expanded")
 end
 
--- T8: the topbar layout keeps its existing per-pill sizing (untouched path).
-switched = window:_setLayoutMode("top")
-expect(switched == true, "T8 layout switch back to the topbar")
-TestPump(1.0)
-for i, tab in groupTabs() do
-	local size = tab.topbarItem.Size
-	if size.X.Offset ~= 0 or size.Y.Offset ~= 34 then
-		error("SMOKE FAIL: T8 topbar row " .. i .. " keeps its original size", 0)
-	end
-	if tab.topbarItem.AutomaticSize ~= Enum.AutomaticSize.X then
-		error("SMOKE FAIL: T8 topbar row " .. i .. " keeps AutomaticSize.X", 0)
-	end
-end
-
 -- T9: the settings-mode rail group sizes from the settings tab names.
-switched = window:_setLayoutMode("sidebar")
-expect(switched == true, "T9 layout switch back to the responsive sidebar")
-TestPump(1.0)
-
 window:_buildSettingsUI() -- first settings access materialises its tab shells
 
 -- T9a: the settings rail order - General must be the first row (the tab the

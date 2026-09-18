@@ -5373,17 +5373,6 @@ local function setPillVisibility(window, visible, spec)
 end
 
 local function setTabVisibility(window, visible, tweenInfo)
-    if window.layout.mode == "sidebar" then
-        return
-    end
-    for _, tab in window.tabs do
-        if not tab.neglectSelector and tab.topbarItem then
-            tab:_applyVisual(
-                if visible then (if window.selectedTab == tab then "selected" else "unselected") else "hidden",
-                tweenInfo
-            )
-        end
-    end
 end
 
 local function filterElements(window, query)
@@ -5457,13 +5446,6 @@ function search.open(window)
     filterElements(window, "")
     window:_jumpTo(window.searchPage)
 
-    setTabVisibility(window, false, HOVER_SPEC)
-    task.delay(HOVER_SPEC_TIME, function()
-        if not window.unloaded and window._searching and window.layout.mode ~= "sidebar" then
-            window.tabList.Visible = false
-        end
-    end)
-
     window.searchPill.Visible = true
     setPillVisibility(window, true, HOVER_SPEC)
     window.searchInput:CaptureFocus()
@@ -5496,12 +5478,11 @@ function search.close(window, opts)
     end)
 
     if opts.showTabs then
-        if window.layout.mode == "sidebar" and window._applySettingsLayout then
+        if window._applySettingsLayout then
             window:_applySettingsLayout(window._settingsMode)
         else
             window.tabList.Visible = true
         end
-        setTabVisibility(window, true, HOVER_SPEC)
     end
 
     motion.tween(window.searchAction.iconLabel, { ImageTransparency = defaultTransparency }, HOVER_SPEC)
@@ -5550,7 +5531,7 @@ function search.buildContent(window)
     })
 
     window:Create("UIPadding", {
-        PaddingTop = UDim.new(0, if window.layout.mode == "sidebar" then 53 else 10),
+        PaddingTop = UDim.new(0, 53),
         PaddingBottom = UDim.new(0, 33),
         Parent = window.searchPage,
     })
@@ -5570,14 +5551,13 @@ function search.buildContent(window)
         Parent = window.main,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-    local isSidebar = window.layout.mode == "sidebar"
-    local pillTop = if isSidebar then window.layout.chromeHeight + 8 else window.layout.tabStripTop + 1
+    local pillTop = window.layout.chromeHeight + 8
 
     window.searchPill = window:Create("Frame", {
         Name = "SearchBar",
-        AnchorPoint = Vector2.new(if isSidebar then 1 else 0.5, 0),
-        Position = UDim2.new(if isSidebar then 1 else 0.5, if isSidebar then -15 else 0, 0, pillTop),
-        Size = UDim2.new(1, if isSidebar then -(window.layout.railWidth + 30) else -35, 0, 35),
+        AnchorPoint = Vector2.new(1, 0),
+        Position = UDim2.new(1, -15, 0, pillTop),
+        Size = UDim2.new(1, -(window.layout.railWidth + 30), 0, 35),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BorderSizePixel = 0,
         ZIndex = 10,
@@ -5673,7 +5653,7 @@ local function layoutKey(layout)
     if type(layout) == "table" and layout.mode == "sidebar" and layout.forceCollapsed then
         return "collapsedSidebar"
     end
-    return if type(layout) == "table" and layout.mode then layout.mode else "top"
+    return if type(layout) == "table" and layout.mode then layout.mode else "sidebar"
 end
 
 -- [[The Settings toggle binding is an ordinary Input field: it shows the bound
@@ -6177,7 +6157,7 @@ function settingsComponent.buildUI(window)
 
         setPendingThemeButtons(false)
 
-        local layoutMap = { top = "Default Topbar", sidebar = "Sidebar (Responsive)", collapsedSidebar = "Collapsed Sidebar" }
+        local layoutMap = { sidebar = "Sidebar (Responsive)", collapsedSidebar = "Collapsed Sidebar" }
         local layoutDropdown
         local currentLayout = window.settings.layoutMode or window.layout.mode
 
@@ -6188,7 +6168,7 @@ function settingsComponent.buildUI(window)
                 {
                     type = "Dropdown",
                     name = "Bar Layout",
-                    options = { layoutMap.top, layoutMap.sidebar, layoutMap.collapsedSidebar },
+                    options = { layoutMap.sidebar, layoutMap.collapsedSidebar },
                     value = layoutMap[currentLayout],
                     callback = function(choice)
                         local requested
@@ -6487,8 +6467,8 @@ function settingsComponent.applySettingsLayout(window, isSettings)
         end
     end
     if window.selectedTab and window.selectedTab.tabPage then
-        window.selectedTab.tabPage.Size = if window.layout.mode == "sidebar" then UDim2.new(1, -35, 1, 0) else UDim2.new(1, -20, 1, 0)
-        window.selectedTab.tabPage.Position = if window.layout.mode == "sidebar" then UDim2.new(0, 35, 0, 0) else UDim2.new(0, 0, 0, 0)
+        window.selectedTab.tabPage.Size = UDim2.new(1, -35, 1, 0)
+        window.selectedTab.tabPage.Position = UDim2.new(0, 35, 0, 0)
     end
     -- [[The visible rail group changed: re-derive the responsive rail's]]
     -- [[width from the tabs now shown (no-op for the other layouts).]]
@@ -6617,12 +6597,6 @@ local function getInitial(str: string?): string
 end
 
 tabSelector.states = {
-    top = {
-        selected = { background = 0, stroke = 0, content = 0 },
-        hover = { background = 0.4, stroke = 0.3, content = 0.3 },
-        unselected = { background = 0.8, stroke = 0.65, content = 0.5 },
-        hidden = { background = 1, stroke = 1, content = 1 },
-    },
     sidebar = {
         selected = { background = 0.4, stroke = 0.5, content = 0, shadow = 0.8 },
         hover = { background = 0.7, stroke = 0.8, content = 0.3, shadow = 1 },
@@ -6685,69 +6659,6 @@ local function buildContent(tab, iconSize, useInitial)
             Parent = tab.topbarItemContainer,
         }, { TextColor3 = "TabColor", FontFace = "Font" })
     end
-end
-
-local function buildTopStyle(tab)
-    tab.topbarItem = tab.window:Create("Frame", {
-        Name = tab.name,
-        Size = UDim2.fromOffset(0, 34),
-        AutomaticSize = Enum.AutomaticSize.X,
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        Visible = false,
-        LayoutOrder = tab.customOrder or 0,
-        Parent = tab.window.tabList,
-    })
-
-    tab.topbarItemInteract = tab.window:Create("TextButton", {
-        Active = false,
-        BackgroundTransparency = 1,
-        Size = UDim2.fromScale(1, 1),
-        BorderSizePixel = 0,
-        Text = "",
-        TextTransparency = 1,
-        Parent = tab.topbarItem,
-    })
-
-    tab.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 14),
-        Parent = tab.topbarItem,
-    })
-
-    tab.topbarItemStroke = tab.window:Create("UIStroke", {
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-        Color = Color3.fromRGB(255, 255, 255),
-        Transparency = 1,
-        Parent = tab.topbarItem,
-    })
-
-    buildGradients(tab, tab.topbarItem, tab.topbarItemStroke)
-
-    tab.topbarItemContainer = tab.window:Create("Frame", {
-        Size = UDim2.fromOffset(0, 34),
-        AutomaticSize = Enum.AutomaticSize.X,
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        Parent = tab.topbarItem,
-    })
-
-    tab.window:Create("UIPadding", {
-        PaddingLeft = UDim.new(0, 13),
-        PaddingRight = UDim.new(0, 14),
-        Parent = tab.topbarItemContainer,
-    })
-
-    tab.topbarItemLayout = tab.window:Create("UIListLayout", {
-        Padding = UDim.new(0, 6),
-        FillDirection = Enum.FillDirection.Horizontal,
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        HorizontalAlignment = Enum.HorizontalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = tab.topbarItemContainer,
-    })
-
-    buildContent(tab, 16, false)
 end
 
 local function buildSidebarStyle(tab, layout)
@@ -6834,18 +6745,14 @@ function tabSelector.railCollapsed(window, layout)
 end
 
 function tabSelector.build(tab, layoutMode)
-    if layoutMode.mode == "sidebar" or layoutMode.forceCollapsed then
-        buildSidebarStyle(tab, layoutMode)
-        -- [[A row has to be born in whatever state the rail is in right now.
-        -- [[Rows are rebuilt after the rail is sized (a layout switch, or a tab
-        -- [[created while the rail is icon-only), and a row built as an
-        -- [[expanded one keeps its title: in a 64px rail that leaked "El…" of
-        -- [[the tab name past the icon instead of the icon-only row.
-        if tabSelector.railCollapsed(tab.window, layoutMode) then
-            tabSelector.setRowCollapsed(tab, true, layoutMode)
-        end
-    else
-        buildTopStyle(tab)
+    buildSidebarStyle(tab, layoutMode)
+    -- [[A row has to be born in whatever state the rail is in right now.
+    -- [[Rows are rebuilt after the rail is sized (a layout switch, or a tab
+    -- [[created while the rail is icon-only), and a row built as an
+    -- [[expanded one keeps its title: in a 64px rail that leaked "El…" of
+    -- [[the tab name past the icon instead of the icon-only row.
+    if tabSelector.railCollapsed(tab.window, layoutMode) then
+        tabSelector.setRowCollapsed(tab, true, layoutMode)
     end
 end
 
@@ -7146,7 +7053,7 @@ function Window.new(props)
         state.setFallbackFont(fallbackFont)
     end
 
-        local layout = layouts.top -- [[layout is controlled via Settings (Astra Settings → Bar Layout); CreateWindow no longer takes sidebarLayout]]
+        local layout = layouts.sidebar -- [[layout is controlled via Settings (Astra Settings → Bar Layout); CreateWindow no longer takes sidebarLayout]]
     local providedIcon = props.icon or props.Icon
 
     local self = setmetatable({
@@ -8898,88 +8805,10 @@ function Window:_buildLockScrim(element)
     }, { CornerRadius = "ElementCornerRadius" })
 end
 
--- [[Topbar tab-strip chrome: the strip is inset from the window edge and a]]
--- [[gradient fade marks whichever edge is clipping tabs. Runs off canvas/]]
--- [[size change signals (see Topbar.Build) and skips writes when the target]]
--- [[state is unchanged, so steady-state cost is one comparison per signal.]]
 function Window:_refreshTabStripChrome()
-    local strip = self.tabList
-    local fadeLeft = self.tabFadeLeft
-    local fadeRight = self.tabFadeRight
-    if self.layout.mode ~= "top" or not strip or not strip.Parent then
-        return
-    end
-
-    -- [[The canvas carries an end gutter on each side (UIPadding), and the]]
-    -- [[frame itself is inset from the window edge, so clipping is read from]]
-    -- [[the last pill's canvas-space right edge against the frame's full]]
-    -- [[width — AbsoluteWindowSize alone would count the trailing gutter as]]
-    -- [[clipped content and light the fade a gutter too early.]]
-    local edgePadding = self.layout.tabStripEdgePadding or 14
-    local frameWidth = strip.AbsoluteSize.X
-    local scrollX = strip.CanvasPosition.X
-    local contentRight = strip.AbsoluteCanvasSize.X - edgePadding
-
-    local rightClipped = contentRight > scrollX + frameWidth + 0.5
-    if fadeRight and fadeRight.Parent and fadeRight.Visible ~= rightClipped then
-        fadeRight.Visible = rightClipped
-    end
-
-    local scrolledFromLeft = scrollX > 0.5
-    if fadeLeft and fadeLeft.Parent and fadeLeft.Visible ~= scrolledFromLeft then
-        fadeLeft.Visible = scrolledFromLeft
-    end
 end
 
--- [[Keep the selected pill inside the strip's viewport after a selection.]]
--- [[Children of the ScrollingFrame sit in canvas space (the end-gutter]]
--- [[padding shifts the first pill's origin), so item.Position is the tab's]]
--- [[offset along the strip without any absolute-position math; the landing]]
--- [[clearance parks the pill just clear of whichever edge fade is showing.]]
-function Window:_scrollSelectedTabIntoView(tweened)
-    local strip = self.tabList
-    if self.layout.mode ~= "top" or not strip or not strip.Parent then
-        return
-    end
-
-    local tab = self.selectedTab
-    local item = tab and (not tab.neglectSelector) and tab.topbarItem
-    if not item or not item.Parent then
-        return
-    end
-
-    local edgePadding = self.layout.tabStripEdgePadding or 14
-    local fadeLanding = self.layout.tabStripFadeWidth or 30
-    local frameWidth = strip.AbsoluteSize.X
-    local maxScroll = math.max(0, strip.AbsoluteCanvasSize.X - frameWidth)
-    local left = item.Position.X.Offset
-    local right = left + item.AbsoluteSize.X
-    local pos = strip.CanvasPosition.X
-
-    -- [[Move the strip only when the pill is clipped or pressed up
-    -- [[against an edge fade; a comfortably visible tab stays put, so
-    -- [[selecting it does not re-scroll the strip for no reason. The left]]
-    -- [[landing clears the fade; the right landing leaves the end gutter]]
-    -- [[visible beside the pill.]]
-    local target = nil
-    if left < pos + fadeLanding then
-        target = left - fadeLanding
-    elseif right > pos + frameWidth - edgePadding then
-        target = right + edgePadding - frameWidth
-    end
-    if target == nil then
-        return
-    end
-    target = math.clamp(target, 0, maxScroll)
-    if math.abs(pos - target) < 1 then
-        return
-    end
-
-    if tweened then
-        motion.tween(strip, { CanvasPosition = Vector2.new(target, 0) }, "snappy")
-    else
-        strip.CanvasPosition = Vector2.new(target, 0)
-    end
+function Window:_scrollSelectedTabIntoView(_tweened)
 end
 
 function Window:_setLayoutMode(modeName)
@@ -9025,41 +8854,20 @@ function Window:_setLayoutMode(modeName)
     elseif self.tabList then
         self:DestroySubtree(self.tabList)
     end
-    -- [[The edge fades live beside the topbar strip, so they are topbar]]
-    -- [[chrome: tear them down on the way out of "top" mode.]]
-    if self.tabFadeLeft then
-        self:DestroySubtree(self.tabFadeLeft)
-        self.tabFadeLeft = nil
-    end
-    if self.tabFadeRight then
-        self:DestroySubtree(self.tabFadeRight)
-        self.tabFadeRight = nil
-    end
     local implementation = layouts.implementation(modeName)
     implementation.Build(self, newLayout)
-    if newLayout.mode == "sidebar" then
-        if not self.elementsCorner then
-            self.elementsCorner = self:_roundCorners(self.elements, newLayout.cardCorners)
-            self.elementsStroke = self:Create("UIStroke", {
-                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                Transparency = 1,
-                Parent = self.elements,
-            }, { Color = "SurfaceStroke" })
-            self:Create("UIGradient", {
-                Rotation = newLayout.cardStrokeRotation,
-                Transparency = newLayout.cardStrokeTransparency,
-                Parent = self.elementsStroke,
-            })
-        end
-    else
-        if self.elementsCorner then
-            self.elementsCorner.CornerRadius = UDim.new(0, 0)
-        end
-        if self.elementsStroke then
-            self.elementsStroke.Transparency = 1
-        end
-        self.elements.Size = UDim2.new(1, 0, 1, -newLayout.chromeHeight)
-        self.bottomFade.Size = UDim2.new(1, 0, newLayout.fadeSize.Y.Scale, newLayout.fadeSize.Y.Offset)
+    if not self.elementsCorner then
+        self.elementsCorner = self:_roundCorners(self.elements, newLayout.cardCorners)
+        self.elementsStroke = self:Create("UIStroke", {
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+            Transparency = 1,
+            Parent = self.elements,
+        }, { Color = "SurfaceStroke" })
+        self:Create("UIGradient", {
+            Rotation = newLayout.cardStrokeRotation,
+            Transparency = newLayout.cardStrokeTransparency,
+            Parent = self.elementsStroke,
+        })
     end
     implementation.ApplyWidth(self, self:_railWidth())
     self.elementsLayout.FillDirection = newLayout.pageDirection
@@ -15563,10 +15371,6 @@ function state:Select(a24)
         self:_applyVisual("selected", element)
     end
 
-    -- [[Topbar mode only (a no-op on the sidebar): the selected pill]]
-    -- [[must stay in view as the user moves through a long strip.]]
-    self.window:_scrollSelectedTabIntoView(not a25)
-
     for _, tab in self.window.tabs do
         if tab ~= self.window.selectedTab then
             tab:Deselect(a25)
@@ -16512,7 +16316,7 @@ function appearance.validate(key: string, value: any): (boolean, any)
         return type(value) == "boolean", value == true
     end
     if key == "layoutMode" then
-        if value == "top" or value == "sidebar" or value == "collapsedSidebar" then
+        if value == "sidebar" or value == "collapsedSidebar" then
             return true, value
         end
         return false, nil
@@ -16555,7 +16359,7 @@ defaults.values = {
     showProfile = false,
     showFullUsername = false,
     antiWindowDuplicate = true,
-    layoutMode = "top",
+    layoutMode = "sidebar",
     activeSubTab = 1,
     motionSpeed = "normal",
     autoSaveConfig = true,
@@ -16845,7 +16649,7 @@ registry.definitions = {
         key = "layoutMode",
         kind = "enum",
         domain = "appearance",
-        description = "Bar layout mode: top, sidebar, or collapsedSidebar.",
+        description = "Bar layout mode: sidebar or collapsedSidebar.",
     },
     activeSubTab = {
         key = "activeSubTab",
@@ -17549,136 +17353,7 @@ end
 return SidebarCollapsed
 
 end)() end,
-    [57] = function()local wax,script,require=ImportGlobals(57)local ImportGlobals return (function(...)
-local search = require(script.Parent.Parent.components.search)
-local functions = require(script.Parent.Parent.functions)
-local utilities = script.Parent.Parent.utilities
-local constants = require(utilities.constants)
-
-local Topbar = {}
-
-local DEFAULT_FADE_WIDTH = 30
-local DEFAULT_EDGE_PADDING = 14
-
--- [[The window surface's WindowColor gradient runs bottom-to-top (rotation]]
--- [[270), so the colour behind the strip — at the top of the window — is]]
--- [[the sequence's last keypoint. Flattening it is the same trick the]]
--- [[bottom fade uses, so a theme can never drift the two apart.]]
-local function topSurfaceColor(color)
-    local keypoints = functions.toColorSequence(color).Keypoints
-    return ColorSequence.new(keypoints[#keypoints].Value)
-end
-
-local function buildFade(window, layout, inset, name, anchoredRight, transparentEdge)
-    -- [[transparentEdge is the frame edge that must be fully clear:]]
-    -- [[left for the right fade (it dissolves towards the visible tabs),]]
-    -- [[right for the left fade.]]
-    local fadeWidth = layout.tabStripFadeWidth or DEFAULT_FADE_WIDTH
-    local fade = window:Create("Frame", {
-        Name = name,
-        Size = UDim2.fromOffset(fadeWidth, layout.tabStripHeight),
-        Position = if anchoredRight
-            then UDim2.new(1, -(inset + fadeWidth), 0, layout.tabStripTop)
-            else UDim2.new(0, inset, 0, layout.tabStripTop),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        Visible = false,
-        ZIndex = constants.zIndex.tabFade,
-
-        Parent = window.main,
-    })
-
-    window:Create("UIGradient", {
-        Rotation = 0,
-        Transparency = if transparentEdge == "left"
-            then NumberSequence.new({
-                NumberSequenceKeypoint.new(0, 1),
-                NumberSequenceKeypoint.new(1, 0),
-            })
-            else NumberSequence.new({
-                NumberSequenceKeypoint.new(0, 0),
-                NumberSequenceKeypoint.new(1, 1),
-            }),
-        Parent = fade,
-    }, { Color = { "WindowColor", topSurfaceColor } })
-
-    return fade
-end
-
-function Topbar.Build(window, layout)
-    -- [[The strip frame itself is inset from the window edge on both]]
-    -- [[sides, and the canvas carries its own UIPadding at each end. The]]
-    -- [[two margins stack: an overflowing tab clips well inside the]]
-    -- [[window border, and even the first/last pill keeps a visible gap]]
-    -- [[from the clip edge (UIPadding scrolls with the content, unlike a]]
-    -- [[margin on the frame). The edge fades below mark where tabs go off.]]
-    local inset = layout.tabStripInset or 30
-    local edgePadding = layout.tabStripEdgePadding or DEFAULT_EDGE_PADDING
-
-    window.tabList = window:Create("ScrollingFrame", {
-        Name = "Tabs",
-        Active = true,
-        Size = UDim2.new(1, -inset * 2, 0, layout.tabStripHeight),
-        Position = UDim2.new(0, inset, 0, layout.tabStripTop),
-        BackgroundTransparency = 1,
-        AutomaticCanvasSize = Enum.AutomaticSize.X,
-        CanvasSize = UDim2.new(0, 0, 0, 0),
-        ScrollBarThickness = 0,
-        ScrollBarImageTransparency = 1,
-        ScrollingDirection = Enum.ScrollingDirection.X,
-        Parent = window.main,
-    })
-
-    -- [[End gutters: empty space the pills can never occupy, so the]]
-    -- [[outermost pill never touches the strip edge at either scroll]]
-    -- [[extreme. AutomaticCanvasSize folds the padding into the canvas,]]
-    -- [[which is also what keeps the last pill scrollable clear of the]]
-    -- [[right fade.]]
-    window:Create("UIPadding", {
-        PaddingLeft = UDim.new(0, edgePadding),
-        PaddingRight = UDim.new(0, edgePadding),
-
-        Parent = window.tabList,
-    })
-
-    window.tabListLayout = window:Create("UIListLayout", {
-        Padding = UDim.new(0, 8),
-        FillDirection = Enum.FillDirection.Horizontal,
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        HorizontalAlignment = Enum.HorizontalAlignment.Left,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = window.tabList,
-    })
-
-    window.tabFadeLeft = buildFade(window, layout, inset, "TabFadeLeft", false, "right")
-    window.tabFadeRight = buildFade(window, layout, inset, "TabFadeRight", true, "left")
-
-    -- [[Canvas content changes (tabs added/removed) and scrolling move the]]
-    -- [[clipping edges; the window's Size covers resizes and the entrance]]
-    -- [[tween. _refreshTabStripChrome skips writes when nothing changed.]]
-    window:Connect(window.tabList:GetPropertyChangedSignal("CanvasSize"), function()
-        window:_refreshTabStripChrome()
-    end)
-    window:Connect(window.tabList:GetPropertyChangedSignal("CanvasPosition"), function()
-        window:_refreshTabStripChrome()
-    end)
-    window:Connect(window.main:GetPropertyChangedSignal("Size"), function()
-        window:_refreshTabStripChrome()
-    end)
-    window:_refreshTabStripChrome()
-end
-
-function Topbar.ApplyWidth(window)
-    search.railWidth(window, 0)
-    window.elements.Size = UDim2.new(1, 0, 1, -window.layout.chromeHeight)
-    window.bottomFade.Size = UDim2.new(1, 0, window.layout.fadeSize.Y.Scale, window.layout.fadeSize.Y.Offset)
-end
-
-return Topbar
-
-end)() end,
-    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
+    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
 
 local image = require(script.image)
 
@@ -17693,7 +17368,7 @@ local windowIcons = {
 return windowIcons
 
 end)() end,
-    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
+    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
 local imageCache = require(script.Parent.Parent.cache.imageCache)
 local variables = require(script.Parent.Parent.core.state)
 
@@ -17858,7 +17533,7 @@ end
 return image
 
 end)() end,
-    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
+    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
 
 local windowIcons = {}
 
@@ -17934,7 +17609,7 @@ end
 return windowIcons
 
 end)() end,
-    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
+    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
 -- [[Icon resolver service.]]
 -- [[]]
 -- [[Public API is compatible with the previous single-module catalog:]]
@@ -18436,7 +18111,7 @@ end
 return icons
 
 end)() end,
-    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
+    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
 -- [[feather icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -18480,7 +18155,7 @@ x-square x youtube zap-off zap zoom-in zoom-out
 )
 
 end)() end,
-    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
+    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
 -- [[heroicons icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -18560,7 +18235,7 @@ wrench-screwdriver wrench-screwdriver_solid wrench wrench_solid x-circle x-circl
 )
 
 end)() end,
-    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
+    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
 -- [[lucide icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -18753,7 +18428,7 @@ zodiac-sagittarius zodiac-scorpio zodiac-taurus zodiac-virgo zoom-in zoom-out
 )
 
 end)() end,
-    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
+    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
 -- [[material icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -18882,7 +18557,7 @@ zoom_in zoom_out zoom_out_map
 )
 
 end)() end,
-    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
+    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
 -- [[Lazy icon-pack builder.
 -- [[]]
 -- [[A pack is a compact newline-separated list of kebab names plus the shared
@@ -18976,7 +18651,7 @@ end
 return PackBuilder
 
 end)() end,
-    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
+    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
 -- [[phosphor icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -19143,7 +18818,7 @@ yin-yang youtube-logo
 )
 
 end)() end,
-    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
+    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
 -- [[remix icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -19481,7 +19156,7 @@ zhihu-line zhipu-ai-fill zhipu-ai-line zoom-in-fill zoom-in-line zoom-out-fill z
 )
 
 end)() end,
-    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
+    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
 -- [[tabler icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -20009,7 +19684,7 @@ zoom-out-area zoom-out zoom-pan zoom-question zoom-replace zoom-reset zoom-scan 
 )
 
 end)() end,
-    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
+    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
 -- [[Theme resolution engine (themes/init.luau).]]
 -- [[]]
 -- [[Extracted verbatim from components/window.luau so the window no longer owns]]
@@ -20115,7 +19790,7 @@ end
 return themes
 
 end)() end,
-    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
+    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(16, 13, 24),
@@ -20181,7 +19856,7 @@ return {
 }
 
 end)() end,
-    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
+    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(11, 16, 25),
@@ -20247,7 +19922,7 @@ return {
 }
 
 end)() end,
-    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
+    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
 local crimson = require(script.Parent.Parent.core.state)
 
 return {
@@ -20322,7 +19997,7 @@ return {
 }
 
 end)() end,
-    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
+    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
 local default = require(script.Parent.Parent.core.state)
 
 -- [[Rayfield Gen2 default palette, ported 1:1 for shared keys. Astra-only
@@ -20428,7 +20103,7 @@ return {
 }
 
 end)() end,
-    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
+    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(22, 18, 16),
@@ -20494,7 +20169,7 @@ return {
 }
 
 end)() end,
-    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
+    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
 local emerald = require(script.Parent.Parent.core.state)
 
 return {
@@ -20569,7 +20244,7 @@ return {
 }
 
 end)() end,
-    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
+    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
 local frost = require(script.Parent.Parent.core.state)
 
 return {
@@ -20644,7 +20319,7 @@ return {
 }
 
 end)() end,
-    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
+    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
 local gold = require(script.Parent.Parent.core.state)
 
 return {
@@ -20719,7 +20394,7 @@ return {
 }
 
 end)() end,
-    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
+    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
 local onyx = require(script.Parent.Parent.core.state)
 
 return {
@@ -20794,7 +20469,7 @@ return {
 }
 
 end)() end,
-    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
+    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(23, 15, 19),
@@ -20860,7 +20535,7 @@ return {
 }
 
 end)() end,
-    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
+    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 
 local hapticService = {}
@@ -20958,7 +20633,7 @@ end
 return hapticService
 
 end)() end,
-    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
+    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
 local networkUtil = require(script.Parent.network)
 local logger = require(script.Parent.log)
 
@@ -21136,7 +20811,7 @@ end
 return assetResolver
 
 end)() end,
-    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
+    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
 local iconRegistry = require(script.Parent.Parent.images.windowIcons)
 local constants = {}
 
@@ -21184,7 +20859,7 @@ constants.displayOrder = {
 return constants
 
 end)() end,
-    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
+    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
 local enums = {}
 
 function enums.itemFromValue(enumType, value)
@@ -21214,7 +20889,7 @@ end
 return enums
 
 end)() end,
-    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
+    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
 local serviceProvider = require(script.Parent.services)
 local filesystem = {}
 
@@ -21465,7 +21140,7 @@ end
 return filesystem
 
 end)() end,
-    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
+    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 local pathUtil = require(script.Parent.path)
 
@@ -21514,7 +21189,7 @@ end
 return filesystemManager
 
 end)() end,
-    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
+    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
 local fontManager = require(script.Parent.services)
 local a2 = fontManager.getService("HttpService")
 local a3 = fontManager.getService("RunService")
@@ -21967,7 +21642,7 @@ end
 return a16
 
 end)() end,
-    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
+    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
 
 local functions = {}
 
@@ -21985,45 +21660,29 @@ functions.contrastText = textMetrics.contrastText
 return functions
 
 end)() end,
-    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
+    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
 local layouts = {}
 
-local topbarLayout = require(script.Parent.Parent.layouts.Topbar)
 local sidebarLayout = require(script.Parent.Parent.layouts.Sidebar)
 local sidebarCollapsedLayout = require(script.Parent.Parent.layouts.SidebarCollapsed)
 
 local topbarHeightConstant = 64
 
--- [[Clearance above and below the tab row. The strip is centred in the]]
--- [[chrome band with matching gaps on both sides, so the pills read as]]
--- [[neither pressed against the topbar nor pressed against the content.]]
-local tabStripTopClearance = 6
-local tabStripBottomClearance = 6
-local tabStripTopOffset = topbarHeightConstant + tabStripTopClearance
-local tabStripRowHeight = 38
-local chromeGap = tabStripBottomClearance
-
-export type Mode = "top" | "sidebar"
+export type Mode = "sidebar"
 
 export type Layout = {
     mode: Mode,
 
-        topbarHeight: number,
+    topbarHeight: number,
     chromeHeight: number,
 
-            pageDirection: Enum.FillDirection,
+    pageDirection: Enum.FillDirection,
 
-            fadeSize: UDim2,
+    fadeSize: UDim2,
     fadeTransparency: NumberSequence,
     fadeCorners: { string }?,
 
-        tabStripTop: number?,
-    tabStripHeight: number?,
-    tabStripInset: number?,
-    tabStripEdgePadding: number?,
-    tabStripFadeWidth: number?,
-
-        railWidth: number?,
+    railWidth: number?,
     railCollapsedWidth: number?,
     railCollapseBelow: number?,
     rowHeight: number?,
@@ -22041,55 +21700,20 @@ export type Layout = {
     forceCollapsed: boolean?,
 }
 
-layouts.top = {
-    mode = "top" :: Mode,
-
-    topbarHeight = topbarHeightConstant,
-    chromeHeight = tabStripTopOffset + tabStripRowHeight + chromeGap,
-
-    tabStripTop = tabStripTopOffset,
-    tabStripHeight = tabStripRowHeight,
-
-    -- [[Margin between the window edge and the tab strip. The strip's]]
-    -- [[ScrollingFrame is inset by this much on each side, so overflowing]]
-    -- [[tabs clip inside the window instead of running into its border.]]
-    tabStripInset = 30,
-
-    -- [[Empty gutter *inside* the strip at each end (canvas UIPadding):]]
-    -- [[the first and last pills never touch the strip's clip edge, at]]
-    -- [[rest or scrolled, so the edge fades dissolve over empty space]]
-    -- [[instead of over a pill pressed up against the edge.]]
-    tabStripEdgePadding = 14,
-
-    -- [[Width of the gradient fade that marks a clipping edge; wide]]
-    -- [[enough to cover the end gutter plus a little strip beyond it.]]
-    tabStripFadeWidth = 30,
-
-    pageDirection = Enum.FillDirection.Horizontal,
-
-            fadeSize = UDim2.new(1, 0, -0.093, 100),
-    fadeTransparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 0),
-        NumberSequenceKeypoint.new(0.4414, 0),
-        NumberSequenceKeypoint.new(0.7007, 0.631),
-        NumberSequenceKeypoint.new(1, 1),
-    }),
-} :: Layout
-
 layouts.sidebar = {
     mode = "sidebar" :: Mode,
 
     topbarHeight = topbarHeightConstant,
     chromeHeight = topbarHeightConstant,
 
-            railWidth = 219,
-            railCollapsedWidth = 64,
+    railWidth = 219,
+    railCollapsedWidth = 64,
     railCollapseBelow = 520,
 
     rowHeight = 38,
     rowCornerRadius = 14,
     rowSpacing = 4,
-        railPadding = 17,
+    railPadding = 17,
     rowInset = 15,
     rowPadding = 10,
     rowContentSpacing = 6,
@@ -22099,7 +21723,7 @@ layouts.sidebar = {
 
     cardTransparency = 0.98,
     cardStrokeRotation = 55,
-            cardCorners = { "TopLeftRadius", "BottomRightRadius" },
+    cardCorners = { "TopLeftRadius", "BottomRightRadius" },
     cardStrokeTransparency = NumberSequence.new({
         NumberSequenceKeypoint.new(0, 0.9),
         NumberSequenceKeypoint.new(0.128, 0.95),
@@ -22113,14 +21737,13 @@ layouts.sidebar = {
         NumberSequenceKeypoint.new(0.377, 0),
         NumberSequenceKeypoint.new(1, 1),
     }),
-        fadeCorners = { "BottomLeftRadius", "BottomRightRadius" },
+    fadeCorners = { "BottomLeftRadius", "BottomRightRadius" },
 } :: Layout
 
 local collapsedSidebarLayout = table.clone(layouts.sidebar)
 collapsedSidebarLayout.forceCollapsed = true
 
 local implementments = {
-    top = topbarLayout,
     sidebar = sidebarLayout,
     collapsedSidebar = sidebarCollapsedLayout,
 }
@@ -22130,8 +21753,6 @@ function layouts.get(requestedMode: unknown): Layout?
         return layouts.sidebar
     elseif requestedMode == "collapsedSidebar" then
         return collapsedSidebarLayout
-    elseif requestedMode == "top" then
-        return layouts.top
     end
     return nil
 end
@@ -22154,7 +21775,7 @@ end
 return layouts
 
 end)() end,
-    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
+    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local logger = require(script.Parent.log)
 
@@ -22253,7 +21874,7 @@ end
 return locale
 
 end)() end,
-    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
+    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
 local function lockable<T>(element: T): T
     local target = element :: any
 
@@ -22275,7 +21896,7 @@ end
 return lockable
 
 end)() end,
-    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
+    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
 local log = {}
 
 type SuppressPredicate = () -> boolean
@@ -22329,7 +21950,7 @@ end
 return log
 
 end)() end,
-    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
+    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
 -- [[Astra motion service.
 --
 -- Every animation in the library used to build its own TweenInfo and call
@@ -22679,7 +22300,7 @@ end
 return motion
 
 end)() end,
-    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
+    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
 local function moveable<T>(dragState: T): T
     local target = dragState :: any
 
@@ -22715,7 +22336,7 @@ end
 return moveable
 
 end)() end,
-    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
+    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
 local network = {}
 network.__index = network
 
@@ -22733,7 +22354,7 @@ end
 return network
 
 end)() end,
-    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
+    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local motion = require(script.Parent.motion)
 local textService = coreState.textService
@@ -23087,7 +22708,7 @@ end
 return odometer
 
 end)() end,
-    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
+    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
 type OrderedElement = {
     main: GuiObject,
 }
@@ -23099,7 +22720,7 @@ end
 return ordering
 
 end)() end,
-    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
+    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
 local path = {}
 
 function path.join(base: string, suffix: string?): string
@@ -23150,7 +22771,7 @@ end
 return path
 
 end)() end,
-    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
+    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
 local persistence = {}
 
 local configPersistence = require(script.Parent.persistenceConfig)
@@ -23169,7 +22790,7 @@ persistence.loadSettings = settingsPersistence.loadSettings
 return persistence
 
 end)() end,
-    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
+    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local logger = require(script.Parent.log)
@@ -23420,7 +23041,7 @@ end
 return persistenceConfig
 
 end)() end,
-    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
+    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local pathUtil = require(script.Parent.path)
 
@@ -23464,7 +23085,7 @@ end
 return persistencePaths
 
 end)() end,
-    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
+    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local paths = require(script.Parent.persistencePaths)
@@ -23673,8 +23294,7 @@ function persistenceSettings.loadSettings(window: SettingsWindow): (boolean, boo
     if type(decodedSettings.antiWindowDuplicate) == "boolean" then
         window.settings.antiWindowDuplicate = decodedSettings.antiWindowDuplicate
     end
-    if decodedSettings.layoutMode == "top"
-        or decodedSettings.layoutMode == "sidebar"
+    if decodedSettings.layoutMode == "sidebar"
         or decodedSettings.layoutMode == "collapsedSidebar"
     then
         window.settings.layoutMode = decodedSettings.layoutMode
@@ -23700,7 +23320,7 @@ end
 return persistenceSettings
 
 end)() end,
-    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
+    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 
 local persistenceWrite = {}
@@ -23728,7 +23348,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
+    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
 local services = {}
 
 function services.getService(serviceName)
@@ -23739,7 +23359,7 @@ end
 return services
 
 end)() end,
-    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
+    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
 local layoutMetrics = require(script.Parent.layouts)
 local coreState = require(script.Parent.Parent.core.state)
 
@@ -23770,31 +23390,10 @@ local mobileBreakpoint = 700
 -- [[Fixed mobile footprint (per layout mode). Mobile no longer recomputes its]]
 -- [[window from live viewport occupancy: it opens at one stable size, so]]
 -- [[rotation / on-screen keyboard / inset changes never resize the window.]]
--- [[The values are the existing phone-tier result (maxOccupancyX width,]]
--- [[availableHeight / aspect-limited height) evaluated once at a 360x390]]
--- [[reference: 360 is the narrowest mainstream phone width, 390 the short side]]
--- [[of the reference phone scaleForViewport documents. Measuring against the]]
--- [[short side keeps the fixed window inside a phone held in portrait AND in]]
--- [[landscape (no clipping, no recalculation):]]
--- [[   top     -> 360 * 0.88 = 316 wide, 390 - 36 * 2 = 318 tall]]
--- [[   sidebar -> 360 * 0.92 = 331 wide, min(390 * 0.84, 331 / 1.18) = 280 tall]]
 -- [[Desktop/PC keeps the responsive profiles below: 600x420 default target,]]
 -- [[responsive shrink on smaller screens, maxSize caps so large screens stay]]
 -- [[responsive without growing into an oversized window.]]
 local profiles = {
-	top = {
-		defaultSize = Vector2.new(600, 420),
-		minSize = Vector2.new(500, 330),
-		maxSize = Vector2.new(720, 480),
-		mobileSize = Vector2.new(560, 380),
-		maxOccupancyX = 0.88,
-		topbarClearance = 36,
-		marginFloorX = 20,
-		marginFloorY = 20,
-		maxAspectRatio = 2.3,
-		widthCompensation = 80,
-		chromeHeight = layoutMetrics.top.chromeHeight,
-	} :: Profile,
 	sidebar = {
 		defaultSize = Vector2.new(600, 420),
 		minSize = Vector2.new(540, 360),
@@ -23811,10 +23410,7 @@ local profiles = {
 }
 
 function breakpoints.profile(mode: layouts.Mode?): Profile
-	if mode == "sidebar" then
-		return profiles.sidebar
-	end
-	return profiles.top
+	return profiles.sidebar
 end
 
 function breakpoints.pageHeight(totalHeight: number?, modeForHeight: layouts.Mode?): number
@@ -23832,17 +23428,6 @@ local function availableHeight(heightProfile: Profile, viewportHeight: number): 
 		available = math.min(available, viewportHeight * heightProfile.maxOccupancyY)
 	end
 	return available
-end
-
-local function shrinkFactor(current: number, upper: number, lower: number): number
-	return math.clamp((upper - current) / (upper - lower), 0, 1)
-end
-
-local function fitTop(topProfile: Profile, maxWidth: number, requestedHeight: number): UDim2
-	local clampedHeight = math.floor(math.min(math.clamp(requestedHeight, topProfile.minSize.Y, topProfile.defaultSize.Y), requestedHeight))
-	local blend = shrinkFactor(clampedHeight, topProfile.defaultSize.Y, topProfile.minSize.Y)
-	local width = math.max(topProfile.defaultSize.X + (topProfile.widthCompensation :: number) * blend, topProfile.minSize.X)
-	return UDim2.fromOffset(math.floor(math.min(width, maxWidth, clampedHeight * topProfile.maxAspectRatio)), clampedHeight)
 end
 
 local function fitSidebar(sidebarProfile: Profile, requestedWidth: number, requestedSidebarHeight: number): UDim2
@@ -23908,15 +23493,11 @@ local function fitViewport(fitProfile: Profile, fitTarget: Vector2): UDim2
 		availY = math.min(availY, fitProfile.maxSize.Y)
 	end
 	local targetHeight = availY
-	if fitProfile.minAspectRatio then
-		return fitSidebar(fitProfile, targetWidth, targetHeight)
-	end
-	return fitTop(fitProfile, targetWidth, targetHeight)
+	return fitSidebar(fitProfile, targetWidth, targetHeight)
 end
 
 function breakpoints.fit(viewport: Vector2?, modeOrProfile: layouts.Mode?): UDim2
-	-- [[Fix: respect mode (old code always used sidebar)]]
-	local fitProfile = if modeOrProfile == "top" then profiles.top else profiles.sidebar
+	local fitProfile = profiles.sidebar
 	if not viewport or viewport.X < minTrackedViewport or viewport.Y < minTrackedViewport then
 		return UDim2.fromOffset(fitProfile.defaultSize.X, fitProfile.defaultSize.Y)
 	end
@@ -23962,93 +23543,92 @@ local LineOffsets = {
     [14] = 2168,
     [15] = 2889,
     [16] = 5316,
-    [17] = 5663,
-    [18] = 6541,
-    [19] = 6602,
-    [20] = 7017,
-    [22] = 10283,
-    [23] = 10369,
-    [24] = 10680,
-    [25] = 11101,
-    [26] = 11503,
-    [27] = 11673,
-    [28] = 11818,
-    [29] = 13336,
-    [30] = 13555,
-    [31] = 13829,
-    [32] = 13915,
-    [33] = 14502,
-    [34] = 15351,
-    [35] = 15731,
-    [36] = 15861,
-    [37] = 16013,
-    [39] = 16507,
-    [40] = 16530,
-    [41] = 16547,
-    [42] = 16579,
-    [43] = 16701,
-    [44] = 16725,
-    [45] = 16774,
-    [46] = 16482,
-    [47] = 16898,
-    [48] = 17201,
-    [49] = 17232,
-    [50] = 16887,
-    [51] = 17275,
-    [52] = 17295,
-    [53] = 17327,
-    [54] = 17257,
-    [55] = 17434,
-    [56] = 17493,
-    [57] = 17553,
-    [59] = 17697,
-    [60] = 17862,
-    [61] = 17682,
-    [62] = 18440,
-    [63] = 18484,
-    [64] = 18564,
-    [65] = 18757,
-    [66] = 18886,
-    [67] = 18980,
-    [68] = 19147,
-    [69] = 19485,
-    [70] = 17938,
-    [71] = 20119,
-    [72] = 20185,
-    [73] = 20251,
-    [74] = 20326,
-    [75] = 20432,
-    [76] = 20498,
-    [77] = 20573,
-    [78] = 20648,
-    [79] = 20723,
-    [80] = 20798,
-    [81] = 20013,
-    [82] = 20864,
-    [83] = 20962,
-    [84] = 21140,
-    [85] = 21188,
-    [86] = 21218,
-    [87] = 21469,
-    [88] = 21518,
-    [89] = 21971,
-    [90] = 21989,
-    [91] = 22158,
-    [92] = 22257,
-    [93] = 22279,
-    [94] = 22333,
-    [95] = 22683,
-    [96] = 22719,
-    [97] = 22737,
-    [98] = 23091,
-    [99] = 23103,
-    [100] = 23154,
-    [101] = 23173,
-    [102] = 23424,
-    [103] = 23468,
-    [104] = 23704,
-    [105] = 23732,
-    [106] = 23743,
+    [17] = 5643,
+    [18] = 6521,
+    [19] = 6582,
+    [20] = 6924,
+    [22] = 10091,
+    [23] = 10177,
+    [24] = 10488,
+    [25] = 10909,
+    [26] = 11311,
+    [27] = 11481,
+    [28] = 11626,
+    [29] = 13144,
+    [30] = 13363,
+    [31] = 13637,
+    [32] = 13723,
+    [33] = 14310,
+    [34] = 15159,
+    [35] = 15535,
+    [36] = 15665,
+    [37] = 15817,
+    [39] = 16311,
+    [40] = 16334,
+    [41] = 16351,
+    [42] = 16383,
+    [43] = 16505,
+    [44] = 16529,
+    [45] = 16578,
+    [46] = 16286,
+    [47] = 16702,
+    [48] = 17005,
+    [49] = 17036,
+    [50] = 16691,
+    [51] = 17079,
+    [52] = 17099,
+    [53] = 17131,
+    [54] = 17061,
+    [55] = 17238,
+    [56] = 17297,
+    [58] = 17372,
+    [59] = 17537,
+    [60] = 17357,
+    [61] = 18115,
+    [62] = 18159,
+    [63] = 18239,
+    [64] = 18432,
+    [65] = 18561,
+    [66] = 18655,
+    [67] = 18822,
+    [68] = 19160,
+    [69] = 17613,
+    [70] = 19794,
+    [71] = 19860,
+    [72] = 19926,
+    [73] = 20001,
+    [74] = 20107,
+    [75] = 20173,
+    [76] = 20248,
+    [77] = 20323,
+    [78] = 20398,
+    [79] = 20473,
+    [80] = 19688,
+    [81] = 20539,
+    [82] = 20637,
+    [83] = 20815,
+    [84] = 20863,
+    [85] = 20893,
+    [86] = 21144,
+    [87] = 21193,
+    [88] = 21646,
+    [89] = 21664,
+    [90] = 21779,
+    [91] = 21878,
+    [92] = 21900,
+    [93] = 21954,
+    [94] = 22304,
+    [95] = 22340,
+    [96] = 22358,
+    [97] = 22712,
+    [98] = 22724,
+    [99] = 22775,
+    [100] = 22794,
+    [101] = 23045,
+    [102] = 23089,
+    [103] = 23324,
+    [104] = 23352,
+    [105] = 23363,
 }
 
 -- [[Misc AOT variable imports]]
@@ -24448,7 +24028,7 @@ local ObjectTree = {
                 },
             },
             {
-                58,
+                57,
                 1,
                 {
                     "layouts",
@@ -24468,31 +24048,24 @@ local ObjectTree = {
                             "SidebarCollapsed",
                         },
                     },
-                    {
-                        57,
-                        2,
-                        {
-                            "Topbar",
-                        },
-                    },
                 },
             },
             {
-                61,
+                60,
                 2,
                 {
                     "images",
                 },
                 {
                     {
-                        59,
+                        58,
                         2,
                         {
                             "image",
                         },
                     },
                     {
-                        60,
+                        59,
                         2,
                         {
                             "windowIcons",
@@ -24501,63 +24074,63 @@ local ObjectTree = {
                 },
             },
             {
-                70,
+                69,
                 2,
                 {
                     "icons",
                 },
                 {
                     {
-                        62,
+                        61,
                         2,
                         {
                             "feather",
                         },
                     },
                     {
-                        63,
+                        62,
                         2,
                         {
                             "heroicons",
                         },
                     },
                     {
-                        64,
+                        63,
                         2,
                         {
                             "lucide",
                         },
                     },
                     {
-                        65,
+                        64,
                         2,
                         {
                             "material",
                         },
                     },
                     {
-                        66,
+                        65,
                         2,
                         {
                             "packBuilder",
                         },
                     },
                     {
-                        67,
+                        66,
                         2,
                         {
                             "phosphor",
                         },
                     },
                     {
-                        68,
+                        67,
                         2,
                         {
                             "remix",
                         },
                     },
                     {
-                        69,
+                        68,
                         2,
                         {
                             "tabler",
@@ -24566,77 +24139,77 @@ local ObjectTree = {
                 },
             },
             {
-                81,
+                80,
                 2,
                 {
                     "themes",
                 },
                 {
                     {
-                        71,
+                        70,
                         2,
                         {
                             "amethyst",
                         },
                     },
                     {
-                        72,
+                        71,
                         2,
                         {
                             "cobalt",
                         },
                     },
                     {
-                        73,
+                        72,
                         2,
                         {
                             "crimson",
                         },
                     },
                     {
-                        74,
+                        73,
                         2,
                         {
                             "default",
                         },
                     },
                     {
-                        75,
+                        74,
                         2,
                         {
                             "ember",
                         },
                     },
                     {
-                        76,
+                        75,
                         2,
                         {
                             "emerald",
                         },
                     },
                     {
-                        77,
+                        76,
                         2,
                         {
                             "frost",
                         },
                     },
                     {
-                        78,
+                        77,
                         2,
                         {
                             "gold",
                         },
                     },
                     {
-                        79,
+                        78,
                         2,
                         {
                             "onyx",
                         },
                     },
                     {
-                        80,
+                        79,
                         2,
                         {
                             "rose",
@@ -24645,182 +24218,182 @@ local ObjectTree = {
                 },
             },
             {
-                107,
+                106,
                 1,
                 {
                     "utilities",
                 },
                 {
                     {
-                        82,
+                        81,
                         2,
                         {
                             "HapticEngine",
                         },
                     },
                     {
-                        83,
+                        82,
                         2,
                         {
                             "assetResolver",
                         },
                     },
                     {
-                        84,
+                        83,
                         2,
                         {
                             "constants",
                         },
                     },
                     {
-                        85,
+                        84,
                         2,
                         {
                             "enums",
                         },
                     },
                     {
-                        86,
+                        85,
                         2,
                         {
                             "filesystem",
                         },
                     },
                     {
-                        87,
+                        86,
                         2,
                         {
                             "filesystemManager",
                         },
                     },
                     {
-                        88,
+                        87,
                         2,
                         {
                             "fontManager",
                         },
                     },
                     {
-                        89,
+                        88,
                         2,
                         {
                             "functions",
                         },
                     },
                     {
-                        90,
+                        89,
                         2,
                         {
                             "layouts",
                         },
                     },
                     {
-                        91,
+                        90,
                         2,
                         {
                             "locale",
                         },
                     },
                     {
-                        92,
+                        91,
                         2,
                         {
                             "lockable",
                         },
                     },
                     {
-                        93,
+                        92,
                         2,
                         {
                             "log",
                         },
                     },
                     {
-                        94,
+                        93,
                         2,
                         {
                             "motion",
                         },
                     },
                     {
-                        95,
+                        94,
                         2,
                         {
                             "moveable",
                         },
                     },
                     {
-                        96,
+                        95,
                         2,
                         {
                             "network",
                         },
                     },
                     {
-                        97,
+                        96,
                         2,
                         {
                             "odometer",
                         },
                     },
                     {
-                        98,
+                        97,
                         2,
                         {
                             "ordering",
                         },
                     },
                     {
-                        99,
+                        98,
                         2,
                         {
                             "path",
                         },
                     },
                     {
-                        100,
+                        99,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        101,
+                        100,
                         2,
                         {
                             "persistenceConfig",
                         },
                     },
                     {
-                        102,
+                        101,
                         2,
                         {
                             "persistencePaths",
                         },
                     },
                     {
-                        103,
+                        102,
                         2,
                         {
                             "persistenceSettings",
                         },
                     },
                     {
-                        104,
+                        103,
                         2,
                         {
                             "persistenceWrite",
                         },
                     },
                     {
-                        105,
+                        104,
                         2,
                         {
                             "services",
                         },
                     },
                     {
-                        106,
+                        105,
                         2,
                         {
                             "windowSizing",

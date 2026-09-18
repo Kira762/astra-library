@@ -33,6 +33,12 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  // The layout viewport is the device width, so one CSS pixel is one device
+  // pixel on a phone: pinch-zoom and text scaling stay available (nothing
+  // here caps maximumScale), and the dark/light palettes are both declared so
+  // the browser paints form controls and the address bar correctly.
+  width: "device-width",
+  initialScale: 1,
   colorScheme: "dark light",
   themeColor: "#0A0913",
 };
@@ -41,7 +47,7 @@ export const viewport: Viewport = {
  * Applied before paint so the stored theme wins over the dark default and the
  * page never flashes the wrong palette.
  */
-const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("astra-theme");var dark=t?t==="dark":true;var r=document.documentElement;r.classList.toggle("dark",dark);r.classList.toggle("light",!dark);}catch(e){}})();`;
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem("astra-theme");var dark=t?t==="dark":true;var r=document.documentElement;r.classList.toggle("dark",dark);r.classList.toggle("light",!dark);var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content",dark?"#0A0913":"#FBFAFF");}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -50,7 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body className="min-h-screen antialiased">
-        <a href="#content" className="skip-link btn">
+        <a href="#content" className="skip-link btn print:hidden">
           Skip to content
         </a>
         <SiteHeader />

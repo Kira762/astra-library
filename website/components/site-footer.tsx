@@ -4,7 +4,7 @@ import { Icon } from "./icon";
 
 export function SiteFooter() {
   return (
-    <footer className="mt-20 border-t border-line">
+    <footer className="mt-20 border-t border-line print:hidden">
       <div className="mx-auto grid max-w-shell gap-8 px-4 py-12 lg:grid-cols-[1.3fr_1fr_1fr_1fr] lg:px-6">
         <div>
           <p className="font-display text-sm font-semibold">Astra v1</p>

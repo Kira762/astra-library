@@ -216,7 +216,9 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* inline code — quiet unless it is inside a sentence that needs it */
+  /* inline code — quiet unless it is inside a sentence that needs it.
+     Short snippets stay on one line; a long identifier or URL wraps inside
+     its own box instead of pushing the page sideways on a phone. */
   .prose-docs code,
   .icode {
     font-family: theme("fontFamily.mono");
@@ -226,7 +228,15 @@
     border: 1px solid rgb(var(--c-line));
     border-radius: 5px;
     padding: 0.08em 0.34em;
-    white-space: nowrap;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+
+  /* Long links (repository URLs, blob links) must not widen the page. */
+  .prose-docs a,
+  .prose-docs p {
+    overflow-wrap: break-word;
   }
 
   .prose-docs hr {
@@ -347,6 +357,8 @@
   .code-frame pre {
     margin: 0;
     overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
     padding: 0.9rem 1rem 1.1rem;
     font-family: theme("fontFamily.mono");
     font-size: 0.8125rem;
@@ -428,6 +440,61 @@
     color: rgb(var(--c-ink));
   }
 
+  /* ---------- range slider (the live preview's Slider) ----------
+     Styled for Blink, WebKit, Gecko and touch: the visual track is 6px, the
+     element itself is a 24px-tall hit area, and the thumb grows on coarse
+     pointers. The fill colour arrives from the component as --range-fill,
+     because it depends on the current value. */
+  .range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 1.5rem;
+    background: transparent;
+    cursor: pointer;
+    touch-action: pan-y;
+  }
+
+  .range::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 999px;
+    background-image: var(--range-fill, rgb(var(--c-line)));
+  }
+
+  .range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 14px;
+    width: 14px;
+    /* (6px track - 14px thumb) / 2 keeps the thumb centred on the track. */
+    margin-top: -4px;
+    border-radius: 999px;
+    background: #fff;
+    border: 2px solid var(--range-accent, rgb(var(--c-accent)));
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.45);
+  }
+
+  .range::-moz-range-track {
+    height: 6px;
+    border-radius: 999px;
+    background-image: var(--range-fill, rgb(var(--c-line)));
+  }
+
+  .range::-moz-range-thumb {
+    height: 14px;
+    width: 14px;
+    border-radius: 999px;
+    background: #fff;
+    border: 2px solid var(--range-accent, rgb(var(--c-accent)));
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.45);
+  }
+
+  .range:focus-visible {
+    outline: 2px solid rgb(var(--c-accent));
+    outline-offset: 4px;
+    border-radius: 999px;
+  }
+
   /* ---------- starfield backdrop ---------- */
   .starfield::before {
     content: "";
@@ -461,6 +528,181 @@
 
   .skip-link:focus {
     transform: translateY(0);
+  }
+
+  /* Sticky sidebars: as tall as the *visible* viewport, so mobile browsers
+     whose toolbars slide in and out never leave the list hanging off-screen.
+     The vh line is the fallback for engines without dvh. */
+  .sticky-scroll {
+    max-height: calc(100vh - 3.5rem);
+  }
+
+  @supports (height: 100dvh) {
+    .sticky-scroll {
+      max-height: calc(100dvh - 3.5rem);
+    }
+  }
+
+  /* Safari before 18 only knows the prefixed backdrop filter. The translucent
+     background is a fine fallback, this just keeps the frosted look on
+     iPhones and iPads that are still on an older iOS. */
+  .backdrop-blur-sm {
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .backdrop-blur-md {
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Horizontal scrollers (code blocks, wide tables) get their own touch lane
+     so a swipe inside one does not scroll the page behind it. */
+  .scroll-x {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Touch and pointer support
+ *
+ * Phones and tablets get larger hit areas — 44px is the size fingers
+ * actually hit — while mouse users keep the compact controls. Keyboard
+ * focus rings are untouched, and nothing here depends on hover.
+ * ------------------------------------------------------------------ */
+@media (pointer: coarse) {
+  .btn {
+    min-height: 2.75rem;
+    padding-inline: 1rem;
+  }
+
+  .icon-btn {
+    min-height: 2.5rem;
+    min-width: 2.5rem;
+  }
+
+  .range {
+    height: 1.75rem;
+  }
+
+  .range::-webkit-slider-thumb {
+    height: 20px;
+    width: 20px;
+    /* (6px track - 20px thumb) / 2 */
+    margin-top: -7px;
+  }
+
+  .range::-moz-range-thumb {
+    height: 20px;
+    width: 20px;
+  }
+}
+
+/* Hover is a mouse idea. Where there is none, the section link beside a
+   heading stays visible (and tappable) instead of being an invisible target
+   that only appears on hover. */
+@media (hover: none) {
+  .anchor-title a.anchor-link {
+    opacity: 0.55;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Forced colours (Windows high-contrast, some TV and car browsers)
+ *
+ * The UA replaces the palette here, so anything the page conveys with
+ * colour alone or with opacity has to be made explicit again.
+ * ------------------------------------------------------------------ */
+@media (forced-colors: active) {
+  .anchor-title a.anchor-link {
+    opacity: 1;
+  }
+
+  .icon-btn,
+  .btn,
+  .card,
+  .callout,
+  .code-frame,
+  .data-table th,
+  .data-table td {
+    border-color: CanvasText;
+  }
+
+  .range::-webkit-slider-thumb,
+  .range::-moz-range-thumb {
+    background: ButtonText;
+    border-color: CanvasText;
+  }
+
+  .range::-webkit-slider-runnable-track,
+  .range::-moz-range-track {
+    background-image: none;
+    background-color: CanvasText;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Print / save as PDF
+ *
+ * A documentation page is also a thing people print or hand to a PDF.
+ * The dark palette would waste a cartridge and the sticky chrome is
+ * meaningless on paper, so print gets the light tokens and no chrome
+ * (the chrome carries `print:hidden`), plus block-level breaks that do
+ * not split a code sample or a table row in half.
+ * ------------------------------------------------------------------ */
+@media print {
+  :root,
+  .dark {
+    color-scheme: light;
+
+    --c-base: 255 255 255;
+    --c-surface: 255 255 255;
+    --c-raised: 246 244 252;
+    --c-line: 216 214 226;
+    --c-line-strong: 180 176 200;
+    --c-ink: 17 16 28;
+    --c-muted: 60 58 78;
+    --c-subtle: 96 94 116;
+
+    /* The light palette's tones: the dark theme's violet and pastel status
+       colours are too pale for white paper. */
+    --c-accent: 109 63 224;
+    --c-accent-soft: 228 220 253;
+    --c-accent-ink: 255 255 255;
+    --c-gold: 168 118 42;
+    --c-success: 15 157 110;
+    --c-warning: 178 106 18;
+    --c-danger: 194 65 63;
+    --c-info: 30 127 184;
+
+    --star-opacity: 0;
+    --shadow-card: none;
+  }
+
+  .prose-docs {
+    max-width: none;
+  }
+
+  .code-frame,
+  .callout,
+  .card,
+  .data-table tr,
+  figure {
+    break-inside: avoid;
+  }
+
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+
+  /* In the prose only: on paper a bare "read the docs" link is useless. */
+  .prose-docs a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+    color: rgb(var(--c-subtle));
+    overflow-wrap: anywhere;
   }
 }
 

@@ -147,7 +147,12 @@ type Row = [string, string] | [string, string, string];
 export function PropTable({ rows, headers = ["Prop", "Description"] }: { rows: Row[]; headers?: [string, string] }) {
   return (
     <div className="my-4 overflow-hidden rounded-xl border border-line">
-      <div className="overflow-x-auto">
+      <div
+        className="scroll-x"
+        tabIndex={0}
+        role="region"
+        aria-label={`${headers[0]} table`}
+      >
         <table className="data-table">
           <thead>
             <tr>
@@ -186,7 +191,12 @@ export function TypeTable({
 }) {
   return (
     <div className="my-4 overflow-hidden rounded-xl border border-line">
-      <div className="overflow-x-auto">
+      <div
+        className="scroll-x"
+        tabIndex={0}
+        role="region"
+        aria-label={`${headers[0]}, ${headers[1]} and ${headers[2]} table`}
+      >
         <table className="data-table">
           <thead>
             <tr>

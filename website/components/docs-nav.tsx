@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   NAV,
   SIDEBAR_LINKS,
@@ -10,6 +10,8 @@ import {
   neighbours,
   normalizePath,
 } from "@/lib/docs";
+import { useFocusTrap } from "@/lib/focus-trap";
+import { lockScroll } from "@/lib/scroll-lock";
 import { Icon } from "./icon";
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
@@ -29,7 +31,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
                     href={page.href}
                     onClick={onNavigate}
                     aria-current={current ? "page" : undefined}
-                    className={`-ml-px block border-l py-1.5 pl-3 pr-2 text-sm transition-colors ${
+                    className={`-ml-px block border-l py-2 pl-3 pr-2 text-sm transition-colors ${
                       current
                         ? "border-accent font-medium text-accent"
                         : "border-transparent text-muted hover:border-line-strong hover:text-ink"
@@ -53,7 +55,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
                 href={link.href}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted transition-colors hover:text-ink"
+                className="flex items-center gap-1.5 px-3 py-2 text-sm text-muted transition-colors hover:text-ink"
               >
                 {link.label}
                 <Icon name="external" className="h-3 w-3 text-subtle" />
@@ -70,23 +72,43 @@ export function DocsSidebar() {
   const pathname = normalizePath(usePathname() ?? "/");
   const [open, setOpen] = useState(false);
   const page = findPage(pathname);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(drawerRef, open);
 
   useEffect(() => setOpen(false), [pathname]);
 
   useEffect(() => {
     if (!open) return;
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      // Send focus back to the control that opened the drawer.
+      triggerRef.current?.focus();
     }
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // A phone must not scroll the article behind the drawer.
+    const release = lockScroll();
+    closeRef.current?.focus();
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      release();
+    };
   }, [open]);
+
+  function dismiss() {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }
 
   return (
     <>
       {/* Narrow screens: a sticky bar that opens the full nav as a drawer. */}
-      <div className="sticky top-14 z-40 -mx-4 mb-2 border-b border-line bg-base/90 px-4 py-2 backdrop-blur lg:hidden">
+      <div className="sticky top-14 z-40 -mx-4 mb-2 border-b border-line bg-base/90 px-4 py-2 backdrop-blur lg:hidden print:hidden">
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setOpen(true)}
           className="btn w-full justify-between"
@@ -105,16 +127,23 @@ export function DocsSidebar() {
         <div className="fixed inset-0 z-[65] lg:hidden" role="dialog" aria-modal="true" aria-label="Documentation menu">
           <div
             className="absolute inset-0 bg-base/80 backdrop-blur-sm"
-            onClick={() => setOpen(false)}
+            onClick={dismiss}
             aria-hidden
           />
           <div
             id="docs-drawer"
-            className="absolute inset-y-0 left-0 w-[86%] max-w-sm overflow-y-auto overscroll-contain border-r border-line bg-base px-4 py-4"
+            ref={drawerRef}
+            className="absolute inset-y-0 left-0 w-[92%] max-w-sm overflow-y-auto overscroll-contain border-r border-line bg-base px-4 py-4 sm:w-[86%]"
           >
             <div className="mb-4 flex items-center justify-between">
               <span className="font-display text-sm font-semibold">Documentation</span>
-              <button type="button" onClick={() => setOpen(false)} className="icon-btn" aria-label="Close menu">
+              <button
+                ref={closeRef}
+                type="button"
+                onClick={dismiss}
+                className="icon-btn"
+                aria-label="Close documentation menu"
+              >
                 <Icon name="close" className="h-4 w-4" />
               </button>
             </div>
@@ -124,8 +153,8 @@ export function DocsSidebar() {
       ) : null}
 
       {/* Wide screens: the nav sits beside the article. */}
-      <aside className="hidden w-[248px] shrink-0 lg:block">
-        <div className="sticky top-14 max-h-[calc(100vh-3.5rem)] overflow-y-auto py-8 pr-4">
+      <aside className="hidden w-[248px] shrink-0 print:hidden lg:block">
+        <div className="sticky-scroll sticky top-14 overflow-y-auto py-8 pr-4">
           <NavList />
         </div>
       </aside>
@@ -170,8 +199,8 @@ export function DocsToc() {
   if (!page || page.toc.length === 0) return null;
 
   return (
-    <aside className="hidden w-[200px] shrink-0 xl:block">
-      <div className="sticky top-14 max-h-[calc(100vh-3.5rem)] overflow-y-auto py-8 pl-2">
+    <aside className="hidden w-[200px] shrink-0 print:hidden xl:block">
+      <div className="sticky-scroll sticky top-14 overflow-y-auto py-8 pl-2">
         <p className="pb-2 font-display text-xs font-semibold text-subtle">On this page</p>
         <ul className="grid gap-0.5">
           {page.toc.map((item) => (
@@ -202,7 +231,7 @@ export function DocsPager() {
   if (!prev && !next) return null;
 
   return (
-    <nav aria-label="Pagination" className="mt-14 grid gap-3 border-t border-line pt-6 sm:grid-cols-2">
+    <nav aria-label="Pagination" className="mt-14 grid gap-3 border-t border-line pt-6 sm:grid-cols-2 print:hidden">
       {prev ? (
         <Link href={prev.href} className="card-link group">
           <span className="flex items-center gap-2 text-2xs text-subtle">

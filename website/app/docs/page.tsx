@@ -73,7 +73,7 @@ export default function Introduction() {
         </p>
       </div>
       <div className="my-4 overflow-hidden rounded-xl border border-line">
-        <div className="overflow-x-auto">
+        <div className="scroll-x" tabIndex={0} role="region" aria-label="What ships in the box">
           <table className="data-table">
             <thead>
               <tr>

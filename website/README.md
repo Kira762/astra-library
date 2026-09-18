@@ -1,67 +1,75 @@
-# Website
+# Astra Website
 
-This folder is the Vercel deploy root. Everything outside it (`/components`, `/elements`, `*.luau`, `/skills`, etc.) is the Luau library and is automatically ignored by Vercel.
+This folder is the **Vercel deploy root**. Everything outside it (`/components`, `/elements`, `*.luau`, `/skills`, etc.) is the Luau library and is automatically ignored when Vercel's **Root Directory** is set to `website`.
 
-## Vercel Setup (do this once)
+> ✅ **Best option (already configured): Root Directory = `website`** — Vercel only uploads & builds this folder. No Luau is ever deployed, and builds are skipped when only library files changed.
 
-### 1. Set Root Directory (recommended)
+## Vercel Setup (do once)
 
-Vercel Dashboard → Your Project → **Settings → General → Root Directory → `website`** → Save
+1. **Vercel Dashboard → Your Project → Settings → General → Root Directory → `website`** → Save
+2. Redeploy. That's it.
 
-Vercel will then only upload & build this folder. No extra config needed - the Luau source is outside the root so it's never deployed.
+How it works:
 
-> The `vercel.json` in this folder contains `ignoreCommand` to skip builds when only library files changed outside `website/`.
-> The root `vercel.json` and `.vercelignore` are fallbacks if you deploy from repo root without Root Directory.
+- `website/vercel.json` → `"ignoreCommand": "git diff --quiet HEAD^ HEAD -- ./"` — skips the build if `website/` didn't change (library-only commits don't redeploy).
+- Root `vercel.json` (`git diff --quiet HEAD^ HEAD -- ./website/`) and root `.vercelignore` are fallbacks if you deploy from repo root without Root Directory.
 
-### 2. Create your site in this folder
+## This scaffold — Next.js (recommended for Vercel)
 
-Pick a framework and scaffold inside `website/`:
+This is a minimal Next.js 15 + Tailwind site (App Router). Replace `app/page.tsx` with your real design.
 
 ```bash
-# Next.js (recommended)
 cd website
-npx create-next-app@latest . --typescript --tailwind --eslint --app --no-src-dir --import-alias "@/*"
-
-# or Vite
-npm create vite@latest . -- --template react-ts
-
-# or Astro
-npm create astro@latest . -- --template minimal
+npm install
+npm run dev    # http://localhost:3000
+npm run build  # production build
 ```
 
-Then `git add` and push - Vercel will build only `website/`.
-
-### 3. Framework-specific `vercel.json` (optional)
-
-If you need to customize build output, edit `website/vercel.json`. Example for Vite:
-
-```json
-{
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- ./",
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "framework": "vite"
-}
-```
-
-For Next.js you don't need `buildCommand`/`outputDirectory` - Vercel auto-detects it.
-
-## How the ignore works
-
-- **With Root Directory = `website`**: `website/vercel.json` → `git diff --quiet HEAD^ HEAD -- ./` skips the build if nothing in `website/` changed. Library changes (`components/`, `version-1.luau`, etc.) don't trigger a deploy.
-
-- **Without Root Directory** (fallback): root `vercel.json` → `git diff --quiet HEAD^ HEAD -- ./website/` does the same, and root `.vercelignore` prevents Luau files from being uploaded.
-
-## Structure
+### Structure
 
 ```
-/website/          <- Vercel Root Directory (your site lives here)
-  vercel.json      <- ignoreCommand for monorepo
-  package.json     <- your site's deps
-  next.config.js / vite.config.ts / astro.config.mjs
-  src/ / app/ / pages/
-/components/       <- Luau library (ignored by Vercel via Root Directory)
+website/
+  app/
+    layout.tsx   # metadata + globals
+    page.tsx     # landing page (replace with your design)
+    globals.css  # tailwind directives
+  vercel.json    # ignoreCommand for monorepo
+  package.json   # next, react, tailwind
+  tailwind.config.ts
+  next.config.mjs
+```
+
+### If you prefer Vite or Astro
+
+You can replace this scaffold. Examples (run inside `website/`):
+
+```bash
+# Vite
+rm -rf app package.json && npm create vite@latest . -- --template react-ts
+# then update website/vercel.json:
+# { "ignoreCommand": "git diff --quiet HEAD^ HEAD -- ./", "buildCommand": "npm run build", "outputDirectory": "dist", "framework": "vite" }
+
+# Astro
+rm -rf app package.json && npm create astro@latest . -- --template minimal
+```
+
+For Next.js you don't need `buildCommand`/`outputDirectory` — Vercel auto-detects it.
+
+## Monorepo layout reminder
+
+```
+/website/          <- Vercel Root Directory (this Next.js app)
+  app/  package.json  vercel.json
+/components/       <- Luau library (ignored via Root Directory)
 /elements/
 version-1.luau
 skills/
 ```
+
+Edits to Luau files won't trigger a website deploy when ignoreCommand is active.
+
+## Alternatives already configured
+
+- **Option 2: `.vercelignore` at repo root** — if you deploy from root *without* Root Directory, it excludes `components/`, `elements/`, `*.luau`, etc. and keeps `!website/`. You don't need it when using Root Directory, but it's kept as safety net.
+
+- **Option 3: `vercel.json` build config from root** — e.g. `{ "buildCommand": "cd website && npm run build", "outputDirectory": "website/dist" }`. Prefer Root Directory instead; only use this if you must deploy from repo root.

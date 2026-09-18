@@ -12,9 +12,6 @@ out/
 build
 dist
 
-# vite / astro
-# dist is already above
-
 # env
 .env
 .env.local
@@ -28,3 +25,4 @@ dist
 # misc
 .DS_Store
 *.tsbuildinfo
+next-env.d.ts

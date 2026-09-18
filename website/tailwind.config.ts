@@ -1,28 +1,52 @@
 import type { Config } from "tailwindcss";
 
+/** Colours resolve to the CSS channel variables in app/globals.css. */
+const token = (name: string) => `rgb(var(--c-${name}) / <alpha-value>)`;
+
 export default {
+  // The theme toggle puts `.dark` or `.light` on <html>, so the variant follows the class.
+  darkMode: "class",
   content: [
-    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./lib/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {
       colors: {
-        astra: {
-          50: "#f5f3ff",
-          100: "#ede9fe",
-          200: "#ddd6fe",
-          300: "#c4b5fd",
-          400: "#a78bfa",
-          500: "#8b5cf6",
-          600: "#7c3aed",
-          700: "#6d28d9",
-          900: "#4c1d95",
+        base: token("base"),
+        surface: token("surface"),
+        raised: token("raised"),
+        line: token("line"),
+        "line-strong": token("line-strong"),
+        ink: token("ink"),
+        muted: token("muted"),
+        subtle: token("subtle"),
+        accent: {
+          DEFAULT: token("accent"),
+          soft: token("accent-soft"),
+          ink: token("accent-ink"),
         },
+        gold: token("gold"),
+        success: token("success"),
+        warning: token("warning"),
+        danger: token("danger"),
+        info: token("info"),
       },
       fontFamily: {
-        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "monospace"],
+        display: ['"Archivo Variable"', "Archivo", "system-ui", "sans-serif"],
+        sans: ['"Instrument Sans Variable"', '"Instrument Sans"', "system-ui", "sans-serif"],
+        mono: ['"JetBrains Mono Variable"', "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+      },
+      fontSize: {
+        "2xs": ["0.6875rem", { lineHeight: "1.05rem" }],
+      },
+      maxWidth: {
+        shell: "1500px",
+        prose: "72ch",
+      },
+      transitionTimingFunction: {
+        out: "cubic-bezier(0.22, 1, 0.36, 1)",
       },
     },
   },

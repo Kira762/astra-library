@@ -20,6 +20,7 @@ scripts load).
 | `icons/` | Seven icon packs, `packBuilder`, custom-asset resolution. |
 | `scripts/` | Build, syntax gate, static checkers and runtime tests. |
 | `skills/astra/` | The Agent Skill published to skills.sh (this folder). |
+| `website/` | The docs site: Next.js static export → GitHub Pages. Its navigation, on-page contents, search index and `sitemap.xml` all derive from `website/lib/docs.ts`; adding a page means adding it to `NAV` there. Never part of the Rojo tree or the bundle. |
 | `default.project.json`, `wax.project.json` | Rojo / Wax project mapping for Studio. |
 
 Function bodies in the tree are minified (locals renamed `a1`, `a2`, …); top-level

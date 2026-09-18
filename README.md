@@ -77,11 +77,17 @@ skills/astra/
 | [assets/icons/README.md](assets/icons/README.md) | Visual icon catalog with copyable names across all seven packs. |
 | [example.client.luau](example.client.luau) | End-to-end example that builds every element type in one tab. |
 | [changelog.example.luau](changelog.example.luau) | Host-side changelog data file consumed by the Changelog element. |
-| [website/](website/README.md) | The interactive version of USAGE.md, published to GitHub Pages. |
+| [website/](website/README.md) | The docs site: multi-page guide, search, live window preview, published to GitHub Pages. |
 
 ## Docs website (GitHub Pages)
 
 The usage guide is also a static site: <https://kira762.github.io/astra-version-1/>
+
+It is a multi-page docs site — sidebar navigation, ⌘K search over every page and
+heading, on-page contents, copy buttons on code blocks, and a landing page whose
+hero is an interactive rebuild of an Astra window (the theme chips use the ten
+built-in themes' real accent colours). One tree in `website/lib/docs.ts` drives the
+sidebar, the search index, the previous/next pager and `sitemap.xml`.
 
 It is a Next.js app in `website/` that exports to `website/out/`, published by
 [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml) on every
@@ -145,4 +151,8 @@ refreshed with `npx skills update`:
 | `skill-creator` | [anthropics/skills](https://github.com/anthropics/skills) | Authoring and refining the `astra` skill itself. |
 | `diagnosing-bugs` | [mattpocock/skills](https://github.com/mattpocock/skills) | Reproduce-then-fix discipline for the bug entries in the changelog. |
 | `codebase-design` | [mattpocock/skills](https://github.com/mattpocock/skills) | Architecture decisions across the modular tree. |
+| `web-design-guidelines` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | Reviewing the docs site against web interface guidelines — accessibility, focus states, motion, copy. |
+| `vercel-react-best-practices` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | React and Next.js performance patterns for `website/`. |
+| `writing-guidelines` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | Prose quality for the usage guide and the docs pages. |
+| `doc-coauthoring` | [anthropics/skills](https://github.com/anthropics/skills) | A structured workflow for writing and revising long-form docs such as USAGE.md. |
 | `find-skills` | [vercel-labs/skills](https://github.com/vercel-labs/skills) | Discovering more skills when a task needs one. |

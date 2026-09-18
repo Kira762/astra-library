@@ -1,0 +1,14 @@
+# Root deps (none expected)
+node_modules/
+
+# Local Next build caches (source of truth is website/)
+website/node_modules/
+website/.next/
+website/out/
+
+# Keep committed static snapshot for zero-build Vercel fallback
+# public/ is intentionally tracked
+
+.DS_Store
+*.tsbuildinfo
+.vercel

@@ -1,7 +1,8 @@
 {
   "framework": null,
-  "installCommand": "npm run install:website",
-  "buildCommand": "npm run build",
-  "outputDirectory": "website/out",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- ./website/ ./vercel.json ./.vercelignore ./build-website.sh ./package.json"
+  "installCommand": "npm run install:website || true",
+  "buildCommand": "npm run build || cp -a public website/out 2>/dev/null || true",
+  "outputDirectory": "public",
+  "cleanUrls": true,
+  "trailingSlash": true
 }

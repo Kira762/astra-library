@@ -1,4 +1,3 @@
 {
-  "$comment": "Option 1: Monorepo - Vercel Root Directory = website (recommended). This ignoreCommand skips builds when only Luau library files changed. If you use Root Directory, Vercel reads website/vercel.json instead - this file is for builds from repo root.",
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- ./website/"
 }

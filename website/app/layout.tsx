@@ -33,9 +33,12 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Let the page extend under the status bar / notch; components pad
+  // themselves with env(safe-area-inset-*) where content must stay clear.
+  viewportFit: "cover",
   colorScheme: "dark light",
-  // One browser-chrome colour per scheme so the address bar matches whichever
-  // palette the device is showing.
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#0A0913" },
     { media: "(prefers-color-scheme: light)", color: "#FBFAFF" },
@@ -56,8 +59,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
-        {/* Next only emits the PNG favicon; offer the vector mark to browsers
-            that understand SVG favicons, ahead of the raster fallback. */}
+        {/* Next only emits the raster favicon; offer the vector mark ahead of
+            it to browsers that understand SVG favicons. */}
         <link rel="icon" type="image/svg+xml" href={`${basePath}/icon.svg`} />
       </head>
       <body className="min-h-screen antialiased">

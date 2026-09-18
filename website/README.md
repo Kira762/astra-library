@@ -1,18 +1,24 @@
 # Astra Website
 
-This folder is the **Vercel deploy root**. Everything outside it (`/components`, `/elements`, `*.luau`, `/skills`, etc.) is the Luau library and is automatically ignored when Vercel's **Root Directory** is set to `website`.
+This folder is the Next.js docs site. The Luau library lives outside it and is never part of the web build.
 
-> ✅ **Best option (already configured): Root Directory = `website`** — Vercel only uploads & builds this folder. No Luau is ever deployed, and builds are skipped when only library files changed.
+## How Vercel deploys (no dashboard setup required)
 
-## Vercel Setup (do once)
+Root `vercel.json` builds this folder from the **repo root**:
 
-1. **Vercel Dashboard → Your Project → Settings → General → Root Directory → `website`** → Save
-2. Redeploy. That's it.
+```json
+{
+  "installCommand": "cd website && npm ci",
+  "buildCommand": "cd website && npm run build",
+  "outputDirectory": "website/out"
+}
+```
 
-How it works:
+`next.config.mjs` uses `output: "export"` so the build emits static HTML into `website/out/`. That works whether or not Dashboard → Root Directory is set.
 
-- `website/vercel.json` → `"ignoreCommand": "git diff --quiet HEAD^ HEAD -- ./"` — skips the build if `website/` didn't change (library-only commits don't redeploy).
-- Root `vercel.json` (`git diff --quiet HEAD^ HEAD -- ./website/`) and root `.vercelignore` are fallbacks if you deploy from repo root without Root Directory.
+Optional (slightly faster uploads): Dashboard → Settings → General → Root Directory → `website`. Then `website/vercel.json` takes over (`outputDirectory: "out"`).
+
+`ignoreCommand` skips redeploys when only Luau/library files change.
 
 ## This scaffold — Next.js (recommended for Vercel)
 

@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Astra Usage Guide — Load, Build Windows, Elements, Themes, Icons",
   description:
-    "Complete Astra v1 Luau usage guide: loader, CreateWindow, tabs, groups, every element (Button/Toggle/Slider/Dropdown/Input/Stat/Changelog), saving, themes, 7 icon packs, motion, localisation and startup performance. Monorepo-safe with Vercel Root Directory = website.",
+    "Complete Astra v1 Luau usage guide: loader, CreateWindow, tabs, groups, every element (Button/Toggle/Slider/Dropdown/Input/Stat/Changelog), saving, themes, 7 icon packs, motion, localisation and startup performance. Monorepo-safe static site deployed from website/.",
   openGraph: {
     title: "Astra v1 — Usage Guide",
     description:

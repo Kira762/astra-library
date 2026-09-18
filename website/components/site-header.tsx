@@ -37,8 +37,19 @@ function ThemeToggle() {
   function toggle() {
     const root = document.documentElement;
     const nextDark = !root.classList.contains("dark");
+
+    /* A theme flip rewrites colour, border and shadow on nearly every element
+       at once. With transitions live they all fire together and the page
+       cross-fades into the new palette instead of snapping to it; `.theme-swap`
+       mutes them for the frame the swap is painted in. */
+    root.classList.add("theme-swap");
     root.classList.toggle("dark", nextDark);
     root.classList.toggle("light", !nextDark);
+    void root.offsetHeight; // force a reflow so the swap paints untransitioned
+    window.requestAnimationFrame(() =>
+      window.requestAnimationFrame(() => root.classList.remove("theme-swap")),
+    );
+
     try {
       window.localStorage.setItem("astra-theme", nextDark ? "dark" : "light");
     } catch {
@@ -92,8 +103,8 @@ export function SiteHeader() {
   }, [menuOpen]);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-base/85 backdrop-blur-md print:hidden">
-      <div className="mx-auto flex h-14 max-w-shell items-center gap-2 px-3 sm:px-4 lg:gap-3 lg:px-6">
+    <header className="sticky top-0 z-50 border-b border-line bg-base/80 backdrop-blur-md print:hidden">
+      <div className="mx-auto flex h-16 max-w-shell items-center gap-2 px-3 sm:px-4 lg:gap-3 lg:px-6">
         <Link
           href="/"
           className="flex min-w-0 items-center gap-2.5"
@@ -103,7 +114,7 @@ export function SiteHeader() {
           <span className="flex items-baseline gap-1.5">
             <span className="font-display text-[0.95rem] font-semibold tracking-tight">Astra</span>
             {/* The version chip is decoration; below 360px the logo needs the room. */}
-            <span className="hidden rounded-full border border-line px-1.5 py-px text-2xs text-subtle min-[360px]:inline">
+            <span className="hidden rounded-full border border-line px-1.5 py-px text-2xs leading-none text-subtle min-[360px]:inline">
               v1
             </span>
           </span>

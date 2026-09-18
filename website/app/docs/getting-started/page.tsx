@@ -23,7 +23,7 @@ export default function GettingStarted() {
         }
       />
 
-      <h2 id="load" className="anchor-title text-2xl font-semibold tracking-tight">
+      <h2 id="load" className="anchor-title text-2xl">
         Load the library
       </h2>
       <div className="prose-docs mt-3">
@@ -60,7 +60,7 @@ export default function GettingStarted() {
 local Astra = require(game:GetService("ReplicatedStorage").Astra)`}
       />
 
-      <h2 id="failed-load" className="anchor-title mt-12 text-2xl font-semibold tracking-tight">
+      <h2 id="failed-load" className="anchor-title mt-14 text-2xl">
         When the loader fails
       </h2>
       <div className="prose-docs mt-3">
@@ -111,7 +111,7 @@ Stack End`}
         </p>
       </Callout>
 
-      <h2 id="first-window" className="anchor-title mt-12 text-2xl font-semibold tracking-tight">
+      <h2 id="first-window" className="anchor-title mt-14 text-2xl">
         Your first window
       </h2>
       <div className="prose-docs mt-3">
@@ -160,7 +160,7 @@ tab:CreateToggle({
         </p>
       </Callout>
 
-      <h2 id="next" className="anchor-title mt-12 text-2xl font-semibold tracking-tight">
+      <h2 id="next" className="anchor-title mt-14 text-2xl">
         Where to go next
       </h2>
       <NextLinks

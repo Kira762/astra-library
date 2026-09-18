@@ -161,7 +161,7 @@ export function Icon({ name, label, ...props }: IconProps) {
       height="1em"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.75}
+      strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden={label ? undefined : true}

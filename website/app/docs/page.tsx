@@ -29,7 +29,7 @@ export default function Introduction() {
         ))}
       />
 
-      <h2 id="what-it-is" className="anchor-title text-2xl font-semibold tracking-tight">
+      <h2 id="what-it-is" className="anchor-title text-2xl">
         What Astra is
       </h2>
       <div className="prose-docs mt-3">

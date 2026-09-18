@@ -1,0 +1,10 @@
+{
+  "name": "astra-version-1",
+  "private": true,
+  "description": "Monorepo root — website lives in ./website (Next.js static export)",
+  "scripts": {
+    "install:website": "npm ci --prefix website",
+    "build": "npm run build --prefix website",
+    "build:website": "./build-website.sh"
+  }
+}

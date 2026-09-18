@@ -11,7 +11,7 @@ export const metadata = docsMetadata({
 
 export default function GettingStarted() {
   return (
-    <>
+    <div className="min-w-0 w-full max-w-full">
       <PageHeader
         title="Getting started"
         description="Load the bundle and build your first window in a few lines."
@@ -23,15 +23,15 @@ export default function GettingStarted() {
         }
       />
 
-      <h2 id="load" className="anchor-title text-2xl font-semibold tracking-tight">
+      <h2 id="load" className="anchor-title min-w-0 text-2xl font-semibold tracking-tight">
         Load the library
       </h2>
-      <div className="prose-docs mt-3">
+      <div className="prose-docs mt-3 min-w-0">
         <p>One loader, one line — this is what example.client.luau does:</p>
       </div>
       <CommandLine command={LOADER_LINE} caption="loader line" />
 
-      <div className="my-5 grid gap-3 sm:grid-cols-3">
+      <div className="my-5 grid min-w-0 gap-3 sm:grid-cols-3">
         {[
           [
             "The URL is the raw bundle",
@@ -46,9 +46,9 @@ export default function GettingStarted() {
             "loadstring(text) only compiles, it returns the chunk. Calling it runs Astra and hands back the module table. Without the call you get a function, and every later Astra:CreateWindow fails.",
           ],
         ].map(([title, body]) => (
-          <div key={title} className="card p-4">
-            <h3 className="font-display text-sm font-semibold text-ink">{title}</h3>
-            <p className="mt-2 text-sm leading-6 text-muted">{body}</p>
+          <div key={title} className="card min-w-0 p-4">
+            <h3 className="min-w-0 font-display text-sm font-semibold text-ink">{title}</h3>
+            <p className="mt-2 min-w-0 text-sm leading-6 text-muted">{body}</p>
           </div>
         ))}
       </div>
@@ -60,10 +60,10 @@ export default function GettingStarted() {
 local Astra = require(game:GetService("ReplicatedStorage").Astra)`}
       />
 
-      <h2 id="failed-load" className="anchor-title mt-12 text-2xl font-semibold tracking-tight">
+      <h2 id="failed-load" className="anchor-title mt-12 min-w-0 text-2xl font-semibold tracking-tight">
         When the loader fails
       </h2>
-      <div className="prose-docs mt-3">
+      <div className="prose-docs mt-3 min-w-0">
         <p>
           <C>loadstring</C> does not throw when the text will not compile — it returns{" "}
           <C>nil</C> plus the error. The one-liner therefore reports nothing more useful than this:
@@ -77,20 +77,20 @@ Stack Begin
 Script 'LocalScript', Line 1
 Stack End`}
       />
-      <div className="prose-docs">
+      <div className="prose-docs min-w-0">
         <p>
           Read that as “the text I fetched never compiled”. The random name is the executor&apos;s
           chunk and <C>Line 1</C> is the line holding the call; nothing here is a bug inside Astra.
           Check in order:
         </p>
         <ol>
-          <li>
+          <li className="min-w-0">
             <strong>The fetch returned something that is not Luau.</strong> A private repository, a
             wrong branch or file name, or a rate limit hands back an HTML error page, which never
             compiles. One line settles it:{" "}
             <C>print(game:HttpGet(url):sub(1, 120))</C>.
           </li>
-          <li>
+          <li className="min-w-0">
             <strong>The source really has a syntax error.</strong> Published files are compile-checked
             with <C>scripts/check_syntax.sh</C>; run it after editing anything in the tree, then{" "}
             <C>node scripts/generate_bundle.js</C>.
@@ -111,10 +111,10 @@ Stack End`}
         </p>
       </Callout>
 
-      <h2 id="first-window" className="anchor-title mt-12 text-2xl font-semibold tracking-tight">
+      <h2 id="first-window" className="anchor-title mt-12 min-w-0 text-2xl font-semibold tracking-tight">
         Your first window
       </h2>
-      <div className="prose-docs mt-3">
+      <div className="prose-docs mt-3 min-w-0">
         <p>
           A window is the entry point. Create one, add a tab, and fill it with elements. The first
           visible tab opens on its own, so there is nothing else to wire up.
@@ -144,7 +144,7 @@ tab:CreateToggle({
 })`}
       />
 
-      <div className="prose-docs">
+      <div className="prose-docs min-w-0">
         <p>
           Layout is not a constructor prop — the window ships all three and the player picks one in{" "}
           <strong>Settings → Appearance → Bar Layout</strong>. That is also where themes, persistence
@@ -160,7 +160,7 @@ tab:CreateToggle({
         </p>
       </Callout>
 
-      <h2 id="next" className="anchor-title mt-12 text-2xl font-semibold tracking-tight">
+      <h2 id="next" className="anchor-title mt-12 min-w-0 text-2xl font-semibold tracking-tight">
         Where to go next
       </h2>
       <NextLinks
@@ -173,7 +173,7 @@ tab:CreateToggle({
       />
 
       <Callout type="note" title="The bundle URL">
-        <p>
+        <p className="min-w-0">
           <a
             href={BUNDLE_URL}
             target="_blank"
@@ -184,6 +184,6 @@ tab:CreateToggle({
           </a>
         </p>
       </Callout>
-    </>
+    </div>
   );
 }

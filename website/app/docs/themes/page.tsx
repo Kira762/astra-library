@@ -38,9 +38,9 @@ export default function Themes() {
           colours — and each one is a module in <C>themes/</C> if you want to read the values.
         </p>
       </div>
-      <div className="my-4 grid gap-2 sm:grid-cols-2">
+      <div className="my-4 grid min-w-0 gap-2 sm:grid-cols-2">
         {THEMES.map(([name, rgb, hex]) => (
-          <div key={name} className="card flex items-center gap-3 px-3 py-2.5">
+          <div key={name} className="card flex min-w-0 items-center gap-3 px-3 py-2.5">
             <span
               aria-hidden
               className="h-6 w-6 shrink-0 rounded-full border border-line"

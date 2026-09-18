@@ -28,11 +28,11 @@ export function CodeBlock({ code, tabs, title, lang = "Luau", className = "" }: 
   const hasTabs = variants.length > 1;
 
   return (
-    <figure className={`code-frame my-4 ${className}`}>
-      <figcaption className="flex items-center justify-between gap-3 border-b border-line bg-raised/50 px-3 py-1.5">
-        <div className="flex min-w-0 items-center gap-2">
+    <figure className={`code-frame my-4 w-full min-w-0 max-w-full ${className}`}>
+      <figcaption className="flex min-w-0 items-center justify-between gap-2 border-b border-line bg-raised/50 px-3 py-1.5">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           {hasTabs ? (
-            <div role="tablist" aria-label={title ?? "Code variants"} className="flex items-center gap-1">
+            <div role="tablist" aria-label={title ?? "Code variants"} className="flex min-w-0 items-center gap-1 overflow-x-auto">
               {variants.map((variant, index) => (
                 <button
                   key={variant.label}
@@ -53,7 +53,7 @@ export function CodeBlock({ code, tabs, title, lang = "Luau", className = "" }: 
                     setActive(next);
                     document.getElementById(`${panelId}-tab-${next}`)?.focus();
                   }}
-                  className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                  className={`shrink-0 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
                     index === active
                       ? "bg-accent/15 text-accent"
                       : "text-subtle hover:bg-raised hover:text-ink"
@@ -64,15 +64,17 @@ export function CodeBlock({ code, tabs, title, lang = "Luau", className = "" }: 
               ))}
             </div>
           ) : (
-            <span className="truncate font-mono text-2xs text-subtle">{title ?? lang}</span>
+            <span className="min-w-0 flex-1 truncate font-mono text-2xs text-subtle">{title ?? lang}</span>
           )}
           {hasTabs && title ? (
-            <span className="hidden truncate font-mono text-2xs text-subtle sm:inline">{title}</span>
+            <span className="hidden min-w-0 truncate font-mono text-2xs text-subtle sm:inline">{title}</span>
           ) : null}
         </div>
-        <CopyButton text={current.code} />
+        <div className="shrink-0">
+          <CopyButton text={current.code} />
+        </div>
       </figcaption>
-      <pre id={panelId} role={hasTabs ? "tabpanel" : undefined} tabIndex={0}>
+      <pre id={panelId} role={hasTabs ? "tabpanel" : undefined} tabIndex={0} className="w-full min-w-0 max-w-full">
         <code className="font-mono whitespace-pre">{current.code}</code>
       </pre>
     </figure>
@@ -82,15 +84,17 @@ export function CodeBlock({ code, tabs, title, lang = "Luau", className = "" }: 
 /** One-line command strip for install instructions. */
 export function CommandLine({ command, caption }: { command: string; caption?: string }) {
   return (
-    <div className="code-frame my-4">
-      <div className="flex items-center gap-3 px-3 py-2.5">
-        <span aria-hidden className="select-none font-mono text-sm text-accent">
+    <div className="code-frame my-4 w-full min-w-0 max-w-full">
+      <div className="flex min-w-0 items-center gap-2 px-3 py-2.5 sm:gap-3">
+        <span aria-hidden className="shrink-0 select-none font-mono text-sm text-accent">
           $
         </span>
-        <code className="flex-1 overflow-x-auto whitespace-pre font-mono text-sm text-ink/90">
+        <code className="command-line-code min-w-0 flex-1 font-mono text-[0.8125rem] text-ink/90 sm:text-sm">
           {command}
         </code>
-        <CopyButton text={command} label={`Copy ${caption ?? "command"}`} />
+        <div className="shrink-0">
+          <CopyButton text={command} label={`Copy ${caption ?? "command"}`} />
+        </div>
       </div>
     </div>
   );

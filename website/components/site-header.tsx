@@ -19,7 +19,7 @@ function AstraMark() {
   return (
     <span
       aria-hidden
-      className="grid h-8 w-8 place-items-center rounded-[10px] border border-accent/40 bg-accent/15 text-accent"
+      className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] border border-accent/40 bg-accent/15 text-accent"
     >
       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
         <path d="M12 2.6l2.05 6.6 6.6 2.05-6.6 2.05L12 19.9l-2.05-6.6L3.35 11.25l6.6-2.05L12 2.6z" />
@@ -62,10 +62,20 @@ export function SiteHeader() {
 
   useEffect(() => setMenuOpen(false), [pathname]);
 
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (!menuOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [menuOpen]);
+
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-base/85 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-shell items-center gap-3 px-4 lg:px-6">
-        <Link href="/" className="flex items-center gap-2.5" aria-label="Astra v1 — home">
+    <header className="sticky top-0 z-50 w-full max-w-[100vw] overflow-x-clip border-b border-line bg-base/85 backdrop-blur-md">
+      <div className="mx-auto flex h-14 w-full max-w-shell items-center gap-2 px-4 sm:gap-3 lg:px-6">
+        <Link href="/" className="flex min-w-0 items-center gap-2.5" aria-label="Astra v1 — home">
           <AstraMark />
           <span className="flex items-baseline gap-1.5">
             <span className="font-display text-[0.95rem] font-semibold tracking-tight">Astra</span>
@@ -73,7 +83,7 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <nav aria-label="Sections" className="ml-4 hidden items-center gap-1 md:flex">
+        <nav aria-label="Sections" className="ml-2 hidden min-w-0 items-center gap-1 md:flex lg:ml-4">
           {LINKS.map((link) => {
             const current = pathname === link.href || pathname.startsWith(`${link.href}/`);
             return (
@@ -91,7 +101,7 @@ export function SiteHeader() {
           })}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
           <SearchDialog />
           <ThemeToggle />
           <a
@@ -120,14 +130,14 @@ export function SiteHeader() {
         <nav
           id="site-menu"
           aria-label="Sections"
-          className="border-t border-line bg-base px-4 py-3 md:hidden"
+          className="max-h-[calc(100vh-3.5rem)] w-full max-w-[100vw] overflow-y-auto overflow-x-hidden border-t border-line bg-base px-4 py-3 md:hidden"
         >
           <ul className="grid gap-1">
             {LINKS.map((link) => (
               <li key={link.href}>
                 <Link
                   href={link.href}
-                  className="block rounded-lg px-3 py-2 text-sm text-muted hover:bg-raised hover:text-ink"
+                  className="block rounded-lg px-3 py-3 text-sm text-muted hover:bg-raised hover:text-ink"
                 >
                   {link.label}
                 </Link>
@@ -138,7 +148,7 @@ export function SiteHeader() {
                 href={REPO_URL}
                 target="_blank"
                 rel="noreferrer"
-                className="block rounded-lg px-3 py-2 text-sm text-muted hover:bg-raised hover:text-ink"
+                className="block rounded-lg px-3 py-3 text-sm text-muted hover:bg-raised hover:text-ink"
               >
                 GitHub
               </a>

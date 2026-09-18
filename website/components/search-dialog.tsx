@@ -108,18 +108,19 @@ export function SearchDialog() {
         ref={triggerRef}
         type="button"
         onClick={openWith}
-        className="btn gap-2 text-subtle hover:text-ink"
+        className="btn gap-1.5 text-subtle hover:text-ink sm:gap-2"
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        <Icon name="search" className="h-4 w-4" />
+        <Icon name="search" className="h-4 w-4 shrink-0" />
         <span className="hidden sm:inline">Search docs</span>
-        <kbd className="kbd ml-1 hidden md:inline">⌘&nbsp;K</kbd>
+        <span className="sm:hidden">Search</span>
+        <kbd className="kbd ml-1 hidden md:inline">⌘ K</kbd>
       </button>
 
       {open ? (
         <div
-          className="fixed inset-0 z-[70] flex items-start justify-center bg-base/80 px-4 pt-[12vh] backdrop-blur-sm"
+          className="fixed inset-0 z-[70] flex w-full max-w-[100vw] items-start justify-center overflow-hidden bg-base/80 px-3 pt-[8vh] backdrop-blur-sm sm:px-4 sm:pt-[12vh]"
           role="dialog"
           aria-modal="true"
           aria-label="Search the documentation"
@@ -127,8 +128,8 @@ export function SearchDialog() {
             if (event.target === event.currentTarget) close();
           }}
         >
-          <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl">
-            <div className="flex items-center gap-3 border-b border-line px-4 py-3">
+          <div className="flex max-h-[85vh] w-full min-w-0 max-w-xl flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl sm:max-h-[70vh]">
+            <div className="flex min-w-0 items-center gap-2 border-b border-line px-3 py-3 sm:gap-3 sm:px-4">
               <Icon name="search" className="h-4 w-4 shrink-0 text-subtle" />
               <input
                 ref={inputRef}
@@ -157,26 +158,26 @@ export function SearchDialog() {
                 aria-label="Search the documentation"
                 autoComplete="off"
                 spellCheck={false}
-                className="w-full bg-transparent text-sm text-ink placeholder:text-subtle"
+                className="min-w-0 flex-1 bg-transparent text-sm text-ink placeholder:text-subtle"
               />
-              <button type="button" onClick={close} className="icon-btn h-7 w-7" aria-label="Close search">
+              <button type="button" onClick={close} className="icon-btn h-8 w-8 shrink-0" aria-label="Close search">
                 <Icon name="close" className="h-3.5 w-3.5" />
               </button>
             </div>
 
-            <ul className="max-h-[52vh] overflow-y-auto overscroll-contain p-2">
+            <ul className="max-h-[50vh] min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain p-2 sm:max-h-[52vh]">
               {results.length === 0 ? (
                 <li className="px-3 py-6 text-center text-sm text-subtle">
-                  Nothing matches “{query}”. Try “toggle”, “saving” or “themes”.
+                  Nothing matches &ldquo;{query}&rdquo;. Try &ldquo;toggle&rdquo;, &ldquo;saving&rdquo; or &ldquo;themes&rdquo;.
                 </li>
               ) : (
                 results.map((entry, index) => (
-                  <li key={`${entry.href}${entry.anchor ?? ""}`}>
+                  <li key={`${entry.href}${entry.anchor ?? ""}`} className="min-w-0">
                     <button
                       type="button"
                       onMouseEnter={() => setActive(index)}
                       onClick={() => go(entry)}
-                      className={`flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
+                      className={`flex w-full min-w-0 items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
                         index === active ? "bg-accent/15" : "hover:bg-raised"
                       }`}
                     >
@@ -184,16 +185,16 @@ export function SearchDialog() {
                         name={entry.anchor ? "link" : "book"}
                         className="mt-0.5 h-4 w-4 shrink-0 text-accent"
                       />
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium text-ink">
+                      <span className="min-w-0 flex-1">
+                        <span className="block min-w-0 truncate text-sm font-medium text-ink">
                           {entry.title}
                           {entry.anchorLabel ? (
-                            <span className="ml-2 text-xs font-normal text-subtle">
+                            <span className="ml-2 hidden text-xs font-normal text-subtle sm:inline">
                               in {entry.anchorLabel}
                             </span>
                           ) : null}
                         </span>
-                        <span className="block truncate text-xs text-muted">
+                        <span className="block min-w-0 truncate text-xs text-muted">
                           {entry.breadcrumb} · {entry.description}
                         </span>
                       </span>
@@ -203,16 +204,16 @@ export function SearchDialog() {
               )}
             </ul>
 
-            <div className="flex items-center gap-4 border-t border-line px-4 py-2 text-2xs text-subtle">
+            <div className="flex min-w-0 items-center gap-2 border-t border-line px-3 py-2 text-2xs text-subtle sm:gap-4 sm:px-4">
               <span className="flex items-center gap-1">
                 <kbd className="kbd">↑</kbd>
-                <kbd className="kbd">↓</kbd> to move
+                <kbd className="kbd">↓</kbd> <span className="hidden sm:inline">to move</span>
               </span>
               <span className="flex items-center gap-1">
-                <kbd className="kbd">↵</kbd> to open
+                <kbd className="kbd">↵</kbd> <span className="hidden sm:inline">to open</span>
               </span>
               <span className="flex items-center gap-1">
-                <kbd className="kbd">esc</kbd> to close
+                <kbd className="kbd">esc</kbd> <span className="hidden sm:inline">to close</span>
               </span>
             </div>
           </div>

@@ -33,6 +33,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
   colorScheme: "dark light",
   themeColor: "#0A0913",
 };
@@ -49,13 +53,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body className="min-h-screen antialiased">
+      <body className="min-h-screen w-full max-w-[100vw] overflow-x-clip antialiased">
         <a href="#content" className="skip-link btn">
           Skip to content
         </a>
-        <SiteHeader />
-        {children}
-        <SiteFooter />
+        <div className="flex min-h-screen w-full max-w-[100vw] flex-col overflow-x-clip">
+          <SiteHeader />
+          <div className="w-full max-w-[100vw] flex-1 overflow-x-clip">{children}</div>
+          <SiteFooter />
+        </div>
       </body>
     </html>
   );

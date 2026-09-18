@@ -72,8 +72,8 @@ export default function Introduction() {
           in the sidebar.
         </p>
       </div>
-      <div className="my-4 overflow-hidden rounded-xl border border-line">
-        <div className="overflow-x-auto">
+      <div className="my-4 w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-line">
+        <div className="data-table-wrapper w-full overflow-x-auto">
           <table className="data-table">
             <thead>
               <tr>

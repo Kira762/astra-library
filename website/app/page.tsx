@@ -67,52 +67,52 @@ const STRUCTURED_DATA = {
 
 export default function Home() {
   return (
-    <main id="content">
+    <main id="content" className="w-full max-w-[100vw] overflow-x-clip">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(STRUCTURED_DATA) }}
       />
       {/* ---------------------------------------------------------------- */}
-      <section className="starfield relative overflow-hidden border-b border-line">
+      <section className="starfield relative w-full max-w-[100vw] overflow-hidden border-b border-line">
         <div
           aria-hidden
-          className="pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[900px] -translate-x-1/2 rounded-full bg-accent/15 blur-[120px]"
+          className="pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[min(900px,150vw)] -translate-x-1/2 rounded-full bg-accent/15 blur-[80px] sm:blur-[120px]"
         />
-        <div className="relative mx-auto grid max-w-shell items-start gap-12 px-4 py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,470px)] lg:px-6 lg:py-20 xl:grid-cols-[minmax(0,1fr)_minmax(0,620px)]">
-          <div className="lg:pt-6">
-            <p className="pill">
-              <Icon name="star" className="h-3 w-3 text-gold" />
-              Luau interface library for Roblox executor scripts
+        <div className="relative mx-auto grid w-full max-w-shell min-w-0 items-start gap-8 px-4 py-10 sm:gap-12 sm:py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,470px)] lg:px-6 lg:py-20 xl:grid-cols-[minmax(0,1fr)_minmax(0,620px)]">
+          <div className="min-w-0 w-full lg:pt-6">
+            <p className="pill max-w-full">
+              <Icon name="star" className="h-3 w-3 shrink-0 text-gold" />
+              <span className="truncate">Luau interface library for Roblox executor scripts</span>
             </p>
 
-            <h1 className="mt-5 text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl xl:text-6xl">
+            <h1 className="mt-5 min-w-0 text-[2rem] font-semibold leading-[1.05] tracking-tight sm:text-5xl xl:text-6xl">
               One line to load.
               <span className="block text-muted">One call to build.</span>
             </h1>
 
-            <p className="mt-5 max-w-xl text-lg leading-8 text-muted">
+            <p className="mt-5 min-w-0 max-w-xl text-base leading-7 text-muted sm:text-lg sm:leading-8">
               Load the bundle, call <code className="icode">CreateWindow</code>, and fill it with tabs
               and elements. Saving, ten themes, seven icon packs and staged startup are already
               inside — no model to download, nothing to wire up twice.
             </p>
 
-            <div className="mt-6 flex flex-wrap items-center gap-3">
+            <div className="mt-6 flex min-w-0 flex-wrap items-center gap-2.5 sm:gap-3">
               <Link href="/docs/getting-started" className="btn btn-primary">
                 Start the guide
-                <Icon name="arrow-right" className="h-4 w-4" />
+                <Icon name="arrow-right" className="h-4 w-4 shrink-0" />
               </Link>
               <Link href="/docs/elements" className="btn">
                 Browse the elements
               </Link>
               <a href={REPO_URL} target="_blank" rel="noreferrer" className="btn">
-                <Icon name="github" className="h-4 w-4" />
+                <Icon name="github" className="h-4 w-4 shrink-0" />
                 GitHub
               </a>
             </div>
 
-            <div className="mt-7 max-w-xl">
+            <div className="mt-7 min-w-0 max-w-xl">
               <CommandLine command={LOADER_LINE} caption="loader line" />
-              <p className="text-sm leading-6 text-subtle">
+              <p className="min-w-0 text-sm leading-6 text-subtle">
                 Executors supply <code className="icode">loadstring</code> and{" "}
                 <code className="icode">HttpService</code>. In Studio the same library is a
                 ModuleScript: <code className="icode">require(ReplicatedStorage.Astra)</code>.
@@ -120,21 +120,23 @@ export default function Home() {
             </div>
           </div>
 
-          <WindowPreview />
+          <div className="min-w-0 w-full max-w-full">
+            <WindowPreview />
+          </div>
         </div>
       </section>
 
       {/* ---------------------------------------------------------------- */}
-      <section className="mx-auto max-w-shell px-4 py-14 lg:px-6">
-        <div className="grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)]">
-          <div>
-            <h2 className="text-xl font-semibold tracking-tight">Start here</h2>
-            <p className="mt-2 text-sm leading-6 text-muted">
+      <section className="mx-auto w-full max-w-shell min-w-0 px-4 py-10 sm:py-14 lg:px-6">
+        <div className="grid min-w-0 gap-8 sm:gap-10 lg:grid-cols-[220px_minmax(0,1fr)]">
+          <div className="min-w-0">
+            <h2 className="min-w-0 text-xl font-semibold tracking-tight">Start here</h2>
+            <p className="mt-2 min-w-0 text-sm leading-6 text-muted">
               Four pages cover the whole model: load it, open a window, add elements, keep what the
               player chose.
             </p>
           </div>
-          <div>
+          <div className="min-w-0">
             <CardGrid columns={3}>
               <DocCard
                 href="/docs/getting-started"
@@ -178,19 +180,19 @@ export default function Home() {
       </section>
 
       {/* ---------------------------------------------------------------- */}
-      <section className="border-y border-line bg-surface/40">
-        <div className="mx-auto max-w-shell px-4 py-14 lg:px-6">
-          <h2 className="max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">
+      <section className="w-full max-w-[100vw] overflow-x-clip border-y border-line bg-surface/40">
+        <div className="mx-auto w-full max-w-shell min-w-0 px-4 py-10 sm:py-14 lg:px-6">
+          <h2 className="min-w-0 max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">
             What makes it worth the loader line
           </h2>
-          <div className="mt-8 grid gap-x-12 gap-y-8 md:grid-cols-2">
+          <div className="mt-8 grid min-w-0 gap-6 sm:gap-x-12 sm:gap-y-8 md:grid-cols-2">
             {HIGHLIGHTS.map((item) => (
-              <div key={item.title} className="border-t border-line pt-5">
-                <div className="flex items-center gap-2.5">
-                  <Icon name={item.icon} className="h-4 w-4 text-accent" />
-                  <h3 className="text-base font-semibold">{item.title}</h3>
+              <div key={item.title} className="min-w-0 border-t border-line pt-5">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <Icon name={item.icon} className="h-4 w-4 shrink-0 text-accent" />
+                  <h3 className="min-w-0 text-base font-semibold">{item.title}</h3>
                 </div>
-                <p className="mt-2 max-w-prose text-sm leading-7 text-muted">{item.body}</p>
+                <p className="mt-2 min-w-0 max-w-prose text-sm leading-7 text-muted">{item.body}</p>
                 <Link
                   href={item.href}
                   className="group mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-accent"
@@ -198,7 +200,7 @@ export default function Home() {
                   {item.linkLabel}
                   <Icon
                     name="arrow-right"
-                    className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+                    className="h-3.5 w-3.5 shrink-0 transition-transform group-hover:translate-x-0.5"
                   />
                 </Link>
               </div>
@@ -208,24 +210,24 @@ export default function Home() {
       </section>
 
       {/* ---------------------------------------------------------------- */}
-      <section className="mx-auto max-w-shell px-4 py-14 lg:px-6">
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,560px)]">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight">Your first window</h2>
-            <p className="mt-2 max-w-prose text-sm leading-7 text-muted">
+      <section className="mx-auto w-full max-w-shell min-w-0 px-4 py-10 sm:py-14 lg:px-6">
+        <div className="grid min-w-0 gap-8 sm:gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,560px)]">
+          <div className="min-w-0">
+            <h2 className="min-w-0 text-2xl font-semibold tracking-tight">Your first window</h2>
+            <p className="mt-2 min-w-0 max-w-prose text-sm leading-7 text-muted">
               A window is the entry point. Add a tab, fill it with elements, and the first visible tab
               opens on its own. Switch between the two load paths with the tabs above the code — the
               API below them is identical either way.
             </p>
-            <ul className="mt-5 grid gap-3 text-sm text-muted">
+            <ul className="mt-5 grid min-w-0 gap-3 text-sm text-muted">
               {[
                 ["Layouts are built in.", "Topbar, sidebar or collapsed sidebar — the player changes it in Settings → Appearance, no code involved."],
                 ["Controls know their flags.", "Pass a flag and the control joins save/load; leave it out and one is derived from the name."],
                 ["Nothing is drawn twice.", "The window builds itself in staged batches so the opening tween keeps its frames."],
               ].map(([title, body]) => (
-                <li key={title} className="flex gap-3">
+                <li key={title} className="flex min-w-0 gap-3">
                   <Icon name="check" className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                  <span>
+                  <span className="min-w-0">
                     <strong className="font-medium text-ink">{title}</strong> {body}
                   </span>
                 </li>
@@ -233,7 +235,7 @@ export default function Home() {
             </ul>
           </div>
 
-          <div className="lg:pt-12">
+          <div className="min-w-0 w-full lg:pt-12">
             <CodeBlock
               title="example.client.luau"
               tabs={[
@@ -284,13 +286,13 @@ tab:Select()`,
                 },
               ]}
             />
-            <p className="text-sm text-subtle">
+            <p className="min-w-0 text-sm text-subtle">
               The full end-to-end example — every element type in one tab — is{" "}
               <a
                 href={`${REPO_URL}/blob/main/example.client.luau`}
                 target="_blank"
                 rel="noreferrer"
-                className="text-accent underline decoration-dotted underline-offset-2"
+                className="break-words text-accent underline decoration-dotted underline-offset-2"
               >
                 example.client.luau
               </a>
@@ -301,33 +303,33 @@ tab:Select()`,
       </section>
 
       {/* ---------------------------------------------------------------- */}
-      <section className="border-y border-line bg-surface/40">
-        <div className="mx-auto max-w-shell px-4 py-14 lg:px-6">
-          <h2 className="text-2xl font-semibold tracking-tight">Every element, one table</h2>
-          <p className="mt-2 max-w-prose text-sm leading-7 text-muted">
+      <section className="w-full max-w-[100vw] overflow-x-clip border-y border-line bg-surface/40">
+        <div className="mx-auto w-full max-w-shell min-w-0 px-4 py-10 sm:py-14 lg:px-6">
+          <h2 className="min-w-0 text-2xl font-semibold tracking-tight">Every element, one table</h2>
+          <p className="mt-2 min-w-0 max-w-prose text-sm leading-7 text-muted">
             Each element has a page with its props, its handle methods and a copy-pasteable example.
           </p>
-          <div className="mt-6 overflow-hidden rounded-xl border border-line">
-            <div className="overflow-x-auto">
+          <div className="mt-6 w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-line">
+            <div className="data-table-wrapper w-full overflow-x-auto">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th className="w-[220px]">Element</th>
-                    <th>What it does</th>
+                    <th className="w-[160px] min-w-[120px] sm:w-[220px]">Element</th>
+                    <th className="min-w-[200px]">What it does</th>
                   </tr>
                 </thead>
                 <tbody>
                   {ELEMENTS.map(([name, description, href]) => (
                     <tr key={name}>
-                      <td>
+                      <td className="min-w-0">
                         <Link
                           href={href}
-                          className="font-medium text-ink underline decoration-transparent underline-offset-2 transition-colors hover:text-accent hover:decoration-current"
+                          className="min-w-0 font-medium text-ink underline decoration-transparent underline-offset-2 transition-colors hover:text-accent hover:decoration-current"
                         >
                           {name}
                         </Link>
                       </td>
-                      <td>{description}</td>
+                      <td className="min-w-0">{description}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -338,36 +340,36 @@ tab:Select()`,
       </section>
 
       {/* ---------------------------------------------------------------- */}
-      <section className="mx-auto max-w-shell px-4 py-14 lg:px-6">
-        <div className="grid items-center gap-8 rounded-2xl border border-line bg-surface px-6 py-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:px-10">
-          <div>
-            <h2 className="text-xl font-semibold tracking-tight">
+      <section className="mx-auto w-full max-w-shell min-w-0 px-4 py-10 sm:py-14 lg:px-6">
+        <div className="grid min-w-0 items-center gap-6 rounded-2xl border border-line bg-surface px-4 py-6 sm:gap-8 sm:px-6 sm:py-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:px-10">
+          <div className="min-w-0">
+            <h2 className="min-w-0 text-xl font-semibold tracking-tight">
               Let a coding agent write the interface
             </h2>
-            <p className="mt-2 max-w-prose text-sm leading-7 text-muted">
+            <p className="mt-2 min-w-0 max-w-prose text-sm leading-7 text-muted">
               This repository is also a published Agent Skill. Install it and Claude Code, Cursor or
               Codex gets the loader contract, the element cheat sheet and the module rules — so it
               stops guessing at the API and starts reading the same pages you are.
             </p>
-            <p className="mt-3 text-sm">
+            <p className="mt-3 min-w-0 text-sm">
               <Link href="/docs/skill" className="font-medium text-accent hover:underline">
                 What is inside the skill
               </Link>
             </p>
           </div>
-          <div>
+          <div className="min-w-0 w-full">
             <CommandLine
               command="npx skills add Kira762/astra-version-1"
               caption="agent skill"
             />
-            <p className="text-xs text-subtle">
+            <p className="min-w-0 text-xs text-subtle">
               Installs <code className="icode">astra</code> into your agent&apos;s skills folder. Listed
               on{" "}
               <a
                 href="https://skills.sh/Kira762/astra-version-1"
                 target="_blank"
                 rel="noreferrer"
-                className="text-muted underline decoration-dotted underline-offset-2"
+                className="break-words text-muted underline decoration-dotted underline-offset-2"
               >
                 skills.sh
               </a>

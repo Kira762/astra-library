@@ -110,22 +110,22 @@ export function WindowPreview() {
   const delta = kills - previousKills;
 
   return (
-    <div className="w-full">
+    <div className="w-full min-w-0 max-w-full">
       <div
         style={style}
-        className="relative mx-auto w-full max-w-[600px] overflow-hidden rounded-[16px] border border-[var(--w-line)] bg-[var(--w-bg)] shadow-[0_40px_80px_-50px_rgba(0,0,0,0.95)] transition-colors duration-300"
+        className="relative mx-auto w-full min-w-0 max-w-full overflow-hidden rounded-[16px] border border-[var(--w-line)] bg-[var(--w-bg)] shadow-[0_40px_80px_-50px_rgba(0,0,0,0.95)] transition-colors duration-300 sm:max-w-[600px]"
         role="group"
         aria-label="Interactive preview of an Astra window"
       >
         {/* topbar */}
-        <div className="flex items-center gap-3 border-b border-[var(--w-line)] bg-[var(--w-surface)] px-3.5 py-2.5">
-          <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-2 border-b border-[var(--w-line)] bg-[var(--w-surface)] px-3 py-2.5 sm:gap-3 sm:px-3.5">
+          <div className="min-w-0 flex-1">
             <p className="truncate font-display text-sm font-semibold text-[var(--w-ink)]">
               Example Hub
             </p>
             <p className="truncate text-[0.6875rem] text-[var(--w-muted)]">Astra · theme {theme.name}</p>
           </div>
-          <div className="ml-auto flex items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1">
             {(
               [
                 ["search", "Search"],
@@ -148,7 +148,7 @@ export function WindowPreview() {
                     setToast({ title: "Search", content: "Search opens over the tab, lazily." });
                   }
                 }}
-                className={`grid h-6 w-6 place-items-center rounded-[7px] text-[var(--w-muted)] transition-colors hover:bg-[var(--w-raised)] hover:text-[var(--w-ink)] ${
+                className={`grid h-7 w-7 shrink-0 place-items-center rounded-[7px] text-[var(--w-muted)] transition-colors hover:bg-[var(--w-raised)] hover:text-[var(--w-ink)] sm:h-6 sm:w-6 ${
                   label === "Settings" && settingsMode ? "bg-[var(--w-raised)] text-[var(--w-accent)]" : ""
                 }`}
               >
@@ -158,9 +158,9 @@ export function WindowPreview() {
           </div>
         </div>
 
-        <div className="flex min-h-[292px]">
+        <div className="flex min-h-[292px] min-w-0">
           {/* tab rail */}
-          <div className="flex w-[52px] shrink-0 flex-col gap-1 border-r border-[var(--w-line)] bg-[var(--w-surface)] p-2 sm:w-[124px]">
+          <div className="flex w-[48px] shrink-0 flex-col gap-1 border-r border-[var(--w-line)] bg-[var(--w-surface)] p-1.5 sm:w-[124px] sm:p-2">
             {(settingsMode ? TABS.filter((item) => item.id === "settings") : TABS).map((item) => {
               const current = tab === item.id;
               return (
@@ -169,7 +169,7 @@ export function WindowPreview() {
                   type="button"
                   onClick={() => setTab(item.id)}
                   aria-current={current ? "true" : undefined}
-                  className={`flex items-center gap-2 rounded-[9px] px-2 py-2 text-left text-[0.78125rem] transition-colors ${
+                  className={`flex min-w-0 items-center gap-2 rounded-[9px] px-2 py-2 text-left text-[0.78125rem] transition-colors ${
                     current
                       ? "bg-[var(--w-raised)] text-[var(--w-ink)]"
                       : "text-[var(--w-muted)] hover:bg-[var(--w-raised-soft)] hover:text-[var(--w-ink)]"
@@ -183,7 +183,7 @@ export function WindowPreview() {
                         : "border-[var(--w-line)]"
                     }`}
                   />
-                  <span className="hidden truncate sm:inline">{item.label}</span>
+                  <span className="hidden min-w-0 truncate sm:inline">{item.label}</span>
                 </button>
               );
             })}
@@ -193,7 +193,7 @@ export function WindowPreview() {
           </div>
 
           {/* tab body */}
-          <div className="min-w-0 flex-1 space-y-2.5 p-3">
+          <div className="min-w-0 flex-1 space-y-2 p-2.5 sm:space-y-2.5 sm:p-3">
             {tab === "home" || settingsMode ? (
               <>
                 <Card>
@@ -219,9 +219,9 @@ export function WindowPreview() {
                 </Card>
 
                 <Card>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[0.8125rem] text-[var(--w-ink)]">Sensitivity</span>
-                    <span className="font-mono text-[0.75rem] text-[var(--w-muted)] tabular-nums">
+                  <div className="flex min-w-0 items-center justify-between gap-2">
+                    <span className="min-w-0 truncate text-[0.8125rem] text-[var(--w-ink)]">Sensitivity</span>
+                    <span className="shrink-0 font-mono text-[0.75rem] text-[var(--w-muted)] tabular-nums">
                       {sensitivity}x
                     </span>
                   </div>
@@ -243,9 +243,9 @@ export function WindowPreview() {
                 </Card>
 
                 <Card>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[0.8125rem] text-[var(--w-ink)]">Preset</span>
-                    <div ref={dropdownRef} className="relative">
+                  <div className="flex min-w-0 items-center justify-between gap-2">
+                    <span className="min-w-0 truncate text-[0.8125rem] text-[var(--w-ink)]">Preset</span>
+                    <div ref={dropdownRef} className="relative shrink-0">
                       <button
                         type="button"
                         aria-haspopup="listbox"
@@ -260,7 +260,7 @@ export function WindowPreview() {
                         <ul
                           role="listbox"
                           aria-label="Preset"
-                          className="absolute right-0 z-10 mt-1 w-28 overflow-hidden rounded-[10px] border border-[var(--w-line)] bg-[var(--w-surface)] py-1 shadow-xl"
+                          className="absolute right-0 z-10 mt-1 w-28 max-w-[calc(100vw-2rem)] overflow-hidden rounded-[10px] border border-[var(--w-line)] bg-[var(--w-surface)] py-1 shadow-xl"
                         >
                           {PRESETS.map((option) => (
                             <li key={option}>
@@ -285,12 +285,12 @@ export function WindowPreview() {
                 </Card>
 
                 <Card>
-                  <div className="flex items-center gap-3">
-                    <div>
+                  <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                    <div className="min-w-0 flex-1">
                       <p className="text-[0.75rem] text-[var(--w-muted)]">Kills</p>
-                      <p className="font-display text-xl font-semibold text-[var(--w-ink)] tabular-nums">
-                        {kills}
-                        <span className="ml-2 align-middle font-mono text-[0.6875rem] text-[var(--w-accent)]">
+                      <p className="flex flex-wrap items-baseline gap-1 font-display text-lg font-semibold text-[var(--w-ink)] tabular-nums sm:text-xl">
+                        <span>{kills}</span>
+                        <span className="font-mono text-[0.6875rem] text-[var(--w-accent)]">
                           {delta >= 0 ? "+" : ""}
                           {delta}
                         </span>
@@ -304,10 +304,11 @@ export function WindowPreview() {
                         setKills(next);
                         setToast({ title: "Stat updated", content: `Kills is now ${next}.` });
                       }}
-                      className="ml-auto flex items-center gap-2 rounded-[10px] px-3 py-1.5 text-[0.75rem] font-medium transition-opacity hover:opacity-90"
+                      className="ml-auto flex shrink-0 items-center gap-1.5 rounded-[10px] px-2.5 py-1.5 text-[0.75rem] font-medium transition-opacity hover:opacity-90 sm:gap-2 sm:px-3"
                       style={{ background: theme.accent, color: onAccent }}
                     >
-                      Say hello
+                      <span className="hidden sm:inline">Say hello</span>
+                      <span className="sm:hidden">Hello</span>
                       <Glyph name="tap" />
                     </button>
                   </div>
@@ -324,7 +325,8 @@ export function WindowPreview() {
                 </Card>
                 <Card>
                   <Row icon="zap" title="Infinite Jump" hint="Toggle inside a group">
-                    <span className="font-mono text-[0.6875rem] text-[var(--w-accent)]">flag: infiniteJump</span>
+                    <span className="hidden font-mono text-[0.6875rem] text-[var(--w-accent)] sm:inline">flag: infiniteJump</span>
+                    <span className="font-mono text-[0.6875rem] text-[var(--w-accent)] sm:hidden">flag</span>
                   </Row>
                 </Card>
                 <Card>
@@ -362,12 +364,12 @@ export function WindowPreview() {
           </div>
         </div>
 
-        {/* notification, the way window:Notify draws one */}
-        <div className="pointer-events-none absolute bottom-3 right-3 flex w-[248px] flex-col gap-2">
+        {/* notification, the way window:Notify draws one - responsive */}
+        <div className="pointer-events-none absolute bottom-2 right-2 left-2 flex flex-col gap-2 sm:bottom-3 sm:left-auto sm:right-3 sm:w-auto">
           {toast ? (
             <div
               role="status"
-              className="pointer-events-auto rounded-[12px] border border-[var(--w-line)] bg-[var(--w-surface)] p-3 shadow-xl"
+              className="pointer-events-auto w-full rounded-[12px] border border-[var(--w-line)] bg-[var(--w-surface)] p-3 shadow-xl sm:w-[248px] sm:max-w-[calc(100vw-3rem)]"
             >
               <p className="font-display text-[0.8125rem] font-semibold text-[var(--w-ink)]">
                 {toast.title}
@@ -379,7 +381,7 @@ export function WindowPreview() {
       </div>
 
       {/* theme picker — the ten built-ins, by their real accent colours */}
-      <fieldset className="mx-auto mt-4 max-w-[600px]">
+      <fieldset className="mx-auto mt-4 w-full min-w-0 max-w-full sm:max-w-[600px]">
         <legend className="mb-2 text-xs text-subtle">
           Built-in themes — pick one and the window restyles live
         </legend>
@@ -392,7 +394,7 @@ export function WindowPreview() {
                 type="button"
                 onClick={() => setTheme(item)}
                 aria-pressed={current}
-                className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs transition-colors ${
                   current
                     ? "border-accent bg-accent/15 text-ink"
                     : "border-line text-muted hover:border-line-strong hover:text-ink"
@@ -400,7 +402,7 @@ export function WindowPreview() {
               >
                 <span
                   aria-hidden
-                  className="h-2.5 w-2.5 rounded-full"
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
                   style={{ background: item.accent }}
                 />
                 {item.name}
@@ -415,7 +417,7 @@ export function WindowPreview() {
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-[11px] border border-[var(--w-line)] bg-[var(--w-surface)] px-3 py-2.5 transition-colors duration-300">
+    <div className="min-w-0 rounded-[11px] border border-[var(--w-line)] bg-[var(--w-surface)] px-3 py-2.5 transition-colors duration-300">
       {children}
     </div>
   );
@@ -433,15 +435,15 @@ function Row({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
       <span className="grid h-6 w-6 shrink-0 place-items-center rounded-[7px] bg-[var(--w-raised)] text-[var(--w-accent)]">
         <Glyph name={icon} />
       </span>
-      <span className="min-w-0">
+      <span className="min-w-0 flex-1">
         <span className="block truncate text-[0.8125rem] text-[var(--w-ink)]">{title}</span>
         <span className="block truncate text-[0.6875rem] text-[var(--w-muted)]">{hint}</span>
       </span>
-      <span className="ml-auto flex items-center">{children}</span>
+      <span className="ml-auto flex shrink-0 items-center">{children}</span>
     </div>
   );
 }

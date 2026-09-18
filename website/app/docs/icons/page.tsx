@@ -34,9 +34,9 @@ export default function Icons() {
         }
       />
 
-      <div className="my-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="my-4 grid min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {PACKS.map(([pack, count]) => (
-          <div key={pack} className="card flex items-center justify-between px-3 py-2.5">
+          <div key={pack} className="card flex min-w-0 items-center justify-between px-3 py-2.5">
             <span className="font-mono text-sm text-ink">{pack}</span>
             <span className="text-xs text-subtle tabular-nums">{count} icons</span>
           </div>

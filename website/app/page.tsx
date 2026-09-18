@@ -107,7 +107,7 @@ export default function Home() {
             <div className="mb-10">
               <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-xs font-medium text-violet-300">
                 <span className="h-2 w-2 rounded-full bg-violet-400 animate-pulse" />
-                USAGE GUIDE • Vercel Root Directory = <code className="rounded bg-violet-500/20 px-1.5 py-0.5 text-violet-200">website</code> — Luau never deployed
+                USAGE GUIDE • Deployed from <code className="rounded bg-violet-500/20 px-1.5 py-0.5 text-violet-200">website/</code> — Luau never deployed
               </div>
               <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">Astra v1 — Usage Guide</h1>
               <p className="mt-3 max-w-3xl text-lg leading-7 text-zinc-400">Load Astra and build your first window in a few lines. One loader line, one <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-sm text-zinc-200">CreateWindow</code> call, tabs full of elements — with built-in saving, themes, 7 icon packs and staged startup. This site is the human version of <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-sm text-zinc-200">USAGE.md</code>.</p>
@@ -524,33 +524,33 @@ window:SetTranslator(function(source, localeId) return ... end)`}</Code>
             {/* Repo */}
             <section id="repo" className="scroll-mt-20 mt-12">
               <h2 className="text-2xl font-bold tracking-tight">Monorepo & Vercel — why website/ doesn’t break Luau</h2>
-              <p className="mt-2 text-zinc-400 leading-7">This repo is a monorepo: Luau library at the root, Next.js site in <code className="rounded bg-zinc-900 px-1 py-0.5 text-zinc-200">website/</code>. Vercel only sees <code className="rounded bg-zinc-900 px-1 py-0.5 text-zinc-200">website/</code> when Root Directory is set.</p>
+              <p className="mt-2 text-zinc-400 leading-7">This repo is a monorepo: Luau library at the root, Next.js site in <code className="rounded bg-zinc-900 px-1 py-0.5 text-zinc-200">website/</code>. Root <code className="rounded bg-zinc-900 px-1 py-0.5 text-zinc-200">vercel.json</code> builds and publishes <code className="rounded bg-zinc-900 px-1 py-0.5 text-zinc-200">website/out</code> — no dashboard Root Directory setting required.</p>
               <div className="mt-4 grid gap-4 lg:grid-cols-2">
                 <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
                   <div className="border-b border-zinc-800 bg-zinc-900 px-4 py-2 text-xs font-semibold tracking-widest text-zinc-500">REPOSITORY LAYOUT</div>
-                  <pre className="p-4 font-mono text-xs leading-6 text-zinc-300">{`website/              ← Vercel Root Directory (Next.js)
+                  <pre className="p-4 font-mono text-xs leading-6 text-zinc-300">{`website/              ← Next.js docs (static export → out/)
   app/page.tsx       your docs (this page)
-  vercel.json        ignoreCommand: skip if website/ unchanged
   package.json       next, react, tailwind
-components/          Luau window shell (ignored by Vercel)
-elements/            Luau elements (ignored)
-core/ settings/ ...  Luau runtime (ignored)
-version-1.luau       generated bundle (ignored)
-skills/              agent skill (ignored)`}</pre>
+vercel.json          install/build website → output website/out
+components/          Luau window shell (not in web build)
+elements/            Luau elements (not in web build)
+core/ settings/ ...  Luau runtime (not in web build)
+version-1.luau       generated bundle (not in web build)
+skills/              agent skill (not in web build)`}</pre>
                 </div>
                 <div className="space-y-4">
                   <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-                    <div className="text-xs font-semibold tracking-widest text-violet-400">VERCEL SETUP (ONCE)</div>
-                    <p className="mt-2 text-sm leading-6 text-zinc-400">Dashboard → Project → Settings → General → Root Directory → <code className="rounded bg-zinc-800 px-1 py-0.5 text-zinc-200">website</code> → Save → Redeploy.</p>
+                    <div className="text-xs font-semibold tracking-widest text-violet-400">ROOT vercel.json</div>
+                    <p className="mt-2 text-sm leading-6 text-zinc-400">Builds from the monorepo root so production works without a dashboard Root Directory.</p>
                     <div className="mt-3 rounded-lg bg-zinc-950 p-3 font-mono text-xs leading-5 text-zinc-400">
-                      <div className="text-zinc-500"># website/vercel.json</div>
-                      <div><span className="text-violet-400">"ignoreCommand"</span>: <span className="text-amber-300">"git diff --quiet HEAD^ HEAD -- ./"</span> — skip if website/ unchanged</div>
+                      <div><span className="text-violet-400">&quot;installCommand&quot;</span>: <span className="text-amber-300">&quot;cd website &amp;&amp; npm ci&quot;</span></div>
+                      <div><span className="text-violet-400">&quot;buildCommand&quot;</span>: <span className="text-amber-300">&quot;cd website &amp;&amp; npm run build&quot;</span></div>
+                      <div><span className="text-violet-400">&quot;outputDirectory&quot;</span>: <span className="text-amber-300">&quot;website/out&quot;</span></div>
                     </div>
                   </div>
                   <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-                    <div className="text-xs font-semibold tracking-widest text-zinc-500">FALLBACKS (KEPT)</div>
-                    <p className="mt-2 text-sm leading-6 text-zinc-400">Root <code className="text-zinc-300">vercel.json</code> (<code className="text-zinc-300">./website/</code>) + root <code className="text-zinc-300">.vercelignore</code> exclude Luau if you deploy from repo root without Root Directory.</p>
-                    <p className="mt-2 text-xs text-zinc-500">Only builds when <code className="text-zinc-400">website/</code> changes.</p>
+                    <div className="text-xs font-semibold tracking-widest text-zinc-500">OPTIONAL</div>
+                    <p className="mt-2 text-sm leading-6 text-zinc-400">Dashboard Root Directory = <code className="text-zinc-300">website</code> is still fine — then <code className="text-zinc-300">website/vercel.json</code> uses <code className="text-zinc-300">outputDirectory: &quot;out&quot;</code>. <code className="text-zinc-300">ignoreCommand</code> skips redeploys when only Luau files change.</p>
                   </div>
                 </div>
               </div>

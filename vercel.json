@@ -1,3 +1,7 @@
 {
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- ./website/ ./vercel.json"
+  "framework": null,
+  "installCommand": "cd website && npm ci",
+  "buildCommand": "cd website && npm run build",
+  "outputDirectory": "website/out",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- ./website/ ./vercel.json ./.vercelignore"
 }

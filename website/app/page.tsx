@@ -1,609 +1,381 @@
 import Link from "next/link";
+import { CodeBlock, CommandLine } from "@/components/code-block";
+import { CardGrid, DocCard } from "@/components/content";
+import { Icon } from "@/components/icon";
+import { WindowPreview } from "@/components/window-preview";
+import { LOADER_LINE, REPO_URL, SITE_URL } from "@/lib/docs";
 
-// Astra Usage Guide — full USAGE.md as an interactive docs site
-// Path-safety note: this site lives in /website, which is outside the Rojo tree
-// (default.project.json / wax.project.json) and outside the bundle GENERATION
-// TREE (scripts/generate_bundle.js). All Luau `script.Parent` requires are
-// DataModel-relative, not filesystem-relative, so adding website/ cannot break them.
-
-const TOC = [
-  { id: "load", label: "Load the library" },
-  { id: "window", label: "Build a window" },
-  { id: "saving", label: "Saving & flags" },
-  { id: "api-window", label: "Window API" },
-  { id: "tabs", label: "Tabs & groups" },
-  { id: "elements", label: "Elements" },
-  { id: "button", label: "— Button" },
-  { id: "toggle", label: "— Toggle" },
-  { id: "slider", label: "— Slider" },
-  { id: "dropdown", label: "— Dropdown" },
-  { id: "input", label: "— Input" },
-  { id: "stat", label: "— Stat" },
-  { id: "text", label: "— Text / Divider / Group" },
-  { id: "changelog", label: "— Changelog element" },
-  { id: "settings", label: "Built-in Settings" },
-  { id: "themes", label: "Themes" },
-  { id: "icons", label: "Icons (7 packs)" },
-  { id: "motion", label: "Motion" },
-  { id: "locale", label: "Localisation" },
-  { id: "startup", label: "Startup performance" },
-  { id: "collapsible", label: "Collapsible Group" },
-  { id: "props", label: "CreateWindow props" },
-  { id: "repo", label: "Monorepo & Pages" },
-  { id: "verify", label: "Path verification" },
+const HIGHLIGHTS = [
+  {
+    icon: "package" as const,
+    title: "Built in code, not loaded as a model",
+    body: "Astra constructs its interface from instances at runtime. There is no marketplace model to fetch and nothing that fingerprints the script, and the whole library is one file you can read.",
+    href: "/docs/startup",
+    linkLabel: "How it is built",
+  },
+  {
+    icon: "star" as const,
+    title: "State that saves itself",
+    body: "Give a control a flag and it joins the save system. Auto Save and Auto Load are on by default, and named configurations let a hub keep more than one preset without writing a line of glue code.",
+    href: "/docs/saving",
+    linkLabel: "Saving and flags",
+  },
+  {
+    icon: "sparkle" as const,
+    title: "Ten themes and 13,715 icons",
+    body: "Swap between ten built-in themes or hand over a table of your own colours. Seven icon packs resolve by bare name across packs, by pack:name when it has to be exact, or from your own custom_asset folder.",
+    href: "/docs/themes",
+    linkLabel: "Themes and icons",
+  },
+  {
+    icon: "sliders" as const,
+    title: "One motion service behind everything",
+    body: "Hover, reveal, entrance, dismissal and the result flashes all run through the same tween vocabulary, so your own animations match the window and both follow the speed setting the player chose.",
+    href: "/docs/motion",
+    linkLabel: "Motion API",
+  },
 ];
 
-function Code({ children, title }: { children: string; title?: string }) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
-      {title && (
-        <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-900 px-4 py-2">
-          <span className="text-xs font-medium text-zinc-500">{title}</span>
-          <span className="text-xs text-zinc-600">Luau</span>
-        </div>
-      )}
-      <pre className="overflow-x-auto p-4 text-[13px] leading-6">
-        <code className="font-mono text-zinc-300 whitespace-pre">{children}</code>
-      </pre>
-    </div>
-  );
-}
+const ELEMENTS = [
+  ["Button", "Run a function on click, with the built-in tap glyph.", "/docs/elements/button"],
+  ["Toggle", "Switch a boolean on and off — Switch is a declarative alias.", "/docs/elements/toggle"],
+  ["Slider", "Pick a number in a range, with suffix, increment and a minimal style.", "/docs/elements/slider"],
+  ["Dropdown", "One option or many, searchable, with Refresh/Add/Remove.", "/docs/elements/dropdown"],
+  ["Input", "A text field that commits when the player is done.", "/docs/elements/input"],
+  ["Stat", "A value that rolls on change and reads out how far it moved.", "/docs/elements/stat"],
+  ["Text", "A title, a body, or both, on a card of its own.", "/docs/elements/text"],
+  ["Divider", "A rule across the page, with a word in the middle or nothing at all.", "/docs/elements/text#divider"],
+  ["Group", "Rows and columns that nest, with compact children by default.", "/docs/elements/text#group"],
+  ["Collapsible group", "Controls under an animated header, closed until opened.", "/docs/elements/collapsible-group"],
+  ["Changelog", "Release history as a first-class element.", "/docs/elements/changelog"],
+];
 
-function Badge({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-full border border-zinc-800 bg-zinc-900 px-2.5 py-0.5 text-xs font-medium text-zinc-400">
-      {children}
-    </span>
-  );
-}
+const STRUCTURED_DATA = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Astra v1",
+  applicationCategory: "DeveloperApplication",
+  operatingSystem: "Roblox",
+  description:
+    "Luau interface library for Roblox executor scripts: one loader line, windows with tabs and elements, saving, ten themes and seven icon packs.",
+  url: SITE_URL,
+  codeRepository: REPO_URL,
+  license: "https://opensource.org/licenses/MIT",
+  author: { "@type": "Person", name: "Kira762", url: "https://github.com/Kira762" },
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+};
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100">
-      {/* Top nav */}
-      <header className="sticky top-0 z-40 border-b border-zinc-800 bg-[#09090b]/80 backdrop-blur">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600 font-bold text-white">A</div>
-            <div>
-              <div className="text-sm font-semibold tracking-tight leading-none">Astra <span className="font-normal text-zinc-400">v1</span> <span className="ml-2 hidden sm:inline text-xs font-normal text-zinc-500">— Usage Guide</span></div>
-              <div className="text-xs text-zinc-500 hidden sm:block">Luau interface library for executor scripts</div>
+    <main id="content">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(STRUCTURED_DATA) }}
+      />
+      {/* ---------------------------------------------------------------- */}
+      <section className="starfield relative overflow-hidden border-b border-line">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[900px] -translate-x-1/2 rounded-full bg-accent/15 blur-[120px]"
+        />
+        <div className="relative mx-auto grid max-w-shell items-start gap-12 px-4 py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,470px)] lg:px-6 lg:py-20 xl:grid-cols-[minmax(0,1fr)_minmax(0,620px)]">
+          <div className="lg:pt-6">
+            <p className="pill">
+              <Icon name="star" className="h-3 w-3 text-gold" />
+              Luau interface library for Roblox executor scripts
+            </p>
+
+            <h1 className="mt-5 text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl xl:text-6xl">
+              One line to load.
+              <span className="block text-muted">One call to build.</span>
+            </h1>
+
+            <p className="mt-5 max-w-xl text-lg leading-8 text-muted">
+              Load the bundle, call <code className="icode">CreateWindow</code>, and fill it with tabs
+              and elements. Saving, ten themes, seven icon packs and staged startup are already
+              inside — no model to download, nothing to wire up twice.
+            </p>
+
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Link href="/docs/getting-started" className="btn btn-primary">
+                Start the guide
+                <Icon name="arrow-right" className="h-4 w-4" />
+              </Link>
+              <Link href="/docs/elements" className="btn">
+                Browse the elements
+              </Link>
+              <a href={REPO_URL} target="_blank" rel="noreferrer" className="btn">
+                <Icon name="github" className="h-4 w-4" />
+                GitHub
+              </a>
+            </div>
+
+            <div className="mt-7 max-w-xl">
+              <CommandLine command={LOADER_LINE} caption="loader line" />
+              <p className="text-sm leading-6 text-subtle">
+                Executors supply <code className="icode">loadstring</code> and{" "}
+                <code className="icode">HttpService</code>. In Studio the same library is a
+                ModuleScript: <code className="icode">require(ReplicatedStorage.Astra)</code>.
+              </p>
             </div>
           </div>
-          <nav className="flex items-center gap-2">
-            <Link href="https://github.com/Kira762/astra-version-1/blob/main/USAGE.md" target="_blank" className="hidden sm:inline-flex rounded-full border border-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-900 transition">USAGE.md</Link>
-            <Link href="https://github.com/Kira762/astra-version-1" target="_blank" className="rounded-full border border-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-900 transition">GitHub</Link>
-            <Link href="#load" className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-zinc-200 transition">Start</Link>
-          </nav>
+
+          <WindowPreview />
         </div>
-      </header>
+      </section>
 
-      <div className="mx-auto max-w-[1400px] px-6">
-        <div className="flex gap-8">
-          {/* Sidebar TOC — desktop */}
-          <aside className="hidden lg:block sticky top-[57px] h-[calc(100vh-57px)] w-[220px] shrink-0 overflow-y-auto py-8 pr-4">
-            <div className="text-xs font-semibold tracking-widest text-zinc-500 mb-3">CONTENTS</div>
-            <nav className="space-y-1">
-              {TOC.map((i) => (
-                <a key={i.id} href={`#${i.id}`} className={`block rounded-lg px-3 py-1.5 text-sm leading-5 hover:bg-zinc-900 hover:text-white transition ${i.label.startsWith("—") ? "ml-3 text-zinc-500 text-[13px]" : "text-zinc-400"}`}>
-                  {i.label}
-                </a>
+      {/* ---------------------------------------------------------------- */}
+      <section className="mx-auto max-w-shell px-4 py-14 lg:px-6">
+        <div className="grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)]">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">Start here</h2>
+            <p className="mt-2 text-sm leading-6 text-muted">
+              Four pages cover the whole model: load it, open a window, add elements, keep what the
+              player chose.
+            </p>
+          </div>
+          <div>
+            <CardGrid columns={3}>
+              <DocCard
+                href="/docs/getting-started"
+                icon="zap"
+                title="Getting started"
+                description="The loader contract, the two reasons a load fails, and your first window."
+              />
+              <DocCard
+                href="/docs/windows"
+                icon="package"
+                title="Windows"
+                description="CreateWindow props, layouts, every runtime method, and the profile card."
+              />
+              <DocCard
+                href="/docs/tabs"
+                icon="grid"
+                title="Tabs and groups"
+                description="Split a window into tabs, then lay controls out in rows and columns."
+              />
+              <DocCard
+                href="/docs/elements"
+                icon="layers"
+                title="Elements"
+                description="What every element shares, plus a page for each of the eleven types."
+              />
+              <DocCard
+                href="/docs/saving"
+                icon="check"
+                title="Saving and flags"
+                description="Auto save, auto load, named configurations, and how flags are derived."
+              />
+              <DocCard
+                href="/docs/api/methods"
+                icon="book"
+                title="Method index"
+                description="Every window, tab, group and element-handle method on one page."
+              />
+            </CardGrid>
+          </div>
+        </div>
+      </section>
+
+      {/* ---------------------------------------------------------------- */}
+      <section className="border-y border-line bg-surface/40">
+        <div className="mx-auto max-w-shell px-4 py-14 lg:px-6">
+          <h2 className="max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">
+            What makes it worth the loader line
+          </h2>
+          <div className="mt-8 grid gap-x-12 gap-y-8 md:grid-cols-2">
+            {HIGHLIGHTS.map((item) => (
+              <div key={item.title} className="border-t border-line pt-5">
+                <div className="flex items-center gap-2.5">
+                  <Icon name={item.icon} className="h-4 w-4 text-accent" />
+                  <h3 className="text-base font-semibold">{item.title}</h3>
+                </div>
+                <p className="mt-2 max-w-prose text-sm leading-7 text-muted">{item.body}</p>
+                <Link
+                  href={item.href}
+                  className="group mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-accent"
+                >
+                  {item.linkLabel}
+                  <Icon
+                    name="arrow-right"
+                    className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+                  />
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ---------------------------------------------------------------- */}
+      <section className="mx-auto max-w-shell px-4 py-14 lg:px-6">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,560px)]">
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight">Your first window</h2>
+            <p className="mt-2 max-w-prose text-sm leading-7 text-muted">
+              A window is the entry point. Add a tab, fill it with elements, and the first visible tab
+              opens on its own. Switch between the two load paths with the tabs above the code — the
+              API below them is identical either way.
+            </p>
+            <ul className="mt-5 grid gap-3 text-sm text-muted">
+              {[
+                ["Layouts are built in.", "Topbar, sidebar or collapsed sidebar — the player changes it in Settings → Appearance, no code involved."],
+                ["Controls know their flags.", "Pass a flag and the control joins save/load; leave it out and one is derived from the name."],
+                ["Nothing is drawn twice.", "The window builds itself in staged batches so the opening tween keeps its frames."],
+              ].map(([title, body]) => (
+                <li key={title} className="flex gap-3">
+                  <Icon name="check" className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                  <span>
+                    <strong className="font-medium text-ink">{title}</strong> {body}
+                  </span>
+                </li>
               ))}
-            </nav>
-            <div className="mt-6 rounded-xl border border-emerald-900/30 bg-emerald-950/20 p-3">
-              <div className="text-xs font-semibold text-emerald-300">✓ Paths verified</div>
-              <p className="mt-1 text-xs leading-5 text-zinc-400">website/ is outside Rojo tree & bundle TREE. All <code className="text-zinc-300">script.Parent</code> requires still resolve. See <a href="#verify" className="underline text-emerald-300">verification</a>.</p>
-            </div>
-            <div className="mt-4 space-y-2 text-xs text-zinc-500">
-              <Link href="https://github.com/Kira762/astra-version-1/blob/main/example.client.luau" target="_blank" className="block hover:text-zinc-300">→ example.client.luau</Link>
-              <Link href="https://github.com/Kira762/astra-version-1/blob/main/MODULES.md" target="_blank" className="block hover:text-zinc-300">→ MODULES.md</Link>
-              <Link href="https://github.com/Kira762/astra-version-1/blob/main/CHANGELOG.md" target="_blank" className="block hover:text-zinc-300">→ CHANGELOG.md</Link>
-            </div>
-          </aside>
+            </ul>
+          </div>
 
-          {/* Main */}
-          <main className="min-w-0 flex-1 py-8 lg:py-10">
-            {/* Hero */}
-            <div className="mb-10">
-              <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-xs font-medium text-violet-300">
-                <span className="h-2 w-2 rounded-full bg-violet-400 animate-pulse" />
-                USAGE GUIDE • GitHub Pages, built from <code className="rounded bg-violet-500/20 px-1.5 py-0.5 text-violet-200">website/</code> — Luau never deployed
-              </div>
-              <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">Astra v1 — Usage Guide</h1>
-              <p className="mt-3 max-w-3xl text-lg leading-7 text-zinc-400">Load Astra and build your first window in a few lines. One loader line, one <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-sm text-zinc-200">CreateWindow</code> call, tabs full of elements — with built-in saving, themes, 7 icon packs and staged startup. This site is the human version of <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-sm text-zinc-200">USAGE.md</code>.</p>
-              <div className="mt-6 flex flex-wrap gap-2">
-                <Badge>Luau • Roblox • Executor</Badge>
-                <Badge>7 icon packs</Badge>
-                <Badge>10 themes + custom</Badge>
-                <Badge>Auto save/load flags</Badge>
-                <Badge>Staged startup</Badge>
-              </div>
-            </div>
+          <div className="lg:pt-12">
+            <CodeBlock
+              title="example.client.luau"
+              tabs={[
+                {
+                  label: "Executor",
+                  code: `local Astra = loadstring(game:HttpGet(
+    "https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"
+))()
 
-            {/* Load */}
-            <section id="load" className="scroll-mt-20 mb-12">
-              <h2 className="text-2xl font-bold tracking-tight">Load the library</h2>
-              <p className="mt-2 text-zinc-400 leading-7">One loader, one line — this is what <code className="rounded bg-zinc-900 px-1 py-0.5 text-sm text-zinc-200">example.client.luau</code> does:</p>
-              <div className="mt-4">
-                <Code title="loader.luau">{`local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"))()`}</Code>
-              </div>
-              <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-                  <div className="text-xs font-semibold tracking-widest text-zinc-500">URL IS RAW BUNDLE</div>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">Point at the published <code className="text-zinc-200">version-1.luau</code> bundle. It’s a generated artifact — never load the modular tree. Needs <code className="text-zinc-300">HttpService</code> enabled.</p>
-                </div>
-                <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-                  <div className="text-xs font-semibold tracking-widest text-zinc-500">NEEDS loadstring</div>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400">Executors provide <code className="text-zinc-300">loadstring</code>; plain Studio does not. In Studio/Rojo use <code className="text-zinc-300">require(ReplicatedStorage.Astra)</code>.</p>
-                </div>
-                <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-                  <div className="text-xs font-semibold tracking-widest text-zinc-500">TRAILING ()</div>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400"><code className="text-zinc-300">loadstring(text)</code> only compiles. The trailing <code className="text-zinc-300">()</code> runs it and returns the table. Without it you get <code className="text-zinc-300">attempt to index a function value</code>.</p>
-                </div>
-              </div>
-              <div className="mt-4 rounded-xl border border-amber-900/30 bg-amber-950/20 p-4">
-                <div className="text-sm font-semibold text-amber-300">What a failed load looks like</div>
-                <Code title="error">{`rAnDoMcHuNkNaMe:1: attempt to call a nil value
-Stack Begin
-Script 'LocalScript', Line 1
-Stack End`}</Code>
-                <p className="mt-3 text-sm leading-6 text-amber-200/70">That message is about the <em>loader</em>, not Astra: the random name is the executor’s chunk, Line 1 is the call, “nil value” means the fetched text never compiled. Check:</p>
-                <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm leading-6 text-zinc-400">
-                  <li><code className="text-zinc-300">print(game:HttpGet(url):sub(1,120))</code> — 404 HTML or rate-limit page never compiles (private repo / wrong branch).</li>
-                  <li>Real syntax error — run <code className="text-zinc-300">sh scripts/check_syntax.sh</code> then <code className="text-zinc-300">node scripts/generate_bundle.js</code>.</li>
-                </ol>
-              </div>
-            </section>
+local window = Astra:CreateWindow({ name = "Example Hub", subtitle = "Astra" })
+local tab = window:CreateTab({ name = "Home", icon = "house" })
 
-            {/* Build a window */}
-            <section id="window" className="scroll-mt-20 mb-12">
-              <h2 className="text-2xl font-bold tracking-tight">Build a window</h2>
-              <p className="mt-2 text-zinc-400 leading-7">A window is the entry point. Create one, add a tab, fill it with elements. The first visible tab opens on its own.</p>
-              <div className="mt-4">
-                <Code title="window.luau">{`local window = Astra:CreateWindow({
-    name = "Example Hub",
-    subtitle = "Astra",
+tab:CreateToggle({
+    name = "Auto Sprint",
+    flag = "autoSprint",
+    value = true,
+    callback = function(on) print("Auto Sprint:", on) end,
 })
 
-local tab = window:CreateTab({ name = "Home", icon = "house" })
+tab:CreateSlider({
+    name = "Sensitivity",
+    range = { 1, 10 },
+    value = 5,
+    suffix = "x",
+    minimal = true,
+    callback = function(value, dragging) end,
+})
 
 tab:CreateButton({
     name = "Say hello",
+    icon = "play",
     callback = function()
         window:Notify({ title = "Hello", content = "Your first element works." })
     end,
 })
 
-tab:CreateToggle({
-    name = "Auto Sprint",
-    callback = function(value)
-        print("Auto Sprint:", value)
-    end,
-})`}</Code>
-              </div>
-              <p className="mt-3 text-sm text-zinc-500">Layout is built-in — switch it anytime in <strong className="text-zinc-300">Settings → Appearance → Bar Layout</strong>.</p>
-            </section>
+tab:Select()`,
+                },
+                {
+                  label: "Studio / Rojo",
+                  code: `local Astra = require(game:GetService("ReplicatedStorage").Astra)
 
-            {/* Saving */}
-            <section id="saving" className="scroll-mt-20 mb-12">
-              <h2 className="text-2xl font-bold tracking-tight">Built-in saving preferences</h2>
-              <p className="mt-2 text-zinc-400 leading-7">No <code className="rounded bg-zinc-900 px-1 py-0.5 text-sm text-zinc-200">configuration</code> table needed in normal use. Open <strong className="text-zinc-200">Settings → Persistence</strong> to change <strong className="text-zinc-200">Auto Save Config</strong> and <strong className="text-zinc-200">Auto Load Config</strong>. Both default to on.</p>
-              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-400">
-                <li>Auto Save saves supported control values after a short coalescing delay.</li>
-                <li>Auto Load restores the default configuration on next startup; turning it on doesn’t replace current session.</li>
-                <li>Turning either off doesn’t delete saved configs.</li>
-                <li>File persistence requires a runtime with writable storage.</li>
-              </ul>
-              <div className="mt-4">
-                <Code title="flags.luau">{`-- any element with a flag participates in Save/Load
+local window = Astra:CreateWindow({ name = "Example Hub", subtitle = "Astra" })
+local tab = window:CreateTab({ name = "Home", icon = "house" })
+
 tab:CreateToggle({ name = "Auto Sprint", flag = "autoSprint", value = true })
-
-window:Set("autoSprint", false)
-print(window:Get("autoSprint"))
-print(window.Flags.autoSprint)
-
-window:Save("Slot2")
-window:Load("Slot2")
-window:ListConfigs()
-window:DeleteConfig("Slot2")`}</Code>
-              </div>
-              <p className="mt-3 text-sm text-zinc-500">Elements with <code className="text-zinc-300">forgetState = true</code> are excluded. Use stable, unique flags for reliable restores.</p>
-            </section>
-
-            {/* Window API */}
-            <section id="api-window" className="scroll-mt-20 mb-12">
-              <h2 className="text-2xl font-bold tracking-tight">Window — every method</h2>
-              <div className="mt-4 overflow-hidden rounded-xl border border-zinc-800">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-zinc-900 text-left text-xs tracking-widest text-zinc-500">
-                      <tr><th className="px-4 py-3">Method</th><th className="px-4 py-3">Description</th></tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-800 bg-zinc-950 text-zinc-300">
-                      {[
-                        ["window:CreateTab({ name, icon })", "Create a tab. Returns Tab."],
-                        ["window:CreateSection({ name, icon })", "Top-level section — TabSection."],
-                        ["window:Notify({ title, content, icon, duration })", "Classic notification (entrance queue)."],
-                        ["window:Popup({ title, content, boxes, options })", "Modal popup. Returns Popup:Close()."],
-                        ["window:Navigate(tab)", "Select tab by name or object."],
-                        ["window:Show() / Hide() / ToggleHide()", "Visibility."],
-                        ["window:ToggleMinimise()", "Collapse/expand the rail."],
-                        ["window:Close()", "Animated close (confirm popup); unloads when done."],
-                        ["window:Save(name?) / Load(name?)", "Save/load flags."],
-                        ["window:ListConfigs()", "Array of saved config names."],
-                        ["window:DeleteConfig(name)", "Delete a saved config."],
-                        ["window:Get(flag) / Set(flag, value)", "Read/write by flag."],
-                        ["window:ChangeTheme(theme)", "Swap theme at runtime."],
-                        ["window:SetLocale(id) / SetTranslator(fn) / RegisterTranslations(t)", "Localisation."],
-                        ["window:ResolveIcon(value, pack?)", "Icon name → asset id."],
-                        ["window:GetPath()", "Returns (folder, file) persistence path."],
-                        ["window:Unload()", "Destroy the window."],
-                        ["window.Flags", "Table of every flag’s current value."],
-                      ].map(([k, v]) => (
-                        <tr key={k}><td className="px-4 py-2.5 font-mono text-xs text-violet-300">{k}</td><td className="px-4 py-2.5 text-zinc-400">{v}</td></tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              <div className="mt-4">
-                <Code title="window:SetProfile">{`window:SetProfile({
-    subtitle = "Beta tester",              -- replaces @username line
-    key = "ASTRA-XXXX-XXXX",               -- masked until Reveal profile details
-    tier = "PREMIUM",                      -- header pill word
-    whitelist = { status = "Active", daysLeft = 14 },  -- or expiresAt = os.time() + n
-})
--- nil subtitle falls back to @username; omitted fields show —; rows stay masked until Reveal.`}</Code>
-              </div>
-              <p className="mt-3 text-sm text-zinc-500">Popup: <code className="text-zinc-300">options = {"{ { text = \"Cancel\" }, { text = \"Confirm\", style = \"primary|danger|neutral\", callback = fn } }"}</code>. Also: <code className="text-zinc-300">Create / Connect / Disconnect / DestroySubtree / CreateGlow / StyleElementBody / SaveSettings / SetProfile</code> helpers.</p>
-            </section>
-
-            {/* Tabs */}
-            <section id="tabs" className="scroll-mt-20 mb-12">
-              <h2 className="text-2xl font-bold tracking-tight">Tabs and groups</h2>
-              <Code title="tabs.luau">{`local tab = window:CreateTab({ name = "Home", icon = "house" })
-tab:Select()
-tab:Deselect()
-tab:Remove()
-
-local row = tab:CreateGroup()                       -- horizontal row
-local col = row:CreateGroup({ direction = "column" }) -- nested column
-col:CreateToggle({ name = "Left 1" })`}</Code>
-              <p className="mt-3 text-sm leading-6 text-zinc-400">Tab methods: <code className="text-zinc-300">CreateButton, CreateToggle, CreateSlider, CreateDropdown, CreateInput, CreateStat, CreateSection, CreateText, CreateDivider, CreateGroup, CreateCollapsibleGroup</code>. Groups support row/column (auto-column if non-compact children). Collapsible Groups only on a tab.</p>
-            </section>
-
-            {/* Elements intro */}
-            <section id="elements" className="scroll-mt-20 mb-8">
-              <h2 className="text-2xl font-bold tracking-tight">Elements</h2>
-              <p className="mt-2 text-zinc-400 leading-7">Every element supports <code className="rounded bg-zinc-900 px-1 py-0.5 text-sm text-zinc-200">Moveable</code> (<code className="text-zinc-300">:MoveTo, :MoveToTop, :MoveToBottom, :MoveUp, :MoveDown</code>) and most support <code className="rounded bg-zinc-900 px-1 py-0.5 text-sm text-zinc-200">Lockable</code> (<code className="text-zinc-300">:Lock, :Unlock, :IsLocked</code>). Most props accept <code className="text-zinc-300">icon</code>.</p>
-              <Code title="elements quick">{`tab:CreateButton({ name = "Click Me", icon = "play", callback = function() end })
-tab:CreateSlider({ name = "Sensitivity", range = { 1, 10 }, value = 5, suffix = "x", minimal = true, callback = function(v, dragging) end })
-tab:CreateDropdown({ name = "Preset", options = { "Low", "Medium", "High" }, value = "Medium", multiSelect = true, placeholder = "Pick items", callback = function(s) end })
-tab:CreateInput({ name = "Name", placeholder = "Type here", numeric = true, clearOnFocus = true, callback = function(t) end })`}</Code>
-            </section>
-
-            {/* Individual elements */}
-            <div className="space-y-10">
-              <section id="button" className="scroll-mt-20 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
-                <h3 className="text-lg font-semibold">Button</h3>
-                <p className="mt-2 text-sm leading-6 text-zinc-400">Built-in tap glyph (phosphor <code className="text-zinc-300">hand-tap</code>) on the right. Tapping the card or the glyph fires <code className="text-zinc-300">callback</code> and pulses.</p>
-                <div className="mt-4">
-                  <Code>{`tab:CreateButton({ name = "Click Me", icon = "play", callback = function() print("clicked") end })
--- hide or replace glyph:
-tab:CreateButton({ name = "Silent", tapIcon = false, callback = function() end })
-tab:CreateButton({ name = "Refresh", tapIcon = "refresh-cw", callback = function() end })`}</Code>
-                </div>
-              </section>
-
-              <section id="toggle" className="scroll-mt-20 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
-                <h3 className="text-lg font-semibold">Toggle</h3>
-                <Code>{`local t = tab:CreateToggle({ name = "Auto Sprint", flag = "autoSprint", value = true, callback = function(on) print(on) end })
-t:Set(false)          -- fires callback
-t:Set(false, true)    -- silent`}</Code>
-              </section>
-
-              <section id="slider" className="scroll-mt-20 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
-                <h3 className="text-lg font-semibold">Slider</h3>
-                <Code>{`tab:CreateSlider({
-    name = "Sensitivity", flag = "sens",
-    range = { 1, 10 }, value = 5, increment = 1, suffix = "x",
-    minimal = true,
-    callback = function(value, dragging) end,
-})`}</Code>
-              </section>
-
-              <section id="dropdown" className="scroll-mt-20 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
-                <h3 className="text-lg font-semibold">Dropdown</h3>
-                <Code>{`local d = tab:CreateDropdown({
-    name = "Preset", options = { "Low", "Medium", "High" }, value = "Medium",
-    multiSelect = true, placeholder = "Pick items",
-    callback = function(selected) end,
-})
-d:Refresh({ "A", "B" })
-d:Add("C")
-d:Remove("A")`}</Code>
-              </section>
-
-              <section id="input" className="scroll-mt-20 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
-                <h3 className="text-lg font-semibold">Input</h3>
-                <Code>{`tab:CreateInput({
-    name = "Name", placeholder = "Type here",
-    value = "Initial", numeric = true, clearOnFocus = true,
-    callback = function(text) end,
-})`}</Code>
-              </section>
-
-              <section id="stat" className="scroll-mt-20 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
-                <h3 className="text-lg font-semibold">Stat</h3>
-                <Code>{`local s = tab:CreateStat({ name = "Kills", value = 128, prefix = "", suffix = " kills" })
-s:Set(200)
-s:ResetBaseline(0)
--- text mode:
-local theme = tab:CreateStat({ name = "Current theme", value = "Default", letter = false })
-theme:SetText("Emerald")  -- reads "Emerald", not "E"`}</Code>
-                <p className="mt-3 text-xs leading-5 text-zinc-500">Props: <code className="text-zinc-300">display (value|change), compact, changeMode (percentage|delta), changeBaseline (previous|initial), numberEasing, letter</code>. String values render as badge by default; <code className="text-zinc-300">letter=false</code> reads full text.</p>
-              </section>
-
-              <section id="text" className="scroll-mt-20 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
-                <h3 className="text-lg font-semibold">Text / Divider / Group</h3>
-                <Code>{`local x = tab:CreateText({ name = "Title", text = "Body text", icon = "info" })
-x:Set("New body") x:SetTitle("New title")
-
-tab:CreateDivider()  tab:CreateDivider({ text = "or" })  tab:CreateDivider({ line = false, spacing = 8 })
-
-local row = tab:CreateGroup()
-local col = row:CreateGroup({ direction = "column" })
-col:CreateToggle({ name = "Left 1" })`}</Code>
-              </section>
-
-              <section id="changelog" className="scroll-mt-20 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
-                <h3 className="text-lg font-semibold">Changelog element</h3>
-                <p className="mt-2 text-sm leading-6 text-zinc-400">Release history as a standalone element. Keep history in its own file (see <code className="text-zinc-300">changelog.example.luau</code>).</p>
-                <Code>{`local log = tab:CreateChangelog({
-    name = "Release history",
-    emptyText = "No entries yet.",
-    entries = {
-        {
-            version = "0.0.35",
-            date = "2026-09-11",
-            title = "Settings highlight",
-            changes = {
-                { symbol = "~", category = "Fixed", text = "Settings stays highlighted while its tab is active." },
-                { symbol = "+", text = "Added the changelog element." },
-            },
-        },
-    },
-})
-
-log:Add({ version = "Live", date = "Today", changes = { { symbol = "+", text = "Runtime entry." } } })
-log:Set({ ... })
-log:Clear()`}</Code>
-                <p className="mt-3 text-xs text-zinc-500">Symbols: <code className="text-emerald-300">+</code> added (green), <code className="text-red-300">-</code> removed (red), <code className="text-amber-300">~</code> changed (amber); words added/removed/changed map too.</p>
-              </section>
-            </div>
-
-            {/* Settings */}
-            <section id="settings" className="scroll-mt-20 mt-12">
-              <h2 className="text-2xl font-bold tracking-tight">Built-in Settings</h2>
-              <p className="mt-2 text-zinc-400 leading-7">Every window ships a gear action in the topbar. It’s window-scoped — per-window behaviour, not global. It switches into settings mode (only settings tabs shown); clicking again returns to previous tab.</p>
-              <div className="mt-4 overflow-hidden rounded-xl border border-zinc-800">
-                <table className="w-full text-sm">
-                  <thead className="bg-zinc-900 text-left text-xs tracking-widest text-zinc-500"><tr><th className="px-4 py-3">Tab</th><th className="px-4 py-3">Contents</th></tr></thead>
-                  <tbody className="divide-y divide-zinc-800 bg-zinc-950 text-zinc-400">
-                    <tr><td className="px-4 py-3 font-medium text-zinc-200">General</td><td className="px-4 py-3">Menu Toggle keybind (type key like <code className="text-zinc-300">K</code>, <code className="text-zinc-300">Space</code>, <code className="text-zinc-300">MB2</code>, <code className="text-zinc-300">none</code> to unbind), unlock-cursor, welcome toast, Window Behavior (prevent duplicate, keep on screen, draggable capsule, reset positions), Performance & Motion (haptics, animation speed).</td></tr>
-                    <tr><td className="px-4 py-3 font-medium text-zinc-200">Appearance</td><td className="px-4 py-3">Theme dropdown + Apply (popup confirm), Bar Layout (Default Topbar / Sidebar / Collapsed Sidebar), Profile card (Show profile / side / Reveal details).</td></tr>
-                    <tr><td className="px-4 py-3 font-medium text-zinc-200">Persistence</td><td className="px-4 py-3">Auto Save / Auto Load toggles; Saved-configurations dropdown + name input + Save/Load/Delete.</td></tr>
-                    <tr><td className="px-4 py-3 font-medium text-zinc-200">About</td><td className="px-4 py-3">Library info and links.</td></tr>
-                  </tbody>
-                </table>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-zinc-500">Window + profile card (260×420) are centred as one unit: window rests 136px off centre opposite the card so window + 12px gap + card are middle-aligned. Re-derived on first show, hide/show restore, card state changes, “Keep window on screen” clamps the pair.</p>
-            </section>
-
-            {/* Themes */}
-            <section id="themes" className="scroll-mt-20 mt-12">
-              <h2 className="text-2xl font-bold tracking-tight">Themes</h2>
-              <p className="mt-2 text-zinc-400">Built-ins: <code className="text-zinc-300">default, amethyst, cobalt, ember, frost, rose</code> (10 total).</p>
-              <div className="mt-4">
-                <Code>{`window:ChangeTheme("amethyst")
-window:ChangeTheme({
-    ElementGradient = ColorSequence.new(Color3.fromRGB(20,20,30), Color3.fromRGB(30,30,45)),
-    AccentColor = Color3.fromRGB(120, 90, 220),
-})`}</Code>
-              </div>
-            </section>
-
-            {/* Icons */}
-            <section id="icons" className="scroll-mt-20 mt-12">
-              <h2 className="text-2xl font-bold tracking-tight">Icons — 7 packs</h2>
-              <p className="mt-2 text-zinc-400 leading-7">No window-wide <code className="text-zinc-300">iconPack</code> needed. Every icon lookup works everywhere.</p>
-              <div className="mt-4">
-                <Code>{`Astra.Icons.get("house")                -- searched in every pack, priority order
-Astra.Icons.get("material:home")        -- exactly this pack (pack:name)
-Astra.Icons.get("home", "tabler")       -- pack argument does the same
-Astra.Icons.getByPack("tabler", "home")
-Astra.Icons.resolve("house")            -- URL / asset id ready for an Image
-window:ResolveIcon("house")             -- searches all packs
-window:ResolveIcon("feather:home")      -- one exact icon`}</Code>
-              </div>
-              <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-                <div className="text-xs font-semibold tracking-widest text-zinc-500">PRIORITY & LAZY LOAD</div>
-                <p className="mt-2 text-sm leading-6 text-zinc-400">Bare names search in fixed order — lucide, material, tabler, phosphor, heroicons, feather, remix — first hit wins. Lazy: only packs up to the hit are read (<code className="text-zinc-300">Astra.Icons.loaded()</code> tells you which).</p>
-                <p className="mt-2 text-sm leading-6 text-zinc-400">Qualified names (<code className="text-zinc-300">pack:name</code>) never fall back. Names & packs are exact; <code className="text-zinc-300">Home ≠ home</code>. Unknown pack warns once and returns nothing. Values already usable (<code className="text-zinc-300">rbxassetid://, http://</code>) pass through.</p>
-                <p className="mt-2 text-sm leading-6 text-zinc-400">Custom <code className="text-zinc-300">custom_asset/</code> folder next to script wins at resolve: <code className="text-zinc-300">custom_asset/brand/house.png</code> → <code className="text-zinc-300">get("brand/house")</code>. See <Link href="https://github.com/Kira762/astra-version-1/blob/main/assets/icons/README.md" target="_blank" className="text-violet-400 hover:underline">visual icon catalog</Link>.</p>
-              </div>
-            </section>
-
-            {/* Motion */}
-            <section id="motion" className="scroll-mt-20 mt-12">
-              <h2 className="text-2xl font-bold tracking-tight">Motion</h2>
-              <p className="mt-2 text-zinc-400 leading-7">Every transition runs through one service so your own tweens can use the same specs and respect the user’s <strong className="text-zinc-300">Animation speed</strong>.</p>
-              <div className="mt-4">
-                <Code>{`-- Animate with the library's own specs
-Astra.Motion.tween(frame, { BackgroundTransparency = 0.5 }, "snappy")
--- Specs: instant, fast, snappy, normal, smooth, emphasized, pop, glide, exit, spring, settle, spin, drift
-Astra.Motion.tween(stroke, { Color = Color3.new(1,1,1) }, TweenInfo.new(0.3))
-Astra.Motion.tween(panel, { Position = target }, "smooth", function() panel.Visible = false end)
-
-Astra.Motion.setProfile("relaxed")     -- relaxed | normal | snappy | instant
-Astra.Motion.setTimeScale(0.8)
-Astra.Motion.setEnabled(false)
-Astra.Motion.step(0.035)               -- cascade pacing, scaled
-Astra.Motion.cancel(frame)`}</Code>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-zinc-500">Never animates a property already at target; cancels a fighting in-flight tween so repeated handlers can’t stack.</p>
-            </section>
-
-            {/* Locale */}
-            <section id="locale" className="scroll-mt-20 mt-12">
-              <h2 className="text-2xl font-bold tracking-tight">Localisation</h2>
-              <Code>{`window:RegisterTranslations({ en = { play = "Play" }, de = { play = "Spielen" } })
-window:SetLocale("de")
-window:SetTranslator(function(source, localeId) return ... end)`}</Code>
-            </section>
-
-            {/* Startup */}
-            <section id="startup" className="scroll-mt-20 mt-12">
-              <h2 className="text-2xl font-bold tracking-tight">Startup performance</h2>
-              <p className="mt-2 text-zinc-400 leading-7">Construction is staged across frames. Large initial batches yield after ~4ms or 120 instances (cooperative, not a hard cap). Calls still return fully built objects but may yield.</p>
-              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-400">
-                <li>Auto-show on next frame (one defer + one heartbeat) so first <code className="text-zinc-300">CreateTab</code> calls land before the shell appears; remaining constructors stream in behind the visible window.</li>
-                <li>Arrival is staged: shell → page controls (one per beat) → overlays. <code className="text-zinc-300">Notify</code> cards are queued (one entrance at a time, cooldown; past 6 waiting, oldest not-yet-built is dropped). With <code className="text-zinc-300">Instant</code> profile the queue keeps order but drops pauses.</li>
-                <li>Search controls are created on first search open; settings tabs & controls are lazy until selected; inactive tabs wait before reveal animations.</li>
-              </ul>
-            </section>
-
-            {/* Collapsible */}
-            <section id="collapsible" className="scroll-mt-20 mt-12">
-              <h2 className="text-2xl font-bold tracking-tight">Collapsible Group (optional)</h2>
-              <p className="mt-2 text-zinc-400 leading-7">Group controls under an animated header. Nothing is auto-wrapped; existing elements & ordinary Groups are unchanged.</p>
-              <div className="mt-4">
-                <Code title="collapsible.luau">{`local playerControls = tab:CreateCollapsibleGroup({
-    name = "LocalPlayer",
-    icon = "user-round",
-    elements = {
-        { type = "Toggle", name = "Infinite Jump", flag = "infiniteJump", value = false, callback = function(enabled) print(enabled) end },
-        { type = "Slider", name = "Walk Speed", flag = "walkSpeed", range = { 16, 100 }, value = 16, callback = function(v) print(v) end },
-        { type = "Group", elements = {
-            { type = "Button", name = "Reset Speed", icon = "feather:rotate-ccw", callback = function() window:Set("walkSpeed", 16) end },
-            { type = "Button", name = "Show Speed", callback = function() print(window:Get("walkSpeed")) end },
-        }},
-    },
-})`}</Code>
-              </div>
-              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6 text-zinc-400">
-                <li>Supported: <code className="text-zinc-300">Button, Toggle, Switch, Slider, Dropdown, Input, Stat, Section, Text, Divider, Group, Changelog</code>.</li>
-                <li>Every group starts collapsed; no <code className="text-zinc-300">expanded</code> prop. Click header to toggle; multiple groups independent.</li>
-                <li>Values/flags stay active when collapsed; closing doesn’t recreate/reset/rerun callbacks. Closing cancels uncommitted input edits & closes dropdowns.</li>
-                <li>Search includes child names & temporarily expands matches; closing restores previous state.</li>
-                <li>Cannot contain Collapsible Groups (direct or via Group); invalid/cyclic/nested ones are rejected before UI is created.</li>
-                <li>Built in startup batches even while collapsed, so saved flags are usable before first expansion.</li>
-              </ul>
-            </section>
-
-            {/* Props */}
-            <section id="props" className="scroll-mt-20 mt-12">
-              <h2 className="text-2xl font-bold tracking-tight">CreateWindow — all props</h2>
-              <div className="mt-4">
-                <Code>{`local window = Astra:CreateWindow({
-    name = "My UI",              -- title (left side of topbar)
-    subtitle = "v1.0",           -- small text next to title
-    icon = "house",              -- topbar icon (pack name or asset id)
-    theme = "default",           -- 10 built-ins or custom table
-    showName = "Astra",          -- name when minimised to capsule (default "Astra")
-    showIconOnly = false,        -- capsule shows only icon, no name
-    fallbackFont = Enum.Font.Gotham,
-    translator = function(source, localeId) return ... end,
-    locale = "en",
-    translations = { ... },
-})`}</Code>
-              </div>
-              <p className="mt-3 text-sm text-zinc-500">Layout is not a prop — switch in <strong className="text-zinc-300">Settings → Appearance → Bar Layout</strong>. See <code className="text-zinc-300">example.client.luau</code> for a complete end-to-end example covering every element type.</p>
-            </section>
-
-            {/* Repo */}
-            <section id="repo" className="scroll-mt-20 mt-12">
-              <h2 className="text-2xl font-bold tracking-tight">Monorepo & GitHub Pages — why website/ doesn’t break Luau</h2>
-              <p className="mt-2 text-zinc-400 leading-7">This repo is a monorepo: Luau library at the root, Next.js site in <code className="rounded bg-zinc-900 px-1 py-0.5 text-zinc-200">website/</code>. <code className="rounded bg-zinc-900 px-1 py-0.5 text-zinc-200">.github/workflows/deploy-pages.yml</code> exports it to <code className="rounded bg-zinc-900 px-1 py-0.5 text-zinc-200">website/out</code> and publishes that to <Link href="https://kira762.github.io/astra-version-1/" target="_blank" className="text-violet-400 hover:underline">kira762.github.io/astra-version-1</Link> — no build output committed, no third-party host.</p>
-              <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
-                  <div className="border-b border-zinc-800 bg-zinc-900 px-4 py-2 text-xs font-semibold tracking-widest text-zinc-500">REPOSITORY LAYOUT</div>
-                  <pre className="p-4 font-mono text-xs leading-6 text-zinc-300">{`website/              ← Next.js docs (static export → out/)
-  app/page.tsx       your docs (this page)
-  package.json       next, react, tailwind
-.github/workflows/
-  deploy-pages.yml   build website/out → GitHub Pages
-components/          Luau window shell (not in web build)
-elements/            Luau elements (not in web build)
-core/ settings/ ...  Luau runtime (not in web build)
-version-1.luau       generated bundle (not in web build)
-skills/              agent skill (not in web build)`}</pre>
-                </div>
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-                    <div className="text-xs font-semibold tracking-widest text-violet-400">GITHUB ACTIONS PIPELINE</div>
-                    <p className="mt-2 text-sm leading-6 text-zinc-400">Runs on every push to <code className="text-zinc-300">main</code> that touches <code className="text-zinc-300">website/**</code> — Luau-only commits never trigger a redeploy.</p>
-                    <div className="mt-3 rounded-lg bg-zinc-950 p-3 font-mono text-xs leading-5 text-zinc-400">
-                      <div><span className="text-violet-400">npm ci</span> <span className="text-zinc-600">--prefix website</span></div>
-                      <div><span className="text-violet-400">NEXT_PUBLIC_BASE_PATH</span>=<span className="text-amber-300">/astra-version-1</span> <span className="text-violet-400">npm run build</span></div>
-                      <div><span className="text-violet-400">upload-pages-artifact</span> <span className="text-zinc-600">→ website/out</span></div>
-                      <div><span className="text-violet-400">deploy-pages</span> <span className="text-zinc-600">→ github.io</span></div>
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-                    <div className="text-xs font-semibold tracking-widest text-zinc-500">ONE-TIME SETTING</div>
-                    <p className="mt-2 text-sm leading-6 text-zinc-400"><strong className="text-zinc-300">Settings → Pages → Source: GitHub Actions.</strong> The base path matters too: a project site is served from <code className="text-zinc-300">/astra-version-1</code>, so Next must prefix every <code className="text-zinc-300">_next/</code> asset URL or the page loads unstyled.</p>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* Verify */}
-            <section id="verify" className="scroll-mt-20 mt-12">
-              <h2 className="text-xl font-bold tracking-tight flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-500" /> Path verification — Luau still works after adding website/</h2>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">Moving docs into <code className="rounded bg-zinc-900 px-1 py-0.5 text-zinc-200">website/</code> does not break file paths. Verified:</p>
-              <div className="mt-4 overflow-hidden rounded-xl border border-zinc-800">
-                <table className="w-full text-sm">
-                  <thead className="bg-zinc-900 text-left text-xs tracking-widest text-zinc-500"><tr><th className="px-4 py-3">Check</th><th className="px-4 py-3">Result</th><th className="px-4 py-3">Why it’s safe</th></tr></thead>
-                  <tbody className="divide-y divide-zinc-800 bg-zinc-950 text-zinc-300">
-                    <tr><td className="px-4 py-3 font-mono text-xs text-violet-300">default.project.json / wax.project.json</td><td className="px-4 py-3 text-emerald-300">✓ no website/</td><td className="px-4 py-3 text-zinc-400">Rojo tree lists only <code className="text-zinc-300">library_entrypoint, core, components, elements, settings, cache, functions, layouts, images, icons, themes, utilities, Types</code> — website/ is never synced to Roblox, never appears as <code className="text-zinc-300">script.Parent</code>.</td></tr>
-                    <tr><td className="px-4 py-3 font-mono text-xs text-violet-300">scripts/generate_bundle.js TREE</td><td className="px-4 py-3 text-emerald-300">✓ 101 modules</td><td className="px-4 py-3 text-zinc-400">Explicit <code className="text-zinc-300">TREE = ["{`{file: library_entrypoint}"`}, {`{dir: core}"`}, …]</code> — no website. Bundle still 101 modules, 25k lines, no <code className="text-zinc-300">website</code> string.</td></tr>
-                    <tr><td className="px-4 py-3 font-mono text-xs text-violet-300">scripts/check_requires.py DIRS</td><td className="px-4 py-3 text-emerald-300">✓ 97 files, 292 edges, no cycles</td><td className="px-4 py-3 text-zinc-400">Explicit <code className="text-zinc-300">DIRS = ["core","components",…,"utilities"]</code> — website never scanned. All static <code className="text-zinc-300">require(script.Parent…)</code> still resolve; <code className="text-zinc-300">utilities = script.Parent.Parent.utilities</code> alias still works because parent chain unchanged.</td></tr>
-                    <tr><td className="px-4 py-3 font-mono text-xs text-violet-300">scripts/check_syntax.sh</td><td className="px-4 py-3 text-emerald-300">✓ not broken</td><td className="px-4 py-3 text-zinc-400">Loops <code className="text-zinc-300">for dir in core components … utilities</code> — website omitted.</td></tr>
-                    <tr><td className="px-4 py-3 font-mono text-xs text-violet-300">Luau script.Parent requires</td><td className="px-4 py-3 text-emerald-300">✓ intact</td><td className="px-4 py-3 text-zinc-400">All requires are <em>DataModel-relative</em> (<code className="text-zinc-300">script.Parent.Parent.utilities</code>), not filesystem-relative. Adding a sibling folder at filesystem root cannot change the parent chain inside the DataModel.</td></tr>
-                    <tr><td className="px-4 py-3 font-mono text-xs text-violet-300">version-1.luau bundle</td><td className="px-4 py-3 text-emerald-300">✓ no website</td><td className="px-4 py-3 text-zinc-400"><code className="text-zinc-300">grep -c website version-1.luau == 0</code> — website never bundled.</td></tr>
-                  </tbody>
-                </table>
-              </div>
-              <p className="mt-3 text-xs leading-5 text-zinc-500">If you ever <code className="text-zinc-300">require</code> from inside <code className="text-zinc-300">website/</code> into Luau, that would be a new cross-boundary require — we avoid it. Website imports only from <code className="text-zinc-300">website/</code>; Luau imports only from the Rojo tree.</p>
-            </section>
-
-            {/* Full example */}
-            <section className="mt-12 rounded-2xl border border-violet-900/30 bg-violet-950/20 p-6">
-              <h3 className="text-sm font-semibold tracking-widest text-violet-300">FULL EXAMPLE</h3>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">See <Link href="https://github.com/Kira762/astra-version-1/blob/main/example.client.luau" target="_blank" className="text-violet-400 hover:underline">example.client.luau</Link> — single-tab, every element type including ordinary & Collapsible Groups and Changelog, end-to-end. Load via the one-liner above, or <code className="text-zinc-300">require(ReplicatedStorage.Astra)</code> in Studio.</p>
-            </section>
-
-            {/* Footer */}
-            <footer className="mt-12 border-t border-zinc-800 pt-8">
-              <div className="flex flex-col gap-2 text-sm text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
-                <div>Astra v1 • MIT • <Link href="https://github.com/Kira762/astra-version-1" target="_blank" className="text-zinc-300 hover:text-white">Kira762/astra-version-1</Link> • Docs from USAGE.md</div>
-                <div className="text-xs">GitHub Pages • static export of <code className="rounded bg-zinc-900 px-1 py-0.5 text-zinc-400">website/</code> • Luau library never part of the web build</div>
-              </div>
-            </footer>
-          </main>
-        </div>
-
-        {/* Mobile TOC */}
-        <div className="lg:hidden mt-8 border-t border-zinc-800 pt-6">
-          <div className="text-xs font-semibold tracking-widest text-zinc-500">ON THIS PAGE</div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {TOC.filter(t=>!t.label.startsWith("—")).map(t=>(
-              <a key={t.id} href={`#${t.id}`} className="rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-400 hover:text-white">{t.label}</a>
-            ))}
+tab:Select()`,
+                },
+              ]}
+            />
+            <p className="text-sm text-subtle">
+              The full end-to-end example — every element type in one tab — is{" "}
+              <a
+                href={`${REPO_URL}/blob/main/example.client.luau`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-accent underline decoration-dotted underline-offset-2"
+              >
+                example.client.luau
+              </a>
+              .
+            </p>
           </div>
         </div>
-      </div>
-    </div>
+      </section>
+
+      {/* ---------------------------------------------------------------- */}
+      <section className="border-y border-line bg-surface/40">
+        <div className="mx-auto max-w-shell px-4 py-14 lg:px-6">
+          <h2 className="text-2xl font-semibold tracking-tight">Every element, one table</h2>
+          <p className="mt-2 max-w-prose text-sm leading-7 text-muted">
+            Each element has a page with its props, its handle methods and a copy-pasteable example.
+          </p>
+          <div className="mt-6 overflow-hidden rounded-xl border border-line">
+            <div className="overflow-x-auto">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th className="w-[220px]">Element</th>
+                    <th>What it does</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ELEMENTS.map(([name, description, href]) => (
+                    <tr key={name}>
+                      <td>
+                        <Link
+                          href={href}
+                          className="font-medium text-ink underline decoration-transparent underline-offset-2 transition-colors hover:text-accent hover:decoration-current"
+                        >
+                          {name}
+                        </Link>
+                      </td>
+                      <td>{description}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ---------------------------------------------------------------- */}
+      <section className="mx-auto max-w-shell px-4 py-14 lg:px-6">
+        <div className="grid items-center gap-8 rounded-2xl border border-line bg-surface px-6 py-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:px-10">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">
+              Let a coding agent write the interface
+            </h2>
+            <p className="mt-2 max-w-prose text-sm leading-7 text-muted">
+              This repository is also a published Agent Skill. Install it and Claude Code, Cursor or
+              Codex gets the loader contract, the element cheat sheet and the module rules — so it
+              stops guessing at the API and starts reading the same pages you are.
+            </p>
+            <p className="mt-3 text-sm">
+              <Link href="/docs/skill" className="font-medium text-accent hover:underline">
+                What is inside the skill
+              </Link>
+            </p>
+          </div>
+          <div>
+            <CommandLine
+              command="npx skills add Kira762/astra-version-1"
+              caption="agent skill"
+            />
+            <p className="text-xs text-subtle">
+              Installs <code className="icode">astra</code> into your agent&apos;s skills folder. Listed
+              on{" "}
+              <a
+                href="https://skills.sh/Kira762/astra-version-1"
+                target="_blank"
+                rel="noreferrer"
+                className="text-muted underline decoration-dotted underline-offset-2"
+              >
+                skills.sh
+              </a>
+              .
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }

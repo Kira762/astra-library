@@ -19,6 +19,10 @@ const nextConfig = {
   trailingSlash: true,
   basePath: basePath || undefined,
   assetPrefix: basePath || undefined,
+  // The hosted preview serves this dev server from a proxied host, which is a
+  // different origin from the browser's point of view. GitHub Pages is a static
+  // export and never hits this path.
+  allowedDevOrigins: ["*.e2b.app", "*.e2b.dev", "localhost"],
 };
 
 export default nextConfig;

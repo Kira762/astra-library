@@ -1,6 +1,6 @@
 -- [[Astra overlay entrance queue.
 --
--- Notifications and toasts are the cheapest thing in the interface to look at
+-- Notifications are the cheapest thing in the interface to look at
 -- and the most expensive thing to build on a cold start: a host that fires
 -- twenty of them while it boots — one per module it loaded — builds twenty
 -- cards on the same frame the window's own entrance lands, and every card is
@@ -252,7 +252,7 @@ function OverlayQueue.request(window, build): boolean
     -- [[gate only to flush what was already waiting, so a cancelled entrance
     -- [[cannot strand a card - new work must still wait for a window that is
     -- [[not on screen. A window that showed once queues normally while
-    -- [[hidden, matching the steady-state toast behaviour.]]
+    -- [[hidden.]]
     if window.hidden and not window.hasShownOnce then
         queue.paused = true
     end

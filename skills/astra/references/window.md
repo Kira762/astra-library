@@ -7,7 +7,6 @@
 | `window:CreateTab({ name, icon })` | Returns a `Tab`. |
 | `window:CreateSection({ name, icon })` | Top-level section — a `TabSection`. |
 | `window:Notify({ title, content, icon, duration })` | Classic notification card; queued (see Startup pacing). |
-| `window:Toast({ title, subtitle, icon, duration, position, ... })` | Compact toast; same queue. |
 | `window:Popup({ title, subtitle, icon, content, boxes, options, dismissable })` | Modal; returns a handle with `:Close()`. |
 | `window:Navigate(tab)` | Select a tab by name or Tab object. |
 | `window:Show()` / `Hide()` / `ToggleHide()` | Visibility. |
@@ -16,7 +15,6 @@
 | `window:Save(name?)` / `window:Load(name?)` | Write/read a saved config of flagged values. |
 | `window:ListConfigs()` / `DeleteConfig(name)` | Saved-config bookkeeping. |
 | `window:Get(flag)` / `window:Set(flag, value)` | Read/write a registered flag. |
-| `window:SetChangelog(entries)` / `AddChangelogEntry(entry, prepend?)` / `ClearChangelog()` | Window changelog data (entries newest-first). |
 | `window.Flags` | Table of every registered flag's current value. |
 | `window:ChangeTheme(theme)` | Built-in name or a partial theme table. |
 | `window:SetLocale(id)` / `SetTranslator(fn)` / `RegisterTranslations(t)` | Localisation. |
@@ -91,20 +89,10 @@ previous tab. User code does not build these tabs.
 
 | Tab | Contents |
 |---|---|
-| **General** | Menu toggle keybind field, unlock cursor, welcome toast, Window Behavior (prevent duplicate windows, keep on screen, draggable capsule, reset positions), Performance & Motion (haptics, animation speed). |
+| **General** | Menu toggle keybind field, unlock cursor, Window Behavior (prevent duplicate windows, keep on screen, draggable capsule, reset positions), Performance & Motion (haptics, animation speed). |
 | **Appearance** | Theme dropdown + Apply, Bar Layout dropdown, profile card controls (show / side / reveal details). |
 | **Persistence** | Auto Save Config, Auto Load Config, saved-configurations dropdown with name input and Save/Load/Delete. |
 | **About** | Library info and links. |
-
-## Changelog panel (window-scoped)
-
-Reached through the document action in the topbar (left of search); clicking it
-again returns to the previous tab, and entering settings exits changelog mode
-and vice versa. The view hosts only the release history — user code feeds it
-data via the `changelog` prop or `SetChangelog`/`AddChangelogEntry`/
-`ClearChangelog`, never builds UI inside it. A red dot on the action marks
-entries newer than last viewed (own config file, cleared on open, silent on
-first boot).
 
 ## Themes
 
@@ -217,7 +205,7 @@ behind the visible window. `window:Hide()` before that first reveal cancels
 auto-show; `window:Show()` still works. The arrival itself cascades: shell first,
 then page controls one beat apart, then overlays.
 
-`window:Notify` and `window:Toast` are **queued** — cards are built on their own
+`window:Notify` overlays are **queued** — cards are built on their own
 turn, one entrance at a time, with a cooldown between two of them. Past six waiting
 requests the oldest not-yet-built request is dropped. With the speed profile set to
 **Instant** the order is kept but the pauses disappear.

@@ -22,9 +22,7 @@ local constructors = {
     Stat = function(parent, props) return require(script.Parent.stat).new(parent, props) end,
     Section = function(parent, props) return require(script.Parent.section).new(parent, props) end,
     Text = function(parent, props) return require(script.Parent.text).new(parent, props) end,
-    -- [[Kept so validate() still accepts the kind; buildChildren forwards]]
-    -- [[Changelog specs to the window store before this ever runs.]]
-    Changelog = function(parent, props) return parent.window:_forwardChangelog(props) end,
+    Changelog = function(parent, props) return require(script.Parent.changelog).new(parent, props) end,
     Divider = function(parent, props) return require(script.Parent.divider).new(parent, props) end,
     Group = function(parent, props) return require(script.Parent.group).new(parent, props) end,
 }
@@ -81,14 +79,6 @@ end
 local function buildChildren(parent, definitions)
     for _, spec in ipairs(definitions) do
         local kind = spec.type or spec.Type
-        if kind == "Changelog" then
-            -- [[Changelogs render only in the changelog space: forward the]]
-            -- [[entries into the window store and build no child here (a]]
-            -- [[facade has no .main, so it cannot join the element tree).]]
-            parent.window:_forwardChangelog(spec)
-            parent.window:_constructionCheckpoint(false)
-            continue
-        end
         local child
         if parent.__type == "Group" then
             if kind == "Group" then

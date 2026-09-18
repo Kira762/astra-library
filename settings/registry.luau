@@ -35,12 +35,6 @@ registry.definitions = {
         domain = "appearance",
         description = "Keeps the window clamped inside the viewport.",
     },
-    welcomeToast = {
-        key = "welcomeToast",
-        kind = "boolean",
-        domain = "behavior",
-        description = "Shows a 'Signed in as' toast on first open of a new account.",
-    },
     haptics = {
         key = "haptics",
         kind = "boolean",

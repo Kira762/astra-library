@@ -50,9 +50,8 @@ function Action.new(window, props)
         Parent = self.action,
     })
 
-    -- [[Optional unread dot (changelog): a fixed red badge pinned to the]]
-    -- [[action's top-right corner. Fixed red like the changelog's symbol]]
-    -- [[colors, so it always reads as red on any theme. Created after the]]
+    -- [[Optional unread dot: a fixed red badge pinned to the]]
+    -- [[action's top-right corner. Created after the]]
     -- [[interact button so it renders above it; frames sink no input.]]
     if props.badge or props.Badge then
         self.badge = self.window:Create("Frame", {

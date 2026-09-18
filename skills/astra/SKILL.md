@@ -1,6 +1,6 @@
 ---
 name: astra
-description: "Build and edit Roblox UIs and executor GUI hubs with Astra v1, the Luau UI library loaded as one bundle (version-1.luau) through loadstring plus game:HttpGet. Use for Astra:CreateWindow scripts and everything they build — windows, tabs, groups and elements (Button, Toggle, Slider, Dropdown, Input, Stat, Text, Section, Divider, Collapsible Group), flags, saved configs, themes, icons, motion, toasts, popups and localisation. Also use when changing the Astra repository itself (modular tree, generated bundle, syntax gate, runtime tests)."
+description: "Build and edit Roblox UIs and executor GUI hubs with Astra v1, the Luau UI library loaded as one bundle (version-1.luau) through loadstring plus game:HttpGet. Use for Astra:CreateWindow scripts and everything they build — windows, tabs, groups and elements (Button, Toggle, Slider, Dropdown, Input, Stat, Text, Section, Divider, Collapsible Group, Changelog), flags, saved configs, themes, icons, motion, notifications, popups and localisation. Also use when changing the Astra repository itself (modular tree, generated bundle, syntax gate, runtime tests)."
 ---
 
 # Astra v1
@@ -99,7 +99,7 @@ The first tab opens on its own and layout is a user setting (**Settings → Appe
    Specs: `instant, fast, snappy, normal, smooth, emphasized, pop, glide, exit, spring, settle, spin, drift`.
 10. **Expect startup to be staged.** Constructors return fully built objects but may
     yield while the first UI is built, the window auto-shows on the next frame, and
-    `Notify`/`Toast` are queued one at a time (a backlog past six drops the oldest).
+    `Notify` overlays are queued one at a time (a backlog past six drops the oldest).
     `window:Hide()` before the first reveal cancels auto-show.
 
 ## Failure signatures
@@ -113,7 +113,7 @@ The first tab opens on its own and layout is a user setting (**Settings → Appe
 | Values do not come back on the next run | No `flag` on the control, a duplicated flag, `forgetState = true`, or Auto Load turned off in Settings → Persistence. |
 | Two shells appear at once | A second `CreateWindow` after the guard was disabled or the previous handle was left live — reuse the handle or `window:Unload()` first. |
 | A control ignores clicks | It is `:Lock()`ed, or its tab has never been shown (inactive tabs reveal and build lazily). |
-| A popup or toast never appears | Overlays are queued one at a time; a burst past six waiting requests drops the oldest unbuilt one. |
+| A popup or notification never appears | Overlays are queued one at a time; a burst past six waiting requests drops the oldest unbuilt one. |
 
 ## Element cheat sheet
 
@@ -132,19 +132,17 @@ line on `CreateCollapsibleGroup`.
 | `CreateStat({ name, value, prefix, suffix, display, compact, letter, changeMode, changeBaseline })` | readout card; a string `value` shows one letter unless `letter = false`, which reads the whole value | `:Set(value)`, `:SetText(text)`, `:ResetBaseline(n)` |
 | `CreateDivider({ text, line, spacing })` | rule between controls | — |
 | `CreateGroup({ direction = "row" \| "column" })` | horizontal row by default | nesting via `Create…` |
-| `window:SetChangelog(entries)` / `:AddChangelogEntry(entry, prepend?)` / `:ClearChangelog()` | window changelog data (panel only, entries newest-first) | — |
-
 Tab-only declarative container: `tab:CreateCollapsibleGroup({ name, icon, description, elements = { ... } })`
-where each child is `{ type = "Toggle" | "Button" | "Slider" | "Dropdown" | "Input" | "Switch" | "Stat" | "Section" | "Text" | "Divider" | "Group", ...same props }`.
+where each child is `{ type = "Toggle" | "Button" | "Slider" | "Dropdown" | "Input" | "Switch" | "Stat" | "Section" | "Text" | "Divider" | "Group" | "Changelog", ...same props }`.
 Groups may nest inside it; collapsible groups never nest, and every collapsible
-starts collapsed. A `{ type = "Changelog" }` child still validates but forwards its entries into the window changelog instead of building UI.
+starts collapsed. `Changelog` renders as a regular element wherever it is declared.
 
 Elements support `:MoveTo(index)`, `:MoveUp()`, `:MoveDown()`, `:MoveToTop()`,
 `:MoveToBottom()`; most also support `:Lock()`, `:Unlock()`, `:IsLocked()`.
 
 ## Window surface in one glance
 
-`window:CreateTab`, `CreateSection`, `Notify`, `Toast`, `Popup`, `Navigate(tab)`,
+`window:CreateTab`, `CreateSection`, `Notify`, `Popup`, `Navigate(tab)`,
 `Show`, `Hide`, `ToggleHide`, `ToggleMinimise`, `Close`, `Save(name?)`, `Load(name?)`,
 `ListConfigs`, `DeleteConfig(name)`, `Get(flag)`, `Set(flag, value)`, `Flags`,
 `ChangeTheme(theme)`, `SetLocale(id)`, `SetTranslator(fn)`, `RegisterTranslations(t)`,
@@ -160,7 +158,7 @@ Read only what the task needs:
 
 - `references/elements.md` — full props and handle methods for every element, plus
   tab/group rules and the Collapsible Group declarative schema.
-- `references/window.md` — window methods, popups/toasts/notifications, themes,
+- `references/window.md` — window methods, popups/notifications, themes,
   icon packs, motion service, localisation, profile card, persistence, startup pacing.
 - `references/repo-workflow.md` — working inside this repository: bundle generation,
   syntax and checker scripts, runtime tests, docs/changelog conventions.

@@ -41,7 +41,7 @@ export type WindowProps = {
     showName: string?,
     showIcon: (string | number)?,
     showIconOnly: boolean?,     profile: string?,     configuration: WindowConfiguration?,
-    fallbackFont: (Font | Enum.Font)?,     locale: string?,     translations: Translations?,     translator: Translator?,     changelog: ChangelogProps?, }
+    fallbackFont: (Font | Enum.Font)?,     locale: string?,     translations: Translations?,     translator: Translator?, }
 
 export type TabProps = {
     name: string?,
@@ -150,12 +150,6 @@ export type NotifyProps = {
     content: string?,
     icon: (string | number)?,
     duration: number?,
-}
-
-export type ToastProps = {
-    title: string?,
-    subtitle: string?,     subtitleAbove: boolean?,     icon: (string | number)?,     avatar: number?,     minWidth: number?,     duration: number?,
-    position: "Top" | "Bottom"?,
 }
 
 export type PopupBox = {
@@ -274,7 +268,6 @@ export type Tab = {
     CreateStat: (self: Tab, props: StatProps) -> Stat,
     CreateSection: (self: Tab, props: SectionProps) -> Section,
     CreateText: (self: Tab, props: TextProps) -> Text,
-    -- Redirected into the window changelog store (see Window:SetChangelog).
     CreateChangelog: (self: Tab, props: ChangelogProps) -> Changelog,
     CreateDivider: (self: Tab, props: DividerProps?) -> Divider,
     CreateGroup: (self: Tab, props: GroupProps?) -> Group,
@@ -287,7 +280,6 @@ export type Window = {
     CreateTab: (self: Window, props: TabProps) -> Tab,
         CreateSection: (self: Window, props: SectionProps) -> TabSection,
     Notify: (self: Window, props: NotifyProps) -> (),
-    Toast: (self: Window, props: ToastProps) -> (),
     Popup: (self: Window, props: PopupProps) -> Popup?,     Show: (self: Window) -> (),
     Hide: (self: Window) -> (),
     ToggleHide: (self: Window) -> (),
@@ -304,9 +296,6 @@ export type Window = {
     GetPath: (self: Window) -> (string, string),
     Get: (self: Window, flag: string) -> any,
     Set: (self: Window, flag: string, value: any) -> boolean,
-    SetChangelog: (self: Window, entries: { ChangelogEntry } | ChangelogProps) -> (),
-    AddChangelogEntry: (self: Window, entry: ChangelogEntry, prepend: boolean?) -> (),
-    ClearChangelog: (self: Window) -> (),
     Unload: (self: Window) -> (),
 }
 

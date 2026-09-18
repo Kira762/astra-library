@@ -57,9 +57,8 @@ tab:CreateCollapsibleGroup({
 ```
 
 - Supported `type` values: `Button`, `Toggle`, `Switch` (alias of Toggle), `Slider`,
-  `Dropdown`, `Input`, `Stat`, `Section`, `Text`, `Divider`, `Group`.
-  Each entry uses exactly the same props as its `Create…` method. `{ type = "Changelog" }`
-  still validates but forwards its entries into the window changelog (no child UI).
+  `Dropdown`, `Input`, `Stat`, `Section`, `Text`, `Divider`, `Group`, `Changelog`.
+  Each entry uses exactly the same props as its `Create…` method and renders as a regular child.
 - `elements` may be omitted for an empty header. Every group starts **collapsed**;
   there is no `expanded` prop.
 - Collapsible groups cannot contain collapsible groups, directly or via a Group.
@@ -172,30 +171,29 @@ tab:CreateDivider({ text = "or" })           -- labelled rule
 tab:CreateDivider({ line = false, spacing = 8 })
 ```
 
-## Changelog (window panel, not a tab element)
+## Changelog
 
-Release history renders only in the window's changelog view (topbar action).
-Feed it data; never build UI for it:
+Release history renders as a standalone element wherever it is declared:
 
 ```lua
-local window = Astra:CreateWindow({ name = "Hub", changelog = {
+local log = tab:CreateChangelog({
     name = "Release history",
     emptyText = "No entries yet.",
     entries = { { version = "0.0.35", date = "2026-09-11", changes = {
         { symbol = "~", category = "Fixed", text = "Settings stays highlighted while its tab is active." },
     } } },
-} })
+})
 
-window:AddChangelogEntry({ version = "Live", date = "Today", changes = { { symbol = "+", text = "Runtime entry." } } })  -- prepends
-window:AddChangelogEntry(entry, false)   -- append instead
-window:SetChangelog({ ... })            -- replace all entries (full { name, entries, ... } tables accepted)
-window:ClearChangelog()
+log:Add({ version = "Live", date = "Today", changes = { { symbol = "+", text = "Runtime entry." } } })  -- prepends
+log:Add(entry, false)   -- append instead
+log:Set({ ... })        -- replace all entries (full { name, entries, ... } tables accepted)
+log:Clear()
+log:SetTitle("History")
+log:Refresh()
 ```
 
 Symbols: `+` added (green), `-` removed (red), `~` changed (amber); the words
-`"added"`/`"removed"`/`"changed"` map to the same colours. A red dot on the
-action marks unviewed entries (own config file, cleared on open).
-`tab:CreateChangelog` still runs but forwards into the store with a warning.
+`"added"`/`"removed"`/`"changed"` map to the same colours. The element supports the same move/lock API as other elements.
 
 ## Moveable & Lockable
 

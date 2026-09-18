@@ -27,7 +27,6 @@ export type StatProps = types.StatProps
 export type TextProps = types.TextProps
 export type DividerProps = types.DividerProps
 export type NotifyProps = types.NotifyProps
-export type ToastProps = types.ToastProps
 export type PopupBox = types.PopupBox
 export type PopupOption = types.PopupOption
 export type PopupProps = types.PopupProps

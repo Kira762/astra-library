@@ -7,28 +7,9 @@
 -- [[not provide it — and the URL must be the raw file of a public repo.]]
 local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"))()
 
--- [[Release history lives in its own data file (see changelog.example.luau):]]
--- [[require it and hand it to the window. Single-file scripts can paste the]]
--- [[table inline instead, as this example does - entries are newest-first.]]
-local changelogData = {
-    name = "Release history",
-    emptyText = "No entries yet.",
-    entries = {
-        {
-            version = "Element Test",
-            date = "Live",
-            title = "All supported elements",
-            changes = {
-                { symbol = "+", category = "Added", text = "This changelog renders in the window's changelog panel." },
-            },
-        },
-    },
-}
-
 local window = Astra:CreateWindow({
     name = "Astra Element Test",
     subtitle = "All elements in one paced tab",
-    changelog = changelogData,
     configuration = {
         fileName = "Astra-Example",
         customFolder = "AstraExamples",
@@ -70,7 +51,7 @@ elements:CreateToggle({
     name = "Toggle",
     value = true,
     callback = function(value)
-        window:Toast({ title = "Toggle", subtitle = if value then "Enabled" else "Disabled" })
+        window:Notify({ title = "Toggle", content = if value then "Enabled" else "Disabled" })
     end,
 })
 
@@ -90,7 +71,7 @@ elements:CreateDropdown({
     options = { "Low", "Medium", "High" },
     value = "Medium",
     callback = function(value)
-        window:Toast({ title = "Dropdown", subtitle = tostring(value) })
+        window:Notify({ title = "Dropdown", content = tostring(value) })
     end,
 })
 
@@ -108,12 +89,24 @@ elements:CreateInput({
     name = "Input",
     placeholder = "Type something",
     callback = function(value)
-        window:Toast({ title = "Input", subtitle = tostring(value) })
+        window:Notify({ title = "Input", content = tostring(value) })
     end,
 })
 
--- [[Changelogs render only in the window's changelog panel (topbar icon), fed]]
--- [[by the CreateWindow prop above - tabs can no longer host them.]]
+elements:CreateChangelog({
+    name = "Release history",
+    emptyText = "No entries yet.",
+    entries = {
+        {
+            version = "Element Test",
+            date = "Live",
+            title = "All supported elements",
+            changes = {
+                { symbol = "+", category = "Added", text = "This changelog renders as a standalone element." },
+            },
+        },
+    },
+})
 
 -- [[A normal Group is an element too. Its children use the compact row layout.]]
 local group = elements:CreateGroup({ direction = "column" })
@@ -135,14 +128,14 @@ elements:CreateCollapsibleGroup({
     elements = {
         { type = "Section", name = "Declarative children" },
         { type = "Text", name = "Text child", text = "All child controls are constructed while the group is collapsed." },
-        { type = "Button", name = "Button child", callback = function() window:Toast({ title = "Child button", subtitle = "Clicked" }) end },
+        { type = "Button", name = "Button child", callback = function() window:Notify({ title = "Child button", content = "Clicked" }) end },
         { type = "Toggle", name = "Toggle child", value = true },
         { type = "Switch", name = "Switch alias child", value = false },
         { type = "Slider", name = "Slider child", range = { 0, 100 }, value = 25 },
         { type = "Dropdown", name = "Dropdown child", options = { "One", "Two" }, value = "One" },
         { type = "Stat", name = "Stat child", value = 42, suffix = " checks" },
         { type = "Divider", text = "Nested diagnostics" },
-        -- [[A Changelog child here would forward into the window store (see above).]]
+        { type = "Changelog", name = "Nested changelog", entries = { { version = "1.0", date = "Live", changes = { { symbol = "+", text = "Changelog inside collapsible group" } } } } },
         {
             type = "Group",
             direction = "column",

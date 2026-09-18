@@ -632,6 +632,19 @@
     height: 20px;
     width: 20px;
   }
+
+  /* Finger-sized rows in every navigation list. The header menu and the docs
+     drawer are the only way around the site on a phone, and the footer lists
+     are the only way to the source files, so they get the same 44px a button
+     gets. Rows keep their compact height for a pointer. */
+  #site-menu a,
+  .docs-nav-list a,
+  .docs-toc a,
+  footer ul a {
+    display: flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
 }
 
 /* Hover is a mouse idea. Where there is none, the section link beside a

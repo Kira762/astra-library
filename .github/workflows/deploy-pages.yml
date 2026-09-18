@@ -95,6 +95,14 @@ jobs:
           fi
           echo "Exported $(find out -type f | wc -l) files to website/out (base path '$base')"
 
+      # Reads the export back: the viewport meta, safe-area padding, dvh, the
+      # coarse-pointer block, print/forced-colours palettes, horizontal
+      # scrollers. Fails the deploy rather than shipping a layout that pans
+      # sideways on a phone.
+      - name: Verify device support
+        working-directory: website
+        run: npm run check:devices
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

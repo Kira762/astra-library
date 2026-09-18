@@ -308,7 +308,10 @@ tab:Select()`,
             Each element has a page with its props, its handle methods and a copy-pasteable example.
           </p>
           <div className="mt-6 overflow-hidden rounded-xl border border-line">
-            <div className="scroll-x">
+            {/* Focusable scroll region: on a phone the table pans sideways
+                inside this box, and on a keyboard it can be arrow-scrolled
+                without tabbing through every link in the cells. */}
+            <div className="scroll-x" tabIndex={0} role="region" aria-label="Every element, one table">
               <table className="data-table">
                 <thead>
                   <tr>

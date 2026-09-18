@@ -18,7 +18,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = normalizePath(usePathname() ?? "/");
 
   return (
-    <nav aria-label="Documentation" className="grid gap-6">
+    <nav aria-label="Documentation" className="docs-nav-list grid gap-6">
       {NAV.map((group) => (
         <div key={group.label}>
           <p className="px-3 pb-1.5 font-display text-xs font-semibold text-subtle">{group.label}</p>
@@ -202,7 +202,7 @@ export function DocsToc() {
     <aside className="hidden w-[200px] shrink-0 print:hidden xl:block">
       <div className="sticky-scroll sticky top-14 overflow-y-auto py-8 pl-2">
         <p className="pb-2 font-display text-xs font-semibold text-subtle">On this page</p>
-        <ul className="grid gap-0.5">
+        <ul className="docs-toc grid gap-0.5">
           {page.toc.map((item) => (
             <li key={item.id}>
               <a

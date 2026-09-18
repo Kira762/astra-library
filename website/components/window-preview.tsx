@@ -190,7 +190,7 @@ export function WindowPreview() {
               );
             })}
             <p className="mt-auto hidden px-2 text-[0.625rem] leading-4 text-[var(--w-muted)] sm:block">
-              {settingsMode ? "Settings mode — gear again to leave" : "Layout: default topbar"}
+              {settingsMode ? "Settings mode — gear again to leave" : "Layout: sidebar"}
             </p>
           </div>
 
@@ -362,7 +362,7 @@ export function WindowPreview() {
                 </Card>
                 <Card>
                   <Row icon="star" title="Bar layout" hint="Appearance">
-                    <span className="text-[0.75rem] text-[var(--w-muted)]">Topbar</span>
+                    <span className="text-[0.75rem] text-[var(--w-muted)]">Sidebar</span>
                   </Row>
                 </Card>
               </>

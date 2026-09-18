@@ -130,7 +130,7 @@ function Window.new(props)
         state.setFallbackFont(fallbackFont)
     end
 
-        local layout = layouts.top -- [[layout is controlled via Settings (Astra Settings → Bar Layout); CreateWindow no longer takes sidebarLayout]]
+        local layout = layouts.sidebar -- [[layout is controlled via Settings (Astra Settings → Bar Layout); CreateWindow no longer takes sidebarLayout]]
     local providedIcon = props.icon or props.Icon
 
     local self = setmetatable({
@@ -1882,88 +1882,10 @@ function Window:_buildLockScrim(element)
     }, { CornerRadius = "ElementCornerRadius" })
 end
 
--- [[Topbar tab-strip chrome: the strip is inset from the window edge and a]]
--- [[gradient fade marks whichever edge is clipping tabs. Runs off canvas/]]
--- [[size change signals (see Topbar.Build) and skips writes when the target]]
--- [[state is unchanged, so steady-state cost is one comparison per signal.]]
 function Window:_refreshTabStripChrome()
-    local strip = self.tabList
-    local fadeLeft = self.tabFadeLeft
-    local fadeRight = self.tabFadeRight
-    if self.layout.mode ~= "top" or not strip or not strip.Parent then
-        return
-    end
-
-    -- [[The canvas carries an end gutter on each side (UIPadding), and the]]
-    -- [[frame itself is inset from the window edge, so clipping is read from]]
-    -- [[the last pill's canvas-space right edge against the frame's full]]
-    -- [[width — AbsoluteWindowSize alone would count the trailing gutter as]]
-    -- [[clipped content and light the fade a gutter too early.]]
-    local edgePadding = self.layout.tabStripEdgePadding or 14
-    local frameWidth = strip.AbsoluteSize.X
-    local scrollX = strip.CanvasPosition.X
-    local contentRight = strip.AbsoluteCanvasSize.X - edgePadding
-
-    local rightClipped = contentRight > scrollX + frameWidth + 0.5
-    if fadeRight and fadeRight.Parent and fadeRight.Visible ~= rightClipped then
-        fadeRight.Visible = rightClipped
-    end
-
-    local scrolledFromLeft = scrollX > 0.5
-    if fadeLeft and fadeLeft.Parent and fadeLeft.Visible ~= scrolledFromLeft then
-        fadeLeft.Visible = scrolledFromLeft
-    end
 end
 
--- [[Keep the selected pill inside the strip's viewport after a selection.]]
--- [[Children of the ScrollingFrame sit in canvas space (the end-gutter]]
--- [[padding shifts the first pill's origin), so item.Position is the tab's]]
--- [[offset along the strip without any absolute-position math; the landing]]
--- [[clearance parks the pill just clear of whichever edge fade is showing.]]
-function Window:_scrollSelectedTabIntoView(tweened)
-    local strip = self.tabList
-    if self.layout.mode ~= "top" or not strip or not strip.Parent then
-        return
-    end
-
-    local tab = self.selectedTab
-    local item = tab and (not tab.neglectSelector) and tab.topbarItem
-    if not item or not item.Parent then
-        return
-    end
-
-    local edgePadding = self.layout.tabStripEdgePadding or 14
-    local fadeLanding = self.layout.tabStripFadeWidth or 30
-    local frameWidth = strip.AbsoluteSize.X
-    local maxScroll = math.max(0, strip.AbsoluteCanvasSize.X - frameWidth)
-    local left = item.Position.X.Offset
-    local right = left + item.AbsoluteSize.X
-    local pos = strip.CanvasPosition.X
-
-    -- [[Move the strip only when the pill is clipped or pressed up
-    -- [[against an edge fade; a comfortably visible tab stays put, so
-    -- [[selecting it does not re-scroll the strip for no reason. The left]]
-    -- [[landing clears the fade; the right landing leaves the end gutter]]
-    -- [[visible beside the pill.]]
-    local target = nil
-    if left < pos + fadeLanding then
-        target = left - fadeLanding
-    elseif right > pos + frameWidth - edgePadding then
-        target = right + edgePadding - frameWidth
-    end
-    if target == nil then
-        return
-    end
-    target = math.clamp(target, 0, maxScroll)
-    if math.abs(pos - target) < 1 then
-        return
-    end
-
-    if tweened then
-        motion.tween(strip, { CanvasPosition = Vector2.new(target, 0) }, "snappy")
-    else
-        strip.CanvasPosition = Vector2.new(target, 0)
-    end
+function Window:_scrollSelectedTabIntoView(_tweened)
 end
 
 function Window:_setLayoutMode(modeName)
@@ -2009,41 +1931,20 @@ function Window:_setLayoutMode(modeName)
     elseif self.tabList then
         self:DestroySubtree(self.tabList)
     end
-    -- [[The edge fades live beside the topbar strip, so they are topbar]]
-    -- [[chrome: tear them down on the way out of "top" mode.]]
-    if self.tabFadeLeft then
-        self:DestroySubtree(self.tabFadeLeft)
-        self.tabFadeLeft = nil
-    end
-    if self.tabFadeRight then
-        self:DestroySubtree(self.tabFadeRight)
-        self.tabFadeRight = nil
-    end
     local implementation = layouts.implementation(modeName)
     implementation.Build(self, newLayout)
-    if newLayout.mode == "sidebar" then
-        if not self.elementsCorner then
-            self.elementsCorner = self:_roundCorners(self.elements, newLayout.cardCorners)
-            self.elementsStroke = self:Create("UIStroke", {
-                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                Transparency = 1,
-                Parent = self.elements,
-            }, { Color = "SurfaceStroke" })
-            self:Create("UIGradient", {
-                Rotation = newLayout.cardStrokeRotation,
-                Transparency = newLayout.cardStrokeTransparency,
-                Parent = self.elementsStroke,
-            })
-        end
-    else
-        if self.elementsCorner then
-            self.elementsCorner.CornerRadius = UDim.new(0, 0)
-        end
-        if self.elementsStroke then
-            self.elementsStroke.Transparency = 1
-        end
-        self.elements.Size = UDim2.new(1, 0, 1, -newLayout.chromeHeight)
-        self.bottomFade.Size = UDim2.new(1, 0, newLayout.fadeSize.Y.Scale, newLayout.fadeSize.Y.Offset)
+    if not self.elementsCorner then
+        self.elementsCorner = self:_roundCorners(self.elements, newLayout.cardCorners)
+        self.elementsStroke = self:Create("UIStroke", {
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+            Transparency = 1,
+            Parent = self.elements,
+        }, { Color = "SurfaceStroke" })
+        self:Create("UIGradient", {
+            Rotation = newLayout.cardStrokeRotation,
+            Transparency = newLayout.cardStrokeTransparency,
+            Parent = self.elementsStroke,
+        })
     end
     implementation.ApplyWidth(self, self:_railWidth())
     self.elementsLayout.FillDirection = newLayout.pageDirection

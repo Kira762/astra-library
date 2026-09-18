@@ -361,7 +361,7 @@ overlong title to the row's remaining slot so its existing `TextWrapped`
 wraps it in place. Re-derived from `sidebar.applyRailRows` (rail width
 changes), `Window:_applyContentRailWidth` (layout/settings/locale/theme
 changes, tab removal), `Tab:Remove`, `Window:SetLocale` and
-`Window:ChangeTheme`. No-op for the topbar and collapsed-sidebar layouts.
+`Window:ChangeTheme`. No-op for the collapsed-sidebar layout.
 `applyRailRows` treats the rail as collapsed only at the icon-only width
 (`railCollapsedWidth`), so a content-sized rail narrower than the old fixed
 219px still shows titles.
@@ -422,7 +422,6 @@ Fuzzy search overlay: locals for candidate list, scoring weights, debounce conne
 One module per bar-layout mode, each with `Build(window, layout)` (creates the
 tab strip and rail chrome) and `ApplyWidth(window)` (reflow):
 
-- `Topbar.luau` — mode `top`: horizontal tab strip in the topbar.
 - `Sidebar.luau` — mode `sidebar` (responsive): vertical tab rail.
 - `SidebarCollapsed.luau` — mode `collapsedSidebar`: compact rail.
 
@@ -491,7 +490,7 @@ Per-element specifics:
   with the pre-rebuild sub-tab UI). Lookup: `registry.definition(key)`,
   `registry.keys()`.
 - `defaults.luau` — `values`: flat defaults (`toggleKeybind = Enum.KeyCode.K`,
-  `layoutMode = "top"`, `activeSubTab = 1`, …); `defaults.clone(overrides)`.
+  `layoutMode = "sidebar"`, `activeSubTab = 1`, …); `defaults.clone(overrides)`.
 - `manager.luau` — `SettingsManager.new(overrides)` → `{ defaults =
   defaults.clone(overrides), persistence = {} }`; methods `get`, `set`
   (routes through `registry.definition` + the domain validator, returns false

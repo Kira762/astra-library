@@ -5,7 +5,7 @@ import { docsMetadata } from "@/lib/docs";
 
 export const metadata = docsMetadata({
   title: "Windows",
-  description: "Create an Astra window, switch between the topbar and sidebar layouts, and drive it at runtime: Navigate, Notify, Popup, ChangeTheme, Save, Unload.",
+  description: "Create an Astra window, switch between sidebar and collapsed-sidebar layouts, and drive it at runtime: Navigate, Notify, Popup, ChangeTheme, Save, Unload.",
   path: "/docs/windows/",
 });
 
@@ -44,13 +44,10 @@ export default function Windows() {
       <H2 id="layout">Layouts</H2>
       <div className="prose-docs">
         <p>
-          The window ships three layouts and the player picks one in{" "}
+          The window ships two layouts and the player picks one in{" "}
           <strong>Settings → Appearance → Bar Layout</strong>:
         </p>
         <ul>
-          <li>
-            <strong>Default topbar</strong> — the tab rail sits in a strip across the top.
-          </li>
           <li>
             <strong>Sidebar</strong> — tabs move into a rail down the side, where{" "}
             <C>window:CreateSection</C> headings group them.

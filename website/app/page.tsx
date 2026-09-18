@@ -213,7 +213,7 @@ export default function Home() {
             </p>
             <ul className="mt-7 grid gap-4 text-sm text-muted">
               {[
-                ["Layouts are built in.", "Topbar, sidebar or collapsed sidebar — the player changes it in Settings → Appearance, no code involved."],
+                ["Layouts are built in.", "Sidebar or collapsed sidebar — the player changes it in Settings → Appearance, no code involved."],
                 ["Controls know their flags.", "Pass a flag and the control joins save/load; leave it out and one is derived from the name."],
                 ["Nothing is drawn twice.", "The window builds itself in staged batches so the opening tween keeps its frames."],
               ].map(([title, body]) => (

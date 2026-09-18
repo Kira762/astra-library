@@ -36,7 +36,7 @@ export default function CreateWindowProps() {
       />
       <Callout type="note" title="What is deliberately not a prop">
         <p>
-          Layout. The window ships the topbar, sidebar and collapsed-sidebar layouts and the player
+          Layout. The window ships the sidebar and collapsed-sidebar layouts and the player
           chooses in <strong>Settings → Appearance → Bar Layout</strong>. There is no{" "}
           <C>sidebarLayout</C> argument. The theme is still a prop — it is the starting palette, and
           the player can change that too.

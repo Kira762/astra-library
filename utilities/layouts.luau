@@ -1,41 +1,25 @@
 local layouts = {}
 
-local topbarLayout = require(script.Parent.Parent.layouts.Topbar)
 local sidebarLayout = require(script.Parent.Parent.layouts.Sidebar)
 local sidebarCollapsedLayout = require(script.Parent.Parent.layouts.SidebarCollapsed)
 
 local topbarHeightConstant = 64
 
--- [[Clearance above and below the tab row. The strip is centred in the]]
--- [[chrome band with matching gaps on both sides, so the pills read as]]
--- [[neither pressed against the topbar nor pressed against the content.]]
-local tabStripTopClearance = 6
-local tabStripBottomClearance = 6
-local tabStripTopOffset = topbarHeightConstant + tabStripTopClearance
-local tabStripRowHeight = 38
-local chromeGap = tabStripBottomClearance
-
-export type Mode = "top" | "sidebar"
+export type Mode = "sidebar"
 
 export type Layout = {
     mode: Mode,
 
-        topbarHeight: number,
+    topbarHeight: number,
     chromeHeight: number,
 
-            pageDirection: Enum.FillDirection,
+    pageDirection: Enum.FillDirection,
 
-            fadeSize: UDim2,
+    fadeSize: UDim2,
     fadeTransparency: NumberSequence,
     fadeCorners: { string }?,
 
-        tabStripTop: number?,
-    tabStripHeight: number?,
-    tabStripInset: number?,
-    tabStripEdgePadding: number?,
-    tabStripFadeWidth: number?,
-
-        railWidth: number?,
+    railWidth: number?,
     railCollapsedWidth: number?,
     railCollapseBelow: number?,
     rowHeight: number?,
@@ -53,55 +37,20 @@ export type Layout = {
     forceCollapsed: boolean?,
 }
 
-layouts.top = {
-    mode = "top" :: Mode,
-
-    topbarHeight = topbarHeightConstant,
-    chromeHeight = tabStripTopOffset + tabStripRowHeight + chromeGap,
-
-    tabStripTop = tabStripTopOffset,
-    tabStripHeight = tabStripRowHeight,
-
-    -- [[Margin between the window edge and the tab strip. The strip's]]
-    -- [[ScrollingFrame is inset by this much on each side, so overflowing]]
-    -- [[tabs clip inside the window instead of running into its border.]]
-    tabStripInset = 30,
-
-    -- [[Empty gutter *inside* the strip at each end (canvas UIPadding):]]
-    -- [[the first and last pills never touch the strip's clip edge, at]]
-    -- [[rest or scrolled, so the edge fades dissolve over empty space]]
-    -- [[instead of over a pill pressed up against the edge.]]
-    tabStripEdgePadding = 14,
-
-    -- [[Width of the gradient fade that marks a clipping edge; wide]]
-    -- [[enough to cover the end gutter plus a little strip beyond it.]]
-    tabStripFadeWidth = 30,
-
-    pageDirection = Enum.FillDirection.Horizontal,
-
-            fadeSize = UDim2.new(1, 0, -0.093, 100),
-    fadeTransparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0, 0),
-        NumberSequenceKeypoint.new(0.4414, 0),
-        NumberSequenceKeypoint.new(0.7007, 0.631),
-        NumberSequenceKeypoint.new(1, 1),
-    }),
-} :: Layout
-
 layouts.sidebar = {
     mode = "sidebar" :: Mode,
 
     topbarHeight = topbarHeightConstant,
     chromeHeight = topbarHeightConstant,
 
-            railWidth = 219,
-            railCollapsedWidth = 64,
+    railWidth = 219,
+    railCollapsedWidth = 64,
     railCollapseBelow = 520,
 
     rowHeight = 38,
     rowCornerRadius = 14,
     rowSpacing = 4,
-        railPadding = 17,
+    railPadding = 17,
     rowInset = 15,
     rowPadding = 10,
     rowContentSpacing = 6,
@@ -111,7 +60,7 @@ layouts.sidebar = {
 
     cardTransparency = 0.98,
     cardStrokeRotation = 55,
-            cardCorners = { "TopLeftRadius", "BottomRightRadius" },
+    cardCorners = { "TopLeftRadius", "BottomRightRadius" },
     cardStrokeTransparency = NumberSequence.new({
         NumberSequenceKeypoint.new(0, 0.9),
         NumberSequenceKeypoint.new(0.128, 0.95),
@@ -125,14 +74,13 @@ layouts.sidebar = {
         NumberSequenceKeypoint.new(0.377, 0),
         NumberSequenceKeypoint.new(1, 1),
     }),
-        fadeCorners = { "BottomLeftRadius", "BottomRightRadius" },
+    fadeCorners = { "BottomLeftRadius", "BottomRightRadius" },
 } :: Layout
 
 local collapsedSidebarLayout = table.clone(layouts.sidebar)
 collapsedSidebarLayout.forceCollapsed = true
 
 local implementments = {
-    top = topbarLayout,
     sidebar = sidebarLayout,
     collapsedSidebar = sidebarCollapsedLayout,
 }
@@ -142,8 +90,6 @@ function layouts.get(requestedMode: unknown): Layout?
         return layouts.sidebar
     elseif requestedMode == "collapsedSidebar" then
         return collapsedSidebarLayout
-    elseif requestedMode == "top" then
-        return layouts.top
     end
     return nil
 end

@@ -35,7 +35,7 @@ source, not a runtime entry point.
 
 | Area | Highlights |
 |---|---|
-| Window | Topbar / sidebar / collapsed-sidebar layouts, minimise-to-capsule, draggable, notifications, modal popups, search, profile card, per-window settings. |
+| Window | Sidebar / collapsed-sidebar layouts, minimise-to-capsule, draggable, notifications, modal popups, search, profile card, per-window settings. |
 | Elements | Section, Text, Button, Toggle (and `Switch` alias), Slider, Dropdown (single + multi-select, searchable), Input, Stat, Divider, Group, Collapsible Group, Changelog. |
 | State | Flags with built-in auto save/load, named configs, `forgetState` opt-out, writable-storage persistence. |
 | Look | 10 built-in themes plus custom theme tables, seven icon packs (lucide, material, tabler, phosphor, heroicons, feather, remix) and a `custom_asset/` folder override. |

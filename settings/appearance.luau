@@ -6,7 +6,7 @@ function appearance.validate(key: string, value: any): (boolean, any)
         return type(value) == "boolean", value == true
     end
     if key == "layoutMode" then
-        if value == "top" or value == "sidebar" or value == "collapsedSidebar" then
+        if value == "sidebar" or value == "collapsedSidebar" then
             return true, value
         end
         return false, nil

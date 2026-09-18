@@ -139,7 +139,7 @@ group.interact.Activated:Fire()
 TestPump(0.4)
 assert(window:Get("active") == true and window:Get("speed") == 75, "Reopen retains current state")
 
-for _, mode in { "sidebar", "collapsedSidebar", "top" } do
+for _, mode in { "sidebar", "collapsedSidebar" } do
     window:_setLayoutMode(mode)
     TestPump(0.8)
     assert(group._expanded and group.body.Visible, "Layout changes keep expanded state")

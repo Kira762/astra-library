@@ -83,7 +83,7 @@ export default function Introduction() {
             </thead>
             <tbody>
               {[
-                ["Window", "Topbar, sidebar and collapsed-sidebar layouts, minimise to a capsule, notifications, popups, search, the profile card and per-window settings."],
+                ["Window", "Sidebar and collapsed-sidebar layouts, minimise to a capsule, notifications, popups, search, the profile card and per-window settings."],
                 ["Elements", "Eleven types: Section, Text, Button, Toggle, Slider, Dropdown, Input, Stat, Divider, Group, Collapsible Group and Changelog."],
                 ["State", "Flags with auto save and auto load, named configurations, forgetState opt-outs, and persistence through the runtime's writable storage."],
                 ["Look", "Ten built-in themes plus custom theme tables, seven icon packs with 13,715 icons, and a custom_asset folder that overrides them."],

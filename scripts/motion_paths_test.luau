@@ -9,7 +9,7 @@
 --   P3 show restores: size back, corner back to CornerRoundness,
 --   P4 minimise/expand keeps the bar at the topbar height and restores,
 --   P5 a theme change with animation on does not error and reaches strokes,
---   P6 a layout switch (top -> sidebar -> top) settles back to the top layout,
+--   P6 a layout switch (sidebar -> collapsedSidebar -> sidebar) settles back,
 --   P7 close tears the window down (the destroy-sensitive ordering path).
 
 local function expect(cond, message)
@@ -70,12 +70,12 @@ TestPump(0.8)
 expect(window.theme.Accent == Astra.Themes and true or true, "P5 theme applied")
 
 -- P6
+window:_setLayoutMode("collapsedSidebar")
+TestPump(1.0)
+expect(window.layout.mode == "sidebar" and window.layout.forceCollapsed, "P6 the collapsedSidebar layout applies")
 window:_setLayoutMode("sidebar")
 TestPump(1.0)
-expect(window.layout.mode == "sidebar", "P6 the sidebar layout applies")
-window:_setLayoutMode("top")
-TestPump(1.0)
-expect(window.layout.mode == "top", "P6 the top layout applies back")
+expect(window.layout.mode == "sidebar" and not window.layout.forceCollapsed, "P6 the sidebar layout applies back")
 expect(window.animating == false, "P6 the layout switch settles")
 
 -- P7

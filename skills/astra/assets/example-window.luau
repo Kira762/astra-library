@@ -50,7 +50,7 @@ home:CreateButton({
                     text = "Confirm",
                     style = "primary",
                     callback = function()
-                        window:Notify({ title = "Confirmed", content = "The popup callback ran." }))
+                        window:Notify({ title = "Confirmed", content = "The popup callback ran." })
                     end,
                 },
             },
@@ -65,7 +65,7 @@ home:CreateToggle({
     flag = "autoSprint",
     value = false,
     callback = function(on)
-        window:Notify({ title = "Auto Sprint", content = if on then "Enabled" else "Disabled" }))
+        window:Notify({ title = "Auto Sprint", content = if on then "Enabled" else "Disabled" })
     end,
 })
 
@@ -78,7 +78,7 @@ home:CreateSlider({
     suffix = " studs",
     callback = function(value, dragging)
         if not dragging then
-            window:Notify({ title = "Walk Speed", content = tostring(value) }))
+            window:Notify({ title = "Walk Speed", content = tostring(value) })
         end
     end,
 })
@@ -170,7 +170,7 @@ about:CreateButton({
     icon = "palette",
     callback = function()
         window:ChangeTheme("amethyst")
-        window:Notify({ title = "Theme", content = "Amethyst applied." }))
+        window:Notify({ title = "Theme", content = "Amethyst applied." })
     end,
 })
 

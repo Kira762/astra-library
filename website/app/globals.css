@@ -77,6 +77,7 @@
   html {
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   body {
@@ -87,6 +88,20 @@
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
+    /* A phone held sideways puts the notch and the rounded corners beside the
+       page; both insets are 0 everywhere else. */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    /* Long identifiers and raw URLs must never widen the page itself. */
+    overflow-wrap: break-word;
+  }
+
+  /* min-h-screen is the largest viewport on a mobile browser, which pushes a
+     short page's footer below the fold; dvh is what is actually on screen. */
+  @supports (height: 100dvh) {
+    body {
+      min-height: 100dvh;
+    }
   }
 
   h1,
@@ -108,8 +123,16 @@
     background: rgb(var(--c-accent) / 0.32);
   }
 
+  /* Anchors land below the sticky header — and, below the docs breakpoint,
+     below the sticky "Documentation" bar that sits under it. */
   [id] {
     scroll-margin-top: 6.5rem;
+  }
+
+  @media (max-width: 1023.98px) {
+    [id] {
+      scroll-margin-top: 7.5rem;
+    }
   }
 
   * {
@@ -564,6 +587,19 @@
 }
 
 /* ------------------------------------------------------------------ *
+ * Very large displays
+ *
+ * 4K and ultrawide screens only ever grow the empty margins otherwise.
+ * Deliberately outside the utilities layer so it wins over the generated
+ * `.max-w-shell` whatever order Tailwind emits them in.
+ * ------------------------------------------------------------------ */
+@media (min-width: 1800px) {
+  .max-w-shell {
+    max-width: 1680px;
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Touch and pointer support
  *
  * Phones and tablets get larger hit areas — 44px is the size fingers
@@ -681,6 +717,17 @@
 
   .prose-docs {
     max-width: none;
+  }
+
+  /* Paper has no sideways scroll: wrap a long code line instead of clipping
+     it at the right margin. */
+  pre,
+  pre code,
+  .code-frame pre,
+  .scroll-x {
+    white-space: pre-wrap;
+    overflow-x: visible;
+    overflow-wrap: anywhere;
   }
 
   .code-frame,

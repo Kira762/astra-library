@@ -133,7 +133,7 @@ export function DocsSidebar() {
           <div
             id="docs-drawer"
             ref={drawerRef}
-            className="absolute inset-y-0 left-0 w-[92%] max-w-sm overflow-y-auto overscroll-contain border-r border-line bg-base px-4 py-4 sm:w-[86%]"
+            className="absolute inset-y-0 left-0 w-[92%] max-w-sm overflow-y-auto overscroll-contain border-r border-line bg-base py-4 pl-[max(1rem,env(safe-area-inset-left))] pr-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:w-[86%]"
           >
             <div className="mb-4 flex items-center justify-between">
               <span className="font-display text-sm font-semibold">Documentation</span>

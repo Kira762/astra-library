@@ -15,6 +15,9 @@ export const metadata: Metadata = {
   applicationName: "Astra v1",
   authors: [{ name: "Kira762", url: "https://github.com/Kira762" }],
   alternates: { canonical: "/" },
+  // Version numbers and counts in the docs ("13,715", "v1.0") must not turn
+  // into tappable phone links on a phone that offers to dial them.
+  formatDetection: { telephone: false, email: false, address: false },
   openGraph: {
     type: "website",
     url: SITE_URL,
@@ -39,6 +42,10 @@ export const viewport: Viewport = {
   // the browser paints form controls and the address bar correctly.
   width: "device-width",
   initialScale: 1,
+  // Lets the layout reach the edges of a notched phone, which is what makes
+  // env(safe-area-inset-*) resolve to a real value for the padding rules in
+  // globals.css. Without it the insets are always 0.
+  viewportFit: "cover",
   colorScheme: "dark light",
   themeColor: "#0A0913",
 };

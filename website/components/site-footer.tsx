@@ -4,7 +4,7 @@ import { Icon } from "./icon";
 
 export function SiteFooter() {
   return (
-    <footer className="mt-20 border-t border-line">
+    <footer className="mt-20 border-t border-line print:hidden">
       <div className="mx-auto grid max-w-shell gap-8 px-4 py-12 lg:grid-cols-[1.3fr_1fr_1fr_1fr] lg:px-6">
         <div>
           <p className="font-display text-sm font-semibold">Astra v1</p>
@@ -87,7 +87,7 @@ export function SiteFooter() {
       </div>
 
       <div className="border-t border-line">
-        <div className="mx-auto flex max-w-shell flex-col gap-2 px-4 py-5 text-xs text-subtle sm:flex-row sm:items-center sm:justify-between lg:px-6">
+        <div className="mx-auto flex max-w-shell flex-col gap-2 px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-xs text-subtle sm:flex-row sm:items-center sm:justify-between lg:px-6">
           <p>
             Docs are a static export of{" "}
             <code className="font-mono text-muted">website/</code> — the Luau library is never part

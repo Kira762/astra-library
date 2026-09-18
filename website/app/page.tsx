@@ -76,7 +76,7 @@ export default function Home() {
       <section className="starfield relative overflow-hidden border-b border-line">
         <div
           aria-hidden
-          className="pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[900px] -translate-x-1/2 rounded-full bg-accent/15 blur-[120px]"
+          className="pointer-events-none absolute -top-40 left-1/2 h-[320px] w-[min(900px,120vw)] -translate-x-1/2 rounded-full bg-accent/15 blur-[120px] sm:h-[520px]"
         />
         <div className="relative mx-auto grid max-w-shell items-start gap-12 px-4 py-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,470px)] lg:px-6 lg:py-20 xl:grid-cols-[minmax(0,1fr)_minmax(0,620px)]">
           <div className="lg:pt-6">
@@ -308,11 +308,14 @@ tab:Select()`,
             Each element has a page with its props, its handle methods and a copy-pasteable example.
           </p>
           <div className="mt-6 overflow-hidden rounded-xl border border-line">
-            <div className="overflow-x-auto">
+            {/* Focusable scroll region: on a phone the table pans sideways
+                inside this box, and on a keyboard it can be arrow-scrolled
+                without tabbing through every link in the cells. */}
+            <div className="scroll-x" tabIndex={0} role="region" aria-label="Every element, one table">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th className="w-[220px]">Element</th>
+                    <th className="w-[96px] sm:w-[220px]">Element</th>
                     <th>What it does</th>
                   </tr>
                 </thead>

@@ -6,6 +6,7 @@
     "install:website": "npm ci --prefix website",
     "dev": "npm run dev --prefix website",
     "build": "npm run build --prefix website",
-    "build:pages": "NEXT_PUBLIC_BASE_PATH=/astra-version-1 npm run build --prefix website"
+    "build:pages": "NEXT_PUBLIC_BASE_PATH=/astra-version-1 npm run build --prefix website",
+    "check:devices": "npm run check:devices --prefix website"
   }
 }

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SEARCH_INDEX, type SearchEntry } from "@/lib/docs";
+import { useFocusTrap } from "@/lib/focus-trap";
+import { lockScroll } from "@/lib/scroll-lock";
 import { Icon } from "./icon";
 
 const POPULAR = ["/docs/getting-started", "/docs/windows", "/docs/elements", "/docs/themes", "/docs/icons", "/docs/saving"];
@@ -22,7 +24,10 @@ export function SearchDialog() {
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  useFocusTrap(panelRef, open);
 
   const results = useMemo(() => {
     const trimmed = query.trim().toLowerCase();
@@ -88,11 +93,7 @@ export function SearchDialog() {
   useEffect(() => {
     if (!open) return;
     inputRef.current?.focus();
-    const previous = document.documentElement.style.overflow;
-    document.documentElement.style.overflow = "hidden";
-    return () => {
-      document.documentElement.style.overflow = previous;
-    };
+    return lockScroll();
   }, [open]);
 
   function go(entry: SearchEntry) {
@@ -111,23 +112,29 @@ export function SearchDialog() {
         className="btn gap-2 text-subtle hover:text-ink"
         aria-haspopup="dialog"
         aria-expanded={open}
+        aria-label="Search the documentation"
       >
         <Icon name="search" className="h-4 w-4" />
         <span className="hidden sm:inline">Search docs</span>
-        <kbd className="kbd ml-1 hidden md:inline">⌘&nbsp;K</kbd>
+        <kbd className="kbd ml-1 hidden lg:inline">⌘&nbsp;K</kbd>
       </button>
 
       {open ? (
         <div
-          className="fixed inset-0 z-[70] flex items-start justify-center bg-base/80 px-4 pt-[12vh] backdrop-blur-sm"
+          className="fixed inset-0 z-[70] flex items-start justify-center bg-base/80 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[6vh] backdrop-blur-sm sm:px-4 sm:pt-[12vh]"
           role="dialog"
           aria-modal="true"
           aria-label="Search the documentation"
-          onMouseDown={(event) => {
+          onPointerDown={(event) => {
+            // Pointer events cover mouse, touch and pen, so the backdrop
+            // dismisses on a phone tap as well as a desktop click.
             if (event.target === event.currentTarget) close();
           }}
         >
-          <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl">
+          <div
+            ref={panelRef}
+            className="flex max-h-full w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl"
+          >
             <div className="flex items-center gap-3 border-b border-line px-4 py-3">
               <Icon name="search" className="h-4 w-4 shrink-0 text-subtle" />
               <input
@@ -157,14 +164,16 @@ export function SearchDialog() {
                 aria-label="Search the documentation"
                 autoComplete="off"
                 spellCheck={false}
-                className="w-full bg-transparent text-sm text-ink placeholder:text-subtle"
+                // 16px on phones: anything smaller makes iOS Safari zoom the
+                // whole page in when the field takes focus.
+                className="w-full bg-transparent text-base text-ink placeholder:text-subtle sm:text-sm"
               />
               <button type="button" onClick={close} className="icon-btn h-7 w-7" aria-label="Close search">
                 <Icon name="close" className="h-3.5 w-3.5" />
               </button>
             </div>
 
-            <ul className="max-h-[52vh] overflow-y-auto overscroll-contain p-2">
+            <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
               {results.length === 0 ? (
                 <li className="px-3 py-6 text-center text-sm text-subtle">
                   Nothing matches “{query}”. Try “toggle”, “saving” or “themes”.
@@ -203,7 +212,9 @@ export function SearchDialog() {
               )}
             </ul>
 
-            <div className="flex items-center gap-4 border-t border-line px-4 py-2 text-2xs text-subtle">
+            {/* Keyboard hints: pointless on a touch phone, where the list
+                simply fills the dialog instead. */}
+            <div className="hidden shrink-0 items-center gap-4 border-t border-line px-4 py-2 text-2xs text-subtle sm:flex">
               <span className="flex items-center gap-1">
                 <kbd className="kbd">↑</kbd>
                 <kbd className="kbd">↓</kbd> to move

@@ -1,7 +1,7 @@
 {
   "framework": null,
-  "installCommand": "cd website && npm ci",
-  "buildCommand": "cd website && npm run build",
+  "installCommand": "chmod +x build-website.sh && echo skip-root-install",
+  "buildCommand": "./build-website.sh",
   "outputDirectory": "website/out",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- ./website/ ./vercel.json ./.vercelignore"
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- ./website/ ./vercel.json ./.vercelignore ./build-website.sh"
 }

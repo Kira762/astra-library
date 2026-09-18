@@ -6,6 +6,7 @@ import { SEARCH_INDEX, type SearchEntry } from "@/lib/docs";
 import { useFocusTrap } from "@/lib/focus-trap";
 import { lockScroll } from "@/lib/scroll-lock";
 import { Icon } from "./icon";
+import { ModKey } from "./mod-key";
 
 const POPULAR = ["/docs/getting-started", "/docs/windows", "/docs/elements", "/docs/themes", "/docs/icons", "/docs/saving"];
 
@@ -116,7 +117,9 @@ export function SearchDialog() {
       >
         <Icon name="search" className="h-4 w-4" />
         <span className="hidden sm:inline">Search docs</span>
-        <kbd className="kbd ml-1 hidden lg:inline">⌘&nbsp;K</kbd>
+        <span className="ml-1 hidden lg:inline">
+          <ModKey />
+        </span>
       </button>
 
       {open ? (

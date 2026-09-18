@@ -32,8 +32,8 @@ kind of device gets:
 | Device / input | Behaviour |
 |---|---|
 | Phone (280–430px) | Single column everywhere. The header collapses to a hamburger menu, the docs sidebar becomes a full-height drawer, and tables and code blocks scroll inside their own box instead of widening the page. The live window preview keeps a 52px icon rail so the mock stays usable at 320px. |
-| Tablet (640–1023px) | Two-column card grids, full-width content column, hamburger still in the header — five nav links plus a search field do not fit honestly at 768px. |
-| Laptop / desktop (1024px+) | Sticky docs sidebar, top navigation, hover reveals for heading anchors, keyboard search (⌘K / Ctrl+K) with a focus trap inside the dialog. |
+| Tablet (640–1023px) | Two-column card grids and footer link columns, full-width content column, hamburger still in the header — five nav links plus a search field do not fit honestly at 768px. |
+| Laptop / desktop (1024px+) | Sticky docs sidebar, top navigation, hover reveals for heading anchors, keyboard search with a focus trap inside the dialog — the shortcut hint (`components/mod-key.tsx`) spells the modifier the way the visitor's platform does (⌘K on Apple, Ctrl+K elsewhere). |
 | Wide screens (1280px+) | "On this page" table of contents appears; the shell caps at 1500px so line length stays readable, and widens to 1680px past 1800px so a 4K monitor is not mostly margin. |
 | Touch input | `@media (pointer: coarse)` raises buttons to 44px and slider thumbs to 20px; dropdowns, the drawer, the search dialog and the preview dismiss on outside **taps** (pointer events, not just `mousedown`). Nothing is hover-only. |
 | Keyboard / switch access | Visible focus rings, a skip link, `aria-modal` overlays that trap Tab, Escape closes every overlay, tables are focusable scroll regions. |
@@ -41,7 +41,7 @@ kind of device gets:
 | High-contrast / forced colours | `@media (forced-colors: active)` restores borders, the slider thumb and the heading anchors, which the system palette would otherwise flatten. |
 | Printer / PDF | `@media print` swaps in the light palette, drops the sticky chrome (`print:hidden`), wraps long code lines instead of clipping them and keeps code blocks and table rows from splitting across pages. |
 | Zoom / large text | Layout is in `rem` with a `device-width` viewport that never caps `maximum-scale`, so pinch-zoom and browser text scaling both work. Number-like text is not auto-linked to the dialler (`formatDetection` is off). |
-| Notched phones / dynamic toolbars | `viewportFit: "cover"` plus `env(safe-area-inset-*)` keep the body, the drawer, the search dialog and the footer clear of the notch in landscape; sticky panes size themselves against `100dvh` (with a `100vh` fallback) so mobile browser chrome never cuts them off. |
+| Notched phones / dynamic toolbars | `viewportFit: "cover"` plus `env(safe-area-inset-*)` keep the body, the header, the phone menu, the drawer, the search dialog and the footer clear of the notch, status bar and home indicator — in portrait, landscape and fullscreen/standalone mode, where the sticky panes and anchor scroll-margins follow the taller header. Sticky panes also size themselves against `100dvh` (with a `100vh` fallback) so mobile browser chrome never cuts them off. |
 
 Two things worth knowing when changing the site:
 

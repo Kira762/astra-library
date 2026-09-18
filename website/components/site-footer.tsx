@@ -5,7 +5,9 @@ import { Icon } from "./icon";
 export function SiteFooter() {
   return (
     <footer className="mt-20 border-t border-line print:hidden">
-      <div className="mx-auto grid max-w-shell gap-8 px-4 py-12 lg:grid-cols-[1.3fr_1fr_1fr_1fr] lg:px-6">
+      {/* Two columns from tablet width — one tall column wastes a 768px
+          screen — and four from lg. */}
+      <div className="mx-auto grid max-w-shell gap-8 px-4 py-12 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr] lg:px-6">
         <div>
           <p className="font-display text-sm font-semibold">Astra v1</p>
           <p className="mt-2 max-w-xs text-sm leading-6 text-muted">

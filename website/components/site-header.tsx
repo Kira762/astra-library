@@ -160,7 +160,7 @@ export function SiteHeader() {
       {menuOpen ? (
         <div
           ref={menuRef}
-          className="sticky-scroll overflow-y-auto overscroll-contain border-t border-line bg-base px-3 py-3 sm:px-4 lg:hidden"
+          className="sticky-scroll overflow-y-auto overscroll-contain border-t border-line bg-base px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4 lg:hidden"
         >
           <nav id="site-menu" aria-label="Sections">
             <ul className="grid gap-1">

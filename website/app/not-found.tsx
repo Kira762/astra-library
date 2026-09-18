@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CardGrid, DocCard } from "@/components/content";
+import { ModKey } from "@/components/mod-key";
 import { docsMetadata } from "@/lib/docs";
 
 export const metadata = docsMetadata({
@@ -17,8 +18,7 @@ export default function NotFound() {
       </h1>
       <p className="mt-3 max-w-prose text-base leading-7 text-muted">
         The link may be from an older version of this guide, which used to be a single page. Everything
-        below is current — or press{" "}
-        <kbd className="kbd">⌘&nbsp;K</kbd> and search.
+        below is current — or press <ModKey /> and search.
       </p>
       <CardGrid>
         <DocCard

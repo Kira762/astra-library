@@ -165,16 +165,65 @@ Font = {
 }
 
 -- Memoized Enum so EnumItem identity is stable (== comparisons work).
+-- [[A few categories are policed, because the engine answers a name it does not
+-- [[know with `<name> is not a valid member of "Enum.<Category>"` - an error,
+-- [[not nil - and library code names members at module load (`pressTypes`) or in
+-- [[the middle of a draw (`isPremium`), where one invented member kills the
+-- [[require or the frame. A permissive stub hides that class of bug completely:
+-- [[`Enum.UserInputType.Pen` and `Enum.MembershipType.Free` (neither has ever
+-- [[existed) sailed through every suite here and crashed on a real client. The
+-- [[values are the engine's, so anything reading `.Value` agrees too.]]
+local strictEnumMembers = {
+	UserInputType = {
+		MouseButton1 = 0,
+		MouseButton2 = 1,
+		MouseButton3 = 2,
+		MouseWheel = 3,
+		MouseMovement = 4,
+		Touch = 7,
+		Keyboard = 8,
+		Focus = 9,
+		Accelerometer = 10,
+		Gyro = 11,
+		Gamepad1 = 12,
+		Gamepad2 = 13,
+		Gamepad3 = 14,
+		Gamepad4 = 15,
+		Gamepad5 = 16,
+		Gamepad6 = 17,
+		Gamepad7 = 18,
+		Gamepad8 = 19,
+		TextInput = 20,
+		InputMethod = 21,
+		None = 22,
+	},
+	MembershipType = {
+		None = 0,
+		BuildersClub = 1,
+		TurboBuildersClub = 2,
+		OutrageousBuildersClub = 3,
+		Premium = 4,
+	},
+}
+
+-- [[The Enum's own methods, which every category answers and which are never
+-- [[members (`utilities/enums.luau` reaches for both, inside a pcall).]]
+local enumMethods = { FromValue = true, GetEnumItems = true }
+
 local enumCategories = {}
 Enum = setmetatable({}, {
 	__index = function(_, category)
 		local cat = enumCategories[category]
 		if not cat then
+			local known = strictEnumMembers[category]
 			cat = setmetatable({}, {
 				-- [[An Enum category is an Enum, not a table: typeof() below reads
 				-- [[this marker so the library sees the engine's answer.]]
 				__type = "Enum",
 				__index = function(self, item)
+					if known and not enumMethods[item] and known[item] == nil then
+						error(tostring(item) .. ' is not a valid member of "Enum.' .. tostring(category) .. '"', 2)
+					end
 					local entry = rawget(self, item)
 					if not entry then
 						entry = setmetatable({ Name = tostring(item), Category = tostring(category) }, {

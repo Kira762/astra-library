@@ -49,11 +49,15 @@ local edge = 8
 local zIndex = 500
 
 -- [[Input types that count as a press on the badge. Mouse movement and
--- [[keyboard input pass through untouched.]] 
+-- [[keyboard input pass through untouched.]]
+-- [[`Enum.UserInputType` has no `Pen` item - naming one is not a missing key,
+-- [[it throws "Pen is not a valid member of Enum.UserInputType" while this
+-- [[module loads, which takes every window built afterwards down with it. A
+-- [[stylus press is reported as `Touch` and Studio reports a screen tap as
+-- [[`MouseButton1`, so these two already cover every pointer the badge sees.]]
 local pressTypes: { [any]: boolean } = {
     [Enum.UserInputType.MouseButton1] = true,
     [Enum.UserInputType.Touch] = true,
-    [Enum.UserInputType.Pen] = true,
 }
 
 -- [[RichText hosts: measure the words, not the markup.]] 

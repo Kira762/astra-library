@@ -2,6 +2,63 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-19 — `CreateWindow` runs again: two enum members the engine does not have
+
+A name that is not an enum member is not a missing key on Roblox — the engine
+raises `<name> is not a valid member of "Enum.<Category>"`. Two modules named
+members that have never existed, and both were reachable:
+
+- **`Enum.UserInputType.Pen`** (`components/tooltip.luau`) sat in `pressTypes`, a
+  table built while the module *loads*, and `components/window.luau` requires the
+  tooltip at the top of the file
+  (`local tooltip = require(script.Parent.tooltip)`). Every `CreateWindow`
+  therefore died before it built anything — no window, no UI, just:
+
+  ```
+  [WaxRuntime].Astra.components.window.*: Pen is not a valid member of "Enum.UserInputType"
+    Script 'LocalScript', Line 126 - function CreateWindow
+  ```
+
+  The enum's items are `MouseButton1..3`, `MouseWheel`, `MouseMovement`, `Touch`,
+  `Keyboard`, `Focus`, `Accelerometer`, `Gyro`, `Gamepad1..8`, `TextInput`,
+  `InputMethod`, `None` — there is no `Pen`, and nothing was lost by dropping it:
+  a stylus press is reported as `Touch`, and Studio reports a screen tap as
+  `MouseButton1`, so the two members that remain cover every pointer the badge
+  can be pressed with.
+- **`Enum.MembershipType.Free`** (`components/profilePanel.luau`) sat in
+  `isPremium`, which `tierText` → `applyTier` → `applyIdentity` → `SetProfile`
+  reaches, so it was the next crash waiting behind the first one — it fires as
+  soon as a host draws the profile card. That enum is `None`, `BuildersClub`,
+  `TurboBuildersClub`, `OutrageousBuildersClub`, `Premium`; every item but `None`
+  is a paid tier, so `membership ~= Enum.MembershipType.None` is the whole test
+  the pill needs.
+
+- `components/tooltip.luau`: `pressTypes` is `MouseButton1` + `Touch`, and the
+  comment above it records why there is no `Pen`, so the member is not
+  "restored" by someone who reads the gap as an oversight.
+- `components/profilePanel.luau`: `isPremium` compares against `None` only; its
+  comment lists the real items so `Free` does not come back either.
+- `scripts/sidebar_sizing_stubs.luau`, `scripts/smoke_stubs.luau`: both harnesses
+  answered *any* `Enum.<Category>.<Member>` with a fresh EnumItem, so an invented
+  member could not fail a suite — these two passed all 31 of them and then
+  crashed on a real client. `UserInputType` and `MembershipType` now carry the
+  engine's member lists (values included) and raise the engine's own message for
+  a name outside them; the Enum's own `FromValue` / `GetEnumItems` stay exempt,
+  since `utilities/enums.luau` reaches for both inside a `pcall`. Every other
+  category stays permissive as before.
+- Verification: against the committed bundle the tightened harness reproduces the
+  report exactly — `info_alert_test.sh` dies in `CreateWindow` with `Pen is not a
+  valid member of "Enum.UserInputType"`; with only the tooltip fixed,
+  `profile_ui_test.sh` dies in `tierText` with `Free is not a valid member of
+  "Enum.MembershipType"`. With both fixes in place, 30 of the 31 runtime suites
+  plus `scripts/smoke_test_bundle.sh` pass; the remaining
+  `profile_compact_test.sh` D8 responsive-width expectation (got 600, want 608)
+  fails identically at `620e73c` in a clean worktree, so it predates this change.
+  `scripts/check_syntax.sh` compiles all 105 published files,
+  `scripts/check_requires.py` (99 files, 304 edges) and
+  `scripts/check_instance_fields.py` are clean, and `version-1.luau` is
+  regenerated (`node scripts/generate_bundle.js`).
+
 ## 2026-09-19 — Circle-alert (!) info descriptions on functional elements
 
 Functional elements (`Button`, `Toggle`, `Slider`, `Dropdown`, `Input`) accept an

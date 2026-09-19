@@ -16,6 +16,7 @@ local tabSelector = require(script.Parent.tabSelector)
 local profilePanel = require(script.Parent.profilePanel)
 local settingsComponent = require(script.Parent.settings)
 local overlayQueue = require(script.Parent.overlayQueue)
+local tooltip = require(script.Parent.tooltip)
 
 local state = require(utilities.Parent.core.state)
 
@@ -957,10 +958,19 @@ function Window:Popup(props)
     return require(script.Parent.Parent.components.popup).new(self, props)
 end
 
+function Window:ShowTooltip(anchor: any, text: string)
+    tooltip.show(self, anchor, text)
+end
+
+function Window:HideTooltip()
+    tooltip.hide(self)
+end
+
 function Window:Close()
     if self.animating or self.unloaded then
         return
     end
+    tooltip.hide(self)
     self.animating = true
     self.hidden = true
     self.collapsedInteract.Visible = false
@@ -1038,6 +1048,7 @@ function Window:Close()
 end
 
 function Window:Hide()
+    tooltip.hide(self)
     -- Cancel pending startup reveal even while the window is still hidden.
     self._autoShowCancelled = true
     -- [[A window whose entrance is never going to happen (the cancelled
@@ -1637,6 +1648,7 @@ function Window:_bindTopbarDrag()
             -- [[this is the one moment it has to show itself — the pill
             -- [[brightens here and settles back when the move ends.
             hasMoved = true
+            tooltip.hide(self)
             if self.drag then
                 self.drag:setMoving(true)
             end
@@ -2524,6 +2536,7 @@ function Window:_jumpTo(page)
     if not page then
         return
     end
+    tooltip.hide(self)
     if page.Parent == self.elements then
         self.elementsLayout:JumpTo(page)
     end
@@ -2950,6 +2963,9 @@ function Window:_revealCommon(element, animate)
     if element.tapIcon then
         self:_reveal(element.tapIcon, { ImageTransparency = 0.5 }, animate)
     end
+    if element.infoButton then
+        self:_reveal(element.infoButton, { ImageTransparency = 0.45 }, animate)
+    end
     if element.descriptionLabel then
         self:_reveal(element.descriptionLabel, { TextTransparency = 0.45 }, animate)
     end
@@ -2964,6 +2980,9 @@ function Window:_hideCommon(element, animate)
     end
     if element.tapIcon then
         self:_reveal(element.tapIcon, { ImageTransparency = 1 }, animate)
+    end
+    if element.infoButton then
+        self:_reveal(element.infoButton, { ImageTransparency = 1 }, animate)
     end
     if element.descriptionLabel then
         self:_reveal(element.descriptionLabel, { TextTransparency = 1 }, animate)

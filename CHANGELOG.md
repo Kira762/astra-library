@@ -2,24 +2,33 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
-## 2026-09-19 — Circle-alert (!) info descriptions on functional elements
+## 2026-09-19 — Circle-alert (!) descriptions on functional elements: positioning, tap/hold toggle, and cleanup
 
-Functional elements (`Toggle`, `Slider`, `Dropdown`, `Input`, `Button`) now support
-an optional `info` prop that displays a circular `(!)` alert badge directly beside
-the element title. Hovering or tapping the icon triggers a floating, themed tooltip
-with the description without altering the compact card height.
+Functional elements (`Toggle`, `Slider`, `Dropdown`, `Input`, `Button`) support
+an optional `description` prop (with `info` retained as an alias) that displays a
+circular `(!)` alert badge directly after the element's name.
 
+- Positioned right after the element name: all element title containers now enforce
+  `SortOrder = Enum.SortOrder.LayoutOrder`, with Title at `LayoutOrder = 1` and the
+  circle-alert at `LayoutOrder = 2`, preventing alphabetical sorting by instance name
+  from placing `InfoIcon` ahead of `TextLabel`.
+- Tap to toggle and hold to open: tapping or holding the circle-alert opens the
+  floating description; tapping it again closes it. Pinned tooltips ignore mouse leave
+  events so they remain open until tapped again or dismissed.
+- Empty description hiding: when `description` is omitted or empty (`""`), no
+  circle-alert button is rendered. Dynamic updates via `:SetDescription(text)`
+  (and `:SetInfo(text)`) show or hide the icon and close open tooltips when cleared.
+- Window close cleanup: closing, hiding, minimizing, or unloading the window immediately
+  hides all circle-alert floating descriptions. Switching tabs also dismisses any open
+  description tooltip.
+- Smooth repositioning: scrolling or repositioning keeps the floating description
+  anchored to the moving circle-alert badge instead of abruptly closing it.
 - `elements/infoHelper.luau`: shared builder for the circle-alert indicator button,
-  positioned beside the title in the element's container and isolated with `ZIndex = 15`
-  to prevent click propagation to the underlying card.
-- `components/tooltip.luau`: floating tooltip overlay service with dynamic text
-  bounds calculation, viewport clamping, and smooth motion service transitions.
-- `elements/baseCard.luau`, `toggle.luau`, `button.luau`, `slider.luau`, `dropdown.luau`, `input.luau`:
-  wired to support the `info` (and `infoIcon`) props and `:SetInfo(text)` runtime updates.
-- `components/window.luau`: reveals and hides `element.infoButton` via `_revealCommon`
-  and `_hideCommon`; exposes `Window:ShowTooltip` and `Window:HideTooltip`.
-- `Types.luau`: updated with `info`, `infoIcon`, `SetInfo`, and tooltip types.
-- `example.client.luau`: updated to demonstrate `info` tooltips across interactive elements.
+  positioned directly after the element's name with `LayoutOrder = 2` and `ZIndex = 15`.
+- `components/tooltip.luau`: floating description overlay with pinned state management,
+  viewport clamping, smooth repositioning, and immediate dismissal on window close.
+- `Types.luau`: updated with `description`, `SetDescription`, `info`, and `SetInfo`.
+- `example.client.luau` and `USAGE.md`: updated to use `description` across functional elements.
 
 ## 2026-09-17 — The window shows again: icon-less topbar chrome no longer crashes the first `Show()`
 

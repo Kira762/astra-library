@@ -462,15 +462,14 @@ Per-element specifics:
   `_roundCorners`) moves the container's bottom arcs onto the band and squares
   them off again the moment the body is revealed, so both states keep one even
   silhouette on the same radius token.
-- `description.luau` — legacy in-card helper-line utility kept for bundle
-  compatibility; public element constructors no longer read `description` props.
+- `description.luau` — in-card helper-line utility used by Stat and CollapsibleGroup headers; functional elements use `description` for the circle-alert (!) floating tooltip.
 - `tab.luau` — tab class: `tabPage` (ScrollingFrame), `_register(element)` pipeline into `window.controls[flag]`, selector button visuals. `CreateChangelog` builds a regular changelog element wherever declared.
 - `group.luau`, `section.luau`, `tabSection.luau` — container classes with UIListLayout locals.
 - `changelog.luau` — release-history element (`__type = "Changelog"`): normalizes `ChangelogEntry`/`ChangelogChange` props, maps symbols (`+`/`-`/`~`, or words like "added"/"removed"/"changed") to green/red/amber, fades entries in, supports `Set`/`Refresh`/`Add(entry, prepend?)`/`Clear`. Renders as a regular standalone element; supports `Set`/`Refresh`/`Add`/`Clear` and move/lock API.
 - `divider.luau`, `stat.luau`, `text.luau` — display and interaction elements.
-- `button.luau` — action card with a built-in right-edge tap glyph (`tapIcon` opts out or replaces it), themed through `ContentColor`, revealed with the card, and pulsed on press. Compact/grouped buttons explicitly sort their horizontal layout by `LayoutOrder`: optional custom icon, title, then built-in tap glyph.
-- `baseCard.luau` — shared card container and header layout helper for element modules.
-- `infoHelper.luau` — helper for functional elements: builds the circle-alert (!) indicator button beside the title and wires hover/tap tooltips via `components/tooltip`.
+- `button.luau` — action card with a built-in right-edge tap glyph (`tapIcon` opts out or replaces it), themed through `ContentColor`, revealed with the card, and pulsed on press. Compact/grouped buttons explicitly sort their horizontal layout by `LayoutOrder`: optional custom icon, title, circle alert, then built-in tap glyph.
+- `baseCard.luau` — shared card container and header layout helper for element modules. Lays out icon (0), title (1), and circle alert (2) with LayoutOrder sorting.
+- `infoHelper.luau` — helper for functional elements: builds the circle-alert (!) indicator button directly after the element's name and wires tap/hold/hover floating descriptions via `components/tooltip`.
 
 ---
 

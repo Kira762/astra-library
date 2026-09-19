@@ -10,6 +10,8 @@ Props may be written in camelCase or PascalCase (`name` / `Name`, `callback` /
 `Callback`); camelCase is the convention. Element constructors live on the Tab and
 Group classes — never on the window.
 
+Functional elements (`Toggle`, `Slider`, `Dropdown`, `Input`, `Button`) accept an optional `description` string (inside can be empty; if empty or omitted, no circle-alert will show). When specified, a circular `(!)` alert badge is positioned directly after the element's name. Tapping or holding it reveals a floating, themed description tooltip; tapping again closes it; closing the window hides all circle-alert descriptions. Dynamic updates are supported via `:SetDescription(text)` (with `:SetInfo(text)` as an alias).
+
 ## Tab
 
 ```lua

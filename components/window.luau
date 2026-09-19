@@ -962,15 +962,15 @@ function Window:ShowTooltip(anchor: any, text: string)
     tooltip.show(self, anchor, text)
 end
 
-function Window:HideTooltip()
-    tooltip.hide(self)
+function Window:HideTooltip(immediate: boolean?)
+    tooltip.hide(self, immediate)
 end
 
 function Window:Close()
     if self.animating or self.unloaded then
         return
     end
-    tooltip.hide(self)
+    tooltip.hide(self, true)
     self.animating = true
     self.hidden = true
     self.collapsedInteract.Visible = false
@@ -1048,7 +1048,7 @@ function Window:Close()
 end
 
 function Window:Hide()
-    tooltip.hide(self)
+    tooltip.hide(self, true)
     -- Cancel pending startup reveal even while the window is still hidden.
     self._autoShowCancelled = true
     -- [[A window whose entrance is never going to happen (the cancelled
@@ -1166,6 +1166,7 @@ function Window:ToggleMinimise()
     if self.animating or self.hidden then
         return
     end
+    tooltip.hide(self, true)
 
         if self._searching then
         search.close(self, { showTabs = true })
@@ -3144,6 +3145,7 @@ function Window:DestroySubtrees(roots)
 end
 
 function Window:Unload()
+    tooltip.hide(self, true)
     -- Do not lose the final edit if the window closes inside the save debounce.
     if not self.unloaded and self._saveScheduled and self.configuration.autoSave and not self._loading then
         self._saveScheduled = false

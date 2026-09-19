@@ -75,12 +75,14 @@ export type CollapsibleElementProps = {
 export type CollapsibleGroupProps = {
     name: string?,
     icon: (string | number)?,
+    description: string?,
     elements: { CollapsibleElementProps }?,
 }
 
 export type ButtonProps = {
     name: string?,
     icon: (string | number)?,
+    description: string?,
     info: string?,
     infoIcon: (string | number)?,
     -- Built-in right-edge tap glyph: false hides it, a name/asset id replaces it.
@@ -91,6 +93,7 @@ export type ButtonProps = {
 export type ToggleProps = {
     name: string?,
     icon: (string | number)?,
+    description: string?,
     info: string?,
     infoIcon: (string | number)?,
     flag: string?,
@@ -102,6 +105,7 @@ export type ToggleProps = {
 export type SliderProps = {
     name: string?,
     icon: (string | number)?,
+    description: string?,
     info: string?,
     infoIcon: (string | number)?,
     flag: string?,
@@ -115,6 +119,7 @@ export type SliderProps = {
 export type DropdownProps = {
     name: string?,
     icon: (string | number)?,
+    description: string?,
     info: string?,
     infoIcon: (string | number)?,
     flag: string?,
@@ -129,6 +134,7 @@ export type DropdownProps = {
 export type InputProps = {
     name: string?,
     icon: (string | number)?,
+    description: string?,
     info: string?,
     infoIcon: (string | number)?,
     flag: string?,
@@ -194,18 +200,21 @@ export type Lockable = {
 }
 
 export type Button = Moveable & Lockable & {
+    SetDescription: (self: Button, text: string?) -> (),
     SetInfo: (self: Button, text: string?) -> (),
 }
 
 export type Toggle = Moveable & Lockable & {
     value: boolean,
     Set: (self: Toggle, value: boolean, skipCallback: boolean?) -> (),
+    SetDescription: (self: Toggle, text: string?) -> (),
     SetInfo: (self: Toggle, text: string?) -> (),
 }
 
 export type Slider = Moveable & Lockable & {
     value: number,
     Set: (self: Slider, value: number, skipCallback: boolean?) -> (),
+    SetDescription: (self: Slider, text: string?) -> (),
     SetInfo: (self: Slider, text: string?) -> (),
 }
 
@@ -214,12 +223,14 @@ export type Dropdown = Moveable & Lockable & {
     Refresh: (self: Dropdown, options: { string }) -> (),
     Add: (self: Dropdown, option: string) -> (),
     Remove: (self: Dropdown, option: string) -> (),
+    SetDescription: (self: Dropdown, text: string?) -> (),
     SetInfo: (self: Dropdown, text: string?) -> (),
 }
 
 export type Input = Moveable & Lockable & {
     value: string,
     Set: (self: Input, value: string, skipCallback: boolean?) -> (),
+    SetDescription: (self: Input, text: string?) -> (),
     SetInfo: (self: Input, text: string?) -> (),
 }
 

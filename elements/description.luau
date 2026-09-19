@@ -130,7 +130,8 @@ local function rewrap(self)
 end
 
 function description.attach(self)
-    if self.descriptionLabel or not self.description or self.description == "" then
+    local descText = self.inlineDescription or self.description
+    if self.descriptionLabel or not descText or descText == "" then
         return
     end
 
@@ -139,7 +140,7 @@ function description.attach(self)
 
     self.descriptionLabel = self.window:Create("TextLabel", {
         Name = "Description",
-        Text = locale.t(self.description),
+        Text = locale.t(descText),
         Position = UDim2.fromOffset(insetX, self._baseHeight - topGap),
         Size = UDim2.new(1, -insetX * 2, 0, lineHeight),
         BackgroundTransparency = 1,

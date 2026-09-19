@@ -317,12 +317,14 @@ export type CollapsibleElementProps = {
 export type CollapsibleGroupProps = {
     name: string?,
     icon: (string | number)?,
+    description: string?,
     elements: { CollapsibleElementProps }?,
 }
 
 export type ButtonProps = {
     name: string?,
     icon: (string | number)?,
+    description: string?,
     info: string?,
     infoIcon: (string | number)?,
     -- Built-in right-edge tap glyph: false hides it, a name/asset id replaces it.
@@ -333,6 +335,7 @@ export type ButtonProps = {
 export type ToggleProps = {
     name: string?,
     icon: (string | number)?,
+    description: string?,
     info: string?,
     infoIcon: (string | number)?,
     flag: string?,
@@ -344,6 +347,7 @@ export type ToggleProps = {
 export type SliderProps = {
     name: string?,
     icon: (string | number)?,
+    description: string?,
     info: string?,
     infoIcon: (string | number)?,
     flag: string?,
@@ -357,6 +361,7 @@ export type SliderProps = {
 export type DropdownProps = {
     name: string?,
     icon: (string | number)?,
+    description: string?,
     info: string?,
     infoIcon: (string | number)?,
     flag: string?,
@@ -371,6 +376,7 @@ export type DropdownProps = {
 export type InputProps = {
     name: string?,
     icon: (string | number)?,
+    description: string?,
     info: string?,
     infoIcon: (string | number)?,
     flag: string?,
@@ -436,18 +442,21 @@ export type Lockable = {
 }
 
 export type Button = Moveable & Lockable & {
+    SetDescription: (self: Button, text: string?) -> (),
     SetInfo: (self: Button, text: string?) -> (),
 }
 
 export type Toggle = Moveable & Lockable & {
     value: boolean,
     Set: (self: Toggle, value: boolean, skipCallback: boolean?) -> (),
+    SetDescription: (self: Toggle, text: string?) -> (),
     SetInfo: (self: Toggle, text: string?) -> (),
 }
 
 export type Slider = Moveable & Lockable & {
     value: number,
     Set: (self: Slider, value: number, skipCallback: boolean?) -> (),
+    SetDescription: (self: Slider, text: string?) -> (),
     SetInfo: (self: Slider, text: string?) -> (),
 }
 
@@ -456,12 +465,14 @@ export type Dropdown = Moveable & Lockable & {
     Refresh: (self: Dropdown, options: { string }) -> (),
     Add: (self: Dropdown, option: string) -> (),
     Remove: (self: Dropdown, option: string) -> (),
+    SetDescription: (self: Dropdown, text: string?) -> (),
     SetInfo: (self: Dropdown, text: string?) -> (),
 }
 
 export type Input = Moveable & Lockable & {
     value: string,
     Set: (self: Input, value: string, skipCallback: boolean?) -> (),
+    SetDescription: (self: Input, text: string?) -> (),
     SetInfo: (self: Input, text: string?) -> (),
 }
 
@@ -7013,6 +7024,42 @@ function tooltip.ensure(window)
     return tip
 end
 
+local function getViewport(): (number, number)
+    local ws = nil
+    pcall(function()
+        ws = game:GetService("Workspace")
+    end)
+    if not ws then
+        pcall(function()
+            ws = workspace
+        end)
+    end
+    local camera = ws and ws.CurrentCamera
+    local viewport = camera and camera.ViewportSize
+    local screenW = if viewport then viewport.X else 2000
+    local screenH = if viewport then viewport.Y else 2000
+    return screenW, screenH
+end
+
+function tooltip.calculatePosition(anchor: any, totalWidth: number, totalHeight: number): (number, number)
+    local anchorPos = anchor.AbsolutePosition
+    local anchorSize = anchor.AbsoluteSize
+    local centerX = anchorPos.X + anchorSize.X / 2
+    local idealX = centerX - totalWidth / 2
+    local idealY = anchorPos.Y - totalHeight - 6
+
+    local screenW, screenH = getViewport()
+
+    local clampedX = math.clamp(idealX, 8, math.max(8, screenW - totalWidth - 8))
+    local clampedY = idealY
+    if clampedY < 6 then
+        clampedY = anchorPos.Y + anchorSize.Y + 6
+    end
+    clampedY = math.clamp(clampedY, 6, math.max(6, screenH - totalHeight - 6))
+
+    return clampedX, clampedY
+end
+
 function tooltip.show(window, anchor: any, text: string)
     if not anchor or not anchor.Parent or not text or text == "" then
         return
@@ -7025,10 +7072,11 @@ function tooltip.show(window, anchor: any, text: string)
         return
     end
 
-    local resolvedText = locale.t(text)
+    local rawText = if locale.isToken(text) then locale.sourceOf(text) else text
+    local resolvedText = locale.resolve(tostring(rawText or ""))
     label.Text = resolvedText
 
-    local font = window.theme.Font
+    local font = (window.theme and window.theme.Font) or Enum.Font.SourceSans
     local rawWidth = functions.textWidth(font, fontSize, resolvedText)
     local contentWidth = math.clamp(rawWidth, minWidth, maxWidth)
     local totalWidth = contentWidth + padX * 2
@@ -7042,30 +7090,14 @@ function tooltip.show(window, anchor: any, text: string)
 
     tip.Size = UDim2.fromOffset(totalWidth, totalHeight)
 
-    local anchorPos = anchor.AbsolutePosition
-    local anchorSize = anchor.AbsoluteSize
-    local centerX = anchorPos.X + anchorSize.X / 2
-    local idealX = centerX - totalWidth / 2
-    local idealY = anchorPos.Y - totalHeight - 6
-
-    local camera = workspace.CurrentCamera
-    local viewport = camera and camera.ViewportSize
-    local screenW = if viewport then viewport.X else 2000
-    local screenH = if viewport then viewport.Y else 2000
-
-    local clampedX = math.clamp(idealX, 8, math.max(8, screenW - totalWidth - 8))
-    local clampedY = idealY
-    if clampedY < 6 then
-        clampedY = anchorPos.Y + anchorSize.Y + 6
-    end
-    clampedY = math.clamp(clampedY, 6, math.max(6, screenH - totalHeight - 6))
-
+    local clampedX, clampedY = tooltip.calculatePosition(anchor, totalWidth, totalHeight)
     tip.Position = UDim2.fromOffset(clampedX, clampedY)
     tip.Visible = true
 
     window._tooltipHideToken = (window._tooltipHideToken or 0) + 1
     window._tooltipActiveAnchor = anchor
 
+    motion.tween(anchor, { ImageTransparency = 0 }, hoverTween)
     motion.tween(tip, { BackgroundTransparency = 0 }, hoverTween)
     if stroke then
         motion.tween(stroke, { Transparency = 0.25 }, hoverTween)
@@ -7073,9 +7105,25 @@ function tooltip.show(window, anchor: any, text: string)
     motion.tween(label, { TextTransparency = 0 }, hoverTween)
 end
 
-function tooltip.hide(window)
+function tooltip.updatePosition(window, anchor: any)
     local tip = window.elementTooltip
-    if not tip or not tip.Visible then
+    if not tip or not tip.Visible or not anchor or not anchor.Parent then
+        return
+    end
+
+    local totalWidth = tip.AbsoluteSize.X
+    local totalHeight = tip.AbsoluteSize.Y
+    if totalWidth <= 0 or totalHeight <= 0 then
+        return
+    end
+
+    local clampedX, clampedY = tooltip.calculatePosition(anchor, totalWidth, totalHeight)
+    tip.Position = UDim2.fromOffset(clampedX, clampedY)
+end
+
+function tooltip.hide(window, immediate: boolean?)
+    local tip = window.elementTooltip
+    if not tip then
         return
     end
 
@@ -7084,7 +7132,30 @@ function tooltip.hide(window)
 
     local token = (window._tooltipHideToken or 0) + 1
     window._tooltipHideToken = token
+
+    local prevAnchor = window._tooltipActiveAnchor
     window._tooltipActiveAnchor = nil
+    window._tooltipPinnedAnchor = nil
+
+    if prevAnchor and prevAnchor.Parent then
+        motion.tween(prevAnchor, { ImageTransparency = 0.45 }, hoverTween)
+    end
+
+    if immediate then
+        tip.Visible = false
+        tip.BackgroundTransparency = 1
+        if stroke then
+            stroke.Transparency = 1
+        end
+        if label then
+            label.TextTransparency = 1
+        end
+        return
+    end
+
+    if not tip.Visible then
+        return
+    end
 
     motion.tween(tip, { BackgroundTransparency = 1 }, hoverTween)
     if stroke then
@@ -7101,32 +7172,87 @@ function tooltip.hide(window)
     end)
 end
 
-function tooltip.attach(element, anchorButton, infoText: string)
+function tooltip.attach(element, anchorButton, descText: string)
     local window = element.window
+    local justToggled = false
 
+    local function getDescText()
+        return element.description or element.Description or element.info or element.Info or element.tooltip or element.Tooltip or descText
+    end
+
+    local function openAndPin()
+        local text = getDescText()
+        if not text or text == "" then
+            return
+        end
+        if window._tooltipActiveAnchor and window._tooltipActiveAnchor ~= anchorButton then
+            if window._tooltipActiveAnchor.Parent then
+                motion.tween(window._tooltipActiveAnchor, { ImageTransparency = 0.45 }, hoverTween)
+            end
+        end
+        window._tooltipPinnedAnchor = anchorButton
+        tooltip.show(window, anchorButton, text)
+    end
+
+    local function closePinned()
+        tooltip.hide(window)
+        window._tooltipPinnedAnchor = nil
+    end
+
+    -- Holding (MouseButton1Down / touch press down)
+    window:ConnectFor(element, anchorButton.MouseButton1Down, function()
+        if window._tooltipPinnedAnchor == anchorButton and window.elementTooltip and window.elementTooltip.Visible then
+            closePinned()
+            justToggled = true
+        else
+            openAndPin()
+            justToggled = true
+        end
+    end)
+
+    -- Tapping / Clicking
+    window:ConnectFor(element, anchorButton.MouseButton1Click, function()
+        if justToggled then
+            justToggled = false
+            return
+        end
+        if window._tooltipPinnedAnchor == anchorButton and window.elementTooltip and window.elementTooltip.Visible then
+            closePinned()
+        else
+            openAndPin()
+        end
+    end)
+
+    -- Desktop Hover
     window:ConnectFor(element, anchorButton.MouseEnter, function()
         motion.tween(anchorButton, { ImageTransparency = 0 }, hoverTween)
-        tooltip.show(window, anchorButton, element.info or infoText)
+        if window._tooltipPinnedAnchor == nil then
+            local text = getDescText()
+            if text and text ~= "" then
+                tooltip.show(window, anchorButton, text)
+            end
+        end
     end)
 
     window:ConnectFor(element, anchorButton.MouseLeave, function()
+        if window._tooltipPinnedAnchor == anchorButton then
+            -- Kept pinned open by tap or hold; stay visible and highlighted
+            return
+        end
         motion.tween(anchorButton, { ImageTransparency = 0.45 }, hoverTween)
-        if window._tooltipActiveAnchor == anchorButton then
+        if window._tooltipActiveAnchor == anchorButton and window._tooltipPinnedAnchor == nil then
             tooltip.hide(window)
         end
     end)
 
-    window:ConnectFor(element, anchorButton.MouseButton1Click, function()
-        if window._tooltipActiveAnchor == anchorButton and window.elementTooltip and window.elementTooltip.Visible then
-            tooltip.hide(window)
-        else
-            tooltip.show(window, anchorButton, element.info or infoText)
-        end
-    end)
-
+    -- Track anchor movement / scroll
     window:ConnectFor(element, anchorButton:GetPropertyChangedSignal("AbsolutePosition"), function()
-        if window._tooltipActiveAnchor == anchorButton then
-            tooltip.hide(window)
+        if window._tooltipActiveAnchor == anchorButton and window.elementTooltip and window.elementTooltip.Visible then
+            if not anchorButton.Visible or not anchorButton.Parent then
+                tooltip.hide(window, true)
+            else
+                tooltip.updatePosition(window, anchorButton)
+            end
         end
     end)
 end
@@ -8099,15 +8225,15 @@ function Window:ShowTooltip(anchor: any, text: string)
     tooltip.show(self, anchor, text)
 end
 
-function Window:HideTooltip()
-    tooltip.hide(self)
+function Window:HideTooltip(immediate: boolean?)
+    tooltip.hide(self, immediate)
 end
 
 function Window:Close()
     if self.animating or self.unloaded then
         return
     end
-    tooltip.hide(self)
+    tooltip.hide(self, true)
     self.animating = true
     self.hidden = true
     self.collapsedInteract.Visible = false
@@ -8185,7 +8311,7 @@ function Window:Close()
 end
 
 function Window:Hide()
-    tooltip.hide(self)
+    tooltip.hide(self, true)
     -- Cancel pending startup reveal even while the window is still hidden.
     self._autoShowCancelled = true
     -- [[A window whose entrance is never going to happen (the cancelled
@@ -8303,6 +8429,7 @@ function Window:ToggleMinimise()
     if self.animating or self.hidden then
         return
     end
+    tooltip.hide(self, true)
 
         if self._searching then
         search.close(self, { showTabs = true })
@@ -10281,6 +10408,7 @@ function Window:DestroySubtrees(roots)
 end
 
 function Window:Unload()
+    tooltip.hide(self, true)
     -- Do not lose the final edit if the window closes inside the save debounce.
     if not self.unloaded and self._saveScheduled and self.configuration.autoSave and not self._loading then
         self._saveScheduled = false
@@ -10354,10 +10482,10 @@ function baseCard.buildFull(element: any, opts: BaseCardOpts?): any
     element.stroke = window:StyleElementBody(element.main)
     element.hoverOverlay = window:CreateHoverOverlay(element.main)
 
-    -- [[A description grows the card here, before the title row is built, so
-    -- [[the row centres in the base region instead of drifting down into the
-    -- [[line (see elements/description.luau).]]
-    description.attach(element)
+    -- [[Legacy in-card description only if inlineDescription or inline flag is explicitly set.]]
+    if element.inlineDescription or element.inline then
+        description.attach(element)
+    end
     local centerScale, centerOffset = description.center(element, height)
 
     element.container = window:Create("Frame", {
@@ -10367,6 +10495,7 @@ function baseCard.buildFull(element: any, opts: BaseCardOpts?): any
         Position = UDim2.new(0, 20, centerScale, centerOffset),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
+        ZIndex = 5,
     })
 
     element.containerLayout = window:Create("UIListLayout", {
@@ -10374,40 +10503,46 @@ function baseCard.buildFull(element: any, opts: BaseCardOpts?): any
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        SortOrder = Enum.SortOrder.LayoutOrder,
         Parent = element.container,
     })
 
     if element.icon then
         element.iconLabel = window:Create("ImageLabel", {
+            Name = "Icon",
             Image = element.icon,
             Size = UDim2.fromOffset(16, 16),
             BorderSizePixel = 0,
             BackgroundTransparency = 1,
             ImageTransparency = 1,
             LayoutOrder = 0,
+            ZIndex = 5,
             Parent = element.container,
         }, { ImageColor3 = "ContentColor" })
     end
 
-    local hasInfo = element.info and element.info ~= ""
+    local rawDesc = element.description or element.Description or element.info or element.Info or element.tooltip or element.Tooltip
+    local hasDesc = typeof(rawDesc) == "string" and rawDesc ~= ""
 
     element.title = window:Create("TextLabel", {
+        Name = "Title",
         Text = (opts and opts.titleText) or element.name,
-        Size = if hasInfo
+        Size = if hasDesc
             then UDim2.fromOffset(0, 16)
             else UDim2.new(1, if element.icon then -21 else 0, 0, 16),
-        AutomaticSize = if hasInfo then Enum.AutomaticSize.X else Enum.AutomaticSize.None,
+        AutomaticSize = if hasDesc then Enum.AutomaticSize.X else Enum.AutomaticSize.None,
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 16,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextTruncate = Enum.TextTruncate.AtEnd,
         LayoutOrder = 1,
+        ZIndex = 5,
         TextTransparency = 1,
         Parent = element.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-    if hasInfo then
+    if hasDesc then
         window:Create("UIFlexItem", {
             FlexMode = Enum.UIFlexMode.Shrink,
             Parent = element.title,
@@ -10418,12 +10553,16 @@ function baseCard.buildFull(element: any, opts: BaseCardOpts?): any
     return element.main
 end
 
-function baseCard.setInfo(element: any, infoText: string?)
-    element.info = infoText
-    if infoText and infoText ~= "" then
+function baseCard.setDescription(element: any, descText: string?)
+    local cleaned = if typeof(descText) == "string" and descText ~= "" then descText else nil
+    element.description = cleaned
+    element.info = cleaned
+    if cleaned then
         if element.infoButton then
             element.infoButton.Visible = true
-        elseif element.container then
+            element.infoButton.ImageTransparency = 0.45
+        elseif element.container or element.interact then
+            local parent = element.container or element.interact
             if element.title and element.title.AutomaticSize == Enum.AutomaticSize.None then
                 element.title.AutomaticSize = Enum.AutomaticSize.X
                 element.title.Size = UDim2.fromOffset(0, 16)
@@ -10432,14 +10571,22 @@ function baseCard.setInfo(element: any, infoText: string?)
                     Parent = element.title,
                 })
             end
-            infoHelper.attach(element, element.container, 2)
+            infoHelper.attach(element, parent, 2)
             if element.infoButton then
                 element.infoButton.ImageTransparency = 0.45
             end
         end
     elseif element.infoButton then
         element.infoButton.Visible = false
+        if element.window and element.window._tooltipActiveAnchor == element.infoButton then
+            local tooltip = require(script.Parent.Parent.components.tooltip)
+            tooltip.hide(element.window, true)
+        end
     end
+end
+
+function baseCard.setInfo(element: any, infoText: string?)
+    baseCard.setDescription(element, infoText)
 end
 
 return baseCard
@@ -10490,14 +10637,18 @@ end
 function state.new(tab, frame)
     frame = if typeof(frame) == "table" then frame else {}
 
+    local rawDesc = frame.description or frame.Description or frame.info or frame.Info or frame.tooltip or frame.Tooltip
+    local desc = if typeof(rawDesc) == "string" and rawDesc ~= "" then rawDesc else nil
+
     local self = setmetatable({
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = frame.name or frame.Name or "Button",
         icon = tab.window:ResolveIcon(frame.icon or frame.Icon),
-        description = frame.description or frame.Description,
-        info = frame.info or frame.Info or frame.tooltip or frame.Tooltip,
+        description = desc,
+        info = desc,
         infoIcon = frame.infoIcon or frame.InfoIcon,
+        inlineDescription = frame.inlineDescription or frame.InlineDescription,
         compact = tab.compact or false,
         callback = frame.callback or frame.Callback or function() end,
     }, state)
@@ -10644,6 +10795,7 @@ function state:_buildCompact()
 
     if self.icon then
         self.iconLabel = window:Create("ImageLabel", {
+            Name = "Icon",
             Image = self.icon,
             Size = UDim2.fromOffset(16, 16),
             BorderSizePixel = 0,
@@ -10656,6 +10808,7 @@ function state:_buildCompact()
     end
 
     self.title = window:Create("TextLabel", {
+        Name = "Title",
         Text = icon.t(self.name),
         Size = UDim2.fromOffset(0, 16),
         AutomaticSize = Enum.AutomaticSize.X,
@@ -10675,7 +10828,8 @@ function state:_buildCompact()
         Parent = self.title,
     })
 
-    if self.info and self.info ~= "" then
+    local hasDesc = self.description ~= nil and self.description ~= ""
+    if hasDesc then
         infoHelper.attach(self, self.interact, 2)
     end
 
@@ -10684,6 +10838,7 @@ function state:_buildCompact()
     -- [[click surface and tapping it is tapping the button.]]
     if self.tapImage then
         self.tapIcon = window:Create("ImageLabel", {
+            Name = "TapIcon",
             Image = self.tapImage,
             Size = UDim2.fromOffset(16, 16),
             BorderSizePixel = 0,
@@ -10760,8 +10915,12 @@ end
 props(state)
 name(state)
 
+function state:SetDescription(descText)
+    baseCard.setDescription(self, descText)
+end
+
 function state:SetInfo(infoText)
-    baseCard.setInfo(self, infoText)
+    self:SetDescription(infoText)
 end
 
 return state
@@ -11723,7 +11882,8 @@ local function rewrap(self)
 end
 
 function description.attach(self)
-    if self.descriptionLabel or not self.description or self.description == "" then
+    local descText = self.inlineDescription or self.description
+    if self.descriptionLabel or not descText or descText == "" then
         return
     end
 
@@ -11732,7 +11892,7 @@ function description.attach(self)
 
     self.descriptionLabel = self.window:Create("TextLabel", {
         Name = "Description",
-        Text = locale.t(self.description),
+        Text = locale.t(descText),
         Position = UDim2.fromOffset(insetX, self._baseHeight - topGap),
         Size = UDim2.new(1, -insetX * 2, 0, lineHeight),
         BackgroundTransparency = 1,
@@ -12025,14 +12185,18 @@ function state.new(tab, a49)
     local a50 = a49.options or a49.Options or {}
     local a51 = a49.multiSelect or a49.MultiSelect or a49.MultipleOptions or false
 
+    local rawDesc = a49.description or a49.Description or a49.info or a49.Info or a49.tooltip or a49.Tooltip
+    local desc = if typeof(rawDesc) == "string" and rawDesc ~= "" then rawDesc else nil
+
     local self = setmetatable({
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = a49.name or a49.Name or "Dropdown",
         icon = tab.window:ResolveIcon(a49.icon or a49.Icon),
-        description = a49.description or a49.Description,
-        info = a49.info or a49.Info or a49.tooltip or a49.Tooltip,
+        description = desc,
+        info = desc,
         infoIcon = a49.infoIcon or a49.InfoIcon,
+        inlineDescription = a49.inlineDescription or a49.InlineDescription,
         forgetState = a49.forgetState or a49.ForgetState or tab.forgetState,
         flag = a49.flag
             or a49.Flag
@@ -12076,7 +12240,9 @@ function state.new(tab, a49)
     -- [[the visible top card, the title row and the value column all seat
     -- [[themselves against the base region of the taller card, and the option
     -- [[panel keeps its 41px card plus the gap above it.]]
-    description.attach(self)
+    if self.inlineDescription or self.inline then
+        description.attach(self)
+    end
 
         self.top = self.window:Create("Frame", {
         Size = UDim2.new(1, 0, 0, description.height(self, 41)),
@@ -12108,26 +12274,30 @@ function state.new(tab, a49)
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        SortOrder = Enum.SortOrder.LayoutOrder,
 
         Parent = self.container,
     })
 
     if self.icon then
         self.iconLabel = self.window:Create("ImageLabel", {
+            Name = "Icon",
             Image = self.icon,
             Size = UDim2.fromOffset(16, 16),
             BorderSizePixel = 0,
             BackgroundTransparency = 1,
 
-                        ImageTransparency = 1,
+            ImageTransparency = 1,
+            LayoutOrder = 0,
             ZIndex = 5,
             Parent = self.container,
         }, { ImageColor3 = "ContentColor" })
     end
 
-    local hasInfo = self.info and self.info ~= ""
+    local hasInfo = self.description ~= nil and self.description ~= ""
 
     self.title = self.window:Create("TextLabel", {
+        Name = "Title",
         Text = flag.t(self.name),
 
         Size = if hasInfo
@@ -13437,11 +13607,14 @@ function state:MoveDown()
     end
 end
 
-function state:SetInfo(infoText)
-    self.info = infoText
-    if infoText and infoText ~= "" then
+function state:SetDescription(descText)
+    local cleaned = if typeof(descText) == "string" and descText ~= "" then descText else nil
+    self.description = cleaned
+    self.info = cleaned
+    if cleaned then
         if self.infoButton then
             self.infoButton.Visible = true
+            self.infoButton.ImageTransparency = 0.45
         elseif self.container then
             if self.title.AutomaticSize == Enum.AutomaticSize.None then
                 self.title.AutomaticSize = Enum.AutomaticSize.X
@@ -13458,7 +13631,15 @@ function state:SetInfo(infoText)
         end
     elseif self.infoButton then
         self.infoButton.Visible = false
+        if self.window and self.window._tooltipActiveAnchor == self.infoButton then
+            local tooltip = require(script.Parent.Parent.components.tooltip)
+            tooltip.hide(self.window, true)
+        end
     end
+end
+
+function state:SetInfo(infoText)
+    self:SetDescription(infoText)
 end
 
 multiSelect(state)
@@ -13691,13 +13872,21 @@ local infoHelper = {}
 local tooltip = require(script.Parent.Parent.components.tooltip)
 
 function infoHelper.attach(element: any, parentContainer: any, layoutOrder: number?): any
-    local infoText = element.info
-    if not infoText or infoText == "" then
+    local descText = element.description or element.Description or element.info or element.Info or element.tooltip or element.Tooltip
+    if not descText or descText == "" then
+        if element.infoButton then
+            element.infoButton.Visible = false
+        end
         return nil
     end
 
+    if element.infoButton and element.infoButton.Parent == parentContainer then
+        element.infoButton.Visible = true
+        return element.infoButton
+    end
+
     local window = element.window
-    local icon = window:ResolveIcon(element.infoIcon or "circle-alert")
+    local icon = window:ResolveIcon(element.infoIcon or element.InfoIcon or "circle-alert")
     if not icon or icon == "circle-alert" then
         icon = window:ResolveIcon("alert-circle")
     end
@@ -13719,7 +13908,7 @@ function infoHelper.attach(element: any, parentContainer: any, layoutOrder: numb
         Parent = infoButton,
     })
 
-    tooltip.attach(element, infoButton, infoText)
+    tooltip.attach(element, infoButton, descText)
     element.infoButton = infoButton
     return infoButton
 end
@@ -13765,14 +13954,18 @@ end
 function state.new(tab, placeholderLabel)
     placeholderLabel = if typeof(placeholderLabel) == "table" then placeholderLabel else {}
 
+    local rawDesc = placeholderLabel.description or placeholderLabel.Description or placeholderLabel.info or placeholderLabel.Info or placeholderLabel.tooltip or placeholderLabel.Tooltip
+    local desc = if typeof(rawDesc) == "string" and rawDesc ~= "" then rawDesc else nil
+
     local self = setmetatable({
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = placeholderLabel.name or placeholderLabel.Name or "Input",
         icon = tab.window:ResolveIcon(placeholderLabel.icon or placeholderLabel.Icon),
-        description = placeholderLabel.description or placeholderLabel.Description,
-        info = placeholderLabel.info or placeholderLabel.Info or placeholderLabel.tooltip or placeholderLabel.Tooltip,
+        description = desc,
+        info = desc,
         infoIcon = placeholderLabel.infoIcon or placeholderLabel.InfoIcon,
+        inlineDescription = placeholderLabel.inlineDescription or placeholderLabel.InlineDescription,
         forgetState = placeholderLabel.forgetState or placeholderLabel.ForgetState or tab.forgetState,
         placeholder = placeholderLabel.placeholder or placeholderLabel.Placeholder or "",
         numeric = placeholderLabel.numeric or placeholderLabel.Numeric or false,
@@ -13805,7 +13998,9 @@ function state.new(tab, placeholderLabel)
     -- [[The card grows for a description before the title row and the field
     -- [[box are built, so both centre in the base region instead of riding
     -- [[down onto the line.]]
-    description.attach(self)
+    if self.inlineDescription or self.inline then
+        description.attach(self)
+    end
 
     self.container = self.window:Create("Frame", {
         Size = UDim2.new(1, -115, 0, 16),
@@ -13822,16 +14017,20 @@ function state.new(tab, placeholderLabel)
         Padding = UDim.new(0, 5),
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
+        HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        SortOrder = Enum.SortOrder.LayoutOrder,
 
         Parent = self.container,
     })
 
     if self.icon then
         self.iconLabel = self.window:Create("ImageLabel", {
+            Name = "Icon",
             Image = self.icon,
             Size = UDim2.fromOffset(16, 16),
             BorderSizePixel = 0,
             BackgroundTransparency = 1,
+            LayoutOrder = 0,
             ZIndex = 5,
 
             ImageTransparency = 1,
@@ -13839,9 +14038,10 @@ function state.new(tab, placeholderLabel)
         }, { ImageColor3 = "ContentColor" })
     end
 
-    local hasInfo = self.info and self.info ~= ""
+    local hasInfo = self.description ~= nil and self.description ~= ""
 
     self.title = self.window:Create("TextLabel", {
+        Name = "Title",
         Text = placeholder.t(self.name),
         Size = if hasInfo
             then UDim2.fromOffset(0, 16)
@@ -14014,11 +14214,14 @@ end
 props(state)
 name(state)
 
-function state:SetInfo(infoText)
-    self.info = infoText
-    if infoText and infoText ~= "" then
+function state:SetDescription(descText)
+    local cleaned = if typeof(descText) == "string" and descText ~= "" then descText else nil
+    self.description = cleaned
+    self.info = cleaned
+    if cleaned then
         if self.infoButton then
             self.infoButton.Visible = true
+            self.infoButton.ImageTransparency = 0.45
         elseif self.container then
             if self.title.AutomaticSize == Enum.AutomaticSize.None then
                 self.title.AutomaticSize = Enum.AutomaticSize.X
@@ -14035,7 +14238,15 @@ function state:SetInfo(infoText)
         end
     elseif self.infoButton then
         self.infoButton.Visible = false
+        if self.window and self.window._tooltipActiveAnchor == self.infoButton then
+            local tooltip = require(script.Parent.Parent.components.tooltip)
+            tooltip.hide(self.window, true)
+        end
     end
+end
+
+function state:SetInfo(infoText)
+    self:SetDescription(infoText)
 end
 
 return state
@@ -14182,14 +14393,18 @@ end
 function state.new(ownerTab, a31)
     a31 = if typeof(a31) == "table" then a31 else {}
 
+    local rawDesc = a31.description or a31.Description or a31.info or a31.Info or a31.tooltip or a31.Tooltip
+    local desc = if typeof(rawDesc) == "string" and rawDesc ~= "" then rawDesc else nil
+
     local self = setmetatable({
         tab = assert(ownerTab, "Missing argument #1 (Tab expected)"),
         window = ownerTab.window,
         name = a31.name or a31.Name or "Slider",
         icon = ownerTab.window:ResolveIcon(a31.icon or a31.Icon),
-        description = a31.description or a31.Description,
-        info = a31.info or a31.Info or a31.tooltip or a31.Tooltip,
+        description = desc,
+        info = desc,
         infoIcon = a31.infoIcon or a31.InfoIcon,
+        inlineDescription = a31.inlineDescription or a31.InlineDescription,
         forgetState = a31.forgetState or a31.ForgetState or ownerTab.forgetState,
 
         range = a31.range or a31.Range or { 0, 100 },
@@ -14245,7 +14460,9 @@ function state.new(ownerTab, a31)
     self.stroke = self.window:StyleElementBody(self.main)
     -- [[The card grows for a description before the label row and the track
     -- [[are built, so both seat themselves against the grown region below.]]
-    description.attach(self)
+    if self.inlineDescription or self.inline then
+        description.attach(self)
+    end
     self._lastValue = self.value
 
     if not self.minimal then
@@ -14452,10 +14669,12 @@ function state:_buildLabel()
 
     if self.icon then
         self.iconLabel = self.window:Create("ImageLabel", {
+            Name = "Icon",
             Image = self.icon,
             Size = UDim2.fromOffset(16, 16),
             BorderSizePixel = 0,
             BackgroundTransparency = 1,
+            LayoutOrder = 0,
             ZIndex = 5,
 
             ImageTransparency = 1,
@@ -14463,9 +14682,10 @@ function state:_buildLabel()
         }, { ImageColor3 = "ContentColor" })
     end
 
-    local hasInfo = self.info and self.info ~= ""
+    local hasInfo = self.description ~= nil and self.description ~= ""
 
     self.title = self.window:Create("TextLabel", {
+        Name = "Title",
         Text = range.t(self.name),
         Size = if hasInfo then UDim2.fromOffset(0, 16) else UDim2.new(1, 0, 0, 16),
         AutomaticSize = if hasInfo then Enum.AutomaticSize.X else Enum.AutomaticSize.None,
@@ -14721,11 +14941,14 @@ end
 name(state)
 flag(state)
 
-function state:SetInfo(infoText)
-    self.info = infoText
-    if infoText and infoText ~= "" then
+function state:SetDescription(descText)
+    local cleaned = if typeof(descText) == "string" and descText ~= "" then descText else nil
+    self.description = cleaned
+    self.info = cleaned
+    if cleaned then
         if self.infoButton then
             self.infoButton.Visible = true
+            self.infoButton.ImageTransparency = 0.45
         elseif self.titleContainer then
             if self.title.AutomaticSize == Enum.AutomaticSize.None then
                 self.title.AutomaticSize = Enum.AutomaticSize.X
@@ -14738,7 +14961,15 @@ function state:SetInfo(infoText)
         end
     elseif self.infoButton then
         self.infoButton.Visible = false
+        if self.window and self.window._tooltipActiveAnchor == self.infoButton then
+            local tooltip = require(script.Parent.Parent.components.tooltip)
+            tooltip.hide(self.window, true)
+        end
     end
+end
+
+function state:SetInfo(infoText)
+    self:SetDescription(infoText)
 end
 
 return state
@@ -15778,6 +16009,9 @@ function state:_spinGradients()
 end
 
 function state:Select(a24)
+    if self.window.HideTooltip then
+        self.window:HideTooltip(true)
+    end
             if self.window._searching then
         name.close(self.window, { showTabs = true, jumpTo = false })
     end
@@ -16302,14 +16536,18 @@ local switchKnobRest = UDim2.new(1, -(switchTrackWidth - switchInset), 0.5, 0)
 function state.new(tab, element)
     element = if typeof(element) == "table" then element else {}
 
+    local rawDesc = element.description or element.Description or element.info or element.Info or element.tooltip or element.Tooltip
+    local desc = if typeof(rawDesc) == "string" and rawDesc ~= "" then rawDesc else nil
+
     local self = setmetatable({
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = element.name or element.Name or "Toggle",
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
-        description = element.description or element.Description,
-        info = element.info or element.Info or element.tooltip or element.Tooltip,
+        description = desc,
+        info = desc,
         infoIcon = element.infoIcon or element.InfoIcon,
+        inlineDescription = element.inlineDescription or element.InlineDescription,
         forgetState = element.forgetState or element.ForgetState or tab.forgetState,
         compact = tab.compact or false,
         flag = element.flag
@@ -16527,12 +16765,14 @@ function state:_buildCompact()
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        SortOrder = Enum.SortOrder.LayoutOrder,
 
         Parent = self.container,
     })
 
     if self.icon then
         self.iconLabel = window:Create("ImageLabel", {
+            Name = "Icon",
             Image = self.icon,
             Size = UDim2.fromOffset(16, 16),
             BorderSizePixel = 0,
@@ -16545,6 +16785,7 @@ function state:_buildCompact()
     end
 
     self.title = window:Create("TextLabel", {
+        Name = "Title",
         Text = flag.t(self.name),
         Size = UDim2.fromOffset(0, 16),
         AutomaticSize = Enum.AutomaticSize.X,
@@ -16567,7 +16808,8 @@ function state:_buildCompact()
     self:_buildSwitch(self.interact)
     self.functionContainer.LayoutOrder = 1
 
-    if self.info and self.info ~= "" then
+    local hasDesc = self.description ~= nil and self.description ~= ""
+    if hasDesc then
         infoHelper.attach(self, self.container, 2)
     end
 
@@ -16724,8 +16966,12 @@ function state:Set(a18, a19)
     end
 end
 
+function state:SetDescription(descText)
+    baseCard.setDescription(self, descText)
+end
+
 function state:SetInfo(infoText)
-    baseCard.setInfo(self, infoText)
+    self:SetDescription(infoText)
 end
 
 return state
@@ -23980,106 +24226,106 @@ end)() end,
 local LineOffsets = {
     [2] = 12,
     [3] = 243,
-    [5] = 632,
-    [6] = 667,
-    [7] = 712,
-    [8] = 618,
-    [9] = 829,
-    [10] = 962,
-    [11] = 1201,
-    [12] = 1547,
-    [13] = 1899,
-    [14] = 2187,
-    [15] = 2908,
-    [16] = 5335,
-    [17] = 5662,
-    [18] = 6540,
-    [19] = 6601,
-    [20] = 6943,
-    [21] = 7138,
-    [23] = 10324,
-    [24] = 10449,
-    [25] = 10771,
-    [26] = 11192,
-    [27] = 11594,
-    [28] = 11764,
-    [29] = 11909,
-    [30] = 13470,
-    [31] = 13689,
-    [32] = 13731,
-    [33] = 14045,
-    [34] = 14131,
-    [35] = 14748,
-    [36] = 15597,
-    [37] = 15973,
-    [38] = 16103,
-    [39] = 16255,
-    [41] = 16760,
-    [42] = 16783,
-    [43] = 16800,
-    [44] = 16832,
-    [45] = 16954,
-    [46] = 16978,
-    [47] = 17027,
-    [48] = 16735,
-    [49] = 17151,
-    [50] = 17454,
-    [51] = 17485,
-    [52] = 17140,
-    [53] = 17528,
-    [54] = 17548,
-    [55] = 17580,
-    [56] = 17510,
-    [57] = 17687,
-    [58] = 17746,
-    [60] = 17821,
-    [61] = 17986,
-    [62] = 17806,
-    [63] = 18564,
-    [64] = 18608,
-    [65] = 18688,
-    [66] = 18881,
-    [67] = 19010,
-    [68] = 19104,
-    [69] = 19271,
-    [70] = 19609,
-    [71] = 18062,
-    [72] = 20243,
-    [73] = 20309,
-    [74] = 20375,
-    [75] = 20450,
-    [76] = 20556,
-    [77] = 20622,
-    [78] = 20697,
-    [79] = 20772,
-    [80] = 20847,
-    [81] = 20922,
-    [82] = 20137,
-    [83] = 20988,
-    [84] = 21086,
-    [85] = 21264,
-    [86] = 21312,
-    [87] = 21342,
-    [88] = 21593,
-    [89] = 21642,
-    [90] = 22095,
-    [91] = 22113,
-    [92] = 22228,
-    [93] = 22327,
-    [94] = 22349,
-    [95] = 22403,
-    [96] = 22753,
-    [97] = 22789,
-    [98] = 22807,
-    [99] = 23161,
-    [100] = 23173,
-    [101] = 23224,
-    [102] = 23243,
-    [103] = 23494,
-    [104] = 23538,
-    [105] = 23773,
-    [106] = 23801,
-    [107] = 23812,
+    [5] = 643,
+    [6] = 678,
+    [7] = 723,
+    [8] = 629,
+    [9] = 840,
+    [10] = 973,
+    [11] = 1212,
+    [12] = 1558,
+    [13] = 1910,
+    [14] = 2198,
+    [15] = 2919,
+    [16] = 5346,
+    [17] = 5673,
+    [18] = 6551,
+    [19] = 6612,
+    [20] = 6954,
+    [21] = 7264,
+    [23] = 10452,
+    [24] = 10596,
+    [25] = 10930,
+    [26] = 11351,
+    [27] = 11753,
+    [28] = 11924,
+    [29] = 12069,
+    [30] = 13651,
+    [31] = 13870,
+    [32] = 13920,
+    [33] = 14256,
+    [34] = 14342,
+    [35] = 14979,
+    [36] = 15828,
+    [37] = 16207,
+    [38] = 16337,
+    [39] = 16489,
+    [41] = 17006,
+    [42] = 17029,
+    [43] = 17046,
+    [44] = 17078,
+    [45] = 17200,
+    [46] = 17224,
+    [47] = 17273,
+    [48] = 16981,
+    [49] = 17397,
+    [50] = 17700,
+    [51] = 17731,
+    [52] = 17386,
+    [53] = 17774,
+    [54] = 17794,
+    [55] = 17826,
+    [56] = 17756,
+    [57] = 17933,
+    [58] = 17992,
+    [60] = 18067,
+    [61] = 18232,
+    [62] = 18052,
+    [63] = 18810,
+    [64] = 18854,
+    [65] = 18934,
+    [66] = 19127,
+    [67] = 19256,
+    [68] = 19350,
+    [69] = 19517,
+    [70] = 19855,
+    [71] = 18308,
+    [72] = 20489,
+    [73] = 20555,
+    [74] = 20621,
+    [75] = 20696,
+    [76] = 20802,
+    [77] = 20868,
+    [78] = 20943,
+    [79] = 21018,
+    [80] = 21093,
+    [81] = 21168,
+    [82] = 20383,
+    [83] = 21234,
+    [84] = 21332,
+    [85] = 21510,
+    [86] = 21558,
+    [87] = 21588,
+    [88] = 21839,
+    [89] = 21888,
+    [90] = 22341,
+    [91] = 22359,
+    [92] = 22474,
+    [93] = 22573,
+    [94] = 22595,
+    [95] = 22649,
+    [96] = 22999,
+    [97] = 23035,
+    [98] = 23053,
+    [99] = 23407,
+    [100] = 23419,
+    [101] = 23470,
+    [102] = 23489,
+    [103] = 23740,
+    [104] = 23784,
+    [105] = 24019,
+    [106] = 24047,
+    [107] = 24058,
 }
 
 -- [[Misc AOT variable imports]]

@@ -117,14 +117,18 @@ function state.new(tab, a49)
     local a50 = a49.options or a49.Options or {}
     local a51 = a49.multiSelect or a49.MultiSelect or a49.MultipleOptions or false
 
+    local rawDesc = a49.description or a49.Description or a49.info or a49.Info or a49.tooltip or a49.Tooltip
+    local desc = if typeof(rawDesc) == "string" and rawDesc ~= "" then rawDesc else nil
+
     local self = setmetatable({
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = a49.name or a49.Name or "Dropdown",
         icon = tab.window:ResolveIcon(a49.icon or a49.Icon),
-        description = a49.description or a49.Description,
-        info = a49.info or a49.Info or a49.tooltip or a49.Tooltip,
+        description = desc,
+        info = desc,
         infoIcon = a49.infoIcon or a49.InfoIcon,
+        inlineDescription = a49.inlineDescription or a49.InlineDescription,
         forgetState = a49.forgetState or a49.ForgetState or tab.forgetState,
         flag = a49.flag
             or a49.Flag
@@ -168,7 +172,9 @@ function state.new(tab, a49)
     -- [[the visible top card, the title row and the value column all seat
     -- [[themselves against the base region of the taller card, and the option
     -- [[panel keeps its 41px card plus the gap above it.]]
-    description.attach(self)
+    if self.inlineDescription or self.inline then
+        description.attach(self)
+    end
 
         self.top = self.window:Create("Frame", {
         Size = UDim2.new(1, 0, 0, description.height(self, 41)),
@@ -200,26 +206,30 @@ function state.new(tab, a49)
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        SortOrder = Enum.SortOrder.LayoutOrder,
 
         Parent = self.container,
     })
 
     if self.icon then
         self.iconLabel = self.window:Create("ImageLabel", {
+            Name = "Icon",
             Image = self.icon,
             Size = UDim2.fromOffset(16, 16),
             BorderSizePixel = 0,
             BackgroundTransparency = 1,
 
-                        ImageTransparency = 1,
+            ImageTransparency = 1,
+            LayoutOrder = 0,
             ZIndex = 5,
             Parent = self.container,
         }, { ImageColor3 = "ContentColor" })
     end
 
-    local hasInfo = self.info and self.info ~= ""
+    local hasInfo = self.description ~= nil and self.description ~= ""
 
     self.title = self.window:Create("TextLabel", {
+        Name = "Title",
         Text = flag.t(self.name),
 
         Size = if hasInfo
@@ -1529,11 +1539,14 @@ function state:MoveDown()
     end
 end
 
-function state:SetInfo(infoText)
-    self.info = infoText
-    if infoText and infoText ~= "" then
+function state:SetDescription(descText)
+    local cleaned = if typeof(descText) == "string" and descText ~= "" then descText else nil
+    self.description = cleaned
+    self.info = cleaned
+    if cleaned then
         if self.infoButton then
             self.infoButton.Visible = true
+            self.infoButton.ImageTransparency = 0.45
         elseif self.container then
             if self.title.AutomaticSize == Enum.AutomaticSize.None then
                 self.title.AutomaticSize = Enum.AutomaticSize.X
@@ -1550,7 +1563,15 @@ function state:SetInfo(infoText)
         end
     elseif self.infoButton then
         self.infoButton.Visible = false
+        if self.window and self.window._tooltipActiveAnchor == self.infoButton then
+            local tooltip = require(script.Parent.Parent.components.tooltip)
+            tooltip.hide(self.window, true)
+        end
     end
+end
+
+function state:SetInfo(infoText)
+    self:SetDescription(infoText)
 end
 
 multiSelect(state)

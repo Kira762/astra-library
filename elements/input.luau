@@ -35,14 +35,18 @@ end
 function state.new(tab, placeholderLabel)
     placeholderLabel = if typeof(placeholderLabel) == "table" then placeholderLabel else {}
 
+    local rawDesc = placeholderLabel.description or placeholderLabel.Description or placeholderLabel.info or placeholderLabel.Info or placeholderLabel.tooltip or placeholderLabel.Tooltip
+    local desc = if typeof(rawDesc) == "string" and rawDesc ~= "" then rawDesc else nil
+
     local self = setmetatable({
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = placeholderLabel.name or placeholderLabel.Name or "Input",
         icon = tab.window:ResolveIcon(placeholderLabel.icon or placeholderLabel.Icon),
-        description = placeholderLabel.description or placeholderLabel.Description,
-        info = placeholderLabel.info or placeholderLabel.Info or placeholderLabel.tooltip or placeholderLabel.Tooltip,
+        description = desc,
+        info = desc,
         infoIcon = placeholderLabel.infoIcon or placeholderLabel.InfoIcon,
+        inlineDescription = placeholderLabel.inlineDescription or placeholderLabel.InlineDescription,
         forgetState = placeholderLabel.forgetState or placeholderLabel.ForgetState or tab.forgetState,
         placeholder = placeholderLabel.placeholder or placeholderLabel.Placeholder or "",
         numeric = placeholderLabel.numeric or placeholderLabel.Numeric or false,
@@ -75,7 +79,9 @@ function state.new(tab, placeholderLabel)
     -- [[The card grows for a description before the title row and the field
     -- [[box are built, so both centre in the base region instead of riding
     -- [[down onto the line.]]
-    description.attach(self)
+    if self.inlineDescription or self.inline then
+        description.attach(self)
+    end
 
     self.container = self.window:Create("Frame", {
         Size = UDim2.new(1, -115, 0, 16),
@@ -92,16 +98,20 @@ function state.new(tab, placeholderLabel)
         Padding = UDim.new(0, 5),
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
+        HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        SortOrder = Enum.SortOrder.LayoutOrder,
 
         Parent = self.container,
     })
 
     if self.icon then
         self.iconLabel = self.window:Create("ImageLabel", {
+            Name = "Icon",
             Image = self.icon,
             Size = UDim2.fromOffset(16, 16),
             BorderSizePixel = 0,
             BackgroundTransparency = 1,
+            LayoutOrder = 0,
             ZIndex = 5,
 
             ImageTransparency = 1,
@@ -109,9 +119,10 @@ function state.new(tab, placeholderLabel)
         }, { ImageColor3 = "ContentColor" })
     end
 
-    local hasInfo = self.info and self.info ~= ""
+    local hasInfo = self.description ~= nil and self.description ~= ""
 
     self.title = self.window:Create("TextLabel", {
+        Name = "Title",
         Text = placeholder.t(self.name),
         Size = if hasInfo
             then UDim2.fromOffset(0, 16)
@@ -284,11 +295,14 @@ end
 props(state)
 name(state)
 
-function state:SetInfo(infoText)
-    self.info = infoText
-    if infoText and infoText ~= "" then
+function state:SetDescription(descText)
+    local cleaned = if typeof(descText) == "string" and descText ~= "" then descText else nil
+    self.description = cleaned
+    self.info = cleaned
+    if cleaned then
         if self.infoButton then
             self.infoButton.Visible = true
+            self.infoButton.ImageTransparency = 0.45
         elseif self.container then
             if self.title.AutomaticSize == Enum.AutomaticSize.None then
                 self.title.AutomaticSize = Enum.AutomaticSize.X
@@ -305,7 +319,15 @@ function state:SetInfo(infoText)
         end
     elseif self.infoButton then
         self.infoButton.Visible = false
+        if self.window and self.window._tooltipActiveAnchor == self.infoButton then
+            local tooltip = require(script.Parent.Parent.components.tooltip)
+            tooltip.hide(self.window, true)
+        end
     end
+end
+
+function state:SetInfo(infoText)
+    self:SetDescription(infoText)
 end
 
 return state

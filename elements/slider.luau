@@ -52,14 +52,18 @@ end
 function state.new(ownerTab, a31)
     a31 = if typeof(a31) == "table" then a31 else {}
 
+    local rawDesc = a31.description or a31.Description or a31.info or a31.Info or a31.tooltip or a31.Tooltip
+    local desc = if typeof(rawDesc) == "string" and rawDesc ~= "" then rawDesc else nil
+
     local self = setmetatable({
         tab = assert(ownerTab, "Missing argument #1 (Tab expected)"),
         window = ownerTab.window,
         name = a31.name or a31.Name or "Slider",
         icon = ownerTab.window:ResolveIcon(a31.icon or a31.Icon),
-        description = a31.description or a31.Description,
-        info = a31.info or a31.Info or a31.tooltip or a31.Tooltip,
+        description = desc,
+        info = desc,
         infoIcon = a31.infoIcon or a31.InfoIcon,
+        inlineDescription = a31.inlineDescription or a31.InlineDescription,
         forgetState = a31.forgetState or a31.ForgetState or ownerTab.forgetState,
 
         range = a31.range or a31.Range or { 0, 100 },
@@ -115,7 +119,9 @@ function state.new(ownerTab, a31)
     self.stroke = self.window:StyleElementBody(self.main)
     -- [[The card grows for a description before the label row and the track
     -- [[are built, so both seat themselves against the grown region below.]]
-    description.attach(self)
+    if self.inlineDescription or self.inline then
+        description.attach(self)
+    end
     self._lastValue = self.value
 
     if not self.minimal then
@@ -322,10 +328,12 @@ function state:_buildLabel()
 
     if self.icon then
         self.iconLabel = self.window:Create("ImageLabel", {
+            Name = "Icon",
             Image = self.icon,
             Size = UDim2.fromOffset(16, 16),
             BorderSizePixel = 0,
             BackgroundTransparency = 1,
+            LayoutOrder = 0,
             ZIndex = 5,
 
             ImageTransparency = 1,
@@ -333,9 +341,10 @@ function state:_buildLabel()
         }, { ImageColor3 = "ContentColor" })
     end
 
-    local hasInfo = self.info and self.info ~= ""
+    local hasInfo = self.description ~= nil and self.description ~= ""
 
     self.title = self.window:Create("TextLabel", {
+        Name = "Title",
         Text = range.t(self.name),
         Size = if hasInfo then UDim2.fromOffset(0, 16) else UDim2.new(1, 0, 0, 16),
         AutomaticSize = if hasInfo then Enum.AutomaticSize.X else Enum.AutomaticSize.None,
@@ -591,11 +600,14 @@ end
 name(state)
 flag(state)
 
-function state:SetInfo(infoText)
-    self.info = infoText
-    if infoText and infoText ~= "" then
+function state:SetDescription(descText)
+    local cleaned = if typeof(descText) == "string" and descText ~= "" then descText else nil
+    self.description = cleaned
+    self.info = cleaned
+    if cleaned then
         if self.infoButton then
             self.infoButton.Visible = true
+            self.infoButton.ImageTransparency = 0.45
         elseif self.titleContainer then
             if self.title.AutomaticSize == Enum.AutomaticSize.None then
                 self.title.AutomaticSize = Enum.AutomaticSize.X
@@ -608,7 +620,15 @@ function state:SetInfo(infoText)
         end
     elseif self.infoButton then
         self.infoButton.Visible = false
+        if self.window and self.window._tooltipActiveAnchor == self.infoButton then
+            local tooltip = require(script.Parent.Parent.components.tooltip)
+            tooltip.hide(self.window, true)
+        end
     end
+end
+
+function state:SetInfo(infoText)
+    self:SetDescription(infoText)
 end
 
 return state

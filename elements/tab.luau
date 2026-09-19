@@ -182,6 +182,9 @@ function state:_spinGradients()
 end
 
 function state:Select(a24)
+    if self.window.HideTooltip then
+        self.window:HideTooltip(true)
+    end
             if self.window._searching then
         name.close(self.window, { showTabs = true, jumpTo = false })
     end

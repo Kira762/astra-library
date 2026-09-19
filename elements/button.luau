@@ -42,14 +42,18 @@ end
 function state.new(tab, frame)
     frame = if typeof(frame) == "table" then frame else {}
 
+    local rawDesc = frame.description or frame.Description or frame.info or frame.Info or frame.tooltip or frame.Tooltip
+    local desc = if typeof(rawDesc) == "string" and rawDesc ~= "" then rawDesc else nil
+
     local self = setmetatable({
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = frame.name or frame.Name or "Button",
         icon = tab.window:ResolveIcon(frame.icon or frame.Icon),
-        description = frame.description or frame.Description,
-        info = frame.info or frame.Info or frame.tooltip or frame.Tooltip,
+        description = desc,
+        info = desc,
         infoIcon = frame.infoIcon or frame.InfoIcon,
+        inlineDescription = frame.inlineDescription or frame.InlineDescription,
         compact = tab.compact or false,
         callback = frame.callback or frame.Callback or function() end,
     }, state)
@@ -196,6 +200,7 @@ function state:_buildCompact()
 
     if self.icon then
         self.iconLabel = window:Create("ImageLabel", {
+            Name = "Icon",
             Image = self.icon,
             Size = UDim2.fromOffset(16, 16),
             BorderSizePixel = 0,
@@ -208,6 +213,7 @@ function state:_buildCompact()
     end
 
     self.title = window:Create("TextLabel", {
+        Name = "Title",
         Text = icon.t(self.name),
         Size = UDim2.fromOffset(0, 16),
         AutomaticSize = Enum.AutomaticSize.X,
@@ -227,7 +233,8 @@ function state:_buildCompact()
         Parent = self.title,
     })
 
-    if self.info and self.info ~= "" then
+    local hasDesc = self.description ~= nil and self.description ~= ""
+    if hasDesc then
         infoHelper.attach(self, self.interact, 2)
     end
 
@@ -236,6 +243,7 @@ function state:_buildCompact()
     -- [[click surface and tapping it is tapping the button.]]
     if self.tapImage then
         self.tapIcon = window:Create("ImageLabel", {
+            Name = "TapIcon",
             Image = self.tapImage,
             Size = UDim2.fromOffset(16, 16),
             BorderSizePixel = 0,
@@ -312,8 +320,12 @@ end
 props(state)
 name(state)
 
+function state:SetDescription(descText)
+    baseCard.setDescription(self, descText)
+end
+
 function state:SetInfo(infoText)
-    baseCard.setInfo(self, infoText)
+    self:SetDescription(infoText)
 end
 
 return state

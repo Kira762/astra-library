@@ -131,29 +131,29 @@ TestPump(0.6)
 local tab = window:CreateTab({ name = "Controls" })
 local more = window:CreateTab({ name = "More" })
 
-local toggle = tab:CreateToggle({ name = "Notifications", description = "Ping me." })
-local button = tab:CreateButton({ name = "Run routine", description = "Starts the routine." })
-local slider = tab:CreateSlider({ name = "Volume", range = { 0, 100 }, value = 40, description = "Master level." })
+local toggle = tab:CreateToggle({ name = "Notifications", inlineDescription = "Ping me." })
+local button = tab:CreateButton({ name = "Run routine", inlineDescription = "Starts the routine." })
+local slider = tab:CreateSlider({ name = "Volume", range = { 0, 100 }, value = 40, inlineDescription = "Master level." })
 local minimal = tab:CreateSlider({
 	name = "Sensitivity",
 	range = { 0, 100 },
 	value = 40,
 	minimal = true,
-	description = "Narrow cards keep the line too.",
+	inlineDescription = "Narrow cards keep the line too.",
 })
 local dropdown = tab:CreateDropdown({
 	name = "Quality",
-	description = "Applies instantly.",
+	inlineDescription = "Applies instantly.",
 	options = { "Low", "High" },
 	value = "Low",
 })
-local input = tab:CreateInput({ name = "Display name", placeholder = "Enter a name", description = "Shown to friends." })
+local input = tab:CreateInput({ name = "Display name", placeholder = "Enter a name", inlineDescription = "Shown to friends." })
 local stat = tab:CreateStat({ name = "Frames", value = 240, description = "Per second." })
 local undescribed = tab:CreateToggle({ name = "No description" })
 local wrapped = more:CreateInput({
 	name = "Wrapped",
 	placeholder = "Enter a name",
-	description = "Type one letter. Extra characters are removed automatically, which makes this line wrap.",
+	inlineDescription = "Type one letter. Extra characters are removed automatically, which makes this line wrap.",
 })
 local group = more:CreateCollapsibleGroup({
 	name = "Player Preferences",
@@ -325,7 +325,7 @@ near(rectIn(plainGroup.bodyClip, plainGroup.main).y, 42, "D13 an undescribed gro
 local groupedGroup = more:CreateCollapsibleGroup({
 	name = "Grouped children",
 	elements = {
-		{ type = "Toggle", name = "Grouped toggle", description = "Grouped line.", value = false },
+		{ type = "Toggle", name = "Grouped toggle", inlineDescription = "Grouped line.", value = false },
 		{ type = "Button", name = "Grouped button", callback = function() end },
 	},
 })

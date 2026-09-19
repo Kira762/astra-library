@@ -48,14 +48,18 @@ local switchKnobRest = UDim2.new(1, -(switchTrackWidth - switchInset), 0.5, 0)
 function state.new(tab, element)
     element = if typeof(element) == "table" then element else {}
 
+    local rawDesc = element.description or element.Description or element.info or element.Info or element.tooltip or element.Tooltip
+    local desc = if typeof(rawDesc) == "string" and rawDesc ~= "" then rawDesc else nil
+
     local self = setmetatable({
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = element.name or element.Name or "Toggle",
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
-        description = element.description or element.Description,
-        info = element.info or element.Info or element.tooltip or element.Tooltip,
+        description = desc,
+        info = desc,
         infoIcon = element.infoIcon or element.InfoIcon,
+        inlineDescription = element.inlineDescription or element.InlineDescription,
         forgetState = element.forgetState or element.ForgetState or tab.forgetState,
         compact = tab.compact or false,
         flag = element.flag
@@ -273,12 +277,14 @@ function state:_buildCompact()
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        SortOrder = Enum.SortOrder.LayoutOrder,
 
         Parent = self.container,
     })
 
     if self.icon then
         self.iconLabel = window:Create("ImageLabel", {
+            Name = "Icon",
             Image = self.icon,
             Size = UDim2.fromOffset(16, 16),
             BorderSizePixel = 0,
@@ -291,6 +297,7 @@ function state:_buildCompact()
     end
 
     self.title = window:Create("TextLabel", {
+        Name = "Title",
         Text = flag.t(self.name),
         Size = UDim2.fromOffset(0, 16),
         AutomaticSize = Enum.AutomaticSize.X,
@@ -313,7 +320,8 @@ function state:_buildCompact()
     self:_buildSwitch(self.interact)
     self.functionContainer.LayoutOrder = 1
 
-    if self.info and self.info ~= "" then
+    local hasDesc = self.description ~= nil and self.description ~= ""
+    if hasDesc then
         infoHelper.attach(self, self.container, 2)
     end
 
@@ -470,8 +478,12 @@ function state:Set(a18, a19)
     end
 end
 
+function state:SetDescription(descText)
+    baseCard.setDescription(self, descText)
+end
+
 function state:SetInfo(infoText)
-    baseCard.setInfo(self, infoText)
+    self:SetDescription(infoText)
 end
 
 return state

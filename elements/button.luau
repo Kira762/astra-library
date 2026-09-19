@@ -12,6 +12,7 @@ local icon = require(constants.locale)
 local callback = require(constants.HapticEngine)
 local baseCard = require(script.Parent.baseCard)
 local description = require(script.Parent.description)
+local infoHelper = require(script.Parent.infoHelper)
 -- [[The click choreography rides the motion service's specs: the tap glyph
 -- dips on `fast` and springs back on `settle` (a small overshoot that reads
 -- as a physical press), the card nudges in on `snappy` and lands back on
@@ -47,6 +48,8 @@ function state.new(tab, frame)
         name = frame.name or frame.Name or "Button",
         icon = tab.window:ResolveIcon(frame.icon or frame.Icon),
         description = frame.description or frame.Description,
+        info = frame.info or frame.Info or frame.tooltip or frame.Tooltip,
+        infoIcon = frame.infoIcon or frame.InfoIcon,
         compact = tab.compact or false,
         callback = frame.callback or frame.Callback or function() end,
     }, state)
@@ -224,6 +227,10 @@ function state:_buildCompact()
         Parent = self.title,
     })
 
+    if self.info and self.info ~= "" then
+        infoHelper.attach(self, self.interact, 2)
+    end
+
     -- [[Trailing item of the row: the same tap glyph as the full card, at the
     -- [[row's right edge. `interact` owns the row, so the icon is inside the
     -- [[click surface and tapping it is tapping the button.]]
@@ -233,7 +240,7 @@ function state:_buildCompact()
             Size = UDim2.fromOffset(16, 16),
             BorderSizePixel = 0,
             BackgroundTransparency = 1,
-            LayoutOrder = 2,
+            LayoutOrder = 3,
 
             ImageTransparency = 1,
             Parent = self.interact,
@@ -304,5 +311,9 @@ end
 
 props(state)
 name(state)
+
+function state:SetInfo(infoText)
+    baseCard.setInfo(self, infoText)
+end
 
 return state

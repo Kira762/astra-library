@@ -205,11 +205,14 @@ Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`
 
 Every element supports `Moveable` (`:MoveTo`, `:MoveToTop`, `:MoveToBottom`, `:MoveUp`, `:MoveDown`) and most support `Lockable` (`:Lock`, `:Unlock`, `:IsLocked`). Most element props also accept `icon`.
 
+Functional elements (`Toggle`, `Slider`, `Dropdown`, `Input`, `Button`) also accept an optional `info` string. When specified, a circular `(!)` alert badge is positioned beside the title; hovering (or tapping on touch) reveals a floating tooltip without altering the card's compact height. Dynamic updates are supported via `:SetInfo(text)`.
+
 ```lua
-tab:CreateButton({ name = "Click Me", icon = "play", callback = function() end })
-tab:CreateSlider({ name = "Sensitivity", range = { 1, 10 }, value = 5, suffix = "x", minimal = true, callback = function(v, dragging) end })
-tab:CreateDropdown({ name = "Preset", options = { "Low", "Medium", "High" }, value = "Medium", multiSelect = true, placeholder = "Pick items", callback = function(s) end })
-tab:CreateInput({ name = "Name", placeholder = "Type here", numeric = true, clearOnFocus = true, callback = function(t) end })
+tab:CreateButton({ name = "Click Me", icon = "play", info = "Runs action immediately", callback = function() end })
+tab:CreateToggle({ name = "Auto Sprint", info = "Toggles continuous sprinting", value = true })
+tab:CreateSlider({ name = "Sensitivity", info = "Input sensitivity factor", range = { 1, 10 }, value = 5, suffix = "x", minimal = true, callback = function(v, dragging) end })
+tab:CreateDropdown({ name = "Preset", info = "Target preset level", options = { "Low", "Medium", "High" }, value = "Medium", multiSelect = true, placeholder = "Pick items", callback = function(s) end })
+tab:CreateInput({ name = "Name", info = "User display name", placeholder = "Type here", numeric = true, clearOnFocus = true, callback = function(t) end })
 ```
 
 ### Button

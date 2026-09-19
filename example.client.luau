@@ -41,6 +41,7 @@ elements:CreateDivider({ text = "Interactive elements" })
 elements:CreateButton({
     name = "Button",
     icon = "hand-tap",
+    info = "Triggers an action and updates telemetry stats.",
     callback = function()
         stat:Set(stat.value + 1)
         window:Notify({ title = "Button", content = "Stat was updated." })
@@ -49,6 +50,7 @@ elements:CreateButton({
 
 elements:CreateToggle({
     name = "Toggle",
+    info = "Enables or disables this feature with automatic state persistence.",
     value = true,
     callback = function(value)
         window:Notify({ title = "Toggle", content = if value then "Enabled" else "Disabled" })
@@ -57,6 +59,7 @@ elements:CreateToggle({
 
 elements:CreateSlider({
     name = "Slider",
+    info = "Adjusts the numeric target value in calibrated steps.",
     range = { 0, 100 },
     value = 50,
     increment = 5,
@@ -68,6 +71,7 @@ elements:CreateSlider({
 
 elements:CreateDropdown({
     name = "Dropdown",
+    info = "Selects one option from the available configuration list.",
     options = { "Low", "Medium", "High" },
     value = "Medium",
     callback = function(value)
@@ -77,6 +81,7 @@ elements:CreateDropdown({
 
 elements:CreateDropdown({
     name = "Multi-select dropdown",
+    info = "Selects multiple tags simultaneously.",
     options = { "Combat", "Movement", "Visual" },
     value = { "Combat" },
     multiSelect = true,
@@ -87,6 +92,7 @@ elements:CreateDropdown({
 -- [[not extra one-off input rows.]]
 elements:CreateInput({
     name = "Input",
+    info = "Accepts custom text strings or evaluated numeric formulas.",
     placeholder = "Type something",
     callback = function(value)
         window:Notify({ title = "Input", content = tostring(value) })

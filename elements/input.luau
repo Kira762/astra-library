@@ -10,6 +10,7 @@ local props = require(constants.moveable)
 local name = require(constants.lockable)
 local placeholder = require(constants.locale)
 local description = require(script.Parent.description)
+local infoHelper = require(script.Parent.infoHelper)
 local numeric = require(constants.constants)
 local clearOnFocus = require(constants.HapticEngine)
 
@@ -40,6 +41,8 @@ function state.new(tab, placeholderLabel)
         name = placeholderLabel.name or placeholderLabel.Name or "Input",
         icon = tab.window:ResolveIcon(placeholderLabel.icon or placeholderLabel.Icon),
         description = placeholderLabel.description or placeholderLabel.Description,
+        info = placeholderLabel.info or placeholderLabel.Info or placeholderLabel.tooltip or placeholderLabel.Tooltip,
+        infoIcon = placeholderLabel.infoIcon or placeholderLabel.InfoIcon,
         forgetState = placeholderLabel.forgetState or placeholderLabel.ForgetState or tab.forgetState,
         placeholder = placeholderLabel.placeholder or placeholderLabel.Placeholder or "",
         numeric = placeholderLabel.numeric or placeholderLabel.Numeric or false,
@@ -106,9 +109,14 @@ function state.new(tab, placeholderLabel)
         }, { ImageColor3 = "ContentColor" })
     end
 
+    local hasInfo = self.info and self.info ~= ""
+
     self.title = self.window:Create("TextLabel", {
         Text = placeholder.t(self.name),
-        Size = UDim2.new(1, if self.icon then -21 else 0, 0, 16),
+        Size = if hasInfo
+            then UDim2.fromOffset(0, 16)
+            else UDim2.new(1, if self.icon then -21 else 0, 0, 16),
+        AutomaticSize = if hasInfo then Enum.AutomaticSize.X else Enum.AutomaticSize.None,
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 16,
@@ -120,6 +128,14 @@ function state.new(tab, placeholderLabel)
         TextTransparency = 1,
         Parent = self.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
+
+    if hasInfo then
+        self.window:Create("UIFlexItem", {
+            FlexMode = Enum.UIFlexMode.Shrink,
+            Parent = self.title,
+        })
+        infoHelper.attach(self, self.container, 2)
+    end
 
     self.box = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
@@ -267,5 +283,29 @@ end
 
 props(state)
 name(state)
+
+function state:SetInfo(infoText)
+    self.info = infoText
+    if infoText and infoText ~= "" then
+        if self.infoButton then
+            self.infoButton.Visible = true
+        elseif self.container then
+            if self.title.AutomaticSize == Enum.AutomaticSize.None then
+                self.title.AutomaticSize = Enum.AutomaticSize.X
+                self.title.Size = UDim2.fromOffset(0, 16)
+                self.window:Create("UIFlexItem", {
+                    FlexMode = Enum.UIFlexMode.Shrink,
+                    Parent = self.title,
+                })
+            end
+            infoHelper.attach(self, self.container, 2)
+            if self.infoButton then
+                self.infoButton.ImageTransparency = 0.45
+            end
+        end
+    elseif self.infoButton then
+        self.infoButton.Visible = false
+    end
+end
 
 return state

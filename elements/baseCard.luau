@@ -5,6 +5,7 @@
 local baseCard = {}
 
 local description = require(script.Parent.description)
+local infoHelper = require(script.Parent.infoHelper)
 
 export type BaseCardOpts = {
     height: number?,
@@ -60,13 +61,19 @@ function baseCard.buildFull(element: any, opts: BaseCardOpts?): any
             BorderSizePixel = 0,
             BackgroundTransparency = 1,
             ImageTransparency = 1,
+            LayoutOrder = 0,
             Parent = element.container,
         }, { ImageColor3 = "ContentColor" })
     end
 
+    local hasInfo = element.info and element.info ~= ""
+
     element.title = window:Create("TextLabel", {
         Text = (opts and opts.titleText) or element.name,
-        Size = UDim2.new(1, if element.icon then -21 else 0, 0, 16),
+        Size = if hasInfo
+            then UDim2.fromOffset(0, 16)
+            else UDim2.new(1, if element.icon then -21 else 0, 0, 16),
+        AutomaticSize = if hasInfo then Enum.AutomaticSize.X else Enum.AutomaticSize.None,
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 16,
@@ -77,7 +84,39 @@ function baseCard.buildFull(element: any, opts: BaseCardOpts?): any
         Parent = element.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
+    if hasInfo then
+        window:Create("UIFlexItem", {
+            FlexMode = Enum.UIFlexMode.Shrink,
+            Parent = element.title,
+        })
+        infoHelper.attach(element, element.container, 2)
+    end
+
     return element.main
+end
+
+function baseCard.setInfo(element: any, infoText: string?)
+    element.info = infoText
+    if infoText and infoText ~= "" then
+        if element.infoButton then
+            element.infoButton.Visible = true
+        elseif element.container then
+            if element.title and element.title.AutomaticSize == Enum.AutomaticSize.None then
+                element.title.AutomaticSize = Enum.AutomaticSize.X
+                element.title.Size = UDim2.fromOffset(0, 16)
+                element.window:Create("UIFlexItem", {
+                    FlexMode = Enum.UIFlexMode.Shrink,
+                    Parent = element.title,
+                })
+            end
+            infoHelper.attach(element, element.container, 2)
+            if element.infoButton then
+                element.infoButton.ImageTransparency = 0.45
+            end
+        end
+    elseif element.infoButton then
+        element.infoButton.Visible = false
+    end
 end
 
 return baseCard

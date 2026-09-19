@@ -14,6 +14,7 @@ local options = require(constants.HapticEngine)
 local value = require(constants.windowSizing)
 local multiSelect = require(constants.lockable)
 local description = require(script.Parent.description)
+local infoHelper = require(script.Parent.infoHelper)
 
 local placeholder = name.icons.chevron
 local callback = name.icons.check
@@ -122,6 +123,8 @@ function state.new(tab, a49)
         name = a49.name or a49.Name or "Dropdown",
         icon = tab.window:ResolveIcon(a49.icon or a49.Icon),
         description = a49.description or a49.Description,
+        info = a49.info or a49.Info or a49.tooltip or a49.Tooltip,
+        infoIcon = a49.infoIcon or a49.InfoIcon,
         forgetState = a49.forgetState or a49.ForgetState or tab.forgetState,
         flag = a49.flag
             or a49.Flag
@@ -214,10 +217,15 @@ function state.new(tab, a49)
         }, { ImageColor3 = "ContentColor" })
     end
 
+    local hasInfo = self.info and self.info ~= ""
+
     self.title = self.window:Create("TextLabel", {
         Text = flag.t(self.name),
 
-        Size = UDim2.new(1, if self.icon then -21 else 0, 0, 16),
+        Size = if hasInfo
+            then UDim2.fromOffset(0, 16)
+            else UDim2.new(1, if self.icon then -21 else 0, 0, 16),
+        AutomaticSize = if hasInfo then Enum.AutomaticSize.X else Enum.AutomaticSize.None,
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 16,
@@ -229,6 +237,14 @@ function state.new(tab, a49)
         ZIndex = 5,
         Parent = self.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
+
+    if hasInfo then
+        self.window:Create("UIFlexItem", {
+            FlexMode = Enum.UIFlexMode.Shrink,
+            Parent = self.title,
+        })
+        infoHelper.attach(self, self.container, 2)
+    end
 
     self.selectedLabel = self.window:Create("TextLabel", {
         AnchorPoint = Vector2.new(1, 0.5),
@@ -1478,6 +1494,9 @@ function state:_setShown(a160, a161)
     end
     w:_reveal(self.selectedLabel, { TextTransparency = if a160 then 0.5 else 1 }, a161)
     w:_reveal(self.chevron, { ImageTransparency = if a160 then 0.5 else 1 }, a161)
+    if self.infoButton then
+        w:_reveal(self.infoButton, { ImageTransparency = if a160 then 0.45 else 1 }, a161)
+    end
 
         if not a160 and self._isOpen then
         self:_close()
@@ -1507,6 +1526,30 @@ function state:MoveDown()
     local a164 = table.find(self.tab.elements, self)
     if a164 then
         self.tab:_moveElement(self, a164 + 1)
+    end
+end
+
+function state:SetInfo(infoText)
+    self.info = infoText
+    if infoText and infoText ~= "" then
+        if self.infoButton then
+            self.infoButton.Visible = true
+        elseif self.container then
+            if self.title.AutomaticSize == Enum.AutomaticSize.None then
+                self.title.AutomaticSize = Enum.AutomaticSize.X
+                self.title.Size = UDim2.fromOffset(0, 16)
+                self.window:Create("UIFlexItem", {
+                    FlexMode = Enum.UIFlexMode.Shrink,
+                    Parent = self.title,
+                })
+            end
+            infoHelper.attach(self, self.container, 2)
+            if self.infoButton then
+                self.infoButton.ImageTransparency = 0.45
+            end
+        end
+    elseif self.infoButton then
+        self.infoButton.Visible = false
     end
 end
 

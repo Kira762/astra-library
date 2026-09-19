@@ -2,6 +2,25 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-19 — Circle-alert (!) info descriptions on functional elements
+
+Functional elements (`Toggle`, `Slider`, `Dropdown`, `Input`, `Button`) now support
+an optional `info` prop that displays a circular `(!)` alert badge directly beside
+the element title. Hovering or tapping the icon triggers a floating, themed tooltip
+with the description without altering the compact card height.
+
+- `elements/infoHelper.luau`: shared builder for the circle-alert indicator button,
+  positioned beside the title in the element's container and isolated with `ZIndex = 15`
+  to prevent click propagation to the underlying card.
+- `components/tooltip.luau`: floating tooltip overlay service with dynamic text
+  bounds calculation, viewport clamping, and smooth motion service transitions.
+- `elements/baseCard.luau`, `toggle.luau`, `button.luau`, `slider.luau`, `dropdown.luau`, `input.luau`:
+  wired to support the `info` (and `infoIcon`) props and `:SetInfo(text)` runtime updates.
+- `components/window.luau`: reveals and hides `element.infoButton` via `_revealCommon`
+  and `_hideCommon`; exposes `Window:ShowTooltip` and `Window:HideTooltip`.
+- `Types.luau`: updated with `info`, `infoIcon`, `SetInfo`, and tooltip types.
+- `example.client.luau`: updated to demonstrate `info` tooltips across interactive elements.
+
 ## 2026-09-17 — The window shows again: icon-less topbar chrome no longer crashes the first `Show()`
 
 `frame.ImageLabel` reads as a child lookup on Roblox, not as a safe member

@@ -403,7 +403,7 @@ card that never reports back nor a gate nobody opens can park the pump),
 accumulated from `task.wait()` deltas and the gaps go through `motion.step`,
 so the queue answers the "Animation speed" setting instead of the wall clock.
 
-### `components/notification.luau`, `popup.luau`
+### `components/notification.luau`, `popup.luau`, `tooltip.luau`
 Overlay queues: `a1..a4` — container frame, TweenInfo presets, queue table, active-instance guard.
 `Notification.new(window, props, release)` takes the entrance slot from `components/overlayQueue.luau` and hands it
 back from `_entranceDone` when its staged fades are committed (icon, then
@@ -411,6 +411,7 @@ description); `Window:Notify` builds the layer
 immediately but constructs the card only on its turn, so a burst at load time
 costs one card per frame instead of all of them at once. `Popup` is modal and
 stays outside the queue.
+`tooltip.luau` provides the floating hover and tap tooltip overlay for element info descriptions, with viewport-aware clamping and smooth motion tweens.
 
 ### `components/search.luau`
 Fuzzy search overlay: locals for candidate list, scoring weights, debounce connection.
@@ -469,6 +470,7 @@ Per-element specifics:
 - `divider.luau`, `stat.luau`, `text.luau` — display and interaction elements.
 - `button.luau` — action card with a built-in right-edge tap glyph (`tapIcon` opts out or replaces it), themed through `ContentColor`, revealed with the card, and pulsed on press. Compact/grouped buttons explicitly sort their horizontal layout by `LayoutOrder`: optional custom icon, title, then built-in tap glyph.
 - `baseCard.luau` — shared card container and header layout helper for element modules.
+- `infoHelper.luau` — helper for functional elements: builds the circle-alert (!) indicator button beside the title and wires hover/tap tooltips via `components/tooltip`.
 
 ---
 

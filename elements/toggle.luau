@@ -12,6 +12,7 @@ local flag = require(constants.locale)
 local value = require(constants.HapticEngine)
 local baseCard = require(script.Parent.baseCard)
 local description = require(script.Parent.description)
+local infoHelper = require(script.Parent.infoHelper)
 -- [[The switch rides the shared motion vocabulary. The knob is the one
 -- genuinely mechanical surface in the library, so it gets the short Back
 -- overshoot (`settle`) — it reads as a physical slide with a landing rather
@@ -53,6 +54,8 @@ function state.new(tab, element)
         name = element.name or element.Name or "Toggle",
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
         description = element.description or element.Description,
+        info = element.info or element.Info or element.tooltip or element.Tooltip,
+        infoIcon = element.infoIcon or element.InfoIcon,
         forgetState = element.forgetState or element.ForgetState or tab.forgetState,
         compact = tab.compact or false,
         flag = element.flag
@@ -310,6 +313,10 @@ function state:_buildCompact()
     self:_buildSwitch(self.interact)
     self.functionContainer.LayoutOrder = 1
 
+    if self.info and self.info ~= "" then
+        infoHelper.attach(self, self.container, 2)
+    end
+
     self.window:_wireElementHover(self)
 
     self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
@@ -461,6 +468,10 @@ function state:Set(a18, a19)
         self.window:_runGuarded(self, self.callback, self.value)
         self.window:_persist(self)
     end
+end
+
+function state:SetInfo(infoText)
+    baseCard.setInfo(self, infoText)
 end
 
 return state

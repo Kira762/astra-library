@@ -141,7 +141,7 @@ Titles, themes, and every window method.
 
 | Method | Description |
 |---|---|
-| `window:CreateTab({ name, icon })` | Create a tab. Returns a `Tab`. |
+| `window:CreateTab({ name, icon, locked })` | Create a tab. `locked = true` builds it gated (see [Locked tabs](#locked-tabs)). Returns a `Tab`. |
 | `window:CreateSection({ name, icon })` | Top-level section — a `TabSection`. |
 | `window:Notify({ title, content, icon, duration })` | Classic notification; opens on the entrance queue (see [Startup performance](#startup-performance)). |
 | `window:Popup({ title, content, boxes, options, ... })` | Modal popup. Returns `Popup:Close()`. |
@@ -201,6 +201,40 @@ col:CreateToggle({ name = "Left 1" })
 Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup`.
 
 Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
+
+### Locked tabs
+
+`CreateTab({ locked = true })` builds a tab that is visible in the sidebar but
+gated: the row draws a lock badge in its top-right corner, stays dimmed, and
+cannot be opened by the user. It is the library's answer to "this section
+exists, but not for this user yet".
+
+```lua
+local premium = window:CreateTab({ name = "Premium", icon = "star", locked = true })
+premium:CreateButton({ name = "Enable ESP", callback = function() end })
+
+-- later, from host code only — e.g. after a login or premium check:
+premium:SetLocked(false)
+```
+
+- **The lock is host-controlled.** There is no UI control that changes it; the
+  only switch is `tab:SetLocked(bool)`. The state is per-session — it is not a
+  flag and is never written to settings or configs.
+- **While locked**, tapping the row raises a short notification ("This tab is
+  locked", lock icon) instead of selecting it; the row has no hover state and
+  is dimmed further than an unselected pill. In the collapsed icon-only rail
+  the badge still shows on the icon tile. When unlocked, no icon is drawn at
+  all — the row is identical to a tab that never had the prop.
+- **Locked tabs keep their contents private.** Their elements are never built
+  visible, and search never indexes them, so their names cannot be found
+  through the search box. `tab:Select()`, `window:Navigate(tab)` and the
+  auto-select of a new window all skip locked tabs.
+- **Locking a tab that is open** moves the selection to another unlocked tab
+  (same-rail preference); if every other tab is locked or neglected, the
+  selection clears and the tab's content is hidden until it is unlocked and
+  opened again.
+- It is a UI gate, not security: it hides content from the player, not from an
+  executor reading the client.
 
 ### Elements
 

@@ -8,6 +8,7 @@ local Tab = require(constants.Parent.core.state)
 local motion = require(constants.motion)
 local window = require(constants.ordering)
 local props = require(constants.HapticEngine)
+local locale = require(constants.locale)
 local name = require(script.Parent.Parent.components.search)
 local icon = require(script.Parent.Parent.components.tabSelector)
 local flagNames = require(script.Parent.Parent.functions.flagNames)
@@ -67,6 +68,7 @@ function state.new(window, a17)
         name = a17.name or a17.Name,
         icon = window:ResolveIcon(a17.icon or a17.Icon),
         neglectSelector = a17.neglectSelector or a17.NeglectSelector or false,
+        locked = a17.locked == true or a17.Locked == true,
         customOrder = a17.customOrder or a17.CustomOrder or 0,
                 forgetState = a17.forgetState or a17.ForgetState or false,
         _isSettingsTab = a17.isSettingsTab == true or a17.IsSettingsTab == true,
@@ -125,10 +127,21 @@ function state:_bindSelector()
     end
     table.insert(self.connections, self.window:Connect(self.topbarItemInteract.MouseButton1Click, function()
         props.click()
+        if self.locked then
+            -- [[Locked rows are visible but untouchable: the tap is answered
+            -- [[with a short notification instead of a selection.]]
+            self.window:Notify({
+                title = locale.resolve("Locked"),
+                content = locale.resolve("This tab is locked."),
+                icon = "lock",
+                duration = 2.5,
+            })
+            return
+        end
         self:Select()
     end))
     table.insert(self.connections, self.window:Connect(self.topbarItemInteract.MouseEnter, function()
-        if not self.window:_interactive() then
+        if self.locked or not self.window:_interactive() then
             return
         end
         if self.window.selectedTab ~= self then
@@ -168,6 +181,19 @@ function state:_applyVisual(a19, a20)
         return
     end
 
+    if self.locked then
+        -- [[A locked row never selects and never hovers: dim the pill further
+        -- [[than the unselected state so it reads as disabled, not merely
+        -- [[unpicked. The badge rides along at the same transparency. The
+        -- [[copy keeps the shared state table intact.]]
+        a21 = {
+            background = a21.background,
+            stroke = a21.stroke,
+            content = math.max(a21.content, 0.7),
+            shadow = a21.shadow,
+        }
+    end
+
     icon.applyVisual(self, a21, a20)
 end
 
@@ -182,7 +208,13 @@ function state:_spinGradients()
 end
 
 function state:Select(a24)
-            if self.window._searching then
+    if self.locked then
+        -- [[Locked tabs are unreachable by selection: the row tap answers
+        -- [[with a notification instead, Navigate bails out, and Remove and
+        -- [[SetLocked skip them when choosing a fallback.]]
+        return
+    end
+    if self.window._searching then
         name.close(self.window, { showTabs = true, jumpTo = false })
     end
 
@@ -232,6 +264,65 @@ end
 function state:Deselect(a26)
     if not self.neglectSelector and not a26 then
         self:_applyVisual("unselected", element)
+    end
+end
+
+-- [[Lock a tab from host code: the user has no control that changes it.
+-- [[Locking the tab that is open moves the selection to another unlocked
+-- [[tab (same-rail preference, the way Remove chooses its fallback);
+-- [[unlocking only re-enables the row — the host decides when it opens.]]
+function state:SetLocked(locked)
+    locked = locked == true
+    if self.locked == locked then
+        return
+    end
+    self.locked = locked
+
+    local win = self.window
+
+    if win._searching then
+        name.close(win, { showTabs = true, jumpTo = win.selectedTab and win.selectedTab.tabPage })
+    end
+
+    if self.topbarItemLock then
+        self.topbarItemLock.Visible = locked
+    end
+
+    if not locked then
+        self:_applyVisual(if win.selectedTab == self then "selected" else "unselected", element)
+        return
+    end
+
+    if win.selectedTab ~= self then
+        -- [[Not the open tab: its page was never the current page, so dimming
+        -- [[the row is the whole job — nothing of its content is on screen.]]
+        self:_applyVisual("unselected", element)
+        return
+    end
+
+    -- [[Locking the open tab: the window is sitting on its content, so the
+    -- [[selection must move.]]
+    win.selectedTab = nil
+    local fallback
+    for _, tab in ipairs(win.tabs) do
+        if not tab.neglectSelector and not tab.locked then
+            fallback = fallback or tab
+            if win:_railGroup(tab) == win:_railGroup(self) then
+                fallback = tab
+                break
+            end
+        end
+    end
+    if fallback then
+        fallback:Select()
+    else
+        -- [[Pathological: every other tab is locked or neglected. Clear the
+        -- [[selection and hide this tab's content so a later Show cannot land
+        -- [[on it; the pending mark puts it back when it is opened.]]
+        self._elementsPending = true
+        for _, el in ipairs(self.elements) do
+            el:_setShown(false, false)
+        end
     end
 end
 
@@ -336,7 +427,7 @@ function state:Remove()
         -- [[cannot yank the user out of settings mode (or into it).]]
         local fallback
         for _, tab in ipairs(window.tabs) do
-            if not tab.neglectSelector then
+            if not tab.neglectSelector and not tab.locked then
                 fallback = fallback or tab
                 if window:_railGroup(tab) == window:_railGroup(self) then
                     fallback = tab

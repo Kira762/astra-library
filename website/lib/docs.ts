@@ -129,10 +129,11 @@ export const NAV: NavGroup[] = [
         description: "Split a window into tabs, then lay controls out in groups.",
         toc: [
           { id: "tabs", label: "Tabs" },
+          { id: "locked", label: "Locked tabs" },
           { id: "groups", label: "Groups" },
           { id: "sections", label: "Sections" },
         ],
-        keywords: ["CreateTab", "CreateGroup", "row", "column", "section", "Select"],
+        keywords: ["CreateTab", "CreateGroup", "row", "column", "section", "Select", "locked", "SetLocked"],
       },
       {
         href: "/docs/elements",

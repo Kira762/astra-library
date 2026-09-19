@@ -20,7 +20,7 @@ export default function Methods() {
       <PropTable
         headers={["Method", "Notes"]}
         rows={[
-          ["CreateTab({ name, icon })", "Returns a Tab."],
+          ["CreateTab({ name, icon, locked })", "Returns a Tab; locked = true builds it gated (lock badge, unopenable by the user)."],
           ["CreateSection({ name, icon })", "Rail heading — sidebar layout only; returns a TabSection with Remove()."],
           ["Notify({ title, content, icon, duration })", "Queued arrival; dismisses on click or timeout."],
           ["Popup(props)", "Modal card; returns a Popup with Close()."],
@@ -47,6 +47,7 @@ export default function Methods() {
         headers={["Method", "Notes"]}
         rows={[
           ["Select(noAnimation?) / Deselect(noAnimation?)", "Switch tabs."],
+          ["SetLocked(locked)", "Lock or unlock the tab — host-only, per-session. Locking the open tab moves the selection away; see Tabs and groups."],
           ["Remove()", "Destroy the tab."],
           ["CreateButton / CreateToggle / CreateSlider", "Compact controls."],
           ["CreateDropdown / CreateInput / CreateStat", "Tab-level controls."],

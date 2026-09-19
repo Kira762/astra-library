@@ -17,7 +17,13 @@ local tab = window:CreateTab({ name = "Home", icon = "house" })
 tab:Select()      -- switch to it
 tab:Deselect()    -- switch away
 tab:Remove()      -- destroy the tab
+tab:SetLocked(locked)  -- gate the tab (host-only; see window.md, "Locked tabs")
 ```
+
+`CreateTab` also accepts `locked = true`: the tab shows in the sidebar with a
+lock badge in the row's top-right corner but cannot be opened (tap raises a
+notification, search skips its elements, `Select`/`Navigate` bail). Only
+`tab:SetLocked(false)` unlocks it.
 
 Tab constructors: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`,
 `CreateInput`, `CreateStat`, `CreateSection`, `CreateText`,

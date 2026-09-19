@@ -288,6 +288,7 @@ export type WindowProps = {
 export type TabProps = {
     name: string?,
     icon: (string | number)?,
+    locked: boolean?,
 }
 
 export type SectionProps = {
@@ -522,6 +523,7 @@ export type Tab = {
     CreateCollapsibleGroup: (self: Tab, props: CollapsibleGroupProps) -> CollapsibleGroup,
     Select: (self: Tab, noAnimation: boolean?) -> (),
     Deselect: (self: Tab, noAnimation: boolean?) -> (),
+    SetLocked: (self: Tab, locked: boolean) -> (),
     Remove: (self: Tab) -> (),
     CreateButton: (self: Tab, props: ButtonProps) -> Button,
     CreateToggle: (self: Tab, props: ToggleProps) -> Toggle,
@@ -5382,7 +5384,9 @@ end
 local function getAllElements(window)
     local elements = {}
     for _, tab in window.tabs do
-        if tab.neglectSelector then
+        -- [[Locked tabs keep their contents private: their elements never
+        -- [[reach the search index, so a search cannot leak a name.]]
+        if tab.neglectSelector or tab.locked then
             continue
         end
         for _, element in tab.elements do
@@ -6689,6 +6693,26 @@ local function buildContent(tab, iconSize, useInitial)
             Parent = tab.topbarItemContainer,
         }, { TextColor3 = "TabColor", FontFace = "Font" })
     end
+
+    -- [[The lock badge rides the row itself rather than the content container:
+    -- [[the container recentres for icon-only rows, but the badge stays in the
+    -- [[row's top-right corner in both. It is created for every row and only
+    -- [[Visible while the tab is locked, so SetLocked flips a flag instead of
+    -- [[rebuilding the row — and an unlocked tab draws no icon at all.]]
+    local lockImage = tab.window:ResolveIcon("lock")
+    if lockImage then
+        tab.topbarItemLock = tab.window:Create("ImageLabel", {
+            Image = lockImage,
+            Size = UDim2.fromOffset(13, 13),
+            Position = UDim2.new(1, -20, 0, 11),
+            BorderSizePixel = 0,
+            BackgroundTransparency = 1,
+            ImageTransparency = 1,
+            ZIndex = 2,
+            Visible = tab.locked == true,
+            Parent = tab.topbarItem,
+        }, { ImageColor3 = "TabColor" })
+    end
 end
 
 local function buildSidebarStyle(tab, layout)
@@ -6928,6 +6952,12 @@ function tabSelector.applyVisual(tab, visualState, tweenInfo)
     end
     if tab.topbarItemInitial then
         targets[tab.topbarItemInitial] = { TextTransparency = visualState.content }
+    end
+    if tab.topbarItemLock then
+        -- [[The badge dims with the row: `tab:_applyVisual` raises the
+        -- [[content transparency while the tab is locked, so the whole pill
+        -- [[reads as disabled at once.]]
+        targets[tab.topbarItemLock] = { ImageTransparency = visualState.content }
     end
     if tab.topbarItemShadow and visualState.shadow then
         targets[tab.topbarItemShadow] = { Transparency = visualState.shadow }
@@ -8199,12 +8229,19 @@ function Window:CreateTab(props)
     if not tab.neglectSelector then
         local isFirst = true
         for _, existingTab in self.tabs do
-            if existingTab ~= tab and not existingTab.neglectSelector and self:_railGroup(existingTab) == self:_railGroup(tab) then
+            if
+                existingTab ~= tab
+                and not existingTab.neglectSelector
+                and not existingTab.locked
+                and self:_railGroup(existingTab) == self:_railGroup(tab)
+            then
                 isFirst = false
                 break
             end
         end
-        if isFirst then
+        -- [[A locked first tab must not steal the selection from the row
+        -- [[behind it; and a locked tab never selects itself.]]
+        if isFirst and not tab.locked then
             tab:Select(true)
         end
 
@@ -9954,14 +9991,22 @@ function Window:Navigate(tab)
     end
 
     local found
-    for _, tab in self.tabs do
-                if tab == tab or tab.name == tab or tab.tabPage == tab then
-            found = tab
+    -- [[The loop variable must not shadow the `tab` argument: `tab == tab`
+    -- [[was always true, so every Navigate call selected the first tab in
+    -- [[the list (the settings General tab) no matter what was asked for.]]
+    for _, existing in self.tabs do
+        if tab == existing or existing.name == tab or existing.tabPage == tab then
+            found = existing
             break
         end
     end
 
     if not found then
+        return
+    end
+    if found.locked then
+        -- [[The gate holds for programmatic navigation too; the host unlocks
+        -- [[through tab:SetLocked, not around it.]]
         return
     end
     found:Select()
@@ -15946,6 +15991,7 @@ local Tab = require(constants.Parent.core.state)
 local motion = require(constants.motion)
 local window = require(constants.ordering)
 local props = require(constants.HapticEngine)
+local locale = require(constants.locale)
 local name = require(script.Parent.Parent.components.search)
 local icon = require(script.Parent.Parent.components.tabSelector)
 local flagNames = require(script.Parent.Parent.functions.flagNames)
@@ -16005,6 +16051,7 @@ function state.new(window, a17)
         name = a17.name or a17.Name,
         icon = window:ResolveIcon(a17.icon or a17.Icon),
         neglectSelector = a17.neglectSelector or a17.NeglectSelector or false,
+        locked = a17.locked == true or a17.Locked == true,
         customOrder = a17.customOrder or a17.CustomOrder or 0,
                 forgetState = a17.forgetState or a17.ForgetState or false,
         _isSettingsTab = a17.isSettingsTab == true or a17.IsSettingsTab == true,
@@ -16063,10 +16110,21 @@ function state:_bindSelector()
     end
     table.insert(self.connections, self.window:Connect(self.topbarItemInteract.MouseButton1Click, function()
         props.click()
+        if self.locked then
+            -- [[Locked rows are visible but untouchable: the tap is answered
+            -- [[with a short notification instead of a selection.]]
+            self.window:Notify({
+                title = locale.resolve("Locked"),
+                content = locale.resolve("This tab is locked."),
+                icon = "lock",
+                duration = 2.5,
+            })
+            return
+        end
         self:Select()
     end))
     table.insert(self.connections, self.window:Connect(self.topbarItemInteract.MouseEnter, function()
-        if not self.window:_interactive() then
+        if self.locked or not self.window:_interactive() then
             return
         end
         if self.window.selectedTab ~= self then
@@ -16106,6 +16164,19 @@ function state:_applyVisual(a19, a20)
         return
     end
 
+    if self.locked then
+        -- [[A locked row never selects and never hovers: dim the pill further
+        -- [[than the unselected state so it reads as disabled, not merely
+        -- [[unpicked. The badge rides along at the same transparency. The
+        -- [[copy keeps the shared state table intact.]]
+        a21 = {
+            background = a21.background,
+            stroke = a21.stroke,
+            content = math.max(a21.content, 0.7),
+            shadow = a21.shadow,
+        }
+    end
+
     icon.applyVisual(self, a21, a20)
 end
 
@@ -16120,7 +16191,13 @@ function state:_spinGradients()
 end
 
 function state:Select(a24)
-            if self.window._searching then
+    if self.locked then
+        -- [[Locked tabs are unreachable by selection: the row tap answers
+        -- [[with a notification instead, Navigate bails out, and Remove and
+        -- [[SetLocked skip them when choosing a fallback.]]
+        return
+    end
+    if self.window._searching then
         name.close(self.window, { showTabs = true, jumpTo = false })
     end
 
@@ -16170,6 +16247,65 @@ end
 function state:Deselect(a26)
     if not self.neglectSelector and not a26 then
         self:_applyVisual("unselected", element)
+    end
+end
+
+-- [[Lock a tab from host code: the user has no control that changes it.
+-- [[Locking the tab that is open moves the selection to another unlocked
+-- [[tab (same-rail preference, the way Remove chooses its fallback);
+-- [[unlocking only re-enables the row — the host decides when it opens.]]
+function state:SetLocked(locked)
+    locked = locked == true
+    if self.locked == locked then
+        return
+    end
+    self.locked = locked
+
+    local win = self.window
+
+    if win._searching then
+        name.close(win, { showTabs = true, jumpTo = win.selectedTab and win.selectedTab.tabPage })
+    end
+
+    if self.topbarItemLock then
+        self.topbarItemLock.Visible = locked
+    end
+
+    if not locked then
+        self:_applyVisual(if win.selectedTab == self then "selected" else "unselected", element)
+        return
+    end
+
+    if win.selectedTab ~= self then
+        -- [[Not the open tab: its page was never the current page, so dimming
+        -- [[the row is the whole job — nothing of its content is on screen.]]
+        self:_applyVisual("unselected", element)
+        return
+    end
+
+    -- [[Locking the open tab: the window is sitting on its content, so the
+    -- [[selection must move.]]
+    win.selectedTab = nil
+    local fallback
+    for _, tab in ipairs(win.tabs) do
+        if not tab.neglectSelector and not tab.locked then
+            fallback = fallback or tab
+            if win:_railGroup(tab) == win:_railGroup(self) then
+                fallback = tab
+                break
+            end
+        end
+    end
+    if fallback then
+        fallback:Select()
+    else
+        -- [[Pathological: every other tab is locked or neglected. Clear the
+        -- [[selection and hide this tab's content so a later Show cannot land
+        -- [[on it; the pending mark puts it back when it is opened.]]
+        self._elementsPending = true
+        for _, el in ipairs(self.elements) do
+            el:_setShown(false, false)
+        end
     end
 end
 
@@ -16274,7 +16410,7 @@ function state:Remove()
         -- [[cannot yank the user out of settings mode (or into it).]]
         local fallback
         for _, tab in ipairs(window.tabs) do
-            if not tab.neglectSelector then
+            if not tab.neglectSelector and not tab.locked then
                 fallback = fallback or tab
                 if window:_railGroup(tab) == window:_railGroup(self) then
                     fallback = tab
@@ -24324,106 +24460,106 @@ end)() end,
 local LineOffsets = {
     [2] = 12,
     [3] = 243,
-    [5] = 639,
-    [6] = 674,
-    [7] = 719,
-    [8] = 625,
-    [9] = 836,
-    [10] = 969,
-    [11] = 1208,
-    [12] = 1554,
-    [13] = 1906,
-    [14] = 2194,
-    [15] = 2915,
-    [16] = 5346,
-    [17] = 5673,
-    [18] = 6551,
-    [19] = 6612,
-    [20] = 6954,
-    [21] = 7404,
-    [23] = 10604,
-    [24] = 10708,
-    [25] = 11031,
-    [26] = 11452,
-    [27] = 11854,
-    [28] = 12024,
-    [29] = 12169,
-    [30] = 13703,
-    [31] = 13922,
-    [32] = 14120,
-    [33] = 14407,
-    [34] = 14493,
-    [35] = 15090,
-    [36] = 15939,
-    [37] = 16315,
-    [38] = 16445,
-    [39] = 16597,
-    [41] = 17104,
-    [42] = 17127,
-    [43] = 17144,
-    [44] = 17176,
-    [45] = 17298,
-    [46] = 17322,
-    [47] = 17371,
-    [48] = 17079,
-    [49] = 17495,
-    [50] = 17798,
-    [51] = 17829,
-    [52] = 17484,
-    [53] = 17872,
-    [54] = 17892,
-    [55] = 17924,
-    [56] = 17854,
-    [57] = 18031,
-    [58] = 18090,
-    [60] = 18165,
-    [61] = 18330,
-    [62] = 18150,
-    [63] = 18908,
-    [64] = 18952,
-    [65] = 19032,
-    [66] = 19225,
-    [67] = 19354,
-    [68] = 19448,
-    [69] = 19615,
-    [70] = 19953,
-    [71] = 18406,
-    [72] = 20587,
-    [73] = 20653,
-    [74] = 20719,
-    [75] = 20794,
-    [76] = 20900,
-    [77] = 20966,
-    [78] = 21041,
-    [79] = 21116,
-    [80] = 21191,
-    [81] = 21266,
-    [82] = 20481,
-    [83] = 21332,
-    [84] = 21430,
-    [85] = 21608,
-    [86] = 21656,
-    [87] = 21686,
-    [88] = 21937,
-    [89] = 21986,
-    [90] = 22439,
-    [91] = 22457,
-    [92] = 22572,
-    [93] = 22671,
-    [94] = 22693,
-    [95] = 22747,
-    [96] = 23097,
-    [97] = 23133,
-    [98] = 23151,
-    [99] = 23505,
-    [100] = 23517,
-    [101] = 23568,
-    [102] = 23587,
-    [103] = 23838,
-    [104] = 23882,
-    [105] = 24117,
-    [106] = 24145,
-    [107] = 24156,
+    [5] = 641,
+    [6] = 676,
+    [7] = 721,
+    [8] = 627,
+    [9] = 838,
+    [10] = 971,
+    [11] = 1210,
+    [12] = 1556,
+    [13] = 1908,
+    [14] = 2196,
+    [15] = 2917,
+    [16] = 5348,
+    [17] = 5677,
+    [18] = 6555,
+    [19] = 6616,
+    [20] = 6984,
+    [21] = 7434,
+    [23] = 10649,
+    [24] = 10753,
+    [25] = 11076,
+    [26] = 11497,
+    [27] = 11899,
+    [28] = 12069,
+    [29] = 12214,
+    [30] = 13748,
+    [31] = 13967,
+    [32] = 14165,
+    [33] = 14452,
+    [34] = 14538,
+    [35] = 15135,
+    [36] = 15984,
+    [37] = 16451,
+    [38] = 16581,
+    [39] = 16733,
+    [41] = 17240,
+    [42] = 17263,
+    [43] = 17280,
+    [44] = 17312,
+    [45] = 17434,
+    [46] = 17458,
+    [47] = 17507,
+    [48] = 17215,
+    [49] = 17631,
+    [50] = 17934,
+    [51] = 17965,
+    [52] = 17620,
+    [53] = 18008,
+    [54] = 18028,
+    [55] = 18060,
+    [56] = 17990,
+    [57] = 18167,
+    [58] = 18226,
+    [60] = 18301,
+    [61] = 18466,
+    [62] = 18286,
+    [63] = 19044,
+    [64] = 19088,
+    [65] = 19168,
+    [66] = 19361,
+    [67] = 19490,
+    [68] = 19584,
+    [69] = 19751,
+    [70] = 20089,
+    [71] = 18542,
+    [72] = 20723,
+    [73] = 20789,
+    [74] = 20855,
+    [75] = 20930,
+    [76] = 21036,
+    [77] = 21102,
+    [78] = 21177,
+    [79] = 21252,
+    [80] = 21327,
+    [81] = 21402,
+    [82] = 20617,
+    [83] = 21468,
+    [84] = 21566,
+    [85] = 21744,
+    [86] = 21792,
+    [87] = 21822,
+    [88] = 22073,
+    [89] = 22122,
+    [90] = 22575,
+    [91] = 22593,
+    [92] = 22708,
+    [93] = 22807,
+    [94] = 22829,
+    [95] = 22883,
+    [96] = 23233,
+    [97] = 23269,
+    [98] = 23287,
+    [99] = 23641,
+    [100] = 23653,
+    [101] = 23704,
+    [102] = 23723,
+    [103] = 23974,
+    [104] = 24018,
+    [105] = 24253,
+    [106] = 24281,
+    [107] = 24292,
 }
 
 -- [[Misc AOT variable imports]]

@@ -61,10 +61,35 @@ local runService = setmetatable({}, {
 })
 servicesByName["RunService"] = runService
 
+-- [[`UserInputType` and `MembershipType` answer the way the engine does: a
+-- [[member they do not know is an error, not a proxy. Modules name their members
+-- [[while they load, so one invented member kills the require and every window
+-- [[built after it - the `Pen` and `Free` members that shipped here have never
+-- [[existed, and a permissive stub turned both crashes into a green test run.]]
+local strictEnumMembers = {
+	UserInputType = {
+		MouseButton1 = true, MouseButton2 = true, MouseButton3 = true, MouseWheel = true,
+		MouseMovement = true, Touch = true, Keyboard = true, Focus = true,
+		Accelerometer = true, Gyro = true, Gamepad1 = true, Gamepad2 = true,
+		Gamepad3 = true, Gamepad4 = true, Gamepad5 = true, Gamepad6 = true,
+		Gamepad7 = true, Gamepad8 = true, TextInput = true, InputMethod = true,
+		None = true,
+	},
+	MembershipType = {
+		None = true, BuildersClub = true, TurboBuildersClub = true,
+		OutrageousBuildersClub = true, Premium = true,
+	},
+}
+local enumMethods = { FromValue = true, GetEnumItems = true }
+
 Enum = setmetatable({}, {
-	__index = function()
+	__index = function(_, category)
+		local known = strictEnumMembers[category]
 		return setmetatable({}, {
-			__index = function()
+			__index = function(_, item)
+				if known and not enumMethods[item] and not known[item] then
+					error(tostring(item) .. ' is not a valid member of "Enum.' .. tostring(category) .. '"', 2)
+				end
 				return makeProxy("EnumItem")
 			end
 		})

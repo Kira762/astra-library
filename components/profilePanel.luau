@@ -542,9 +542,13 @@ local function playerCounts(): (number?, number?)
     return current, capacity
 end
 
--- [[MembershipType is the real Roblox source for the premium pill: legacy
--- [[Builders Club tiers count, Free/None do not. When the platform cannot be
--- [[read the pill stays hidden rather than claiming a status.]]
+-- [[MembershipType is the real Roblox source for the premium pill: every tier
+-- [[but `None` is a paid one (`Premium`, plus the three legacy Builders Club
+-- [[items), so "not None" is the whole test. There is no `Free` item - the enum
+-- [[is None/BuildersClub/TurboBuildersClub/OutrageousBuildersClub/Premium - and
+-- [[naming one raises `Free is not a valid member of "Enum.MembershipType"`
+-- [[here, in the middle of drawing the pill. When the platform cannot be read
+-- [[the pill stays hidden rather than claiming a status.]]
 local function isPremium(player): boolean
     if not player then
         return false
@@ -555,7 +559,7 @@ local function isPremium(player): boolean
     if not ok or membership == nil or typeof(membership) ~= "EnumItem" then
         return false
     end
-    return membership ~= Enum.MembershipType.None and membership ~= Enum.MembershipType.Free
+    return membership ~= Enum.MembershipType.None
 end
 
 -- =========================================================================

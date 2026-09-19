@@ -333,12 +333,10 @@ function state:_buildLabel()
         }, { ImageColor3 = "ContentColor" })
     end
 
-    local hasInfo = self.info and self.info ~= ""
-
     self.title = self.window:Create("TextLabel", {
         Text = range.t(self.name),
-        Size = if hasInfo then UDim2.fromOffset(0, 16) else UDim2.new(1, 0, 0, 16),
-        AutomaticSize = if hasInfo then Enum.AutomaticSize.X else Enum.AutomaticSize.None,
+        Size = UDim2.new(1, 0, 0, 16),
+        AutomaticSize = Enum.AutomaticSize.None,
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 16,
@@ -357,9 +355,7 @@ function state:_buildLabel()
         Parent = self.title,
     })
 
-    if hasInfo then
-        infoHelper.attach(self, self.titleContainer, 2)
-    end
+    infoHelper.attach(self, self.titleContainer)
 
     self.valueHost = self.window:Create("Frame", {
         Size = UDim2.new(1, 0, 0, 16),
@@ -592,23 +588,7 @@ name(state)
 flag(state)
 
 function state:SetInfo(infoText)
-    self.info = infoText
-    if infoText and infoText ~= "" then
-        if self.infoButton then
-            self.infoButton.Visible = true
-        elseif self.titleContainer then
-            if self.title.AutomaticSize == Enum.AutomaticSize.None then
-                self.title.AutomaticSize = Enum.AutomaticSize.X
-                self.title.Size = UDim2.fromOffset(0, 16)
-            end
-            infoHelper.attach(self, self.titleContainer, 2)
-            if self.infoButton then
-                self.infoButton.ImageTransparency = 0.45
-            end
-        end
-    elseif self.infoButton then
-        self.infoButton.Visible = false
-    end
+    infoHelper.set(self, infoText, self.titleContainer)
 end
 
 return state

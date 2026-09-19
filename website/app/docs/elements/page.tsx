@@ -6,7 +6,7 @@ import { docsMetadata } from "@/lib/docs";
 
 export const metadata = docsMetadata({
   title: "Elements overview",
-  description: "What every Astra element shares: moveable and lockable handles, icons, the in-card description line, flags, and an index of all eleven element types.",
+  description: "What every Astra element shares: moveable and lockable handles, icons, the in-card description line and the (!) info badge, flags, and an index of all eleven element types.",
   path: "/docs/elements/",
 });
 
@@ -58,6 +58,14 @@ export default function Elements() {
           [
             "Most elements — description",
             "A muted helper line inside the card. The card grows by the measured, wrapped height, so a long description never overlaps the control.",
+          ],
+          [
+            "Functional elements — info",
+            "An optional (!) description. The badge sits right after the element's name; hover it, tap it (a second tap closes) or press-and-hold to read the floating description. An empty or omitted info draws no badge at all.",
+          ],
+          [
+            "Functional elements — SetInfo(text)",
+            "Add, retarget or remove the (!) badge after the control is built — an empty text removes it.",
           ],
           [
             "Value elements — flag",

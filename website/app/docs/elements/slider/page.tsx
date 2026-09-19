@@ -48,6 +48,8 @@ export default function Slider() {
           ["minimal", "true trims the card down to the label, handle and value."],
           ["forgetState", "true keeps this control out of save/load."],
           ["callback", "Runs with (value, dragging) — dragging is true while the handle is held."],
+          ["info", "Optional (!) description: a badge right after the name reveals a floating description on hover, tap (tap again to close) or press-and-hold. Omitted or empty draws no badge."],
+          ["infoIcon", "Replaces the (!) badge glyph. Defaults to circle-alert."],
         ]}
       />
 
@@ -58,6 +60,7 @@ export default function Slider() {
           ["value", "The current number."],
           ["Set(value, skipCallback?)", "Move the handle without running the callback when the second argument is true."],
           ["MoveTo / MoveToTop / MoveToBottom / MoveUp / MoveDown", "Re-order the control."],
+          ["SetInfo(text)", "Add, retarget or remove the (!) badge at runtime — an empty text removes it."],
           ["Lock(reason?) / Unlock() / IsLocked()", "Disable the control and show why."],
         ]}
       />

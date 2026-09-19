@@ -46,11 +46,15 @@ function baseCard.buildFull(element: any, opts: BaseCardOpts?): any
         BackgroundTransparency = 1,
     })
 
+    -- [[`SortOrder = LayoutOrder` is explicit: the icon, the name and the
+    -- [[circle-alert badge carry orders 0/1/2, and the layout's default sort
+    -- [[(Name, as Roblox ships it) would put "InfoIcon" before "TextLabel".]]
     element.containerLayout = window:Create("UIListLayout", {
         Padding = UDim.new(0, 5),
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        SortOrder = Enum.SortOrder.LayoutOrder,
         Parent = element.container,
     })
 
@@ -66,14 +70,10 @@ function baseCard.buildFull(element: any, opts: BaseCardOpts?): any
         }, { ImageColor3 = "ContentColor" })
     end
 
-    local hasInfo = element.info and element.info ~= ""
-
     element.title = window:Create("TextLabel", {
         Text = (opts and opts.titleText) or element.name,
-        Size = if hasInfo
-            then UDim2.fromOffset(0, 16)
-            else UDim2.new(1, if element.icon then -21 else 0, 0, 16),
-        AutomaticSize = if hasInfo then Enum.AutomaticSize.X else Enum.AutomaticSize.None,
+        Size = UDim2.new(1, if element.icon then -21 else 0, 0, 16),
+        AutomaticSize = Enum.AutomaticSize.None,
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 16,
@@ -84,39 +84,18 @@ function baseCard.buildFull(element: any, opts: BaseCardOpts?): any
         Parent = element.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-    if hasInfo then
-        window:Create("UIFlexItem", {
-            FlexMode = Enum.UIFlexMode.Shrink,
-            Parent = element.title,
-        })
-        infoHelper.attach(element, element.container, 2)
-    end
+    -- [[The badge, when there is one, joins the row right after the name and
+    -- [[turns the title width-automatic (remembering the recipe above, which
+    -- [[is what `:SetInfo(\"\")` restores).]] 
+    infoHelper.attach(element, element.container)
 
     return element.main
 end
 
+-- [[Runtime writer for `:SetInfo(text)`: a text adds the badge right after
+-- [[the name, an empty one removes it and gives the title its width back.]] 
 function baseCard.setInfo(element: any, infoText: string?)
-    element.info = infoText
-    if infoText and infoText ~= "" then
-        if element.infoButton then
-            element.infoButton.Visible = true
-        elseif element.container then
-            if element.title and element.title.AutomaticSize == Enum.AutomaticSize.None then
-                element.title.AutomaticSize = Enum.AutomaticSize.X
-                element.title.Size = UDim2.fromOffset(0, 16)
-                element.window:Create("UIFlexItem", {
-                    FlexMode = Enum.UIFlexMode.Shrink,
-                    Parent = element.title,
-                })
-            end
-            infoHelper.attach(element, element.container, 2)
-            if element.infoButton then
-                element.infoButton.ImageTransparency = 0.45
-            end
-        end
-    elseif element.infoButton then
-        element.infoButton.Visible = false
-    end
+    infoHelper.set(element, infoText, element.container)
 end
 
 return baseCard

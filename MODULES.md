@@ -411,7 +411,7 @@ description); `Window:Notify` builds the layer
 immediately but constructs the card only on its turn, so a burst at load time
 costs one card per frame instead of all of them at once. `Popup` is modal and
 stays outside the queue.
-`tooltip.luau` provides the floating hover and tap tooltip overlay for element info descriptions, with viewport-aware clamping and smooth motion tweens.
+`tooltip.luau` is the floating element-description panel — one per window (`window.elementTooltip`, under the screen GUI). `attach(element, badge)` wires a `(!)` badge: hover opens an unpinned preview and leaving closes it, a tap toggles a pinned description (an open preview is pinned instead of dismissed), and a 0.3s press-and-hold opens it while the input is still down for touch hosts. The panel resolves `utilities/locale` text before measuring, positions itself in screen space over the badge (flipping below it when there is no room above, clamped to the viewport), and closes when the badge moves or stops being drawn, when the window hides/closes/navigates/unloads, or through `hideFor(window, owner)`. Open state and the tokens that cancel a fade or a pending hold live on the window (`_tooltipAnchor`, `_tooltipPinned`, `_tooltipOwner`, `_tooltipHideToken`, `_tooltipCloseToken`).
 
 ### `components/search.luau`
 Fuzzy search overlay: locals for candidate list, scoring weights, debounce connection.
@@ -462,15 +462,27 @@ Per-element specifics:
   `_roundCorners`) moves the container's bottom arcs onto the band and squares
   them off again the moment the body is revealed, so both states keep one even
   silhouette on the same radius token.
-- `description.luau` — legacy in-card helper-line utility kept for bundle
-  compatibility; public element constructors no longer read `description` props.
+- `description.luau` — the in-card muted helper line: an element built with a
+  `description` prop grows its own card by the measured, wrapped line height and
+  keeps its controls centred in the base region, so nothing renders below the
+  card. Distinct from `info`, which is the `(!)` badge and its floating
+  description.
 - `tab.luau` — tab class: `tabPage` (ScrollingFrame), `_register(element)` pipeline into `window.controls[flag]`, selector button visuals. `CreateChangelog` builds a regular changelog element wherever declared.
 - `group.luau`, `section.luau`, `tabSection.luau` — container classes with UIListLayout locals.
 - `changelog.luau` — release-history element (`__type = "Changelog"`): normalizes `ChangelogEntry`/`ChangelogChange` props, maps symbols (`+`/`-`/`~`, or words like "added"/"removed"/"changed") to green/red/amber, fades entries in, supports `Set`/`Refresh`/`Add(entry, prepend?)`/`Clear`. Renders as a regular standalone element; supports `Set`/`Refresh`/`Add`/`Clear` and move/lock API.
 - `divider.luau`, `stat.luau`, `text.luau` — display and interaction elements.
 - `button.luau` — action card with a built-in right-edge tap glyph (`tapIcon` opts out or replaces it), themed through `ContentColor`, revealed with the card, and pulsed on press. Compact/grouped buttons explicitly sort their horizontal layout by `LayoutOrder`: optional custom icon, title, then built-in tap glyph.
 - `baseCard.luau` — shared card container and header layout helper for element modules.
-- `infoHelper.luau` — helper for functional elements: builds the circle-alert (!) indicator button beside the title and wires hover/tap tooltips via `components/tooltip`.
+- `infoHelper.luau` — the circle-alert `(!)` badge for functional elements:
+  `text(element)` normalizes the `info` prop (locale token, `nil`, `""` or
+  whitespace = no description), `has(element)` answers whether a badge belongs in
+  the row at all, `attach(element, parent)` builds the 14px `InfoIcon` **right
+  after the name** (the row's `UIListLayout` is switched to
+  `Enum.SortOrder.LayoutOrder` and the badge takes the title's order + 1, since
+  the default Name sort put "InfoIcon" before "TextLabel"), `set(element, text)`
+  is the `:SetInfo` runtime writer, and `detach(element)` removes the badge and
+  restores the title's width recipe. The title is width-automatic while a badge
+  is present, so long names truncate instead of pushing the badge out of the row.
 
 ---
 

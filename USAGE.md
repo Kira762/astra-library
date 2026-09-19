@@ -156,6 +156,7 @@ Titles, themes, and every window method.
 | `window:ChangeTheme(theme)` | Swap theme at runtime. |
 | `window:SetLocale(id)` / `window:SetTranslator(fn)` / `window:RegisterTranslations(t)` | Localisation. |
 | `window:ResolveIcon(value, pack?)` | Icon name → asset id. |
+| `window:ShowTooltip(anchor, text)` / `window:HideTooltip()` | Open/close a pinned floating description over any instance (the `(!)` badges open theirs through this). |
 | `window:GetPath()` | Returns the (folder, file) persistence path. |
 | `window:Unload()` | Destroy the window. |
 | `window.Flags` | Table of every registered flag's current value. |
@@ -205,7 +206,16 @@ Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`
 
 Every element supports `Moveable` (`:MoveTo`, `:MoveToTop`, `:MoveToBottom`, `:MoveUp`, `:MoveDown`) and most support `Lockable` (`:Lock`, `:Unlock`, `:IsLocked`). Most element props also accept `icon`.
 
-Functional elements (`Toggle`, `Slider`, `Dropdown`, `Input`, `Button`) also accept an optional `info` string. When specified, a circular `(!)` alert badge is positioned beside the title; hovering (or tapping on touch) reveals a floating tooltip without altering the card's compact height. Dynamic updates are supported via `:SetInfo(text)`.
+Functional elements (`Button`, `Toggle`, `Slider`, `Dropdown`, `Input`) also accept an optional `info` string. When it has text, a circular `(!)` alert badge is drawn in the row **immediately after the element's name**, and:
+
+- hovering the badge (desktop) reveals the floating description, and leaving it hides the description again;
+- tapping it opens the description and keeps it open (a hover preview is pinned, not thrown away) — tapping it once more closes it;
+- press-and-holding it for a moment reveals the description while your finger is still down, which is how touch devices reach it (no hover there);
+- the description closes when the window hides, closes, switches tab or unloads, when the badge scrolls away, and when the text is cleared.
+
+Only one description is open at a time, and the description never changes the card's compact height. An element with no `info` — or with `""` / whitespace — draws no badge and is laid out exactly like one that never had the prop. `infoIcon` replaces the badge glyph, and `:SetInfo(text)` adds, retargets or removes the description at runtime (`:SetInfo(nil)` / `:SetInfo("")` removes it).
+
+Do not confuse the two text props: `description` is the in-card muted helper line that grows the card, `info` is the `(!)` badge and its floating description.
 
 ```lua
 tab:CreateButton({ name = "Click Me", icon = "play", info = "Runs action immediately", callback = function() end })
@@ -213,6 +223,11 @@ tab:CreateToggle({ name = "Auto Sprint", info = "Toggles continuous sprinting", 
 tab:CreateSlider({ name = "Sensitivity", info = "Input sensitivity factor", range = { 1, 10 }, value = 5, suffix = "x", minimal = true, callback = function(v, dragging) end })
 tab:CreateDropdown({ name = "Preset", info = "Target preset level", options = { "Low", "Medium", "High" }, value = "Medium", multiSelect = true, placeholder = "Pick items", callback = function(s) end })
 tab:CreateInput({ name = "Name", info = "User display name", placeholder = "Type here", numeric = true, clearOnFocus = true, callback = function(t) end })
+
+-- The badge glyph and the runtime text:
+local button = tab:CreateButton({ name = "Export", info = "Downloads the log file", infoIcon = "download", callback = function() end })
+button:SetInfo("Downloads the log file to your device") -- retarget the description
+button:SetInfo("")                                      -- remove the badge again
 ```
 
 ### Button

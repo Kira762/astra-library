@@ -323,6 +323,11 @@ export type CollapsibleGroupProps = {
 export type ButtonProps = {
     name: string?,
     icon: (string | number)?,
+    -- [[Optional circle-alert (!) description: a non-empty text draws the badge
+    -- [[right after the name, which reveals the floating description on hover, a
+    -- [[tap (toggling it) or a press-and-hold. `nil` / `\"\"` draws no badge at
+    -- [[all. `:SetInfo(text)` updates it at runtime; `infoIcon` replaces the
+    -- [[glyph. Distinct from `description`, the in-card muted helper line.]] 
     info: string?,
     infoIcon: (string | number)?,
     -- Built-in right-edge tap glyph: false hides it, a name/asset id replaces it.
@@ -333,8 +338,8 @@ export type ButtonProps = {
 export type ToggleProps = {
     name: string?,
     icon: (string | number)?,
-    info: string?,
-    infoIcon: (string | number)?,
+    info: string?, -- (!) description badge, see ButtonProps
+    infoIcon: (string | number)?, -- badge glyph, see ButtonProps
     flag: string?,
     value: boolean?,
     forgetState: boolean?,
@@ -344,8 +349,8 @@ export type ToggleProps = {
 export type SliderProps = {
     name: string?,
     icon: (string | number)?,
-    info: string?,
-    infoIcon: (string | number)?,
+    info: string?, -- (!) description badge, see ButtonProps
+    infoIcon: (string | number)?, -- badge glyph, see ButtonProps
     flag: string?,
     range: { number }?,     increment: number?,
     value: number?,
@@ -357,8 +362,8 @@ export type SliderProps = {
 export type DropdownProps = {
     name: string?,
     icon: (string | number)?,
-    info: string?,
-    infoIcon: (string | number)?,
+    info: string?, -- (!) description badge, see ButtonProps
+    infoIcon: (string | number)?, -- badge glyph, see ButtonProps
     flag: string?,
     options: { string }?,
     value: (string | { string })?,
@@ -371,8 +376,8 @@ export type DropdownProps = {
 export type InputProps = {
     name: string?,
     icon: (string | number)?,
-    info: string?,
-    infoIcon: (string | number)?,
+    info: string?, -- (!) description badge, see ButtonProps
+    infoIcon: (string | number)?, -- badge glyph, see ButtonProps
     flag: string?,
     value: string?,
     placeholder: string?,
@@ -539,6 +544,8 @@ export type Window = {
         CreateSection: (self: Window, props: SectionProps) -> TabSection,
     Notify: (self: Window, props: NotifyProps) -> (),
     Popup: (self: Window, props: PopupProps) -> Popup?,
+    -- [[Open a pinned floating description over `anchor` / close whatever is
+    -- [[open. The (!) badges open theirs through the tooltip service.]] 
     ShowTooltip: (self: Window, anchor: any, text: string) -> (),
     HideTooltip: (self: Window) -> (),
     Show: (self: Window) -> (),
@@ -6940,21 +6947,111 @@ return tabSelector
 
 end)() end,
     [20] = function()local wax,script,require=ImportGlobals(20)local ImportGlobals return (function(...)
+-- [[The floating element description.
+--
+-- One panel per window (`window.elementTooltip`), owned by the screen GUI and
+-- positioned in screen space above the circle-alert badge that opened it. Any
+-- element with an `info` text can point at it through `tooltip.attach`:
+--
+--   * hovering the badge (desktop) opens the description without pinning it -
+--     the pointer leaving the badge closes it again,
+--   * a tap toggles: the first tap opens the description and pins it, the
+--     next tap on the same badge closes it,
+--   * a press held down for `holdDelay` opens (and pins) the description
+--     while the pointer or finger is still down - the gesture touch devices
+--     reach for, where no hover ever happens,
+--   * the description closes itself when the badge moves (the row scrolled,
+--     the tab changed, the window was dragged), when the badge stops being
+--     drawn (the element was hidden, `:SetInfo(\"\")` cleared the text), and
+--     whenever the window hides, closes, navigates or unloads - the callers
+--     here are the same paths that fade the window out.
+--
+-- The panel answers to locale resolution before it measures or draws, so a
+-- translated description is measured in its translated form.
+--
+-- The module owns no state of its own between windows: everything it needs
+-- lives on the window (`_tooltipAnchor`, `_tooltipPinned`, `_tooltipOwner`),
+-- which is what lets `tooltip.hide(window)` be safe to call from anywhere.
+
 local tooltip = {}
 
-local utilities = script.Parent.Parent.utilities
+local coreState = require(script.Parent.Parent.core.state)
 
-local motion = require(utilities.motion)
-local locale = require(utilities.locale)
+local motion = require(script.Parent.Parent.utilities.motion)
+local locale = require(script.Parent.Parent.utilities.locale)
 local functions = require(script.Parent.Parent.functions)
 
 local hoverTween = "fast"
+
+-- [[Seconds a press must be held before the description opens. Below it the
+-- [[gesture is a tap and `Activated` owns it.]] 
+local holdDelay = 0.3
+
 local minWidth = 80
 local maxWidth = 240
 local padX = 8
 local padY = 5
 local fontSize = 12
 local lineHeight = 15
+local gap = 6
+local edge = 8
+local zIndex = 500
+
+-- [[Input types that count as a press on the badge. Mouse movement and
+-- [[keyboard input pass through untouched.]] 
+local pressTypes: { [any]: boolean } = {
+    [Enum.UserInputType.MouseButton1] = true,
+    [Enum.UserInputType.Touch] = true,
+    [Enum.UserInputType.Pen] = true,
+}
+
+-- [[RichText hosts: measure the words, not the markup.]] 
+local function plain(text: string): string
+    return (text:gsub("<[^>]+>", ""))
+end
+
+-- [[Resolve a locale token or a plain string into the text to draw. Anything
+-- [[else is drawn by its string form, so an element that stored `info` as a
+-- [[number still gets a description instead of silence.]] 
+local function resolve(text: unknown): string?
+    if locale.isToken(text) then
+        return locale.resolve(locale.sourceOf(text))
+    end
+    if text == nil or text == "" then
+        return nil
+    end
+    if type(text) ~= "string" then
+        text = tostring(text)
+    end
+    return locale.resolve(text)
+end
+
+-- [[The viewport the panel positions itself in, with the screen GUI as the
+-- [[fallback for hosts that have no camera (the test harnesses run without
+-- [[one) and a desktop-sized guess as the last resort.]] 
+local function viewport(window): (number, number)
+    local camera = coreState.workspace and coreState.workspace.CurrentCamera
+    local size = camera and camera.ViewportSize
+    if size and size.X and size.X > 0 and size.Y and size.Y > 0 then
+        return size.X, size.Y
+    end
+    local guiSize = window.screenGui and window.screenGui.AbsoluteSize
+    if guiSize and guiSize.X and guiSize.X > 0 and guiSize.Y and guiSize.Y > 0 then
+        return guiSize.X, guiSize.Y
+    end
+    return 1920, 1080
+end
+
+-- [[The panel's parent is the screen GUI; when that GUI does not ignore the
+-- [[top inset its own origin sits below the viewport's, so the screen-space
+-- [[position has to drop that inset back out.]] 
+local function insetY(window): number
+    local gui = window.screenGui
+    if gui and gui.IgnoreGuiInset == false then
+        return 36
+    end
+    return 0
+end
 
 function tooltip.ensure(window)
     if window.elementTooltip then
@@ -6965,10 +7062,10 @@ function tooltip.ensure(window)
         Name = "ElementTooltip",
         Size = UDim2.fromOffset(120, 26),
         Position = UDim2.fromOffset(0, 0),
-        BorderSizePixel = 0,
         BackgroundTransparency = 1,
+        BorderSizePixel = 0,
         Visible = false,
-        ZIndex = 500,
+        ZIndex = zIndex,
         Parent = window.screenGui,
     }, { BackgroundColor3 = "PopupSurface" })
 
@@ -7005,7 +7102,7 @@ function tooltip.ensure(window)
         TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Center,
         TextTransparency = 1,
-        ZIndex = 501,
+        ZIndex = zIndex + 1,
         Parent = tip,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
     window.elementTooltipLabel = label
@@ -7013,8 +7110,27 @@ function tooltip.ensure(window)
     return tip
 end
 
-function tooltip.show(window, anchor: any, text: string)
-    if not anchor or not anchor.Parent or not text or text == "" then
+-- [[Whether the panel is on screen, optionally narrowed to one anchor.]] 
+function tooltip.isOpen(window, anchor: any?): boolean
+    local tip = window.elementTooltip
+    if not tip or tip.Visible ~= true then
+        return false
+    end
+    return anchor == nil or window._tooltipAnchor == anchor
+end
+
+-- [[The badge whose description is open, or nil.]] 
+function tooltip.anchorOf(window): any
+    return window._tooltipAnchor
+end
+
+function tooltip.show(window, anchor: any, text: unknown, pinned: boolean?, owner: any?)
+    if not anchor or not anchor.Parent then
+        return
+    end
+
+    local resolved = resolve(text)
+    if not resolved or resolved == "" then
         return
     end
 
@@ -7025,16 +7141,23 @@ function tooltip.show(window, anchor: any, text: string)
         return
     end
 
-    local resolvedText = locale.t(text)
-    label.Text = resolvedText
+    -- [[The guard above may have switched this panel to another anchor; a
+    -- [[stale hide token would otherwise close the newer description.]] 
+    window._tooltipHideToken = (window._tooltipHideToken or 0) + 1
+    window._tooltipAnchor = anchor
+    window._tooltipPinned = pinned == true
+    window._tooltipOwner = owner
 
-    local font = window.theme.Font
-    local rawWidth = functions.textWidth(font, fontSize, resolvedText)
+    label.Text = resolved
+
+    local font = window.theme and window.theme.Font
+    local measured = plain(resolved)
+    local rawWidth = if font then functions.textWidth(font, fontSize, measured) else 0
     local contentWidth = math.clamp(rawWidth, minWidth, maxWidth)
     local totalWidth = contentWidth + padX * 2
     local totalHeight
-    if rawWidth > maxWidth then
-        local measuredHeight = functions.textHeight(font, fontSize, resolvedText, maxWidth)
+    if rawWidth > maxWidth and font then
+        local measuredHeight = functions.textHeight(font, fontSize, measured, maxWidth)
         totalHeight = math.max(26, measuredHeight + padY * 2)
     else
         totalHeight = math.max(26, lineHeight + padY * 2)
@@ -7044,27 +7167,21 @@ function tooltip.show(window, anchor: any, text: string)
 
     local anchorPos = anchor.AbsolutePosition
     local anchorSize = anchor.AbsoluteSize
-    local centerX = anchorPos.X + anchorSize.X / 2
-    local idealX = centerX - totalWidth / 2
-    local idealY = anchorPos.Y - totalHeight - 6
+    local screenW, screenH = viewport(window)
+    local inset = insetY(window)
 
-    local camera = workspace.CurrentCamera
-    local viewport = camera and camera.ViewportSize
-    local screenW = if viewport then viewport.X else 2000
-    local screenH = if viewport then viewport.Y else 2000
-
-    local clampedX = math.clamp(idealX, 8, math.max(8, screenW - totalWidth - 8))
-    local clampedY = idealY
-    if clampedY < 6 then
-        clampedY = anchorPos.Y + anchorSize.Y + 6
+    local idealX = anchorPos.X + anchorSize.X / 2 - totalWidth / 2
+    local idealY = anchorPos.Y - totalHeight - gap
+    if idealY < edge then
+        -- [[No room above: the description flips under the badge.]] 
+        idealY = anchorPos.Y + anchorSize.Y + gap
     end
-    clampedY = math.clamp(clampedY, 6, math.max(6, screenH - totalHeight - 6))
+
+    local clampedX = math.clamp(idealX, edge, math.max(edge, screenW - totalWidth - edge))
+    local clampedY = math.clamp(idealY - inset, edge, math.max(edge, screenH - totalHeight - edge))
 
     tip.Position = UDim2.fromOffset(clampedX, clampedY)
     tip.Visible = true
-
-    window._tooltipHideToken = (window._tooltipHideToken or 0) + 1
-    window._tooltipActiveAnchor = anchor
 
     motion.tween(tip, { BackgroundTransparency = 0 }, hoverTween)
     if stroke then
@@ -7075,7 +7192,39 @@ end
 
 function tooltip.hide(window)
     local tip = window.elementTooltip
+
+    -- [[State first: a hide that arrives while the panel is still fading must
+    -- [[still release the anchor, or the next tap would "close" a description
+    -- [[it thinks is open. The close token is bumped even when nothing was on
+    -- [[screen: a press that was waiting out its hold is cancelled by any
+    -- [[close, so a window hiding (or a tab switching) mid-press cannot leave
+    -- [[a description appearing behind its back.]] 
+    window._tooltipCloseToken = (window._tooltipCloseToken or 0) + 1
+    window._tooltipAnchor = nil
+    window._tooltipPinned = nil
+    window._tooltipOwner = nil
+
     if not tip or not tip.Visible then
+        return
+    end
+
+    -- [[An unload is already destroying the screen GUI this panel lives in, so
+    -- [[there is no fade to run: the panel stops being drawn now, while it can
+    -- [[still be touched. A fade started here would either be interrupted and
+    -- [[leave `Visible` true on a dead GUI, or reach a panel that no longer
+    -- [[exists.]] 
+    if window.unloaded then
+        window._tooltipHideToken = (window._tooltipHideToken or 0) + 1
+        tip.Visible = false
+        tip.BackgroundTransparency = 1
+        local goneStroke = window.elementTooltipStroke
+        if goneStroke then
+            goneStroke.Transparency = 1
+        end
+        local goneLabel = window.elementTooltipLabel
+        if goneLabel then
+            goneLabel.TextTransparency = 1
+        end
         return
     end
 
@@ -7084,7 +7233,6 @@ function tooltip.hide(window)
 
     local token = (window._tooltipHideToken or 0) + 1
     window._tooltipHideToken = token
-    window._tooltipActiveAnchor = nil
 
     motion.tween(tip, { BackgroundTransparency = 1 }, hoverTween)
     if stroke then
@@ -7094,39 +7242,149 @@ function tooltip.hide(window)
         motion.tween(label, { TextTransparency = 1 }, hoverTween)
     end
 
+    -- [[The fade owns the last word: the panel only stops being drawn once it
+    -- [[is fully transparent, and only if nothing has re-opened it since. An
+    -- [[unload during the fade is the one path that does not come back here -
+    -- [[it has already hidden the panel outright.]] 
     task.delay(0.2, function()
-        if window._tooltipHideToken == token and tip.Parent and tip.BackgroundTransparency >= 0.95 then
+        if window.unloaded then
+            return
+        end
+        if window._tooltipHideToken == token and tip.BackgroundTransparency >= 0.95 then
             tip.Visible = false
         end
     end)
 end
 
-function tooltip.attach(element, anchorButton, infoText: string)
+-- [[Close the description when it belongs to one element (the element was
+-- [[hidden, the tab changed, the text was cleared).]] 
+function tooltip.hideFor(window, owner: any)
+    if owner ~= nil and window._tooltipOwner ~= owner then
+        return
+    end
+    tooltip.hide(window)
+end
+
+-- [[Tap semantics, in the order a player experiences them:
+-- [[  * nothing open (touch, or the first desktop tap) -> open, pinned,
+-- [[  * a hover preview open on this badge -> pin it, so the tap the player
+-- [[    just made does not throw away what they were reading,
+-- [[  * a pinned description open on this badge -> close it.
+-- [[Returns whether a description is open afterwards.]] 
+function tooltip.toggle(window, anchor: any, text: unknown, owner: any?)
+    if tooltip.isOpen(window, anchor) and window._tooltipPinned then
+        tooltip.hide(window)
+        return false
+    end
+    tooltip.show(window, anchor, text, true, owner)
+    return true
+end
+
+-- [[Wire one circle-alert badge to the panel.
+--
+-- `infoText` is the fallback for hosts that call `attach` before the element
+-- carries the text; the live text is read from `element.info` on every open,
+-- so `:SetInfo(text)` retargets an existing badge without re-wiring it.
+--
+-- Every connection goes through `window:ConnectFor(element, ...)`, so an
+-- element that is destroyed takes its badge's input handling with it.]] 
+function tooltip.attach(element, anchorButton, infoText: string?)
     local window = element.window
+
+    local function text(): unknown
+        local value = element.info
+        if value == nil or value == "" then
+            value = infoText
+        end
+        return value
+    end
+
+    local function close()
+        if window._tooltipAnchor == anchorButton then
+            tooltip.hide(window)
+        end
+    end
+
+    local function open(pinned: boolean)
+        tooltip.show(window, anchorButton, text(), pinned, element)
+    end
 
     window:ConnectFor(element, anchorButton.MouseEnter, function()
         motion.tween(anchorButton, { ImageTransparency = 0 }, hoverTween)
-        tooltip.show(window, anchorButton, element.info or infoText)
+        -- [[A pinned description belongs to a tap or a hold; hovering must not
+        -- [[take it over, and must not close it either.]] 
+        if window._tooltipAnchor ~= anchorButton then
+            open(false)
+        end
     end)
 
     window:ConnectFor(element, anchorButton.MouseLeave, function()
         motion.tween(anchorButton, { ImageTransparency = 0.45 }, hoverTween)
-        if window._tooltipActiveAnchor == anchorButton then
-            tooltip.hide(window)
+        if not window._tooltipPinned then
+            close()
         end
     end)
 
-    window:ConnectFor(element, anchorButton.MouseButton1Click, function()
-        if window._tooltipActiveAnchor == anchorButton and window.elementTooltip and window.elementTooltip.Visible then
-            tooltip.hide(window)
-        else
-            tooltip.show(window, anchorButton, element.info or infoText)
+    -- [[Press-and-hold. The timer opens the description while the input is
+    -- [[still down; `_infoPress` is the generation counter that cancels a
+    -- [[pending hold as soon as the press ends (or the next one starts).]] 
+    window:ConnectFor(element, anchorButton.InputBegan, function(input)
+        if not pressTypes[input.UserInputType] then
+            return
         end
+        element._infoPress = (element._infoPress or 0) + 1
+        local token = element._infoPress
+        local closed = window._tooltipCloseToken or 0
+        element._infoHeld = false
+        task.delay(holdDelay, function()
+            -- [[The press must still be down, the window must still be up, and
+            -- [[nothing may have closed a description in the meantime.]] 
+            if element._infoPress ~= token or window.unloaded then
+                return
+            end
+            if window.hidden or window.minimised or window.animating then
+                return
+            end
+            if (window._tooltipCloseToken or 0) ~= closed then
+                return
+            end
+            element._infoHeld = true
+            motion.tween(anchorButton, { ImageTransparency = 0 }, hoverTween)
+            open(true)
+        end)
     end)
 
+    window:ConnectFor(element, anchorButton.InputEnded, function(input)
+        if not pressTypes[input.UserInputType] then
+            return
+        end
+        -- [[The press is over: cancel any hold that has not fired yet.]] 
+        element._infoPress = (element._infoPress or 0) + 1
+    end)
+
+    -- [[Tap. `Activated` fires once per press-and-release on every input
+    -- [[type, so touch, mouse and gamepad all toggle the same way. A hold
+    -- [[already opened the description and owns this release.]] 
+    window:ConnectFor(element, anchorButton.Activated, function()
+        element._infoPress = (element._infoPress or 0) + 1
+        if element._infoHeld then
+            element._infoHeld = false
+            return
+        end
+        tooltip.toggle(window, anchorButton, text(), element)
+    end)
+
+    -- [[The panel is placed in screen space, so a badge that moved (the page
+    -- [[scrolled, the window was dragged, the tab animated) closes it instead
+    -- [[of leaving it floating over the wrong row.]] 
     window:ConnectFor(element, anchorButton:GetPropertyChangedSignal("AbsolutePosition"), function()
-        if window._tooltipActiveAnchor == anchorButton then
-            tooltip.hide(window)
+        close()
+    end)
+
+    -- [[A badge that stopped being drawn cannot keep a description open.]] 
+    window:ConnectFor(element, anchorButton:GetPropertyChangedSignal("Visible"), function()
+        if anchorButton.Visible ~= true then
+            close()
         end
     end)
 end
@@ -8095,8 +8353,11 @@ function Window:Popup(props)
     return require(script.Parent.Parent.components.popup).new(self, props)
 end
 
+-- [[Open the floating description over `anchor`. A programmatic open is
+-- [[pinned: it stays until `HideTooltip`, a tap on its anchor badge, or any of
+-- [[the window transitions that clear descriptions.]] 
 function Window:ShowTooltip(anchor: any, text: string)
-    tooltip.show(self, anchor, text)
+    tooltip.show(self, anchor, text, true)
 end
 
 function Window:HideTooltip()
@@ -10124,6 +10385,11 @@ function Window:_hideCommon(element, animate)
     if element.descriptionLabel then
         self:_reveal(element.descriptionLabel, { TextTransparency = 1 }, animate)
     end
+    -- [[The floating description is placed in screen space, so an element
+    -- [[that stops being drawn (the window hid, the tab changed, the page
+    -- [[scrolled away) has to take its own description with it. Every hide
+    -- [[path in the library funnels through here.]] 
+    tooltip.hideFor(self, element)
 end
 
 function Window:_resetCapsulePosition()
@@ -10286,7 +10552,13 @@ function Window:Unload()
         self._saveScheduled = false
         pcall(self.Save, self)
     end
+    -- [[Release any open description before the screen GUI goes: the panel
+    -- [[lives under it, and `tooltip.hideFor` bookkeeping should not outlive
+    -- [[the window it belongs to. `unloaded` is raised first so the tooltip
+    -- [[hides the panel outright instead of starting a fade whose instances
+    -- [[are destroyed under it.]] 
     self.unloaded = true
+    tooltip.hide(self)
     -- [[Stop the entrance queue with the window: an overlay that had not taken
     -- [[its turn yet has no layer to be built into any more, and the pump must
     -- [[not wake up on a window whose instances are about to be destroyed.]]
@@ -10369,11 +10641,15 @@ function baseCard.buildFull(element: any, opts: BaseCardOpts?): any
         BackgroundTransparency = 1,
     })
 
+    -- [[`SortOrder = LayoutOrder` is explicit: the icon, the name and the
+    -- [[circle-alert badge carry orders 0/1/2, and the layout's default sort
+    -- [[(Name, as Roblox ships it) would put "InfoIcon" before "TextLabel".]]
     element.containerLayout = window:Create("UIListLayout", {
         Padding = UDim.new(0, 5),
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        SortOrder = Enum.SortOrder.LayoutOrder,
         Parent = element.container,
     })
 
@@ -10389,14 +10665,10 @@ function baseCard.buildFull(element: any, opts: BaseCardOpts?): any
         }, { ImageColor3 = "ContentColor" })
     end
 
-    local hasInfo = element.info and element.info ~= ""
-
     element.title = window:Create("TextLabel", {
         Text = (opts and opts.titleText) or element.name,
-        Size = if hasInfo
-            then UDim2.fromOffset(0, 16)
-            else UDim2.new(1, if element.icon then -21 else 0, 0, 16),
-        AutomaticSize = if hasInfo then Enum.AutomaticSize.X else Enum.AutomaticSize.None,
+        Size = UDim2.new(1, if element.icon then -21 else 0, 0, 16),
+        AutomaticSize = Enum.AutomaticSize.None,
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 16,
@@ -10407,39 +10679,18 @@ function baseCard.buildFull(element: any, opts: BaseCardOpts?): any
         Parent = element.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-    if hasInfo then
-        window:Create("UIFlexItem", {
-            FlexMode = Enum.UIFlexMode.Shrink,
-            Parent = element.title,
-        })
-        infoHelper.attach(element, element.container, 2)
-    end
+    -- [[The badge, when there is one, joins the row right after the name and
+    -- [[turns the title width-automatic (remembering the recipe above, which
+    -- [[is what `:SetInfo(\"\")` restores).]] 
+    infoHelper.attach(element, element.container)
 
     return element.main
 end
 
+-- [[Runtime writer for `:SetInfo(text)`: a text adds the badge right after
+-- [[the name, an empty one removes it and gives the title its width back.]] 
 function baseCard.setInfo(element: any, infoText: string?)
-    element.info = infoText
-    if infoText and infoText ~= "" then
-        if element.infoButton then
-            element.infoButton.Visible = true
-        elseif element.container then
-            if element.title and element.title.AutomaticSize == Enum.AutomaticSize.None then
-                element.title.AutomaticSize = Enum.AutomaticSize.X
-                element.title.Size = UDim2.fromOffset(0, 16)
-                element.window:Create("UIFlexItem", {
-                    FlexMode = Enum.UIFlexMode.Shrink,
-                    Parent = element.title,
-                })
-            end
-            infoHelper.attach(element, element.container, 2)
-            if element.infoButton then
-                element.infoButton.ImageTransparency = 0.45
-            end
-        end
-    elseif element.infoButton then
-        element.infoButton.Visible = false
-    end
+    infoHelper.set(element, infoText, element.container)
 end
 
 return baseCard
@@ -10675,9 +10926,10 @@ function state:_buildCompact()
         Parent = self.title,
     })
 
-    if self.info and self.info ~= "" then
-        infoHelper.attach(self, self.interact, 2)
-    end
+    -- [[The badge joins the compact row right after the name (icon 0,
+    -- [[name 1, badge 2, tap glyph 3). `interact` owns the row, so its list
+    -- [[layout already states `SortOrder = LayoutOrder`.]] 
+    infoHelper.attach(self, self.interact)
 
     -- [[Trailing item of the row: the same tap glyph as the full card, at the
     -- [[row's right edge. `interact` owns the row, so the icon is inside the
@@ -10761,7 +11013,7 @@ props(state)
 name(state)
 
 function state:SetInfo(infoText)
-    baseCard.setInfo(self, infoText)
+    infoHelper.set(self, infoText, self.container or self.interact)
 end
 
 return state
@@ -12103,11 +12355,14 @@ function state.new(tab, a49)
         ZIndex = 5,
     })
 
+    -- [[Icon (0), name (1), circle-alert badge (2): explicit order, so the
+    -- [[layout's default Name sort cannot put the badge in front of the name.]] 
     self.containerLayout = self.window:Create("UIListLayout", {
         Padding = UDim.new(0, 5),
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        SortOrder = Enum.SortOrder.LayoutOrder,
 
         Parent = self.container,
     })
@@ -12125,15 +12380,11 @@ function state.new(tab, a49)
         }, { ImageColor3 = "ContentColor" })
     end
 
-    local hasInfo = self.info and self.info ~= ""
-
     self.title = self.window:Create("TextLabel", {
         Text = flag.t(self.name),
 
-        Size = if hasInfo
-            then UDim2.fromOffset(0, 16)
-            else UDim2.new(1, if self.icon then -21 else 0, 0, 16),
-        AutomaticSize = if hasInfo then Enum.AutomaticSize.X else Enum.AutomaticSize.None,
+        Size = UDim2.new(1, if self.icon then -21 else 0, 0, 16),
+        AutomaticSize = Enum.AutomaticSize.None,
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 16,
@@ -12146,13 +12397,7 @@ function state.new(tab, a49)
         Parent = self.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-    if hasInfo then
-        self.window:Create("UIFlexItem", {
-            FlexMode = Enum.UIFlexMode.Shrink,
-            Parent = self.title,
-        })
-        infoHelper.attach(self, self.container, 2)
-    end
+    infoHelper.attach(self, self.container)
 
     self.selectedLabel = self.window:Create("TextLabel", {
         AnchorPoint = Vector2.new(1, 0.5),
@@ -13438,27 +13683,7 @@ function state:MoveDown()
 end
 
 function state:SetInfo(infoText)
-    self.info = infoText
-    if infoText and infoText ~= "" then
-        if self.infoButton then
-            self.infoButton.Visible = true
-        elseif self.container then
-            if self.title.AutomaticSize == Enum.AutomaticSize.None then
-                self.title.AutomaticSize = Enum.AutomaticSize.X
-                self.title.Size = UDim2.fromOffset(0, 16)
-                self.window:Create("UIFlexItem", {
-                    FlexMode = Enum.UIFlexMode.Shrink,
-                    Parent = self.title,
-                })
-            end
-            infoHelper.attach(self, self.container, 2)
-            if self.infoButton then
-                self.infoButton.ImageTransparency = 0.45
-            end
-        end
-    elseif self.infoButton then
-        self.infoButton.Visible = false
-    end
+    infoHelper.set(self, infoText, self.container)
 end
 
 multiSelect(state)
@@ -13686,17 +13911,140 @@ return state
 
 end)() end,
     [31] = function()local wax,script,require=ImportGlobals(31)local ImportGlobals return (function(...)
+-- [[The circle-alert badge beside a functional element's name.
+--
+-- A functional element gets the badge from its optional `info` text: a string
+-- with at least one visible character shows the `(!)` badge, while `nil` or
+-- an empty/whitespace-only value draws nothing at all (the element looks
+-- exactly like one that never had an `info` prop).
+--
+-- Placement is the point of this module: the badge is a **sibling of the
+-- title, immediately after it**. The row's list layout is switched to
+-- `Enum.SortOrder.LayoutOrder` and the badge is given the title's order plus
+-- one, so the icon -> name -> badge order is explicit. Leaving the layout on
+-- its default (Roblox currently defaults `SortOrder` to `Name`) put
+-- "InfoIcon" before "TextLabel" and the badge landed in front of the name.
+--
+-- The title becomes width-automatic while a badge is present, so a long name
+-- shrinks (and truncates) instead of pushing the badge out of the row. The
+-- width recipe the title had before is remembered and restored when the badge
+-- goes away - see `:SetInfo(nil)` / `:SetInfo(\"\")`.
+--
+-- `Window:_revealCommon` / `_hideCommon` own the badge's transparency like
+-- they do for every other element part; `attach` only decides whether a badge
+-- exists at all.
+
 local infoHelper = {}
 
 local tooltip = require(script.Parent.Parent.components.tooltip)
+local locale = require(script.Parent.Parent.utilities.locale)
 
-function infoHelper.attach(element: any, parentContainer: any, layoutOrder: number?): any
-    local infoText = element.info
-    if not infoText or infoText == "" then
+local badgeSize = 14
+local restingTransparency = 0.45
+
+-- [[The element's own property, with the aliases the library has always
+-- [[accepted. An empty or whitespace-only string is "no description".]] 
+function infoHelper.text(element): string?
+    local value = element.info
+    if value == nil then
+        return nil
+    end
+    if locale.isToken(value) then
+        value = locale.sourceOf(value)
+    end
+    if type(value) ~= "string" then
+        value = tostring(value)
+    end
+    if value:match("^%s*$") then
+        return nil
+    end
+    return value
+end
+
+-- [[True when the element should draw a badge.]] 
+function infoHelper.has(element): boolean
+    return infoHelper.text(element) ~= nil
+end
+
+-- [[Whether the element is on screen right now. The elements do not carry a
+-- [[shown flag, but every reveal path drives the title's transparency, so the
+-- [[badge added at runtime joins the same state the rest of the row is in.]] 
+local function isRevealed(element): boolean
+    local title = element.title
+    return title ~= nil and title.TextTransparency == 0
+end
+
+-- [[Explicit sibling order for the row the badge joins.]] 
+local function ordered(parent)
+    if not parent or not parent.GetChildren then
+        return
+    end
+    for _, child in ipairs(parent:GetChildren()) do
+        if child:IsA("UIListLayout") and child.SortOrder ~= Enum.SortOrder.LayoutOrder then
+            child.SortOrder = Enum.SortOrder.LayoutOrder
+        end
+    end
+end
+
+-- [[Give the title its width-automatic recipe, remembering the one it had.]] 
+local function elasticTitle(element)
+    local title = element.title
+    if not title then
+        return
+    end
+
+    local hasFlex = false
+    for _, child in ipairs(title:GetChildren()) do
+        if child:IsA("UIFlexItem") then
+            hasFlex = true
+            break
+        end
+    end
+
+    if title.AutomaticSize == Enum.AutomaticSize.None then
+        element._infoTitleRestore = { size = title.Size, automatic = title.AutomaticSize }
+        title.AutomaticSize = Enum.AutomaticSize.X
+        title.Size = UDim2.fromOffset(0, 16)
+    end
+
+    if not hasFlex then
+        element._infoTitleFlex = element.window:Create("UIFlexItem", {
+            FlexMode = Enum.UIFlexMode.Shrink,
+            Parent = title,
+        })
+    end
+end
+
+-- [[Put the title back the way it was before a badge joined the row.]] 
+local function restoreTitle(element)
+    local restore = element._infoTitleRestore
+    if restore and element.title then
+        element.title.AutomaticSize = restore.automatic
+        element.title.Size = restore.size
+        element._infoTitleRestore = nil
+    end
+    if element._infoTitleFlex then
+        element._infoTitleFlex:Destroy()
+        element._infoTitleFlex = nil
+    end
+end
+
+-- [[Build the badge. `parent` is the row that holds the title (the element
+-- [[container, the compact row's button, the slider's title row); the badge
+-- [[lands one slot after the title inside it.]] 
+function infoHelper.attach(element, parent, layoutOrder: number?): any
+    if element.infoButton or not parent or not element.title then
+        return nil
+    end
+    if not infoHelper.has(element) then
         return nil
     end
 
     local window = element.window
+
+    ordered(parent)
+    elasticTitle(element)
+
     local icon = window:ResolveIcon(element.infoIcon or "circle-alert")
     if not icon or icon == "circle-alert" then
         icon = window:ResolveIcon("alert-circle")
@@ -13704,14 +14052,14 @@ function infoHelper.attach(element: any, parentContainer: any, layoutOrder: numb
 
     local infoButton = window:Create("ImageButton", {
         Name = "InfoIcon",
-        Size = UDim2.fromOffset(14, 14),
+        Size = UDim2.fromOffset(badgeSize, badgeSize),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Image = icon,
         ImageTransparency = 1,
-        LayoutOrder = layoutOrder or 2,
+        LayoutOrder = layoutOrder or ((element.title.LayoutOrder or 1) + 1),
         ZIndex = 15,
-        Parent = parentContainer,
+        Parent = parent,
     }, { ImageColor3 = "ContentColor" })
 
     window:Create("UIFlexItem", {
@@ -13719,9 +14067,42 @@ function infoHelper.attach(element: any, parentContainer: any, layoutOrder: numb
         Parent = infoButton,
     })
 
-    tooltip.attach(element, infoButton, infoText)
+    tooltip.attach(element, infoButton, infoHelper.text(element))
+
     element.infoButton = infoButton
+    element._infoParent = parent
+    if isRevealed(element) then
+        infoButton.ImageTransparency = restingTransparency
+    end
     return infoButton
+end
+
+-- [[Take the badge away again, restoring the title's width recipe.]] 
+function infoHelper.detach(element)
+    if element.infoButton then
+        local button = element.infoButton
+        element.infoButton = nil
+        button:Destroy()
+    end
+    restoreTitle(element)
+    tooltip.hideFor(element.window, element)
+end
+
+-- [[The runtime writer behind `:SetInfo(text)`:
+-- [[  * a new non-empty text adds the badge (or keeps the existing one),
+-- [[  * `nil` / `\"\"` removes it and gives the title its width back.
+-- [[The element's `info` field is assigned here so every element's setter
+-- [[walks the same path.]] 
+function infoHelper.set(element, text, parent, layoutOrder: number?): any
+    element.info = text
+    if not infoHelper.has(element) then
+        infoHelper.detach(element)
+        return nil
+    end
+    if element.infoButton then
+        return element.infoButton
+    end
+    return infoHelper.attach(element, parent or element._infoParent, layoutOrder)
 end
 
 return infoHelper
@@ -13818,10 +14199,13 @@ function state.new(tab, placeholderLabel)
         Parent = self.main,
     })
 
+    -- [[Icon (0), name (1), circle-alert badge (2): explicit order, so the
+    -- [[layout's default Name sort cannot put the badge in front of the name.]] 
     self.window:Create("UIListLayout", {
         Padding = UDim.new(0, 5),
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
+        SortOrder = Enum.SortOrder.LayoutOrder,
 
         Parent = self.container,
     })
@@ -13839,14 +14223,10 @@ function state.new(tab, placeholderLabel)
         }, { ImageColor3 = "ContentColor" })
     end
 
-    local hasInfo = self.info and self.info ~= ""
-
     self.title = self.window:Create("TextLabel", {
         Text = placeholder.t(self.name),
-        Size = if hasInfo
-            then UDim2.fromOffset(0, 16)
-            else UDim2.new(1, if self.icon then -21 else 0, 0, 16),
-        AutomaticSize = if hasInfo then Enum.AutomaticSize.X else Enum.AutomaticSize.None,
+        Size = UDim2.new(1, if self.icon then -21 else 0, 0, 16),
+        AutomaticSize = Enum.AutomaticSize.None,
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 16,
@@ -13859,13 +14239,7 @@ function state.new(tab, placeholderLabel)
         Parent = self.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-    if hasInfo then
-        self.window:Create("UIFlexItem", {
-            FlexMode = Enum.UIFlexMode.Shrink,
-            Parent = self.title,
-        })
-        infoHelper.attach(self, self.container, 2)
-    end
+    infoHelper.attach(self, self.container)
 
     self.box = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
@@ -14015,27 +14389,7 @@ props(state)
 name(state)
 
 function state:SetInfo(infoText)
-    self.info = infoText
-    if infoText and infoText ~= "" then
-        if self.infoButton then
-            self.infoButton.Visible = true
-        elseif self.container then
-            if self.title.AutomaticSize == Enum.AutomaticSize.None then
-                self.title.AutomaticSize = Enum.AutomaticSize.X
-                self.title.Size = UDim2.fromOffset(0, 16)
-                self.window:Create("UIFlexItem", {
-                    FlexMode = Enum.UIFlexMode.Shrink,
-                    Parent = self.title,
-                })
-            end
-            infoHelper.attach(self, self.container, 2)
-            if self.infoButton then
-                self.infoButton.ImageTransparency = 0.45
-            end
-        end
-    elseif self.infoButton then
-        self.infoButton.Visible = false
-    end
+    infoHelper.set(self, infoText, self.container)
 end
 
 return state
@@ -14463,12 +14817,10 @@ function state:_buildLabel()
         }, { ImageColor3 = "ContentColor" })
     end
 
-    local hasInfo = self.info and self.info ~= ""
-
     self.title = self.window:Create("TextLabel", {
         Text = range.t(self.name),
-        Size = if hasInfo then UDim2.fromOffset(0, 16) else UDim2.new(1, 0, 0, 16),
-        AutomaticSize = if hasInfo then Enum.AutomaticSize.X else Enum.AutomaticSize.None,
+        Size = UDim2.new(1, 0, 0, 16),
+        AutomaticSize = Enum.AutomaticSize.None,
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 16,
@@ -14487,9 +14839,7 @@ function state:_buildLabel()
         Parent = self.title,
     })
 
-    if hasInfo then
-        infoHelper.attach(self, self.titleContainer, 2)
-    end
+    infoHelper.attach(self, self.titleContainer)
 
     self.valueHost = self.window:Create("Frame", {
         Size = UDim2.new(1, 0, 0, 16),
@@ -14722,23 +15072,7 @@ name(state)
 flag(state)
 
 function state:SetInfo(infoText)
-    self.info = infoText
-    if infoText and infoText ~= "" then
-        if self.infoButton then
-            self.infoButton.Visible = true
-        elseif self.titleContainer then
-            if self.title.AutomaticSize == Enum.AutomaticSize.None then
-                self.title.AutomaticSize = Enum.AutomaticSize.X
-                self.title.Size = UDim2.fromOffset(0, 16)
-            end
-            infoHelper.attach(self, self.titleContainer, 2)
-            if self.infoButton then
-                self.infoButton.ImageTransparency = 0.45
-            end
-        end
-    elseif self.infoButton then
-        self.infoButton.Visible = false
-    end
+    infoHelper.set(self, infoText, self.titleContainer)
 end
 
 return state
@@ -16503,6 +16837,7 @@ function state:_buildCompact()
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalFlex = Enum.UIFlexAlignment.SpaceBetween,
         Padding = UDim.new(0, 10),
+        SortOrder = Enum.SortOrder.LayoutOrder,
 
         Parent = self.interact,
     })
@@ -16522,11 +16857,14 @@ function state:_buildCompact()
         Parent = self.container,
     })
 
+    -- [[Icon (0), name (1), circle-alert badge (2): stated explicitly so the
+    -- [[layout's default Name sort cannot put the badge ahead of the name.]] 
     window:Create("UIListLayout", {
         Padding = UDim.new(0, 5),
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        SortOrder = Enum.SortOrder.LayoutOrder,
 
         Parent = self.container,
     })
@@ -16567,9 +16905,7 @@ function state:_buildCompact()
     self:_buildSwitch(self.interact)
     self.functionContainer.LayoutOrder = 1
 
-    if self.info and self.info ~= "" then
-        infoHelper.attach(self, self.container, 2)
-    end
+    infoHelper.attach(self, self.container)
 
     self.window:_wireElementHover(self)
 
@@ -23980,106 +24316,106 @@ end)() end,
 local LineOffsets = {
     [2] = 12,
     [3] = 243,
-    [5] = 632,
-    [6] = 667,
-    [7] = 712,
-    [8] = 618,
-    [9] = 829,
-    [10] = 962,
-    [11] = 1201,
-    [12] = 1547,
-    [13] = 1899,
-    [14] = 2187,
-    [15] = 2908,
-    [16] = 5335,
-    [17] = 5662,
-    [18] = 6540,
-    [19] = 6601,
-    [20] = 6943,
-    [21] = 7138,
-    [23] = 10324,
-    [24] = 10449,
-    [25] = 10771,
-    [26] = 11192,
-    [27] = 11594,
-    [28] = 11764,
-    [29] = 11909,
-    [30] = 13470,
-    [31] = 13689,
-    [32] = 13731,
-    [33] = 14045,
-    [34] = 14131,
-    [35] = 14748,
-    [36] = 15597,
-    [37] = 15973,
-    [38] = 16103,
-    [39] = 16255,
-    [41] = 16760,
-    [42] = 16783,
-    [43] = 16800,
-    [44] = 16832,
-    [45] = 16954,
-    [46] = 16978,
-    [47] = 17027,
-    [48] = 16735,
-    [49] = 17151,
-    [50] = 17454,
-    [51] = 17485,
-    [52] = 17140,
-    [53] = 17528,
-    [54] = 17548,
-    [55] = 17580,
-    [56] = 17510,
-    [57] = 17687,
-    [58] = 17746,
-    [60] = 17821,
-    [61] = 17986,
-    [62] = 17806,
-    [63] = 18564,
-    [64] = 18608,
-    [65] = 18688,
-    [66] = 18881,
-    [67] = 19010,
-    [68] = 19104,
-    [69] = 19271,
-    [70] = 19609,
-    [71] = 18062,
-    [72] = 20243,
-    [73] = 20309,
-    [74] = 20375,
-    [75] = 20450,
-    [76] = 20556,
-    [77] = 20622,
-    [78] = 20697,
-    [79] = 20772,
-    [80] = 20847,
-    [81] = 20922,
-    [82] = 20137,
-    [83] = 20988,
-    [84] = 21086,
-    [85] = 21264,
-    [86] = 21312,
-    [87] = 21342,
-    [88] = 21593,
-    [89] = 21642,
-    [90] = 22095,
-    [91] = 22113,
-    [92] = 22228,
-    [93] = 22327,
-    [94] = 22349,
-    [95] = 22403,
-    [96] = 22753,
-    [97] = 22789,
-    [98] = 22807,
-    [99] = 23161,
-    [100] = 23173,
-    [101] = 23224,
-    [102] = 23243,
-    [103] = 23494,
-    [104] = 23538,
-    [105] = 23773,
-    [106] = 23801,
-    [107] = 23812,
+    [5] = 639,
+    [6] = 674,
+    [7] = 719,
+    [8] = 625,
+    [9] = 836,
+    [10] = 969,
+    [11] = 1208,
+    [12] = 1554,
+    [13] = 1906,
+    [14] = 2194,
+    [15] = 2915,
+    [16] = 5342,
+    [17] = 5669,
+    [18] = 6547,
+    [19] = 6608,
+    [20] = 6950,
+    [21] = 7396,
+    [23] = 10596,
+    [24] = 10700,
+    [25] = 11023,
+    [26] = 11444,
+    [27] = 11846,
+    [28] = 12016,
+    [29] = 12161,
+    [30] = 13695,
+    [31] = 13914,
+    [32] = 14112,
+    [33] = 14399,
+    [34] = 14485,
+    [35] = 15082,
+    [36] = 15931,
+    [37] = 16307,
+    [38] = 16437,
+    [39] = 16589,
+    [41] = 17096,
+    [42] = 17119,
+    [43] = 17136,
+    [44] = 17168,
+    [45] = 17290,
+    [46] = 17314,
+    [47] = 17363,
+    [48] = 17071,
+    [49] = 17487,
+    [50] = 17790,
+    [51] = 17821,
+    [52] = 17476,
+    [53] = 17864,
+    [54] = 17884,
+    [55] = 17916,
+    [56] = 17846,
+    [57] = 18023,
+    [58] = 18082,
+    [60] = 18157,
+    [61] = 18322,
+    [62] = 18142,
+    [63] = 18900,
+    [64] = 18944,
+    [65] = 19024,
+    [66] = 19217,
+    [67] = 19346,
+    [68] = 19440,
+    [69] = 19607,
+    [70] = 19945,
+    [71] = 18398,
+    [72] = 20579,
+    [73] = 20645,
+    [74] = 20711,
+    [75] = 20786,
+    [76] = 20892,
+    [77] = 20958,
+    [78] = 21033,
+    [79] = 21108,
+    [80] = 21183,
+    [81] = 21258,
+    [82] = 20473,
+    [83] = 21324,
+    [84] = 21422,
+    [85] = 21600,
+    [86] = 21648,
+    [87] = 21678,
+    [88] = 21929,
+    [89] = 21978,
+    [90] = 22431,
+    [91] = 22449,
+    [92] = 22564,
+    [93] = 22663,
+    [94] = 22685,
+    [95] = 22739,
+    [96] = 23089,
+    [97] = 23125,
+    [98] = 23143,
+    [99] = 23497,
+    [100] = 23509,
+    [101] = 23560,
+    [102] = 23579,
+    [103] = 23830,
+    [104] = 23874,
+    [105] = 24109,
+    [106] = 24137,
+    [107] = 24148,
 }
 
 -- [[Misc AOT variable imports]]

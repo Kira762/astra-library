@@ -51,6 +51,8 @@ tab:CreateButton({ name = "Refresh", tapIcon = "refresh-cw", callback = function
           ["tapIcon", "false hides the right-edge glyph; a name or asset id replaces it."],
           ["callback", "Runs on click. No arguments."],
           ["description", "A muted helper line inside the card."],
+          ["info", "Optional (!) description: a badge right after the name reveals a floating description on hover, tap (tap again to close) or press-and-hold. Omitted or empty draws no badge."],
+          ["infoIcon", "Replaces the (!) badge glyph. Defaults to circle-alert."],
         ]}
       />
       <Callout type="tip" title="A button has no flag">
@@ -65,7 +67,8 @@ tab:CreateButton({ name = "Refresh", tapIcon = "refresh-cw", callback = function
         <p>
           The returned button supports <C>MoveTo</C>, <C>MoveToTop</C>, <C>MoveToBottom</C>,{" "}
           <C>MoveUp</C>, <C>MoveDown</C>, <C>Lock(reason?)</C>, <C>Unlock()</C> and{" "}
-          <C>IsLocked()</C>.
+          <C>IsLocked()</C> — plus <C>SetInfo(text)</C>, which adds, retargets or removes the{" "}
+          <C>(!)</C> badge at runtime.
         </p>
       </Callout>
     </>

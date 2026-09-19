@@ -46,6 +46,8 @@ input:Set("Astra", true)  -- silent`}
           ["clearOnFocus", "true empties the field when the player taps it, so typing replaces instead of appending."],
           ["forgetState", "true keeps this control out of save/load."],
           ["callback", "Runs with the committed string."],
+          ["info", "Optional (!) description: a badge right after the name reveals a floating description on hover, tap (tap again to close) or press-and-hold. Omitted or empty draws no badge."],
+          ["infoIcon", "Replaces the (!) badge glyph. Defaults to circle-alert."],
         ]}
       />
 
@@ -56,6 +58,7 @@ input:Set("Astra", true)  -- silent`}
           ["value", "The committed string."],
           ["Set(value, skipCallback?)", "Write the field programmatically."],
           ["MoveTo / MoveToTop / MoveToBottom / MoveUp / MoveDown", "Re-order the control."],
+          ["SetInfo(text)", "Add, retarget or remove the (!) badge at runtime — an empty text removes it."],
           ["Lock(reason?) / Unlock() / IsLocked()", "Disable the field and show why — a locked input cannot be edited."],
         ]}
       />

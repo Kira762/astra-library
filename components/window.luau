@@ -796,12 +796,19 @@ function Window:CreateTab(props)
     if not tab.neglectSelector then
         local isFirst = true
         for _, existingTab in self.tabs do
-            if existingTab ~= tab and not existingTab.neglectSelector and self:_railGroup(existingTab) == self:_railGroup(tab) then
+            if
+                existingTab ~= tab
+                and not existingTab.neglectSelector
+                and not existingTab.locked
+                and self:_railGroup(existingTab) == self:_railGroup(tab)
+            then
                 isFirst = false
                 break
             end
         end
-        if isFirst then
+        -- [[A locked first tab must not steal the selection from the row
+        -- [[behind it; and a locked tab never selects itself.]]
+        if isFirst and not tab.locked then
             tab:Select(true)
         end
 
@@ -2551,14 +2558,22 @@ function Window:Navigate(tab)
     end
 
     local found
-    for _, tab in self.tabs do
-                if tab == tab or tab.name == tab or tab.tabPage == tab then
-            found = tab
+    -- [[The loop variable must not shadow the `tab` argument: `tab == tab`
+    -- [[was always true, so every Navigate call selected the first tab in
+    -- [[the list (the settings General tab) no matter what was asked for.]]
+    for _, existing in self.tabs do
+        if tab == existing or existing.name == tab or existing.tabPage == tab then
+            found = existing
             break
         end
     end
 
     if not found then
+        return
+    end
+    if found.locked then
+        -- [[The gate holds for programmatic navigation too; the host unlocks
+        -- [[through tab:SetLocked, not around it.]]
         return
     end
     found:Select()

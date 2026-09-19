@@ -49,6 +49,53 @@ tab:Remove()      -- destroy it`}
         ]}
       />
 
+      <H2 id="locked">Locked tabs</H2>
+      <div className="prose-docs">
+        <p>
+          <C>CreateTab(&#123; locked = true &#125;)</C> builds a tab that is visible in the sidebar but
+          gated: the row draws a lock badge in its top-right corner, stays dimmed, and cannot be
+          opened by the user. It is the library&apos;s answer to &quot;this section exists, but not for
+          this user yet&quot; — premium gates, feature checks, staged reveals.
+        </p>
+      </div>
+      <CodeBlock
+        code={`local premium = window:CreateTab({ name = "Premium", icon = "star", locked = true })
+premium:CreateButton({ name = "Enable ESP", callback = function() end })
+
+-- later, from host code only — e.g. after a login or premium check:
+premium:SetLocked(false)`}
+      />
+      <div className="prose-docs">
+        <ul>
+          <li>
+            <strong>Host-only.</strong> No UI control changes the lock; <C>tab:SetLocked(bool)</C> is
+            the single switch. The state is per-session — it is not a flag and is never written to
+            settings or configs.
+          </li>
+          <li>
+            <strong>While locked</strong>, tapping the row raises a short notification (&quot;This tab
+            is locked&quot;, lock icon) instead of selecting it. The row has no hover state, and in
+            the collapsed icon-only rail the badge still shows. When unlocked, no icon is drawn at
+            all — the row is identical to a tab that never had the prop.
+          </li>
+          <li>
+            <strong>Contents stay private.</strong> Elements of a locked tab are never built visible
+            and search never indexes them; <C>tab:Select()</C>, <C>window:Navigate(tab)</C> and the
+            auto-select of a new window all skip locked tabs.
+          </li>
+          <li>
+            <strong>Locking the open tab</strong> moves the selection to another unlocked tab
+            (same-rail preference); if every other tab is locked, the selection clears and the
+            content is hidden until the tab is unlocked and opened again.
+          </li>
+        </ul>
+      </div>
+      <Callout type="info" title="A UI gate, not security">
+        <p>
+          It hides content from the player, not from an executor reading the client.
+        </p>
+      </Callout>
+
       <H2 id="groups">Groups</H2>
       <div className="prose-docs">
         <p>

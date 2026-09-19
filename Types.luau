@@ -46,6 +46,7 @@ export type WindowProps = {
 export type TabProps = {
     name: string?,
     icon: (string | number)?,
+    locked: boolean?,
 }
 
 export type SectionProps = {
@@ -280,6 +281,7 @@ export type Tab = {
     CreateCollapsibleGroup: (self: Tab, props: CollapsibleGroupProps) -> CollapsibleGroup,
     Select: (self: Tab, noAnimation: boolean?) -> (),
     Deselect: (self: Tab, noAnimation: boolean?) -> (),
+    SetLocked: (self: Tab, locked: boolean) -> (),
     Remove: (self: Tab) -> (),
     CreateButton: (self: Tab, props: ButtonProps) -> Button,
     CreateToggle: (self: Tab, props: ToggleProps) -> Toggle,

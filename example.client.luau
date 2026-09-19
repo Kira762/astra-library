@@ -1,6 +1,7 @@
 -- [[Astra element-coverage example.]]
 -- [[Everything lives in one tab so startup pacing and every element type can be
--- [[tested without navigating through a collection of duplicate demo tabs.]]
+-- [[tested without navigating through a collection of duplicate demo tabs —
+-- [[plus one locked tab demonstrating the lock badge and SetLocked.]]
 
 -- [[The one and only bundle loader: fetch the published bundle and call the
 -- [[chunk it compiles to. `loadstring` needs an executor — plain Studio does
@@ -111,6 +112,35 @@ local runtimeInfo = elements:CreateButton({
     name = "Runtime info",
     callback = function()
         runtimeInfo:SetInfo(runtimeInfo.info and "" or "Added at runtime - tap the (!) badge again to close it.")
+    end,
+})
+
+-- [[Locked tab: built gated, with a lock badge in the row's top-right corner.
+-- [[Tapping it raises a notification instead of opening it; only host code
+-- [[unlocks it, through tab:SetLocked(false).]]
+local premium = window:CreateTab({ name = "Premium", icon = "star", locked = true })
+premium:CreateSection({ name = "Premium only" })
+premium:CreateText({
+    name = "Gated content",
+    text = "This tab was built locked. The badge in its row's corner stays until host code unlocks it, and its contents are never built visible or indexed by search.",
+})
+premium:CreateButton({
+    name = "Re-lock this tab",
+    icon = "lock",
+    info = "SetLocked(true) on the open tab moves the selection away.",
+    callback = function()
+        premium:SetLocked(true)
+        elements:Select()
+    end,
+})
+
+elements:CreateButton({
+    name = "Unlock the Premium tab",
+    icon = "lock-open",
+    info = "Host-only: SetLocked(false) re-enables the row and its badge disappears.",
+    callback = function()
+        premium:SetLocked(false)
+        premium:Select()
     end,
 })
 

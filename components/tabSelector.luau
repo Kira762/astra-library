@@ -78,6 +78,26 @@ local function buildContent(tab, iconSize, useInitial)
             Parent = tab.topbarItemContainer,
         }, { TextColor3 = "TabColor", FontFace = "Font" })
     end
+
+    -- [[The lock badge rides the row itself rather than the content container:
+    -- [[the container recentres for icon-only rows, but the badge stays in the
+    -- [[row's top-right corner in both. It is created for every row and only
+    -- [[Visible while the tab is locked, so SetLocked flips a flag instead of
+    -- [[rebuilding the row — and an unlocked tab draws no icon at all.]]
+    local lockImage = tab.window:ResolveIcon("lock")
+    if lockImage then
+        tab.topbarItemLock = tab.window:Create("ImageLabel", {
+            Image = lockImage,
+            Size = UDim2.fromOffset(13, 13),
+            Position = UDim2.new(1, -20, 0, 11),
+            BorderSizePixel = 0,
+            BackgroundTransparency = 1,
+            ImageTransparency = 1,
+            ZIndex = 2,
+            Visible = tab.locked == true,
+            Parent = tab.topbarItem,
+        }, { ImageColor3 = "TabColor" })
+    end
 end
 
 local function buildSidebarStyle(tab, layout)
@@ -317,6 +337,12 @@ function tabSelector.applyVisual(tab, visualState, tweenInfo)
     end
     if tab.topbarItemInitial then
         targets[tab.topbarItemInitial] = { TextTransparency = visualState.content }
+    end
+    if tab.topbarItemLock then
+        -- [[The badge dims with the row: `tab:_applyVisual` raises the
+        -- [[content transparency while the tab is locked, so the whole pill
+        -- [[reads as disabled at once.]]
+        targets[tab.topbarItemLock] = { ImageTransparency = visualState.content }
     end
     if tab.topbarItemShadow and visualState.shadow then
         targets[tab.topbarItemShadow] = { Transparency = visualState.shadow }

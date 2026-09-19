@@ -2,6 +2,69 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-19 — Locked tabs: `CreateTab({ locked = true })` + `tab:SetLocked`
+
+Tabs can now be built visible-but-gated, for the "this section exists, but not
+for this user yet" case (premium gates, feature checks, staged reveals):
+
+```lua
+local premium = window:CreateTab({ name = "Premium", icon = "star", locked = true })
+-- ...later, from host code only:
+premium:SetLocked(false)
+```
+
+- **Row visuals.** A lock badge sits in the tab row's top-right corner and is
+  drawn **only while the tab is locked** — an unlocked tab draws no icon at
+  all (the badge instance exists, `Visible = false`, so `SetLocked` flips a
+  flag instead of rebuilding the row). The locked row is dimmed further than
+  the unselected pill (content transparency raised to ≥ 0.7) and has no hover
+  state; in the collapsed icon-only rail the badge still shows on the tile.
+  The badge resolves `lock` through `window:ResolveIcon`, so it follows the
+  pack priority like any icon.
+- **The gate.** `tab:Select()`, `window:Navigate(tab)` and the auto-select of
+  a newly created window all skip locked tabs. Tapping a locked row raises one
+  short notification ("Locked" / "This tab is locked.", lock icon, 2.5s, both
+  strings through `locale.resolve`) instead of selecting. Search never
+  indexes a locked tab's elements, so their names cannot be found through the
+  search box, and elements registered on a locked tab stay hidden
+  (`_elementsPending` carries them to the first open after unlock).
+- **Locking the open tab.** `SetLocked(true)` on the currently selected tab
+  moves the selection to another unlocked tab with same-rail preference — the
+  same fallback rule `Remove` uses — so the window never stays sitting on
+  gated content. If every other tab is locked or neglected, the selection
+  clears and the tab's content is hidden until it is unlocked and opened.
+- **Host-only, per-session.** There is no UI control that changes the lock;
+  `tab:SetLocked(bool)` is the single switch. The state is not a flag and is
+  never written to settings or configs. It is a UI gate, not security: it
+  hides content from the player, not from an executor reading the client.
+
+Files: `elements/tab.luau` (flag, click → notification, hover suppression,
+dimmed visuals, `Select` guard, `SetLocked`, `Remove` fallback skips locked),
+`components/window.luau` (auto-select skips locked first tabs, `Navigate`
+guard), `components/tabSelector.luau` (badge + transparency),
+`components/search.luau` (index exclusion), `Types.luau`
+(`TabProps.locked`, `Tab.SetLocked`), `example.client.luau` (locked "Premium"
+demo tab with unlock/re-lock buttons), `scripts/tab_lock_test.sh` +
+`.luau` (nine assertion groups: flag/badge/auto-select, tap → notification,
+hover dim, Navigate/Select guards, unlock, lock-the-open-tab fallback,
+search exclusion, all-locked edge + restore).
+
+**Bug fix found while wiring this up:** `Window:Navigate`'s tab-lookup loop
+was declared `for _, tab in self.tabs do` — the loop variable shadowed the
+`tab` argument, so `tab == tab` was always true and **every** `Navigate` call
+selected the first tab in the list (the settings General tab) no matter what
+name or Tab object was passed. The loop variable is now `existing` and the
+lookup compares the argument against the candidate.
+
+Verification: `scripts/tab_lock_test.sh` passes (9 assertion groups); all 30
+other runtime suites plus `scripts/smoke_test_bundle.sh` pass
+(`profile_compact_test.sh` D8 responsive-width expectation, got 600 want 608,
+fails identically at the previous head and predates this change).
+`scripts/check_syntax.sh` compiles all 105 published files,
+`scripts/check_requires.py` (99 files, 305 edges) and
+`scripts/check_instance_fields.py` are clean, and `version-1.luau` is
+regenerated (`node scripts/generate_bundle.js`).
+
 ## 2026-09-19 — `CreateWindow` runs again: two enum members the engine does not have
 
 A name that is not an enum member is not a missing key on Roblox — the engine

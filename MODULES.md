@@ -366,6 +366,13 @@ changes, tab removal), `Tab:Remove`, `Window:SetLocale` and
 (`railCollapsedWidth`), so a content-sized rail narrower than the old fixed
 219px still shows titles.
 
+`tabSelector.buildContent` also creates the lock badge (`tab.topbarItemLock`,
+13px, top-right of the row — it rides the row itself rather than the content
+container, so it stays put in the icon-only tile too): `Visible` only while
+`tab.locked`, so an unlocked row draws no icon at all and `SetLocked` flips a
+flag instead of rebuilding; `applyVisual` dims it with the row's content
+transparency.
+
 `tabSelector.railCollapsed(window, layout)` answers whether the rail is at that
 icon-only width right now (the rail's own `Size`, written by the layout's
 `Build`/`ApplyWidth`; `forceCollapsed` is always collapsed). `tabSelector.build`
@@ -467,7 +474,7 @@ Per-element specifics:
   keeps its controls centred in the base region, so nothing renders below the
   card. Distinct from `info`, which is the `(!)` badge and its floating
   description.
-- `tab.luau` — tab class: `tabPage` (ScrollingFrame), `_register(element)` pipeline into `window.controls[flag]`, selector button visuals. `CreateChangelog` builds a regular changelog element wherever declared.
+- `tab.luau` — tab class: `tabPage` (ScrollingFrame), `_register(element)` pipeline into `window.controls[flag]`, selector button visuals. `CreateChangelog` builds a regular changelog element wherever declared. Locked tabs (`locked` prop / `SetLocked(bool)`): the flag gates `Select` (no-op), the row tap (short "This tab is locked" notification instead), and hover; `_applyVisual` raises the row's content transparency while locked (copy of the shared state table, never a mutation of it); `SetLocked(true)` on the open tab clears `window.selectedTab` and selects the first unlocked non-neglect tab with same-rail preference (the `Remove` fallback rule), hiding the tab's elements and marking `_elementsPending` when no fallback exists.
 - `group.luau`, `section.luau`, `tabSection.luau` — container classes with UIListLayout locals.
 - `changelog.luau` — release-history element (`__type = "Changelog"`): normalizes `ChangelogEntry`/`ChangelogChange` props, maps symbols (`+`/`-`/`~`, or words like "added"/"removed"/"changed") to green/red/amber, fades entries in, supports `Set`/`Refresh`/`Add(entry, prepend?)`/`Clear`. Renders as a regular standalone element; supports `Set`/`Refresh`/`Add`/`Clear` and move/lock API.
 - `divider.luau`, `stat.luau`, `text.luau` — display and interaction elements.
@@ -647,6 +654,7 @@ Per-element specifics:
 | `dropdown_rows_test.sh` | Dropdown option rows: none (and no search bar) while closed whatever the list length, one per option in order on open plus the bar once, the rendered selected/unselected state and corner tiers, reopening reusing the rows, edits and picks made while closed, and the search filter. |
 | `dropdown_actions_test.sh` | The multi-select action row: only a multi-select dropdown builds it, the checkbox's two states (the drawn outline against the rows' check glyph), Select all filling the visible set and toggling it back off, Clear sparing what the filter hides, the box following picks and filters, the 32px row in the open height, and the bin resolving to the pack's trash icon. |
 | `tab_elements_test.sh` | Tab elements: only the selected tab is walked on a show/hide, a tab opened later shows its elements in the same frame and state, the search shows every tab it renders, and a late element shows with its tab. |
+| `tab_lock_test.sh` | Locked tabs: the flag + badge (visible locked, invisible unlocked) and auto-select skipping a locked first tab; tap → notification with no selection; hover leaves the locked row dimmed; `Navigate`/`Select` guards; `SetLocked(false)` re-enables; locking the open tab moves the selection to a same-rail fallback; search excludes locked tabs' elements; locking every remaining tab clears the selection and hides content, and unlocking restores it. |
 | `toggle_switch_test.sh` | Switch geometry: one set of metrics, mirrored resting states, equal clearance, the sheen under the knob, and the animated positions matching the built ones. |
 | `input_field_test.sh` | Field-box corners: the Input field rounds with the theme's `ElementCornerRadius` as a theme binding (pixel radius, never a capsule scale), re-stated on a theme switch, and shared with its element card. |
 | `keybind_input_test.sh` | Menu-toggle binding: the Settings menu binding is an `Input` field whose typed text commits an `EnumItem` (case/alias tolerant, `MB2`, `none`/empty clearing), refuses junk and left click without saving, keeps typing inside the field from toggling the window, and still toggles it afterwards. |

@@ -37,7 +37,9 @@ end
 local function getAllElements(window)
     local elements = {}
     for _, tab in window.tabs do
-        if tab.neglectSelector then
+        -- [[Locked tabs keep their contents private: their elements never
+        -- [[reach the search index, so a search cannot leak a name.]]
+        if tab.neglectSelector or tab.locked then
             continue
         end
         for _, element in tab.elements do

@@ -4,7 +4,7 @@
 
 | Method | Behaviour |
 |---|---|
-| `window:CreateTab({ name, icon })` | Returns a `Tab`. |
+| `window:CreateTab({ name, icon, locked })` | Returns a `Tab`; `locked = true` builds it gated (see Locked tabs). |
 | `window:CreateSection({ name, icon })` | Top-level section — a `TabSection`. |
 | `window:Notify({ title, content, icon, duration })` | Classic notification card; queued (see Startup pacing). |
 | `window:Popup({ title, subtitle, icon, content, boxes, options, dismissable })` | Modal; returns a handle with `:Close()`. |
@@ -81,6 +81,26 @@ window:SetProfile("Beta tester")              -- replace just the subtitle line
 Omitted fields render as `—`; the card's own player/server values are never taken
 from this table. Window and card are centred as one unit, and "Keep window on
 screen" clamps the pair.
+
+## Locked tabs
+
+`window:CreateTab({ name = "Premium", icon = "star", locked = true })` builds a
+tab that is visible in the sidebar but gated. Host code unlocks it with
+`tab:SetLocked(false)` — the only switch; there is no UI control, the state is
+per-session (not a flag, never persisted), and it is a UI gate, not security.
+
+- While locked: a `lock` badge sits in the row's top-right corner (drawn **only
+  while locked** — an unlocked tab is identical to one that never had the
+  prop), the row is dimmed and has no hover state, and tapping it raises a
+  short "This tab is locked" notification instead of selecting.
+- `tab:Select()`, `window:Navigate(tab)` and the new-window auto-select all
+  skip locked tabs; search never indexes a locked tab's elements, and elements
+  registered on one stay hidden until it is unlocked and opened.
+- Locking the currently open tab moves the selection to another unlocked tab
+  (same-rail preference); if every other tab is locked or neglected, the
+  selection clears and the content is hidden until the tab reopens.
+- Note the distinction: `tab:SetLocked` gates the whole tab; `element:Lock()`
+  (the shared Lockable surface) disables a single control inside an open tab.
 
 ## Built-in Settings (window-scoped)
 

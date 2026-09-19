@@ -66,7 +66,7 @@ jobs:
                     + truncate((author_display($commit; $fallback_username)); 100)
                 );
 
-            # Keep the per-commit list inside Discord's field limit. If a push
+            # Keep the per-commit list inside the Discord field limit. If a push
             # contains more commits than fit, say exactly how many were omitted.
             def summarize_commits($commits; $limit; $fallback_username):
               (commit_summary_lines($commits; $fallback_username)) as $lines

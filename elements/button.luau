@@ -227,9 +227,10 @@ function state:_buildCompact()
         Parent = self.title,
     })
 
-    if self.info and self.info ~= "" then
-        infoHelper.attach(self, self.interact, 2)
-    end
+    -- [[The badge joins the compact row right after the name (icon 0,
+    -- [[name 1, badge 2, tap glyph 3). `interact` owns the row, so its list
+    -- [[layout already states `SortOrder = LayoutOrder`.]] 
+    infoHelper.attach(self, self.interact)
 
     -- [[Trailing item of the row: the same tap glyph as the full card, at the
     -- [[row's right edge. `interact` owns the row, so the icon is inside the
@@ -313,7 +314,7 @@ props(state)
 name(state)
 
 function state:SetInfo(infoText)
-    baseCard.setInfo(self, infoText)
+    infoHelper.set(self, infoText, self.container or self.interact)
 end
 
 return state

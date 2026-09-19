@@ -4,22 +4,77 @@ All notable changes to Astra v1. Dates use 2026.
 
 ## 2026-09-19 — Circle-alert (!) info descriptions on functional elements
 
-Functional elements (`Toggle`, `Slider`, `Dropdown`, `Input`, `Button`) now support
-an optional `info` prop that displays a circular `(!)` alert badge directly beside
-the element title. Hovering or tapping the icon triggers a floating, themed tooltip
-with the description without altering the compact card height.
+Functional elements (`Button`, `Toggle`, `Slider`, `Dropdown`, `Input`) accept an
+optional `info` description. When it carries text, a circular `(!)` badge sits in
+the element's row **immediately after its name**; hovering the badge (desktop),
+tapping it, or press-and-holding it opens a floating description, and a second tap
+closes it. An element with no `info`, an empty string or whitespace draws no badge
+at all and reserves no room: the card is identical to one that never had the prop.
 
-- `elements/infoHelper.luau`: shared builder for the circle-alert indicator button,
-  positioned beside the title in the element's container and isolated with `ZIndex = 15`
-  to prevent click propagation to the underlying card.
-- `components/tooltip.luau`: floating tooltip overlay service with dynamic text
-  bounds calculation, viewport clamping, and smooth motion service transitions.
-- `elements/baseCard.luau`, `toggle.luau`, `button.luau`, `slider.luau`, `dropdown.luau`, `input.luau`:
-  wired to support the `info` (and `infoIcon`) props and `:SetInfo(text)` runtime updates.
-- `components/window.luau`: reveals and hides `element.infoButton` via `_revealCommon`
-  and `_hideCommon`; exposes `Window:ShowTooltip` and `Window:HideTooltip`.
-- `Types.luau`: updated with `info`, `infoIcon`, `SetInfo`, and tooltip types.
-- `example.client.luau`: updated to demonstrate `info` tooltips across interactive elements.
+The feature's first revision shipped broken in three ways, all fixed here:
+
+- **The badge rendered in front of the name.** Every element row is laid out by a
+  `UIListLayout`, whose default `SortOrder` is `Name` — so "InfoIcon" sorted ahead
+  of "TextLabel". Each row that can carry a badge now states
+  `Enum.SortOrder.LayoutOrder` and the badge takes the title's order plus one
+  (`elements/baseCard.luau`, `toggle.luau` (full and compact rows), `button.luau`,
+  `slider.luau`, `dropdown.luau`, `input.luau`).
+- **Hovering or tapping the badge showed nothing.** `elements/infoHelper.luau`
+  handed `components/tooltip.luau` a locale token (a table), which the tooltip
+  assigned straight to `Label.Text`; the reveal died on the assignment. The
+  tooltip resolves its text through `utilities/locale` before it measures or
+  draws, and its panel is now built from the window theme (surface, stroke, font,
+  content colour) instead of bare defaults.
+- **An empty `info` still drew a badge**, and the text was only read at build
+  time. `infoHelper.text` normalizes `nil`, `""`, whitespace-only strings and
+  locale tokens to "no description"; `:SetInfo(text)` adds, retargets or removes
+  the badge at runtime and restores the title's width recipe when it goes.
+
+Behaviour now:
+
+- hovering opens an unpinned description and leaving the badge closes it, while a
+  pinned (tapped or held) one survives the pointer leaving;
+- a tap toggles: the first tap opens and pins the description — an open hover
+  preview on the same badge is pinned rather than thrown away — and the next tap
+  on that badge closes it;
+- a press held for 0.3s opens the description while the finger is still down: the
+  gesture touch devices use, where no hover ever fires;
+- the panel is placed in screen space over the badge, flips underneath when there
+  is no room above, clamps inside the viewport, and closes itself when the badge
+  moves (scroll, resize, drag) or stops being drawn;
+- it closes when the window hides, closes, navigates to another tab or unloads,
+  and when `:SetInfo("")` clears the text; a panel whose window is going away is
+  hidden outright instead of being left mid-fade on destroyed instances;
+- `infoIcon` replaces the badge glyph (default `circle-alert`, with an
+  `alert-circle` fallback for hosts that cannot resolve it).
+
+- `components/tooltip.luau`: rewritten as one panel per window
+  (`window.elementTooltip`, under the screen GUI) with `ensure`, `isOpen`,
+  `anchorOf`, `show`, `hide`, `hideFor`, `toggle` and `attach`; the open state
+  (`_tooltipAnchor`, `_tooltipPinned`, `_tooltipOwner`) and the generation tokens
+  that cancel a fade or a pending hold live on the window, so any caller can close
+  a description safely.
+- `elements/infoHelper.luau`: rewritten around `text`, `has`, `attach`, `detach`
+  and `set`; placement, the elastic title (automatic width while a badge is
+  present, the previous recipe remembered and restored afterwards) and the badge's
+  reveal/hide transparency all live here.
+- `components/window.luau`: `ShowTooltip` opens a pinned description,
+  `HideTooltip`, `Close`, `Hide`, the drag handle, `_jumpTo` and `Unload` clear
+  whichever one is open, and `_hideCommon` closes the one belonging to the element
+  that is hiding.
+- `Types.luau`, `USAGE.md`, `MODULES.md` and `example.client.luau`: the `info` /
+  `infoIcon` props, `:SetInfo(text)` and `ShowTooltip` / `HideTooltip` are
+  documented with the semantics above.
+- `scripts/info_alert_test.luau` / `.sh`: a new suite pinning the whole contract —
+  badge placement (order, siblings, z-order over the card's click surface),
+  optional and empty descriptions, hover, tap toggle, press-and-hold, window
+  hide/close/tab-switch, runtime `SetInfo`, one description at a time, and the
+  custom glyph — alongside the existing suites.
+- Verification: `scripts/check_syntax.sh` compiles all 105 published files,
+  `scripts/check_requires.py` and `scripts/check_instance_fields.py` are clean,
+  31 runtime suites pass (the pre-existing `profile_compact_test.sh` D8
+  responsive-width expectation is untouched by this change), the bundle smoke
+  test passes, and `version-1.luau` is regenerated.
 
 ## 2026-09-17 — The window shows again: icon-less topbar chrome no longer crashes the first `Show()`
 

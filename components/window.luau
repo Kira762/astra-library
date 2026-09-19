@@ -958,8 +958,11 @@ function Window:Popup(props)
     return require(script.Parent.Parent.components.popup).new(self, props)
 end
 
+-- [[Open the floating description over `anchor`. A programmatic open is
+-- [[pinned: it stays until `HideTooltip`, a tap on its anchor badge, or any of
+-- [[the window transitions that clear descriptions.]] 
 function Window:ShowTooltip(anchor: any, text: string)
-    tooltip.show(self, anchor, text)
+    tooltip.show(self, anchor, text, true)
 end
 
 function Window:HideTooltip()
@@ -2987,6 +2990,11 @@ function Window:_hideCommon(element, animate)
     if element.descriptionLabel then
         self:_reveal(element.descriptionLabel, { TextTransparency = 1 }, animate)
     end
+    -- [[The floating description is placed in screen space, so an element
+    -- [[that stops being drawn (the window hid, the tab changed, the page
+    -- [[scrolled away) has to take its own description with it. Every hide
+    -- [[path in the library funnels through here.]] 
+    tooltip.hideFor(self, element)
 end
 
 function Window:_resetCapsulePosition()
@@ -3149,7 +3157,13 @@ function Window:Unload()
         self._saveScheduled = false
         pcall(self.Save, self)
     end
+    -- [[Release any open description before the screen GUI goes: the panel
+    -- [[lives under it, and `tooltip.hideFor` bookkeeping should not outlive
+    -- [[the window it belongs to. `unloaded` is raised first so the tooltip
+    -- [[hides the panel outright instead of starting a fade whose instances
+    -- [[are destroyed under it.]] 
     self.unloaded = true
+    tooltip.hide(self)
     -- [[Stop the entrance queue with the window: an overlay that had not taken
     -- [[its turn yet has no layer to be built into any more, and the pump must
     -- [[not wake up on a window whose instances are about to be destroyed.]]

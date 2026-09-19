@@ -249,6 +249,7 @@ function state:_buildCompact()
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalFlex = Enum.UIFlexAlignment.SpaceBetween,
         Padding = UDim.new(0, 10),
+        SortOrder = Enum.SortOrder.LayoutOrder,
 
         Parent = self.interact,
     })
@@ -268,11 +269,14 @@ function state:_buildCompact()
         Parent = self.container,
     })
 
+    -- [[Icon (0), name (1), circle-alert badge (2): stated explicitly so the
+    -- [[layout's default Name sort cannot put the badge ahead of the name.]] 
     window:Create("UIListLayout", {
         Padding = UDim.new(0, 5),
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        SortOrder = Enum.SortOrder.LayoutOrder,
 
         Parent = self.container,
     })
@@ -313,9 +317,7 @@ function state:_buildCompact()
     self:_buildSwitch(self.interact)
     self.functionContainer.LayoutOrder = 1
 
-    if self.info and self.info ~= "" then
-        infoHelper.attach(self, self.container, 2)
-    end
+    infoHelper.attach(self, self.container)
 
     self.window:_wireElementHover(self)
 

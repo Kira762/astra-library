@@ -38,6 +38,11 @@ local stat = elements:CreateStat({
 
 elements:CreateDivider({ text = "Interactive elements" })
 
+-- [[Every functional element below carries an `info` description: the (!) badge
+-- [[sits right after the element's name, and hovering it (or tapping it, or
+-- [[holding it down on touch) reveals the floating description. Tap the badge
+-- [[again to close it. Elements without `info` draw no badge at all.]] 
+
 elements:CreateButton({
     name = "Button",
     icon = "hand-tap",
@@ -51,6 +56,7 @@ elements:CreateButton({
 elements:CreateToggle({
     name = "Toggle",
     info = "Enables or disables this feature with automatic state persistence.",
+    infoIcon = "shield-check", -- the badge glyph; defaults to circle-alert
     value = true,
     callback = function(value)
         window:Notify({ title = "Toggle", content = if value then "Enabled" else "Disabled" })
@@ -96,6 +102,15 @@ elements:CreateInput({
     placeholder = "Type something",
     callback = function(value)
         window:Notify({ title = "Input", content = tostring(value) })
+    end,
+})
+
+-- [[`:SetInfo(text)` retargets the badge at runtime; an empty text removes it
+-- [[(and the badge never existed for an element built without `info`).]] 
+local runtimeInfo = elements:CreateButton({
+    name = "Runtime info",
+    callback = function()
+        runtimeInfo:SetInfo(runtimeInfo.info and "" or "Added at runtime - tap the (!) badge again to close it.")
     end,
 })
 

@@ -46,6 +46,8 @@ dropdown:Remove("A")             -- remove one option`}
           ["placeholder", "Text shown while nothing is selected."],
           ["forgetState", "true keeps this control out of save/load."],
           ["callback", "Runs with the selection — a string, or a table when multiSelect is on."],
+          ["info", "Optional (!) description: a badge right after the name reveals a floating description on hover, tap (tap again to close) or press-and-hold. Omitted or empty draws no badge."],
+          ["infoIcon", "Replaces the (!) badge glyph. Defaults to circle-alert."],
         ]}
       />
 
@@ -58,6 +60,7 @@ dropdown:Remove("A")             -- remove one option`}
           ["Add(option)", "Append a single option."],
           ["Remove(option)", "Remove a single option."],
           ["MoveTo / MoveToTop / MoveToBottom / MoveUp / MoveDown", "Re-order the control."],
+          ["SetInfo(text)", "Add, retarget or remove the (!) badge at runtime — an empty text removes it."],
           ["Lock(reason?) / Unlock() / IsLocked()", "Disable the control and show why."],
         ]}
       />

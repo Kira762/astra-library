@@ -81,6 +81,11 @@ export type CollapsibleGroupProps = {
 export type ButtonProps = {
     name: string?,
     icon: (string | number)?,
+    -- [[Optional circle-alert (!) description: a non-empty text draws the badge
+    -- [[right after the name, which reveals the floating description on hover, a
+    -- [[tap (toggling it) or a press-and-hold. `nil` / `\"\"` draws no badge at
+    -- [[all. `:SetInfo(text)` updates it at runtime; `infoIcon` replaces the
+    -- [[glyph. Distinct from `description`, the in-card muted helper line.]] 
     info: string?,
     infoIcon: (string | number)?,
     -- Built-in right-edge tap glyph: false hides it, a name/asset id replaces it.
@@ -91,8 +96,8 @@ export type ButtonProps = {
 export type ToggleProps = {
     name: string?,
     icon: (string | number)?,
-    info: string?,
-    infoIcon: (string | number)?,
+    info: string?, -- (!) description badge, see ButtonProps
+    infoIcon: (string | number)?, -- badge glyph, see ButtonProps
     flag: string?,
     value: boolean?,
     forgetState: boolean?,
@@ -102,8 +107,8 @@ export type ToggleProps = {
 export type SliderProps = {
     name: string?,
     icon: (string | number)?,
-    info: string?,
-    infoIcon: (string | number)?,
+    info: string?, -- (!) description badge, see ButtonProps
+    infoIcon: (string | number)?, -- badge glyph, see ButtonProps
     flag: string?,
     range: { number }?,     increment: number?,
     value: number?,
@@ -115,8 +120,8 @@ export type SliderProps = {
 export type DropdownProps = {
     name: string?,
     icon: (string | number)?,
-    info: string?,
-    infoIcon: (string | number)?,
+    info: string?, -- (!) description badge, see ButtonProps
+    infoIcon: (string | number)?, -- badge glyph, see ButtonProps
     flag: string?,
     options: { string }?,
     value: (string | { string })?,
@@ -129,8 +134,8 @@ export type DropdownProps = {
 export type InputProps = {
     name: string?,
     icon: (string | number)?,
-    info: string?,
-    infoIcon: (string | number)?,
+    info: string?, -- (!) description badge, see ButtonProps
+    infoIcon: (string | number)?, -- badge glyph, see ButtonProps
     flag: string?,
     value: string?,
     placeholder: string?,
@@ -297,6 +302,8 @@ export type Window = {
         CreateSection: (self: Window, props: SectionProps) -> TabSection,
     Notify: (self: Window, props: NotifyProps) -> (),
     Popup: (self: Window, props: PopupProps) -> Popup?,
+    -- [[Open a pinned floating description over `anchor` / close whatever is
+    -- [[open. The (!) badges open theirs through the tooltip service.]] 
     ShowTooltip: (self: Window, anchor: any, text: string) -> (),
     HideTooltip: (self: Window) -> (),
     Show: (self: Window) -> (),

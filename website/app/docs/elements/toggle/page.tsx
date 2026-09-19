@@ -44,6 +44,7 @@ print(toggle.value)`}
           ["value", "The current boolean, readable at any time."],
           ["Set(value, skipCallback?)", "Set the switch. Pass true as the second argument to update the control without running the callback."],
           ["MoveTo / MoveToTop / MoveToBottom / MoveUp / MoveDown", "Re-order the control in its tab or group."],
+          ["SetInfo(text)", "Add, retarget or remove the (!) badge at runtime — an empty text removes it."],
           ["Lock(reason?) / Unlock() / IsLocked()", "Take the control out of the player's hands; the reason shows on the card's description line."],
         ]}
       />
@@ -58,6 +59,8 @@ print(toggle.value)`}
           ["forgetState", "true keeps this control out of save/load."],
           ["callback", "Runs with the new boolean whenever the player flips it."],
           ["description", "A muted helper line inside the card."],
+          ["info", "Optional (!) description: a badge right after the name reveals a floating description on hover, tap (tap again to close) or press-and-hold. Omitted or empty draws no badge."],
+          ["infoIcon", "Replaces the (!) badge glyph. Defaults to circle-alert."],
         ]}
       />
       <Callout type="tip" title="Silent writes are how you restore state">

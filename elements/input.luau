@@ -88,10 +88,13 @@ function state.new(tab, placeholderLabel)
         Parent = self.main,
     })
 
+    -- [[Icon (0), name (1), circle-alert badge (2): explicit order, so the
+    -- [[layout's default Name sort cannot put the badge in front of the name.]] 
     self.window:Create("UIListLayout", {
         Padding = UDim.new(0, 5),
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
+        SortOrder = Enum.SortOrder.LayoutOrder,
 
         Parent = self.container,
     })
@@ -109,14 +112,10 @@ function state.new(tab, placeholderLabel)
         }, { ImageColor3 = "ContentColor" })
     end
 
-    local hasInfo = self.info and self.info ~= ""
-
     self.title = self.window:Create("TextLabel", {
         Text = placeholder.t(self.name),
-        Size = if hasInfo
-            then UDim2.fromOffset(0, 16)
-            else UDim2.new(1, if self.icon then -21 else 0, 0, 16),
-        AutomaticSize = if hasInfo then Enum.AutomaticSize.X else Enum.AutomaticSize.None,
+        Size = UDim2.new(1, if self.icon then -21 else 0, 0, 16),
+        AutomaticSize = Enum.AutomaticSize.None,
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 16,
@@ -129,13 +128,7 @@ function state.new(tab, placeholderLabel)
         Parent = self.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-    if hasInfo then
-        self.window:Create("UIFlexItem", {
-            FlexMode = Enum.UIFlexMode.Shrink,
-            Parent = self.title,
-        })
-        infoHelper.attach(self, self.container, 2)
-    end
+    infoHelper.attach(self, self.container)
 
     self.box = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
@@ -285,27 +278,7 @@ props(state)
 name(state)
 
 function state:SetInfo(infoText)
-    self.info = infoText
-    if infoText and infoText ~= "" then
-        if self.infoButton then
-            self.infoButton.Visible = true
-        elseif self.container then
-            if self.title.AutomaticSize == Enum.AutomaticSize.None then
-                self.title.AutomaticSize = Enum.AutomaticSize.X
-                self.title.Size = UDim2.fromOffset(0, 16)
-                self.window:Create("UIFlexItem", {
-                    FlexMode = Enum.UIFlexMode.Shrink,
-                    Parent = self.title,
-                })
-            end
-            infoHelper.attach(self, self.container, 2)
-            if self.infoButton then
-                self.infoButton.ImageTransparency = 0.45
-            end
-        end
-    elseif self.infoButton then
-        self.infoButton.Visible = false
-    end
+    infoHelper.set(self, infoText, self.container)
 end
 
 return state

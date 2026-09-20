@@ -6,6 +6,10 @@ local locale = require(utilities.locale)
 
 local tabSelector = {}
 
+-- Temporarily paused pending the lock UI redesign. Flip this one flag to
+-- restore badge visibility and its layout reserve; host locking stays intact.
+tabSelector.lockUIEnabled = false
+
 local function getInitial(str: string?): string
     if type(str) ~= "string" or str == "" then
         return "?"
@@ -19,14 +23,14 @@ end
 -- [[token the elements area is painted with — so the selected row (opaque)
 -- [[reads as a continuation of the content it opens. Unselected rows go
 -- [[fully transparent and fall back to the rail's SidebarSurface underneath,
--- [[i.e. the tab-area shade; hover lifts a partial wash of the elements
--- [[colour. (The old TabBackground gradient tinted every row off both bands,
+-- [[i.e. the tab-area shade; hover changes only the outline and content.
+-- [[(The old TabBackground gradient tinted every row off both bands,
 -- [[which is why the rail used to bleed into the topbar.)]]
 tabSelector.states = {
     sidebar = {
         selected = { background = 0, stroke = 0.5, content = 0, shadow = 0.8 },
-        hover = { background = 0.45, stroke = 0.8, content = 0.3, shadow = 1 },
-        unselected = { background = 1, stroke = 1, content = 0.5, shadow = 1 },
+        hover = { background = 1, stroke = 0.8, content = 0.3, shadow = 1 },
+        unselected = { background = 1, stroke = 0.8, content = 0.5, shadow = 1 },
         hidden = { background = 1, stroke = 1, content = 1, shadow = 1 },
     },
 }
@@ -122,7 +126,7 @@ local function buildContent(tab, layout, iconSize, useInitial)
             BackgroundTransparency = 1,
             ImageTransparency = 1,
             ZIndex = 2,
-            Visible = tab.locked == true,
+            Visible = tabSelector.lockUIEnabled and tab.locked == true,
             Parent = tab.topbarItem,
         }, { ImageColor3 = "TabColor" })
     end
@@ -250,7 +254,7 @@ local function rowNaturalWidth(tab, window, layout)
     if tab.name then
         width += functions.textWidth(window.theme.Font, 16, locale.resolve(tab.name))
     end
-    if tab.locked then
+    if tabSelector.lockUIEnabled and tab.locked then
         -- [[The trailing badge is part of the row's measured width: one
         -- [[content gap plus the glyph itself, inside the same right
         -- [[padding every row keeps.]]
@@ -300,7 +304,7 @@ function tabSelector.relayoutSidebarRows(window, layout, railWidth)
             if title and tab.name then
                 local slot = rowWidth - layout.rowPadding * 2
                     - (if tab.icon then layout.rowIconSize + layout.rowContentSpacing else 0)
-                if tab.locked then
+                if tabSelector.lockUIEnabled and tab.locked then
                     -- [[Hold the title clear of the trailing badge: a long
                     -- [[locked name wraps before it instead of running
                     -- [[underneath it.]]

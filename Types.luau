@@ -82,11 +82,7 @@ export type CollapsibleGroupProps = {
 export type ButtonProps = {
     name: string?,
     icon: (string | number)?,
-    -- [[Optional circle-alert (!) description: a non-empty text draws the badge
-    -- [[right after the name, which reveals the floating description on hover, a
-    -- [[tap (toggling it) or a press-and-hold. `nil` / `\"\"` draws no badge at
-    -- [[all. `:SetInfo(text)` updates it at runtime; `infoIcon` replaces the
-    -- [[glyph. Distinct from `description`, the in-card muted helper line.]] 
+    -- Deprecated, ignored compatibility props; functional info badges were removed.
     info: string?,
     infoIcon: (string | number)?,
     -- Built-in right-edge tap glyph: false hides it, a name/asset id replaces it.
@@ -97,8 +93,8 @@ export type ButtonProps = {
 export type ToggleProps = {
     name: string?,
     icon: (string | number)?,
-    info: string?, -- (!) description badge, see ButtonProps
-    infoIcon: (string | number)?, -- badge glyph, see ButtonProps
+    info: string?, -- Deprecated; ignored
+    infoIcon: (string | number)?, -- Deprecated; ignored
     flag: string?,
     value: boolean?,
     forgetState: boolean?,
@@ -108,8 +104,8 @@ export type ToggleProps = {
 export type SliderProps = {
     name: string?,
     icon: (string | number)?,
-    info: string?, -- (!) description badge, see ButtonProps
-    infoIcon: (string | number)?, -- badge glyph, see ButtonProps
+    info: string?, -- Deprecated; ignored
+    infoIcon: (string | number)?, -- Deprecated; ignored
     flag: string?,
     range: { number }?,     increment: number?,
     value: number?,
@@ -121,8 +117,8 @@ export type SliderProps = {
 export type DropdownProps = {
     name: string?,
     icon: (string | number)?,
-    info: string?, -- (!) description badge, see ButtonProps
-    infoIcon: (string | number)?, -- badge glyph, see ButtonProps
+    info: string?, -- Deprecated; ignored
+    infoIcon: (string | number)?, -- Deprecated; ignored
     flag: string?,
     options: { string }?,
     value: (string | { string })?,
@@ -135,8 +131,8 @@ export type DropdownProps = {
 export type InputProps = {
     name: string?,
     icon: (string | number)?,
-    info: string?, -- (!) description badge, see ButtonProps
-    infoIcon: (string | number)?, -- badge glyph, see ButtonProps
+    info: string?, -- Deprecated; ignored
+    infoIcon: (string | number)?, -- Deprecated; ignored
     flag: string?,
     value: string?,
     placeholder: string?,
@@ -161,6 +157,7 @@ export type StatProps = {
     changeMode: string?,     changeBaseline: string?,     numberEasing: boolean?,
 }
 
+-- Exact title/content duplicates refresh an active card or coalesce in the queue.
 export type NotifyProps = {
     title: string?,
     content: string?,
@@ -200,18 +197,21 @@ export type Lockable = {
 }
 
 export type Button = Moveable & Lockable & {
+    -- Deprecated compatibility no-op (info badges removed).
     SetInfo: (self: Button, text: string?) -> (),
 }
 
 export type Toggle = Moveable & Lockable & {
     value: boolean,
     Set: (self: Toggle, value: boolean, skipCallback: boolean?) -> (),
+    -- Deprecated compatibility no-op (info badges removed).
     SetInfo: (self: Toggle, text: string?) -> (),
 }
 
 export type Slider = Moveable & Lockable & {
     value: number,
     Set: (self: Slider, value: number, skipCallback: boolean?) -> (),
+    -- Deprecated compatibility no-op (info badges removed).
     SetInfo: (self: Slider, text: string?) -> (),
 }
 
@@ -220,12 +220,14 @@ export type Dropdown = Moveable & Lockable & {
     Refresh: (self: Dropdown, options: { string }) -> (),
     Add: (self: Dropdown, option: string) -> (),
     Remove: (self: Dropdown, option: string) -> (),
+    -- Deprecated compatibility no-op (info badges removed).
     SetInfo: (self: Dropdown, text: string?) -> (),
 }
 
 export type Input = Moveable & Lockable & {
     value: string,
     Set: (self: Input, value: string, skipCallback: boolean?) -> (),
+    -- Deprecated compatibility no-op (info badges removed).
     SetInfo: (self: Input, text: string?) -> (),
 }
 

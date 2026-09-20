@@ -1,28 +1,6 @@
--- [[The floating element description.
---
--- One panel per window (`window.elementTooltip`), owned by the screen GUI and
--- positioned in screen space above the circle-alert badge that opened it. Any
--- element with an `info` text can point at it through `tooltip.attach`:
---
---   * hovering the badge (desktop) opens the description without pinning it -
---     the pointer leaving the badge closes it again,
---   * a tap toggles: the first tap opens the description and pins it, the
---     next tap on the same badge closes it,
---   * a press held down for `holdDelay` opens (and pins) the description
---     while the pointer or finger is still down - the gesture touch devices
---     reach for, where no hover ever happens,
---   * the description closes itself when the badge moves (the row scrolled,
---     the tab changed, the window was dragged), when the badge stops being
---     drawn (the element was hidden, `:SetInfo(\"\")` cleared the text), and
---     whenever the window hides, closes, navigates or unloads - the callers
---     here are the same paths that fade the window out.
---
--- The panel answers to locale resolution before it measures or draws, so a
--- translated description is measured in its translated form.
---
--- The module owns no state of its own between windows: everything it needs
--- lives on the window (`_tooltipAnchor`, `_tooltipPinned`, `_tooltipOwner`),
--- which is what lets `tooltip.hide(window)` be safe to call from anywhere.
+-- Programmatic floating descriptions (Window:ShowTooltip / HideTooltip).
+-- Functional-element info badges and their gesture bindings were removed.
+-- State remains window-local and text is resolved before measurement.
 
 local tooltip = {}
 
@@ -31,12 +9,6 @@ local coreState = require(script.Parent.Parent.core.state)
 local motion = require(script.Parent.Parent.utilities.motion)
 local locale = require(script.Parent.Parent.utilities.locale)
 local functions = require(script.Parent.Parent.functions)
-
-local hoverTween = "fast"
-
--- [[Seconds a press must be held before the description opens. Below it the
--- [[gesture is a tap and `Activated` owns it.]] 
-local holdDelay = 0.3
 
 local minWidth = 80
 local maxWidth = 240
@@ -47,18 +19,6 @@ local lineHeight = 15
 local gap = 6
 local edge = 8
 local zIndex = 500
-
--- [[Input types that count as a press on the badge. Mouse movement and
--- [[keyboard input pass through untouched.]]
--- [[`Enum.UserInputType` has no `Pen` item - naming one is not a missing key,
--- [[it throws "Pen is not a valid member of Enum.UserInputType" while this
--- [[module loads, which takes every window built afterwards down with it. A
--- [[stylus press is reported as `Touch` and Studio reports a screen tap as
--- [[`MouseButton1`, so these two already cover every pointer the badge sees.]]
-local pressTypes: { [any]: boolean } = {
-    [Enum.UserInputType.MouseButton1] = true,
-    [Enum.UserInputType.Touch] = true,
-}
 
 -- [[RichText hosts: measure the words, not the markup.]] 
 local function plain(text: string): string
@@ -333,115 +293,6 @@ function tooltip.toggle(window, anchor: any, text: unknown, owner: any?)
     end
     tooltip.show(window, anchor, text, true, owner)
     return true
-end
-
--- [[Wire one circle-alert badge to the panel.
---
--- `infoText` is the fallback for hosts that call `attach` before the element
--- carries the text; the live text is read from `element.info` on every open,
--- so `:SetInfo(text)` retargets an existing badge without re-wiring it.
---
--- Every connection goes through `window:ConnectFor(element, ...)`, so an
--- element that is destroyed takes its badge's input handling with it.]] 
-function tooltip.attach(element, anchorButton, infoText: string?)
-    local window = element.window
-
-    local function text(): unknown
-        local value = element.info
-        if value == nil or value == "" then
-            value = infoText
-        end
-        return value
-    end
-
-    local function close()
-        if window._tooltipAnchor == anchorButton then
-            tooltip.hide(window)
-        end
-    end
-
-    local function open(pinned: boolean)
-        tooltip.show(window, anchorButton, text(), pinned, element)
-    end
-
-    window:ConnectFor(element, anchorButton.MouseEnter, function()
-        motion.tween(anchorButton, { ImageTransparency = 0 }, hoverTween)
-        -- [[A pinned description belongs to a tap or a hold; hovering must not
-        -- [[take it over, and must not close it either.]] 
-        if window._tooltipAnchor ~= anchorButton then
-            open(false)
-        end
-    end)
-
-    window:ConnectFor(element, anchorButton.MouseLeave, function()
-        motion.tween(anchorButton, { ImageTransparency = 0.45 }, hoverTween)
-        if not window._tooltipPinned then
-            close()
-        end
-    end)
-
-    -- [[Press-and-hold. The timer opens the description while the input is
-    -- [[still down; `_infoPress` is the generation counter that cancels a
-    -- [[pending hold as soon as the press ends (or the next one starts).]] 
-    window:ConnectFor(element, anchorButton.InputBegan, function(input)
-        if not pressTypes[input.UserInputType] then
-            return
-        end
-        element._infoPress = (element._infoPress or 0) + 1
-        local token = element._infoPress
-        local closed = window._tooltipCloseToken or 0
-        element._infoHeld = false
-        task.delay(holdDelay, function()
-            -- [[The press must still be down, the window must still be up, and
-            -- [[nothing may have closed a description in the meantime.]] 
-            if element._infoPress ~= token or window.unloaded then
-                return
-            end
-            if window.hidden or window.minimised or window.animating then
-                return
-            end
-            if (window._tooltipCloseToken or 0) ~= closed then
-                return
-            end
-            element._infoHeld = true
-            motion.tween(anchorButton, { ImageTransparency = 0 }, hoverTween)
-            open(true)
-        end)
-    end)
-
-    window:ConnectFor(element, anchorButton.InputEnded, function(input)
-        if not pressTypes[input.UserInputType] then
-            return
-        end
-        -- [[The press is over: cancel any hold that has not fired yet.]] 
-        element._infoPress = (element._infoPress or 0) + 1
-    end)
-
-    -- [[Tap. `Activated` fires once per press-and-release on every input
-    -- [[type, so touch, mouse and gamepad all toggle the same way. A hold
-    -- [[already opened the description and owns this release.]] 
-    window:ConnectFor(element, anchorButton.Activated, function()
-        element._infoPress = (element._infoPress or 0) + 1
-        if element._infoHeld then
-            element._infoHeld = false
-            return
-        end
-        tooltip.toggle(window, anchorButton, text(), element)
-    end)
-
-    -- [[The panel is placed in screen space, so a badge that moved (the page
-    -- [[scrolled, the window was dragged, the tab animated) closes it instead
-    -- [[of leaving it floating over the wrong row.]] 
-    window:ConnectFor(element, anchorButton:GetPropertyChangedSignal("AbsolutePosition"), function()
-        close()
-    end)
-
-    -- [[A badge that stopped being drawn cannot keep a description open.]] 
-    window:ConnectFor(element, anchorButton:GetPropertyChangedSignal("Visible"), function()
-        if anchorButton.Visible ~= true then
-            close()
-        end
-    end)
 end
 
 return tooltip

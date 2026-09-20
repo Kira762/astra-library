@@ -288,7 +288,7 @@ function state:SetLocked(locked)
     end
 
     if self.topbarItemLock then
-        self.topbarItemLock.Visible = locked
+        self.topbarItemLock.Visible = icon.lockUIEnabled and locked
     end
 
     -- [[The badge is part of the row's measured width: re-derive the rail so

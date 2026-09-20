@@ -205,6 +205,12 @@ changes, tab removal, lock flips), `Tab:Remove`, `Window:SetLocale` and
 (`railCollapsedWidth`), so a content-sized rail narrower than the old fixed
 219px still shows titles.
 
+Lock UI is temporarily paused via `tabSelector.lockUIEnabled = false`.
+Badge instances remain hidden (also after `SetLocked` and row rebuilds), and
+both natural-width measurement and wrapped-title slots omit the badge reserve.
+Flip the flag and regenerate the bundle to re-enable the retained UI below.
+Host-side lock state, selection guards and search filtering remain active.
+
 `tabSelector.buildContent` also creates the lock badge (`tab.topbarItemLock`,
 13px, trailing-centred in the row — inset by the row padding, riding the row
 itself rather than the content container): `Visible` only while `tab.locked`,
@@ -263,7 +269,16 @@ description); `Window:Notify` builds the layer
 immediately but constructs the card only on its turn, so a burst at load time
 costs one card per frame instead of all of them at once. `Popup` is modal and
 stays outside the queue.
-`tooltip.luau` is the floating element-description panel — one per window (`window.elementTooltip`, under the screen GUI). `attach(element, badge)` wires a `(!)` badge: hover opens an unpinned preview and leaving closes it, a tap toggles a pinned description (an open preview is pinned instead of dismissed), and a 0.3s press-and-hold opens it while the input is still down for touch hosts. The panel resolves `utilities/locale` text before measuring, positions itself in screen space over the badge (flipping below it when there is no room above, clamped to the viewport), and closes when the badge moves or stops being drawn, when the window hides/closes/navigates/unloads, or through `hideFor(window, owner)`. Open state and the tokens that cancel a fade or a pending hold live on the window (`_tooltipAnchor`, `_tooltipPinned`, `_tooltipOwner`, `_tooltipHideToken`, `_tooltipCloseToken`).
+Exact notification title/content pairs are keyed per window. `Notification.refresh`
+reuses active cards and resets their shared hold counter/duration; the entrance
+queue coalesces pending keys with the newest snapshot (before enforcing its cap).
+Matching is case/whitespace-sensitive, honours aliases/defaults, and does not
+include icon or duration. Dismissed/expired cards do not block future requests.
+
+`tooltip.luau` retains the independent `Window:ShowTooltip` / `HideTooltip` API:
+one locale-aware floating panel per window, positioned over the supplied anchor.
+The functional `(!)` badges and their hover/tap/hold wiring have been deleted.
+Window transitions and teardown still close programmatic descriptions.
 
 ### `components/search.luau`
 Fuzzy search overlay: locals for candidate list, scoring weights, debounce connection.
@@ -317,24 +332,16 @@ Per-element specifics:
 - `description.luau` — the in-card muted helper line: an element built with a
   `description` prop grows its own card by the measured, wrapped line height and
   keeps its controls centred in the base region, so nothing renders below the
-  card. Distinct from `info`, which is the `(!)` badge and its floating
-  description.
+  card. Functional `info` badges have been removed; `description` is unchanged.
 - `tab.luau` — tab class: `tabPage` (ScrollingFrame), `_register(element)` pipeline into `window.controls[flag]`, selector button visuals. `CreateChangelog` builds a regular changelog element wherever declared. Locked tabs (`locked` prop / `SetLocked(bool)`): the flag gates `Select` (no-op), the row tap (short "This tab is locked" notification instead), and hover; `_applyVisual` raises the row's content transparency while locked (copy of the shared state table, never a mutation of it); `SetLocked(true)` on the open tab clears `window.selectedTab` and selects the first unlocked non-neglect tab with same-rail preference (the `Remove` fallback rule), hiding the tab's elements and marking `_elementsPending` when no fallback exists.
 - `group.luau`, `section.luau`, `tabSection.luau` — container classes with UIListLayout locals.
 - `changelog.luau` — release-history element (`__type = "Changelog"`): normalizes `ChangelogEntry`/`ChangelogChange` props, maps symbols (`+`/`-`/`~`, or words like "added"/"removed"/"changed") to green/red/amber, fades entries in, supports `Set`/`Refresh`/`Add(entry, prepend?)`/`Clear`. Renders as a regular standalone element; supports `Set`/`Refresh`/`Add`/`Clear` and move/lock API.
 - `divider.luau`, `stat.luau`, `text.luau` — display and interaction elements.
 - `button.luau` — action card with a built-in right-edge tap glyph (`tapIcon` opts out or replaces it), themed through `ContentColor`, revealed with the card, and pulsed on press. Compact/grouped buttons explicitly sort their horizontal layout by `LayoutOrder`: optional custom icon, title, then built-in tap glyph.
 - `baseCard.luau` — shared card container and header layout helper for element modules.
-- `infoHelper.luau` — the circle-alert `(!)` badge for functional elements:
-  `text(element)` normalizes the `info` prop (locale token, `nil`, `""` or
-  whitespace = no description), `has(element)` answers whether a badge belongs in
-  the row at all, `attach(element, parent)` builds the 14px `InfoIcon` **right
-  after the name** (the row's `UIListLayout` is switched to
-  `Enum.SortOrder.LayoutOrder` and the badge takes the title's order + 1, since
-  the default Name sort put "InfoIcon" before "TextLabel"), `set(element, text)`
-  is the `:SetInfo` runtime writer, and `detach(element)` removes the badge and
-  restores the title's width recipe. The title is width-automatic while a badge
-  is present, so long names truncate instead of pushing the badge out of the row.
+- Functional info badges: `infoHelper.luau` and badge gesture bindings were
+  deleted. Legacy `info`/`infoIcon` props are ignored and `SetInfo` methods are
+  no-ops for compatibility; reveal/hide paths no longer reference badge fields.
 
 ---
 
@@ -500,7 +507,7 @@ Per-element specifics:
 | `dropdown_rows_test.sh` | Dropdown option rows: none (and no search bar) while closed whatever the list length, one per option in order on open plus the bar once, the rendered selected/unselected state and corner tiers, reopening reusing the rows, edits and picks made while closed, and the search filter. |
 | `dropdown_actions_test.sh` | The multi-select action row: only a multi-select dropdown builds it, the checkbox's two states (the drawn outline against the rows' check glyph), Select all filling the visible set and toggling it back off, Clear sparing what the filter hides, the box following picks and filters, the 32px row in the open height, and the bin resolving to the pack's trash icon. |
 | `tab_elements_test.sh` | Tab elements: only the selected tab is walked on a show/hide, a tab opened later shows its elements in the same frame and state, the search shows every tab it renders, and a late element shows with its tab. |
-| `tab_lock_test.sh` | Locked tabs: the flag + badge (visible locked, invisible unlocked) and auto-select skipping a locked first tab; tap → notification with no selection; hover leaves the locked row dimmed; `Navigate`/`Select` guards; `SetLocked(false)` re-enables; locking the open tab moves the selection to a same-rail fallback; search excludes locked tabs' elements; locking every remaining tab clears the selection and hides content, and unlocking restores it; integrated badge geometry (trailing-centred, rail reserve, badge-clear wrap slot, collapsed corner seat). |
+| `tab_lock_test.sh` | Locked tabs: the preserved flag + badge (always hidden during the UI pause) and auto-select skipping a locked first tab; tap → notification with no selection; hover leaves the locked row dimmed; `Navigate`/`Select` guards; `SetLocked(false)` re-enables; locking the open tab moves the selection to a same-rail fallback; search excludes locked tabs' elements; locking every remaining tab clears the selection and hides content, and unlocking restores it; retained badge geometry with no layout reserve, full title slots, and hidden badges after collapse/rebuild. |
 | `toggle_switch_test.sh` | Switch geometry: one set of metrics, mirrored resting states, equal clearance, the sheen under the knob, and the animated positions matching the built ones. |
 | `input_field_test.sh` | Field-box corners: the Input field rounds with the theme's `ElementCornerRadius` as a theme binding (pixel radius, never a capsule scale), re-stated on a theme switch, and shared with its element card. |
 | `keybind_input_test.sh` | Menu-toggle binding: the Settings menu binding is an `Input` field whose typed text commits an `EnumItem` (case/alias tolerant, `MB2`, `none`/empty clearing), refuses junk and left click without saving, keeps typing inside the field from toggling the window, and still toggles it afterwards. |

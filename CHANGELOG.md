@@ -2,6 +2,22 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-20 — Tab states, info removal, lock UI pause and notification deduplication
+
+- Selected tabs keep their outline and highlight; unselected tabs keep an
+  outline without a fill/shadow highlight, including while hovered.
+- Permanently removed functional info badges, their helper module and gesture
+  bindings. Updated the example, types and documentation; legacy `SetInfo`
+  calls remain safe no-ops. Inline descriptions/manual tooltips are unchanged.
+- Temporarily hid lock badges and their layout reserve via
+  `tabSelector.lockUIEnabled = false`; commented out the example lock controls.
+  Badge geometry and host-side lock logic remain intact for future re-enabling.
+- Exact notification title/content duplicates refresh the existing card's
+  lifetime instead of spawning another. Pending duplicates coalesce before
+  queue limits apply; different text and separate windows remain independent.
+- Added/updated regressions for badge removal, hidden lock UI, tab outlines,
+  active/queued notification deduplication, expiry refresh and teardown.
+
 ## 2026-09-20 — Locked-tab badge joins the row: trailing, centred, rail-fitted
 
 The lock badge used to sit as a corner pin at the tab row's top-right,

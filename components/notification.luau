@@ -28,6 +28,31 @@ local function autoDuration(content)
     return math.clamp(#content * 0.06 + 3, 3, 9)
 end
 
+-- Length-prefix the title so distinct title/body pairs cannot collide, even
+-- when their text contains separators. Match exact text (no trim/case folding);
+-- duration and icon are presentation options, not part of message identity.
+function Notification.key(props)
+    props = if typeof(props) == "table" then props else {}
+    local title = props.title or props.Title or "Notification"
+    local content = props.content or props.Content or ""
+    return tostring(#title) .. ":" .. title .. content
+end
+
+-- Refresh in place, including during entrance. The existing hold loop reads
+-- these fields each frame, so no stale timer can dismiss a refreshed card.
+function Notification.refresh(window, props): boolean
+    props = if typeof(props) == "table" then props else {}
+    local key = Notification.key(props)
+    for _, card in window._liveNotifications or {} do
+        if not card._dismissed and card.main.Parent and card._key == key then
+            card.duration = props.duration or props.Duration or autoDuration(card.content)
+            card._elapsed = 0
+            return true
+        end
+    end
+    return false
+end
+
 function Notification.new(window, props, release)
     props = if typeof(props) == "table" then props else {}
 
@@ -36,6 +61,8 @@ function Notification.new(window, props, release)
         title = props.title or props.Title or "Notification",
         content = props.content or props.Content or "",
         icon = window:ResolveIcon(props.icon or props.Icon),
+        _key = Notification.key(props),
+        _elapsed = 0,
         _hovered = false,
         _dismissed = false,
         -- [[Handed over by the entrance queue when this card was queued: the
@@ -284,11 +311,10 @@ function Notification:_show()
     -- (below) releases early, which the queue reads as "skip the cadence".]]
     self:_entranceDone()
 
-    local elapsed = 0
-    while elapsed < self.duration and not self._dismissed and self.main.Parent do
+    while self._elapsed < self.duration and not self._dismissed and self.main.Parent do
         local dt = task.wait()
         if not self._hovered then
-            elapsed += dt
+            self._elapsed += dt
         end
     end
 

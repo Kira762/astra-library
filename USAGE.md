@@ -156,7 +156,7 @@ Titles, themes, and every window method.
 | `window:ChangeTheme(theme)` | Swap theme at runtime. |
 | `window:SetLocale(id)` / `window:SetTranslator(fn)` / `window:RegisterTranslations(t)` | Localisation. |
 | `window:ResolveIcon(value, pack?)` | Icon name → asset id. |
-| `window:ShowTooltip(anchor, text)` / `window:HideTooltip()` | Open/close a pinned floating description over any instance (the `(!)` badges open theirs through this). |
+| `window:ShowTooltip(anchor, text)` / `window:HideTooltip()` | Open/close a pinned floating description over any instance (programmatic API; functional info badges have been removed). |
 | `window:GetPath()` | Returns the (folder, file) persistence path. |
 | `window:Unload()` | Destroy the window. |
 | `window.Flags` | Table of every registered flag's current value. |
@@ -191,13 +191,27 @@ Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `
 
 Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
 
+Selected tabs retain their outline and highlight. Unselected tabs retain an
+outline but have no fill/shadow highlight, including on hover.
+
+`window:Notify` deduplicates exact **title + content** pairs per window
+(including the `Title` / `Content` aliases and default text). An active match
+keeps its instance and icon, and restarts its lifetime with the latest duration.
+Queued matches use the latest props without taking another queue slot. Case,
+whitespace, or a different title/body remain separate messages; expired or
+dismissed text may be notified again.
+
 ### Locked tabs
 
-`CreateTab({ locked = true })` builds a tab that is visible in the sidebar but
-gated: the row draws a small lock badge on its trailing edge — vertically
-centred, inset by the row padding, with room reserved in the rail's width —
-stays dimmed, and cannot be opened by the user. It is the library's answer to
-"this section exists, but not for this user yet".
+**Lock UI is temporarily paused.** Badges remain hidden in both expanded and
+collapsed rails, take no layout space, and the example's lock/unlock demo is
+commented out. To restore the badge design later, set
+`tabSelector.lockUIEnabled = true` in `components/tabSelector.luau` and rebuild
+the bundle. The badge instances and positioning code are retained.
+
+`CreateTab({ locked = true })` still creates a gated tab: host-side locking,
+selection fallback, dimming, and search filtering are unchanged. This is a UI
+gate, not an authorization/security boundary.
 
 ```lua
 local premium = window:CreateTab({ name = "Premium", icon = "star", locked = true })
@@ -212,9 +226,8 @@ premium:SetLocked(false)
   flag and is never written to settings or configs.
 - **While locked**, tapping the row raises a short notification ("This tab is
   locked", lock icon) instead of selecting it; the row has no hover state and
-  is dimmed further than an unselected pill. In the collapsed icon-only rail
-  the badge still shows on the icon tile. When unlocked, no icon is drawn at
-  all — the row is identical to a tab that never had the prop.
+  is dimmed further than an unselected pill. Lock badges are hidden during
+  the UI pause, even after `SetLocked` or a layout rebuild.
 - **Locked tabs keep their contents private.** Their elements are never built
   visible, and search never indexes them, so their names cannot be found
   through the search box. `tab:Select()`, `window:Navigate(tab)` and the
@@ -230,29 +243,11 @@ premium:SetLocked(false)
 
 Every element supports `Moveable` (`:MoveTo`, `:MoveToTop`, `:MoveToBottom`, `:MoveUp`, `:MoveDown`) and most support `Lockable` (`:Lock`, `:Unlock`, `:IsLocked`). Most element props also accept `icon`.
 
-Functional elements (`Button`, `Toggle`, `Slider`, `Dropdown`, `Input`) also accept an optional `info` string. When it has text, a circular `(!)` alert badge is drawn in the row **immediately after the element's name**, and:
-
-- hovering the badge (desktop) reveals the floating description, and leaving it hides the description again;
-- tapping it opens the description and keeps it open (a hover preview is pinned, not thrown away) — tapping it once more closes it;
-- press-and-holding it for a moment reveals the description while your finger is still down, which is how touch devices reach it (no hover there);
-- the description closes when the window hides, closes, switches tab or unloads, when the badge scrolls away, and when the text is cleared.
-
-Only one description is open at a time, and the description never changes the card's compact height. An element with no `info` — or with `""` / whitespace — draws no badge and is laid out exactly like one that never had the prop. `infoIcon` replaces the badge glyph, and `:SetInfo(text)` adds, retargets or removes the description at runtime (`:SetInfo(nil)` / `:SetInfo("")` removes it).
-
-Do not confuse the two text props: `description` is the in-card muted helper line that grows the card, `info` is the `(!)` badge and its floating description.
-
-```lua
-tab:CreateButton({ name = "Click Me", icon = "play", info = "Runs action immediately", callback = function() end })
-tab:CreateToggle({ name = "Auto Sprint", info = "Toggles continuous sprinting", value = true })
-tab:CreateSlider({ name = "Sensitivity", info = "Input sensitivity factor", range = { 1, 10 }, value = 5, suffix = "x", minimal = true, callback = function(v, dragging) end })
-tab:CreateDropdown({ name = "Preset", info = "Target preset level", options = { "Low", "Medium", "High" }, value = "Medium", multiSelect = true, placeholder = "Pick items", callback = function(s) end })
-tab:CreateInput({ name = "Name", info = "User display name", placeholder = "Type here", numeric = true, clearOnFocus = true, callback = function(t) end })
-
--- The badge glyph and the runtime text:
-local button = tab:CreateButton({ name = "Export", info = "Downloads the log file", infoIcon = "download", callback = function() end })
-button:SetInfo("Downloads the log file to your device") -- retarget the description
-button:SetInfo("")                                      -- remove the badge again
-```
+Functional info (`circle-alert`) badges have been permanently removed from
+`Button`, `Toggle`, `Slider`, `Dropdown`, and `Input`. Legacy `info` / `infoIcon`
+props are ignored and `SetInfo` is a compatibility no-op, so old hosts do not
+throw or recreate the badges. Use `description` for an inline helper line, or
+`window:ShowTooltip(anchor, text)` for an explicitly host-managed tooltip.
 
 ### Button
 ```lua

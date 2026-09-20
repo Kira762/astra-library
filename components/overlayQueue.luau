@@ -155,8 +155,6 @@ function OverlayQueue.pump(window, queue)
                 break
             end
 
-            local entry = table.remove(queue.pending, 1)
-
             -- [[Wait out the window's own entrance before taking the turn. The
             -- budget keeps a gate nobody opened from parking the queue: worst
             -- case the overlay arrives on its own instead of with the window.]]
@@ -187,6 +185,9 @@ function OverlayQueue.pump(window, queue)
                 earlyRelease = early == true
             end
 
+            -- Keep the entry pending while the entrance gate is closed so a
+            -- duplicate request can replace its snapshot before construction.
+            local entry = table.remove(queue.pending, 1)
             local ok, err = pcall(entry.build, release)
             if not ok then
                 log.warn("Astra: an overlay failed to open - " .. tostring(err))
@@ -229,7 +230,7 @@ end
 -- never on the frame the request was made on — and the overlay calls
 -- `release()` when its entrance is committed. Returns true when the request was
 -- accepted, which is false only for a window that is already gone.]]
-function OverlayQueue.request(window, build): boolean
+function OverlayQueue.request(window, build, key: string?): boolean
     if window.unloaded then
         return false
     end
@@ -239,13 +240,26 @@ function OverlayQueue.request(window, build): boolean
         return false
     end
 
+    -- A duplicate waiting for its turn keeps its position but uses the newest
+    -- snapshot. Coalescing before the cap prevents spam from evicting unrelated
+    -- messages. Unkeyed overlay callers keep their original behaviour.
+    if key then
+        for _, entry in queue.pending do
+            if entry.key == key then
+                entry.build = build
+                OverlayQueue.pump(window, queue)
+                return true
+            end
+        end
+    end
+
     -- [[A burst stays bounded: the oldest request that was never built is
     -- dropped for the newest one, which is the one the host still cares about.]]
     while #queue.pending >= maxQueued do
         table.remove(queue.pending, 1)
     end
 
-    table.insert(queue.pending, { build = build })
+    table.insert(queue.pending, { build = build, key = key })
 
     -- [[A window whose first entrance was cancelled (Hide before it ever
     -- [[showed) re-parks anything that arrives afterward: Hide opened the

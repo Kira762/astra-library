@@ -14,7 +14,6 @@ local options = require(constants.HapticEngine)
 local value = require(constants.windowSizing)
 local multiSelect = require(constants.lockable)
 local description = require(script.Parent.description)
-local infoHelper = require(script.Parent.infoHelper)
 
 local placeholder = name.icons.chevron
 local callback = name.icons.check
@@ -123,8 +122,6 @@ function state.new(tab, a49)
         name = a49.name or a49.Name or "Dropdown",
         icon = tab.window:ResolveIcon(a49.icon or a49.Icon),
         description = a49.description or a49.Description,
-        info = a49.info or a49.Info or a49.tooltip or a49.Tooltip,
-        infoIcon = a49.infoIcon or a49.InfoIcon,
         forgetState = a49.forgetState or a49.ForgetState or tab.forgetState,
         flag = a49.flag
             or a49.Flag
@@ -195,8 +192,7 @@ function state.new(tab, a49)
         ZIndex = 5,
     })
 
-    -- [[Icon (0), name (1), circle-alert badge (2): explicit order, so the
-    -- [[layout's default Name sort cannot put the badge in front of the name.]] 
+    -- Keep the icon before the name regardless of instance names.
     self.containerLayout = self.window:Create("UIListLayout", {
         Padding = UDim.new(0, 5),
         FillDirection = Enum.FillDirection.Horizontal,
@@ -236,8 +232,6 @@ function state.new(tab, a49)
         ZIndex = 5,
         Parent = self.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
-
-    infoHelper.attach(self, self.container)
 
     self.selectedLabel = self.window:Create("TextLabel", {
         AnchorPoint = Vector2.new(1, 0.5),
@@ -1487,9 +1481,6 @@ function state:_setShown(a160, a161)
     end
     w:_reveal(self.selectedLabel, { TextTransparency = if a160 then 0.5 else 1 }, a161)
     w:_reveal(self.chevron, { ImageTransparency = if a160 then 0.5 else 1 }, a161)
-    if self.infoButton then
-        w:_reveal(self.infoButton, { ImageTransparency = if a160 then 0.45 else 1 }, a161)
-    end
 
         if not a160 and self._isOpen then
         self:_close()
@@ -1523,7 +1514,7 @@ function state:MoveDown()
 end
 
 function state:SetInfo(infoText)
-    infoHelper.set(self, infoText, self.container)
+    -- Deprecated compatibility no-op: functional info badges were removed.
 end
 
 multiSelect(state)

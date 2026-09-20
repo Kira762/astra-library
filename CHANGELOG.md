@@ -2,6 +2,51 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-20 — Locked-tab badge joins the row: trailing, centred, rail-fitted
+
+The lock badge used to sit as a corner pin at the tab row's top-right,
+overlapping the row instead of living in its layout. It now sits where the
+design mock puts it: a small glyph on the row's trailing edge, vertically
+centred, inset by the same row padding the content keeps on the left — so a
+locked row reads as part of the tab structure, consistent with the active tab.
+
+- **The badge is part of the row's measured width.** The rail reserves one
+  content gap plus the 13px glyph for it (`lockReserve` in
+  `components/tabSelector.luau`), so a locked tab measures 19px wider than
+  the same tab unlocked and the responsive rail fits around the badge
+  instead of clipping it. `SetLocked` re-derives the rail (the same call
+  `Remove` makes when the longest row leaves), so locking the widest tab
+  grows the rail and unlocking shrinks it back.
+- **Long locked names wrap clear of it.** `relayoutSidebarRows` narrows a
+  locked title's slot by the same reserve, so the existing `TextWrapped`
+  breaks the name before the badge instead of running underneath it; short
+  rows are untouched.
+- **The collapsed icon tile keeps the corner seat.** A 38px tile has no
+  trailing room — the glyph would cover the centred icon — so
+  `setRowCollapsed` parks the badge back in the corner while collapsed and
+  returns it to the trailing seat on expand (rows built or rebuilt while
+  collapsed are born parked, through the existing `railCollapsed` check).
+- **Expanding rows restore their own title state.** The expand branch used
+  to tween every title to full brightness, so any rail re-apply (tab add,
+  theme or locale change — and now lock flips) left unselected rows bright
+  until the next hover or selection. It now restores selected 0, locked 0.7
+  (the gated floor `Tab:_applyVisual` holds), and the 0.5 unselected wash.
+
+Files: `components/tabSelector.luau` (badge seat, `lockReserve`,
+`setRowCollapsed` seat + title restore, width/slot math), `elements/tab.luau`
+(`SetLocked` re-derives the rail), `scripts/tab_lock_test.luau` (new L10
+block: trailing geometry, ±19px rail reserve, badge-clear wrap slot,
+collapsed corner seat and back, per-row title states),
+`example.client.luau`, `USAGE.md`, `MODULES.md`,
+`skills/astra/references/window.md`, `skills/astra/references/elements.md`,
+`version-1.luau` (regenerated).
+
+Verification: `scripts/tab_lock_test.sh` passes (L1–L10);
+`sh scripts/check_all.sh` — static require graph (109 files, 367 edges, no
+cycles), bundle freshness, syntax gate (115 files) and 27 of 28 runtime
+suites pass. The one failure, `dropdown_rows_test` D3 (got 0, want 12), fails
+identically on the base commit in a clean worktree and predates this change.
+
 ## 2026-09-20 — Window surface hierarchy & flush spacing
 
 The window's three sections — topbar (title, controls, search, icons), the

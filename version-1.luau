@@ -329,11 +329,7 @@ export type CollapsibleGroupProps = {
 export type ButtonProps = {
     name: string?,
     icon: (string | number)?,
-    -- [[Optional circle-alert (!) description: a non-empty text draws the badge
-    -- [[right after the name, which reveals the floating description on hover, a
-    -- [[tap (toggling it) or a press-and-hold. `nil` / `\"\"` draws no badge at
-    -- [[all. `:SetInfo(text)` updates it at runtime; `infoIcon` replaces the
-    -- [[glyph. Distinct from `description`, the in-card muted helper line.]] 
+    -- Deprecated, ignored compatibility props; functional info badges were removed.
     info: string?,
     infoIcon: (string | number)?,
     -- Built-in right-edge tap glyph: false hides it, a name/asset id replaces it.
@@ -344,8 +340,8 @@ export type ButtonProps = {
 export type ToggleProps = {
     name: string?,
     icon: (string | number)?,
-    info: string?, -- (!) description badge, see ButtonProps
-    infoIcon: (string | number)?, -- badge glyph, see ButtonProps
+    info: string?, -- Deprecated; ignored
+    infoIcon: (string | number)?, -- Deprecated; ignored
     flag: string?,
     value: boolean?,
     forgetState: boolean?,
@@ -355,8 +351,8 @@ export type ToggleProps = {
 export type SliderProps = {
     name: string?,
     icon: (string | number)?,
-    info: string?, -- (!) description badge, see ButtonProps
-    infoIcon: (string | number)?, -- badge glyph, see ButtonProps
+    info: string?, -- Deprecated; ignored
+    infoIcon: (string | number)?, -- Deprecated; ignored
     flag: string?,
     range: { number }?,     increment: number?,
     value: number?,
@@ -368,8 +364,8 @@ export type SliderProps = {
 export type DropdownProps = {
     name: string?,
     icon: (string | number)?,
-    info: string?, -- (!) description badge, see ButtonProps
-    infoIcon: (string | number)?, -- badge glyph, see ButtonProps
+    info: string?, -- Deprecated; ignored
+    infoIcon: (string | number)?, -- Deprecated; ignored
     flag: string?,
     options: { string }?,
     value: (string | { string })?,
@@ -382,8 +378,8 @@ export type DropdownProps = {
 export type InputProps = {
     name: string?,
     icon: (string | number)?,
-    info: string?, -- (!) description badge, see ButtonProps
-    infoIcon: (string | number)?, -- badge glyph, see ButtonProps
+    info: string?, -- Deprecated; ignored
+    infoIcon: (string | number)?, -- Deprecated; ignored
     flag: string?,
     value: string?,
     placeholder: string?,
@@ -408,6 +404,7 @@ export type StatProps = {
     changeMode: string?,     changeBaseline: string?,     numberEasing: boolean?,
 }
 
+-- Exact title/content duplicates refresh an active card or coalesce in the queue.
 export type NotifyProps = {
     title: string?,
     content: string?,
@@ -447,18 +444,21 @@ export type Lockable = {
 }
 
 export type Button = Moveable & Lockable & {
+    -- Deprecated compatibility no-op (info badges removed).
     SetInfo: (self: Button, text: string?) -> (),
 }
 
 export type Toggle = Moveable & Lockable & {
     value: boolean,
     Set: (self: Toggle, value: boolean, skipCallback: boolean?) -> (),
+    -- Deprecated compatibility no-op (info badges removed).
     SetInfo: (self: Toggle, text: string?) -> (),
 }
 
 export type Slider = Moveable & Lockable & {
     value: number,
     Set: (self: Slider, value: number, skipCallback: boolean?) -> (),
+    -- Deprecated compatibility no-op (info badges removed).
     SetInfo: (self: Slider, text: string?) -> (),
 }
 
@@ -467,12 +467,14 @@ export type Dropdown = Moveable & Lockable & {
     Refresh: (self: Dropdown, options: { string }) -> (),
     Add: (self: Dropdown, option: string) -> (),
     Remove: (self: Dropdown, option: string) -> (),
+    -- Deprecated compatibility no-op (info badges removed).
     SetInfo: (self: Dropdown, text: string?) -> (),
 }
 
 export type Input = Moveable & Lockable & {
     value: string,
     Set: (self: Input, value: string, skipCallback: boolean?) -> (),
+    -- Deprecated compatibility no-op (info badges removed).
     SetInfo: (self: Input, text: string?) -> (),
 }
 
@@ -1509,6 +1511,31 @@ local function autoDuration(content)
     return math.clamp(#content * 0.06 + 3, 3, 9)
 end
 
+-- Length-prefix the title so distinct title/body pairs cannot collide, even
+-- when their text contains separators. Match exact text (no trim/case folding);
+-- duration and icon are presentation options, not part of message identity.
+function Notification.key(props)
+    props = if typeof(props) == "table" then props else {}
+    local title = props.title or props.Title or "Notification"
+    local content = props.content or props.Content or ""
+    return tostring(#title) .. ":" .. title .. content
+end
+
+-- Refresh in place, including during entrance. The existing hold loop reads
+-- these fields each frame, so no stale timer can dismiss a refreshed card.
+function Notification.refresh(window, props): boolean
+    props = if typeof(props) == "table" then props else {}
+    local key = Notification.key(props)
+    for _, card in window._liveNotifications or {} do
+        if not card._dismissed and card.main.Parent and card._key == key then
+            card.duration = props.duration or props.Duration or autoDuration(card.content)
+            card._elapsed = 0
+            return true
+        end
+    end
+    return false
+end
+
 function Notification.new(window, props, release)
     props = if typeof(props) == "table" then props else {}
 
@@ -1517,6 +1544,8 @@ function Notification.new(window, props, release)
         title = props.title or props.Title or "Notification",
         content = props.content or props.Content or "",
         icon = window:ResolveIcon(props.icon or props.Icon),
+        _key = Notification.key(props),
+        _elapsed = 0,
         _hovered = false,
         _dismissed = false,
         -- [[Handed over by the entrance queue when this card was queued: the
@@ -1765,11 +1794,10 @@ function Notification:_show()
     -- (below) releases early, which the queue reads as "skip the cadence".]]
     self:_entranceDone()
 
-    local elapsed = 0
-    while elapsed < self.duration and not self._dismissed and self.main.Parent do
+    while self._elapsed < self.duration and not self._dismissed and self.main.Parent do
         local dt = task.wait()
         if not self._hovered then
-            elapsed += dt
+            self._elapsed += dt
         end
     end
 
@@ -1988,8 +2016,6 @@ function OverlayQueue.pump(window, queue)
                 break
             end
 
-            local entry = table.remove(queue.pending, 1)
-
             -- [[Wait out the window's own entrance before taking the turn. The
             -- budget keeps a gate nobody opened from parking the queue: worst
             -- case the overlay arrives on its own instead of with the window.]]
@@ -2020,6 +2046,9 @@ function OverlayQueue.pump(window, queue)
                 earlyRelease = early == true
             end
 
+            -- Keep the entry pending while the entrance gate is closed so a
+            -- duplicate request can replace its snapshot before construction.
+            local entry = table.remove(queue.pending, 1)
             local ok, err = pcall(entry.build, release)
             if not ok then
                 log.warn("Astra: an overlay failed to open - " .. tostring(err))
@@ -2062,7 +2091,7 @@ end
 -- never on the frame the request was made on — and the overlay calls
 -- `release()` when its entrance is committed. Returns true when the request was
 -- accepted, which is false only for a window that is already gone.]]
-function OverlayQueue.request(window, build): boolean
+function OverlayQueue.request(window, build, key: string?): boolean
     if window.unloaded then
         return false
     end
@@ -2072,13 +2101,26 @@ function OverlayQueue.request(window, build): boolean
         return false
     end
 
+    -- A duplicate waiting for its turn keeps its position but uses the newest
+    -- snapshot. Coalescing before the cap prevents spam from evicting unrelated
+    -- messages. Unkeyed overlay callers keep their original behaviour.
+    if key then
+        for _, entry in queue.pending do
+            if entry.key == key then
+                entry.build = build
+                OverlayQueue.pump(window, queue)
+                return true
+            end
+        end
+    end
+
     -- [[A burst stays bounded: the oldest request that was never built is
     -- dropped for the newest one, which is the one the host still cares about.]]
     while #queue.pending >= maxQueued do
         table.remove(queue.pending, 1)
     end
 
-    table.insert(queue.pending, { build = build })
+    table.insert(queue.pending, { build = build, key = key })
 
     -- [[A window whose first entrance was cancelled (Hide before it ever
     -- [[showed) re-parks anything that arrives afterward: Hide opened the
@@ -4059,6 +4101,10 @@ local locale = require(utilities.locale)
 
 local tabSelector = {}
 
+-- Temporarily paused pending the lock UI redesign. Flip this one flag to
+-- restore badge visibility and its layout reserve; host locking stays intact.
+tabSelector.lockUIEnabled = false
+
 local function getInitial(str: string?): string
     if type(str) ~= "string" or str == "" then
         return "?"
@@ -4072,14 +4118,14 @@ end
 -- [[token the elements area is painted with — so the selected row (opaque)
 -- [[reads as a continuation of the content it opens. Unselected rows go
 -- [[fully transparent and fall back to the rail's SidebarSurface underneath,
--- [[i.e. the tab-area shade; hover lifts a partial wash of the elements
--- [[colour. (The old TabBackground gradient tinted every row off both bands,
+-- [[i.e. the tab-area shade; hover changes only the outline and content.
+-- [[(The old TabBackground gradient tinted every row off both bands,
 -- [[which is why the rail used to bleed into the topbar.)]]
 tabSelector.states = {
     sidebar = {
         selected = { background = 0, stroke = 0.5, content = 0, shadow = 0.8 },
-        hover = { background = 0.45, stroke = 0.8, content = 0.3, shadow = 1 },
-        unselected = { background = 1, stroke = 1, content = 0.5, shadow = 1 },
+        hover = { background = 1, stroke = 0.8, content = 0.3, shadow = 1 },
+        unselected = { background = 1, stroke = 0.8, content = 0.5, shadow = 1 },
         hidden = { background = 1, stroke = 1, content = 1, shadow = 1 },
     },
 }
@@ -4175,7 +4221,7 @@ local function buildContent(tab, layout, iconSize, useInitial)
             BackgroundTransparency = 1,
             ImageTransparency = 1,
             ZIndex = 2,
-            Visible = tab.locked == true,
+            Visible = tabSelector.lockUIEnabled and tab.locked == true,
             Parent = tab.topbarItem,
         }, { ImageColor3 = "TabColor" })
     end
@@ -4303,7 +4349,7 @@ local function rowNaturalWidth(tab, window, layout)
     if tab.name then
         width += functions.textWidth(window.theme.Font, 16, locale.resolve(tab.name))
     end
-    if tab.locked then
+    if tabSelector.lockUIEnabled and tab.locked then
         -- [[The trailing badge is part of the row's measured width: one
         -- [[content gap plus the glyph itself, inside the same right
         -- [[padding every row keeps.]]
@@ -4353,7 +4399,7 @@ function tabSelector.relayoutSidebarRows(window, layout, railWidth)
             if title and tab.name then
                 local slot = rowWidth - layout.rowPadding * 2
                     - (if tab.icon then layout.rowIconSize + layout.rowContentSpacing else 0)
-                if tab.locked then
+                if tabSelector.lockUIEnabled and tab.locked then
                     -- [[Hold the title clear of the trailing badge: a long
                     -- [[locked name wraps before it instead of running
                     -- [[underneath it.]]
@@ -4479,31 +4525,9 @@ return tabSelector
 
 end)() end,
     [17] = function()local wax,script,require=ImportGlobals(17)local ImportGlobals return (function(...)
--- [[The floating element description.
---
--- One panel per window (`window.elementTooltip`), owned by the screen GUI and
--- positioned in screen space above the circle-alert badge that opened it. Any
--- element with an `info` text can point at it through `tooltip.attach`:
---
---   * hovering the badge (desktop) opens the description without pinning it -
---     the pointer leaving the badge closes it again,
---   * a tap toggles: the first tap opens the description and pins it, the
---     next tap on the same badge closes it,
---   * a press held down for `holdDelay` opens (and pins) the description
---     while the pointer or finger is still down - the gesture touch devices
---     reach for, where no hover ever happens,
---   * the description closes itself when the badge moves (the row scrolled,
---     the tab changed, the window was dragged), when the badge stops being
---     drawn (the element was hidden, `:SetInfo(\"\")` cleared the text), and
---     whenever the window hides, closes, navigates or unloads - the callers
---     here are the same paths that fade the window out.
---
--- The panel answers to locale resolution before it measures or draws, so a
--- translated description is measured in its translated form.
---
--- The module owns no state of its own between windows: everything it needs
--- lives on the window (`_tooltipAnchor`, `_tooltipPinned`, `_tooltipOwner`),
--- which is what lets `tooltip.hide(window)` be safe to call from anywhere.
+-- Programmatic floating descriptions (Window:ShowTooltip / HideTooltip).
+-- Functional-element info badges and their gesture bindings were removed.
+-- State remains window-local and text is resolved before measurement.
 
 local tooltip = {}
 
@@ -4512,12 +4536,6 @@ local coreState = require(script.Parent.Parent.core.state)
 local motion = require(script.Parent.Parent.utilities.motion)
 local locale = require(script.Parent.Parent.utilities.locale)
 local functions = require(script.Parent.Parent.functions)
-
-local hoverTween = "fast"
-
--- [[Seconds a press must be held before the description opens. Below it the
--- [[gesture is a tap and `Activated` owns it.]] 
-local holdDelay = 0.3
 
 local minWidth = 80
 local maxWidth = 240
@@ -4528,18 +4546,6 @@ local lineHeight = 15
 local gap = 6
 local edge = 8
 local zIndex = 500
-
--- [[Input types that count as a press on the badge. Mouse movement and
--- [[keyboard input pass through untouched.]]
--- [[`Enum.UserInputType` has no `Pen` item - naming one is not a missing key,
--- [[it throws "Pen is not a valid member of Enum.UserInputType" while this
--- [[module loads, which takes every window built afterwards down with it. A
--- [[stylus press is reported as `Touch` and Studio reports a screen tap as
--- [[`MouseButton1`, so these two already cover every pointer the badge sees.]]
-local pressTypes: { [any]: boolean } = {
-    [Enum.UserInputType.MouseButton1] = true,
-    [Enum.UserInputType.Touch] = true,
-}
 
 -- [[RichText hosts: measure the words, not the markup.]] 
 local function plain(text: string): string
@@ -4814,115 +4820,6 @@ function tooltip.toggle(window, anchor: any, text: unknown, owner: any?)
     end
     tooltip.show(window, anchor, text, true, owner)
     return true
-end
-
--- [[Wire one circle-alert badge to the panel.
---
--- `infoText` is the fallback for hosts that call `attach` before the element
--- carries the text; the live text is read from `element.info` on every open,
--- so `:SetInfo(text)` retargets an existing badge without re-wiring it.
---
--- Every connection goes through `window:ConnectFor(element, ...)`, so an
--- element that is destroyed takes its badge's input handling with it.]] 
-function tooltip.attach(element, anchorButton, infoText: string?)
-    local window = element.window
-
-    local function text(): unknown
-        local value = element.info
-        if value == nil or value == "" then
-            value = infoText
-        end
-        return value
-    end
-
-    local function close()
-        if window._tooltipAnchor == anchorButton then
-            tooltip.hide(window)
-        end
-    end
-
-    local function open(pinned: boolean)
-        tooltip.show(window, anchorButton, text(), pinned, element)
-    end
-
-    window:ConnectFor(element, anchorButton.MouseEnter, function()
-        motion.tween(anchorButton, { ImageTransparency = 0 }, hoverTween)
-        -- [[A pinned description belongs to a tap or a hold; hovering must not
-        -- [[take it over, and must not close it either.]] 
-        if window._tooltipAnchor ~= anchorButton then
-            open(false)
-        end
-    end)
-
-    window:ConnectFor(element, anchorButton.MouseLeave, function()
-        motion.tween(anchorButton, { ImageTransparency = 0.45 }, hoverTween)
-        if not window._tooltipPinned then
-            close()
-        end
-    end)
-
-    -- [[Press-and-hold. The timer opens the description while the input is
-    -- [[still down; `_infoPress` is the generation counter that cancels a
-    -- [[pending hold as soon as the press ends (or the next one starts).]] 
-    window:ConnectFor(element, anchorButton.InputBegan, function(input)
-        if not pressTypes[input.UserInputType] then
-            return
-        end
-        element._infoPress = (element._infoPress or 0) + 1
-        local token = element._infoPress
-        local closed = window._tooltipCloseToken or 0
-        element._infoHeld = false
-        task.delay(holdDelay, function()
-            -- [[The press must still be down, the window must still be up, and
-            -- [[nothing may have closed a description in the meantime.]] 
-            if element._infoPress ~= token or window.unloaded then
-                return
-            end
-            if window.hidden or window.minimised or window.animating then
-                return
-            end
-            if (window._tooltipCloseToken or 0) ~= closed then
-                return
-            end
-            element._infoHeld = true
-            motion.tween(anchorButton, { ImageTransparency = 0 }, hoverTween)
-            open(true)
-        end)
-    end)
-
-    window:ConnectFor(element, anchorButton.InputEnded, function(input)
-        if not pressTypes[input.UserInputType] then
-            return
-        end
-        -- [[The press is over: cancel any hold that has not fired yet.]] 
-        element._infoPress = (element._infoPress or 0) + 1
-    end)
-
-    -- [[Tap. `Activated` fires once per press-and-release on every input
-    -- [[type, so touch, mouse and gamepad all toggle the same way. A hold
-    -- [[already opened the description and owns this release.]] 
-    window:ConnectFor(element, anchorButton.Activated, function()
-        element._infoPress = (element._infoPress or 0) + 1
-        if element._infoHeld then
-            element._infoHeld = false
-            return
-        end
-        tooltip.toggle(window, anchorButton, text(), element)
-    end)
-
-    -- [[The panel is placed in screen space, so a badge that moved (the page
-    -- [[scrolled, the window was dragged, the tab animated) closes it instead
-    -- [[of leaving it floating over the wrong row.]] 
-    window:ConnectFor(element, anchorButton:GetPropertyChangedSignal("AbsolutePosition"), function()
-        close()
-    end)
-
-    -- [[A badge that stopped being drawn cannot keep a description open.]] 
-    window:ConnectFor(element, anchorButton:GetPropertyChangedSignal("Visible"), function()
-        if anchorButton.Visible ~= true then
-            close()
-        end
-    end)
 end
 
 return tooltip
@@ -5443,9 +5340,6 @@ function Window:_revealCommon(element, animate)
     if element.tapIcon then
         self:_reveal(element.tapIcon, { ImageTransparency = 0.5 }, animate)
     end
-    if element.infoButton then
-        self:_reveal(element.infoButton, { ImageTransparency = 0.45 }, animate)
-    end
     if element.descriptionLabel then
         self:_reveal(element.descriptionLabel, { TextTransparency = 0.45 }, animate)
     end
@@ -5460,9 +5354,6 @@ function Window:_hideCommon(element, animate)
     end
     if element.tapIcon then
         self:_reveal(element.tapIcon, { ImageTransparency = 1 }, animate)
-    end
-    if element.infoButton then
-        self:_reveal(element.infoButton, { ImageTransparency = 1 }, animate)
     end
     if element.descriptionLabel then
         self:_reveal(element.descriptionLabel, { TextTransparency = 1 }, animate)
@@ -6047,10 +5938,20 @@ function Window:_showNotification(props)
     -- card. See `components/overlayQueue.luau`. The props are snapshotted for
     -- the same reason: a host that reuses one table between queued calls must
     -- not have its last write end up on every card.]]
-    local snapshot = if typeof(props) == "table" then table.clone(props) else props
+    local snapshot = self:_copyOverlayProps(props)
+    local notification = require(script.Parent.Parent.notification)
+    if notification.refresh(self, snapshot) then
+        return
+    end
     overlayQueue.request(self, function(release)
-        require(script.Parent.Parent.notification).new(self, snapshot, release)
-    end)
+        -- Recheck on the build turn: another request may have opened the same
+        -- message while this one waited for the window entrance.
+        if notification.refresh(self, snapshot) then
+            release(true)
+        else
+            notification.new(self, snapshot, release)
+        end
+    end, notification.key(snapshot))
 end
 
 function Window:Popup(props)
@@ -6061,7 +5962,7 @@ function Window:Popup(props)
 end
 
 -- [[Open the floating description over `anchor`. A programmatic open is
--- [[pinned: it stays until `HideTooltip`, a tap on its anchor badge, or any of
+-- [[pinned: it stays until `HideTooltip` or any of
 -- [[the window transitions that clear descriptions.]] 
 
 function Window:ShowTooltip(anchor: any, text: string)
@@ -8343,7 +8244,6 @@ end)() end,
 local baseCard = {}
 
 local description = require(script.Parent.description)
-local infoHelper = require(script.Parent.infoHelper)
 
 export type BaseCardOpts = {
     height: number?,
@@ -8384,9 +8284,7 @@ function baseCard.buildFull(element: any, opts: BaseCardOpts?): any
         BackgroundTransparency = 1,
     })
 
-    -- [[`SortOrder = LayoutOrder` is explicit: the icon, the name and the
-    -- [[circle-alert badge carry orders 0/1/2, and the layout's default sort
-    -- [[(Name, as Roblox ships it) would put "InfoIcon" before "TextLabel".]]
+    -- Keep the icon before the name regardless of instance names.
     element.containerLayout = window:Create("UIListLayout", {
         Padding = UDim.new(0, 5),
         FillDirection = Enum.FillDirection.Horizontal,
@@ -8422,18 +8320,12 @@ function baseCard.buildFull(element: any, opts: BaseCardOpts?): any
         Parent = element.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-    -- [[The badge, when there is one, joins the row right after the name and
-    -- [[turns the title width-automatic (remembering the recipe above, which
-    -- [[is what `:SetInfo(\"\")` restores).]] 
-    infoHelper.attach(element, element.container)
-
     return element.main
 end
 
--- [[Runtime writer for `:SetInfo(text)`: a text adds the badge right after
--- [[the name, an empty one removes it and gives the title its width back.]] 
+-- Legacy API retained as a no-op for existing hosts.
 function baseCard.setInfo(element: any, infoText: string?)
-    infoHelper.set(element, infoText, element.container)
+    -- Deprecated compatibility no-op: functional info badges were removed.
 end
 
 return baseCard
@@ -8454,7 +8346,6 @@ local icon = require(constants.locale)
 local callback = require(constants.HapticEngine)
 local baseCard = require(script.Parent.baseCard)
 local description = require(script.Parent.description)
-local infoHelper = require(script.Parent.infoHelper)
 -- [[The click choreography rides the motion service's specs: the tap glyph
 -- dips on `fast` and springs back on `settle` (a small overshoot that reads
 -- as a physical press), the card nudges in on `snappy` and lands back on
@@ -8490,8 +8381,6 @@ function state.new(tab, frame)
         name = frame.name or frame.Name or "Button",
         icon = tab.window:ResolveIcon(frame.icon or frame.Icon),
         description = frame.description or frame.Description,
-        info = frame.info or frame.Info or frame.tooltip or frame.Tooltip,
-        infoIcon = frame.infoIcon or frame.InfoIcon,
         compact = tab.compact or false,
         callback = frame.callback or frame.Callback or function() end,
     }, state)
@@ -8669,11 +8558,6 @@ function state:_buildCompact()
         Parent = self.title,
     })
 
-    -- [[The badge joins the compact row right after the name (icon 0,
-    -- [[name 1, badge 2, tap glyph 3). `interact` owns the row, so its list
-    -- [[layout already states `SortOrder = LayoutOrder`.]] 
-    infoHelper.attach(self, self.interact)
-
     -- [[Trailing item of the row: the same tap glyph as the full card, at the
     -- [[row's right edge. `interact` owns the row, so the icon is inside the
     -- [[click surface and tapping it is tapping the button.]]
@@ -8756,7 +8640,7 @@ props(state)
 name(state)
 
 function state:SetInfo(infoText)
-    infoHelper.set(self, infoText, self.container or self.interact)
+    -- Deprecated compatibility no-op: functional info badges were removed.
 end
 
 return state
@@ -9917,7 +9801,6 @@ local options = require(constants.HapticEngine)
 local value = require(constants.windowSizing)
 local multiSelect = require(constants.lockable)
 local description = require(script.Parent.description)
-local infoHelper = require(script.Parent.infoHelper)
 
 local placeholder = name.icons.chevron
 local callback = name.icons.check
@@ -10026,8 +9909,6 @@ function state.new(tab, a49)
         name = a49.name or a49.Name or "Dropdown",
         icon = tab.window:ResolveIcon(a49.icon or a49.Icon),
         description = a49.description or a49.Description,
-        info = a49.info or a49.Info or a49.tooltip or a49.Tooltip,
-        infoIcon = a49.infoIcon or a49.InfoIcon,
         forgetState = a49.forgetState or a49.ForgetState or tab.forgetState,
         flag = a49.flag
             or a49.Flag
@@ -10098,8 +9979,7 @@ function state.new(tab, a49)
         ZIndex = 5,
     })
 
-    -- [[Icon (0), name (1), circle-alert badge (2): explicit order, so the
-    -- [[layout's default Name sort cannot put the badge in front of the name.]] 
+    -- Keep the icon before the name regardless of instance names.
     self.containerLayout = self.window:Create("UIListLayout", {
         Padding = UDim.new(0, 5),
         FillDirection = Enum.FillDirection.Horizontal,
@@ -10139,8 +10019,6 @@ function state.new(tab, a49)
         ZIndex = 5,
         Parent = self.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
-
-    infoHelper.attach(self, self.container)
 
     self.selectedLabel = self.window:Create("TextLabel", {
         AnchorPoint = Vector2.new(1, 0.5),
@@ -11390,9 +11268,6 @@ function state:_setShown(a160, a161)
     end
     w:_reveal(self.selectedLabel, { TextTransparency = if a160 then 0.5 else 1 }, a161)
     w:_reveal(self.chevron, { ImageTransparency = if a160 then 0.5 else 1 }, a161)
-    if self.infoButton then
-        w:_reveal(self.infoButton, { ImageTransparency = if a160 then 0.45 else 1 }, a161)
-    end
 
         if not a160 and self._isOpen then
         self:_close()
@@ -11426,7 +11301,7 @@ function state:MoveDown()
 end
 
 function state:SetInfo(infoText)
-    infoHelper.set(self, infoText, self.container)
+    -- Deprecated compatibility no-op: functional info badges were removed.
 end
 
 multiSelect(state)
@@ -11654,204 +11529,6 @@ return state
 
 end)() end,
     [41] = function()local wax,script,require=ImportGlobals(41)local ImportGlobals return (function(...)
--- [[The circle-alert badge beside a functional element's name.
---
--- A functional element gets the badge from its optional `info` text: a string
--- with at least one visible character shows the `(!)` badge, while `nil` or
--- an empty/whitespace-only value draws nothing at all (the element looks
--- exactly like one that never had an `info` prop).
---
--- Placement is the point of this module: the badge is a **sibling of the
--- title, immediately after it**. The row's list layout is switched to
--- `Enum.SortOrder.LayoutOrder` and the badge is given the title's order plus
--- one, so the icon -> name -> badge order is explicit. Leaving the layout on
--- its default (Roblox currently defaults `SortOrder` to `Name`) put
--- "InfoIcon" before "TextLabel" and the badge landed in front of the name.
---
--- The title becomes width-automatic while a badge is present, so a long name
--- shrinks (and truncates) instead of pushing the badge out of the row. The
--- width recipe the title had before is remembered and restored when the badge
--- goes away - see `:SetInfo(nil)` / `:SetInfo(\"\")`.
---
--- `Window:_revealCommon` / `_hideCommon` own the badge's transparency like
--- they do for every other element part; `attach` only decides whether a badge
--- exists at all.
-
-local infoHelper = {}
-
-local tooltip = require(script.Parent.Parent.components.tooltip)
-local locale = require(script.Parent.Parent.utilities.locale)
-
-local badgeSize = 14
-local restingTransparency = 0.45
-
--- [[The element's own property, with the aliases the library has always
--- [[accepted. An empty or whitespace-only string is "no description".]] 
-function infoHelper.text(element): string?
-    local value = element.info
-    if value == nil then
-        return nil
-    end
-    if locale.isToken(value) then
-        value = locale.sourceOf(value)
-    end
-    if type(value) ~= "string" then
-        value = tostring(value)
-    end
-    if value:match("^%s*$") then
-        return nil
-    end
-    return value
-end
-
--- [[True when the element should draw a badge.]] 
-function infoHelper.has(element): boolean
-    return infoHelper.text(element) ~= nil
-end
-
--- [[Whether the element is on screen right now. The elements do not carry a
--- [[shown flag, but every reveal path drives the title's transparency, so the
--- [[badge added at runtime joins the same state the rest of the row is in.]] 
-local function isRevealed(element): boolean
-    local title = element.title
-    return title ~= nil and title.TextTransparency == 0
-end
-
--- [[Explicit sibling order for the row the badge joins.]] 
-local function ordered(parent)
-    if not parent or not parent.GetChildren then
-        return
-    end
-    for _, child in ipairs(parent:GetChildren()) do
-        if child:IsA("UIListLayout") and child.SortOrder ~= Enum.SortOrder.LayoutOrder then
-            child.SortOrder = Enum.SortOrder.LayoutOrder
-        end
-    end
-end
-
--- [[Give the title its width-automatic recipe, remembering the one it had.]] 
-local function elasticTitle(element)
-    local title = element.title
-    if not title then
-        return
-    end
-
-    local hasFlex = false
-    for _, child in ipairs(title:GetChildren()) do
-        if child:IsA("UIFlexItem") then
-            hasFlex = true
-            break
-        end
-    end
-
-    if title.AutomaticSize == Enum.AutomaticSize.None then
-        element._infoTitleRestore = { size = title.Size, automatic = title.AutomaticSize }
-        title.AutomaticSize = Enum.AutomaticSize.X
-        title.Size = UDim2.fromOffset(0, 16)
-    end
-
-    if not hasFlex then
-        element._infoTitleFlex = element.window:Create("UIFlexItem", {
-            FlexMode = Enum.UIFlexMode.Shrink,
-            Parent = title,
-        })
-    end
-end
-
--- [[Put the title back the way it was before a badge joined the row.]] 
-local function restoreTitle(element)
-    local restore = element._infoTitleRestore
-    if restore and element.title then
-        element.title.AutomaticSize = restore.automatic
-        element.title.Size = restore.size
-        element._infoTitleRestore = nil
-    end
-    if element._infoTitleFlex then
-        element._infoTitleFlex:Destroy()
-        element._infoTitleFlex = nil
-    end
-end
-
--- [[Build the badge. `parent` is the row that holds the title (the element
--- [[container, the compact row's button, the slider's title row); the badge
--- [[lands one slot after the title inside it.]] 
-function infoHelper.attach(element, parent, layoutOrder: number?): any
-    if element.infoButton or not parent or not element.title then
-        return nil
-    end
-    if not infoHelper.has(element) then
-        return nil
-    end
-
-    local window = element.window
-
-    ordered(parent)
-    elasticTitle(element)
-
-    local icon = window:ResolveIcon(element.infoIcon or "circle-alert")
-    if not icon or icon == "circle-alert" then
-        icon = window:ResolveIcon("alert-circle")
-    end
-
-    local infoButton = window:Create("ImageButton", {
-        Name = "InfoIcon",
-        Size = UDim2.fromOffset(badgeSize, badgeSize),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        Image = icon,
-        ImageTransparency = 1,
-        LayoutOrder = layoutOrder or ((element.title.LayoutOrder or 1) + 1),
-        ZIndex = 15,
-        Parent = parent,
-    }, { ImageColor3 = "ContentColor" })
-
-    window:Create("UIFlexItem", {
-        FlexMode = Enum.UIFlexMode.None,
-        Parent = infoButton,
-    })
-
-    tooltip.attach(element, infoButton, infoHelper.text(element))
-
-    element.infoButton = infoButton
-    element._infoParent = parent
-    if isRevealed(element) then
-        infoButton.ImageTransparency = restingTransparency
-    end
-    return infoButton
-end
-
--- [[Take the badge away again, restoring the title's width recipe.]] 
-function infoHelper.detach(element)
-    if element.infoButton then
-        local button = element.infoButton
-        element.infoButton = nil
-        button:Destroy()
-    end
-    restoreTitle(element)
-    tooltip.hideFor(element.window, element)
-end
-
--- [[The runtime writer behind `:SetInfo(text)`:
--- [[  * a new non-empty text adds the badge (or keeps the existing one),
--- [[  * `nil` / `\"\"` removes it and gives the title its width back.
--- [[The element's `info` field is assigned here so every element's setter
--- [[walks the same path.]] 
-function infoHelper.set(element, text, parent, layoutOrder: number?): any
-    element.info = text
-    if not infoHelper.has(element) then
-        infoHelper.detach(element)
-        return nil
-    end
-    if element.infoButton then
-        return element.infoButton
-    end
-    return infoHelper.attach(element, parent or element._infoParent, layoutOrder)
-end
-
-return infoHelper
-
-end)() end,
-    [42] = function()local wax,script,require=ImportGlobals(42)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Input"
@@ -11864,7 +11541,6 @@ local props = require(constants.moveable)
 local name = require(constants.lockable)
 local placeholder = require(constants.locale)
 local description = require(script.Parent.description)
-local infoHelper = require(script.Parent.infoHelper)
 local numeric = require(constants.constants)
 local clearOnFocus = require(constants.HapticEngine)
 
@@ -11895,8 +11571,6 @@ function state.new(tab, placeholderLabel)
         name = placeholderLabel.name or placeholderLabel.Name or "Input",
         icon = tab.window:ResolveIcon(placeholderLabel.icon or placeholderLabel.Icon),
         description = placeholderLabel.description or placeholderLabel.Description,
-        info = placeholderLabel.info or placeholderLabel.Info or placeholderLabel.tooltip or placeholderLabel.Tooltip,
-        infoIcon = placeholderLabel.infoIcon or placeholderLabel.InfoIcon,
         forgetState = placeholderLabel.forgetState or placeholderLabel.ForgetState or tab.forgetState,
         placeholder = placeholderLabel.placeholder or placeholderLabel.Placeholder or "",
         numeric = placeholderLabel.numeric or placeholderLabel.Numeric or false,
@@ -11942,8 +11616,7 @@ function state.new(tab, placeholderLabel)
         Parent = self.main,
     })
 
-    -- [[Icon (0), name (1), circle-alert badge (2): explicit order, so the
-    -- [[layout's default Name sort cannot put the badge in front of the name.]] 
+    -- Keep the icon before the name regardless of instance names.
     self.window:Create("UIListLayout", {
         Padding = UDim.new(0, 5),
         FillDirection = Enum.FillDirection.Horizontal,
@@ -11981,8 +11654,6 @@ function state.new(tab, placeholderLabel)
         TextTransparency = 1,
         Parent = self.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
-
-    infoHelper.attach(self, self.container)
 
     self.box = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
@@ -12132,13 +11803,13 @@ props(state)
 name(state)
 
 function state:SetInfo(infoText)
-    infoHelper.set(self, infoText, self.container)
+    -- Deprecated compatibility no-op: functional info badges were removed.
 end
 
 return state
 
 end)() end,
-    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)
+    [42] = function()local wax,script,require=ImportGlobals(42)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Section"
@@ -12224,7 +11895,7 @@ constants(state)
 return state
 
 end)() end,
-    [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)
+    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Slider"
@@ -12239,7 +11910,6 @@ local flag = require(constants.lockable)
 local range = require(constants.locale)
 local value = require(constants.HapticEngine)
 local description = require(script.Parent.description)
-local infoHelper = require(script.Parent.infoHelper)
 
 local function increment(suffix)
     local minimal = 0
@@ -12285,8 +11955,6 @@ function state.new(ownerTab, a31)
         name = a31.name or a31.Name or "Slider",
         icon = ownerTab.window:ResolveIcon(a31.icon or a31.Icon),
         description = a31.description or a31.Description,
-        info = a31.info or a31.Info or a31.tooltip or a31.Tooltip,
-        infoIcon = a31.infoIcon or a31.InfoIcon,
         forgetState = a31.forgetState or a31.ForgetState or ownerTab.forgetState,
 
         range = a31.range or a31.Range or { 0, 100 },
@@ -12582,8 +12250,6 @@ function state:_buildLabel()
         Parent = self.title,
     })
 
-    infoHelper.attach(self, self.titleContainer)
-
     self.valueHost = self.window:Create("Frame", {
         Size = UDim2.new(1, 0, 0, 16),
         BackgroundTransparency = 1,
@@ -12815,13 +12481,13 @@ name(state)
 flag(state)
 
 function state:SetInfo(infoText)
-    infoHelper.set(self, infoText, self.titleContainer)
+    -- Deprecated compatibility no-op: functional info badges were removed.
 end
 
 return state
 
 end)() end,
-    [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
+    [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Statistic"
@@ -13670,7 +13336,7 @@ name(state)
 return state
 
 end)() end,
-    [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
+    [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Tab"
@@ -13961,7 +13627,7 @@ function state:SetLocked(locked)
     end
 
     if self.topbarItemLock then
-        self.topbarItemLock.Visible = locked
+        self.topbarItemLock.Visible = icon.lockUIEnabled and locked
     end
 
     -- [[The badge is part of the row's measured width: re-derive the rail so
@@ -14145,7 +13811,7 @@ end
 return state
 
 end)() end,
-    [47] = function()local wax,script,require=ImportGlobals(47)local ImportGlobals return (function(...)
+    [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "TabSection"
@@ -14275,7 +13941,7 @@ end
 return state
 
 end)() end,
-    [48] = function()local wax,script,require=ImportGlobals(48)local ImportGlobals return (function(...)
+    [47] = function()local wax,script,require=ImportGlobals(47)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Text"
@@ -14427,7 +14093,7 @@ constants(state)
 return state
 
 end)() end,
-    [49] = function()local wax,script,require=ImportGlobals(49)local ImportGlobals return (function(...)
+    [48] = function()local wax,script,require=ImportGlobals(48)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Toggle"
@@ -14442,7 +14108,6 @@ local flag = require(constants.locale)
 local value = require(constants.HapticEngine)
 local baseCard = require(script.Parent.baseCard)
 local description = require(script.Parent.description)
-local infoHelper = require(script.Parent.infoHelper)
 -- [[The switch rides the shared motion vocabulary. The knob is the one
 -- genuinely mechanical surface in the library, so it gets the short Back
 -- overshoot (`settle`) — it reads as a physical slide with a landing rather
@@ -14484,8 +14149,6 @@ function state.new(tab, element)
         name = element.name or element.Name or "Toggle",
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
         description = element.description or element.Description,
-        info = element.info or element.Info or element.tooltip or element.Tooltip,
-        infoIcon = element.infoIcon or element.InfoIcon,
         forgetState = element.forgetState or element.ForgetState or tab.forgetState,
         compact = tab.compact or false,
         flag = element.flag
@@ -14699,8 +14362,7 @@ function state:_buildCompact()
         Parent = self.container,
     })
 
-    -- [[Icon (0), name (1), circle-alert badge (2): stated explicitly so the
-    -- [[layout's default Name sort cannot put the badge ahead of the name.]] 
+    -- Keep the icon before the name regardless of instance names.
     window:Create("UIListLayout", {
         Padding = UDim.new(0, 5),
         FillDirection = Enum.FillDirection.Horizontal,
@@ -14746,8 +14408,6 @@ function state:_buildCompact()
 
     self:_buildSwitch(self.interact)
     self.functionContainer.LayoutOrder = 1
-
-    infoHelper.attach(self, self.container)
 
     self.window:_wireElementHover(self)
 
@@ -14909,7 +14569,7 @@ end
 return state
 
 end)() end,
-    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
+    [57] = function()local wax,script,require=ImportGlobals(57)local ImportGlobals return (function(...)
 
 local managerModule = require(script.manager)
 local registryModule = require(script.registry)
@@ -14934,7 +14594,7 @@ end
 return settings
 
 end)() end,
-    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
+    [50] = function()local wax,script,require=ImportGlobals(50)local ImportGlobals return (function(...)
 
 local appearance = {}
 
@@ -14954,7 +14614,7 @@ end
 return appearance
 
 end)() end,
-    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
+    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
 
 local behavior = {}
 
@@ -14971,7 +14631,7 @@ end
 return behavior
 
 end)() end,
-    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
+    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
 
 local defaults = {}
 
@@ -15000,7 +14660,7 @@ end
 return defaults
 
 end)() end,
-    [54] = function()local wax,script,require=ImportGlobals(54)local ImportGlobals return (function(...)
+    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
 
 local registry = require(script.Parent.registry)
 local defaults = require(script.Parent.defaults)
@@ -15122,7 +14782,7 @@ end
 return SettingsManager
 
 end)() end,
-    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
+    [54] = function()local wax,script,require=ImportGlobals(54)local ImportGlobals return (function(...)
 
 local motion = require(script.Parent.Parent.utilities.motion)
 
@@ -15146,7 +14806,7 @@ end
 return performance
 
 end)() end,
-    [56] = function()local wax,script,require=ImportGlobals(56)local ImportGlobals return (function(...)
+    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
 
 local settingsPersistence = require(script.Parent.Parent.utilities.persistenceSettings)
 local settingsCache = require(script.Parent.Parent.cache.persistenceCache)
@@ -15195,7 +14855,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [57] = function()local wax,script,require=ImportGlobals(57)local ImportGlobals return (function(...)
+    [56] = function()local wax,script,require=ImportGlobals(56)local ImportGlobals return (function(...)
 
 local registry = {}
 
@@ -15281,7 +14941,7 @@ end
 return registry
 
 end)() end,
-    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
+    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
 
 local imageCache = require(script.moduleCache)
 
@@ -15292,7 +14952,7 @@ local moduleCache = {
 return moduleCache
 
 end)() end,
-    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
+    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
 local filesystem = require(script.Parent.Parent.utilities.filesystem)
 local path = require(script.Parent.Parent.utilities.path)
 local variables = require(script.Parent.Parent.core.state)
@@ -15595,7 +15255,7 @@ end
 return imageCache
 
 end)() end,
-    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
+    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
 
 local moduleCache = {}
 
@@ -15626,7 +15286,7 @@ end
 return moduleCache
 
 end)() end,
-    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
+    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
 
 local persistenceCache = {}
 
@@ -15651,7 +15311,7 @@ end
 return persistenceCache
 
 end)() end,
-    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
+    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
 
 local textMetrics = require(script.textMetrics)
 local colors = require(script.colors)
@@ -15669,7 +15329,7 @@ functions.contrastText = colors.contrastText
 return functions
 
 end)() end,
-    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
+    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
 local colors = {}
 
 function colors.contrastColor(color: Color3): Color3
@@ -15689,7 +15349,7 @@ end
 return colors
 
 end)() end,
-    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
+    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
 local flagNames = {}
 
 local offsetBasis = 2166136261
@@ -15721,7 +15381,7 @@ end
 return flagNames
 
 end)() end,
-    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
+    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
 local state = require(script.Parent.Parent.core.state)
 local textService = state.textService
 
@@ -15828,7 +15488,7 @@ end
 return textMetrics
 
 end)() end,
-    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
+    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local Sidebar = {}
@@ -15894,7 +15554,7 @@ end
 return Sidebar
 
 end)() end,
-    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
+    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local SidebarCollapsed = {}
@@ -15959,7 +15619,7 @@ end
 return SidebarCollapsed
 
 end)() end,
-    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
+    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
 
 local image = require(script.image)
 
@@ -15974,7 +15634,7 @@ local windowIcons = {
 return windowIcons
 
 end)() end,
-    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
+    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
 local imageCache = require(script.Parent.Parent.cache.imageCache)
 local variables = require(script.Parent.Parent.core.state)
 
@@ -16139,7 +15799,7 @@ end
 return image
 
 end)() end,
-    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
+    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
 
 local windowIcons = {}
 
@@ -16215,7 +15875,7 @@ end
 return windowIcons
 
 end)() end,
-    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
+    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
 -- [[Icon resolver service.]]
 -- [[]]
 -- [[Public API is compatible with the previous single-module catalog:]]
@@ -16713,7 +16373,7 @@ end
 return icons
 
 end)() end,
-    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
+    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
 -- [[feather icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -16757,7 +16417,7 @@ x-square x youtube zap-off zap zoom-in zoom-out
 )
 
 end)() end,
-    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
+    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
 -- [[heroicons icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -16837,7 +16497,7 @@ wrench-screwdriver wrench-screwdriver_solid wrench wrench_solid x-circle x-circl
 )
 
 end)() end,
-    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
+    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
 -- [[lucide icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -17030,7 +16690,7 @@ zodiac-sagittarius zodiac-scorpio zodiac-taurus zodiac-virgo zoom-in zoom-out
 )
 
 end)() end,
-    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
+    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
 -- [[material icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -17159,7 +16819,7 @@ zoom_in zoom_out zoom_out_map
 )
 
 end)() end,
-    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
+    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
 -- [[Lazy icon-pack builder.
 -- [[]]
 -- [[A pack is a compact newline-separated list of kebab names plus the shared
@@ -17253,7 +16913,7 @@ end
 return PackBuilder
 
 end)() end,
-    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
+    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
 -- [[phosphor icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -17420,7 +17080,7 @@ yin-yang youtube-logo
 )
 
 end)() end,
-    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
+    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
 -- [[remix icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -17758,7 +17418,7 @@ zhihu-line zhipu-ai-fill zhipu-ai-line zoom-in-fill zoom-in-line zoom-out-fill z
 )
 
 end)() end,
-    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
+    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
 -- [[tabler icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -18286,7 +17946,7 @@ zoom-out-area zoom-out zoom-pan zoom-question zoom-replace zoom-reset zoom-scan 
 )
 
 end)() end,
-    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
+    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
 -- [[Theme resolution engine (themes/init.luau).]]
 -- [[]]
 -- [[Extracted verbatim from components/window.luau so the window no longer owns]]
@@ -18392,7 +18052,7 @@ end
 return themes
 
 end)() end,
-    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
+    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(16, 13, 24),
@@ -18458,7 +18118,7 @@ return {
 }
 
 end)() end,
-    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
+    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(11, 16, 25),
@@ -18524,7 +18184,7 @@ return {
 }
 
 end)() end,
-    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
+    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
 local crimson = require(script.Parent.Parent.core.state)
 
 return {
@@ -18599,7 +18259,7 @@ return {
 }
 
 end)() end,
-    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
+    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
 local default = require(script.Parent.Parent.core.state)
 
 -- [[Astra's default palette. The shared keys below are the historical set
@@ -18711,7 +18371,7 @@ return {
 }
 
 end)() end,
-    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
+    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(22, 18, 16),
@@ -18777,7 +18437,7 @@ return {
 }
 
 end)() end,
-    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
+    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
 local emerald = require(script.Parent.Parent.core.state)
 
 return {
@@ -18852,7 +18512,7 @@ return {
 }
 
 end)() end,
-    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
+    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
 local frost = require(script.Parent.Parent.core.state)
 
 return {
@@ -18927,7 +18587,7 @@ return {
 }
 
 end)() end,
-    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
+    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
 local gold = require(script.Parent.Parent.core.state)
 
 return {
@@ -19002,7 +18662,7 @@ return {
 }
 
 end)() end,
-    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
+    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
 local onyx = require(script.Parent.Parent.core.state)
 
 return {
@@ -19077,7 +18737,7 @@ return {
 }
 
 end)() end,
-    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
+    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(23, 15, 19),
@@ -19143,7 +18803,7 @@ return {
 }
 
 end)() end,
-    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
+    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 
 local hapticService = {}
@@ -19241,7 +18901,7 @@ end
 return hapticService
 
 end)() end,
-    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
+    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
 local networkUtil = require(script.Parent.network)
 local logger = require(script.Parent.log)
 
@@ -19419,7 +19079,7 @@ end
 return assetResolver
 
 end)() end,
-    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
+    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
 local iconRegistry = require(script.Parent.Parent.images.windowIcons)
 local constants = {}
 
@@ -19467,7 +19127,7 @@ constants.displayOrder = {
 return constants
 
 end)() end,
-    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
+    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
 local enums = {}
 
 function enums.itemFromValue(enumType, value)
@@ -19497,7 +19157,7 @@ end
 return enums
 
 end)() end,
-    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
+    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
 local serviceProvider = require(script.Parent.services)
 local filesystem = {}
 
@@ -19748,7 +19408,7 @@ end
 return filesystem
 
 end)() end,
-    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
+    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 local pathUtil = require(script.Parent.path)
 
@@ -19797,7 +19457,7 @@ end
 return filesystemManager
 
 end)() end,
-    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
+    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
 local fontManager = require(script.Parent.services)
 local a2 = fontManager.getService("HttpService")
 local a3 = fontManager.getService("RunService")
@@ -20250,7 +19910,7 @@ end
 return a16
 
 end)() end,
-    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
+    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
 
 local functions = {}
 
@@ -20268,7 +19928,7 @@ functions.contrastText = textMetrics.contrastText
 return functions
 
 end)() end,
-    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
+    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
 local layouts = {}
 
 local sidebarLayout = require(script.Parent.Parent.layouts.Sidebar)
@@ -20389,7 +20049,7 @@ end
 return layouts
 
 end)() end,
-    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
+    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local logger = require(script.Parent.log)
 
@@ -20488,7 +20148,7 @@ end
 return locale
 
 end)() end,
-    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
+    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
 local function lockable<T>(element: T): T
     local target = element :: any
 
@@ -20510,7 +20170,7 @@ end
 return lockable
 
 end)() end,
-    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
+    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
 local log = {}
 
 type SuppressPredicate = () -> boolean
@@ -20564,7 +20224,7 @@ end
 return log
 
 end)() end,
-    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
+    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
 -- [[Astra motion service.
 --
 -- Every animation in the library used to build its own TweenInfo and call
@@ -20914,7 +20574,7 @@ end
 return motion
 
 end)() end,
-    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
+    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
 local function moveable<T>(dragState: T): T
     local target = dragState :: any
 
@@ -20950,7 +20610,7 @@ end
 return moveable
 
 end)() end,
-    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
+    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
 local network = {}
 network.__index = network
 
@@ -20968,7 +20628,7 @@ end
 return network
 
 end)() end,
-    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
+    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local motion = require(script.Parent.motion)
 local textService = coreState.textService
@@ -21322,7 +20982,7 @@ end
 return odometer
 
 end)() end,
-    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
+    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
 type OrderedElement = {
     main: GuiObject,
 }
@@ -21334,7 +20994,7 @@ end
 return ordering
 
 end)() end,
-    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
+    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
 local path = {}
 
 function path.join(base: string, suffix: string?): string
@@ -21385,7 +21045,7 @@ end
 return path
 
 end)() end,
-    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
+    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
 local persistence = {}
 
 local configPersistence = require(script.Parent.persistenceConfig)
@@ -21404,7 +21064,7 @@ persistence.loadSettings = settingsPersistence.loadSettings
 return persistence
 
 end)() end,
-    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
+    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local logger = require(script.Parent.log)
@@ -21655,7 +21315,7 @@ end
 return persistenceConfig
 
 end)() end,
-    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
+    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local pathUtil = require(script.Parent.path)
 
@@ -21699,7 +21359,7 @@ end
 return persistencePaths
 
 end)() end,
-    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
+    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local paths = require(script.Parent.persistencePaths)
@@ -21902,7 +21562,7 @@ end
 return persistenceSettings
 
 end)() end,
-    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
+    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 
 local persistenceWrite = {}
@@ -21930,7 +21590,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
+    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
 local services = {}
 
 function services.getService(serviceName)
@@ -21941,7 +21601,7 @@ end
 return services
 
 end)() end,
-    [117] = function()local wax,script,require=ImportGlobals(117)local ImportGlobals return (function(...)
+    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
 local layoutMetrics = require(script.Parent.layouts)
 local coreState = require(script.Parent.Parent.core.state)
 
@@ -22113,116 +21773,115 @@ end)() end,
 local LineOffsets = {
     [2] = 12,
     [3] = 248,
-    [5] = 647,
-    [6] = 632,
-    [7] = 764,
-    [8] = 897,
-    [9] = 1136,
-    [10] = 1482,
-    [11] = 1834,
-    [12] = 2122,
-    [13] = 2843,
-    [14] = 3172,
-    [15] = 3993,
-    [16] = 4054,
-    [17] = 4482,
-    [18] = 4956,
-    [19] = 4968,
-    [20] = 5025,
-    [21] = 5142,
-    [22] = 5479,
-    [23] = 5690,
-    [24] = 5994,
-    [25] = 6077,
-    [26] = 6126,
-    [27] = 6701,
-    [28] = 6888,
-    [29] = 7135,
-    [30] = 7526,
-    [31] = 4932,
-    [33] = 8339,
-    [34] = 8443,
-    [35] = 8766,
-    [36] = 9187,
-    [37] = 9589,
-    [38] = 9759,
-    [39] = 9904,
-    [40] = 11438,
-    [41] = 11657,
-    [42] = 11855,
-    [43] = 12142,
-    [44] = 12228,
-    [45] = 12825,
-    [46] = 13674,
-    [47] = 14149,
-    [48] = 14279,
-    [49] = 14431,
-    [51] = 14938,
-    [52] = 14958,
-    [53] = 14975,
-    [54] = 15004,
-    [55] = 15126,
-    [56] = 15150,
-    [57] = 15199,
-    [58] = 14913,
-    [59] = 15296,
-    [60] = 15599,
-    [61] = 15630,
-    [62] = 15285,
-    [63] = 15673,
-    [64] = 15693,
-    [65] = 15725,
-    [66] = 15655,
-    [67] = 15832,
-    [68] = 15898,
-    [70] = 15978,
-    [71] = 16143,
-    [72] = 15963,
-    [73] = 16717,
-    [74] = 16761,
-    [75] = 16841,
-    [76] = 17034,
-    [77] = 17163,
-    [78] = 17257,
-    [79] = 17424,
-    [80] = 17762,
-    [81] = 16219,
-    [82] = 18396,
-    [83] = 18462,
-    [84] = 18528,
-    [85] = 18603,
-    [86] = 18715,
-    [87] = 18781,
-    [88] = 18856,
-    [89] = 18931,
-    [90] = 19006,
-    [91] = 19081,
-    [92] = 18290,
-    [93] = 19147,
-    [94] = 19245,
-    [95] = 19423,
-    [96] = 19471,
-    [97] = 19501,
-    [98] = 19752,
-    [99] = 19801,
-    [100] = 20254,
-    [101] = 20272,
-    [102] = 20393,
-    [103] = 20492,
-    [104] = 20514,
-    [105] = 20568,
-    [106] = 20918,
-    [107] = 20954,
-    [108] = 20972,
-    [109] = 21326,
-    [110] = 21338,
-    [111] = 21389,
-    [112] = 21408,
-    [113] = 21659,
-    [114] = 21703,
-    [115] = 21906,
-    [116] = 21934,
-    [117] = 21945,
+    [5] = 649,
+    [6] = 634,
+    [7] = 766,
+    [8] = 899,
+    [9] = 1138,
+    [10] = 1484,
+    [11] = 1862,
+    [12] = 2164,
+    [13] = 2885,
+    [14] = 3214,
+    [15] = 4035,
+    [16] = 4096,
+    [17] = 4528,
+    [18] = 4853,
+    [19] = 4865,
+    [20] = 4922,
+    [21] = 5039,
+    [22] = 5370,
+    [23] = 5581,
+    [24] = 5885,
+    [25] = 5978,
+    [26] = 6027,
+    [27] = 6602,
+    [28] = 6789,
+    [29] = 7036,
+    [30] = 7427,
+    [31] = 4829,
+    [33] = 8240,
+    [34] = 8335,
+    [35] = 8650,
+    [36] = 9071,
+    [37] = 9473,
+    [38] = 9643,
+    [39] = 9788,
+    [40] = 11313,
+    [41] = 11532,
+    [42] = 11813,
+    [43] = 11899,
+    [44] = 12491,
+    [45] = 13340,
+    [46] = 13815,
+    [47] = 13945,
+    [48] = 14097,
+    [50] = 14598,
+    [51] = 14618,
+    [52] = 14635,
+    [53] = 14664,
+    [54] = 14786,
+    [55] = 14810,
+    [56] = 14859,
+    [57] = 14573,
+    [58] = 14956,
+    [59] = 15259,
+    [60] = 15290,
+    [61] = 14945,
+    [62] = 15333,
+    [63] = 15353,
+    [64] = 15385,
+    [65] = 15315,
+    [66] = 15492,
+    [67] = 15558,
+    [69] = 15638,
+    [70] = 15803,
+    [71] = 15623,
+    [72] = 16377,
+    [73] = 16421,
+    [74] = 16501,
+    [75] = 16694,
+    [76] = 16823,
+    [77] = 16917,
+    [78] = 17084,
+    [79] = 17422,
+    [80] = 15879,
+    [81] = 18056,
+    [82] = 18122,
+    [83] = 18188,
+    [84] = 18263,
+    [85] = 18375,
+    [86] = 18441,
+    [87] = 18516,
+    [88] = 18591,
+    [89] = 18666,
+    [90] = 18741,
+    [91] = 17950,
+    [92] = 18807,
+    [93] = 18905,
+    [94] = 19083,
+    [95] = 19131,
+    [96] = 19161,
+    [97] = 19412,
+    [98] = 19461,
+    [99] = 19914,
+    [100] = 19932,
+    [101] = 20053,
+    [102] = 20152,
+    [103] = 20174,
+    [104] = 20228,
+    [105] = 20578,
+    [106] = 20614,
+    [107] = 20632,
+    [108] = 20986,
+    [109] = 20998,
+    [110] = 21049,
+    [111] = 21068,
+    [112] = 21319,
+    [113] = 21363,
+    [114] = 21566,
+    [115] = 21594,
+    [116] = 21605,
 }
 
 -- [[Misc AOT variable imports]]
@@ -22462,7 +22121,7 @@ local ObjectTree = {
                 },
             },
             {
-                50,
+                49,
                 1,
                 {
                     "elements",
@@ -22528,60 +22187,53 @@ local ObjectTree = {
                         41,
                         2,
                         {
-                            "infoHelper",
+                            "input",
                         },
                     },
                     {
                         42,
                         2,
                         {
-                            "input",
+                            "section",
                         },
                     },
                     {
                         43,
                         2,
                         {
-                            "section",
+                            "slider",
                         },
                     },
                     {
                         44,
                         2,
                         {
-                            "slider",
+                            "stat",
                         },
                     },
                     {
                         45,
                         2,
                         {
-                            "stat",
+                            "tab",
                         },
                     },
                     {
                         46,
                         2,
                         {
-                            "tab",
+                            "tabSection",
                         },
                     },
                     {
                         47,
                         2,
                         {
-                            "tabSection",
-                        },
-                    },
-                    {
-                        48,
-                        2,
-                        {
                             "text",
                         },
                     },
                     {
-                        49,
+                        48,
                         2,
                         {
                             "toggle",
@@ -22590,56 +22242,56 @@ local ObjectTree = {
                 },
             },
             {
-                58,
+                57,
                 2,
                 {
                     "settings",
                 },
                 {
                     {
-                        51,
+                        50,
                         2,
                         {
                             "appearance",
                         },
                     },
                     {
-                        52,
+                        51,
                         2,
                         {
                             "behavior",
                         },
                     },
                     {
-                        53,
+                        52,
                         2,
                         {
                             "defaults",
                         },
                     },
                     {
-                        54,
+                        53,
                         2,
                         {
                             "manager",
                         },
                     },
                     {
-                        55,
+                        54,
                         2,
                         {
                             "performance",
                         },
                     },
                     {
-                        56,
+                        55,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        57,
+                        56,
                         2,
                         {
                             "registry",
@@ -22648,28 +22300,28 @@ local ObjectTree = {
                 },
             },
             {
-                62,
+                61,
                 2,
                 {
                     "cache",
                 },
                 {
                     {
-                        59,
+                        58,
                         2,
                         {
                             "imageCache",
                         },
                     },
                     {
-                        60,
+                        59,
                         2,
                         {
                             "moduleCache",
                         },
                     },
                     {
-                        61,
+                        60,
                         2,
                         {
                             "persistenceCache",
@@ -22678,28 +22330,28 @@ local ObjectTree = {
                 },
             },
             {
-                66,
+                65,
                 2,
                 {
                     "functions",
                 },
                 {
                     {
-                        63,
+                        62,
                         2,
                         {
                             "colors",
                         },
                     },
                     {
-                        64,
+                        63,
                         2,
                         {
                             "flagNames",
                         },
                     },
                     {
-                        65,
+                        64,
                         2,
                         {
                             "textMetrics",
@@ -22708,21 +22360,21 @@ local ObjectTree = {
                 },
             },
             {
-                69,
+                68,
                 1,
                 {
                     "layouts",
                 },
                 {
                     {
-                        67,
+                        66,
                         2,
                         {
                             "Sidebar",
                         },
                     },
                     {
-                        68,
+                        67,
                         2,
                         {
                             "SidebarCollapsed",
@@ -22731,21 +22383,21 @@ local ObjectTree = {
                 },
             },
             {
-                72,
+                71,
                 2,
                 {
                     "images",
                 },
                 {
                     {
-                        70,
+                        69,
                         2,
                         {
                             "image",
                         },
                     },
                     {
-                        71,
+                        70,
                         2,
                         {
                             "windowIcons",
@@ -22754,63 +22406,63 @@ local ObjectTree = {
                 },
             },
             {
-                81,
+                80,
                 2,
                 {
                     "icons",
                 },
                 {
                     {
-                        73,
+                        72,
                         2,
                         {
                             "feather",
                         },
                     },
                     {
-                        74,
+                        73,
                         2,
                         {
                             "heroicons",
                         },
                     },
                     {
-                        75,
+                        74,
                         2,
                         {
                             "lucide",
                         },
                     },
                     {
-                        76,
+                        75,
                         2,
                         {
                             "material",
                         },
                     },
                     {
-                        77,
+                        76,
                         2,
                         {
                             "packBuilder",
                         },
                     },
                     {
-                        78,
+                        77,
                         2,
                         {
                             "phosphor",
                         },
                     },
                     {
-                        79,
+                        78,
                         2,
                         {
                             "remix",
                         },
                     },
                     {
-                        80,
+                        79,
                         2,
                         {
                             "tabler",
@@ -22819,77 +22471,77 @@ local ObjectTree = {
                 },
             },
             {
-                92,
+                91,
                 2,
                 {
                     "themes",
                 },
                 {
                     {
-                        82,
+                        81,
                         2,
                         {
                             "amethyst",
                         },
                     },
                     {
-                        83,
+                        82,
                         2,
                         {
                             "cobalt",
                         },
                     },
                     {
-                        84,
+                        83,
                         2,
                         {
                             "crimson",
                         },
                     },
                     {
-                        85,
+                        84,
                         2,
                         {
                             "default",
                         },
                     },
                     {
-                        86,
+                        85,
                         2,
                         {
                             "ember",
                         },
                     },
                     {
-                        87,
+                        86,
                         2,
                         {
                             "emerald",
                         },
                     },
                     {
-                        88,
+                        87,
                         2,
                         {
                             "frost",
                         },
                     },
                     {
-                        89,
+                        88,
                         2,
                         {
                             "gold",
                         },
                     },
                     {
-                        90,
+                        89,
                         2,
                         {
                             "onyx",
                         },
                     },
                     {
-                        91,
+                        90,
                         2,
                         {
                             "rose",
@@ -22898,182 +22550,182 @@ local ObjectTree = {
                 },
             },
             {
-                118,
+                117,
                 1,
                 {
                     "utilities",
                 },
                 {
                     {
-                        93,
+                        92,
                         2,
                         {
                             "HapticEngine",
                         },
                     },
                     {
-                        94,
+                        93,
                         2,
                         {
                             "assetResolver",
                         },
                     },
                     {
-                        95,
+                        94,
                         2,
                         {
                             "constants",
                         },
                     },
                     {
-                        96,
+                        95,
                         2,
                         {
                             "enums",
                         },
                     },
                     {
-                        97,
+                        96,
                         2,
                         {
                             "filesystem",
                         },
                     },
                     {
-                        98,
+                        97,
                         2,
                         {
                             "filesystemManager",
                         },
                     },
                     {
-                        99,
+                        98,
                         2,
                         {
                             "fontManager",
                         },
                     },
                     {
-                        100,
+                        99,
                         2,
                         {
                             "functions",
                         },
                     },
                     {
-                        101,
+                        100,
                         2,
                         {
                             "layouts",
                         },
                     },
                     {
-                        102,
+                        101,
                         2,
                         {
                             "locale",
                         },
                     },
                     {
-                        103,
+                        102,
                         2,
                         {
                             "lockable",
                         },
                     },
                     {
-                        104,
+                        103,
                         2,
                         {
                             "log",
                         },
                     },
                     {
-                        105,
+                        104,
                         2,
                         {
                             "motion",
                         },
                     },
                     {
-                        106,
+                        105,
                         2,
                         {
                             "moveable",
                         },
                     },
                     {
-                        107,
+                        106,
                         2,
                         {
                             "network",
                         },
                     },
                     {
-                        108,
+                        107,
                         2,
                         {
                             "odometer",
                         },
                     },
                     {
-                        109,
+                        108,
                         2,
                         {
                             "ordering",
                         },
                     },
                     {
-                        110,
+                        109,
                         2,
                         {
                             "path",
                         },
                     },
                     {
-                        111,
+                        110,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        112,
+                        111,
                         2,
                         {
                             "persistenceConfig",
                         },
                     },
                     {
-                        113,
+                        112,
                         2,
                         {
                             "persistencePaths",
                         },
                     },
                     {
-                        114,
+                        113,
                         2,
                         {
                             "persistenceSettings",
                         },
                     },
                     {
-                        115,
+                        114,
                         2,
                         {
                             "persistenceWrite",
                         },
                     },
                     {
-                        116,
+                        115,
                         2,
                         {
                             "services",
                         },
                     },
                     {
-                        117,
+                        116,
                         2,
                         {
                             "windowSizing",

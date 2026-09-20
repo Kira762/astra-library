@@ -54,10 +54,20 @@ function Window:_showNotification(props)
     -- card. See `components/overlayQueue.luau`. The props are snapshotted for
     -- the same reason: a host that reuses one table between queued calls must
     -- not have its last write end up on every card.]]
-    local snapshot = if typeof(props) == "table" then table.clone(props) else props
+    local snapshot = self:_copyOverlayProps(props)
+    local notification = require(script.Parent.Parent.notification)
+    if notification.refresh(self, snapshot) then
+        return
+    end
     overlayQueue.request(self, function(release)
-        require(script.Parent.Parent.notification).new(self, snapshot, release)
-    end)
+        -- Recheck on the build turn: another request may have opened the same
+        -- message while this one waited for the window entrance.
+        if notification.refresh(self, snapshot) then
+            release(true)
+        else
+            notification.new(self, snapshot, release)
+        end
+    end, notification.key(snapshot))
 end
 
 function Window:Popup(props)
@@ -68,7 +78,7 @@ function Window:Popup(props)
 end
 
 -- [[Open the floating description over `anchor`. A programmatic open is
--- [[pinned: it stays until `HideTooltip`, a tap on its anchor badge, or any of
+-- [[pinned: it stays until `HideTooltip` or any of
 -- [[the window transitions that clear descriptions.]] 
 
 function Window:ShowTooltip(anchor: any, text: string)

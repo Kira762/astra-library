@@ -20,8 +20,8 @@ tab:Remove()      -- destroy the tab
 tab:SetLocked(locked)  -- gate the tab (host-only; see window.md, "Locked tabs")
 ```
 
-`CreateTab` also accepts `locked = true`: the tab shows in the sidebar with a
-small lock badge trailing in its row but cannot be opened (tap raises a
+`CreateTab` also accepts `locked = true`: the tab shows in the sidebar but
+cannot be opened (the lock badge UI is temporarily hidden; tap raises a
 notification, search skips its elements, `Select`/`Navigate` bail). Only
 `tab:SetLocked(false)` unlocks it.
 

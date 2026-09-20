@@ -5,7 +5,6 @@
 local baseCard = {}
 
 local description = require(script.Parent.description)
-local infoHelper = require(script.Parent.infoHelper)
 
 export type BaseCardOpts = {
     height: number?,
@@ -46,9 +45,7 @@ function baseCard.buildFull(element: any, opts: BaseCardOpts?): any
         BackgroundTransparency = 1,
     })
 
-    -- [[`SortOrder = LayoutOrder` is explicit: the icon, the name and the
-    -- [[circle-alert badge carry orders 0/1/2, and the layout's default sort
-    -- [[(Name, as Roblox ships it) would put "InfoIcon" before "TextLabel".]]
+    -- Keep the icon before the name regardless of instance names.
     element.containerLayout = window:Create("UIListLayout", {
         Padding = UDim.new(0, 5),
         FillDirection = Enum.FillDirection.Horizontal,
@@ -84,18 +81,12 @@ function baseCard.buildFull(element: any, opts: BaseCardOpts?): any
         Parent = element.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-    -- [[The badge, when there is one, joins the row right after the name and
-    -- [[turns the title width-automatic (remembering the recipe above, which
-    -- [[is what `:SetInfo(\"\")` restores).]] 
-    infoHelper.attach(element, element.container)
-
     return element.main
 end
 
--- [[Runtime writer for `:SetInfo(text)`: a text adds the badge right after
--- [[the name, an empty one removes it and gives the title its width back.]] 
+-- Legacy API retained as a no-op for existing hosts.
 function baseCard.setInfo(element: any, infoText: string?)
-    infoHelper.set(element, infoText, element.container)
+    -- Deprecated compatibility no-op: functional info badges were removed.
 end
 
 return baseCard

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Regression test for permanent removal of functional info badges.
+# Regression test for exact duplicate notification coalescing.
 set -u
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -25,7 +25,7 @@ if [ -z "$LUAU_BIN" ]; then
 fi
 
 TMPDIR_LOCAL="${TMPDIR:-/tmp}"
-OUT="$TMPDIR_LOCAL/astra_info_alert_$$.luau"
+OUT="$TMPDIR_LOCAL/astra_notification_dedup_$$.luau"
 trap 'rm -f "$OUT"' EXIT
 
 {
@@ -37,13 +37,13 @@ trap 'rm -f "$OUT"' EXIT
 	echo ""
 	echo "end)()"
 	echo ""
-	cat "$ROOT/scripts/info_alert_test.luau"
+	cat "$ROOT/scripts/notification_dedup_test.luau"
 } > "$OUT"
 
 if "$LUAU_BIN" "$OUT"; then
-	echo "INFO ALERT TEST PASSED"
+	echo "NOTIFICATION DEDUP TEST PASSED"
 	exit 0
 else
-	echo "INFO ALERT TEST FAILED (see above)" >&2
+	echo "NOTIFICATION DEDUP TEST FAILED (see above)" >&2
 	exit 1
 fi

@@ -1,6 +1,5 @@
 -- Locked tabs: `CreateTab({ locked = true })` marks a tab visible-but-gated.
--- The row draws a small lock badge on its trailing edge, vertically centred
--- (and only while locked),
+-- The lock badge is temporarily hidden with no reserved rail width; the row
 -- dims like a disabled control, never selects (row tap, `tab:Select`,
 -- `window:Navigate` all bail), and keeps its elements out of the search
 -- index. Only host code unlocks it, through `tab:SetLocked(false)`; locking
@@ -8,7 +7,7 @@
 --
 -- The assertions below pin the states a regression would break:
 --
---   L1 the flag, the badge (visible locked, invisible unlocked) and the
+--   L1 the flag, the badge (always hidden during the UI pause) and the
 --      auto-select skipping a locked first tab,
 --   L2 a row tap on a locked tab: no selection, one notification,
 --   L3 hover leaves a locked row dimmed (an unlocked row still hovers),
@@ -20,10 +19,8 @@
 --      unlocked ones,
 --   L9 locking every remaining tab clears the selection and hides the
 --      content; unlocking and opening it again restores it,
---   L10 the badge is integrated into the row (trailing, vertically centred,
---      inset by the row padding), the rail reserves room for it, a long
---      locked name wraps clear of it, and the collapsed icon tile keeps
---      the corner seat.
+--   L10 the hidden badge retains its geometry for re-enabling, but takes no
+--      layout space and stays hidden after lock flips, collapse and rebuild.
 
 local function expect(cond, message)
 	if not cond then
@@ -96,7 +93,7 @@ TestPump(0.3)
 eq(lockedTab.locked, true, "L1 locked prop is stored")
 eq(openTab.locked, false, "L1 unlocked by default")
 expect(lockedTab.topbarItemLock, "L1 locked tab builds a lock badge")
-eq(lockedTab.topbarItemLock.Visible, true, "L1 badge visible while locked")
+eq(lockedTab.topbarItemLock.Visible, false, "L1 badge stays hidden while locked")
 expect(openTab.topbarItemLock, "L1 badge instance exists on an unlocked tab")
 eq(openTab.topbarItemLock.Visible, false, "L1 no lock icon is drawn while unlocked")
 eq(window.selectedTab, openTab, "L1 auto-select skips the locked first tab")
@@ -150,7 +147,7 @@ TestPump(0.3)
 eq(lockedTab.locked, true, "L7 flag set again")
 expect(window.selectedTab ~= lockedTab, "L7 selection moved off the locked tab")
 eq(window.selectedTab, openTab, "L7 fallback is an unlocked tab from the same rail")
-eq(lockedTab.topbarItemLock.Visible, true, "L7 badge back")
+eq(lockedTab.topbarItemLock.Visible, false, "L7 badge stays hidden after relocking")
 near(lockedTab.topbarItemIcon.ImageTransparency, 0.7, 0.05, "L7 locked row dimmed again")
 
 -- L8: search never leaks a locked tab's contents.
@@ -223,11 +220,11 @@ local premiumTab = w3:CreateTab({ name = "Premium", icon = "star", locked = true
 TestPump(0.3)
 
 -- Stub text metrics: ceil(#text * 16 * 0.6), so "Premium" is 68px wide and
--- the locked row measures 20 (padding) + 26 (icon + gap) + 68 + 19 (badge
--- glyph + gap) = 133, i.e. a 163px rail with the row insets.
+-- the row measures 20 (padding) + 26 (icon + gap) + 68 = 114,
+-- i.e. a 144px rail with the row insets. Hidden badges reserve nothing.
 local badge = premiumTab.topbarItemLock
 expect(badge, "L10 locked tab builds a lock badge")
-eq(badge.Visible, true, "L10 badge visible while locked")
+eq(badge.Visible, false, "L10 badge stays hidden while locked")
 eq(badge.AnchorPoint.X, 1, "L10 badge anchors to the trailing edge")
 eq(badge.AnchorPoint.Y, 0.5, "L10 badge centres vertically")
 eq(badge.Position.X.Scale, 1, "L10 badge position is row-relative (X)")
@@ -236,37 +233,37 @@ eq(badge.Position.Y.Scale, 0.5, "L10 badge position is row-relative (Y)")
 eq(badge.Position.Y.Offset, 0, "L10 badge carries no vertical offset")
 eq(badge.Size.X.Offset, 13, "L10 badge is small (13px wide)")
 eq(badge.Size.Y.Offset, 13, "L10 badge is small (13px tall)")
-eq(w3.sidebar.Size.X.Offset, 163, "L10 rail reserves room for the badge")
+eq(w3.sidebar.Size.X.Offset, 144, "L10 rail reserves no space for the hidden badge")
 near(premiumTab.topbarItemTitle.TextTransparency, 0.7, 0.05, "L10 locked title holds the gated floor")
 near(betaTab.topbarItemTitle.TextTransparency, 0.5, 0.05, "L10 adding a locked tab does not brighten the other rows")
 
--- Lock flips resize the rail by exactly the badge reserve (13px glyph + 6px gap).
+-- Lock flips must not resize the rail while the badge is hidden.
 premiumTab:SetLocked(false)
 TestPump(0.3)
 eq(premiumTab.topbarItemLock.Visible, false, "L10 badge hidden after unlock")
-eq(w3.sidebar.Size.X.Offset, 144, "L10 unlocking frees the badge's room")
+eq(w3.sidebar.Size.X.Offset, 144, "L10 unlocking keeps the same rail width")
 premiumTab:SetLocked(true)
 TestPump(0.3)
-eq(w3.sidebar.Size.X.Offset, 163, "L10 locking reserves the room again")
+eq(w3.sidebar.Size.X.Offset, 144, "L10 locking keeps the same rail width")
 near(premiumTab.topbarItemTitle.TextTransparency, 0.7, 0.05, "L10 the re-locked row keeps the gated floor")
 
 -- A long locked name wraps clear of the badge: at the 300px cap the slot is
--- 270 - 20 - 26 - 19 = 205, while the short rows stay unconstrained.
+-- 270 - 20 - 26 - 19 = 224, while the short rows stay unconstrained.
 local longLocked = w3:CreateTab({ name = "ThisLockedNameIsLongEnoughToCapTheRail", icon = "star", locked = true })
 TestPump(0.3)
 eq(w3.sidebar.Size.X.Offset, 300, "L10 very long locked name caps the rail")
 eq(longLocked.topbarItemTitle.AutomaticSize, Enum.AutomaticSize.Y, "L10 capped locked title wraps")
-eq(longLocked.topbarItemTitle.Size.X.Offset, 205, "L10 capped locked title holds the badge-clear slot")
+eq(longLocked.topbarItemTitle.Size.X.Offset, 224, "L10 capped locked title holds the full title slot")
 eq(premiumTab.topbarItemTitle.AutomaticSize, Enum.AutomaticSize.XY, "L10 short locked title stays unconstrained")
 longLocked:Remove()
 TestPump(0.2)
-eq(w3.sidebar.Size.X.Offset, 163, "L10 removing the long row restores the badge-fitted rail")
+eq(w3.sidebar.Size.X.Offset, 144, "L10 removing the long row restores the content-fitted rail")
 
 -- The collapsed tile has no trailing room: the badge keeps the corner seat.
 TestViewport.set(500, 700)
 TestPump(0.2)
 eq(w3.sidebar.Size.X.Offset, 64, "L10 narrow viewport collapses the rail")
-eq(badge.Visible, true, "L10 badge still shows on the collapsed tile")
+eq(badge.Visible, false, "L10 badge stays hidden on the collapsed tile")
 eq(badge.AnchorPoint.X, 0, "L10 collapsed badge anchors top-left (X)")
 eq(badge.AnchorPoint.Y, 0, "L10 collapsed badge anchors top-left (Y)")
 eq(badge.Position.X.Scale, 1, "L10 collapsed badge keeps the corner seat (X scale)")
@@ -275,11 +272,17 @@ eq(badge.Position.Y.Scale, 0, "L10 collapsed badge keeps the corner seat (Y scal
 eq(badge.Position.Y.Offset, 11, "L10 collapsed badge keeps the corner seat (Y offset)")
 TestViewport.set(1920, 1080)
 TestPump(0.2)
-eq(w3.sidebar.Size.X.Offset, 163, "L10 wide viewport restores the badge-fitted rail")
+eq(w3.sidebar.Size.X.Offset, 144, "L10 wide viewport restores the content-fitted rail")
 eq(badge.AnchorPoint.X, 1, "L10 badge returns to the trailing seat")
 eq(badge.Position.X.Offset, -w3.layout.rowPadding, "L10 badge returns to the row padding")
 near(betaTab.topbarItemTitle.TextTransparency, 0.5, 0.05, "L10 restore keeps the unselected wash")
 near(alphaTab.topbarItemTitle.TextTransparency, 0, 0.05, "L10 restore keeps the selected row bright")
+
+premiumTab:_rebuildSelector()
+eq(premiumTab.topbarItemLock.Visible, false, "L10 rebuilding cannot restore the paused lock UI")
+premiumTab:SetLocked(false)
+premiumTab:SetLocked(true)
+eq(premiumTab.topbarItemLock.Visible, false, "L10 lock flips after rebuild keep the badge hidden")
 
 w3:Unload()
 

@@ -12,7 +12,6 @@ local flag = require(constants.lockable)
 local range = require(constants.locale)
 local value = require(constants.HapticEngine)
 local description = require(script.Parent.description)
-local infoHelper = require(script.Parent.infoHelper)
 
 local function increment(suffix)
     local minimal = 0
@@ -58,8 +57,6 @@ function state.new(ownerTab, a31)
         name = a31.name or a31.Name or "Slider",
         icon = ownerTab.window:ResolveIcon(a31.icon or a31.Icon),
         description = a31.description or a31.Description,
-        info = a31.info or a31.Info or a31.tooltip or a31.Tooltip,
-        infoIcon = a31.infoIcon or a31.InfoIcon,
         forgetState = a31.forgetState or a31.ForgetState or ownerTab.forgetState,
 
         range = a31.range or a31.Range or { 0, 100 },
@@ -355,8 +352,6 @@ function state:_buildLabel()
         Parent = self.title,
     })
 
-    infoHelper.attach(self, self.titleContainer)
-
     self.valueHost = self.window:Create("Frame", {
         Size = UDim2.new(1, 0, 0, 16),
         BackgroundTransparency = 1,
@@ -588,7 +583,7 @@ name(state)
 flag(state)
 
 function state:SetInfo(infoText)
-    infoHelper.set(self, infoText, self.titleContainer)
+    -- Deprecated compatibility no-op: functional info badges were removed.
 end
 
 return state

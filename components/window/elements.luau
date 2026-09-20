@@ -302,9 +302,6 @@ function Window:_revealCommon(element, animate)
     if element.tapIcon then
         self:_reveal(element.tapIcon, { ImageTransparency = 0.5 }, animate)
     end
-    if element.infoButton then
-        self:_reveal(element.infoButton, { ImageTransparency = 0.45 }, animate)
-    end
     if element.descriptionLabel then
         self:_reveal(element.descriptionLabel, { TextTransparency = 0.45 }, animate)
     end
@@ -319,9 +316,6 @@ function Window:_hideCommon(element, animate)
     end
     if element.tapIcon then
         self:_reveal(element.tapIcon, { ImageTransparency = 1 }, animate)
-    end
-    if element.infoButton then
-        self:_reveal(element.infoButton, { ImageTransparency = 1 }, animate)
     end
     if element.descriptionLabel then
         self:_reveal(element.descriptionLabel, { TextTransparency = 1 }, animate)

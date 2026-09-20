@@ -33,15 +33,22 @@ local function buildRail(window, layout)
 end
 
 function Sidebar.Build(window, layout)
+    -- [[Tab rail band: the middle of the window's three surface shades
+    -- [[(topbar darkest, rail one step lighter, elements lightest). Solid,
+    -- [[flush under the topbar and against the elements edge; show/hide rides
+    -- [[the frame's Visible flag as before. The bottom-left corner mirrors the
+    -- [[window's silhouette for themes that round it.]]
     window.sidebar = window:Create("Frame", {
         Name = "Sidebar",
         AnchorPoint = Vector2.new(0, 1),
         Position = UDim2.fromScale(0, 1),
         Size = UDim2.new(0, layout.railWidth, 1, -layout.chromeHeight),
+        BorderSizePixel = 0,
         BackgroundTransparency = 1,
         Visible = false,
         Parent = window.main,
-    })
+    }, { BackgroundColor3 = "SidebarSurface" })
+    window:_roundCorners(window.sidebar, { "BottomLeftRadius" })
     buildRail(window, layout)
 end
 

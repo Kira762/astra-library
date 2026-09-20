@@ -427,9 +427,17 @@ Per-element specifics:
   `default` clone. Registered in two places: the settings-UI theme table in
   `components/window/theme.luau` and the persisted-theme whitelist in
   `utilities/persistenceSettings.luau`.
-  `CardSurface` (Color3, from the `2ecd628` settings-card fix) is still
-  defined in every theme but no longer referenced by the rebuilt settings
-  UI — kept for compatibility.
+  The three window sections are painted from dedicated surface tokens with a
+  strict luminance hierarchy — `TopbarSurface` (darkest band),
+  `SidebarSurface` (the tab rail, one step lighter) and `ElementSurface`
+  (the elements area, lightest) — and every built-in theme keeps that order
+  (`surface_hierarchy_test` pins it, including a minimum visible step
+  between the shades). `ElementSurface` also paints the selected tab row,
+  so the active tab reads as a continuation of the content it opens;
+  unselected rows stay transparent and fall back to the rail's
+  `SidebarSurface`. `CardSurface` (Color3, from the `2ecd628`
+  settings-card fix) mirrors `ElementSurface` but is defined only for
+  compatibility — no code reads it.
 
 ---
 

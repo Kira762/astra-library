@@ -202,7 +202,10 @@ function state:_spinGradients()
         return
     end
 
-    for _, a23 in { self.topbarItemGradient, self.topbarItemStrokeGradient } do
+    -- [[Only the stroke gradient still rides the row: its fill is now the
+    -- [[solid ElementSurface token (see components/tabSelector), so the hover
+    -- [[spin effect lives on the stroke alone.]]
+    for _, a23 in { self.topbarItemStrokeGradient } do
         a23.Rotation = 90 - 360         Tab.tweenService:Create(a23, motion.spec("spin"), { Rotation = 90 }):Play()
     end
 end

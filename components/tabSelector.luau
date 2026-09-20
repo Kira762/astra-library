@@ -15,21 +15,27 @@ local function getInitial(str: string?): string
     return string.upper(initial)
 end
 
+-- [[Row colour contract: the row's base is ElementSurface — the same theme
+-- [[token the elements area is painted with — so the selected row (opaque)
+-- [[reads as a continuation of the content it opens. Unselected rows go
+-- [[fully transparent and fall back to the rail's SidebarSurface underneath,
+-- [[i.e. the tab-area shade; hover lifts a partial wash of the elements
+-- [[colour. (The old TabBackground gradient tinted every row off both bands,
+-- [[which is why the rail used to bleed into the topbar.)]]
 tabSelector.states = {
     sidebar = {
-        selected = { background = 0.4, stroke = 0.5, content = 0, shadow = 0.8 },
-        hover = { background = 0.7, stroke = 0.8, content = 0.3, shadow = 1 },
+        selected = { background = 0, stroke = 0.5, content = 0, shadow = 0.8 },
+        hover = { background = 0.45, stroke = 0.8, content = 0.3, shadow = 1 },
         unselected = { background = 1, stroke = 1, content = 0.5, shadow = 1 },
         hidden = { background = 1, stroke = 1, content = 1, shadow = 1 },
     },
 }
 
 local function buildGradients(tab, item, stroke)
-    tab.topbarItemGradient = tab.window:Create("UIGradient", {
-        Rotation = 90,
-        Parent = item,
-    }, { Color = { "TabBackground", functions.toColorSequence } })
-
+    -- [[Only the stroke keeps its gradient: the row's own fill is now the
+    -- [[solid ElementSurface token (bound on topbarItem below), so a
+    -- [[background gradient would tint the selected row off the elements
+    -- [[area it is meant to connect to.]]
     tab.topbarItemStrokeGradient = tab.window:Create("UIGradient", {
         Rotation = 90,
         Parent = stroke,
@@ -104,13 +110,12 @@ local function buildSidebarStyle(tab, layout)
     tab.topbarItem = tab.window:Create("Frame", {
         Name = tab.name,
         Size = UDim2.new(1, -layout.rowInset * 2, 0, layout.rowHeight),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         Visible = false,
         LayoutOrder = tab.customOrder or 0,
         Parent = tab.window.tabList,
-    })
+    }, { BackgroundColor3 = "ElementSurface" })
 
     tab.topbarItemInteract = tab.window:Create("TextButton", {
         Active = false,

@@ -91,7 +91,7 @@ eq(Icons.priority()[1], "lucide", "I1 priority() hands out a copy")
 eq(#Icons.loaded(), 0, "I2 no pack is loaded before the first lookup")
 
 local house = Icons.get("house")
-eq(house, "assets/icons/lucide-pack/h/lucideHouse.png", "I2 a bare lucide name resolves")
+eq(house, "assets/icons/lucide-pack/lucideHouse.png", "I2 a bare lucide name resolves")
 eq(table.concat(Icons.loaded(), ","), "lucide", "I2 one lucide name loads lucide alone")
 
 -- ===== I3: name-only lookup searches every pack, in priority order =========

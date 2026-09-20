@@ -19,13 +19,13 @@ assets/
 │   ├── brand/example.png
 │   └── example/{house,star}.png
 └── icons/          ← catalog PNGs for the 7 icon packs (see icons/README.md)
-    ├── feather-pack/   (287)
-    ├── heroicons-pack/ (648)
-    ├── lucide-pack/    (1776)
-    ├── material-pack/white/ (1133) — black/ removed (unused)
-    ├── phosphor-pack/  (1512)
-    ├── remix-pack/     (3229)
-    ├── tabler-pack/    (5130)
+    ├── feather-pack/   (287)            — flat, no a/b sharding
+    ├── heroicons-pack/ (648)            — flat
+    ├── lucide-pack/    (1776)           — flat
+    ├── material-pack/  (1133)           — flat, was white/ + black/
+    ├── phosphor-pack/  (1512)           — flat
+    ├── remix-pack/     (3229)           — flat, was 2/4/a…/z
+    ├── tabler-pack/    (5130)           — flat
     └── guides/         (7 generated markdown previews, 1.7 MB)
 ```
 

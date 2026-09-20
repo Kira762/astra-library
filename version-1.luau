@@ -16718,7 +16718,7 @@ end)() end,
 -- [[constructors. Regenerate with scripts/generate_icon_packs.js.]]
 
 return require(script.Parent.packBuilder).create(
-	"assets/icons/material-pack/white/",
+	"assets/icons/material-pack/",
 	"material",
 [==[
 ac_unit access_alarm access_alarms access_time accessibility accessibility_new accessible accessible_forward account_balance account_balance_wallet
@@ -16887,7 +16887,8 @@ local function pascalCase(name: string): string
 end
 
 -- [[Build a lazy pack table. `prefix` ends in "/", `packName` is the segment
--- [[used in the legacy URL layout (`.../<lowerFirst>/<pack><Name>.png`).]]
+-- [[used in the URL layout (`.../<pack><Name>.png`) — flat per-pack folders,
+-- [[no a/b/c sharding.]]
 function PackBuilder.create(prefix: string, packName: string, keyList: string): { [string]: string }
 	-- [[Membership + stable enumeration order, built once when the pack module
 	-- [[is first required. These are short string inserts only - the long URL
@@ -16909,7 +16910,7 @@ function PackBuilder.create(prefix: string, packName: string, keyList: string): 
 				return nil
 			end
 			local fileBase = pascalCase(key)
-			local url = prefix .. lower(sub(fileBase, 1, 1)) .. "/" .. packName .. fileBase .. ".png"
+			local url = prefix .. packName .. fileBase .. ".png"
 			-- [[Cache the answer so repeated lookups skip this closure.]]
 			rawset(data, key, url)
 			return url
@@ -21862,46 +21863,46 @@ local LineOffsets = {
     [74] = 16521,
     [75] = 16714,
     [76] = 16843,
-    [77] = 16937,
-    [78] = 17104,
-    [79] = 17442,
+    [77] = 16938,
+    [78] = 17105,
+    [79] = 17443,
     [80] = 15897,
-    [81] = 18076,
-    [82] = 18142,
-    [83] = 18208,
-    [84] = 18283,
-    [85] = 18395,
-    [86] = 18461,
-    [87] = 18536,
-    [88] = 18611,
-    [89] = 18686,
-    [90] = 18761,
-    [91] = 17970,
-    [92] = 18827,
-    [93] = 18925,
-    [94] = 19103,
-    [95] = 19151,
-    [96] = 19181,
-    [97] = 19432,
-    [98] = 19481,
-    [99] = 19934,
-    [100] = 19952,
-    [101] = 20073,
-    [102] = 20172,
-    [103] = 20194,
-    [104] = 20248,
-    [105] = 20598,
-    [106] = 20634,
-    [107] = 20652,
-    [108] = 21006,
-    [109] = 21018,
-    [110] = 21069,
-    [111] = 21088,
-    [112] = 21339,
-    [113] = 21383,
-    [114] = 21586,
-    [115] = 21614,
-    [116] = 21625,
+    [81] = 18077,
+    [82] = 18143,
+    [83] = 18209,
+    [84] = 18284,
+    [85] = 18396,
+    [86] = 18462,
+    [87] = 18537,
+    [88] = 18612,
+    [89] = 18687,
+    [90] = 18762,
+    [91] = 17971,
+    [92] = 18828,
+    [93] = 18926,
+    [94] = 19104,
+    [95] = 19152,
+    [96] = 19182,
+    [97] = 19433,
+    [98] = 19482,
+    [99] = 19935,
+    [100] = 19953,
+    [101] = 20074,
+    [102] = 20173,
+    [103] = 20195,
+    [104] = 20249,
+    [105] = 20599,
+    [106] = 20635,
+    [107] = 20653,
+    [108] = 21007,
+    [109] = 21019,
+    [110] = 21070,
+    [111] = 21089,
+    [112] = 21340,
+    [113] = 21384,
+    [114] = 21587,
+    [115] = 21615,
+    [116] = 21626,
 }
 
 -- [[Misc AOT variable imports]]

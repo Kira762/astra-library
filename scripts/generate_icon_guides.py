@@ -33,7 +33,7 @@ def catalog(pack: str):
     entries = []
     for name in block.split():
         file_base = pascal(name)
-        url = f"{prefix}{file_base[0].lower()}/{pack_name}{file_base}.png"
+        url = f"{prefix}{pack_name}{file_base}.png"
         entries.append((name, url))
     return entries
 

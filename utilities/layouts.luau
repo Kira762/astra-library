@@ -33,7 +33,19 @@ export type Layout = {
     cardTransparency: number?,
     cardStrokeRotation: number?,
     cardStrokeTransparency: NumberSequence?,
+
+    -- [[Which corners of the window's silhouette each chrome band owns. The
+    -- [[bands are painted flat and reach the window's edges, and nothing
+    -- [[clips a descendant to the frame's arc, so a band that touches an
+    -- [[edge has to carry that edge's arcs itself — otherwise a theme with
+    -- [[`CornerRoundness` shows a square corner behind the rounded
+    -- [[silhouette (see the window_corners suite). A band that meets
+    -- [[another band keeps its inner corners square, or the arc would cut a
+    -- [[notch of the window base out of it.]]
+    chromeCorners: { string }?,
+    railCorners: { string }?,
     cardCorners: { string }?,
+    fadeCorners: { string }?,
     forceCollapsed: boolean?,
 }
 
@@ -58,9 +70,18 @@ layouts.sidebar = {
 
     pageDirection = Enum.FillDirection.Vertical,
 
-    cardTransparency = 0.98,
+    -- [[The pane is its own flat plane (`WindowSurface`) now, so it shows at
+    -- [[full opacity instead of as a 2%-white sheet over the window gradient
+    -- [[behind it — the window gradient is the base only, and the corner
+    -- [[arcs are the one place it still shows through.]]
+    cardTransparency = 0,
     cardStrokeRotation = 55,
-    cardCorners = { "TopLeftRadius", "BottomRightRadius" },
+    -- [[Topbar band (top edge), rail band (bottom-left, below the topbar)
+    -- [[and elements pane (bottom-right). See the `chromeCorners` note in
+    -- [[the Layout type above.]]
+    chromeCorners = { "TopLeftRadius", "TopRightRadius" },
+    railCorners = { "BottomLeftRadius" },
+    cardCorners = { "BottomRightRadius" },
     cardStrokeTransparency = NumberSequence.new({
         NumberSequenceKeypoint.new(0, 0.9),
         NumberSequenceKeypoint.new(0.128, 0.95),
@@ -74,7 +95,7 @@ layouts.sidebar = {
         NumberSequenceKeypoint.new(0.377, 0),
         NumberSequenceKeypoint.new(1, 1),
     }),
-    fadeCorners = { "BottomLeftRadius", "BottomRightRadius" },
+    fadeCorners = { "BottomRightRadius" },
 } :: Layout
 
 local collapsedSidebarLayout = table.clone(layouts.sidebar)

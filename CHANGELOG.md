@@ -2,6 +2,88 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-20 — The window is three planes: topbar band, tab rail, elements pane
+
+The window's chrome sat on one `WindowColor` gradient and picked its colour by
+accident. The topbar band and the elements pane were both 2%-white sheets over
+the window frame, the rail was transparent, and the gradient behind them runs
+`10,10,10` at the bottom to `35,35,35` at the top — so the *same* topbar read
+`28,28,28` beside a rail reading `15,15,15` (the darkest thing in the window,
+twice as far from the pane as the gradient could justify) and a pane that slid
+three steps lighter as it went up. `TopbarSurface` and `SidebarSurface` were
+already in all ten themes and nothing painted them. Now each region is one flat
+surface, and the three step darkest at the top.
+
+- **One painted plane per region, edge to edge.** The topbar band
+  (`TopbarSurface`, full window width, 64px) and the elements pane
+  (`WindowSurface`, the bottom-right region) are painted flat, and the rail
+  band (`SidebarSurface`) — a real `window.sidebar` frame, which used to be an
+  invisible container for the tab rows — is painted with them. No gutter
+  between the three: the pane's top edge is the band's bottom edge and its left
+  edge is the rail's right edge. The pane no longer carries a `WindowColor`
+  gradient of its own (`components/window/startup.luau`, `components/sidebar.luau`,
+  `layouts/Sidebar.luau`, `layouts/SidebarCollapsed.luau`).
+- **The pane is opaque now** (`cardTransparency` 0.98 → 0 in
+  `utilities/layouts.luau`): it was a 2% white sheet over the window gradient,
+  which is a shade you cannot predict from the theme and cannot reuse in a
+  custom theme. The two planes are theme keys, so a custom theme restyles the
+  chrome by naming three colours. The rail band fades with the window
+  (`Window:_fadeSurfaces`) so a fold into the capsule never leaves a solid
+  rectangle — or a square corner under a pill radius — behind.
+- **Flat in every theme, and the same step apart.** `TopbarSurface` is 13 grey
+  levels under that theme's `WindowSurface` and `SidebarSurface` is 7 under it,
+  so the ramp is a property of the theme rather than of one shade. The default
+  chrome stays `12,12,12` / `18,18,18` / `25,25,25`; the element cards keep
+  their `ElementGradient` above the pane. All ten theme modules updated.
+- **The bottom fade dissolves rows into the pane it sits on.**
+  `bottomFade` was painted `WindowColor`'s first keypoint — the shade of the
+  *window* at its base — which is a different colour from the pane over it
+  (a soft dark bar under a lighter page). It is `WindowSurface` now, with the
+  same opacity ramp and no colour override, which also drops
+  `components/window/startup.luau`'s last read of `functions.toColorSequence`
+  (and the require with it).
+- **Each band owns the silhouette corner its edge touches.** Nothing clips a
+  descendant to the frame's arcs, so a band that reaches an edge has to round
+  that edge itself. The topbar band carries the top pair, the rail band the
+  bottom-left, the pane the bottom-right (with the corner stroke in `Border`
+  mode, so the pane's `SurfaceStroke` seam follows the arc instead of cutting
+  across it), and the corners where two bands meet stay square. This is what
+  the window already did with `cardCorners` — the corner set moved out of the
+  rail layout and onto the pane in
+  `utilities/layouts.luau` (`chromeCorners`, `railCorners`, `cardCorners`,
+  `fadeCorners`).
+- **A layout switch no longer rebuilds the pane.** `Window:_setLayoutMode`
+  recreated the pane's corner, stroke and gradient if they were missing; they
+  are part of the shell now, so the switch just opens the new rail and
+  re-applies the widths.
+- **Docs:** `USAGE.md` documents the three keys as the chrome contract,
+  `MODULES.md` the new `sidebar.buildBand` and the corner sets,
+  `PERFORMANCE_CHANGES.md` the shell's 67 → 69 instances (one `UICorner` per
+  painted band, no per-frame cost) and the current bundle size.
+
+Files: `themes/*.luau` (all ten), `components/sidebar.luau`,
+`components/window/startup.luau`, `components/window/visibility.luau`,
+`components/window/layout.luau`, `layouts/Sidebar.luau`,
+`layouts/SidebarCollapsed.luau`, `utilities/layouts.luau`,
+`scripts/chrome_planes_test.luau` + `scripts/chrome_planes_test.sh` (new),
+`USAGE.md`, `MODULES.md`, `PERFORMANCE_CHANGES.md`, `version-1.luau`.
+
+Verification: `sh scripts/check_all.sh` — the require graph resolves (109 files,
+366 edges), the bundle matches the tree, 115 files compile, and the runtime
+suites pass: 27 existing suites plus the new `chrome_planes_test` (28 in all),
+which asserts the three flat planes and their lightness order, the regions
+meeting edge to edge, the pane's fill and the fade coming from the theme, the
+corner ownership (checked again after a `CornerRoundness = 20` theme switch),
+a layout switch reusing the pane's corner and stroke while the rebuilt rail band
+keeps its own, and every band folding away with the capsule and back with the
+window. The new suite was confirmed to fail on
+purpose when the topbar was set back to `30,30,30`, when the rail's arc was
+moved to the wrong corner, when the fade was repainted from a different token,
+and when the bands were left out of `_fadeSurfaces`. `dropdown_rows_test`
+fails both before and after this change (its D3 corner assertion expects 12px
+where the element radius is 0 in the default theme) and is left as it was
+found.
+
 ## 2026-09-20 — Discord push notification rebuilt
 
 The `discord-notify` workflow posts a new embed, and the jq program that builds

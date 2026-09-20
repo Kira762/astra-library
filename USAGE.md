@@ -398,7 +398,8 @@ There is no sub-tab API: these tabs are built by the window itself
 
 ### Themes
 
-Built-ins: `"default"`, `"amethyst"`, `"cobalt"`, `"ember"`, `"frost"`, `"rose"`.
+Built-ins: `"default"`, `"amethyst"`, `"cobalt"`, `"crimson"`, `"ember"`, `"emerald"`,
+`"frost"`, `"gold"`, `"onyx"`, `"rose"`.
 
 ```lua
 window:ChangeTheme("amethyst")
@@ -407,6 +408,22 @@ window:ChangeTheme({
     AccentColor = Color3.fromRGB(120, 90, 220),
 })
 ```
+
+**The window is three planes, and a theme owns each one.** The topbar band,
+the tab rail and the elements pane are flat colours that meet edge to edge, so
+the same region always reads the same whatever its height on screen:
+
+| Key | Region | Default |
+|---|---|---|
+| `TopbarSurface` | The band across the top: title, actions, drag area. | `12,12,12` — the darkest |
+| `SidebarSurface` | The tab rail down the left, below the band. | `18,18,18` |
+| `WindowSurface` | The elements pane: the page every card sits on. | `25,25,25` — the lightest |
+
+The element cards stay a shade above the pane (`ElementGradient`), and
+`WindowColor` remains the window's base — the collapsed capsule's face, and the
+only thing left visible at the silhouette's corners. Custom themes only need the
+three keys above to restyle the chrome; a theme that omits them inherits the
+default ramp.
 
 ### Icons
 

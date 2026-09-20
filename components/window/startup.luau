@@ -1,7 +1,6 @@
 local utilities = script.Parent.Parent.Parent.utilities
 local chrome = require(script.Parent.Parent.chrome)
 local constants = require(utilities.constants)
-local functions = require(script.Parent.Parent.Parent.functions)
 local haptic = require(utilities.HapticEngine)
 local icons = require(script.Parent.Parent.Parent.icons)
 local layouts = require(utilities.layouts)
@@ -184,43 +183,50 @@ function Window.new(props)
 
     self.windowGradient = self:StyleWindowSurface(self.main)
 
-                self.bottomFade = self:Create("Frame", {
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+    self.bottomFade = self:Create("Frame", {
         BorderSizePixel = 0,
         AnchorPoint = Vector2.new(1, 1),
         Position = UDim2.fromScale(1, 1),
         Size = self.layout.fadeSize,
         ZIndex = constants.zIndex.bottomFade,
 
-                BackgroundTransparency = 1,
+        BackgroundTransparency = 1,
         Parent = self.main,
-    })
+    }, { BackgroundColor3 = "WindowSurface" })
 
     self.bottomFadeCorner = self:_roundCorners(self.bottomFade, self.layout.fadeCorners)
 
+    -- [[The fade dissolves the last rows into the plane they are scrolling
+    -- [[out of, so it is drawn in that plane's own colour (`WindowSurface`,
+    -- [[the same token the elements pane is painted with) and only its
+    -- [[opacity ramps. It used to take `WindowColor`'s first keypoint — the
+    -- [[shade of the window gradient at the bottom — which is a different
+    -- [[colour from the plane over it: a soft dark bar under a lighter pane.
     self.bottomFadeGradient = self:Create("UIGradient", {
         Rotation = 270,
         Offset = Vector2.new(0, 0.2),
         Transparency = self.layout.fadeTransparency,
 
         Parent = self.bottomFade,
-    }, {
-                        Color = {
-            "WindowColor",
-            function(color)
-                return ColorSequence.new(functions.toColorSequence(color).Keypoints[1].Value)
-            end,
-        },
     })
 
-        self.topbar = self:Create("Frame", {
-
+    -- [[The topbar band. It is the window's top plane: painted flat in
+    -- [[TopbarSurface (the darkest of the three), full width, and the one
+    -- [[band that owns the window's top edge — so it carries the top corner
+    -- [[arcs. `Active` makes the empty part of the band a drag handle
+    -- [[(components/window/input.luau); the title, actions and tab rows sit
+    -- [[on top of it as its children, which is where they already were.]]
+    self.topbar = self:Create("Frame", {
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BorderSizePixel = 0,
         BackgroundTransparency = 1,
         Size = UDim2.new(1, 0, 0, self.layout.topbarHeight),
-                        Active = true,
+        Active = true,
 
         Parent = self.main,
-    })
+    }, { BackgroundColor3 = "TopbarSurface" })
+
+    self.topbarCorner = self:_roundCorners(self.topbar, self.layout.chromeCorners)
 
     self.topContainer = self:Create("Frame", {
         Size = UDim2.new(0, 300, 0, 24),
@@ -309,35 +315,38 @@ function Window.new(props)
 
         self.windowShadow = self:CreateGlow(self.main, "ShadowColor", 20, 1)
 
-                self.elements = self:Create("Frame", {
+    -- [[The elements pane. The third plane: painted flat in `WindowSurface`,
+    -- [[the lightest of the three, reaching the window's right and bottom
+    -- [[edges — so it owns the bottom-right corner arc. The faint
+    -- [[SurfaceStroke edge stays: it is the seam between the pane and the
+    -- [[rail band beside it, and it follows the arc (Border mode) instead
+    -- [[of cutting across it.]]
+    self.elements = self:Create("Frame", {
         Size = UDim2.new(1, 0, 1, -self.layout.chromeHeight),
         Position = UDim2.fromScale(1, 1),
         AnchorPoint = Vector2.new(1, 1),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         ClipsDescendants = true,
 
         Parent = self.main,
+    }, { BackgroundColor3 = "WindowSurface" })
+
+    self.elementsCorner = self:_roundCorners(self.elements, self.layout.cardCorners)
+
+    self.elementsStroke = self:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+
+        Transparency = 1,
+        Parent = self.elements,
+    }, { Color = "SurfaceStroke" })
+
+    self:Create("UIGradient", {
+        Rotation = self.layout.cardStrokeRotation,
+        Transparency = self.layout.cardStrokeTransparency,
+
+        Parent = self.elementsStroke,
     })
-
-    if self.layout.mode == "sidebar" then
-        self.elementsCorner = self:_roundCorners(self.elements, self.layout.cardCorners)
-
-        self.elementsStroke = self:Create("UIStroke", {
-            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-
-                        Transparency = 1,
-            Parent = self.elements,
-        }, { Color = "SurfaceStroke" })
-
-                        self:Create("UIGradient", {
-            Rotation = self.layout.cardStrokeRotation,
-            Transparency = self.layout.cardStrokeTransparency,
-
-            Parent = self.elementsStroke,
-        })
-    end
 
     self.elementsLayout = self:Create("UIPageLayout", {
         Padding = UDim.new(0, 0),

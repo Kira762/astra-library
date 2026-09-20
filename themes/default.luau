@@ -5,11 +5,20 @@ local default = require(script.Parent.Parent.core.state)
 -- [[WindowSurface, text tiers, Success/Warning, etc.) are derived from the
 -- [[same greyscale + teal accent so the capsule and settings surfaces stay
 -- [[coherent with the rest of the theme.]]
+-- [[
+-- [[The three chrome planes are the topbar band (`TopbarSurface`, darkest),
+-- [[the tab rail (`SidebarSurface`) and the elements pane (`WindowSurface`,
+-- [[lightest). They are painted flat, one per region, so the window reads as
+-- [[three surfaces instead of one `WindowColor` gradient showing through
+-- [[thin overlays: the band a region sits on is the colour it is painted,
+-- [[wherever it sits on the screen. `WindowColor` stays the base the whole
+-- [[frame is laid over (and the collapsed capsule's face); the element cards
+-- [[(`ElementGradient`) stay a shade above the pane in every theme.]]
 return {
     -- [[Semantic palette (derived from the base greys + teal accent)]]
     Background = Color3.fromRGB(10, 10, 10),
     WindowSurface = Color3.fromRGB(25, 25, 25),
-    TopbarSurface = Color3.fromRGB(30, 30, 30),
+    TopbarSurface = Color3.fromRGB(12, 12, 12),
     SidebarSurface = Color3.fromRGB(18, 18, 18),
     TabSurface = Color3.fromRGB(35, 35, 35),
     TabSelected = Color3.fromRGB(23, 153, 110),

@@ -9,17 +9,19 @@ All public features, buttons, logic and responsive behaviour are preserved.
 Measured with the in-repo harness (`scripts/startup_test.sh`, virtual-time
 Heartbeat scheduler). The *Original* column is the measurement taken when this
 refactor landed (Luau CLI 0.669/0.738). The *Current* column was re-measured on
-2026-09-19 against this checkout with Luau CLI 0.739; where the harness no longer
-emits a metric it is marked `—` rather than guessed at.
+2026-09-20 against this checkout with Luau CLI 0.739 (the chrome-plane change of
+that date added two `UICorner`s on the spawn path — one per painted band — so
+the shell row moved 67 → 69); where the harness no longer emits a metric it is
+marked `—` rather than guessed at.
 
 | Metric (lower is better)                         | Before  | Original | Current   | Notes |
 | ------------------------------------------------ | ------- | -------- | --------- | ----- |
-| Instances built before the first shell reveal    | 155     | 66       | **67**    | one instance added since the refactor |
+| Instances built before the first shell reveal    | 155     | 66       | **69**    | +1 refactor-era, +2 chrome-band corners |
 | Peak instance allocations in a single frame      | 82      | 64       | **57**    | improved since the refactor |
 | Frames the build is spread over                  | —       | ~41      | **42**    | |
 | Window with one tab + two controls, after settle | 218     | 129      | —         | harness no longer reports this |
 | Profile card instances on the spawn path         | 89      | 0        | —         | harness no longer reports this |
-| Bundle size (`version-1.luau`, bytes)            | 1,237,310 | 987,741 | **1,039,418** | grew with the features added since |
+| Bundle size (`version-1.luau`, bytes)            | 1,237,310 | 987,741 | **944,604** | regenerated 2026-09-20, 112 modules |
 
 > **Since this document was written the profile card has been removed from the
 > library entirely.** Sections 2 and 5 below, the "Profile card instances" row

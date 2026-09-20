@@ -282,12 +282,24 @@ function Window:_setContentVisible(visible)
     self:_applySettingsLayout(self._settingsMode)
 end
 
+-- [[The window's surfaces, shown or hidden as one. The three painted bands
+-- [[are part of this: the topbar band, the rail band and the elements pane
+-- [[reach the window's edges, so a fold that left them behind would keep a
+-- [[solid rectangle standing where the window is shrinking into its capsule
+-- [[(and, with a pill radius, square corners poking out of it). They fade
+-- [[out with the shell and fade back in with it, which is also how the
+-- [[window's own entrance stays a single gesture.
 function Window:_fadeSurfaces(shown, tweenInfo)
     local targets = {
         [self.windowShadow] = { Transparency = if shown then 0.6 else 1 },
         [self.windowStroke] = { Transparency = if shown then 0.95 else 1 },
         [self.bottomFade] = { BackgroundTransparency = if shown then 0 else 1 },
+        [self.topbar] = { BackgroundTransparency = if shown then 0 else 1 },
     }
+
+    if self.sidebar then
+        targets[self.sidebar] = { BackgroundTransparency = if shown then 0 else 1 }
+    end
 
     if self.elementsStroke then
         targets[self.elements] = {

@@ -4003,7 +4003,32 @@ function sidebar.maskUsername(name)
     return string.sub(name, 1, math.min(3, #name)) .. "****"
 end
 
-function sidebar.buildTabRail(window, layout, collapsed)
+-- [[The rail band, and the rail inside it. One builder for both layouts: the
+-- [[expanded rail and the collapsed one differ only by the width they open
+-- [[at and the name they carry (the settings rail and the search opening
+-- [[read `window.sidebar`, `window.tabList`).
+--
+-- [[The band is a painted plane — the theme's `SidebarSurface`, flat — so the
+-- [[tab rows sit on a colour of their own instead of on whatever the window
+-- [[gradient happens to be at that height, and the boundary with the elements
+-- [[pane is the two planes meeting rather than a gutter. Nothing clips a
+-- [[band to the window's silhouette, so the band carries the bottom-left
+-- [[corner arc itself (the second from the bottom owns the window's bottom
+-- [[edge; the topbar band owns the top one).
+function sidebar.buildBand(window, layout, collapsed, width)
+    window.sidebar = window:Create("Frame", {
+        Name = if collapsed then "CollapsedSidebar" else "Sidebar",
+        AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.fromScale(0, 1),
+        Size = UDim2.new(0, width, 1, -layout.chromeHeight),
+        BorderSizePixel = 0,
+        BackgroundTransparency = 1,
+        Visible = false,
+        Parent = window.main,
+    }, { BackgroundColor3 = "SidebarSurface" })
+
+    window:_roundCorners(window.sidebar, layout.railCorners)
+
     window.tabList = window:Create("ScrollingFrame", {
         Name = if collapsed then "CollapsedTabs" else "Tabs",
         Active = true,
@@ -5807,19 +5832,9 @@ function Window:_setLayoutMode(modeName)
     end
     local implementation = layouts.implementation(modeName)
     implementation.Build(self, newLayout)
-    if not self.elementsCorner then
-        self.elementsCorner = self:_roundCorners(self.elements, newLayout.cardCorners)
-        self.elementsStroke = self:Create("UIStroke", {
-            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-            Transparency = 1,
-            Parent = self.elements,
-        }, { Color = "SurfaceStroke" })
-        self:Create("UIGradient", {
-            Rotation = newLayout.cardStrokeRotation,
-            Transparency = newLayout.cardStrokeTransparency,
-            Parent = self.elementsStroke,
-        })
-    end
+    -- [[The pane's corner and its edge stroke are part of the shell now
+    -- [[(both layouts open one — see Window.new), so switching layouts only
+    -- [[has to build the rail and re-apply the panes' widths below.
     implementation.ApplyWidth(self, self:_railWidth())
     self.elementsLayout.FillDirection = newLayout.pageDirection
 
@@ -6066,7 +6081,6 @@ end)() end,
 local utilities = script.Parent.Parent.Parent.utilities
 local chrome = require(script.Parent.Parent.chrome)
 local constants = require(utilities.constants)
-local functions = require(script.Parent.Parent.Parent.functions)
 local haptic = require(utilities.HapticEngine)
 local icons = require(script.Parent.Parent.Parent.icons)
 local layouts = require(utilities.layouts)
@@ -6249,43 +6263,50 @@ function Window.new(props)
 
     self.windowGradient = self:StyleWindowSurface(self.main)
 
-                self.bottomFade = self:Create("Frame", {
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+    self.bottomFade = self:Create("Frame", {
         BorderSizePixel = 0,
         AnchorPoint = Vector2.new(1, 1),
         Position = UDim2.fromScale(1, 1),
         Size = self.layout.fadeSize,
         ZIndex = constants.zIndex.bottomFade,
 
-                BackgroundTransparency = 1,
+        BackgroundTransparency = 1,
         Parent = self.main,
-    })
+    }, { BackgroundColor3 = "WindowSurface" })
 
     self.bottomFadeCorner = self:_roundCorners(self.bottomFade, self.layout.fadeCorners)
 
+    -- [[The fade dissolves the last rows into the plane they are scrolling
+    -- [[out of, so it is drawn in that plane's own colour (`WindowSurface`,
+    -- [[the same token the elements pane is painted with) and only its
+    -- [[opacity ramps. It used to take `WindowColor`'s first keypoint — the
+    -- [[shade of the window gradient at the bottom — which is a different
+    -- [[colour from the plane over it: a soft dark bar under a lighter pane.
     self.bottomFadeGradient = self:Create("UIGradient", {
         Rotation = 270,
         Offset = Vector2.new(0, 0.2),
         Transparency = self.layout.fadeTransparency,
 
         Parent = self.bottomFade,
-    }, {
-                        Color = {
-            "WindowColor",
-            function(color)
-                return ColorSequence.new(functions.toColorSequence(color).Keypoints[1].Value)
-            end,
-        },
     })
 
-        self.topbar = self:Create("Frame", {
-
+    -- [[The topbar band. It is the window's top plane: painted flat in
+    -- [[TopbarSurface (the darkest of the three), full width, and the one
+    -- [[band that owns the window's top edge — so it carries the top corner
+    -- [[arcs. `Active` makes the empty part of the band a drag handle
+    -- [[(components/window/input.luau); the title, actions and tab rows sit
+    -- [[on top of it as its children, which is where they already were.]]
+    self.topbar = self:Create("Frame", {
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BorderSizePixel = 0,
         BackgroundTransparency = 1,
         Size = UDim2.new(1, 0, 0, self.layout.topbarHeight),
-                        Active = true,
+        Active = true,
 
         Parent = self.main,
-    })
+    }, { BackgroundColor3 = "TopbarSurface" })
+
+    self.topbarCorner = self:_roundCorners(self.topbar, self.layout.chromeCorners)
 
     self.topContainer = self:Create("Frame", {
         Size = UDim2.new(0, 300, 0, 24),
@@ -6374,35 +6395,38 @@ function Window.new(props)
 
         self.windowShadow = self:CreateGlow(self.main, "ShadowColor", 20, 1)
 
-                self.elements = self:Create("Frame", {
+    -- [[The elements pane. The third plane: painted flat in `WindowSurface`,
+    -- [[the lightest of the three, reaching the window's right and bottom
+    -- [[edges — so it owns the bottom-right corner arc. The faint
+    -- [[SurfaceStroke edge stays: it is the seam between the pane and the
+    -- [[rail band beside it, and it follows the arc (Border mode) instead
+    -- [[of cutting across it.]]
+    self.elements = self:Create("Frame", {
         Size = UDim2.new(1, 0, 1, -self.layout.chromeHeight),
         Position = UDim2.fromScale(1, 1),
         AnchorPoint = Vector2.new(1, 1),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         ClipsDescendants = true,
 
         Parent = self.main,
+    }, { BackgroundColor3 = "WindowSurface" })
+
+    self.elementsCorner = self:_roundCorners(self.elements, self.layout.cardCorners)
+
+    self.elementsStroke = self:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+
+        Transparency = 1,
+        Parent = self.elements,
+    }, { Color = "SurfaceStroke" })
+
+    self:Create("UIGradient", {
+        Rotation = self.layout.cardStrokeRotation,
+        Transparency = self.layout.cardStrokeTransparency,
+
+        Parent = self.elementsStroke,
     })
-
-    if self.layout.mode == "sidebar" then
-        self.elementsCorner = self:_roundCorners(self.elements, self.layout.cardCorners)
-
-        self.elementsStroke = self:Create("UIStroke", {
-            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-
-                        Transparency = 1,
-            Parent = self.elements,
-        }, { Color = "SurfaceStroke" })
-
-                        self:Create("UIGradient", {
-            Rotation = self.layout.cardStrokeRotation,
-            Transparency = self.layout.cardStrokeTransparency,
-
-            Parent = self.elementsStroke,
-        })
-    end
 
     self.elementsLayout = self:Create("UIPageLayout", {
         Padding = UDim.new(0, 0),
@@ -7722,12 +7746,24 @@ function Window:_setContentVisible(visible)
     self:_applySettingsLayout(self._settingsMode)
 end
 
+-- [[The window's surfaces, shown or hidden as one. The three painted bands
+-- [[are part of this: the topbar band, the rail band and the elements pane
+-- [[reach the window's edges, so a fold that left them behind would keep a
+-- [[solid rectangle standing where the window is shrinking into its capsule
+-- [[(and, with a pill radius, square corners poking out of it). They fade
+-- [[out with the shell and fade back in with it, which is also how the
+-- [[window's own entrance stays a single gesture.
 function Window:_fadeSurfaces(shown, tweenInfo)
     local targets = {
         [self.windowShadow] = { Transparency = if shown then 0.6 else 1 },
         [self.windowStroke] = { Transparency = if shown then 0.95 else 1 },
         [self.bottomFade] = { BackgroundTransparency = if shown then 0 else 1 },
+        [self.topbar] = { BackgroundTransparency = if shown then 0 else 1 },
     }
+
+    if self.sidebar then
+        targets[self.sidebar] = { BackgroundTransparency = if shown then 0 else 1 }
+    end
 
     if self.elementsStroke then
         targets[self.elements] = {
@@ -15687,47 +15723,8 @@ local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local Sidebar = {}
 
-local function buildRail(window, layout)
-    window.tabList = window:Create("ScrollingFrame", {
-        Name = "Tabs",
-        Active = true,
-        Size = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        AutomaticCanvasSize = Enum.AutomaticSize.Y,
-        CanvasSize = UDim2.new(0, 0, 0, 0),
-        ScrollBarThickness = 0,
-        ScrollBarImageTransparency = 1,
-        ScrollingDirection = Enum.ScrollingDirection.Y,
-        ClipsDescendants = true,
-        Parent = window.sidebar,
-    })
-    window:Create("UIPadding", {
-        PaddingTop = UDim.new(0, layout.railPadding),
-        PaddingBottom = UDim.new(0, layout.railPadding),
-        Parent = window.tabList,
-    })
-    window.tabListLayout = window:Create("UIListLayout", {
-        Padding = UDim.new(0, layout.rowSpacing),
-        FillDirection = Enum.FillDirection.Vertical,
-        VerticalAlignment = Enum.VerticalAlignment.Top,
-        HorizontalAlignment = Enum.HorizontalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = window.tabList,
-    })
-end
-
 function Sidebar.Build(window, layout)
-    window.sidebar = window:Create("Frame", {
-        Name = "Sidebar",
-        AnchorPoint = Vector2.new(0, 1),
-        Position = UDim2.fromScale(0, 1),
-        Size = UDim2.new(0, layout.railWidth, 1, -layout.chromeHeight),
-        BackgroundTransparency = 1,
-        Visible = false,
-        Parent = window.main,
-    })
-    buildRail(window, layout)
+    sidebar.buildBand(window, layout, false, layout.railWidth)
 end
 
 function Sidebar.ApplyWidth(window, width)
@@ -15746,47 +15743,8 @@ local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local SidebarCollapsed = {}
 
-local function buildRail(window, layout)
-    window.tabList = window:Create("ScrollingFrame", {
-        Name = "CollapsedTabs",
-        Active = true,
-        Size = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        AutomaticCanvasSize = Enum.AutomaticSize.Y,
-        CanvasSize = UDim2.new(0, 0, 0, 0),
-        ScrollBarThickness = 0,
-        ScrollBarImageTransparency = 1,
-        ScrollingDirection = Enum.ScrollingDirection.Y,
-        ClipsDescendants = true,
-        Parent = window.sidebar,
-    })
-    window:Create("UIPadding", {
-        PaddingTop = UDim.new(0, layout.railPadding),
-        PaddingBottom = UDim.new(0, layout.railPadding),
-        Parent = window.tabList,
-    })
-    window.tabListLayout = window:Create("UIListLayout", {
-        Padding = UDim.new(0, layout.rowSpacing),
-        FillDirection = Enum.FillDirection.Vertical,
-        VerticalAlignment = Enum.VerticalAlignment.Top,
-        HorizontalAlignment = Enum.HorizontalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = window.tabList,
-    })
-end
-
 function SidebarCollapsed.Build(window, layout)
-    window.sidebar = window:Create("Frame", {
-        Name = "CollapsedSidebar",
-        AnchorPoint = Vector2.new(0, 1),
-        Position = UDim2.fromScale(0, 1),
-        Size = UDim2.new(0, layout.railCollapsedWidth, 1, -layout.chromeHeight),
-        BackgroundTransparency = 1,
-        Visible = false,
-        Parent = window.main,
-    })
-    buildRail(window, layout)
+    sidebar.buildBand(window, layout, true, layout.railCollapsedWidth)
 end
 
 function SidebarCollapsed.ApplyWidth(window)
@@ -18239,8 +18197,8 @@ return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(16, 13, 24),
     WindowSurface = Color3.fromRGB(26, 21, 36),
-    TopbarSurface = Color3.fromRGB(31, 25, 43),
-    SidebarSurface = Color3.fromRGB(22, 18, 31),
+    TopbarSurface = Color3.fromRGB(13, 8, 23),
+    SidebarSurface = Color3.fromRGB(19, 14, 29),
     TabSurface = Color3.fromRGB(39, 31, 53),
     TabSelected = Color3.fromRGB(75, 54, 91),
     ElementSurface = Color3.fromRGB(34, 27, 46),
@@ -18305,8 +18263,8 @@ return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(11, 16, 25),
     WindowSurface = Color3.fromRGB(18, 25, 37),
-    TopbarSurface = Color3.fromRGB(22, 30, 44),
-    SidebarSurface = Color3.fromRGB(15, 21, 32),
+    TopbarSurface = Color3.fromRGB(5, 12, 24),
+    SidebarSurface = Color3.fromRGB(11, 18, 30),
     TabSurface = Color3.fromRGB(29, 40, 58),
     TabSelected = Color3.fromRGB(37, 66, 91),
     ElementSurface = Color3.fromRGB(25, 34, 49),
@@ -18373,8 +18331,8 @@ return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(19, 12, 13),
     WindowSurface = Color3.fromRGB(25, 17, 18),
-    TopbarSurface = Color3.fromRGB(30, 21, 22),
-    SidebarSurface = Color3.fromRGB(22, 15, 16),
+    TopbarSurface = Color3.fromRGB(12, 4, 5),
+    SidebarSurface = Color3.fromRGB(18, 10, 11),
     TabSurface = Color3.fromRGB(40, 27, 29),
     TabSelected = Color3.fromRGB(84, 38, 42),
     ElementSurface = Color3.fromRGB(31, 22, 23),
@@ -18449,11 +18407,20 @@ local default = require(script.Parent.Parent.core.state)
 -- [[WindowSurface, text tiers, Success/Warning, etc.) are derived from the
 -- [[same greyscale + teal accent so the capsule and settings surfaces stay
 -- [[coherent with the rest of the theme.]]
+-- [[
+-- [[The three chrome planes are the topbar band (`TopbarSurface`, darkest),
+-- [[the tab rail (`SidebarSurface`) and the elements pane (`WindowSurface`,
+-- [[lightest). They are painted flat, one per region, so the window reads as
+-- [[three surfaces instead of one `WindowColor` gradient showing through
+-- [[thin overlays: the band a region sits on is the colour it is painted,
+-- [[wherever it sits on the screen. `WindowColor` stays the base the whole
+-- [[frame is laid over (and the collapsed capsule's face); the element cards
+-- [[(`ElementGradient`) stay a shade above the pane in every theme.]]
 return {
     -- [[Semantic palette (derived from the base greys + teal accent)]]
     Background = Color3.fromRGB(10, 10, 10),
     WindowSurface = Color3.fromRGB(25, 25, 25),
-    TopbarSurface = Color3.fromRGB(30, 30, 30),
+    TopbarSurface = Color3.fromRGB(12, 12, 12),
     SidebarSurface = Color3.fromRGB(18, 18, 18),
     TabSurface = Color3.fromRGB(35, 35, 35),
     TabSelected = Color3.fromRGB(23, 153, 110),
@@ -18553,8 +18520,8 @@ return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(22, 18, 16),
     WindowSurface = Color3.fromRGB(31, 26, 23),
-    TopbarSurface = Color3.fromRGB(37, 31, 27),
-    SidebarSurface = Color3.fromRGB(26, 22, 20),
+    TopbarSurface = Color3.fromRGB(18, 13, 10),
+    SidebarSurface = Color3.fromRGB(24, 19, 16),
     TabSurface = Color3.fromRGB(47, 39, 33),
     TabSelected = Color3.fromRGB(83, 59, 38),
     ElementSurface = Color3.fromRGB(38, 31, 27),
@@ -18621,8 +18588,8 @@ return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(12, 17, 13),
     WindowSurface = Color3.fromRGB(17, 23, 19),
-    TopbarSurface = Color3.fromRGB(21, 28, 23),
-    SidebarSurface = Color3.fromRGB(15, 20, 16),
+    TopbarSurface = Color3.fromRGB(4, 10, 6),
+    SidebarSurface = Color3.fromRGB(10, 16, 12),
     TabSurface = Color3.fromRGB(28, 38, 31),
     TabSelected = Color3.fromRGB(34, 71, 48),
     ElementSurface = Color3.fromRGB(23, 31, 26),
@@ -18696,8 +18663,8 @@ return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(10, 14, 19),
     WindowSurface = Color3.fromRGB(16, 21, 28),
-    TopbarSurface = Color3.fromRGB(20, 27, 35),
-    SidebarSurface = Color3.fromRGB(14, 19, 25),
+    TopbarSurface = Color3.fromRGB(3, 8, 15),
+    SidebarSurface = Color3.fromRGB(9, 14, 21),
     TabSurface = Color3.fromRGB(27, 35, 45),
     TabSelected = Color3.fromRGB(26, 56, 68),
     ElementSurface = Color3.fromRGB(22, 29, 37),
@@ -18771,8 +18738,8 @@ return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(19, 16, 10),
     WindowSurface = Color3.fromRGB(25, 21, 14),
-    TopbarSurface = Color3.fromRGB(30, 25, 17),
-    SidebarSurface = Color3.fromRGB(22, 19, 12),
+    TopbarSurface = Color3.fromRGB(12, 8, 1),
+    SidebarSurface = Color3.fromRGB(18, 14, 7),
     TabSurface = Color3.fromRGB(38, 32, 22),
     TabSelected = Color3.fromRGB(74, 61, 30),
     ElementSurface = Color3.fromRGB(31, 26, 18),
@@ -18846,8 +18813,8 @@ return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(8, 8, 9),
     WindowSurface = Color3.fromRGB(13, 13, 15),
-    TopbarSurface = Color3.fromRGB(17, 17, 20),
-    SidebarSurface = Color3.fromRGB(11, 11, 13),
+    TopbarSurface = Color3.fromRGB(0, 0, 2),
+    SidebarSurface = Color3.fromRGB(6, 6, 8),
     TabSurface = Color3.fromRGB(24, 24, 27),
     TabSelected = Color3.fromRGB(48, 48, 53),
     ElementSurface = Color3.fromRGB(19, 19, 22),
@@ -18919,8 +18886,8 @@ return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(23, 15, 19),
     WindowSurface = Color3.fromRGB(32, 22, 27),
-    TopbarSurface = Color3.fromRGB(38, 26, 32),
-    SidebarSurface = Color3.fromRGB(27, 19, 23),
+    TopbarSurface = Color3.fromRGB(19, 9, 14),
+    SidebarSurface = Color3.fromRGB(25, 15, 20),
     TabSurface = Color3.fromRGB(47, 32, 39),
     TabSelected = Color3.fromRGB(88, 51, 65),
     ElementSurface = Color3.fromRGB(39, 27, 32),
@@ -20141,7 +20108,19 @@ export type Layout = {
     cardTransparency: number?,
     cardStrokeRotation: number?,
     cardStrokeTransparency: NumberSequence?,
+
+    -- [[Which corners of the window's silhouette each chrome band owns. The
+    -- [[bands are painted flat and reach the window's edges, and nothing
+    -- [[clips a descendant to the frame's arc, so a band that touches an
+    -- [[edge has to carry that edge's arcs itself — otherwise a theme with
+    -- [[`CornerRoundness` shows a square corner behind the rounded
+    -- [[silhouette (see the window_corners suite). A band that meets
+    -- [[another band keeps its inner corners square, or the arc would cut a
+    -- [[notch of the window base out of it.]]
+    chromeCorners: { string }?,
+    railCorners: { string }?,
     cardCorners: { string }?,
+    fadeCorners: { string }?,
     forceCollapsed: boolean?,
 }
 
@@ -20166,9 +20145,18 @@ layouts.sidebar = {
 
     pageDirection = Enum.FillDirection.Vertical,
 
-    cardTransparency = 0.98,
+    -- [[The pane is its own flat plane (`WindowSurface`) now, so it shows at
+    -- [[full opacity instead of as a 2%-white sheet over the window gradient
+    -- [[behind it — the window gradient is the base only, and the corner
+    -- [[arcs are the one place it still shows through.]]
+    cardTransparency = 0,
     cardStrokeRotation = 55,
-    cardCorners = { "TopLeftRadius", "BottomRightRadius" },
+    -- [[Topbar band (top edge), rail band (bottom-left, below the topbar)
+    -- [[and elements pane (bottom-right). See the `chromeCorners` note in
+    -- [[the Layout type above.]]
+    chromeCorners = { "TopLeftRadius", "TopRightRadius" },
+    railCorners = { "BottomLeftRadius" },
+    cardCorners = { "BottomRightRadius" },
     cardStrokeTransparency = NumberSequence.new({
         NumberSequenceKeypoint.new(0, 0.9),
         NumberSequenceKeypoint.new(0.128, 0.95),
@@ -20182,7 +20170,7 @@ layouts.sidebar = {
         NumberSequenceKeypoint.new(0.377, 0),
         NumberSequenceKeypoint.new(1, 1),
     }),
-    fadeCorners = { "BottomLeftRadius", "BottomRightRadius" },
+    fadeCorners = { "BottomRightRadius" },
 } :: Layout
 
 local collapsedSidebarLayout = table.clone(layouts.sidebar)
@@ -21955,105 +21943,105 @@ local LineOffsets = {
     [13] = 2843,
     [14] = 3172,
     [15] = 3993,
-    [16] = 4054,
-    [17] = 4422,
-    [18] = 4896,
-    [19] = 4908,
-    [20] = 4965,
-    [21] = 5082,
-    [22] = 5419,
-    [23] = 5630,
-    [24] = 5934,
-    [25] = 6017,
-    [26] = 6066,
-    [27] = 6619,
-    [28] = 6806,
-    [29] = 7053,
-    [30] = 7441,
-    [31] = 4872,
-    [33] = 8201,
-    [34] = 8305,
-    [35] = 8628,
-    [36] = 9049,
-    [37] = 9451,
-    [38] = 9621,
-    [39] = 9766,
-    [40] = 11300,
-    [41] = 11519,
-    [42] = 11717,
-    [43] = 12004,
-    [44] = 12090,
-    [45] = 12687,
-    [46] = 13536,
-    [47] = 14003,
-    [48] = 14133,
-    [49] = 14285,
-    [51] = 14792,
-    [52] = 14812,
-    [53] = 14829,
-    [54] = 14858,
-    [55] = 14980,
-    [56] = 15004,
-    [57] = 15053,
-    [58] = 14767,
-    [59] = 15150,
-    [60] = 15453,
-    [61] = 15484,
-    [62] = 15139,
-    [63] = 15527,
-    [64] = 15547,
-    [65] = 15579,
-    [66] = 15509,
-    [67] = 15686,
-    [68] = 15745,
-    [70] = 15820,
-    [71] = 15985,
-    [72] = 15805,
-    [73] = 16559,
-    [74] = 16603,
-    [75] = 16683,
-    [76] = 16876,
-    [77] = 17005,
-    [78] = 17099,
-    [79] = 17266,
-    [80] = 17604,
-    [81] = 16061,
-    [82] = 18238,
-    [83] = 18304,
-    [84] = 18370,
-    [85] = 18445,
-    [86] = 18552,
-    [87] = 18618,
-    [88] = 18693,
-    [89] = 18768,
-    [90] = 18843,
-    [91] = 18918,
-    [92] = 18132,
-    [93] = 18984,
-    [94] = 19082,
-    [95] = 19260,
-    [96] = 19308,
-    [97] = 19338,
-    [98] = 19589,
-    [99] = 19638,
-    [100] = 20091,
-    [101] = 20109,
-    [102] = 20224,
-    [103] = 20323,
-    [104] = 20345,
-    [105] = 20399,
-    [106] = 20749,
-    [107] = 20785,
-    [108] = 20803,
-    [109] = 21157,
-    [110] = 21169,
-    [111] = 21220,
-    [112] = 21239,
-    [113] = 21490,
-    [114] = 21534,
-    [115] = 21737,
-    [116] = 21765,
-    [117] = 21776,
+    [16] = 4079,
+    [17] = 4447,
+    [18] = 4921,
+    [19] = 4933,
+    [20] = 4990,
+    [21] = 5107,
+    [22] = 5444,
+    [23] = 5655,
+    [24] = 5949,
+    [25] = 6032,
+    [26] = 6081,
+    [27] = 6643,
+    [28] = 6830,
+    [29] = 7077,
+    [30] = 7465,
+    [31] = 4897,
+    [33] = 8237,
+    [34] = 8341,
+    [35] = 8664,
+    [36] = 9085,
+    [37] = 9487,
+    [38] = 9657,
+    [39] = 9802,
+    [40] = 11336,
+    [41] = 11555,
+    [42] = 11753,
+    [43] = 12040,
+    [44] = 12126,
+    [45] = 12723,
+    [46] = 13572,
+    [47] = 14039,
+    [48] = 14169,
+    [49] = 14321,
+    [51] = 14828,
+    [52] = 14848,
+    [53] = 14865,
+    [54] = 14894,
+    [55] = 15016,
+    [56] = 15040,
+    [57] = 15089,
+    [58] = 14803,
+    [59] = 15186,
+    [60] = 15489,
+    [61] = 15520,
+    [62] = 15175,
+    [63] = 15563,
+    [64] = 15583,
+    [65] = 15615,
+    [66] = 15545,
+    [67] = 15722,
+    [68] = 15742,
+    [70] = 15778,
+    [71] = 15943,
+    [72] = 15763,
+    [73] = 16517,
+    [74] = 16561,
+    [75] = 16641,
+    [76] = 16834,
+    [77] = 16963,
+    [78] = 17057,
+    [79] = 17224,
+    [80] = 17562,
+    [81] = 16019,
+    [82] = 18196,
+    [83] = 18262,
+    [84] = 18328,
+    [85] = 18403,
+    [86] = 18519,
+    [87] = 18585,
+    [88] = 18660,
+    [89] = 18735,
+    [90] = 18810,
+    [91] = 18885,
+    [92] = 18090,
+    [93] = 18951,
+    [94] = 19049,
+    [95] = 19227,
+    [96] = 19275,
+    [97] = 19305,
+    [98] = 19556,
+    [99] = 19605,
+    [100] = 20058,
+    [101] = 20076,
+    [102] = 20212,
+    [103] = 20311,
+    [104] = 20333,
+    [105] = 20387,
+    [106] = 20737,
+    [107] = 20773,
+    [108] = 20791,
+    [109] = 21145,
+    [110] = 21157,
+    [111] = 21208,
+    [112] = 21227,
+    [113] = 21478,
+    [114] = 21522,
+    [115] = 21725,
+    [116] = 21753,
+    [117] = 21764,
 }
 
 -- [[Misc AOT variable imports]]

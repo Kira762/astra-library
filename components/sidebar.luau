@@ -11,7 +11,32 @@ function sidebar.maskUsername(name)
     return string.sub(name, 1, math.min(3, #name)) .. "****"
 end
 
-function sidebar.buildTabRail(window, layout, collapsed)
+-- [[The rail band, and the rail inside it. One builder for both layouts: the
+-- [[expanded rail and the collapsed one differ only by the width they open
+-- [[at and the name they carry (the settings rail and the search opening
+-- [[read `window.sidebar`, `window.tabList`).
+--
+-- [[The band is a painted plane — the theme's `SidebarSurface`, flat — so the
+-- [[tab rows sit on a colour of their own instead of on whatever the window
+-- [[gradient happens to be at that height, and the boundary with the elements
+-- [[pane is the two planes meeting rather than a gutter. Nothing clips a
+-- [[band to the window's silhouette, so the band carries the bottom-left
+-- [[corner arc itself (the second from the bottom owns the window's bottom
+-- [[edge; the topbar band owns the top one).
+function sidebar.buildBand(window, layout, collapsed, width)
+    window.sidebar = window:Create("Frame", {
+        Name = if collapsed then "CollapsedSidebar" else "Sidebar",
+        AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.fromScale(0, 1),
+        Size = UDim2.new(0, width, 1, -layout.chromeHeight),
+        BorderSizePixel = 0,
+        BackgroundTransparency = 1,
+        Visible = false,
+        Parent = window.main,
+    }, { BackgroundColor3 = "SidebarSurface" })
+
+    window:_roundCorners(window.sidebar, layout.railCorners)
+
     window.tabList = window:Create("ScrollingFrame", {
         Name = if collapsed then "CollapsedTabs" else "Tabs",
         Active = true,

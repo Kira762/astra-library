@@ -4,8 +4,8 @@ return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(19, 12, 13),
     WindowSurface = Color3.fromRGB(25, 17, 18),
-    TopbarSurface = Color3.fromRGB(30, 21, 22),
-    SidebarSurface = Color3.fromRGB(22, 15, 16),
+    TopbarSurface = Color3.fromRGB(12, 4, 5),
+    SidebarSurface = Color3.fromRGB(18, 10, 11),
     TabSurface = Color3.fromRGB(40, 27, 29),
     TabSelected = Color3.fromRGB(84, 38, 42),
     ElementSurface = Color3.fromRGB(31, 22, 23),

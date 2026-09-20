@@ -178,19 +178,9 @@ function Window:_setLayoutMode(modeName)
     end
     local implementation = layouts.implementation(modeName)
     implementation.Build(self, newLayout)
-    if not self.elementsCorner then
-        self.elementsCorner = self:_roundCorners(self.elements, newLayout.cardCorners)
-        self.elementsStroke = self:Create("UIStroke", {
-            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-            Transparency = 1,
-            Parent = self.elements,
-        }, { Color = "SurfaceStroke" })
-        self:Create("UIGradient", {
-            Rotation = newLayout.cardStrokeRotation,
-            Transparency = newLayout.cardStrokeTransparency,
-            Parent = self.elementsStroke,
-        })
-    end
+    -- [[The pane's corner and its edge stroke are part of the shell now
+    -- [[(both layouts open one — see Window.new), so switching layouts only
+    -- [[has to build the rail and re-apply the panes' widths below.
     implementation.ApplyWidth(self, self:_railWidth())
     self.elementsLayout.FillDirection = newLayout.pageDirection
 

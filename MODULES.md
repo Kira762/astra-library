@@ -66,8 +66,12 @@ Constructor/`new` locals:
 - `a15` — `core.state` runtime table (services, localPlayer, tweenService…).
 - `a4.toColorSequence` — gradient coercion helper for theme values.
 
-Notable instance fields set in `new`: `screenGui`, `main`, `elements`,
-`tabList`, `sidebar`, `settings` (plain table: `toggleKeybind`, `theme`,
+Notable instance fields set in `new`: `screenGui`, `main` (the window base the
+`WindowColor` gradient is laid over — the only place it still shows is the
+card's silhouette arcs), the three chrome planes `topbar` (with its
+`topbarCorner`), `elements` (with `elementsCorner`/`elementsStroke`),
+`bottomFade` and (per layout) `sidebar` + `tabList`,
+`settings` (plain table: `toggleKeybind`, `theme`,
 `mouseOverride`, `keepOnScreen`, `haptics`,
 `dragMinimisedBar`,
 `antiWindowDuplicate`, `layoutMode`), `rfSettings` (the
@@ -117,7 +121,10 @@ Public surface:
   `DisconnectMany`, `DestroySubtree`/`DestroySubtrees`, `CreateGlow`,
   `CreateHoverOverlay`, `StyleElementBody`/`StyleElementPanel` (element
   gradient/corner/stroke styling), `_buildCompactRow` (settings-mode tab row).
-Internal: `_reveal*`/`_fadeSurfaces`/`_firstShow`/`_quickRestore` (reveal
+Internal: `_reveal*`/`_fadeSurfaces` (the window's painted surfaces as one
+show/hide — shadow, stroke, bottom fade and the three chrome bands, since a
+band left behind would stand over the capsule the window shrinks into),
+`_firstShow`/`_quickRestore` (reveal
 engine — both entrances animate the shell first and hand the page to
 `_stageContentReveal`, which waits `contentRevealBeat`, runs `_revealElements`
 one control per beat, and then opens the overlay gate; `_contentEntranceId` is
@@ -153,9 +160,14 @@ Dedicated settings component providing UI generation and management for Astra's 
 Deleted. Release history now renders as a regular `elements/changelog` element; no window-scoped store, badge, or dedicated mode remains. `utilities/persistenceChangelog.luau` was deleted with it.
 
 ### `components/sidebar.luau`
-Tab-rail reflow:
+The rail band and the rail inside it:
 - `maskUsername(name)` — shared masking helper (first 3 chars + `****`).
-- `buildTabRail` — rail ScrollingFrame + UIPadding + UIListLayout (the layout implementations build their own rails).
+- `buildBand(window, layout, collapsed, width)` — one builder for both
+  sidebar layouts: the band `Frame` (`window.sidebar`, painted
+  `SidebarSurface` flat, carrying the window-silhouette corner
+  `layout.railCorners`), then the rail itself (`window.tabList` ScrollingFrame
+  + UIPadding + UIListLayout). `collapsed` only picks the names
+  (`Sidebar`/`Tabs` vs `CollapsedSidebar`/`CollapsedTabs`).
 - `applyRailRows(window, width, layout)` — rows collapse only at the icon-only width (the responsive rail is often narrower than the old 219px fixed rail); ends with `tabSelector.relayoutSidebarRows`.
 
 ### `components/drag.luau` (the detached drag handle)
@@ -266,11 +278,17 @@ Fuzzy search overlay: locals for candidate list, scoring weights, debounce conne
 
 ## layouts/
 
-One module per bar-layout mode, each with `Build(window, layout)` (creates the
-tab strip and rail chrome) and `ApplyWidth(window)` (reflow):
+One module per bar-layout mode, each with `Build(window, layout)` (opens the
+rail band through `components/sidebar.buildBand`) and `ApplyWidth(window, width)`
+(reflow: band width, elements pane, bottom fade, rail rows):
 
 - `Sidebar.luau` — mode `sidebar` (responsive): vertical tab rail.
 - `SidebarCollapsed.luau` — mode `collapsedSidebar`: compact rail.
+
+The window's own three planes (topbar band, rail band, elements pane) are part
+of the shell in `components/window/startup.luau` — a layout switch rebuilds
+only the rail and re-applies the widths, so the pane's corner and edge stroke
+are never rebuilt.
 
 `utilities/layouts.luau` holds the per-mode metric tables and dispatches
 (`layouts.get(mode)`, `layouts.implementation(mode)`,
@@ -424,7 +442,11 @@ Per-element specifics:
   `emerald`, `frost`, `gold`, `onyx`, `rose`) — theme tables of ~65 keys
   (surfaces, strokes, text colors, gradients, fonts, corner radii,
   slider/toggle/picker styling). Keys a theme omits are inherited from the
-  `default` clone. Registered in two places: the settings-UI theme table in
+  `default` clone.
+  `TopbarSurface` / `SidebarSurface` / `WindowSurface` are the three chrome
+  planes the window is painted from — the topbar band (darkest), the tab rail
+  and the elements pane (lightest) — and each theme keeps them a visible step
+  apart, 2/4/6% of the theme's own window grey apart in the greyscale themes. Registered in two places: the settings-UI theme table in
   `components/window/theme.luau` and the persisted-theme whitelist in
   `utilities/persistenceSettings.luau`.
   `CardSurface` (Color3, from the `2ecd628` settings-card fix) is still
@@ -456,8 +478,9 @@ Per-element specifics:
   `getSettingsPath`, `saveSettings`, `loadSettings`); required by the window
   and by `settings/persistence`.
 - `layouts.luau` — per-mode metric tables (`chromeHeight`, `fadeSize`,
-  `cardCorners`, …) and dispatch into the `layouts/` builders
-  (`get`, `implementation`, `railWidthFor`).
+  the corner sets each chrome band owns — `chromeCorners`, `railCorners`,
+  `cardCorners`, `fadeCorners` — …) and dispatch into the `layouts/`
+  builders (`get`, `implementation`, `railWidthFor`).
 - `HapticEngine.luau` — vibration wrappers guarded by service availability.
 - `moveable.luau`, `lockable.luau` — drag/lock mixins.
 - `log.luau` — warn/error/log with Astra prefix.
@@ -481,6 +504,7 @@ Per-element specifics:
 | `check_syntax.sh` | Compiles every published file (modular tree, `example.client.luau`, `version-1.luau`). A syntax error in a loadstring'd bundle is invisible to the user — it only shows up as `attempt to call a nil value` at line 1 of the executor's chunk — so this is the gate that catches it here. |
 | `sidebar_tab_sizing_test.sh`, `smoke_test_bundle.sh` | Rail sizing (name-driven width, cap, restore) and a bundle smoke run; also the collapsed rail: rows are icon-only (title hidden, content centred, no expanded padding) whether they were collapsed in place, rebuilt by a layout switch, or created while the rail was already icon-only, and a capped title re-constrains after that rebuild. |
 | `collapsible_group_test.sh` | Collapsible groups: every declarative element type, state/callbacks, the connected-card geometry and surface recipe, and the corner treatment (band's top arcs matching the container, body clipper's bottom arcs). |
+| `chrome_planes_test.sh` | The window's three chrome planes: one flat surface per region (topbar band darkest, rail, elements pane lightest — the pane's fill coming from the theme, not a 2%-white sheet over the window gradient), the regions meeting edge to edge, the cardinal corners each band owns (square where two bands meet, arcs where a band touches the silhouette — checked under a rounded theme too), the bottom fade drawn in the pane's own colour, and every band folding away with the shell and back with it. |
 | `instance_budget_test.sh` | Per-element instance ceilings plus a realistic-page budget — the frame-time proxy guard. |
 | `odometer_test.sh` | Odometer readout: lazy row materialisation, and the resting row still showing the value's digit through plain/wrap/roll-down transitions. |
 | `dropdown_rows_test.sh` | Dropdown option rows: none (and no search bar) while closed whatever the list length, one per option in order on open plus the bar once, the rendered selected/unselected state and corner tiers, reopening reusing the rows, edits and picks made while closed, and the search filter. |

@@ -14979,15 +14979,17 @@ local cacheRoot = variables.fileSystemManager:getRootFolder()
 local cacheFolder = variables.fileSystemManager:getAssetsFolder("images-icon")
 local assetResolver = variables.assetResolver
 
-local assetBase = "https://raw.githubusercontent.com/Kira762/astra-version-1/main/assets/"
+local assetBase = "https://raw.githubusercontent.com/Kira762/astra-version-1/main/assets/window-icons/"
 local headshotPx = 48
 local thumbEndpoint =
     "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=%d&size=%dx%d&format=Png&isCircular=false"
 
 local manifest: { [number]: string } = {}
-local iconManifest = windowIcons.manifest()
-for iconId in iconManifest do
-    manifest[iconId] = assetBase .. tostring(iconId) .. ".png"
+for name, iconId in windowIcons.ids do
+    local file = windowIcons.files[name]
+    if file then
+        manifest[iconId] = assetBase .. file
+    end
 end
 local manifestSize = 0
 for _ in manifest do
@@ -15816,6 +15818,22 @@ windowIcons.ids = {
     config = 125823673784681,
 }
 
+-- Human-readable filenames for the fallback PNGs in assets/window-icons/.
+-- Numeric rbxassetids stay in `ids` for Roblox loading; these names are what
+-- `cache/imageCache` fetches from GitHub when secureMode rewrites assets.
+windowIcons.files = {
+    window = "astra.png",
+    close = "close.png",
+    minimise = "minimise.png",
+    maximise = "maximise.png",
+    settings = "settings.png",
+    search = "search.png",
+    chevron = "chevron.png",
+    check = "check.png",
+    dot = "sirius.png",
+    config = "config.png",
+}
+
 windowIcons.roles = {
     close = "close",
     minimise = "minimise",
@@ -15824,7 +15842,7 @@ windowIcons.roles = {
     search = "search",
     chevron = "chevron",
     check = "check",
-    dot = "dot",
+    dot = "sirius",
     config = "config",
 }
 
@@ -16005,8 +16023,9 @@ function icons.loaded(): { string }
 end
 
 local namedAssets = {
-    -- `Astra` reuses the window icon asset (80387863064905.png) — deduped from the former `assets/Astra.png` duplicate.
-    Astra = "assets/80387863064905.png",
+    -- Brand assets now live under assets/window-icons/ with human names.
+    Astra = "assets/window-icons/astra.png",
+    Sirius = "assets/window-icons/sirius.png",
 }
 
 local function environment(): any
@@ -21826,63 +21845,63 @@ local LineOffsets = {
     [56] = 14859,
     [57] = 14573,
     [58] = 14956,
-    [59] = 15259,
-    [60] = 15290,
+    [59] = 15261,
+    [60] = 15292,
     [61] = 14945,
-    [62] = 15333,
-    [63] = 15353,
-    [64] = 15385,
-    [65] = 15315,
-    [66] = 15492,
-    [67] = 15558,
-    [69] = 15638,
-    [70] = 15803,
-    [71] = 15623,
-    [72] = 16378,
-    [73] = 16422,
-    [74] = 16502,
-    [75] = 16695,
-    [76] = 16824,
-    [77] = 16918,
-    [78] = 17085,
-    [79] = 17423,
-    [80] = 15879,
-    [81] = 18057,
-    [82] = 18123,
-    [83] = 18189,
-    [84] = 18264,
-    [85] = 18376,
-    [86] = 18442,
-    [87] = 18517,
-    [88] = 18592,
-    [89] = 18667,
-    [90] = 18742,
-    [91] = 17951,
-    [92] = 18808,
-    [93] = 18906,
-    [94] = 19084,
-    [95] = 19132,
-    [96] = 19162,
-    [97] = 19413,
-    [98] = 19462,
-    [99] = 19915,
-    [100] = 19933,
-    [101] = 20054,
-    [102] = 20153,
-    [103] = 20175,
-    [104] = 20229,
-    [105] = 20579,
-    [106] = 20615,
-    [107] = 20633,
-    [108] = 20987,
-    [109] = 20999,
-    [110] = 21050,
-    [111] = 21069,
-    [112] = 21320,
-    [113] = 21364,
-    [114] = 21567,
-    [115] = 21595,
-    [116] = 21606,
+    [62] = 15335,
+    [63] = 15355,
+    [64] = 15387,
+    [65] = 15317,
+    [66] = 15494,
+    [67] = 15560,
+    [69] = 15640,
+    [70] = 15805,
+    [71] = 15625,
+    [72] = 16397,
+    [73] = 16441,
+    [74] = 16521,
+    [75] = 16714,
+    [76] = 16843,
+    [77] = 16937,
+    [78] = 17104,
+    [79] = 17442,
+    [80] = 15897,
+    [81] = 18076,
+    [82] = 18142,
+    [83] = 18208,
+    [84] = 18283,
+    [85] = 18395,
+    [86] = 18461,
+    [87] = 18536,
+    [88] = 18611,
+    [89] = 18686,
+    [90] = 18761,
+    [91] = 17970,
+    [92] = 18827,
+    [93] = 18925,
+    [94] = 19103,
+    [95] = 19151,
+    [96] = 19181,
+    [97] = 19432,
+    [98] = 19481,
+    [99] = 19934,
+    [100] = 19952,
+    [101] = 20073,
+    [102] = 20172,
+    [103] = 20194,
+    [104] = 20248,
+    [105] = 20598,
+    [106] = 20634,
+    [107] = 20652,
+    [108] = 21006,
+    [109] = 21018,
+    [110] = 21069,
+    [111] = 21088,
+    [112] = 21339,
+    [113] = 21383,
+    [114] = 21586,
+    [115] = 21614,
+    [116] = 21625,
 }
 
 -- [[Misc AOT variable imports]]

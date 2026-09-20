@@ -85,7 +85,7 @@ function Drag.new(window, props)
     })
 
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 20),
+        CornerRadius = UDim.new(0, 0),
         Parent = self.dragCosmetic,
     })
 

@@ -829,7 +829,7 @@ function Action.new(window, props)
             Parent = self.action,
         })
         self.window:Create("UICorner", {
-            CornerRadius = UDim.new(1, 0),
+            CornerRadius = UDim.new(0, 0),
             Parent = self.badge,
         })
     end
@@ -1220,7 +1220,7 @@ function Drag.new(window, props)
     })
 
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 20),
+        CornerRadius = UDim.new(0, 0),
         Parent = self.dragCosmetic,
     })
 
@@ -2165,7 +2165,7 @@ local boxIconSpacing = 8
 local boxContentPad = 10
 local footerHeight = 40
 local footerSpacing = 8
-local buttonCorner = UDim.new(1, 0)
+local buttonCorner = UDim.new(0, 0)
 local buttonTextSize = 16
 
 local backdropTransparency = 0.5
@@ -3096,7 +3096,7 @@ function search.buildContent(window)
     })
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
+        CornerRadius = UDim.new(0, 0),
         Parent = window.searchPill,
     })
 
@@ -4548,7 +4548,7 @@ function tooltip.ensure(window)
     window.elementTooltip = tip
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 6),
+        CornerRadius = UDim.new(0, 0),
         Parent = tip,
     })
 
@@ -6889,7 +6889,7 @@ function Window:Close()
     -- completion (the test harness plays tweens on the spot) may have torn
     -- the window down inside the call above; never touch the corner then.]]
     if not self.unloaded then
-        motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, contractTween)
+        motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(0, 0) }, contractTween)
     end
 end
 
@@ -7184,7 +7184,7 @@ function Window:ChangeTheme(themeInput)
     -- [[Capsule / minimised bar: keep the live corner on the theme's pill
     -- [[radius so ChangeTheme restyles the bar without needing a re-collapse.]]
     if self.windowCorner and (self._collapsedShown or self.minimised) and not self.animating then
-        local pill = self.theme.PillCornerRadius or UDim.new(1, 0)
+        local pill = self.theme.PillCornerRadius or UDim.new(0, 0)
         if self.windowCorner.CornerRadius ~= pill then
             motion.tween(self.windowCorner, { CornerRadius = pill }, "smooth")
         end
@@ -7553,7 +7553,7 @@ function Window:Hide()
         settleCollapse()
     end
     -- [[Capsule bar: theme PillCornerRadius (the default theme is a full pill).]]
-    motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, cornerTween)
+    motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(0, 0) }, cornerTween)
 
     self.topbar.Visible = true
     self:_setContentVisible(false)
@@ -7675,7 +7675,7 @@ function Window:ToggleMinimise()
         self:_fadeSurfaces(false, surfaceTween)	chrome.setCollapsedShown(self, true, surfaceTween)
         motion.tween(self.main, { Size = UDim2.fromOffset(self.size.X.Offset, self.layout.topbarHeight) }, expandTween)
         -- [[Minimised bar reads as a theme-aware capsule (PillCornerRadius).]]
-        motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, expandTween)
+        motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(0, 0) }, expandTween)
 
         motion.tween(self.drag.drag, {
             Position = UDim2.new(
@@ -8028,7 +8028,7 @@ function Window:_firstShow()
     self.main.Size = self.size
     self.windowScale.Scale = 0.94
     -- [[Entrance starts as a capsule (theme pill) then opens to CornerRoundness.]]
-    self.windowCorner.CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0)
+    self.windowCorner.CornerRadius = self.theme.PillCornerRadius or UDim.new(0, 0)
     -- [[Which entrance owns the staged content reveal below. A hide, a repeat
     -- [[show or a layout switch between now and then replaces it, and the
     -- [[older sequence stops instead of fighting the newer one for the page.]]
@@ -9786,8 +9786,8 @@ local callback = name.icons.check
 local element = name.icons.dot
 local frame = name.icons.search
 
-local button = UDim.new(0, 12)
-local list = UDim.new(0, 7)
+local button = UDim.new(0, 0)
+local list = UDim.new(0, 0)
 
 local isOpen = 30
 local selected = 38
@@ -9810,7 +9810,7 @@ local a27 = 4
 -- [[of the box are never a size apart.]]
 local a28 = 32
 local actionBox = 12
-local actionBoxRadius = UDim.new(0, 3)
+local actionBoxRadius = UDim.new(0, 0)
 local actionStrokeIdle = 0.45
 local actionStrokeHover = 0.2
 local actionStrokeChecked = 1
@@ -10425,7 +10425,7 @@ function state:_buildSearch()
     })
 
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 12),
+        CornerRadius = UDim.new(0, 0),
         Parent = self.searchbar,
     })
 
@@ -12221,7 +12221,7 @@ function state.new(ownerTab, a31)
     }, { BackgroundColor3 = "SliderBackground" })
 
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 13),
+        CornerRadius = UDim.new(0, 0),
 
         Parent = self.track,
     })
@@ -12238,7 +12238,7 @@ function state.new(ownerTab, a31)
     })
 
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 13),
+        CornerRadius = UDim.new(0, 0),
 
         Parent = self.progress,
     })
@@ -12267,7 +12267,7 @@ function state.new(ownerTab, a31)
     }, { BackgroundColor3 = "SliderHandle" })
 
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
+        CornerRadius = UDim.new(0, 0),
 
         Parent = self.handle,
     })
@@ -14378,7 +14378,7 @@ function state:_buildSwitch(frame)
     }, { BackgroundColor3 = "ToggleTrack" })
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
+        CornerRadius = UDim.new(0, 0),
         Parent = self.functionContainer,
     })
 
@@ -14400,7 +14400,7 @@ function state:_buildSwitch(frame)
     })
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
+        CornerRadius = UDim.new(0, 0),
         Parent = self.indicator,
     })
 
@@ -14423,7 +14423,7 @@ function state:_buildSwitch(frame)
     }, { Visible = "DarkToggleOverlay" })
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
+        CornerRadius = UDim.new(0, 0),
         Parent = self.overlay,
     })
 
@@ -18521,7 +18521,7 @@ return {
     ElementStrokeHoverTransparency = 0,
     CollapsibleChildElementStrokeHoverTransparency = 0,
     ElementStrokeHover = Color3.fromRGB(82, 82, 82),
-    ElementCornerRadius = UDim.new(0, 12),
+    ElementCornerRadius = UDim.new(0, 0),
     ElementTextHoverColor = Color3.fromRGB(255, 255, 255),
     TitlingColor = Color3.fromRGB(255, 255, 255),
     DropdownHighlight = Color3.fromRGB(255, 255, 255),
@@ -18530,7 +18530,7 @@ return {
     AccentGlow = 0.4,
     StatBackground = Color3.fromRGB(25, 25, 25),
     SliderHandle = Color3.fromRGB(255, 255, 255),
-    PillCornerRadius = UDim.new(1, 0),
+    PillCornerRadius = UDim.new(0, 0),
     ToggleTrack = Color3.fromRGB(0, 0, 0),
     ToggleTrackTransparency = 0.9,
     ToggleKnobOff = Color3.fromRGB(255, 255, 255),
@@ -20156,7 +20156,7 @@ layouts.sidebar = {
     railCollapseBelow = 520,
 
     rowHeight = 38,
-    rowCornerRadius = 14,
+    rowCornerRadius = 0,
     rowSpacing = 4,
     railPadding = 17,
     rowInset = 15,

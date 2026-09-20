@@ -254,7 +254,7 @@ function search.buildContent(window)
     })
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
+        CornerRadius = UDim.new(0, 0),
         Parent = window.searchPill,
     })
 

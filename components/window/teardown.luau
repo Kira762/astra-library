@@ -84,7 +84,7 @@ function Window:Close()
     -- completion (the test harness plays tweens on the spot) may have torn
     -- the window down inside the call above; never touch the corner then.]]
     if not self.unloaded then
-        motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, contractTween)
+        motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(0, 0) }, contractTween)
     end
 end
 

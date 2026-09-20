@@ -94,7 +94,7 @@ function state:_buildSwitch(frame)
     }, { BackgroundColor3 = "ToggleTrack" })
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
+        CornerRadius = UDim.new(0, 0),
         Parent = self.functionContainer,
     })
 
@@ -116,7 +116,7 @@ function state:_buildSwitch(frame)
     })
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
+        CornerRadius = UDim.new(0, 0),
         Parent = self.indicator,
     })
 
@@ -139,7 +139,7 @@ function state:_buildSwitch(frame)
     }, { Visible = "DarkToggleOverlay" })
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
+        CornerRadius = UDim.new(0, 0),
         Parent = self.overlay,
     })
 

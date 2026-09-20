@@ -35,7 +35,7 @@ return {
     InputSurface = Color3.fromRGB(18, 18, 18),
 
     -- [[Shared keys — the set every theme module must provide]]
-    CornerRoundness = UDim.new(0, 20),
+    CornerRoundness = UDim.new(0, 0),
     WindowColor = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(10, 10, 10)),
         ColorSequenceKeypoint.new(0.9999, Color3.fromRGB(25, 25, 25)),

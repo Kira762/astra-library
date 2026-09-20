@@ -56,6 +56,14 @@ function makeNode(name, className) {
   return refId;
 }
 
+function hasLuau(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).some((d) => {
+    if (d.isFile()) return d.name.endsWith(".luau");
+    if (d.isDirectory() && !d.name.startsWith(".")) return hasLuau(path.join(dir, d.name));
+    return false;
+  });
+}
+
 // Build the tree bottom-up: returns wax ObjectTree object
 function buildNode(entry) {
   if (entry.file) {
@@ -68,20 +76,41 @@ function buildNode(entry) {
   }
   if (entry.dir) {
     const dirPath = path.join(ROOT, entry.dir);
-    const files = fs
-      .readdirSync(dirPath)
-      .filter((f) => f.endsWith(".luau"))
+    // `entry.dir` is a path relative to ROOT and may be nested
+    // ("components/window"), so the instance name is the last segment only.
+    const dirName = entry.name || path.basename(entry.dir);
+    const listing = fs.readdirSync(dirPath, { withFileTypes: true });
+
+    const files = listing
+      .filter((d) => d.isFile() && d.name.endsWith(".luau"))
+      .map((d) => d.name)
       .sort();
 
+    // Subfolders are recursed into, so the source tree can nest as deeply as
+    // it likes ("components/window/input.luau"). Empty/non-Luau directories
+    // are skipped rather than emitted as stray Folders.
+    const subDirs = listing
+      .filter((d) => d.isDirectory() && !d.name.startsWith("."))
+      .map((d) => d.name)
+      .sort()
+      .filter((d) => hasLuau(path.join(dirPath, d)));
+
     // Folders without any Luau content (e.g. assets/) sync as plain Folders.
-    if (files.length === 0) {
-      const folderRefId = makeNode(entry.dir, CLASS_FOLDER);
+    if (files.length === 0 && subDirs.length === 0) {
+      const folderRefId = makeNode(dirName, CLASS_FOLDER);
       return {
         refId: folderRefId,
-        tree: [folderRefId, CLASS_FOLDER, [entry.dir], []],
+        tree: [folderRefId, CLASS_FOLDER, [dirName], []],
         closures: [],
       };
     }
+
+    const buildChildren = (names) => [
+      ...names.map((f) =>
+        buildNode({ file: path.join(entry.dir, f), name: f.replace(/\.luau$/, "") })
+      ),
+      ...subDirs.map((d) => buildNode({ dir: path.join(entry.dir, d), name: d })),
+    ];
 
     // Rojo/Wax semantics: a folder containing init.luau syncs as a single
     // ModuleScript (the init file), with the sibling files as its children.
@@ -89,35 +118,24 @@ function buildNode(entry) {
     // `script.<sibling>` requires. The init file itself does NOT become a
     // child named "init" — Rojo merges it into the folder's ModuleScript.
     // Folders without init.luau stay Folders.
-    const initIndex = files.indexOf("init.luau");
-    if (initIndex !== -1) {
+    if (files.indexOf("init.luau") !== -1) {
       // Build only real children — init.luau is merged into the folder node.
-      const childFiles = files.filter((f) => f !== "init.luau");
-      const siblings = childFiles.map((f) =>
-        buildNode({ file: path.join(entry.dir, f), name: f.replace(/\.luau$/, "") })
-      );
-      const refId = makeNode(entry.dir, CLASS_MODULE);
+      const children = buildChildren(files.filter((f) => f !== "init.luau"));
+      const refId = makeNode(dirName, CLASS_MODULE);
       return {
         refId,
-        tree: [refId, CLASS_MODULE, [entry.dir], siblings.map((c) => c.tree)],
+        tree: [refId, CLASS_MODULE, [dirName], children.map((c) => c.tree)],
         closure: readLuau(path.join(ROOT, entry.dir, "init.luau")),
-        closures: siblings.flatMap((c) => [c, ...(c.closures || [])]).filter(Boolean),
+        closures: children.flatMap((c) => [c, ...(c.closures || [])]).filter(Boolean),
       };
     }
 
     // Plain folder (no init.luau): children sync as its child instances.
-    const children = files.map((f) =>
-      buildNode({ file: path.join(entry.dir, f), name: f.replace(/\.luau$/, "") })
-    );
-    const refId = makeNode(entry.dir, CLASS_FOLDER);
+    const children = buildChildren(files);
+    const refId = makeNode(dirName, CLASS_FOLDER);
     return {
       refId,
-      tree: [
-        refId,
-        CLASS_FOLDER,
-        [entry.dir],
-        children.map((c) => c.tree),
-      ],
+      tree: [refId, CLASS_FOLDER, [dirName], children.map((c) => c.tree)],
       closures: children.flatMap((c) => [c, ...(c.closures || [])]).filter(Boolean),
     };
   }

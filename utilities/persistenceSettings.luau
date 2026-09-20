@@ -22,7 +22,6 @@ type SettingsWindow = {
         haptics: boolean,
         antiWindowDuplicate: boolean,
         layoutMode: string,
-        activeSubTab: number,
         motionSpeed: string,
         autoSaveConfig: boolean,
         autoLoadConfig: boolean,
@@ -39,7 +38,6 @@ type DecodedSettings = {
         haptics: unknown?,
     antiWindowDuplicate: unknown?,
     layoutMode: unknown?,
-    activeSubTab: unknown?,
     motionSpeed: unknown?,
     autoSaveConfig: unknown?,
     autoLoadConfig: unknown?,
@@ -65,7 +63,6 @@ function persistenceSettings.saveSettings(window: SettingsWindow): boolean
         haptics = window.settings.haptics,
         antiWindowDuplicate = window.settings.antiWindowDuplicate,
         layoutMode = window.settings.layoutMode,
-        activeSubTab = window.settings.activeSubTab,
         motionSpeed = window.settings.motionSpeed,
         autoSaveConfig = window.settings.autoSaveConfig,
         autoLoadConfig = window.settings.autoLoadConfig,
@@ -185,10 +182,6 @@ function persistenceSettings.loadSettings(window: SettingsWindow): (boolean, boo
         or decodedSettings.layoutMode == "collapsedSidebar"
     then
         window.settings.layoutMode = decodedSettings.layoutMode
-    end
-
-    if type(decodedSettings.activeSubTab) == "number" and decodedSettings.activeSubTab >= 1 then
-        window.settings.activeSubTab = math.floor(decodedSettings.activeSubTab)
     end
 
     -- [[Motion profiles are validated by the motion service, the same way the

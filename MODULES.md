@@ -52,7 +52,14 @@ Shared runtime singletons:
 
 ## components/
 
-### `components/window.luau` (the largest module; class `Window`, minified as `a17`)
+### `components/window/` (class `Window`, minified as `a17`)
+
+Split by responsibility across one folder. `class.luau` holds the bare class
+table so every part can attach methods without a require cycle; `init.luau`
+requires the parts and returns the finished class, so `require(components.window)`
+is unchanged for callers. `constants.luau` holds the values shared by more than
+one part. Parts: `startup`, `theme`, `tabs`, `elements`, `overlays`, `layout`,
+`visibility`, `input`, `settings`, `config`, `teardown`.
 Constructor/`new` locals:
 - `a2..a5` — `core.state`, `functions.colors`, `functions.textMetrics`, `utilities.layouts`.
 - `a6..a14` — zIndex/display-order constants, default window props, layout-mode resolution.
@@ -63,7 +70,7 @@ Notable instance fields set in `new`: `screenGui`, `main`, `elements`,
 `tabList`, `sidebar`, `settings` (plain table: `toggleKeybind`, `theme`,
 `mouseOverride`, `keepOnScreen`, `haptics`,
 `dragMinimisedBar`,
-`antiWindowDuplicate`, `layoutMode`, `activeSubTab`), `rfSettings` (the
+`antiWindowDuplicate`, `layoutMode`), `rfSettings` (the
 built-in "General" settings tab), `_settingsTabs` (settings-tab list),
 `_settingsMode` / `_previousTab` (settings-mode bookkeeping),
 `settingsAction` / `minimiseAction` (topbar actions), `drag`,
@@ -93,7 +100,7 @@ Method map (names preserved through minification). Settings-related:
   action is the single settings entry point.
 - `_applySettingsLayout(active)` — reflows rail/elements for settings mode.
 - `SaveSettings` / `LoadSettings` — per-window settings persistence via
-  `utilities.persistence` (settings JSON, includes `activeSubTab` round-trip).
+  `utilities.persistence` (settings JSON).
 Public surface:
 - `Create(className, props, themeBindings?)` — instance factory: theme-bound
   property recording (`themeProperties`), locale-token binding
@@ -335,22 +342,19 @@ Per-element specifics:
   entry per setting. Keys: `toggleKeybind` (keybind/behavior),
   `mouseOverride` (boolean/behavior), `keepOnScreen` (boolean/appearance),
   `haptics` (boolean/performance),
-  `antiWindowDuplicate` (boolean/behavior), `layoutMode` (enum/appearance),
-  `activeSubTab` (enum/appearance — persisted, retained for compatibility
-  with the pre-rebuild sub-tab UI). Lookup: `registry.definition(key)`,
-  `registry.keys()`.
+  `antiWindowDuplicate` (boolean/behavior), `layoutMode` (enum/appearance).
+  Lookup: `registry.definition(key)`, `registry.keys()`.
 - `defaults.luau` — `values`: flat defaults (`toggleKeybind = Enum.KeyCode.K`,
-  `layoutMode = "sidebar"`, `activeSubTab = 1`, …); `defaults.clone(overrides)`.
+  `layoutMode = "sidebar"`, …); `defaults.clone(overrides)`.
 - `manager.luau` — `SettingsManager.new(overrides)` → `{ defaults =
   defaults.clone(overrides), persistence = {} }`; methods `get`, `set`
   (routes through `registry.definition` + the domain validator, returns false
   for unknown keys), `reset`, `onChange(listener)`, `save`, `load`.
 - `persistence.luau` — save/load/read of the per-window settings JSON over
-  `utilities.persistenceSettings` (round-trips `activeSubTab` and friends).
+  `utilities.persistenceSettings`.
 - `appearance.luau`, `behavior.luau`, `performance.luau` — per-domain
   `validate(key, value) -> (ok, normalized)`. Appearance additionally
-  whitelists `layoutMode ∈ { top, sidebar, collapsedSidebar }` and floors
-  `activeSubTab` to an integer ≥ 1.
+  whitelists `layoutMode ∈ { top, sidebar, collapsedSidebar }`.
 
 ---
 
@@ -421,7 +425,7 @@ Per-element specifics:
   (surfaces, strokes, text colors, gradients, fonts, corner radii,
   slider/toggle/picker styling). Keys a theme omits are inherited from the
   `default` clone. Registered in two places: the settings-UI theme table in
-  `components/window.luau` and the persisted-theme whitelist in
+  `components/window/theme.luau` and the persisted-theme whitelist in
   `utilities/persistenceSettings.luau`.
   `CardSurface` (Color3, from the `2ecd628` settings-card fix) is still
   defined in every theme but no longer referenced by the rebuilt settings
@@ -444,7 +448,7 @@ Per-element specifics:
   `motion.step(base)` for cascade pacing, and the speed profiles (`relaxed`
   1.35x, `normal` 1x, `snappy` 0.7x, `instant` = no animation) behind the
   window's "Animation speed" setting. Public as `Astra.Motion`.
-- `persistenceSettings.luau` — settings JSON encode/decode; `activeSubTab` round-trips here.
+- `persistenceSettings.luau` — settings JSON encode/decode.
 - `persistenceWrite.luau` — atomic write helper.
 - `persistenceConfig.luau`, `persistencePaths.luau` — window-config serialization and key paths.
 - `persistence.luau` — facade re-exporting the config + settings persistence

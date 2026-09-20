@@ -96,6 +96,8 @@ skills/astra/             the published Agent Skill
 
 ```sh
 node scripts/generate_bundle.js             # regenerate version-1.luau from the tree
+sh scripts/install_luau.sh                 # build the Luau toolchain into .tools/bin (once)
+sh scripts/check_all.sh                    # requires + bundle freshness + syntax + 26 runtime tests
 sh scripts/check_syntax.sh                  # compile every published .luau file
 python3 scripts/check_requires.py           # require paths and cycles
 python3 scripts/check_instance_fields.py    # no custom fields written on Instances

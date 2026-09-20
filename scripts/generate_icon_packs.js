@@ -49,8 +49,7 @@ for (const pack of PACKS) {
     if (fileBase !== match[2]) {
       throw new Error(`${pack}: ${match[1]} derives ${fileBase}, expected ${match[2]}`);
     }
-    urls[match[1]] =
-      prefix + fileBase[0].toLowerCase() + "/" + packName + fileBase + ".png";
+    urls[match[1]] = prefix + packName + fileBase + ".png";
   }
   expected[pack] = urls;
 

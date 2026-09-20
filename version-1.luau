@@ -6088,9 +6088,9 @@ function Window.new(props)
         _overlayQueue = {},
         _overlayQueueRunning = false,
 
-        icon = icons.resolve(providedIcon or "Astra"),
+        icon = icons.resolve(providedIcon or "Sirius"),
         showName = props.showName or props.ShowName or "Astra",
-        showIcon = icons.resolve(providedIcon or "Astra"),
+        showIcon = icons.resolve(providedIcon or "Sirius"),
                 showIconOnly = props.showIconOnly or props.ShowIconOnly or false,
 
         themeProperties = {},
@@ -14979,15 +14979,17 @@ local cacheRoot = variables.fileSystemManager:getRootFolder()
 local cacheFolder = variables.fileSystemManager:getAssetsFolder("images-icon")
 local assetResolver = variables.assetResolver
 
-local assetBase = "https://raw.githubusercontent.com/Kira762/astra-version-1/main/assets/"
+local assetBase = "https://raw.githubusercontent.com/Kira762/astra-version-1/main/assets/window-icons/"
 local headshotPx = 48
 local thumbEndpoint =
     "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=%d&size=%dx%d&format=Png&isCircular=false"
 
 local manifest: { [number]: string } = {}
-local iconManifest = windowIcons.manifest()
-for iconId in iconManifest do
-    manifest[iconId] = assetBase .. tostring(iconId) .. ".png"
+for name, iconId in windowIcons.ids do
+    local file = windowIcons.files[name]
+    if file then
+        manifest[iconId] = assetBase .. file
+    end
 end
 local manifestSize = 0
 for _ in manifest do
@@ -15804,7 +15806,7 @@ end)() end,
 local windowIcons = {}
 
 windowIcons.ids = {
-    window = 80387863064905,
+    window = 91452555903853,
     close = 83277910885129,
     minimise = 108115485663409,
     maximise = 88738500661569,
@@ -15812,8 +15814,24 @@ windowIcons.ids = {
     search = 100604009889706,
     chevron = 88479147175134,
     check = 125626312718314,
-    dot = 91452555903853,
+    dot = 80387863064905,
     config = 125823673784681,
+}
+
+-- Human-readable filenames for the fallback PNGs in assets/window-icons/.
+-- Numeric rbxassetids stay in `ids` for Roblox loading; these names are what
+-- `cache/imageCache` fetches from GitHub when secureMode rewrites assets.
+windowIcons.files = {
+    window = "sirius.png",
+    close = "close.png",
+    minimise = "minimise.png",
+    maximise = "maximise.png",
+    settings = "settings.png",
+    search = "search.png",
+    chevron = "chevron.png",
+    check = "check.png",
+    dot = "astra.png",
+    config = "config.png",
 }
 
 windowIcons.roles = {
@@ -15824,7 +15842,7 @@ windowIcons.roles = {
     search = "search",
     chevron = "chevron",
     check = "check",
-    dot = "dot",
+    dot = "astra",
     config = "config",
 }
 
@@ -16005,7 +16023,9 @@ function icons.loaded(): { string }
 end
 
 local namedAssets = {
-    Astra = "assets/Astra.png",
+    -- Brand assets now live under assets/window-icons/ with human names.
+    Astra = "assets/window-icons/astra.png",
+    Sirius = "assets/window-icons/sirius.png",
 }
 
 local function environment(): any
@@ -16698,7 +16718,7 @@ end)() end,
 -- [[constructors. Regenerate with scripts/generate_icon_packs.js.]]
 
 return require(script.Parent.packBuilder).create(
-	"assets/icons/material-pack/white/",
+	"assets/icons/material-pack/",
 	"material",
 [==[
 ac_unit access_alarm access_alarms access_time accessibility accessibility_new accessible accessible_forward account_balance account_balance_wallet
@@ -16867,7 +16887,8 @@ local function pascalCase(name: string): string
 end
 
 -- [[Build a lazy pack table. `prefix` ends in "/", `packName` is the segment
--- [[used in the legacy URL layout (`.../<lowerFirst>/<pack><Name>.png`).]]
+-- [[used in the URL layout (`.../<pack><Name>.png`) — flat per-pack folders,
+-- [[no a/b/c sharding.]]
 function PackBuilder.create(prefix: string, packName: string, keyList: string): { [string]: string }
 	-- [[Membership + stable enumeration order, built once when the pack module
 	-- [[is first required. These are short string inserts only - the long URL
@@ -16889,7 +16910,7 @@ function PackBuilder.create(prefix: string, packName: string, keyList: string): 
 				return nil
 			end
 			local fileBase = pascalCase(key)
-			local url = prefix .. lower(sub(fileBase, 1, 1)) .. "/" .. packName .. fileBase .. ".png"
+			local url = prefix .. packName .. fileBase .. ".png"
 			-- [[Cache the answer so repeated lookups skip this closure.]]
 			rawset(data, key, url)
 			return url
@@ -21825,63 +21846,63 @@ local LineOffsets = {
     [56] = 14859,
     [57] = 14573,
     [58] = 14956,
-    [59] = 15259,
-    [60] = 15290,
+    [59] = 15261,
+    [60] = 15292,
     [61] = 14945,
-    [62] = 15333,
-    [63] = 15353,
-    [64] = 15385,
-    [65] = 15315,
-    [66] = 15492,
-    [67] = 15558,
-    [69] = 15638,
-    [70] = 15803,
-    [71] = 15623,
-    [72] = 16377,
-    [73] = 16421,
-    [74] = 16501,
-    [75] = 16694,
-    [76] = 16823,
-    [77] = 16917,
-    [78] = 17084,
-    [79] = 17422,
-    [80] = 15879,
-    [81] = 18056,
-    [82] = 18122,
-    [83] = 18188,
-    [84] = 18263,
-    [85] = 18375,
-    [86] = 18441,
-    [87] = 18516,
-    [88] = 18591,
-    [89] = 18666,
-    [90] = 18741,
-    [91] = 17950,
-    [92] = 18807,
-    [93] = 18905,
-    [94] = 19083,
-    [95] = 19131,
-    [96] = 19161,
-    [97] = 19412,
-    [98] = 19461,
-    [99] = 19914,
-    [100] = 19932,
-    [101] = 20053,
-    [102] = 20152,
-    [103] = 20174,
-    [104] = 20228,
-    [105] = 20578,
-    [106] = 20614,
-    [107] = 20632,
-    [108] = 20986,
-    [109] = 20998,
-    [110] = 21049,
-    [111] = 21068,
-    [112] = 21319,
-    [113] = 21363,
-    [114] = 21566,
-    [115] = 21594,
-    [116] = 21605,
+    [62] = 15335,
+    [63] = 15355,
+    [64] = 15387,
+    [65] = 15317,
+    [66] = 15494,
+    [67] = 15560,
+    [69] = 15640,
+    [70] = 15805,
+    [71] = 15625,
+    [72] = 16397,
+    [73] = 16441,
+    [74] = 16521,
+    [75] = 16714,
+    [76] = 16843,
+    [77] = 16938,
+    [78] = 17105,
+    [79] = 17443,
+    [80] = 15897,
+    [81] = 18077,
+    [82] = 18143,
+    [83] = 18209,
+    [84] = 18284,
+    [85] = 18396,
+    [86] = 18462,
+    [87] = 18537,
+    [88] = 18612,
+    [89] = 18687,
+    [90] = 18762,
+    [91] = 17971,
+    [92] = 18828,
+    [93] = 18926,
+    [94] = 19104,
+    [95] = 19152,
+    [96] = 19182,
+    [97] = 19433,
+    [98] = 19482,
+    [99] = 19935,
+    [100] = 19953,
+    [101] = 20074,
+    [102] = 20173,
+    [103] = 20195,
+    [104] = 20249,
+    [105] = 20599,
+    [106] = 20635,
+    [107] = 20653,
+    [108] = 21007,
+    [109] = 21019,
+    [110] = 21070,
+    [111] = 21089,
+    [112] = 21340,
+    [113] = 21384,
+    [114] = 21587,
+    [115] = 21615,
+    [116] = 21626,
 }
 
 -- [[Misc AOT variable imports]]

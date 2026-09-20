@@ -2,7 +2,7 @@
 local windowIcons = {}
 
 windowIcons.ids = {
-    window = 80387863064905,
+    window = 91452555903853,
     close = 83277910885129,
     minimise = 108115485663409,
     maximise = 88738500661569,
@@ -10,8 +10,24 @@ windowIcons.ids = {
     search = 100604009889706,
     chevron = 88479147175134,
     check = 125626312718314,
-    dot = 91452555903853,
+    dot = 80387863064905,
     config = 125823673784681,
+}
+
+-- Human-readable filenames for the fallback PNGs in assets/window-icons/.
+-- Numeric rbxassetids stay in `ids` for Roblox loading; these names are what
+-- `cache/imageCache` fetches from GitHub when secureMode rewrites assets.
+windowIcons.files = {
+    window = "sirius.png",
+    close = "close.png",
+    minimise = "minimise.png",
+    maximise = "maximise.png",
+    settings = "settings.png",
+    search = "search.png",
+    chevron = "chevron.png",
+    check = "check.png",
+    dot = "astra.png",
+    config = "config.png",
 }
 
 windowIcons.roles = {
@@ -22,7 +38,7 @@ windowIcons.roles = {
     search = "search",
     chevron = "chevron",
     check = "check",
-    dot = "dot",
+    dot = "astra",
     config = "config",
 }
 

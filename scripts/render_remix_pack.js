@@ -9,7 +9,7 @@
  *
  * Output matches the existing packs exactly: 64x64 PNG, white glyph on a
  * transparent background, at
- * `assets/icons/remix-pack/<lowerFirst>/remix<PascalName>.png`, where the
+ * `assets/icons/remix-pack/remix<PascalName>.png`, where the
  * file base is the kebab name converted to PascalCase - the same rule
  * `icons/packBuilder` derives URLs from, machine-verified below.
  *
@@ -88,9 +88,8 @@ for (const file of files) {
   }
 
   const fileBase = pascal(key);
-  const dir = path.join(OUT_DIR, fileBase[0].toLowerCase());
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, `remix${fileBase}.png`), png);
+  fs.mkdirSync(OUT_DIR, { recursive: true });
+  fs.writeFileSync(path.join(OUT_DIR, `remix${fileBase}.png`), png);
   keys.push(key);
   rendered++;
 }
@@ -120,7 +119,7 @@ fs.writeFileSync(MODULE, lines.join("\n"));
 let missing = 0;
 for (const key of keys) {
   const fileBase = pascal(key);
-  const url = `assets/icons/remix-pack/${fileBase[0].toLowerCase()}/remix${fileBase}.png`;
+  const url = `assets/icons/remix-pack/remix${fileBase}.png`;
   if (!fs.existsSync(path.join(ROOT, url))) {
     console.error(`MISSING ${url}`);
     missing++;

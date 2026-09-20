@@ -127,7 +127,9 @@ function icons.loaded(): { string }
 end
 
 local namedAssets = {
-    Astra = "assets/Astra.png",
+    -- Brand assets now live under assets/window-icons/ with human names.
+    Astra = "assets/window-icons/astra.png",
+    Sirius = "assets/window-icons/sirius.png",
 }
 
 local function environment(): any

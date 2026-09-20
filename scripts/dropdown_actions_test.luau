@@ -269,7 +269,7 @@ closeDropdown(hover)
 local bin = Astra.Icons.resolve("trash")
 expect(type(bin) == "string" and bin ~= "trash", "A9 the bin resolves to an icon")
 expect(
-	string.find(bin, "lucide-pack/t/lucideTrash.png", 1, true) ~= nil,
+	string.find(bin, "lucide-pack/lucideTrash.png", 1, true) ~= nil,
 	"A9 ... the pack's trash glyph (got " .. tostring(bin) .. ")"
 )
 

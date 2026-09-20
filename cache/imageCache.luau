@@ -24,15 +24,17 @@ local cacheRoot = variables.fileSystemManager:getRootFolder()
 local cacheFolder = variables.fileSystemManager:getAssetsFolder("images-icon")
 local assetResolver = variables.assetResolver
 
-local assetBase = "https://raw.githubusercontent.com/Kira762/astra-version-1/main/assets/"
+local assetBase = "https://raw.githubusercontent.com/Kira762/astra-version-1/main/assets/window-icons/"
 local headshotPx = 48
 local thumbEndpoint =
     "https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=%d&size=%dx%d&format=Png&isCircular=false"
 
 local manifest: { [number]: string } = {}
-local iconManifest = windowIcons.manifest()
-for iconId in iconManifest do
-    manifest[iconId] = assetBase .. tostring(iconId) .. ".png"
+for name, iconId in windowIcons.ids do
+    local file = windowIcons.files[name]
+    if file then
+        manifest[iconId] = assetBase .. file
+    end
 end
 local manifestSize = 0
 for _ in manifest do

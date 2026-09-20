@@ -45,7 +45,8 @@ local function pascalCase(name: string): string
 end
 
 -- [[Build a lazy pack table. `prefix` ends in "/", `packName` is the segment
--- [[used in the legacy URL layout (`.../<lowerFirst>/<pack><Name>.png`).]]
+-- [[used in the URL layout (`.../<pack><Name>.png`) — flat per-pack folders,
+-- [[no a/b/c sharding.]]
 function PackBuilder.create(prefix: string, packName: string, keyList: string): { [string]: string }
 	-- [[Membership + stable enumeration order, built once when the pack module
 	-- [[is first required. These are short string inserts only - the long URL
@@ -67,7 +68,7 @@ function PackBuilder.create(prefix: string, packName: string, keyList: string): 
 				return nil
 			end
 			local fileBase = pascalCase(key)
-			local url = prefix .. lower(sub(fileBase, 1, 1)) .. "/" .. packName .. fileBase .. ".png"
+			local url = prefix .. packName .. fileBase .. ".png"
 			-- [[Cache the answer so repeated lookups skip this closure.]]
 			rawset(data, key, url)
 			return url

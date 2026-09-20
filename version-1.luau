@@ -6088,9 +6088,9 @@ function Window.new(props)
         _overlayQueue = {},
         _overlayQueueRunning = false,
 
-        icon = icons.resolve(providedIcon or "Astra"),
+        icon = icons.resolve(providedIcon or "Sirius"),
         showName = props.showName or props.ShowName or "Astra",
-        showIcon = icons.resolve(providedIcon or "Astra"),
+        showIcon = icons.resolve(providedIcon or "Sirius"),
                 showIconOnly = props.showIconOnly or props.ShowIconOnly or false,
 
         themeProperties = {},
@@ -15806,7 +15806,7 @@ end)() end,
 local windowIcons = {}
 
 windowIcons.ids = {
-    window = 80387863064905,
+    window = 91452555903853,
     close = 83277910885129,
     minimise = 108115485663409,
     maximise = 88738500661569,
@@ -15814,7 +15814,7 @@ windowIcons.ids = {
     search = 100604009889706,
     chevron = 88479147175134,
     check = 125626312718314,
-    dot = 91452555903853,
+    dot = 80387863064905,
     config = 125823673784681,
 }
 
@@ -15822,7 +15822,7 @@ windowIcons.ids = {
 -- Numeric rbxassetids stay in `ids` for Roblox loading; these names are what
 -- `cache/imageCache` fetches from GitHub when secureMode rewrites assets.
 windowIcons.files = {
-    window = "astra.png",
+    window = "sirius.png",
     close = "close.png",
     minimise = "minimise.png",
     maximise = "maximise.png",
@@ -15830,7 +15830,7 @@ windowIcons.files = {
     search = "search.png",
     chevron = "chevron.png",
     check = "check.png",
-    dot = "sirius.png",
+    dot = "astra.png",
     config = "config.png",
 }
 
@@ -15842,7 +15842,7 @@ windowIcons.roles = {
     search = "search",
     chevron = "chevron",
     check = "check",
-    dot = "sirius",
+    dot = "astra",
     config = "config",
 }
 

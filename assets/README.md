@@ -2,10 +2,10 @@
 
 ```
 assets/
-├── window-icons/   ← 10 chrome fallbacks with human names (astra, sirius, close…)
+├── window-icons/   ← 10 chrome fallbacks, **Sirius** is now window default
 │   ├── README.md
-│   ├── astra.png        (window — was 80387863064905.png)
-│   ├── sirius.png       (dot — was 91452555903853.png, also Icons.get("Sirius"))
+│   ├── sirius.png       (window — was 91452555903853.png, Icons.get("Sirius"))
+│   ├── astra.png        (dot — was 80387863064905.png, Icons.get("Astra"))
 │   ├── close.png
 │   ├── minimise.png
 │   ├── maximise.png
@@ -31,5 +31,5 @@ assets/
 
 * `window-icons/` files are fetched by `cache/imageCache` as `assets/window-icons/<name>.png`.
 * Numeric rbxassetids live in `images/windowIcons.luau` — filenames are just the human alias.
-* Brand icon `Icons.get("Astra")` → `assets/window-icons/astra.png`; `Icons.get("Sirius")` → `sirius.png`.
+* `Icons.get("Astra")` → `astra.png`; `Icons.get("Sirius")` → `sirius.png` — **window default is now Sirius** (`Sirius` in `components/window/startup.luau`).
 * Previous root `assets/<numeric>.png` + `assets/Astra.png` layout was removed in favor of named files.

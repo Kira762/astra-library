@@ -10,7 +10,6 @@ windowIcons.ids = {
     search = 100604009889706,
     chevron = 88479147175134,
     check = 125626312718314,
-    dot = 80387863064905,
     config = 125823673784681,
 }
 
@@ -26,7 +25,6 @@ windowIcons.files = {
     search = "search.png",
     chevron = "chevron.png",
     check = "check.png",
-    dot = "astra.png",
     config = "config.png",
 }
 
@@ -38,7 +36,6 @@ windowIcons.roles = {
     search = "search",
     chevron = "chevron",
     check = "check",
-    dot = "astra",
     config = "config",
 }
 

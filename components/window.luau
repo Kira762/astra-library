@@ -219,7 +219,6 @@ function Window.new(props)
         dragMinimisedBar = false,
         antiWindowDuplicate = true,
         layoutMode = layout.mode,
-        activeSubTab = 1,
         motionSpeed = "normal",
         autoSaveConfig = self.configuration.autoSave,
         autoLoadConfig = self.configuration.autoLoad,

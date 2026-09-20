@@ -63,7 +63,7 @@ Notable instance fields set in `new`: `screenGui`, `main`, `elements`,
 `tabList`, `sidebar`, `settings` (plain table: `toggleKeybind`, `theme`,
 `mouseOverride`, `keepOnScreen`, `haptics`,
 `dragMinimisedBar`,
-`antiWindowDuplicate`, `layoutMode`, `activeSubTab`), `rfSettings` (the
+`antiWindowDuplicate`, `layoutMode`), `rfSettings` (the
 built-in "General" settings tab), `_settingsTabs` (settings-tab list),
 `_settingsMode` / `_previousTab` (settings-mode bookkeeping),
 `settingsAction` / `minimiseAction` (topbar actions), `drag`,
@@ -93,7 +93,7 @@ Method map (names preserved through minification). Settings-related:
   action is the single settings entry point.
 - `_applySettingsLayout(active)` — reflows rail/elements for settings mode.
 - `SaveSettings` / `LoadSettings` — per-window settings persistence via
-  `utilities.persistence` (settings JSON, includes `activeSubTab` round-trip).
+  `utilities.persistence` (settings JSON).
 Public surface:
 - `Create(className, props, themeBindings?)` — instance factory: theme-bound
   property recording (`themeProperties`), locale-token binding
@@ -335,22 +335,19 @@ Per-element specifics:
   entry per setting. Keys: `toggleKeybind` (keybind/behavior),
   `mouseOverride` (boolean/behavior), `keepOnScreen` (boolean/appearance),
   `haptics` (boolean/performance),
-  `antiWindowDuplicate` (boolean/behavior), `layoutMode` (enum/appearance),
-  `activeSubTab` (enum/appearance — persisted, retained for compatibility
-  with the pre-rebuild sub-tab UI). Lookup: `registry.definition(key)`,
-  `registry.keys()`.
+  `antiWindowDuplicate` (boolean/behavior), `layoutMode` (enum/appearance).
+  Lookup: `registry.definition(key)`, `registry.keys()`.
 - `defaults.luau` — `values`: flat defaults (`toggleKeybind = Enum.KeyCode.K`,
-  `layoutMode = "sidebar"`, `activeSubTab = 1`, …); `defaults.clone(overrides)`.
+  `layoutMode = "sidebar"`, …); `defaults.clone(overrides)`.
 - `manager.luau` — `SettingsManager.new(overrides)` → `{ defaults =
   defaults.clone(overrides), persistence = {} }`; methods `get`, `set`
   (routes through `registry.definition` + the domain validator, returns false
   for unknown keys), `reset`, `onChange(listener)`, `save`, `load`.
 - `persistence.luau` — save/load/read of the per-window settings JSON over
-  `utilities.persistenceSettings` (round-trips `activeSubTab` and friends).
+  `utilities.persistenceSettings`.
 - `appearance.luau`, `behavior.luau`, `performance.luau` — per-domain
   `validate(key, value) -> (ok, normalized)`. Appearance additionally
-  whitelists `layoutMode ∈ { top, sidebar, collapsedSidebar }` and floors
-  `activeSubTab` to an integer ≥ 1.
+  whitelists `layoutMode ∈ { top, sidebar, collapsedSidebar }`.
 
 ---
 
@@ -444,7 +441,7 @@ Per-element specifics:
   `motion.step(base)` for cascade pacing, and the speed profiles (`relaxed`
   1.35x, `normal` 1x, `snappy` 0.7x, `instant` = no animation) behind the
   window's "Animation speed" setting. Public as `Astra.Motion`.
-- `persistenceSettings.luau` — settings JSON encode/decode; `activeSubTab` round-trips here.
+- `persistenceSettings.luau` — settings JSON encode/decode.
 - `persistenceWrite.luau` — atomic write helper.
 - `persistenceConfig.luau`, `persistencePaths.luau` — window-config serialization and key paths.
 - `persistence.luau` — facade re-exporting the config + settings persistence

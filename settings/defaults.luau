@@ -8,7 +8,6 @@ defaults.values = {
     haptics = false,
     antiWindowDuplicate = true,
     layoutMode = "sidebar",
-    activeSubTab = 1,
     motionSpeed = "normal",
     autoSaveConfig = true,
     autoLoadConfig = true,

@@ -4868,32 +4868,111 @@ end
 return tooltip
 
 end)() end,
+    [31] = function()local wax,script,require=ImportGlobals(31)local ImportGlobals return (function(...)
+-- [[The window, split by responsibility. Every module below attaches its
+-- methods to the shared class table in `class.luau`, so `self` behaves exactly
+-- as it did when all 111 methods lived in one 3,098-line file. The requires
+-- are for their side effects and the order does not matter: nothing here runs
+-- window code, it only defines methods.]]
+
+local Window = require(script.class)
+
+require(script.startup)
+require(script.theme)
+require(script.tabs)
+require(script.elements)
+require(script.overlays)
+require(script.layout)
+require(script.visibility)
+require(script.input)
+require(script.settings)
+require(script.config)
+require(script.teardown)
+
+return Window
+
+end)() end,
     [18] = function()local wax,script,require=ImportGlobals(18)local ImportGlobals return (function(...)
-local utilities = script.Parent.Parent.utilities
-local image = require(script.Parent.Parent.images.image)
-local icons = require(script.Parent.Parent.icons)
-local functions = require(script.Parent.Parent.functions)
-local persistence = require(utilities.persistence)
-local constants = require(utilities.constants)
-local motion = require(utilities.motion)
-local locale = require(utilities.locale)
-local log = require(utilities.log)
-local haptic = require(utilities.HapticEngine)
-local windowSizing = require(utilities.windowSizing)
-local layouts = require(utilities.layouts)
-local chrome = require(script.Parent.chrome)
-local search = require(script.Parent.search)
-local tabSelector = require(script.Parent.tabSelector)
-local settingsComponent = require(script.Parent.settings)
-local overlayQueue = require(script.Parent.overlayQueue)
-local tooltip = require(script.Parent.tooltip)
-
-local state = require(utilities.Parent.core.state)
-
-local themes = require(script.Parent.Parent.themes)
+-- [[The Window class table, on its own so every window module can attach
+-- methods to the same table without a require cycle. Requiring this module
+-- gives you the bare class; components/window/init.luau is what pulls in the
+-- method modules and hands back the finished class.]]
 
 local Window = {}
 Window.__index = Window
+
+return Window
+
+end)() end,
+    [19] = function()local wax,script,require=ImportGlobals(19)local ImportGlobals return (function(...)
+local utilities = script.Parent.Parent.Parent.utilities
+local persistence = require(utilities.persistence)
+
+local Window = require(script.Parent.class)
+
+function Window:GetPath()
+    return persistence.getPath(self)
+end
+
+function Window:Save(name)
+    if name ~= nil and (type(name) ~= "string" or name == "") then
+        return false
+    end
+    return persistence.save(self, name)
+end
+
+function Window:Load(name)
+    if name ~= nil and (type(name) ~= "string" or name == "") then
+        return false
+    end
+    return persistence.load(self, name)
+end
+
+function Window:_applyNamedConfig(name)
+    if not self:Load(name) then
+        return false
+    end
+            local _, path = persistence.getPath(self)
+    self._loadedConfigPath = path
+    self:Save()
+    return true
+end
+
+function Window:ListConfigs()
+    return persistence.list(self)
+end
+
+function Window:DeleteConfig(name)
+    return persistence.delete(self, name)
+end
+
+function Window:Get(flag)
+    local control = self.controls[flag]
+    return control and control.value
+end
+
+function Window:Set(flag, value)
+    local control = self.controls[flag]
+    if not control then
+        return false
+    end
+    control:Set(value)
+    return true
+end
+
+end)() end,
+    [20] = function()local wax,script,require=ImportGlobals(20)local ImportGlobals return (function(...)
+local utilities = script.Parent.Parent.Parent.utilities
+local windowSizing = require(utilities.windowSizing)
+local state = require(utilities.Parent.core.state)
+
+-- [[Values shared by more than one window module. They used to be file-local
+-- upvalues at the top of components/window.luau; the window is now split by
+-- responsibility, so they live here and each module binds back the handful it
+-- actually uses. One definition, same values, no near-miss copies.]]
+
+
+
 
 -- [[Element reveals, theme cross-fades and the notification stack's lane changes all
 -- ride the motion service's shared specs (see utilities/motion.luau) instead
@@ -4976,14 +5055,1038 @@ local function layoutKey(layout)
     return layout.mode
 end
 
-local coerceValue = themes.coerceValue
+return {
+    contentRevealBeat = contentRevealBeat,
+    collapsedWideSize = collapsedWideSize,
+    collapsedIconOnlySize = collapsedIconOnlySize,
+    collapsedPosition = collapsedPosition,
+    compactRowHeight = compactRowHeight,
+    dragHandleGap = dragHandleGap,
+    windowSurfaceColor = windowSurfaceColor,
+    windowSurfaceTransparency = windowSurfaceTransparency,
+    windowSurfaceGradientRotation = windowSurfaceGradientRotation,
+    windowSurfaceGradientOffset = windowSurfaceGradientOffset,
+    lockScrimTransparency = lockScrimTransparency,
+    lockedTextTransparency = lockedTextTransparency,
+    viewportCheckInterval = viewportCheckInterval,
+    constructionFrameBudget = constructionFrameBudget,
+    constructionInstanceBudget = constructionInstanceBudget,
+    computeSize = computeSize,
+    cornerKeys = cornerKeys,
+    hasPerCornerRadius = hasPerCornerRadius,
+    layoutKey = layoutKey,
+}
+
+end)() end,
+    [21] = function()local wax,script,require=ImportGlobals(21)local ImportGlobals return (function(...)
+local utilities = script.Parent.Parent.Parent.utilities
+local constants = require(utilities.constants)
+local locale = require(utilities.locale)
+local log = require(utilities.log)
+local motion = require(utilities.motion)
+local persistence = require(utilities.persistence)
+local state = require(utilities.Parent.core.state)
+local tooltip = require(script.Parent.Parent.tooltip)
+
+local themes = require(script.Parent.Parent.Parent.themes)
 local firstColor = themes.firstColor
-local deriveStrokes = themes.deriveStrokes
+
+local shared = require(script.Parent.constants)
+local lockScrimTransparency = shared.lockScrimTransparency
+local lockedTextTransparency = shared.lockedTextTransparency
+
+local Window = require(script.Parent.class)
+
+function Window:_registerControl(element)
+    if not element.flag or element.flag == "" or element.forgetState then
+        return
+    end
+
+    local flag = element.flag
+    if self.controls[flag] then
+        local n = 2
+        while self.controls[flag .. n] do
+            n += 1
+        end
+        flag = flag .. n
+    end
+
+    element.flag = flag
+    self.controls[flag] = element
+    return flag
+end
+
+function Window:_restoreLate(element)
+    if not self._loadedConfig or not element.flag or element.forgetState then
+        return
+    end
+
+    local wasLoading = self._loading
+    self._loading = true     persistence.applyTo(element, self._loadedConfig[element.flag])
+    self._loading = wasLoading
+end
+
+function Window:_persist(element)
+    if not element.flag or element.forgetState or not self.configuration.autoSave or self._loading or self._saveScheduled then
+        return
+    end
+    -- Default-on autosave must not write a whole file for every slider tick.
+    self._saveScheduled = true
+    task.delay(0.25, function()
+        self._saveScheduled = false
+        if not self.unloaded and self.configuration.autoSave and not self._loading then
+            self:Save()
+        end
+    end)
+end
+
+function Window:_unregisterControl(element)
+    if element.flag and self.controls[element.flag] == element then
+        self.controls[element.flag] = nil
+    end
+end
+
+function Window:_setElementLocked(element, locked, message)
+    locked = locked == true
+                local wasLocked = element.locked == true
+    if wasLocked == locked and not (locked and message) then
+        return
+    end
+    element.locked = locked
+
+    if not element.lockScrim then
+        self:_buildLockScrim(element)
+    end
+
+    -- [[The lock scrim arrives on the shared hover spec; the unlock delay
+    -- tracks its duration so the scrim never hides after it has faded.]]
+    local lockSpec = "snappy"
+
+    if locked then
+        element.lockScrim.Visible = true
+    end
+    motion.tween(element.lockScrim, {
+        BackgroundTransparency = if locked then lockScrimTransparency else 1,
+    }, lockSpec)
+    if not locked then
+        task.delay(0.25, function()
+            if not element.locked and element.lockScrim and element.lockScrim.Parent then
+                element.lockScrim.Visible = false             end
+        end)
+    end
+
+        local label = element.descriptionLabel
+    if not label then
+        return
+    end
+
+    if locked then
+                        element._descriptionBefore = element._descriptionBefore or label.Text
+        label.Text = locale.resolve(message or "This element is locked.")
+    elseif element._descriptionBefore then
+        label.Text = element._descriptionBefore
+        element._descriptionBefore = nil
+    end
+
+    motion.tween(label, {
+        TextTransparency = if locked then lockedTextTransparency else 0.45,
+    }, lockSpec)
+end
+
+function Window:_buildLockScrim(element)
+    element.lockScrim = self:Create("TextButton", {
+        Name = "ElementLock",
+        Active = true,
+        AutoButtonColor = false,
+        Size = UDim2.fromScale(1, 1),
+        BorderSizePixel = 0,
+        Text = "",
+        TextTransparency = 1,
+        ZIndex = constants.zIndex.elementLock,
+        Visible = false,
+
+                        BackgroundTransparency = 1,
+        Parent = element.main,
+    }, { BackgroundColor3 = { "WindowColor", firstColor } })
+
+    self:Create("UICorner", {
+        Parent = element.lockScrim,
+    }, { CornerRadius = "ElementCornerRadius" })
+end
+
+function Window:_flashResult(element, ok)
+    local box = element.box
+    if not box then
+        return
+    end
+    local glow = if element._fieldGlow then element:_fieldGlow() else element.glow
+    local boxStroke = element.boxStroke
+    local flashColor = ok and constants.accent.on or self.theme.ErrorColor
+    local flashStroke = ok and constants.accent.onStroke or self.theme.ErrorStrokeColor
+    -- [[Hoisted out of the function: these two are fixed, and the flash runs
+    -- on every element callback that reports a result.]]
+    local flashTween = "fast"
+    local restoreTween = "normal"
+
+    motion.tween(box, { BackgroundColor3 = flashColor }, flashTween)
+    if boxStroke then
+        motion.tween(boxStroke, { Color = flashStroke, Transparency = 0.4 }, flashTween)
+    end
+    if glow then
+        motion.tween(glow, { Color = flashStroke, Transparency = 0.6 }, flashTween)
+    end
+
+        element._flashToken = (element._flashToken or 0) + 1
+    local token = element._flashToken
+    task.delay(0.22, function()
+        if element._flashToken ~= token then
+            return
+        end
+        motion.tween(box, { BackgroundColor3 = self.theme.FieldBackground }, restoreTween)
+        if boxStroke then
+            motion.tween(boxStroke, { Color = self.theme.SurfaceStroke, Transparency = 0.85 }, restoreTween)
+        end
+        if glow then
+            motion.tween(glow, { Color = self.theme.FieldGlow, Transparency = element._glowIdle or 1 }, restoreTween)
+        end
+    end)
+end
+
+function Window:_wireElementHover(element, options)
+    local theme = self.theme
+    -- [[Containers may scope the hover to a sub-frame (the collapsible
+    -- header) instead of the whole element, and rest their title on a
+    -- different theme token. Keys, not values, so a runtime theme change
+    -- still flows through: the closures below read the theme live.]]
+    options = if typeof(options) == "table" then options else {}
+    local hoverTarget = options.target or element.main
+    local titleRestKey = options.titleRestKey or "ContentColor"
+    local titleHoverKey = options.titleHoverKey or "ElementTextHoverColor"
+
+    -- [[Hover feedback is the single most-repeated animation in the library
+    -- (every element, every pointer move across a grid), so it goes through
+    -- the motion service: the spec is shared instead of allocated per event,
+    -- and an enter/leave pair on the same element can no longer leave two
+    -- tweens interpolating the same stroke — the second cancels the first.]]
+    self:ConnectFor(element, hoverTarget.MouseEnter, function()
+        if not self:_interactive() then
+            return         end
+        motion.tween(
+            element.stroke,
+            { Transparency = self:_elementStrokeTransparency(element, true), Color = theme.ElementStrokeHover },
+            "snappy"
+        )
+        motion.tween(element.title, { TextColor3 = theme[titleHoverKey] }, "snappy")
+        if element.hoverOverlay then
+            motion.tween(element.hoverOverlay, { BackgroundTransparency = 0.97 }, "snappy")
+        end
+    end)
+
+    self:ConnectFor(element, hoverTarget.MouseLeave, function()
+        motion.tween(
+            element.stroke,
+            { Transparency = self:_elementStrokeTransparency(element, false), Color = theme.ElementStroke },
+            "snappy"
+        )
+        motion.tween(element.title, { TextColor3 = theme[titleRestKey] }, "snappy")
+        if element.hoverOverlay then
+            motion.tween(element.hoverOverlay, { BackgroundTransparency = 1 }, "snappy")
+        end
+    end)
+end
+
+function Window:_runGuarded(element, fn, ...)
+            if element.locked then
+        return
+    end
+
+    local args = table.pack(...)
+    task.spawn(function()
+        local ok, err = pcall(function()
+            return fn(table.unpack(args, 1, args.n))
+        end)
+        if ok or element._errored then
+            return
+        end
+        element._errored = true
+
+        local flashTarget = element.flashTarget or element.main
+        local errorTween = "snappy"
+        motion.tween(flashTarget, { BackgroundColor3 = self.theme.ErrorColor }, errorTween)
+        motion.tween(element.stroke, { Color = self.theme.ErrorStrokeColor }, errorTween)
+                if element.title then
+            element.title.Text = locale.resolve("Error, log recorded in console.")
+        end
+
+        log.warn(
+            `Astra encountered an error, with the callback for a {element.__type} component named '{element.name}':`
+        )
+        log.print(err)
+
+        task.wait(1)
+
+        if element.title then
+            element.title.Text = locale.resolve(element.name)
+        end
+        motion.tween(
+            flashTarget,
+            { BackgroundColor3 = Color3.fromRGB(255, 255, 255) },
+            "normal"
+        )
+        motion.tween(
+            element.stroke,
+            { Color = self.theme.ElementStroke },
+            "emphasized"
+        )
+        element._errored = false
+    end)
+end
+
+function Window:_reveal(instance, targets, animate, tweenInfo)
+    if not instance then
+        return
+    end
+    -- [[Skip work when the target state is already applied: the cascade (and
+    -- a window that is shown, hidden and shown again) asks the same elements
+    -- to reveal repeatedly.]]
+    local needsUpdate = false
+    for prop, value in targets do
+        if instance[prop] ~= value then
+            needsUpdate = true
+            break
+        end
+    end
+    if not needsUpdate then
+        return
+    end
+
+    if animate then
+        -- [[The tween goes through the motion service, which shares the spec
+        -- and cancels an in-flight tween on the same property — the cascade
+        -- asks every element on the page to show on one frame, and a
+        -- hidden/reshown window used to stack a second reveal on the first.]]
+        motion.tween(instance, targets, tweenInfo or "normal")
+    else
+        for prop, value in targets do
+            instance[prop] = value
+        end
+    end
+end
+
+function Window:_revealCommon(element, animate)
+    self:_reveal(element.stroke, { Transparency = self:_elementStrokeTransparency(element, false) }, animate)
+    self:_reveal(element.title, { TextTransparency = 0 }, animate)
+    self:_reveal(element.main, { BackgroundTransparency = self:_elementBackgroundTransparency(element) }, animate)
+    if element.iconLabel then
+        self:_reveal(element.iconLabel, { ImageTransparency = 0 }, animate)
+    end
+    if element.tapIcon then
+        self:_reveal(element.tapIcon, { ImageTransparency = 0.5 }, animate)
+    end
+    if element.infoButton then
+        self:_reveal(element.infoButton, { ImageTransparency = 0.45 }, animate)
+    end
+    if element.descriptionLabel then
+        self:_reveal(element.descriptionLabel, { TextTransparency = 0.45 }, animate)
+    end
+end
+
+function Window:_hideCommon(element, animate)
+    self:_reveal(element.stroke, { Transparency = 1 }, animate)
+    self:_reveal(element.title, { TextTransparency = 1 }, animate)
+    self:_reveal(element.main, { BackgroundTransparency = 1 }, animate)
+    if element.iconLabel then
+        self:_reveal(element.iconLabel, { ImageTransparency = 1 }, animate)
+    end
+    if element.tapIcon then
+        self:_reveal(element.tapIcon, { ImageTransparency = 1 }, animate)
+    end
+    if element.infoButton then
+        self:_reveal(element.infoButton, { ImageTransparency = 1 }, animate)
+    end
+    if element.descriptionLabel then
+        self:_reveal(element.descriptionLabel, { TextTransparency = 1 }, animate)
+    end
+    -- [[The floating description is placed in screen space, so an element
+    -- [[that stops being drawn (the window hid, the tab changed, the page
+    -- [[scrolled away) has to take its own description with it. Every hide
+    -- [[path in the library funnels through here.]] 
+    tooltip.hideFor(self, element)
+end
+
+end)() end,
+    [22] = function()local wax,script,require=ImportGlobals(22)local ImportGlobals return (function(...)
+local utilities = script.Parent.Parent.Parent.utilities
+local state = require(utilities.Parent.core.state)
+local tooltip = require(script.Parent.Parent.tooltip)
+
+local shared = require(script.Parent.constants)
+local dragHandleGap = shared.dragHandleGap
+
+local Window = require(script.Parent.class)
+
+function Window:_bindKeybind()
+    self:Connect(state.userInputService.InputBegan, function(input, gameProcessed)
+        if gameProcessed then
+            return
+        end
+        if input.KeyCode == self.settings.toggleKeybind or input.UserInputType == self.settings.toggleKeybind then
+            self:ToggleHide()
+        end
+    end)
+end
+
+function Window:_bindMouseOverride()
+    local inputService = state.userInputService
+
+    local function shouldOverride()
+        return self.settings.mouseOverride and not self.hidden and not self.minimised
+    end
+
+    local function restoreMouse()
+        if not shouldOverride() then
+            return
+        end
+                        if inputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+            return
+        end
+        if inputService.MouseBehavior ~= Enum.MouseBehavior.Default then
+            inputService.MouseBehavior = Enum.MouseBehavior.Default
+        end
+        if not inputService.MouseIconEnabled then
+            inputService.MouseIconEnabled = true
+        end
+    end
+
+            self:Connect(inputService:GetPropertyChangedSignal("MouseBehavior"), restoreMouse)
+    self:Connect(inputService:GetPropertyChangedSignal("MouseIconEnabled"), restoreMouse)
+
+            self:Connect(inputService.InputEnded, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton2 then
+            restoreMouse()
+        end
+    end)
+
+        self._freeMouse = restoreMouse
+end
+
+function Window:_bindTopbarDrag()
+    local inputService = state.userInputService
+    local isDragging = false
+    local hasMoved = false
+    local dragOffset = Vector2.zero
+    local renderConnection
+    local startMousePos = Vector2.zero
+
+            local guiInset = Vector2.zero
+    if self.screenGui and self.screenGui.IgnoreGuiInset then
+        guiInset = state.guiService:GetGuiInset()
+    end
+
+    local function getConstrainedPosition()
+        local rawPos = inputService:GetMouseLocation() + dragOffset + guiInset
+        local x, y = rawPos.X, rawPos.Y
+
+        if self.settings and self.settings.keepOnScreen then
+            local mainSize = self.main.AbsoluteSize
+            local screenSize = self.screenGui.AbsoluteSize
+            local margin = 8
+            -- [[The frame's own size is used: mid-minimise it is shorter]]
+            -- [[than window.size.]]
+            local halfLeft = mainSize.X / 2
+            local halfRight = halfLeft
+            local halfTop = mainSize.Y / 2
+            x = math.clamp(x, halfLeft + margin, math.max(halfLeft + margin, screenSize.X - halfRight - margin))
+            y = math.clamp(y, halfTop + margin, math.max(halfTop + margin, screenSize.Y - halfTop - margin))
+        end
+
+        return UDim2.fromOffset(x, y)
+    end
+
+    local function endDrag()
+        isDragging = false
+        if hasMoved then
+            -- [[The move is over: the handle drops back to its resting look
+            -- [[and stays where it is — that faint pill under the window is
+            -- [[the affordance the next drag starts from.
+            hasMoved = false
+            if self.drag then
+                self.drag:setMoving(false)
+            end
+        end
+        if renderConnection then
+            self:Disconnect(renderConnection)
+            renderConnection = nil
+        end
+    end
+
+    local function updateDrag()
+        if not isDragging then
+            endDrag()
+            return
+        end
+        if self.unloaded or not self:_canDragCapsule() then
+            endDrag()
+            return
+        end
+
+        -- [[Do not reposition the window for a simple click/tap. Wait until]]
+        -- [[the pointer has actually moved before treating the gesture as drag.]]
+        local pointer = inputService:GetMouseLocation()
+        if (pointer - startMousePos).Magnitude < 4 then
+            return
+        end
+
+        if not hasMoved then
+            -- [[The pointer has left the threshold, so this is a move and not
+            -- [[a click: bring the handle out for the length of it. Nothing is
+            -- [[pointing at the handle (the gesture started on the topbar), so
+            -- [[this is the one moment it has to show itself — the pill
+            -- [[brightens here and settles back when the move ends.
+            hasMoved = true
+            tooltip.hide(self)
+            if self.drag then
+                self.drag:setMoving(true)
+            end
+        end
+
+        local constrainedPos = getConstrainedPosition()
+        if self.main.Position == constrainedPos then
+            return
+        end
+        self.main.Position = constrainedPos
+        if self.drag and self.drag.drag then
+            local mainPos = self.main.Position
+            self.drag.drag.Position = UDim2.new(
+                mainPos.X.Scale,
+                mainPos.X.Offset,
+                mainPos.Y.Scale,
+                mainPos.Y.Offset + (self.main.Size.Y.Offset / 2 + dragHandleGap)
+            )
+        end
+    end
+
+                local function isOverInteractive(x, y)
+        for _, region in { self.tabList, self.actionContainer } do
+            local absPos, absSize = region.AbsolutePosition, region.AbsoluteSize
+            if x >= absPos.X and x <= absPos.X + absSize.X and y >= absPos.Y and y <= absPos.Y + absSize.Y then
+                return true
+            end
+        end
+        return false
+    end
+
+    self:Connect(self.topbar.InputBegan, function(input, gameProcessed)
+        if gameProcessed then
+            return
+        end
+
+        if not self:_canDragCapsule() then
+            return
+        end
+
+        local inputType = input.UserInputType.Name
+        if inputType ~= "MouseButton1" and inputType ~= "Touch" then
+            return
+        end
+
+        if isOverInteractive(input.Position.X, input.Position.Y) then
+            return
+        end
+
+                if not self:_interactive() then
+            return
+        end
+
+        isDragging = true
+        if renderConnection then
+            self:Disconnect(renderConnection)
+            renderConnection = nil
+        end
+        renderConnection = self:Connect(state.runService.RenderStepped, updateDrag)
+
+        if self.screenGui and self.screenGui.IgnoreGuiInset then
+            guiInset = state.guiService:GetGuiInset()
+        end
+
+        startMousePos = inputService:GetMouseLocation()
+        dragOffset = self.main.AbsolutePosition + self.main.AbsoluteSize * self.main.AnchorPoint - inputService:GetMouseLocation()
+    end)
+
+    self:Connect(inputService.InputEnded, function(input)
+        local inputType = input.UserInputType.Name
+        if inputType == "MouseButton1" or inputType == "Touch" then
+            endDrag()
+        end
+    end)
+
+            self:Connect(inputService.WindowFocusReleased, function()
+        endDrag()
+    end)
+end
+
+end)() end,
+    [23] = function()local wax,script,require=ImportGlobals(23)local ImportGlobals return (function(...)
+local utilities = script.Parent.Parent.Parent.utilities
+local layouts = require(utilities.layouts)
+local motion = require(utilities.motion)
+local search = require(script.Parent.Parent.search)
+local settingsComponent = require(script.Parent.Parent.settings)
+local state = require(utilities.Parent.core.state)
+local tabSelector = require(script.Parent.Parent.tabSelector)
+local windowSizing = require(utilities.windowSizing)
+
+local shared = require(script.Parent.constants)
+local collapsedWideSize = shared.collapsedWideSize
+local collapsedIconOnlySize = shared.collapsedIconOnlySize
+local collapsedPosition = shared.collapsedPosition
+local dragHandleGap = shared.dragHandleGap
+local viewportCheckInterval = shared.viewportCheckInterval
+local computeSize = shared.computeSize
+local layoutKey = shared.layoutKey
+
+local Window = require(script.Parent.class)
+
+function Window:_applyWindowSize()
+    if self.unloaded then
+        return
+    end
+    -- [[Desktop/PC: newSize tracks the viewport (responsive, min/max protected).]]
+    -- [[Mobile: windowSizing.fit returns the fixed mobile profile on every call, so]]
+    -- [[viewport changes (rotation, keyboard, inset) never resize the window here.]]
+    local newSize = computeSize(self.layout.mode)
+    local sizeChanged = newSize ~= self.size
+    self.size = newSize
+    -- [[Nothing moved: no rail write, no layout invalidation. This is the
+    -- [[window's steady state - the viewport poll below calls this every
+    -- [[couple of seconds for the whole session, and the rail write used to
+    -- [[happen before the check.]]
+    if not sizeChanged and not self._pendingResize then
+        return
+    end
+    -- [[The rail follows the window's size, its layout and its tabs, all of
+    -- [[which are in step by the time this runs: it only has to be written
+    -- [[when one of them moved, which is what this function is for.]]
+    self:_applyRailWidth()
+    if self.hidden or self.minimised or self.animating or self._revealing then
+        self._pendingResize = true
+        return
+    end
+    self._pendingResize = false
+    self.main.Size = newSize
+    self:_clampToScreen()
+    self:_syncDragBar()
+    if self.main.Position.X.Scale == 0.5 and self.main.Position.Y.Scale == 0.5 then
+        -- [[Still anchored at the screen centre (the user has not dragged]]
+        -- [[it): re-apply the resting centre for the new size.]]
+        self:_recenterWindow(false)
+    end
+end
+
+-- [[Effective rail width. Non-sidebar and collapsed rails keep the existing]]
+-- [[fixed behavior; the expanded responsive rail instead hugs the widest]]
+-- [[visible tab row (railContentWidth), capped by the window's available]]
+-- [[space so the elements area always keeps at least half the window.]]
+
+function Window:_railWidth()
+    local base = layouts.railWidthFor(self.layout, self.size.X.Offset)
+    if self.layout.mode ~= "sidebar" or self.layout.forceCollapsed then
+        return base
+    end
+    if base < (self.layout.railWidth :: number) then
+        return base
+    end
+    local content = tabSelector.railContentWidth(self, self.layout)
+    if content <= 0 then
+        return base
+    end
+    local cap = math.floor(self.size.X.Offset * 0.5)
+    return math.min(content, cap)
+end
+
+function Window:_applyContentRailWidth()
+    if self.layout.mode ~= "sidebar" or self.layout.forceCollapsed then
+        return
+    end
+    local implementation = layouts.implementation(layoutKey(self.layout))
+    implementation.ApplyWidth(self, self:_railWidth())
+end
+
+function Window:_applyRailWidth()
+    local implementation = layouts.implementation(layoutKey(self.layout))
+    implementation.ApplyWidth(self, self:_railWidth())
+
+    if self._settingsLayoutActive or self.selectedTab == self.rfSettings then
+        self:_applySettingsLayout(true)
+    end
+end
+
+function Window:_watchViewport()
+    local cameraConnection: RBXScriptConnection? = nil
+    local pending = false
+
+    local function scheduleUpdate()
+                if pending then
+            return
+        end
+        pending = true
+        task.defer(function()
+            pending = false
+            self:_applyWindowSize()
+        end)
+    end
+
+    local function rebindCamera()
+        if cameraConnection then
+            self:Disconnect(cameraConnection)
+            cameraConnection = nil
+        end
+        local camera = state.workspace.CurrentCamera
+        if camera then
+            cameraConnection = self:Connect(camera:GetPropertyChangedSignal("ViewportSize"), scheduleUpdate)
+        end
+        scheduleUpdate()
+    end
+
+    self:Connect(state.workspace:GetPropertyChangedSignal("CurrentCamera"), rebindCamera)
+    rebindCamera()
+
+            local elapsed = 0
+    self:Connect(state.runService.Heartbeat, function(dt: number)
+        elapsed += dt
+        if elapsed < viewportCheckInterval then
+            return
+        end
+        elapsed = 0
+        self:_applyWindowSize()
+    end)
+end
+
+function Window:_setLayoutMode(modeName)
+    if self.unloaded then
+        return false
+    end
+    if self.animating or self.minimised or (self.hidden and self.hasShownOnce) then
+        return false
+    end
+    local newLayout = layouts.get(modeName)
+    local oldKey = layoutKey(self.layout)
+    if not newLayout or modeName == oldKey then
+        return false
+    end
+    if self._layoutTransitioning then
+        return false
+    end
+    self._layoutTransitioning = true
+    self._layoutTransitionId = (self._layoutTransitionId or 0) + 1
+    local transitionId = self._layoutTransitionId
+    local tweenInfo = "fast"
+    self:_fadeSurfaces(false, tweenInfo)
+    self:_fadeSelectedElementsOut()
+    for _, tab in self.tabs do
+        if not tab.neglectSelector and tab.topbarItem then
+            tab:_applyVisual("hidden", tweenInfo)
+        end
+    end
+    task.wait(0.12)
+    if self.unloaded then
+        self._layoutTransitioning = false
+        return false
+    end
+    if self._searching then
+        search.close(self, { showTabs = true, jumpTo = self.selectedTab and self.selectedTab.tabPage })
+    end
+    local oldKey = layoutKey(self.layout)
+    self.layout = newLayout
+    self.settings.layoutMode = modeName
+    if self.sidebar then
+        self:DestroySubtree(self.sidebar)
+        self.sidebar = nil
+    elseif self.tabList then
+        self:DestroySubtree(self.tabList)
+    end
+    local implementation = layouts.implementation(modeName)
+    implementation.Build(self, newLayout)
+    if not self.elementsCorner then
+        self.elementsCorner = self:_roundCorners(self.elements, newLayout.cardCorners)
+        self.elementsStroke = self:Create("UIStroke", {
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+            Transparency = 1,
+            Parent = self.elements,
+        }, { Color = "SurfaceStroke" })
+        self:Create("UIGradient", {
+            Rotation = newLayout.cardStrokeRotation,
+            Transparency = newLayout.cardStrokeTransparency,
+            Parent = self.elementsStroke,
+        })
+    end
+    implementation.ApplyWidth(self, self:_railWidth())
+    self.elementsLayout.FillDirection = newLayout.pageDirection
+
+    for _, tab in self.tabs do
+        if not tab.neglectSelector then
+            tab:_rebuildSelector()
+            tab.topbarItem.Visible = self.elements.Visible and not self.hidden and not self.minimised
+            tab:_applyVisual(if self.selectedTab == tab then "selected" else "unselected")
+        end
+    end
+    -- [[The rows above are brand-new instances, and the rail's width was
+    -- [[applied before they existed. Re-applying it now lands the row state on
+    -- [[the rows that actually live in the rail — icon-only rows in a
+    -- [[collapsed rail (a rail that came back showing tab names), titles held
+    -- [[inside a capped one (a rail that came back overflowing).
+    self:_applyRailWidth()
+    self:_applySettingsLayout(self._settingsMode)
+    if self.selectedTab then
+        self:_jumpTo(self.selectedTab.tabPage)
+        self.selectedTab:_applyVisual("selected")
+    end
+    self:_fadeSurfaces(true, tweenInfo)
+    self:_setTabSectionsShown(true, tweenInfo)
+    task.spawn(function()
+        if not self.unloaded and self._layoutTransitionId == transitionId then
+            self:_revealElements(0.02, 0.5, transitionId)
+        end
+    end)
+    self._layoutTransitioning = false
+    return oldKey ~= modeName
+end
+
+function Window:_applySettingsLayout(isSettings)
+    settingsComponent.applySettingsLayout(self, isSettings)
+end
+
+-- [[Rail groups: the rail shows exactly one group at a time - main tabs]]
+-- [[or settings tabs. Every rail filter reads these helpers so the two]]
+-- [[of them cannot drift apart.]]
+
+function Window:_clampedPosition(position: UDim2): UDim2
+    if not self.settings or not self.settings.keepOnScreen then
+        return position
+    end
+            if position.X.Scale ~= 0 or position.Y.Scale ~= 0 then
+        return position
+    end
+
+    local screenSize = self.screenGui.AbsoluteSize
+    local halfLeft = self.size.X.Offset / 2
+    local halfRight = halfLeft
+    local halfTop = self.size.Y.Offset / 2
+    local margin = 8
+        local x = math.clamp(position.X.Offset, halfLeft + margin, math.max(halfLeft + margin, screenSize.X - halfRight - margin))
+    local y = math.clamp(position.Y.Offset, halfTop + margin, math.max(halfTop + margin, screenSize.Y - halfTop - margin))
+    if x == position.X.Offset and y == position.Y.Offset then
+        return position
+    end
+    return UDim2.fromOffset(x, y)
+end
+
+function Window:_clampToScreen()
+    self.main.Position = self:_clampedPosition(self.main.Position)
+end
+
+-- [[The window's canonical resting position: dead centre of the screen.]]
+
+function Window:_restingCenterPosition(): UDim2
+    return UDim2.new(0.5, 0, 0.5, 0)
+end
+
+function Window:_recenterWindow(animate)
+    local target = self:_restingCenterPosition()
+    if self.hidden or self.minimised then
+        -- [[Nothing is on screen to move; park the remembered position so]]
+        -- [[the next restore lands centred.]]
+        self._restorePosition = target
+        return
+    end
+    if self.main.Position == target then
+        return
+    end
+    if animate and not self.animating then
+        -- [[A recenter slides the window sideways between resting places:
+        -- the symmetric `glide` ease reads as deliberate, not reactive.]]
+        motion.tween(self.main, { Position = target }, "glide")
+        motion.tween(self.drag.drag, {
+            Position = UDim2.new(target.X.Scale, target.X.Offset, target.Y.Scale, target.Y.Offset + self.size.Y.Offset / 2 + dragHandleGap),
+        }, "glide")
+    else
+        self.main.Position = target
+        self:_syncDragBar()
+    end
+end
+
+function Window:_collapsedRect()
+    local size = if self.showIconOnly then collapsedIconOnlySize else collapsedWideSize
+        if self._collapsedPosition then
+        return self._collapsedPosition, size
+    end
+    local position = UDim2.new(
+        collapsedPosition.X.Scale,
+        collapsedPosition.X.Offset,
+        collapsedPosition.Y.Scale,
+        collapsedPosition.Y.Offset + size.Y.Offset / 2
+    )
+    return position, size
+end
+
+end)() end,
+    [24] = function()local wax,script,require=ImportGlobals(24)local ImportGlobals return (function(...)
+local overlayQueue = require(script.Parent.Parent.overlayQueue)
+local tooltip = require(script.Parent.Parent.tooltip)
+
+local Window = require(script.Parent.class)
+
+function Window:_copyOverlayProps(props)
+    local copy = {}
+    if typeof(props) == "table" then
+        for key, value in props do
+            copy[key] = value
+        end
+    end
+    return copy
+end
+
+-- Public notification API. Keep the queueing implementation private so all
+-- callers, including settings and secure-mode diagnostics, use the same
+-- bounded entrance lane.
+
+function Window:Notify(props)
+    if self.unloaded then
+        return
+    end
+    return self:_showNotification(props)
+end
+
+function Window:_showNotification(props)
+    if not self.notifications then
+        self.notifications = self:Create("Frame", {
+            Name = "Notifications",
+            Size = UDim2.new(0, 300, 0, 800),
+            Position = UDim2.new(1, -20, 1, -20),
+            AnchorPoint = Vector2.new(1, 1),
+            BackgroundTransparency = 1,
+
+            Parent = self.screenGui,
+        })
+
+        self:Create("UIListLayout", {
+            FillDirection = Enum.FillDirection.Vertical,
+            VerticalAlignment = Enum.VerticalAlignment.Bottom,
+            HorizontalAlignment = Enum.HorizontalAlignment.Center,
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Padding = UDim.new(0, 0),
+
+            Parent = self.notifications,
+        })
+    end
+
+    -- [[The card is built on the queue's turn rather than right here: a host
+    -- that fires a notification for every module it loaded used to pay for
+    -- twenty frames' worth of instances and tweens on one. The layer itself is
+    -- created up front, so the first notification's own turn only builds the
+    -- card. See `components/overlayQueue.luau`. The props are snapshotted for
+    -- the same reason: a host that reuses one table between queued calls must
+    -- not have its last write end up on every card.]]
+    local snapshot = if typeof(props) == "table" then table.clone(props) else props
+    overlayQueue.request(self, function(release)
+        require(script.Parent.Parent.notification).new(self, snapshot, release)
+    end)
+end
+
+function Window:Popup(props)
+    if self.unloaded then
+        return
+    end
+    return require(script.Parent.Parent.popup).new(self, props)
+end
+
+-- [[Open the floating description over `anchor`. A programmatic open is
+-- [[pinned: it stays until `HideTooltip`, a tap on its anchor badge, or any of
+-- [[the window transitions that clear descriptions.]] 
+
+function Window:ShowTooltip(anchor: any, text: string)
+    tooltip.show(self, anchor, text, true)
+end
+
+function Window:HideTooltip()
+    tooltip.hide(self)
+end
+
+end)() end,
+    [25] = function()local wax,script,require=ImportGlobals(25)local ImportGlobals return (function(...)
+local utilities = script.Parent.Parent.Parent.utilities
+local motion = require(utilities.motion)
+local persistence = require(utilities.persistence)
+local settingsComponent = require(script.Parent.Parent.settings)
+
+local Window = require(script.Parent.class)
+
+function Window:_buildSettingsUI()
+    settingsComponent.buildUI(self)
+end
+
+function Window:_buildSettingsContent(tab)
+    settingsComponent.buildContent(self, tab)
+end
+
+function Window:SaveSettings()
+    return persistence.saveSettings(self)
+end
+
+function Window:LoadSettings()
+    local loaded, migrated = persistence.loadSettings(self)
+    self.configuration.autoSave = self.settings.autoSaveConfig
+    self.configuration.autoLoad = self.settings.autoLoadConfig
+    -- [[The animation-speed setting lives in the same file, and the motion
+    -- service is a library-wide singleton, so it is re-applied here rather
+    -- than only when the settings control is touched — otherwise a window
+    -- that loaded settings would animate at whatever the last one used.]]
+    self:_applyMotionSetting()
+    if migrated then
+        self:SaveSettings()
+    end
+    return loaded
+end
+
+-- [[`token` is the theme key the rounded corners read; it defaults to the
+-- [[window's own roundness, but callers inside an element pass that element's
+-- [[radius token so an inner surface can share the container's arcs.]]
+
+function Window:_toggleSettingsMode()
+    settingsComponent.toggleSettingsMode(self)
+end
+
+function Window:_setSettingsMode(active)
+    settingsComponent.setSettingsMode(self, active)
+    self:_updateWindowTitle()
+end
+
+end)() end,
+    [26] = function()local wax,script,require=ImportGlobals(26)local ImportGlobals return (function(...)
+local utilities = script.Parent.Parent.Parent.utilities
+local chrome = require(script.Parent.Parent.chrome)
+local constants = require(utilities.constants)
+local functions = require(script.Parent.Parent.Parent.functions)
+local haptic = require(utilities.HapticEngine)
+local icons = require(script.Parent.Parent.Parent.icons)
+local layouts = require(utilities.layouts)
+local locale = require(utilities.locale)
+local log = require(utilities.log)
+local motion = require(utilities.motion)
+local overlayQueue = require(script.Parent.Parent.overlayQueue)
+local search = require(script.Parent.Parent.search)
+local state = require(utilities.Parent.core.state)
+
+local themes = require(script.Parent.Parent.Parent.themes)
 local resolveTheme = themes.resolve
 
-function Window:ResolveIcon(value, pack)
-    return icons.resolve(value, pack)
-end
+local shared = require(script.Parent.constants)
+local constructionFrameBudget = shared.constructionFrameBudget
+local constructionInstanceBudget = shared.constructionInstanceBudget
+local computeSize = shared.computeSize
+local layoutKey = shared.layoutKey
+
+local Window = require(script.Parent.class)
 
 function Window.new(props)
     props = if typeof(props) == "table" then props else {}
@@ -5132,7 +6235,7 @@ function Window.new(props)
         Parent = self.main,
     })
 
-    self.drag = require(script.Parent.drag).new(self)
+    self.drag = require(script.Parent.Parent.drag).new(self)
 
     self.windowCorner = self:Create("UICorner", {
 
@@ -5358,7 +6461,7 @@ function Window.new(props)
     -- [[buttons and search chrome are added.]]
     self:_constructionCheckpoint(true)
 
-    require(script.Parent.action).new(self, {
+    require(script.Parent.Parent.action).new(self, {
         name = "Close",
         icon = constants.icons.close,
         order = 1,
@@ -5381,7 +6484,7 @@ function Window.new(props)
         end,
     })
 
-    self.minimiseAction = require(script.Parent.action).new(self, {
+    self.minimiseAction = require(script.Parent.Parent.action).new(self, {
         name = "Minimise",
         icon = constants.icons.minimise,
         order = 2,
@@ -5391,7 +6494,7 @@ function Window.new(props)
         end,
     })
 
-    self.settingsAction = require(script.Parent.action).new(self, {
+    self.settingsAction = require(script.Parent.Parent.action).new(self, {
         name = "Settings",
         icon = constants.icons.settings,
         order = 3,
@@ -5458,6 +6561,7 @@ end
 -- (late settings panels) use this directly so a deferred build can never
 -- monopolise a frame either. Yields land on the
 -- next Heartbeat (not another deferred task in the same frame).
+
 function Window:_paceBudget(force)
     local now = os.clock()
     local last = self._constructionClock or now
@@ -5485,6 +6589,7 @@ end
 -- `_constructed` is still false). Every boundary yields whole, completed
 -- objects, never half a control, so each constructor resumes with a fully
 -- usable object.
+
 function Window:_constructionCheckpoint(force)
     if self._startupComplete or (not force and not self._constructed) then
         return
@@ -5495,6 +6600,7 @@ end
 -- Configuration restoration can execute host callbacks. Apply a small group,
 -- then return a frame to rendering so a large saved configuration cannot make
 -- the freshly-opened window hitch. This is called only by persistenceConfig.
+
 function Window:_loadCheckpoint(appliedCount)
     if appliedCount % 6 == 0 then
         task.wait()
@@ -5507,6 +6613,470 @@ end
 -- built from persisted settings, a configuration load and a live change all
 -- reach the same state; an unknown persisted value falls back to `normal`
 -- instead of leaving the library on whatever the last window used.]]
+
+end)() end,
+    [27] = function()local wax,script,require=ImportGlobals(27)local ImportGlobals return (function(...)
+local chrome = require(script.Parent.Parent.chrome)
+local search = require(script.Parent.Parent.search)
+local tooltip = require(script.Parent.Parent.tooltip)
+
+local shared = require(script.Parent.constants)
+local compactRowHeight = shared.compactRowHeight
+
+local Window = require(script.Parent.class)
+
+function Window:CreateTab(props)
+    assert(not self.unloaded, "Cannot create a tab on an unloaded window.")
+    local tab = require(script.Parent.Parent.Parent.elements.tab).new(self, props)
+
+    table.insert(self.tabs, tab)
+
+    if not tab.neglectSelector then
+        local isFirst = true
+        for _, existingTab in self.tabs do
+            if
+                existingTab ~= tab
+                and not existingTab.neglectSelector
+                and not existingTab.locked
+                and self:_railGroup(existingTab) == self:_railGroup(tab)
+            then
+                isFirst = false
+                break
+            end
+        end
+        -- [[A locked first tab must not steal the selection from the row
+        -- [[behind it; and a locked tab never selects itself.]]
+        if isFirst and not tab.locked then
+            tab:Select(true)
+        end
+
+                        if not self.hidden and not self.minimised then
+            tab.topbarItem.Visible = true
+            tab:_applyVisual(
+                if self.selectedTab == tab then "selected" else "unselected",
+                "normal"
+            )
+        end
+        -- [[A runtime-created tab may belong to the other rail.]]
+        -- [[Re-apply the rail filter so it lands in the correct rail.]]
+        self:_applySettingsLayout(self._settingsMode)
+    end
+
+    self:_constructionCheckpoint(false)
+    return tab
+end
+
+function Window:CreateSection(props)
+    assert(not self.unloaded, "Cannot create a section on an unloaded window.")
+    local section = require(script.Parent.Parent.Parent.elements.tabSection).new(self, props)
+    table.insert(self.tabSections, section)
+
+            if not section.inert and not self.hidden and not self.minimised then
+        section:_setVisible(true)
+        section:_setShown(true, false)
+    end
+
+    return section
+end
+
+function Window:_setTabSectionsShown(shown, tweenInfo)
+    for _, section in self.tabSections do
+        section:_setShown(shown, tweenInfo)
+    end
+end
+
+function Window:_setTabSectionsVisible(visible)
+    for _, section in self.tabSections do
+        section:_setVisible(visible)
+    end
+end
+
+function Window:_refreshTabStripChrome()
+end
+
+function Window:_scrollSelectedTabIntoView(_tweened)
+end
+
+function Window:_railGroup(tab)
+    if tab._isSettingsTab then
+        return "settings"
+    end
+    return "main"
+end
+
+function Window:_activeRail()
+    if self._settingsMode then
+        return "settings"
+    end
+    return "main"
+end
+
+-- [[The icon label of a topbar action frame, or nil. `frame.ImageLabel` is a]]
+-- [[direct child read on Roblox, not a safe one: the action container also]]
+-- [[holds chrome with no icon - the search pill and other dividers - and]]
+-- [[indexing a missing child raises "ImageLabel is not a valid member of]]
+-- [[Frame". Every action-loop read goes through here instead of reading]]
+-- [[frame.ImageLabel directly.]]
+
+function Window:_jumpTo(page)
+    if not page then
+        return
+    end
+    tooltip.hide(self)
+    if page.Parent == self.elements then
+        self.elementsLayout:JumpTo(page)
+    end
+end
+
+function Window:Navigate(tab)
+    if tab == nil then
+        return
+    end
+
+    local found
+    -- [[The loop variable must not shadow the `tab` argument: `tab == tab`
+    -- [[was always true, so every Navigate call selected the first tab in
+    -- [[the list (the settings General tab) no matter what was asked for.]]
+    for _, existing in self.tabs do
+        if tab == existing or existing.name == tab or existing.tabPage == tab then
+            found = existing
+            break
+        end
+    end
+
+    if not found then
+        return
+    end
+    if found.locked then
+        -- [[The gate holds for programmatic navigation too; the host unlocks
+        -- [[through tab:SetLocked, not around it.]]
+        return
+    end
+    found:Select()
+end
+
+function Window:_buildCompactRow(tab, name, zIndex)
+    local row = self:Create("Frame", {
+        Name = name,
+        Size = UDim2.fromOffset(0, compactRowHeight),
+        AutomaticSize = Enum.AutomaticSize.X,
+        ClipsDescendants = true,         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BorderSizePixel = 0,
+
+        BackgroundTransparency = 1,
+        Parent = tab.tabPage,
+    }, { BackgroundTransparency = "ElementTransparency" })
+
+    local stroke = self:StyleElementBody(row)
+
+        self:Create("UIFlexItem", {
+        FlexMode = Enum.UIFlexMode.Fill,
+        Parent = row,
+    })
+
+        self:Create("UIListLayout", {
+        FillDirection = Enum.FillDirection.Horizontal,
+        VerticalAlignment = Enum.VerticalAlignment.Center,
+        HorizontalFlex = Enum.UIFlexAlignment.Fill,
+
+        Parent = row,
+    })
+
+        local button = self:Create("TextButton", {
+        Text = "",
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundTransparency = 1,         AutomaticSize = Enum.AutomaticSize.X,
+        Size = UDim2.fromOffset(0, compactRowHeight),
+        BorderSizePixel = 0,
+        TextTransparency = 1,
+        ZIndex = zIndex or 1,
+
+        Parent = row,
+    })
+
+    self:Create("UICorner", {
+        Parent = button,
+    }, { CornerRadius = "ElementCornerRadius" })
+
+    return row, stroke, button
+end
+
+end)() end,
+    [28] = function()local wax,script,require=ImportGlobals(28)local ImportGlobals return (function(...)
+local utilities = script.Parent.Parent.Parent.utilities
+local haptic = require(utilities.HapticEngine)
+local motion = require(utilities.motion)
+local overlayQueue = require(script.Parent.Parent.overlayQueue)
+local state = require(utilities.Parent.core.state)
+local tooltip = require(script.Parent.Parent.tooltip)
+
+local Window = require(script.Parent.class)
+
+function Window:Close()
+    if self.animating or self.unloaded then
+        return
+    end
+    tooltip.hide(self)
+    self.animating = true
+    self.hidden = true
+    self.collapsedInteract.Visible = false
+    self._closeTransitionId = (self._closeTransitionId or 0) + 1
+    local transitionId = self._closeTransitionId
+    local originalSize = self.main.Size
+    local originalPosition = self.main.Position
+    -- [[A close is a departure: the shell contracts on the `glide` spec (a
+    -- symmetric ease reads as the window folding itself away) while the
+    -- surface accelerates out on `exit`, so the window never lingers at the
+    -- tail of its own goodbye.]]
+    local contractTween = "glide"
+    local fadeOutTween = "exit"
+    local targetSize = UDim2.new(
+        originalSize.X.Scale * 0.88,
+        math.floor(originalSize.X.Offset * 0.88),
+        originalSize.Y.Scale * 0.88,
+        math.floor(originalSize.Y.Offset * 0.88)
+    )
+
+    self.main.ClipsDescendants = true
+    self.main.AnchorPoint = Vector2.new(0.5, 0.5)
+    self.main.Position = originalPosition
+    -- [[The handle leaves with the window it belongs to, and leaves parked:
+    -- [[a close is not a state the next entrance should inherit a look from.
+    self.drag:disable()
+    self:_fadeSurfaces(false, fadeOutTween)
+    if self.title then
+        motion.tween(self.title, { TextTransparency = 1 }, fadeOutTween)
+    end
+    if self.subtitle then
+        motion.tween(self.subtitle, { TextTransparency = 1 }, fadeOutTween)
+    end
+    if self.topbarIcon then
+        motion.tween(self.topbarIcon, { ImageTransparency = 1 }, fadeOutTween)
+    end
+    self:_fadeSelectedElementsOut()
+    -- [[The contraction goes through the motion service so the close answers
+    -- the speed setting like the rest of the window. A nil return means
+    -- nothing was animated (motion switched off, or the frame is already
+    -- where the transition was heading): the teardown still has to run, or
+    -- the window would stay alive and invisible.]]
+    local closed = false
+    local function finishClose()
+        if closed or self.unloaded or self._closeTransitionId ~= transitionId then
+            return
+        end
+        closed = true
+        self.drag:disable()
+        self:Unload()
+    end
+
+    -- [[The surface accelerates out first (a separate tween from the
+    -- contraction: one owner per property, and the fade never delays the
+    -- settle path the teardown waits on).]]
+    motion.tween(self.main, { BackgroundTransparency = 1 }, fadeOutTween)
+    if not motion.tween(self.main, {
+        Size = targetSize,
+        Position = originalPosition,
+    }, contractTween, finishClose) then
+        -- [[Nothing animated, so the teardown just ran and the window's
+        -- instances are gone — the corner below must not be touched.]]
+        finishClose()
+        if self.unloaded then
+            return
+        end
+    end
+    -- [[Collapse to a capsule using the theme's pill radius so a custom
+    -- [[PillCornerRadius still reads on the closing shrink. A synchronous
+    -- completion (the test harness plays tweens on the spot) may have torn
+    -- the window down inside the call above; never touch the corner then.]]
+    if not self.unloaded then
+        motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, contractTween)
+    end
+end
+
+function Window:Connect(signal, callback)
+    local connection = signal:Connect(callback)
+    table.insert(self.connections, connection)
+    return connection
+end
+
+function Window:ConnectFor(element, signal, callback)
+    local connection = self:Connect(signal, callback)
+    element.connections = element.connections or {}
+    table.insert(element.connections, connection)
+    return connection
+end
+
+function Window:Disconnect(connection)
+    if not connection then
+        return
+    end
+    local index = table.find(self.connections, connection)
+    if index then
+        table.remove(self.connections, index)
+    end
+    connection:Disconnect()
+end
+
+function Window:DestroySubtree(root)
+    if not root then
+        return
+    end
+
+    local descendants = { [root] = true }
+    for _, desc in root:GetDescendants() do
+        descendants[desc] = true
+    end
+    for i = #self.instances, 1, -1 do
+        local inst = self.instances[i]
+        if descendants[inst] then
+            table.remove(self.instances, i)
+            self.themeProperties[inst] = nil
+            self.localeProperties[inst] = nil
+        end
+    end
+
+    root:Destroy()
+end
+
+function Window:DisconnectMany(element, connections)
+    if not connections or #connections == 0 then
+        return
+    end
+
+    local removed = {}
+    for _, conn in connections do
+        removed[conn] = true
+        conn:Disconnect()
+    end
+
+    local function compact(list)
+        if not list then
+            return
+        end
+        local write = 0
+        for i = 1, #list do
+            local conn = list[i]
+            if not removed[conn] then
+                write += 1
+                list[write] = conn
+            end
+        end
+        for i = #list, write + 1, -1 do
+            list[i] = nil
+        end
+    end
+
+    compact(self.connections)
+    if element and element ~= self then
+        compact(element.connections)
+    end
+end
+
+function Window:DestroySubtrees(roots)
+    if not roots or #roots == 0 then
+        return
+    end
+
+    local descendants = {}
+    for _, root in roots do
+        descendants[root] = true
+        for _, desc in root:GetDescendants() do
+            descendants[desc] = true
+        end
+    end
+
+    local write = 0
+    for i = 1, #self.instances do
+        local inst = self.instances[i]
+        if descendants[inst] then
+            self.themeProperties[inst] = nil
+            self.localeProperties[inst] = nil
+        else
+            write += 1
+            self.instances[write] = inst
+        end
+    end
+    for i = #self.instances, write + 1, -1 do
+        self.instances[i] = nil
+    end
+
+    for _, root in roots do
+        root:Destroy()
+    end
+end
+
+function Window:Unload()
+    -- Do not lose the final edit if the window closes inside the save debounce.
+    if not self.unloaded and self._saveScheduled and self.configuration.autoSave and not self._loading then
+        self._saveScheduled = false
+        pcall(self.Save, self)
+    end
+    -- [[Release any open description before the screen GUI goes: the panel
+    -- [[lives under it, and `tooltip.hideFor` bookkeeping should not outlive
+    -- [[the window it belongs to. `unloaded` is raised first so the tooltip
+    -- [[hides the panel outright instead of starting a fade whose instances
+    -- [[are destroyed under it.]] 
+    self.unloaded = true
+    tooltip.hide(self)
+    -- [[Stop the entrance queue with the window: an overlay that had not taken
+    -- [[its turn yet has no layer to be built into any more, and the pump must
+    -- [[not wake up on a window whose instances are about to be destroyed.]]
+    overlayQueue.close(self)
+            haptic.teardown()
+    haptic.releaseContainer(self.screenGui)
+    for _, liveTween in self._liveTweens or {} do
+        liveTween:Cancel()
+    end
+    self._liveTweens = nil
+    for i = #self.connections, 1, -1 do
+        self.connections[i]:Disconnect()
+    end
+    for i = #self.instances, 1, -1 do
+        self.instances[i]:Destroy()
+    end
+
+                table.clear(self.connections)
+    table.clear(self.instances)
+    table.clear(self.themeProperties)
+    table.clear(self.localeProperties)
+    table.clear(self.controls)
+    table.clear(self.tabs)
+    -- [[overlayQueue.close already drained the queue into its safe resting
+    -- [[shape (empty pending list, closed flag); wiping the table itself used
+    -- [[to pull `pending` out from under the pump coroutine on its next resume
+    -- [[(a `#nil` error racing an unload that landed mid-gate).]]
+    self._overlayQueueRunning = false
+end
+
+end)() end,
+    [29] = function()local wax,script,require=ImportGlobals(29)local ImportGlobals return (function(...)
+local utilities = script.Parent.Parent.Parent.utilities
+local functions = require(script.Parent.Parent.Parent.functions)
+local icons = require(script.Parent.Parent.Parent.icons)
+local image = require(script.Parent.Parent.Parent.images.image)
+local locale = require(utilities.locale)
+local motion = require(utilities.motion)
+local state = require(utilities.Parent.core.state)
+
+local themes = require(script.Parent.Parent.Parent.themes)
+local coerceValue = themes.coerceValue
+local deriveStrokes = themes.deriveStrokes
+local resolveTheme = themes.resolve
+
+local shared = require(script.Parent.constants)
+local windowSurfaceColor = shared.windowSurfaceColor
+local windowSurfaceTransparency = shared.windowSurfaceTransparency
+local windowSurfaceGradientRotation = shared.windowSurfaceGradientRotation
+local windowSurfaceGradientOffset = shared.windowSurfaceGradientOffset
+local cornerKeys = shared.cornerKeys
+local hasPerCornerRadius = shared.hasPerCornerRadius
+
+local Window = require(script.Parent.class)
+
+function Window:ResolveIcon(value, pack)
+    return icons.resolve(value, pack)
+end
+
 function Window:_applyMotionSetting()
     if not motion.setProfile(self.settings.motionSpeed) then
         self.settings.motionSpeed = "normal"
@@ -5631,275 +7201,260 @@ function Window:_refreshElementThemes()
     end
 end
 
-function Window:CreateTab(props)
-    assert(not self.unloaded, "Cannot create a tab on an unloaded window.")
-    local tab = require(script.Parent.Parent.elements.tab).new(self, props)
+function Window:StyleWindowSurface(frame): UIGradient
+    frame.BackgroundColor3 = windowSurfaceColor
+    return self:Create("UIGradient", {
+        Rotation = windowSurfaceGradientRotation,
+        Offset = windowSurfaceGradientOffset,
 
-    table.insert(self.tabs, tab)
+        Parent = frame,
+    }, { Color = { "WindowColor", functions.toColorSequence } })
+end
 
-    if not tab.neglectSelector then
-        local isFirst = true
-        for _, existingTab in self.tabs do
-            if
-                existingTab ~= tab
-                and not existingTab.neglectSelector
-                and not existingTab.locked
-                and self:_railGroup(existingTab) == self:_railGroup(tab)
-            then
-                isFirst = false
-                break
-            end
+-- [[The window's own opacity once it is on screen. Kept beside the surface
+-- [[style so callers state the same value without guessing.]]
+
+function Window:WindowSurfaceTransparency(): number
+    return windowSurfaceTransparency
+end
+
+function Window:CreateGlow(parent, color, blurRadius, transparency)
+    local props = {
+        BlurRadius = UDim.new(0, blurRadius),
+        Transparency = transparency,
+        ZIndex = -1,
+
+        Parent = parent,
+    }
+
+    if typeof(color) == "string" then
+        return self:Create("UIShadow", props, {
+            Color = {
+                color,
+                function(color)
+                    return if typeof(color) == "ColorSequence" then color.Keypoints[1].Value else color
+                end,
+            },
+        })
+    end
+
+    props.Color = color
+    return self:Create("UIShadow", props)
+end
+
+function Window:CreateHoverOverlay(parent)
+    local overlay = self:Create("Frame", {
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        BorderSizePixel = 0,
+        ZIndex = 1,
+
+        Parent = parent,
+    })
+
+    self:Create("UICorner", {
+        Parent = overlay,
+    }, { CornerRadius = "ElementCornerRadius" })
+
+    return overlay
+end
+
+function Window:_elementBackgroundTransparency(element)
+    if element and element._collapsibleChild then
+        return self.theme.CollapsibleChildElementTransparency or 0.75
+    end
+    return self.theme.ElementTransparency or 0
+end
+
+function Window:_elementStrokeTransparency(element, hover)
+    if element and element._collapsibleChild then
+        if hover then
+            return self.theme.CollapsibleChildElementStrokeHoverTransparency
+                or self.theme.CollapsibleChildElementStrokeTransparency
+                or 1
         end
-        -- [[A locked first tab must not steal the selection from the row
-        -- [[behind it; and a locked tab never selects itself.]]
-        if isFirst and not tab.locked then
-            tab:Select(true)
-        end
+        return self.theme.CollapsibleChildElementStrokeTransparency or 1
+    end
+    return if hover then self.theme.ElementStrokeHoverTransparency else self.theme.ElementStrokeTransparency
+end
 
-                        if not self.hidden and not self.minimised then
-            tab.topbarItem.Visible = true
-            tab:_applyVisual(
-                if self.selectedTab == tab then "selected" else "unselected",
-                "normal"
+function Window:StyleElementBody(frame)
+    self:Create("UIGradient", {
+        Rotation = 270,
+
+        Parent = frame,
+    }, { Color = "ElementGradient" })
+
+    self:Create("UICorner", {
+        Parent = frame,
+    }, { CornerRadius = "ElementCornerRadius" })
+
+    return self:Create("UIStroke", {
+        Transparency = 1,
+
+        Parent = frame,
+    }, { Color = "ElementStroke", Transparency = "ElementStrokeTransparency" })
+end
+
+function Window:StyleElementPanel(frame)
+    self:Create("UIGradient", {
+        Rotation = 270,
+
+        Parent = frame,
+    }, { Color = "ElementGradient" })
+
+    self:Create("UICorner", {
+        Parent = frame,
+    }, { CornerRadius = "ElementCornerRadius" })
+
+    local stroke = self:Create("UIStroke", {
+        Color = Color3.fromRGB(255, 255, 255),
+        Transparency = 1,
+        Parent = frame,
+    })
+
+    self:Create("UIGradient", {
+        Rotation = 270,
+
+        Parent = stroke,
+    }, { Color = "ElementStrokeGradient" })
+
+    return stroke
+end
+
+function Window:_roundCorners(frame, corners, token)
+    token = token or "CornerRoundness"
+    if not corners or not hasPerCornerRadius then
+        return self:Create("UICorner", {
+            Parent = frame,
+        }, { CornerRadius = token })
+    end
+
+    local props = { Parent = frame }
+    local themeMap = {}
+    for _, key in cornerKeys do
+        props[key] = UDim.new(0, 0)
+    end
+    for _, corner in corners do
+        props[corner] = nil         themeMap[corner] = token
+    end
+
+    return self:Create("UICorner", props, themeMap)
+end
+
+-- [[Companion to `_roundCorners` for a corner set an element flips with its own
+-- [[state instead of once at construction: `corners` (default: all four, as in
+-- [[`_roundCorners`) ride the `token` radius and every other corner of the frame
+-- [[goes back to square, so a caller can move which of an inner surface's edges
+-- [[match the container's arcs — a collapsible header is the card's bottom edge
+-- [[only while it is closed. No theme binding is recorded here (`themeProperties`
+-- [[still owns whatever `_roundCorners` bound), so a later `ChangeTheme` re-reads
+-- [[`token` through this same call from the element instead of fighting it. There
+-- [[is nothing to move on an engine without per-corner radii, where
+-- [[`_roundCorners` already gave the frame one radius on all four corners, so the
+-- [[call is a no-op there.]]
+
+function Window:_setRoundedCorners(corner, corners, token)
+    if not corner or not hasPerCornerRadius then
+        return
+    end
+
+    local radius = if token then self.theme[token] else nil
+    for _, key in cornerKeys do
+        local wanted = radius ~= nil and (not corners or table.find(corners, key) ~= nil)
+        local target = if wanted then radius else UDim.new(0, 0)
+        if corner[key] ~= target then
+            corner[key] = target
+        end
+    end
+end
+
+function Window:Create(className, props, themeBindings)
+    assert(typeof(className) == "string", "Invalid argument #1 (string expected)")
+    local instance = Instance.new(className)
+
+            if themeBindings and self.theme then
+        for prop, binding in themeBindings do
+            instance[prop] = (
+                if typeof(binding) == "table" then binding[2](self.theme[binding[1]]) else self.theme[binding]
             )
         end
-        -- [[A runtime-created tab may belong to the other rail.]]
-        -- [[Re-apply the rail filter so it lands in the correct rail.]]
-        self:_applySettingsLayout(self._settingsMode)
+
+        self.themeProperties[instance] = themeBindings
     end
 
-    self:_constructionCheckpoint(false)
-    return tab
-end
-
-function Window:CreateSection(props)
-    assert(not self.unloaded, "Cannot create a section on an unloaded window.")
-    local section = require(script.Parent.Parent.elements.tabSection).new(self, props)
-    table.insert(self.tabSections, section)
-
-            if not section.inert and not self.hidden and not self.minimised then
-        section:_setVisible(true)
-        section:_setShown(true, false)
-    end
-
-    return section
-end
-
-function Window:_setTabSectionsShown(shown, tweenInfo)
-    for _, section in self.tabSections do
-        section:_setShown(shown, tweenInfo)
-    end
-end
-
-function Window:_setTabSectionsVisible(visible)
-    for _, section in self.tabSections do
-        section:_setVisible(visible)
-    end
-end
-
-function Window:_registerControl(element)
-    if not element.flag or element.flag == "" or element.forgetState then
-        return
-    end
-
-    local flag = element.flag
-    if self.controls[flag] then
-        local n = 2
-        while self.controls[flag .. n] do
-            n += 1
-        end
-        flag = flag .. n
-    end
-
-    element.flag = flag
-    self.controls[flag] = element
-    return flag
-end
-
-function Window:_restoreLate(element)
-    if not self._loadedConfig or not element.flag or element.forgetState then
-        return
-    end
-
-    local wasLoading = self._loading
-    self._loading = true     persistence.applyTo(element, self._loadedConfig[element.flag])
-    self._loading = wasLoading
-end
-
-function Window:_persist(element)
-    if not element.flag or element.forgetState or not self.configuration.autoSave or self._loading or self._saveScheduled then
-        return
-    end
-    -- Default-on autosave must not write a whole file for every slider tick.
-    self._saveScheduled = true
-    task.delay(0.25, function()
-        self._saveScheduled = false
-        if not self.unloaded and self.configuration.autoSave and not self._loading then
-            self:Save()
-        end
-    end)
-end
-
-function Window:_unregisterControl(element)
-    if element.flag and self.controls[element.flag] == element then
-        self.controls[element.flag] = nil
-    end
-end
-
-function Window:_copyOverlayProps(props)
-    local copy = {}
-    if typeof(props) == "table" then
-        for key, value in props do
-            copy[key] = value
+    if props then
+        for prop, value in props do
+            if locale.isToken(value) then
+                self:_bindLocale(instance, prop, locale.sourceOf(value))
+            else
+                image.assign(instance, prop, value)
+            end
         end
     end
-    return copy
+
+    table.insert(self.instances, instance)
+    return instance
 end
 
--- Public notification API. Keep the queueing implementation private so all
--- callers, including settings and secure-mode diagnostics, use the same
--- bounded entrance lane.
-function Window:Notify(props)
-    if self.unloaded then
-        return
+function Window:_bindLocale(instance, prop, token)
+    instance[prop] = locale.resolve(token)
+
+    local bindings = self.localeProperties[instance]
+    if not bindings then
+        bindings = {}
+        self.localeProperties[instance] = bindings
     end
-    return self:_showNotification(props)
+    bindings[prop] = token
 end
 
-function Window:_showNotification(props)
-    if not self.notifications then
-        self.notifications = self:Create("Frame", {
-            Name = "Notifications",
-            Size = UDim2.new(0, 300, 0, 800),
-            Position = UDim2.new(1, -20, 1, -20),
-            AnchorPoint = Vector2.new(1, 1),
-            BackgroundTransparency = 1,
-
-            Parent = self.screenGui,
-        })
-
-        self:Create("UIListLayout", {
-            FillDirection = Enum.FillDirection.Vertical,
-            VerticalAlignment = Enum.VerticalAlignment.Bottom,
-            HorizontalAlignment = Enum.HorizontalAlignment.Center,
-            SortOrder = Enum.SortOrder.LayoutOrder,
-            Padding = UDim.new(0, 0),
-
-            Parent = self.notifications,
-        })
-    end
-
-    -- [[The card is built on the queue's turn rather than right here: a host
-    -- that fires a notification for every module it loaded used to pay for
-    -- twenty frames' worth of instances and tweens on one. The layer itself is
-    -- created up front, so the first notification's own turn only builds the
-    -- card. See `components/overlayQueue.luau`. The props are snapshotted for
-    -- the same reason: a host that reuses one table between queued calls must
-    -- not have its last write end up on every card.]]
-    local snapshot = if typeof(props) == "table" then table.clone(props) else props
-    overlayQueue.request(self, function(release)
-        require(script.Parent.Parent.components.notification).new(self, snapshot, release)
-    end)
-end
-
-function Window:Popup(props)
-    if self.unloaded then
-        return
-    end
-    return require(script.Parent.Parent.components.popup).new(self, props)
-end
-
--- [[Open the floating description over `anchor`. A programmatic open is
--- [[pinned: it stays until `HideTooltip`, a tap on its anchor badge, or any of
--- [[the window transitions that clear descriptions.]] 
-function Window:ShowTooltip(anchor: any, text: string)
-    tooltip.show(self, anchor, text, true)
-end
-
-function Window:HideTooltip()
-    tooltip.hide(self)
-end
-
-function Window:Close()
-    if self.animating or self.unloaded then
-        return
-    end
-    tooltip.hide(self)
-    self.animating = true
-    self.hidden = true
-    self.collapsedInteract.Visible = false
-    self._closeTransitionId = (self._closeTransitionId or 0) + 1
-    local transitionId = self._closeTransitionId
-    local originalSize = self.main.Size
-    local originalPosition = self.main.Position
-    -- [[A close is a departure: the shell contracts on the `glide` spec (a
-    -- symmetric ease reads as the window folding itself away) while the
-    -- surface accelerates out on `exit`, so the window never lingers at the
-    -- tail of its own goodbye.]]
-    local contractTween = "glide"
-    local fadeOutTween = "exit"
-    local targetSize = UDim2.new(
-        originalSize.X.Scale * 0.88,
-        math.floor(originalSize.X.Offset * 0.88),
-        originalSize.Y.Scale * 0.88,
-        math.floor(originalSize.Y.Offset * 0.88)
-    )
-
-    self.main.ClipsDescendants = true
-    self.main.AnchorPoint = Vector2.new(0.5, 0.5)
-    self.main.Position = originalPosition
-    -- [[The handle leaves with the window it belongs to, and leaves parked:
-    -- [[a close is not a state the next entrance should inherit a look from.
-    self.drag:disable()
-    self:_fadeSurfaces(false, fadeOutTween)
-    if self.title then
-        motion.tween(self.title, { TextTransparency = 1 }, fadeOutTween)
-    end
-    if self.subtitle then
-        motion.tween(self.subtitle, { TextTransparency = 1 }, fadeOutTween)
-    end
-    if self.topbarIcon then
-        motion.tween(self.topbarIcon, { ImageTransparency = 1 }, fadeOutTween)
-    end
-    self:_fadeSelectedElementsOut()
-    -- [[The contraction goes through the motion service so the close answers
-    -- the speed setting like the rest of the window. A nil return means
-    -- nothing was animated (motion switched off, or the frame is already
-    -- where the transition was heading): the teardown still has to run, or
-    -- the window would stay alive and invisible.]]
-    local closed = false
-    local function finishClose()
-        if closed or self.unloaded or self._closeTransitionId ~= transitionId then
-            return
-        end
-        closed = true
-        self.drag:disable()
-        self:Unload()
-    end
-
-    -- [[The surface accelerates out first (a separate tween from the
-    -- contraction: one owner per property, and the fade never delays the
-    -- settle path the teardown waits on).]]
-    motion.tween(self.main, { BackgroundTransparency = 1 }, fadeOutTween)
-    if not motion.tween(self.main, {
-        Size = targetSize,
-        Position = originalPosition,
-    }, contractTween, finishClose) then
-        -- [[Nothing animated, so the teardown just ran and the window's
-        -- instances are gone — the corner below must not be touched.]]
-        finishClose()
-        if self.unloaded then
-            return
+function Window:SetLocale(localeId)
+    locale.setActive(localeId)
+    for instance, bindings in self.localeProperties do
+        for prop, token in bindings do
+            instance[prop] = locale.resolve(token)
         end
     end
-    -- [[Collapse to a capsule using the theme's pill radius so a custom
-    -- [[PillCornerRadius still reads on the closing shrink. A synchronous
-    -- completion (the test harness plays tweens on the spot) may have torn
-    -- the window down inside the call above; never touch the corner then.]]
-    if not self.unloaded then
-        motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, contractTween)
-    end
+    -- [[Translated row titles may measure differently.]]
+    self:_applyContentRailWidth()
 end
+
+function Window:SetTranslator(translator)
+    locale.translator = translator
+end
+
+function Window:RegisterTranslations(translations)
+    locale.register(translations)
+    self:SetLocale(locale.current)
+end
+
+-- [[The window's own background, applied to any frame: the base colour the
+-- [[WindowColor gradient is laid over, and the gradient itself (same theme
+-- [[token, rotation and offset as the frame the window is built from). The
+-- [[definition is shared rather than copied, so surfaces cannot drift into
+-- [[near-miss shades of each other. Returns the gradient so callers can keep
+-- [[it in step with the window's own (see _syncLiveAnimation).]]
+
+end)() end,
+    [30] = function()local wax,script,require=ImportGlobals(30)local ImportGlobals return (function(...)
+local utilities = script.Parent.Parent.Parent.utilities
+local chrome = require(script.Parent.Parent.chrome)
+local constants = require(utilities.constants)
+local image = require(script.Parent.Parent.Parent.images.image)
+local locale = require(utilities.locale)
+local motion = require(utilities.motion)
+local overlayQueue = require(script.Parent.Parent.overlayQueue)
+local search = require(script.Parent.Parent.search)
+local state = require(utilities.Parent.core.state)
+local tooltip = require(script.Parent.Parent.tooltip)
+
+local shared = require(script.Parent.constants)
+local contentRevealBeat = shared.contentRevealBeat
+local dragHandleGap = shared.dragHandleGap
+local windowSurfaceTransparency = shared.windowSurfaceTransparency
+
+local Window = require(script.Parent.class)
 
 function Window:Hide()
     tooltip.hide(self)
@@ -6154,682 +7709,6 @@ function Window:_syncDragBar()
     dragFrame.Position = UDim2.new(pos.X.Scale, pos.X.Offset, pos.Y.Scale, pos.Y.Offset + dragOffset)
 end
 
-function Window:_clampedPosition(position: UDim2): UDim2
-    if not self.settings or not self.settings.keepOnScreen then
-        return position
-    end
-            if position.X.Scale ~= 0 or position.Y.Scale ~= 0 then
-        return position
-    end
-
-    local screenSize = self.screenGui.AbsoluteSize
-    local halfLeft = self.size.X.Offset / 2
-    local halfRight = halfLeft
-    local halfTop = self.size.Y.Offset / 2
-    local margin = 8
-        local x = math.clamp(position.X.Offset, halfLeft + margin, math.max(halfLeft + margin, screenSize.X - halfRight - margin))
-    local y = math.clamp(position.Y.Offset, halfTop + margin, math.max(halfTop + margin, screenSize.Y - halfTop - margin))
-    if x == position.X.Offset and y == position.Y.Offset then
-        return position
-    end
-    return UDim2.fromOffset(x, y)
-end
-
-function Window:_clampToScreen()
-    self.main.Position = self:_clampedPosition(self.main.Position)
-end
-
--- [[The window's canonical resting position: dead centre of the screen.]]
-function Window:_restingCenterPosition(): UDim2
-    return UDim2.new(0.5, 0, 0.5, 0)
-end
-
-function Window:_recenterWindow(animate)
-    local target = self:_restingCenterPosition()
-    if self.hidden or self.minimised then
-        -- [[Nothing is on screen to move; park the remembered position so]]
-        -- [[the next restore lands centred.]]
-        self._restorePosition = target
-        return
-    end
-    if self.main.Position == target then
-        return
-    end
-    if animate and not self.animating then
-        -- [[A recenter slides the window sideways between resting places:
-        -- the symmetric `glide` ease reads as deliberate, not reactive.]]
-        motion.tween(self.main, { Position = target }, "glide")
-        motion.tween(self.drag.drag, {
-            Position = UDim2.new(target.X.Scale, target.X.Offset, target.Y.Scale, target.Y.Offset + self.size.Y.Offset / 2 + dragHandleGap),
-        }, "glide")
-    else
-        self.main.Position = target
-        self:_syncDragBar()
-    end
-end
-
-function Window:_applyWindowSize()
-    if self.unloaded then
-        return
-    end
-    -- [[Desktop/PC: newSize tracks the viewport (responsive, min/max protected).]]
-    -- [[Mobile: windowSizing.fit returns the fixed mobile profile on every call, so]]
-    -- [[viewport changes (rotation, keyboard, inset) never resize the window here.]]
-    local newSize = computeSize(self.layout.mode)
-    local sizeChanged = newSize ~= self.size
-    self.size = newSize
-    -- [[Nothing moved: no rail write, no layout invalidation. This is the
-    -- [[window's steady state - the viewport poll below calls this every
-    -- [[couple of seconds for the whole session, and the rail write used to
-    -- [[happen before the check.]]
-    if not sizeChanged and not self._pendingResize then
-        return
-    end
-    -- [[The rail follows the window's size, its layout and its tabs, all of
-    -- [[which are in step by the time this runs: it only has to be written
-    -- [[when one of them moved, which is what this function is for.]]
-    self:_applyRailWidth()
-    if self.hidden or self.minimised or self.animating or self._revealing then
-        self._pendingResize = true
-        return
-    end
-    self._pendingResize = false
-    self.main.Size = newSize
-    self:_clampToScreen()
-    self:_syncDragBar()
-    if self.main.Position.X.Scale == 0.5 and self.main.Position.Y.Scale == 0.5 then
-        -- [[Still anchored at the screen centre (the user has not dragged]]
-        -- [[it): re-apply the resting centre for the new size.]]
-        self:_recenterWindow(false)
-    end
-end
-
--- [[Effective rail width. Non-sidebar and collapsed rails keep the existing]]
--- [[fixed behavior; the expanded responsive rail instead hugs the widest]]
--- [[visible tab row (railContentWidth), capped by the window's available]]
--- [[space so the elements area always keeps at least half the window.]]
-function Window:_railWidth()
-    local base = layouts.railWidthFor(self.layout, self.size.X.Offset)
-    if self.layout.mode ~= "sidebar" or self.layout.forceCollapsed then
-        return base
-    end
-    if base < (self.layout.railWidth :: number) then
-        return base
-    end
-    local content = tabSelector.railContentWidth(self, self.layout)
-    if content <= 0 then
-        return base
-    end
-    local cap = math.floor(self.size.X.Offset * 0.5)
-    return math.min(content, cap)
-end
-
-function Window:_applyContentRailWidth()
-    if self.layout.mode ~= "sidebar" or self.layout.forceCollapsed then
-        return
-    end
-    local implementation = layouts.implementation(layoutKey(self.layout))
-    implementation.ApplyWidth(self, self:_railWidth())
-end
-
-function Window:_applyRailWidth()
-    local implementation = layouts.implementation(layoutKey(self.layout))
-    implementation.ApplyWidth(self, self:_railWidth())
-
-    if self._settingsLayoutActive or self.selectedTab == self.rfSettings then
-        self:_applySettingsLayout(true)
-    end
-end
-
-function Window:_watchViewport()
-    local cameraConnection: RBXScriptConnection? = nil
-    local pending = false
-
-    local function scheduleUpdate()
-                if pending then
-            return
-        end
-        pending = true
-        task.defer(function()
-            pending = false
-            self:_applyWindowSize()
-        end)
-    end
-
-    local function rebindCamera()
-        if cameraConnection then
-            self:Disconnect(cameraConnection)
-            cameraConnection = nil
-        end
-        local camera = state.workspace.CurrentCamera
-        if camera then
-            cameraConnection = self:Connect(camera:GetPropertyChangedSignal("ViewportSize"), scheduleUpdate)
-        end
-        scheduleUpdate()
-    end
-
-    self:Connect(state.workspace:GetPropertyChangedSignal("CurrentCamera"), rebindCamera)
-    rebindCamera()
-
-            local elapsed = 0
-    self:Connect(state.runService.Heartbeat, function(dt: number)
-        elapsed += dt
-        if elapsed < viewportCheckInterval then
-            return
-        end
-        elapsed = 0
-        self:_applyWindowSize()
-    end)
-end
-
-function Window:_bindKeybind()
-    self:Connect(state.userInputService.InputBegan, function(input, gameProcessed)
-        if gameProcessed then
-            return
-        end
-        if input.KeyCode == self.settings.toggleKeybind or input.UserInputType == self.settings.toggleKeybind then
-            self:ToggleHide()
-        end
-    end)
-end
-
-function Window:_bindMouseOverride()
-    local inputService = state.userInputService
-
-    local function shouldOverride()
-        return self.settings.mouseOverride and not self.hidden and not self.minimised
-    end
-
-    local function restoreMouse()
-        if not shouldOverride() then
-            return
-        end
-                        if inputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-            return
-        end
-        if inputService.MouseBehavior ~= Enum.MouseBehavior.Default then
-            inputService.MouseBehavior = Enum.MouseBehavior.Default
-        end
-        if not inputService.MouseIconEnabled then
-            inputService.MouseIconEnabled = true
-        end
-    end
-
-            self:Connect(inputService:GetPropertyChangedSignal("MouseBehavior"), restoreMouse)
-    self:Connect(inputService:GetPropertyChangedSignal("MouseIconEnabled"), restoreMouse)
-
-            self:Connect(inputService.InputEnded, function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton2 then
-            restoreMouse()
-        end
-    end)
-
-        self._freeMouse = restoreMouse
-end
-
-function Window:_bindTopbarDrag()
-    local inputService = state.userInputService
-    local isDragging = false
-    local hasMoved = false
-    local dragOffset = Vector2.zero
-    local renderConnection
-    local startMousePos = Vector2.zero
-
-            local guiInset = Vector2.zero
-    if self.screenGui and self.screenGui.IgnoreGuiInset then
-        guiInset = state.guiService:GetGuiInset()
-    end
-
-    local function getConstrainedPosition()
-        local rawPos = inputService:GetMouseLocation() + dragOffset + guiInset
-        local x, y = rawPos.X, rawPos.Y
-
-        if self.settings and self.settings.keepOnScreen then
-            local mainSize = self.main.AbsoluteSize
-            local screenSize = self.screenGui.AbsoluteSize
-            local margin = 8
-            -- [[The frame's own size is used: mid-minimise it is shorter]]
-            -- [[than window.size.]]
-            local halfLeft = mainSize.X / 2
-            local halfRight = halfLeft
-            local halfTop = mainSize.Y / 2
-            x = math.clamp(x, halfLeft + margin, math.max(halfLeft + margin, screenSize.X - halfRight - margin))
-            y = math.clamp(y, halfTop + margin, math.max(halfTop + margin, screenSize.Y - halfTop - margin))
-        end
-
-        return UDim2.fromOffset(x, y)
-    end
-
-    local function endDrag()
-        isDragging = false
-        if hasMoved then
-            -- [[The move is over: the handle drops back to its resting look
-            -- [[and stays where it is — that faint pill under the window is
-            -- [[the affordance the next drag starts from.
-            hasMoved = false
-            if self.drag then
-                self.drag:setMoving(false)
-            end
-        end
-        if renderConnection then
-            self:Disconnect(renderConnection)
-            renderConnection = nil
-        end
-    end
-
-    local function updateDrag()
-        if not isDragging then
-            endDrag()
-            return
-        end
-        if self.unloaded or not self:_canDragCapsule() then
-            endDrag()
-            return
-        end
-
-        -- [[Do not reposition the window for a simple click/tap. Wait until]]
-        -- [[the pointer has actually moved before treating the gesture as drag.]]
-        local pointer = inputService:GetMouseLocation()
-        if (pointer - startMousePos).Magnitude < 4 then
-            return
-        end
-
-        if not hasMoved then
-            -- [[The pointer has left the threshold, so this is a move and not
-            -- [[a click: bring the handle out for the length of it. Nothing is
-            -- [[pointing at the handle (the gesture started on the topbar), so
-            -- [[this is the one moment it has to show itself — the pill
-            -- [[brightens here and settles back when the move ends.
-            hasMoved = true
-            tooltip.hide(self)
-            if self.drag then
-                self.drag:setMoving(true)
-            end
-        end
-
-        local constrainedPos = getConstrainedPosition()
-        if self.main.Position == constrainedPos then
-            return
-        end
-        self.main.Position = constrainedPos
-        if self.drag and self.drag.drag then
-            local mainPos = self.main.Position
-            self.drag.drag.Position = UDim2.new(
-                mainPos.X.Scale,
-                mainPos.X.Offset,
-                mainPos.Y.Scale,
-                mainPos.Y.Offset + (self.main.Size.Y.Offset / 2 + dragHandleGap)
-            )
-        end
-    end
-
-                local function isOverInteractive(x, y)
-        for _, region in { self.tabList, self.actionContainer } do
-            local absPos, absSize = region.AbsolutePosition, region.AbsoluteSize
-            if x >= absPos.X and x <= absPos.X + absSize.X and y >= absPos.Y and y <= absPos.Y + absSize.Y then
-                return true
-            end
-        end
-        return false
-    end
-
-    self:Connect(self.topbar.InputBegan, function(input, gameProcessed)
-        if gameProcessed then
-            return
-        end
-
-        if not self:_canDragCapsule() then
-            return
-        end
-
-        local inputType = input.UserInputType.Name
-        if inputType ~= "MouseButton1" and inputType ~= "Touch" then
-            return
-        end
-
-        if isOverInteractive(input.Position.X, input.Position.Y) then
-            return
-        end
-
-                if not self:_interactive() then
-            return
-        end
-
-        isDragging = true
-        if renderConnection then
-            self:Disconnect(renderConnection)
-            renderConnection = nil
-        end
-        renderConnection = self:Connect(state.runService.RenderStepped, updateDrag)
-
-        if self.screenGui and self.screenGui.IgnoreGuiInset then
-            guiInset = state.guiService:GetGuiInset()
-        end
-
-        startMousePos = inputService:GetMouseLocation()
-        dragOffset = self.main.AbsolutePosition + self.main.AbsoluteSize * self.main.AnchorPoint - inputService:GetMouseLocation()
-    end)
-
-    self:Connect(inputService.InputEnded, function(input)
-        local inputType = input.UserInputType.Name
-        if inputType == "MouseButton1" or inputType == "Touch" then
-            endDrag()
-        end
-    end)
-
-            self:Connect(inputService.WindowFocusReleased, function()
-        endDrag()
-    end)
-end
-
-function Window:_buildSettingsUI()
-    settingsComponent.buildUI(self)
-end
-
-function Window:_buildSettingsContent(tab)
-    settingsComponent.buildContent(self, tab)
-end
-
-function Window:SaveSettings()
-    return persistence.saveSettings(self)
-end
-
-function Window:LoadSettings()
-    local loaded, migrated = persistence.loadSettings(self)
-    self.configuration.autoSave = self.settings.autoSaveConfig
-    self.configuration.autoLoad = self.settings.autoLoadConfig
-    -- [[The animation-speed setting lives in the same file, and the motion
-    -- service is a library-wide singleton, so it is re-applied here rather
-    -- than only when the settings control is touched — otherwise a window
-    -- that loaded settings would animate at whatever the last one used.]]
-    self:_applyMotionSetting()
-    if migrated then
-        self:SaveSettings()
-    end
-    return loaded
-end
-
--- [[`token` is the theme key the rounded corners read; it defaults to the
--- [[window's own roundness, but callers inside an element pass that element's
--- [[radius token so an inner surface can share the container's arcs.]]
-function Window:_roundCorners(frame, corners, token)
-    token = token or "CornerRoundness"
-    if not corners or not hasPerCornerRadius then
-        return self:Create("UICorner", {
-            Parent = frame,
-        }, { CornerRadius = token })
-    end
-
-    local props = { Parent = frame }
-    local themeMap = {}
-    for _, key in cornerKeys do
-        props[key] = UDim.new(0, 0)
-    end
-    for _, corner in corners do
-        props[corner] = nil         themeMap[corner] = token
-    end
-
-    return self:Create("UICorner", props, themeMap)
-end
-
--- [[Companion to `_roundCorners` for a corner set an element flips with its own
--- [[state instead of once at construction: `corners` (default: all four, as in
--- [[`_roundCorners`) ride the `token` radius and every other corner of the frame
--- [[goes back to square, so a caller can move which of an inner surface's edges
--- [[match the container's arcs — a collapsible header is the card's bottom edge
--- [[only while it is closed. No theme binding is recorded here (`themeProperties`
--- [[still owns whatever `_roundCorners` bound), so a later `ChangeTheme` re-reads
--- [[`token` through this same call from the element instead of fighting it. There
--- [[is nothing to move on an engine without per-corner radii, where
--- [[`_roundCorners` already gave the frame one radius on all four corners, so the
--- [[call is a no-op there.]]
-function Window:_setRoundedCorners(corner, corners, token)
-    if not corner or not hasPerCornerRadius then
-        return
-    end
-
-    local radius = if token then self.theme[token] else nil
-    for _, key in cornerKeys do
-        local wanted = radius ~= nil and (not corners or table.find(corners, key) ~= nil)
-        local target = if wanted then radius else UDim.new(0, 0)
-        if corner[key] ~= target then
-            corner[key] = target
-        end
-    end
-end
-
-function Window:_setElementLocked(element, locked, message)
-    locked = locked == true
-                local wasLocked = element.locked == true
-    if wasLocked == locked and not (locked and message) then
-        return
-    end
-    element.locked = locked
-
-    if not element.lockScrim then
-        self:_buildLockScrim(element)
-    end
-
-    -- [[The lock scrim arrives on the shared hover spec; the unlock delay
-    -- tracks its duration so the scrim never hides after it has faded.]]
-    local lockSpec = "snappy"
-
-    if locked then
-        element.lockScrim.Visible = true
-    end
-    motion.tween(element.lockScrim, {
-        BackgroundTransparency = if locked then lockScrimTransparency else 1,
-    }, lockSpec)
-    if not locked then
-        task.delay(0.25, function()
-            if not element.locked and element.lockScrim and element.lockScrim.Parent then
-                element.lockScrim.Visible = false             end
-        end)
-    end
-
-        local label = element.descriptionLabel
-    if not label then
-        return
-    end
-
-    if locked then
-                        element._descriptionBefore = element._descriptionBefore or label.Text
-        label.Text = locale.resolve(message or "This element is locked.")
-    elseif element._descriptionBefore then
-        label.Text = element._descriptionBefore
-        element._descriptionBefore = nil
-    end
-
-    motion.tween(label, {
-        TextTransparency = if locked then lockedTextTransparency else 0.45,
-    }, lockSpec)
-end
-
-function Window:_buildLockScrim(element)
-    element.lockScrim = self:Create("TextButton", {
-        Name = "ElementLock",
-        Active = true,
-        AutoButtonColor = false,
-        Size = UDim2.fromScale(1, 1),
-        BorderSizePixel = 0,
-        Text = "",
-        TextTransparency = 1,
-        ZIndex = constants.zIndex.elementLock,
-        Visible = false,
-
-                        BackgroundTransparency = 1,
-        Parent = element.main,
-    }, { BackgroundColor3 = { "WindowColor", firstColor } })
-
-    self:Create("UICorner", {
-        Parent = element.lockScrim,
-    }, { CornerRadius = "ElementCornerRadius" })
-end
-
-function Window:_refreshTabStripChrome()
-end
-
-function Window:_scrollSelectedTabIntoView(_tweened)
-end
-
-function Window:_setLayoutMode(modeName)
-    if self.unloaded then
-        return false
-    end
-    if self.animating or self.minimised or (self.hidden and self.hasShownOnce) then
-        return false
-    end
-    local newLayout = layouts.get(modeName)
-    local oldKey = layoutKey(self.layout)
-    if not newLayout or modeName == oldKey then
-        return false
-    end
-    if self._layoutTransitioning then
-        return false
-    end
-    self._layoutTransitioning = true
-    self._layoutTransitionId = (self._layoutTransitionId or 0) + 1
-    local transitionId = self._layoutTransitionId
-    local tweenInfo = "fast"
-    self:_fadeSurfaces(false, tweenInfo)
-    self:_fadeSelectedElementsOut()
-    for _, tab in self.tabs do
-        if not tab.neglectSelector and tab.topbarItem then
-            tab:_applyVisual("hidden", tweenInfo)
-        end
-    end
-    task.wait(0.12)
-    if self.unloaded then
-        self._layoutTransitioning = false
-        return false
-    end
-    if self._searching then
-        search.close(self, { showTabs = true, jumpTo = self.selectedTab and self.selectedTab.tabPage })
-    end
-    local oldKey = layoutKey(self.layout)
-    self.layout = newLayout
-    self.settings.layoutMode = modeName
-    if self.sidebar then
-        self:DestroySubtree(self.sidebar)
-        self.sidebar = nil
-    elseif self.tabList then
-        self:DestroySubtree(self.tabList)
-    end
-    local implementation = layouts.implementation(modeName)
-    implementation.Build(self, newLayout)
-    if not self.elementsCorner then
-        self.elementsCorner = self:_roundCorners(self.elements, newLayout.cardCorners)
-        self.elementsStroke = self:Create("UIStroke", {
-            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-            Transparency = 1,
-            Parent = self.elements,
-        }, { Color = "SurfaceStroke" })
-        self:Create("UIGradient", {
-            Rotation = newLayout.cardStrokeRotation,
-            Transparency = newLayout.cardStrokeTransparency,
-            Parent = self.elementsStroke,
-        })
-    end
-    implementation.ApplyWidth(self, self:_railWidth())
-    self.elementsLayout.FillDirection = newLayout.pageDirection
-
-    for _, tab in self.tabs do
-        if not tab.neglectSelector then
-            tab:_rebuildSelector()
-            tab.topbarItem.Visible = self.elements.Visible and not self.hidden and not self.minimised
-            tab:_applyVisual(if self.selectedTab == tab then "selected" else "unselected")
-        end
-    end
-    -- [[The rows above are brand-new instances, and the rail's width was
-    -- [[applied before they existed. Re-applying it now lands the row state on
-    -- [[the rows that actually live in the rail — icon-only rows in a
-    -- [[collapsed rail (a rail that came back showing tab names), titles held
-    -- [[inside a capped one (a rail that came back overflowing).
-    self:_applyRailWidth()
-    self:_applySettingsLayout(self._settingsMode)
-    if self.selectedTab then
-        self:_jumpTo(self.selectedTab.tabPage)
-        self.selectedTab:_applyVisual("selected")
-    end
-    self:_fadeSurfaces(true, tweenInfo)
-    self:_setTabSectionsShown(true, tweenInfo)
-    task.spawn(function()
-        if not self.unloaded and self._layoutTransitionId == transitionId then
-            self:_revealElements(0.02, 0.5, transitionId)
-        end
-    end)
-    self._layoutTransitioning = false
-    return oldKey ~= modeName
-end
-function Window:_applySettingsLayout(isSettings)
-    settingsComponent.applySettingsLayout(self, isSettings)
-end
-
--- [[Rail groups: the rail shows exactly one group at a time - main tabs]]
--- [[or settings tabs. Every rail filter reads these helpers so the two]]
--- [[of them cannot drift apart.]]
-function Window:_railGroup(tab)
-    if tab._isSettingsTab then
-        return "settings"
-    end
-    return "main"
-end
-
-function Window:_activeRail()
-    if self._settingsMode then
-        return "settings"
-    end
-    return "main"
-end
-
--- [[The icon label of a topbar action frame, or nil. `frame.ImageLabel` is a]]
--- [[direct child read on Roblox, not a safe one: the action container also]]
--- [[holds chrome with no icon - the search pill and other dividers - and]]
--- [[indexing a missing child raises "ImageLabel is not a valid member of]]
--- [[Frame". Every action-loop read goes through here instead of reading]]
--- [[frame.ImageLabel directly.]]
-function Window:_actionIconLabel(actionFrame)
-    return actionFrame:FindFirstChild("ImageLabel")
-end
-
--- [[Badge + divider follow their action frame: hidden with them, restored]]
--- [[with them. The badge restores to opaque only while it is meant to show.]]
-function Window:_syncActionChrome(actionFrame, shown, tween)
-    local badge = actionFrame:FindFirstChild("Badge")
-    if badge then
-        local badgeTarget = if shown and badge.Visible then 0 else 1
-        if tween then
-            motion.tween(badge, { BackgroundTransparency = badgeTarget }, tween)
-        else
-            badge.BackgroundTransparency = badgeTarget
-        end
-    end
-    if actionFrame.Name == "Divider" then
-        local dividerTarget = if shown then 0.8 else 1
-        if tween then
-            motion.tween(actionFrame, { BackgroundTransparency = dividerTarget }, tween)
-        else
-            actionFrame.BackgroundTransparency = dividerTarget
-        end
-    end
-end
-
--- [[The topbar gear action's handler.]]
-function Window:_toggleSettingsMode()
-    settingsComponent.toggleSettingsMode(self)
-end
-
-function Window:_setSettingsMode(active)
-    settingsComponent.setSettingsMode(self, active)
-    self:_updateWindowTitle()
-end
-
-function Window:_updateWindowTitle()
-    if not self.title then return end
-    local text = self.name
-    self.title.Text = locale.resolve(text)
-end
-
 function Window:_setContentVisible(visible)
     self.elements.Visible = visible
     if not visible then
@@ -6882,6 +7761,7 @@ function Window:_fadeSelectedElementsOut()
 end
 
 -- [[Show every element of one tab (instantly) and clear its pending mark.]]
+
 function Window:_showTabElements(tab)
     tab._elementsPending = false
     for _, element in ipairs(tab.elements) do
@@ -6898,6 +7778,7 @@ end
 -- [[(`tab:Select`) or when the search pulls its elements onto its own page -
 -- [[the two moments they can be seen. This replaces walking every tab's
 -- [[elements on every open just to keep the tabs nobody had opened in step.]]
+
 function Window:_markTabElementsPending(tab)
     tab._elementsPending = true
 end
@@ -6963,6 +7844,7 @@ end
 -- [[committed. `entranceId` is the entrance generation: a window that is hidden
 -- [[or shown again in the meantime drops the half-finished sequence and lets
 -- [[the newer entrance own the page.]]
+
 function Window:_stageContentReveal(beat, stepDelay, totalDuration, entranceId)
     task.spawn(function()
         if beat > 0 then
@@ -7127,6 +8009,7 @@ function Window:_quickRestore()
     motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, restoreCornerTween)
     self:_stageContentReveal(motion.step(contentRevealBeat * 0.6), 0.02, 0.4, entranceId)
 end
+
 function Window:_firstShow()
     self.drag:disable()
     self.main.Visible = true
@@ -7250,524 +8133,40 @@ function Window:_firstShow()
     local player = state.localPlayer
 end
 
-function Window:GetPath()
-    return persistence.getPath(self)
+function Window:_updateWindowTitle()
+    if not self.title then return end
+    local text = self.name
+    self.title.Text = locale.resolve(text)
 end
 
-function Window:Save(name)
-    if name ~= nil and (type(name) ~= "string" or name == "") then
-        return false
-    end
-    return persistence.save(self, name)
+function Window:_actionIconLabel(actionFrame)
+    return actionFrame:FindFirstChild("ImageLabel")
 end
 
-function Window:Load(name)
-    if name ~= nil and (type(name) ~= "string" or name == "") then
-        return false
-    end
-    return persistence.load(self, name)
-end
+-- [[Badge + divider follow their action frame: hidden with them, restored]]
+-- [[with them. The badge restores to opaque only while it is meant to show.]]
 
-function Window:_applyNamedConfig(name)
-    if not self:Load(name) then
-        return false
-    end
-            local _, path = persistence.getPath(self)
-    self._loadedConfigPath = path
-    self:Save()
-    return true
-end
-
-function Window:ListConfigs()
-    return persistence.list(self)
-end
-
-function Window:DeleteConfig(name)
-    return persistence.delete(self, name)
-end
-
-function Window:Get(flag)
-    local control = self.controls[flag]
-    return control and control.value
-end
-
-function Window:Set(flag, value)
-    local control = self.controls[flag]
-    if not control then
-        return false
-    end
-    control:Set(value)
-    return true
-end
-
-function Window:_jumpTo(page)
-    if not page then
-        return
-    end
-    tooltip.hide(self)
-    if page.Parent == self.elements then
-        self.elementsLayout:JumpTo(page)
-    end
-end
-
-function Window:Navigate(tab)
-    if tab == nil then
-        return
-    end
-
-    local found
-    -- [[The loop variable must not shadow the `tab` argument: `tab == tab`
-    -- [[was always true, so every Navigate call selected the first tab in
-    -- [[the list (the settings General tab) no matter what was asked for.]]
-    for _, existing in self.tabs do
-        if tab == existing or existing.name == tab or existing.tabPage == tab then
-            found = existing
-            break
+function Window:_syncActionChrome(actionFrame, shown, tween)
+    local badge = actionFrame:FindFirstChild("Badge")
+    if badge then
+        local badgeTarget = if shown and badge.Visible then 0 else 1
+        if tween then
+            motion.tween(badge, { BackgroundTransparency = badgeTarget }, tween)
+        else
+            badge.BackgroundTransparency = badgeTarget
         end
     end
-
-    if not found then
-        return
-    end
-    if found.locked then
-        -- [[The gate holds for programmatic navigation too; the host unlocks
-        -- [[through tab:SetLocked, not around it.]]
-        return
-    end
-    found:Select()
-end
-
-function Window:Create(className, props, themeBindings)
-    assert(typeof(className) == "string", "Invalid argument #1 (string expected)")
-    local instance = Instance.new(className)
-
-            if themeBindings and self.theme then
-        for prop, binding in themeBindings do
-            instance[prop] = (
-                if typeof(binding) == "table" then binding[2](self.theme[binding[1]]) else self.theme[binding]
-            )
-        end
-
-        self.themeProperties[instance] = themeBindings
-    end
-
-    if props then
-        for prop, value in props do
-            if locale.isToken(value) then
-                self:_bindLocale(instance, prop, locale.sourceOf(value))
-            else
-                image.assign(instance, prop, value)
-            end
-        end
-    end
-
-    table.insert(self.instances, instance)
-    return instance
-end
-
-function Window:_bindLocale(instance, prop, token)
-    instance[prop] = locale.resolve(token)
-
-    local bindings = self.localeProperties[instance]
-    if not bindings then
-        bindings = {}
-        self.localeProperties[instance] = bindings
-    end
-    bindings[prop] = token
-end
-
-function Window:SetLocale(localeId)
-    locale.setActive(localeId)
-    for instance, bindings in self.localeProperties do
-        for prop, token in bindings do
-            instance[prop] = locale.resolve(token)
-        end
-    end
-    -- [[Translated row titles may measure differently.]]
-    self:_applyContentRailWidth()
-end
-
-function Window:SetTranslator(translator)
-    locale.translator = translator
-end
-
-function Window:RegisterTranslations(translations)
-    locale.register(translations)
-    self:SetLocale(locale.current)
-end
-
--- [[The window's own background, applied to any frame: the base colour the
--- [[WindowColor gradient is laid over, and the gradient itself (same theme
--- [[token, rotation and offset as the frame the window is built from). The
--- [[definition is shared rather than copied, so surfaces cannot drift into
--- [[near-miss shades of each other. Returns the gradient so callers can keep
--- [[it in step with the window's own (see _syncLiveAnimation).]]
-function Window:StyleWindowSurface(frame): UIGradient
-    frame.BackgroundColor3 = windowSurfaceColor
-    return self:Create("UIGradient", {
-        Rotation = windowSurfaceGradientRotation,
-        Offset = windowSurfaceGradientOffset,
-
-        Parent = frame,
-    }, { Color = { "WindowColor", functions.toColorSequence } })
-end
-
--- [[The window's own opacity once it is on screen. Kept beside the surface
--- [[style so callers state the same value without guessing.]]
-function Window:WindowSurfaceTransparency(): number
-    return windowSurfaceTransparency
-end
-
-function Window:CreateGlow(parent, color, blurRadius, transparency)
-    local props = {
-        BlurRadius = UDim.new(0, blurRadius),
-        Transparency = transparency,
-        ZIndex = -1,
-
-        Parent = parent,
-    }
-
-    if typeof(color) == "string" then
-        return self:Create("UIShadow", props, {
-            Color = {
-                color,
-                function(color)
-                    return if typeof(color) == "ColorSequence" then color.Keypoints[1].Value else color
-                end,
-            },
-        })
-    end
-
-    props.Color = color
-    return self:Create("UIShadow", props)
-end
-
-function Window:_flashResult(element, ok)
-    local box = element.box
-    if not box then
-        return
-    end
-    local glow = if element._fieldGlow then element:_fieldGlow() else element.glow
-    local boxStroke = element.boxStroke
-    local flashColor = ok and constants.accent.on or self.theme.ErrorColor
-    local flashStroke = ok and constants.accent.onStroke or self.theme.ErrorStrokeColor
-    -- [[Hoisted out of the function: these two are fixed, and the flash runs
-    -- on every element callback that reports a result.]]
-    local flashTween = "fast"
-    local restoreTween = "normal"
-
-    motion.tween(box, { BackgroundColor3 = flashColor }, flashTween)
-    if boxStroke then
-        motion.tween(boxStroke, { Color = flashStroke, Transparency = 0.4 }, flashTween)
-    end
-    if glow then
-        motion.tween(glow, { Color = flashStroke, Transparency = 0.6 }, flashTween)
-    end
-
-        element._flashToken = (element._flashToken or 0) + 1
-    local token = element._flashToken
-    task.delay(0.22, function()
-        if element._flashToken ~= token then
-            return
-        end
-        motion.tween(box, { BackgroundColor3 = self.theme.FieldBackground }, restoreTween)
-        if boxStroke then
-            motion.tween(boxStroke, { Color = self.theme.SurfaceStroke, Transparency = 0.85 }, restoreTween)
-        end
-        if glow then
-            motion.tween(glow, { Color = self.theme.FieldGlow, Transparency = element._glowIdle or 1 }, restoreTween)
-        end
-    end)
-end
-
-function Window:CreateHoverOverlay(parent)
-    local overlay = self:Create("Frame", {
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 1,
-        Size = UDim2.fromScale(1, 1),
-        BorderSizePixel = 0,
-        ZIndex = 1,
-
-        Parent = parent,
-    })
-
-    self:Create("UICorner", {
-        Parent = overlay,
-    }, { CornerRadius = "ElementCornerRadius" })
-
-    return overlay
-end
-
-function Window:_elementBackgroundTransparency(element)
-    if element and element._collapsibleChild then
-        return self.theme.CollapsibleChildElementTransparency or 0.75
-    end
-    return self.theme.ElementTransparency or 0
-end
-
-function Window:_elementStrokeTransparency(element, hover)
-    if element and element._collapsibleChild then
-        if hover then
-            return self.theme.CollapsibleChildElementStrokeHoverTransparency
-                or self.theme.CollapsibleChildElementStrokeTransparency
-                or 1
-        end
-        return self.theme.CollapsibleChildElementStrokeTransparency or 1
-    end
-    return if hover then self.theme.ElementStrokeHoverTransparency else self.theme.ElementStrokeTransparency
-end
-
-function Window:_wireElementHover(element, options)
-    local theme = self.theme
-    -- [[Containers may scope the hover to a sub-frame (the collapsible
-    -- header) instead of the whole element, and rest their title on a
-    -- different theme token. Keys, not values, so a runtime theme change
-    -- still flows through: the closures below read the theme live.]]
-    options = if typeof(options) == "table" then options else {}
-    local hoverTarget = options.target or element.main
-    local titleRestKey = options.titleRestKey or "ContentColor"
-    local titleHoverKey = options.titleHoverKey or "ElementTextHoverColor"
-
-    -- [[Hover feedback is the single most-repeated animation in the library
-    -- (every element, every pointer move across a grid), so it goes through
-    -- the motion service: the spec is shared instead of allocated per event,
-    -- and an enter/leave pair on the same element can no longer leave two
-    -- tweens interpolating the same stroke — the second cancels the first.]]
-    self:ConnectFor(element, hoverTarget.MouseEnter, function()
-        if not self:_interactive() then
-            return         end
-        motion.tween(
-            element.stroke,
-            { Transparency = self:_elementStrokeTransparency(element, true), Color = theme.ElementStrokeHover },
-            "snappy"
-        )
-        motion.tween(element.title, { TextColor3 = theme[titleHoverKey] }, "snappy")
-        if element.hoverOverlay then
-            motion.tween(element.hoverOverlay, { BackgroundTransparency = 0.97 }, "snappy")
-        end
-    end)
-
-    self:ConnectFor(element, hoverTarget.MouseLeave, function()
-        motion.tween(
-            element.stroke,
-            { Transparency = self:_elementStrokeTransparency(element, false), Color = theme.ElementStroke },
-            "snappy"
-        )
-        motion.tween(element.title, { TextColor3 = theme[titleRestKey] }, "snappy")
-        if element.hoverOverlay then
-            motion.tween(element.hoverOverlay, { BackgroundTransparency = 1 }, "snappy")
-        end
-    end)
-end
-
-function Window:_runGuarded(element, fn, ...)
-            if element.locked then
-        return
-    end
-
-    local args = table.pack(...)
-    task.spawn(function()
-        local ok, err = pcall(function()
-            return fn(table.unpack(args, 1, args.n))
-        end)
-        if ok or element._errored then
-            return
-        end
-        element._errored = true
-
-        local flashTarget = element.flashTarget or element.main
-        local errorTween = "snappy"
-        motion.tween(flashTarget, { BackgroundColor3 = self.theme.ErrorColor }, errorTween)
-        motion.tween(element.stroke, { Color = self.theme.ErrorStrokeColor }, errorTween)
-                if element.title then
-            element.title.Text = locale.resolve("Error, log recorded in console.")
-        end
-
-        log.warn(
-            `Astra encountered an error, with the callback for a {element.__type} component named '{element.name}':`
-        )
-        log.print(err)
-
-        task.wait(1)
-
-        if element.title then
-            element.title.Text = locale.resolve(element.name)
-        end
-        motion.tween(
-            flashTarget,
-            { BackgroundColor3 = Color3.fromRGB(255, 255, 255) },
-            "normal"
-        )
-        motion.tween(
-            element.stroke,
-            { Color = self.theme.ElementStroke },
-            "emphasized"
-        )
-        element._errored = false
-    end)
-end
-
-function Window:StyleElementBody(frame)
-    self:Create("UIGradient", {
-        Rotation = 270,
-
-        Parent = frame,
-    }, { Color = "ElementGradient" })
-
-    self:Create("UICorner", {
-        Parent = frame,
-    }, { CornerRadius = "ElementCornerRadius" })
-
-    return self:Create("UIStroke", {
-        Transparency = 1,
-
-        Parent = frame,
-    }, { Color = "ElementStroke", Transparency = "ElementStrokeTransparency" })
-end
-
-function Window:_buildCompactRow(tab, name, zIndex)
-    local row = self:Create("Frame", {
-        Name = name,
-        Size = UDim2.fromOffset(0, compactRowHeight),
-        AutomaticSize = Enum.AutomaticSize.X,
-        ClipsDescendants = true,         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BorderSizePixel = 0,
-
-        BackgroundTransparency = 1,
-        Parent = tab.tabPage,
-    }, { BackgroundTransparency = "ElementTransparency" })
-
-    local stroke = self:StyleElementBody(row)
-
-        self:Create("UIFlexItem", {
-        FlexMode = Enum.UIFlexMode.Fill,
-        Parent = row,
-    })
-
-        self:Create("UIListLayout", {
-        FillDirection = Enum.FillDirection.Horizontal,
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        HorizontalFlex = Enum.UIFlexAlignment.Fill,
-
-        Parent = row,
-    })
-
-        local button = self:Create("TextButton", {
-        Text = "",
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 1,         AutomaticSize = Enum.AutomaticSize.X,
-        Size = UDim2.fromOffset(0, compactRowHeight),
-        BorderSizePixel = 0,
-        TextTransparency = 1,
-        ZIndex = zIndex or 1,
-
-        Parent = row,
-    })
-
-    self:Create("UICorner", {
-        Parent = button,
-    }, { CornerRadius = "ElementCornerRadius" })
-
-    return row, stroke, button
-end
-
-function Window:StyleElementPanel(frame)
-    self:Create("UIGradient", {
-        Rotation = 270,
-
-        Parent = frame,
-    }, { Color = "ElementGradient" })
-
-    self:Create("UICorner", {
-        Parent = frame,
-    }, { CornerRadius = "ElementCornerRadius" })
-
-    local stroke = self:Create("UIStroke", {
-        Color = Color3.fromRGB(255, 255, 255),
-        Transparency = 1,
-        Parent = frame,
-    })
-
-    self:Create("UIGradient", {
-        Rotation = 270,
-
-        Parent = stroke,
-    }, { Color = "ElementStrokeGradient" })
-
-    return stroke
-end
-
-function Window:_reveal(instance, targets, animate, tweenInfo)
-    if not instance then
-        return
-    end
-    -- [[Skip work when the target state is already applied: the cascade (and
-    -- a window that is shown, hidden and shown again) asks the same elements
-    -- to reveal repeatedly.]]
-    local needsUpdate = false
-    for prop, value in targets do
-        if instance[prop] ~= value then
-            needsUpdate = true
-            break
-        end
-    end
-    if not needsUpdate then
-        return
-    end
-
-    if animate then
-        -- [[The tween goes through the motion service, which shares the spec
-        -- and cancels an in-flight tween on the same property — the cascade
-        -- asks every element on the page to show on one frame, and a
-        -- hidden/reshown window used to stack a second reveal on the first.]]
-        motion.tween(instance, targets, tweenInfo or "normal")
-    else
-        for prop, value in targets do
-            instance[prop] = value
+    if actionFrame.Name == "Divider" then
+        local dividerTarget = if shown then 0.8 else 1
+        if tween then
+            motion.tween(actionFrame, { BackgroundTransparency = dividerTarget }, tween)
+        else
+            actionFrame.BackgroundTransparency = dividerTarget
         end
     end
 end
 
-function Window:_revealCommon(element, animate)
-    self:_reveal(element.stroke, { Transparency = self:_elementStrokeTransparency(element, false) }, animate)
-    self:_reveal(element.title, { TextTransparency = 0 }, animate)
-    self:_reveal(element.main, { BackgroundTransparency = self:_elementBackgroundTransparency(element) }, animate)
-    if element.iconLabel then
-        self:_reveal(element.iconLabel, { ImageTransparency = 0 }, animate)
-    end
-    if element.tapIcon then
-        self:_reveal(element.tapIcon, { ImageTransparency = 0.5 }, animate)
-    end
-    if element.infoButton then
-        self:_reveal(element.infoButton, { ImageTransparency = 0.45 }, animate)
-    end
-    if element.descriptionLabel then
-        self:_reveal(element.descriptionLabel, { TextTransparency = 0.45 }, animate)
-    end
-end
-
-function Window:_hideCommon(element, animate)
-    self:_reveal(element.stroke, { Transparency = 1 }, animate)
-    self:_reveal(element.title, { TextTransparency = 1 }, animate)
-    self:_reveal(element.main, { BackgroundTransparency = 1 }, animate)
-    if element.iconLabel then
-        self:_reveal(element.iconLabel, { ImageTransparency = 1 }, animate)
-    end
-    if element.tapIcon then
-        self:_reveal(element.tapIcon, { ImageTransparency = 1 }, animate)
-    end
-    if element.infoButton then
-        self:_reveal(element.infoButton, { ImageTransparency = 1 }, animate)
-    end
-    if element.descriptionLabel then
-        self:_reveal(element.descriptionLabel, { TextTransparency = 1 }, animate)
-    end
-    -- [[The floating description is placed in screen space, so an element
-    -- [[that stops being drawn (the window hid, the tab changed, the page
-    -- [[scrolled away) has to take its own description with it. Every hide
-    -- [[path in the library funnels through here.]] 
-    tooltip.hideFor(self, element)
-end
+-- [[The topbar gear action's handler.]]
 
 function Window:_resetCapsulePosition()
     if self.unloaded then
@@ -7780,20 +8179,6 @@ function Window:_resetCapsulePosition()
         local position = self:_collapsedRect()
         motion.tween(self.main, { Position = position }, "glide")
     end
-end
-
-function Window:_collapsedRect()
-    local size = if self.showIconOnly then collapsedIconOnlySize else collapsedWideSize
-        if self._collapsedPosition then
-        return self._collapsedPosition, size
-    end
-    local position = UDim2.new(
-        collapsedPosition.X.Scale,
-        collapsedPosition.X.Offset,
-        collapsedPosition.Y.Scale,
-        collapsedPosition.Y.Offset + size.Y.Offset / 2
-    )
-    return position, size
 end
 
 function Window:_interactive()
@@ -7811,165 +8196,8 @@ function Window:_settled()
     return not self.hidden and not self._revealing
 end
 
-function Window:Connect(signal, callback)
-    local connection = signal:Connect(callback)
-    table.insert(self.connections, connection)
-    return connection
-end
-
-function Window:ConnectFor(element, signal, callback)
-    local connection = self:Connect(signal, callback)
-    element.connections = element.connections or {}
-    table.insert(element.connections, connection)
-    return connection
-end
-
-function Window:Disconnect(connection)
-    if not connection then
-        return
-    end
-    local index = table.find(self.connections, connection)
-    if index then
-        table.remove(self.connections, index)
-    end
-    connection:Disconnect()
-end
-
-function Window:DestroySubtree(root)
-    if not root then
-        return
-    end
-
-    local descendants = { [root] = true }
-    for _, desc in root:GetDescendants() do
-        descendants[desc] = true
-    end
-    for i = #self.instances, 1, -1 do
-        local inst = self.instances[i]
-        if descendants[inst] then
-            table.remove(self.instances, i)
-            self.themeProperties[inst] = nil
-            self.localeProperties[inst] = nil
-        end
-    end
-
-    root:Destroy()
-end
-
-function Window:DisconnectMany(element, connections)
-    if not connections or #connections == 0 then
-        return
-    end
-
-    local removed = {}
-    for _, conn in connections do
-        removed[conn] = true
-        conn:Disconnect()
-    end
-
-    local function compact(list)
-        if not list then
-            return
-        end
-        local write = 0
-        for i = 1, #list do
-            local conn = list[i]
-            if not removed[conn] then
-                write += 1
-                list[write] = conn
-            end
-        end
-        for i = #list, write + 1, -1 do
-            list[i] = nil
-        end
-    end
-
-    compact(self.connections)
-    if element and element ~= self then
-        compact(element.connections)
-    end
-end
-
-function Window:DestroySubtrees(roots)
-    if not roots or #roots == 0 then
-        return
-    end
-
-    local descendants = {}
-    for _, root in roots do
-        descendants[root] = true
-        for _, desc in root:GetDescendants() do
-            descendants[desc] = true
-        end
-    end
-
-    local write = 0
-    for i = 1, #self.instances do
-        local inst = self.instances[i]
-        if descendants[inst] then
-            self.themeProperties[inst] = nil
-            self.localeProperties[inst] = nil
-        else
-            write += 1
-            self.instances[write] = inst
-        end
-    end
-    for i = #self.instances, write + 1, -1 do
-        self.instances[i] = nil
-    end
-
-    for _, root in roots do
-        root:Destroy()
-    end
-end
-
-function Window:Unload()
-    -- Do not lose the final edit if the window closes inside the save debounce.
-    if not self.unloaded and self._saveScheduled and self.configuration.autoSave and not self._loading then
-        self._saveScheduled = false
-        pcall(self.Save, self)
-    end
-    -- [[Release any open description before the screen GUI goes: the panel
-    -- [[lives under it, and `tooltip.hideFor` bookkeeping should not outlive
-    -- [[the window it belongs to. `unloaded` is raised first so the tooltip
-    -- [[hides the panel outright instead of starting a fade whose instances
-    -- [[are destroyed under it.]] 
-    self.unloaded = true
-    tooltip.hide(self)
-    -- [[Stop the entrance queue with the window: an overlay that had not taken
-    -- [[its turn yet has no layer to be built into any more, and the pump must
-    -- [[not wake up on a window whose instances are about to be destroyed.]]
-    overlayQueue.close(self)
-            haptic.teardown()
-    haptic.releaseContainer(self.screenGui)
-    for _, liveTween in self._liveTweens or {} do
-        liveTween:Cancel()
-    end
-    self._liveTweens = nil
-    for i = #self.connections, 1, -1 do
-        self.connections[i]:Disconnect()
-    end
-    for i = #self.instances, 1, -1 do
-        self.instances[i]:Destroy()
-    end
-
-                table.clear(self.connections)
-    table.clear(self.instances)
-    table.clear(self.themeProperties)
-    table.clear(self.localeProperties)
-    table.clear(self.controls)
-    table.clear(self.tabs)
-    -- [[overlayQueue.close already drained the queue into its safe resting
-    -- [[shape (empty pending list, closed flag); wiping the table itself used
-    -- [[to pull `pending` out from under the pump coroutine on its next resume
-    -- [[(a `#nil` error racing an unload that landed mid-gate).]]
-    self._overlayQueueRunning = false
-end
-
-return Window
-
 end)() end,
-    [20] = function()local wax,script,require=ImportGlobals(20)local ImportGlobals return (function(...)
+    [33] = function()local wax,script,require=ImportGlobals(33)local ImportGlobals return (function(...)
 -- [[Shared base card layout and styling for Astra UI elements.]]
 -- [[Handles standard background frame, theme strokes, hover overlay,]]
 -- [[content container, icon, and title label.]]
@@ -8073,7 +8301,7 @@ end
 return baseCard
 
 end)() end,
-    [21] = function()local wax,script,require=ImportGlobals(21)local ImportGlobals return (function(...)
+    [34] = function()local wax,script,require=ImportGlobals(34)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Button"
@@ -8396,7 +8624,7 @@ end
 return state
 
 end)() end,
-    [22] = function()local wax,script,require=ImportGlobals(22)local ImportGlobals return (function(...)
+    [35] = function()local wax,script,require=ImportGlobals(35)local ImportGlobals return (function(...)
 local Changelog = {}
 Changelog.__index = Changelog
 Changelog.__type = "Changelog"
@@ -8817,7 +9045,7 @@ moveable(Changelog)
 return Changelog
 
 end)() end,
-    [23] = function()local wax,script,require=ImportGlobals(23)local ImportGlobals return (function(...)
+    [36] = function()local wax,script,require=ImportGlobals(36)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local motion = require(utilities.motion)
 local locale = require(utilities.locale)
@@ -9219,7 +9447,7 @@ lockable(Collapsible)
 return Collapsible
 
 end)() end,
-    [24] = function()local wax,script,require=ImportGlobals(24)local ImportGlobals return (function(...)
+    [37] = function()local wax,script,require=ImportGlobals(37)local ImportGlobals return (function(...)
 -- [[The in-card description line. An element created with a `description` prop
 -- [[grows its own card by the measured height of this line instead of spawning
 -- [[a standalone row beneath the card, so the description can never sit on top
@@ -9389,7 +9617,7 @@ end
 return description
 
 end)() end,
-    [25] = function()local wax,script,require=ImportGlobals(25)local ImportGlobals return (function(...)
+    [38] = function()local wax,script,require=ImportGlobals(38)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Divider"
@@ -9534,7 +9762,7 @@ constants(state)
 return state
 
 end)() end,
-    [26] = function()local wax,script,require=ImportGlobals(26)local ImportGlobals return (function(...)
+    [39] = function()local wax,script,require=ImportGlobals(39)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Dropdown"
@@ -11068,7 +11296,7 @@ multiSelect(state)
 return state
 
 end)() end,
-    [27] = function()local wax,script,require=ImportGlobals(27)local ImportGlobals return (function(...)
+    [40] = function()local wax,script,require=ImportGlobals(40)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Group"
@@ -11287,7 +11515,7 @@ constants(state)
 return state
 
 end)() end,
-    [28] = function()local wax,script,require=ImportGlobals(28)local ImportGlobals return (function(...)
+    [41] = function()local wax,script,require=ImportGlobals(41)local ImportGlobals return (function(...)
 -- [[The circle-alert badge beside a functional element's name.
 --
 -- A functional element gets the badge from its optional `info` text: a string
@@ -11485,7 +11713,7 @@ end
 return infoHelper
 
 end)() end,
-    [29] = function()local wax,script,require=ImportGlobals(29)local ImportGlobals return (function(...)
+    [42] = function()local wax,script,require=ImportGlobals(42)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Input"
@@ -11772,7 +12000,7 @@ end
 return state
 
 end)() end,
-    [30] = function()local wax,script,require=ImportGlobals(30)local ImportGlobals return (function(...)
+    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Section"
@@ -11858,7 +12086,7 @@ constants(state)
 return state
 
 end)() end,
-    [31] = function()local wax,script,require=ImportGlobals(31)local ImportGlobals return (function(...)
+    [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Slider"
@@ -12455,7 +12683,7 @@ end
 return state
 
 end)() end,
-    [32] = function()local wax,script,require=ImportGlobals(32)local ImportGlobals return (function(...)
+    [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Statistic"
@@ -13304,7 +13532,7 @@ name(state)
 return state
 
 end)() end,
-    [33] = function()local wax,script,require=ImportGlobals(33)local ImportGlobals return (function(...)
+    [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Tab"
@@ -13771,7 +13999,7 @@ end
 return state
 
 end)() end,
-    [34] = function()local wax,script,require=ImportGlobals(34)local ImportGlobals return (function(...)
+    [47] = function()local wax,script,require=ImportGlobals(47)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "TabSection"
@@ -13901,7 +14129,7 @@ end
 return state
 
 end)() end,
-    [35] = function()local wax,script,require=ImportGlobals(35)local ImportGlobals return (function(...)
+    [48] = function()local wax,script,require=ImportGlobals(48)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Text"
@@ -14053,7 +14281,7 @@ constants(state)
 return state
 
 end)() end,
-    [36] = function()local wax,script,require=ImportGlobals(36)local ImportGlobals return (function(...)
+    [49] = function()local wax,script,require=ImportGlobals(49)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Toggle"
@@ -14535,7 +14763,7 @@ end
 return state
 
 end)() end,
-    [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
+    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
 
 local managerModule = require(script.manager)
 local registryModule = require(script.registry)
@@ -14560,7 +14788,7 @@ end
 return settings
 
 end)() end,
-    [38] = function()local wax,script,require=ImportGlobals(38)local ImportGlobals return (function(...)
+    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
 
 local appearance = {}
 
@@ -14580,7 +14808,7 @@ end
 return appearance
 
 end)() end,
-    [39] = function()local wax,script,require=ImportGlobals(39)local ImportGlobals return (function(...)
+    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
 
 local behavior = {}
 
@@ -14597,7 +14825,7 @@ end
 return behavior
 
 end)() end,
-    [40] = function()local wax,script,require=ImportGlobals(40)local ImportGlobals return (function(...)
+    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
 
 local defaults = {}
 
@@ -14626,7 +14854,7 @@ end
 return defaults
 
 end)() end,
-    [41] = function()local wax,script,require=ImportGlobals(41)local ImportGlobals return (function(...)
+    [54] = function()local wax,script,require=ImportGlobals(54)local ImportGlobals return (function(...)
 
 local registry = require(script.Parent.registry)
 local defaults = require(script.Parent.defaults)
@@ -14748,7 +14976,7 @@ end
 return SettingsManager
 
 end)() end,
-    [42] = function()local wax,script,require=ImportGlobals(42)local ImportGlobals return (function(...)
+    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
 
 local motion = require(script.Parent.Parent.utilities.motion)
 
@@ -14772,7 +15000,7 @@ end
 return performance
 
 end)() end,
-    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)
+    [56] = function()local wax,script,require=ImportGlobals(56)local ImportGlobals return (function(...)
 
 local settingsPersistence = require(script.Parent.Parent.utilities.persistenceSettings)
 local settingsCache = require(script.Parent.Parent.cache.persistenceCache)
@@ -14821,7 +15049,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)
+    [57] = function()local wax,script,require=ImportGlobals(57)local ImportGlobals return (function(...)
 
 local registry = {}
 
@@ -14907,7 +15135,7 @@ end
 return registry
 
 end)() end,
-    [49] = function()local wax,script,require=ImportGlobals(49)local ImportGlobals return (function(...)
+    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
 
 local imageCache = require(script.moduleCache)
 
@@ -14918,7 +15146,7 @@ local moduleCache = {
 return moduleCache
 
 end)() end,
-    [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
+    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
 local filesystem = require(script.Parent.Parent.utilities.filesystem)
 local path = require(script.Parent.Parent.utilities.path)
 local variables = require(script.Parent.Parent.core.state)
@@ -15221,7 +15449,7 @@ end
 return imageCache
 
 end)() end,
-    [47] = function()local wax,script,require=ImportGlobals(47)local ImportGlobals return (function(...)
+    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
 
 local moduleCache = {}
 
@@ -15252,7 +15480,7 @@ end
 return moduleCache
 
 end)() end,
-    [48] = function()local wax,script,require=ImportGlobals(48)local ImportGlobals return (function(...)
+    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
 
 local persistenceCache = {}
 
@@ -15277,7 +15505,7 @@ end
 return persistenceCache
 
 end)() end,
-    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
+    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
 
 local textMetrics = require(script.textMetrics)
 local colors = require(script.colors)
@@ -15295,7 +15523,7 @@ functions.contrastText = colors.contrastText
 return functions
 
 end)() end,
-    [50] = function()local wax,script,require=ImportGlobals(50)local ImportGlobals return (function(...)
+    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
 local colors = {}
 
 function colors.contrastColor(color: Color3): Color3
@@ -15315,7 +15543,7 @@ end
 return colors
 
 end)() end,
-    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
+    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
 local flagNames = {}
 
 local offsetBasis = 2166136261
@@ -15347,7 +15575,7 @@ end
 return flagNames
 
 end)() end,
-    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
+    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
 local state = require(script.Parent.Parent.core.state)
 local textService = state.textService
 
@@ -15454,7 +15682,7 @@ end
 return textMetrics
 
 end)() end,
-    [54] = function()local wax,script,require=ImportGlobals(54)local ImportGlobals return (function(...)
+    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local Sidebar = {}
@@ -15513,7 +15741,7 @@ end
 return Sidebar
 
 end)() end,
-    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
+    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local SidebarCollapsed = {}
@@ -15573,7 +15801,7 @@ end
 return SidebarCollapsed
 
 end)() end,
-    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
+    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
 
 local image = require(script.image)
 
@@ -15588,7 +15816,7 @@ local windowIcons = {
 return windowIcons
 
 end)() end,
-    [57] = function()local wax,script,require=ImportGlobals(57)local ImportGlobals return (function(...)
+    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
 local imageCache = require(script.Parent.Parent.cache.imageCache)
 local variables = require(script.Parent.Parent.core.state)
 
@@ -15753,7 +15981,7 @@ end
 return image
 
 end)() end,
-    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
+    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
 
 local windowIcons = {}
 
@@ -15829,7 +16057,7 @@ end
 return windowIcons
 
 end)() end,
-    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
+    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
 -- [[Icon resolver service.]]
 -- [[]]
 -- [[Public API is compatible with the previous single-module catalog:]]
@@ -16327,7 +16555,7 @@ end
 return icons
 
 end)() end,
-    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
+    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
 -- [[feather icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -16371,7 +16599,7 @@ x-square x youtube zap-off zap zoom-in zoom-out
 )
 
 end)() end,
-    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
+    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
 -- [[heroicons icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -16451,7 +16679,7 @@ wrench-screwdriver wrench-screwdriver_solid wrench wrench_solid x-circle x-circl
 )
 
 end)() end,
-    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
+    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
 -- [[lucide icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -16644,7 +16872,7 @@ zodiac-sagittarius zodiac-scorpio zodiac-taurus zodiac-virgo zoom-in zoom-out
 )
 
 end)() end,
-    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
+    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
 -- [[material icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -16773,7 +17001,7 @@ zoom_in zoom_out zoom_out_map
 )
 
 end)() end,
-    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
+    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
 -- [[Lazy icon-pack builder.
 -- [[]]
 -- [[A pack is a compact newline-separated list of kebab names plus the shared
@@ -16867,7 +17095,7 @@ end
 return PackBuilder
 
 end)() end,
-    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
+    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
 -- [[phosphor icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -17034,7 +17262,7 @@ yin-yang youtube-logo
 )
 
 end)() end,
-    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
+    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
 -- [[remix icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -17372,7 +17600,7 @@ zhihu-line zhipu-ai-fill zhipu-ai-line zoom-in-fill zoom-in-line zoom-out-fill z
 )
 
 end)() end,
-    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
+    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
 -- [[tabler icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -17900,7 +18128,7 @@ zoom-out-area zoom-out zoom-pan zoom-question zoom-replace zoom-reset zoom-scan 
 )
 
 end)() end,
-    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
+    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
 -- [[Theme resolution engine (themes/init.luau).]]
 -- [[]]
 -- [[Extracted verbatim from components/window.luau so the window no longer owns]]
@@ -18006,7 +18234,7 @@ end
 return themes
 
 end)() end,
-    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
+    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(16, 13, 24),
@@ -18072,7 +18300,7 @@ return {
 }
 
 end)() end,
-    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
+    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(11, 16, 25),
@@ -18138,7 +18366,7 @@ return {
 }
 
 end)() end,
-    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
+    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
 local crimson = require(script.Parent.Parent.core.state)
 
 return {
@@ -18213,7 +18441,7 @@ return {
 }
 
 end)() end,
-    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
+    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
 local default = require(script.Parent.Parent.core.state)
 
 -- [[Astra's default palette. The shared keys below are the historical set
@@ -18320,7 +18548,7 @@ return {
 }
 
 end)() end,
-    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
+    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(22, 18, 16),
@@ -18386,7 +18614,7 @@ return {
 }
 
 end)() end,
-    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
+    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
 local emerald = require(script.Parent.Parent.core.state)
 
 return {
@@ -18461,7 +18689,7 @@ return {
 }
 
 end)() end,
-    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
+    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
 local frost = require(script.Parent.Parent.core.state)
 
 return {
@@ -18536,7 +18764,7 @@ return {
 }
 
 end)() end,
-    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
+    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
 local gold = require(script.Parent.Parent.core.state)
 
 return {
@@ -18611,7 +18839,7 @@ return {
 }
 
 end)() end,
-    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
+    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
 local onyx = require(script.Parent.Parent.core.state)
 
 return {
@@ -18686,7 +18914,7 @@ return {
 }
 
 end)() end,
-    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
+    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(23, 15, 19),
@@ -18752,7 +18980,7 @@ return {
 }
 
 end)() end,
-    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
+    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 
 local hapticService = {}
@@ -18850,7 +19078,7 @@ end
 return hapticService
 
 end)() end,
-    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
+    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
 local networkUtil = require(script.Parent.network)
 local logger = require(script.Parent.log)
 
@@ -19028,7 +19256,7 @@ end
 return assetResolver
 
 end)() end,
-    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
+    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
 local iconRegistry = require(script.Parent.Parent.images.windowIcons)
 local constants = {}
 
@@ -19076,7 +19304,7 @@ constants.displayOrder = {
 return constants
 
 end)() end,
-    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
+    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
 local enums = {}
 
 function enums.itemFromValue(enumType, value)
@@ -19106,7 +19334,7 @@ end
 return enums
 
 end)() end,
-    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
+    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
 local serviceProvider = require(script.Parent.services)
 local filesystem = {}
 
@@ -19357,7 +19585,7 @@ end
 return filesystem
 
 end)() end,
-    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
+    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 local pathUtil = require(script.Parent.path)
 
@@ -19406,7 +19634,7 @@ end
 return filesystemManager
 
 end)() end,
-    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
+    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
 local fontManager = require(script.Parent.services)
 local a2 = fontManager.getService("HttpService")
 local a3 = fontManager.getService("RunService")
@@ -19859,7 +20087,7 @@ end
 return a16
 
 end)() end,
-    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
+    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
 
 local functions = {}
 
@@ -19877,7 +20105,7 @@ functions.contrastText = textMetrics.contrastText
 return functions
 
 end)() end,
-    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
+    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
 local layouts = {}
 
 local sidebarLayout = require(script.Parent.Parent.layouts.Sidebar)
@@ -19992,7 +20220,7 @@ end
 return layouts
 
 end)() end,
-    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
+    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local logger = require(script.Parent.log)
 
@@ -20091,7 +20319,7 @@ end
 return locale
 
 end)() end,
-    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
+    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
 local function lockable<T>(element: T): T
     local target = element :: any
 
@@ -20113,7 +20341,7 @@ end
 return lockable
 
 end)() end,
-    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
+    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
 local log = {}
 
 type SuppressPredicate = () -> boolean
@@ -20167,7 +20395,7 @@ end
 return log
 
 end)() end,
-    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
+    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
 -- [[Astra motion service.
 --
 -- Every animation in the library used to build its own TweenInfo and call
@@ -20517,7 +20745,7 @@ end
 return motion
 
 end)() end,
-    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
+    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
 local function moveable<T>(dragState: T): T
     local target = dragState :: any
 
@@ -20553,7 +20781,7 @@ end
 return moveable
 
 end)() end,
-    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
+    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
 local network = {}
 network.__index = network
 
@@ -20571,7 +20799,7 @@ end
 return network
 
 end)() end,
-    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
+    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local motion = require(script.Parent.motion)
 local textService = coreState.textService
@@ -20925,7 +21153,7 @@ end
 return odometer
 
 end)() end,
-    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
+    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
 type OrderedElement = {
     main: GuiObject,
 }
@@ -20937,7 +21165,7 @@ end
 return ordering
 
 end)() end,
-    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
+    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
 local path = {}
 
 function path.join(base: string, suffix: string?): string
@@ -20988,7 +21216,7 @@ end
 return path
 
 end)() end,
-    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
+    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
 local persistence = {}
 
 local configPersistence = require(script.Parent.persistenceConfig)
@@ -21007,7 +21235,7 @@ persistence.loadSettings = settingsPersistence.loadSettings
 return persistence
 
 end)() end,
-    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
+    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local logger = require(script.Parent.log)
@@ -21258,7 +21486,7 @@ end
 return persistenceConfig
 
 end)() end,
-    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
+    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local pathUtil = require(script.Parent.path)
 
@@ -21302,7 +21530,7 @@ end
 return persistencePaths
 
 end)() end,
-    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
+    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local paths = require(script.Parent.persistencePaths)
@@ -21505,7 +21733,7 @@ end
 return persistenceSettings
 
 end)() end,
-    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
+    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 
 local persistenceWrite = {}
@@ -21533,7 +21761,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
+    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
 local services = {}
 
 function services.getService(serviceName)
@@ -21544,7 +21772,7 @@ end
 return services
 
 end)() end,
-    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
+    [117] = function()local wax,script,require=ImportGlobals(117)local ImportGlobals return (function(...)
 local layoutMetrics = require(script.Parent.layouts)
 local coreState = require(script.Parent.Parent.core.state)
 
@@ -21729,90 +21957,103 @@ local LineOffsets = {
     [15] = 3993,
     [16] = 4054,
     [17] = 4422,
-    [18] = 4872,
-    [20] = 7973,
-    [21] = 8077,
-    [22] = 8400,
-    [23] = 8821,
-    [24] = 9223,
-    [25] = 9393,
-    [26] = 9538,
-    [27] = 11072,
-    [28] = 11291,
-    [29] = 11489,
-    [30] = 11776,
-    [31] = 11862,
-    [32] = 12459,
-    [33] = 13308,
-    [34] = 13775,
-    [35] = 13905,
-    [36] = 14057,
-    [38] = 14564,
-    [39] = 14584,
-    [40] = 14601,
-    [41] = 14630,
-    [42] = 14752,
-    [43] = 14776,
-    [44] = 14825,
-    [45] = 14539,
-    [46] = 14922,
-    [47] = 15225,
-    [48] = 15256,
-    [49] = 14911,
-    [50] = 15299,
-    [51] = 15319,
-    [52] = 15351,
-    [53] = 15281,
-    [54] = 15458,
-    [55] = 15517,
-    [57] = 15592,
-    [58] = 15757,
-    [59] = 15577,
-    [60] = 16331,
-    [61] = 16375,
-    [62] = 16455,
-    [63] = 16648,
-    [64] = 16777,
-    [65] = 16871,
-    [66] = 17038,
-    [67] = 17376,
-    [68] = 15833,
-    [69] = 18010,
-    [70] = 18076,
-    [71] = 18142,
-    [72] = 18217,
-    [73] = 18324,
-    [74] = 18390,
-    [75] = 18465,
-    [76] = 18540,
-    [77] = 18615,
-    [78] = 18690,
-    [79] = 17904,
-    [80] = 18756,
-    [81] = 18854,
-    [82] = 19032,
-    [83] = 19080,
-    [84] = 19110,
-    [85] = 19361,
-    [86] = 19410,
-    [87] = 19863,
-    [88] = 19881,
-    [89] = 19996,
-    [90] = 20095,
-    [91] = 20117,
-    [92] = 20171,
-    [93] = 20521,
-    [94] = 20557,
-    [95] = 20575,
-    [96] = 20929,
-    [97] = 20941,
-    [98] = 20992,
-    [99] = 21011,
-    [100] = 21262,
-    [101] = 21306,
-    [102] = 21509,
-    [103] = 21537,
-    [104] = 21548,
+    [18] = 4896,
+    [19] = 4908,
+    [20] = 4965,
+    [21] = 5082,
+    [22] = 5419,
+    [23] = 5630,
+    [24] = 5934,
+    [25] = 6017,
+    [26] = 6066,
+    [27] = 6619,
+    [28] = 6806,
+    [29] = 7053,
+    [30] = 7441,
+    [31] = 4872,
+    [33] = 8201,
+    [34] = 8305,
+    [35] = 8628,
+    [36] = 9049,
+    [37] = 9451,
+    [38] = 9621,
+    [39] = 9766,
+    [40] = 11300,
+    [41] = 11519,
+    [42] = 11717,
+    [43] = 12004,
+    [44] = 12090,
+    [45] = 12687,
+    [46] = 13536,
+    [47] = 14003,
+    [48] = 14133,
+    [49] = 14285,
+    [51] = 14792,
+    [52] = 14812,
+    [53] = 14829,
+    [54] = 14858,
+    [55] = 14980,
+    [56] = 15004,
+    [57] = 15053,
+    [58] = 14767,
+    [59] = 15150,
+    [60] = 15453,
+    [61] = 15484,
+    [62] = 15139,
+    [63] = 15527,
+    [64] = 15547,
+    [65] = 15579,
+    [66] = 15509,
+    [67] = 15686,
+    [68] = 15745,
+    [70] = 15820,
+    [71] = 15985,
+    [72] = 15805,
+    [73] = 16559,
+    [74] = 16603,
+    [75] = 16683,
+    [76] = 16876,
+    [77] = 17005,
+    [78] = 17099,
+    [79] = 17266,
+    [80] = 17604,
+    [81] = 16061,
+    [82] = 18238,
+    [83] = 18304,
+    [84] = 18370,
+    [85] = 18445,
+    [86] = 18552,
+    [87] = 18618,
+    [88] = 18693,
+    [89] = 18768,
+    [90] = 18843,
+    [91] = 18918,
+    [92] = 18132,
+    [93] = 18984,
+    [94] = 19082,
+    [95] = 19260,
+    [96] = 19308,
+    [97] = 19338,
+    [98] = 19589,
+    [99] = 19638,
+    [100] = 20091,
+    [101] = 20109,
+    [102] = 20224,
+    [103] = 20323,
+    [104] = 20345,
+    [105] = 20399,
+    [106] = 20749,
+    [107] = 20785,
+    [108] = 20803,
+    [109] = 21157,
+    [110] = 21169,
+    [111] = 21220,
+    [112] = 21239,
+    [113] = 21490,
+    [114] = 21534,
+    [115] = 21737,
+    [116] = 21765,
+    [117] = 21776,
 }
 
 -- [[Misc AOT variable imports]]
@@ -21866,7 +22107,7 @@ local ObjectTree = {
                 },
             },
             {
-                19,
+                32,
                 1,
                 {
                     "components",
@@ -21950,135 +22191,228 @@ local ObjectTree = {
                         },
                     },
                     {
-                        18,
+                        31,
                         2,
                         {
                             "window",
+                        },
+                        {
+                            {
+                                18,
+                                2,
+                                {
+                                    "class",
+                                },
+                            },
+                            {
+                                19,
+                                2,
+                                {
+                                    "config",
+                                },
+                            },
+                            {
+                                20,
+                                2,
+                                {
+                                    "constants",
+                                },
+                            },
+                            {
+                                21,
+                                2,
+                                {
+                                    "elements",
+                                },
+                            },
+                            {
+                                22,
+                                2,
+                                {
+                                    "input",
+                                },
+                            },
+                            {
+                                23,
+                                2,
+                                {
+                                    "layout",
+                                },
+                            },
+                            {
+                                24,
+                                2,
+                                {
+                                    "overlays",
+                                },
+                            },
+                            {
+                                25,
+                                2,
+                                {
+                                    "settings",
+                                },
+                            },
+                            {
+                                26,
+                                2,
+                                {
+                                    "startup",
+                                },
+                            },
+                            {
+                                27,
+                                2,
+                                {
+                                    "tabs",
+                                },
+                            },
+                            {
+                                28,
+                                2,
+                                {
+                                    "teardown",
+                                },
+                            },
+                            {
+                                29,
+                                2,
+                                {
+                                    "theme",
+                                },
+                            },
+                            {
+                                30,
+                                2,
+                                {
+                                    "visibility",
+                                },
+                            },
                         },
                     },
                 },
             },
             {
-                37,
+                50,
                 1,
                 {
                     "elements",
                 },
                 {
                     {
-                        20,
+                        33,
                         2,
                         {
                             "baseCard",
                         },
                     },
                     {
-                        21,
+                        34,
                         2,
                         {
                             "button",
                         },
                     },
                     {
-                        22,
+                        35,
                         2,
                         {
                             "changelog",
                         },
                     },
                     {
-                        23,
+                        36,
                         2,
                         {
                             "collapsibleGroup",
                         },
                     },
                     {
-                        24,
+                        37,
                         2,
                         {
                             "description",
                         },
                     },
                     {
-                        25,
+                        38,
                         2,
                         {
                             "divider",
                         },
                     },
                     {
-                        26,
+                        39,
                         2,
                         {
                             "dropdown",
                         },
                     },
                     {
-                        27,
+                        40,
                         2,
                         {
                             "group",
                         },
                     },
                     {
-                        28,
+                        41,
                         2,
                         {
                             "infoHelper",
                         },
                     },
                     {
-                        29,
+                        42,
                         2,
                         {
                             "input",
                         },
                     },
                     {
-                        30,
+                        43,
                         2,
                         {
                             "section",
                         },
                     },
                     {
-                        31,
+                        44,
                         2,
                         {
                             "slider",
                         },
                     },
                     {
-                        32,
+                        45,
                         2,
                         {
                             "stat",
                         },
                     },
                     {
-                        33,
+                        46,
                         2,
                         {
                             "tab",
                         },
                     },
                     {
-                        34,
+                        47,
                         2,
                         {
                             "tabSection",
                         },
                     },
                     {
-                        35,
+                        48,
                         2,
                         {
                             "text",
                         },
                     },
                     {
-                        36,
+                        49,
                         2,
                         {
                             "toggle",
@@ -22087,56 +22421,56 @@ local ObjectTree = {
                 },
             },
             {
-                45,
+                58,
                 2,
                 {
                     "settings",
                 },
                 {
                     {
-                        38,
+                        51,
                         2,
                         {
                             "appearance",
                         },
                     },
                     {
-                        39,
+                        52,
                         2,
                         {
                             "behavior",
                         },
                     },
                     {
-                        40,
+                        53,
                         2,
                         {
                             "defaults",
                         },
                     },
                     {
-                        41,
+                        54,
                         2,
                         {
                             "manager",
                         },
                     },
                     {
-                        42,
+                        55,
                         2,
                         {
                             "performance",
                         },
                     },
                     {
-                        43,
+                        56,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        44,
+                        57,
                         2,
                         {
                             "registry",
@@ -22145,28 +22479,28 @@ local ObjectTree = {
                 },
             },
             {
-                49,
+                62,
                 2,
                 {
                     "cache",
                 },
                 {
                     {
-                        46,
+                        59,
                         2,
                         {
                             "imageCache",
                         },
                     },
                     {
-                        47,
+                        60,
                         2,
                         {
                             "moduleCache",
                         },
                     },
                     {
-                        48,
+                        61,
                         2,
                         {
                             "persistenceCache",
@@ -22175,28 +22509,28 @@ local ObjectTree = {
                 },
             },
             {
-                53,
+                66,
                 2,
                 {
                     "functions",
                 },
                 {
                     {
-                        50,
+                        63,
                         2,
                         {
                             "colors",
                         },
                     },
                     {
-                        51,
+                        64,
                         2,
                         {
                             "flagNames",
                         },
                     },
                     {
-                        52,
+                        65,
                         2,
                         {
                             "textMetrics",
@@ -22205,21 +22539,21 @@ local ObjectTree = {
                 },
             },
             {
-                56,
+                69,
                 1,
                 {
                     "layouts",
                 },
                 {
                     {
-                        54,
+                        67,
                         2,
                         {
                             "Sidebar",
                         },
                     },
                     {
-                        55,
+                        68,
                         2,
                         {
                             "SidebarCollapsed",
@@ -22228,21 +22562,21 @@ local ObjectTree = {
                 },
             },
             {
-                59,
+                72,
                 2,
                 {
                     "images",
                 },
                 {
                     {
-                        57,
+                        70,
                         2,
                         {
                             "image",
                         },
                     },
                     {
-                        58,
+                        71,
                         2,
                         {
                             "windowIcons",
@@ -22251,63 +22585,63 @@ local ObjectTree = {
                 },
             },
             {
-                68,
+                81,
                 2,
                 {
                     "icons",
                 },
                 {
                     {
-                        60,
+                        73,
                         2,
                         {
                             "feather",
                         },
                     },
                     {
-                        61,
+                        74,
                         2,
                         {
                             "heroicons",
                         },
                     },
                     {
-                        62,
+                        75,
                         2,
                         {
                             "lucide",
                         },
                     },
                     {
-                        63,
+                        76,
                         2,
                         {
                             "material",
                         },
                     },
                     {
-                        64,
+                        77,
                         2,
                         {
                             "packBuilder",
                         },
                     },
                     {
-                        65,
+                        78,
                         2,
                         {
                             "phosphor",
                         },
                     },
                     {
-                        66,
+                        79,
                         2,
                         {
                             "remix",
                         },
                     },
                     {
-                        67,
+                        80,
                         2,
                         {
                             "tabler",
@@ -22316,77 +22650,77 @@ local ObjectTree = {
                 },
             },
             {
-                79,
+                92,
                 2,
                 {
                     "themes",
                 },
                 {
                     {
-                        69,
+                        82,
                         2,
                         {
                             "amethyst",
                         },
                     },
                     {
-                        70,
+                        83,
                         2,
                         {
                             "cobalt",
                         },
                     },
                     {
-                        71,
+                        84,
                         2,
                         {
                             "crimson",
                         },
                     },
                     {
-                        72,
+                        85,
                         2,
                         {
                             "default",
                         },
                     },
                     {
-                        73,
+                        86,
                         2,
                         {
                             "ember",
                         },
                     },
                     {
-                        74,
+                        87,
                         2,
                         {
                             "emerald",
                         },
                     },
                     {
-                        75,
+                        88,
                         2,
                         {
                             "frost",
                         },
                     },
                     {
-                        76,
+                        89,
                         2,
                         {
                             "gold",
                         },
                     },
                     {
-                        77,
+                        90,
                         2,
                         {
                             "onyx",
                         },
                     },
                     {
-                        78,
+                        91,
                         2,
                         {
                             "rose",
@@ -22395,182 +22729,182 @@ local ObjectTree = {
                 },
             },
             {
-                105,
+                118,
                 1,
                 {
                     "utilities",
                 },
                 {
                     {
-                        80,
+                        93,
                         2,
                         {
                             "HapticEngine",
                         },
                     },
                     {
-                        81,
+                        94,
                         2,
                         {
                             "assetResolver",
                         },
                     },
                     {
-                        82,
+                        95,
                         2,
                         {
                             "constants",
                         },
                     },
                     {
-                        83,
+                        96,
                         2,
                         {
                             "enums",
                         },
                     },
                     {
-                        84,
+                        97,
                         2,
                         {
                             "filesystem",
                         },
                     },
                     {
-                        85,
+                        98,
                         2,
                         {
                             "filesystemManager",
                         },
                     },
                     {
-                        86,
+                        99,
                         2,
                         {
                             "fontManager",
                         },
                     },
                     {
-                        87,
+                        100,
                         2,
                         {
                             "functions",
                         },
                     },
                     {
-                        88,
+                        101,
                         2,
                         {
                             "layouts",
                         },
                     },
                     {
-                        89,
+                        102,
                         2,
                         {
                             "locale",
                         },
                     },
                     {
-                        90,
+                        103,
                         2,
                         {
                             "lockable",
                         },
                     },
                     {
-                        91,
+                        104,
                         2,
                         {
                             "log",
                         },
                     },
                     {
-                        92,
+                        105,
                         2,
                         {
                             "motion",
                         },
                     },
                     {
-                        93,
+                        106,
                         2,
                         {
                             "moveable",
                         },
                     },
                     {
-                        94,
+                        107,
                         2,
                         {
                             "network",
                         },
                     },
                     {
-                        95,
+                        108,
                         2,
                         {
                             "odometer",
                         },
                     },
                     {
-                        96,
+                        109,
                         2,
                         {
                             "ordering",
                         },
                     },
                     {
-                        97,
+                        110,
                         2,
                         {
                             "path",
                         },
                     },
                     {
-                        98,
+                        111,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        99,
+                        112,
                         2,
                         {
                             "persistenceConfig",
                         },
                     },
                     {
-                        100,
+                        113,
                         2,
                         {
                             "persistencePaths",
                         },
                     },
                     {
-                        101,
+                        114,
                         2,
                         {
                             "persistenceSettings",
                         },
                     },
                     {
-                        102,
+                        115,
                         2,
                         {
                             "persistenceWrite",
                         },
                     },
                     {
-                        103,
+                        116,
                         2,
                         {
                             "services",
                         },
                     },
                     {
-                        104,
+                        117,
                         2,
                         {
                             "windowSizing",

@@ -52,7 +52,14 @@ Shared runtime singletons:
 
 ## components/
 
-### `components/window.luau` (the largest module; class `Window`, minified as `a17`)
+### `components/window/` (class `Window`, minified as `a17`)
+
+Split by responsibility across one folder. `class.luau` holds the bare class
+table so every part can attach methods without a require cycle; `init.luau`
+requires the parts and returns the finished class, so `require(components.window)`
+is unchanged for callers. `constants.luau` holds the values shared by more than
+one part. Parts: `startup`, `theme`, `tabs`, `elements`, `overlays`, `layout`,
+`visibility`, `input`, `settings`, `config`, `teardown`.
 Constructor/`new` locals:
 - `a2..a5` — `core.state`, `functions.colors`, `functions.textMetrics`, `utilities.layouts`.
 - `a6..a14` — zIndex/display-order constants, default window props, layout-mode resolution.
@@ -418,7 +425,7 @@ Per-element specifics:
   (surfaces, strokes, text colors, gradients, fonts, corner radii,
   slider/toggle/picker styling). Keys a theme omits are inherited from the
   `default` clone. Registered in two places: the settings-UI theme table in
-  `components/window.luau` and the persisted-theme whitelist in
+  `components/window/theme.luau` and the persisted-theme whitelist in
   `utilities/persistenceSettings.luau`.
   `CardSurface` (Color3, from the `2ecd628` settings-card fix) is still
   defined in every theme but no longer referenced by the rebuilt settings

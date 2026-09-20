@@ -14,6 +14,10 @@ assets/
 │   ├── chevron.png
 │   ├── check.png
 │   └── config.png
+├── custom-icon/    ← starter kit for your executor's custom_asset/ folder
+│   ├── README.md
+│   ├── brand/example.png
+│   └── example/{house,star}.png
 └── icons/          ← catalog PNGs for the 7 icon packs (see icons/README.md)
     ├── feather-pack/   (287)
     ├── heroicons-pack/ (648)

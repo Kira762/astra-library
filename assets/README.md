@@ -14,10 +14,10 @@ assets/
 │   ├── chevron.png
 │   ├── check.png
 │   └── config.png
-├── custom-icon/    ← starter kit for your executor's custom_asset/ folder
+├── custom-icon/    ← starter kit for your executor's custom_asset/ folder (sirius_ namespaced)
 │   ├── README.md
-│   ├── brand/example.png
-│   └── example/{house,star}.png
+│   ├── brand/sirius_brand.png
+│   └── example/{sirius_house,sirius_star}.png
 └── icons/          ← catalog PNGs for the 7 icon packs (see icons/README.md)
     ├── feather-pack/   (287)            — flat, no a/b sharding
     ├── heroicons-pack/ (648)            — flat

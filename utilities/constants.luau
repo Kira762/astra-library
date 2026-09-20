@@ -1,9 +1,11 @@
 local iconRegistry = require(script.Parent.Parent.images.windowIcons)
+local uiIcons = require(script.Parent.Parent.images.uiIcons)
 local constants = {}
 
 constants.fontAsset = "rbxassetid://12187375716"
 
 constants.icons = iconRegistry.ids
+constants.uiIcons = uiIcons
 
 constants.accent = {
     on = Color3.fromRGB(23, 153, 110),

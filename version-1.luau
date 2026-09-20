@@ -6088,9 +6088,9 @@ function Window.new(props)
         _overlayQueue = {},
         _overlayQueueRunning = false,
 
-        icon = icons.resolve(providedIcon or "Sirius"),
+        icon = icons.resolve(providedIcon or constants.uiIcons.window),
         showName = props.showName or props.ShowName or "Astra",
-        showIcon = icons.resolve(providedIcon or "Sirius"),
+        showIcon = icons.resolve(providedIcon or constants.uiIcons.window),
                 showIconOnly = props.showIconOnly or props.ShowIconOnly or false,
 
         themeProperties = {},
@@ -15621,7 +15621,7 @@ end
 return SidebarCollapsed
 
 end)() end,
-    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
+    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
 
 local image = require(script.image)
 
@@ -15802,6 +15802,23 @@ return image
 
 end)() end,
     [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
+-- Single source of truth for Astra's window and Settings UI icons.
+-- Names are intentionally lowercase and case-sensitive. Custom assets resolve
+-- from the executor's custom_asset/ directory.
+return {
+    window = "sirius",
+    close = "close",
+    minimise = "minimise",
+    maximise = "maximise",
+    settings = "settings",
+    search = "search",
+    chevron = "chevron",
+    check = "check",
+    config = "config",
+}
+
+end)() end,
+    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
 
 local windowIcons = {}
 
@@ -15814,7 +15831,6 @@ windowIcons.ids = {
     search = 100604009889706,
     chevron = 88479147175134,
     check = 125626312718314,
-    dot = 80387863064905,
     config = 125823673784681,
 }
 
@@ -15830,7 +15846,6 @@ windowIcons.files = {
     search = "search.png",
     chevron = "chevron.png",
     check = "check.png",
-    dot = "astra.png",
     config = "config.png",
 }
 
@@ -15842,7 +15857,6 @@ windowIcons.roles = {
     search = "search",
     chevron = "chevron",
     check = "check",
-    dot = "astra",
     config = "config",
 }
 
@@ -15893,7 +15907,7 @@ end
 return windowIcons
 
 end)() end,
-    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
+    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
 -- [[Icon resolver service.]]
 -- [[]]
 -- [[Public API is compatible with the previous single-module catalog:]]
@@ -16023,9 +16037,6 @@ function icons.loaded(): { string }
 end
 
 local namedAssets = {
-    -- Brand assets now live under assets/window-icons/ with human names.
-    Astra = "assets/window-icons/astra.png",
-    Sirius = "assets/window-icons/sirius.png",
 }
 
 local function environment(): any
@@ -16393,7 +16404,7 @@ end
 return icons
 
 end)() end,
-    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
+    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
 -- [[feather icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -16437,7 +16448,7 @@ x-square x youtube zap-off zap zoom-in zoom-out
 )
 
 end)() end,
-    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
+    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
 -- [[heroicons icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -16517,7 +16528,7 @@ wrench-screwdriver wrench-screwdriver_solid wrench wrench_solid x-circle x-circl
 )
 
 end)() end,
-    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
+    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
 -- [[lucide icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -16710,7 +16721,7 @@ zodiac-sagittarius zodiac-scorpio zodiac-taurus zodiac-virgo zoom-in zoom-out
 )
 
 end)() end,
-    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
+    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
 -- [[material icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -16839,7 +16850,7 @@ zoom_in zoom_out zoom_out_map
 )
 
 end)() end,
-    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
+    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
 -- [[Lazy icon-pack builder.
 -- [[]]
 -- [[A pack is a compact newline-separated list of kebab names plus the shared
@@ -16934,7 +16945,7 @@ end
 return PackBuilder
 
 end)() end,
-    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
+    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
 -- [[phosphor icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -17101,7 +17112,7 @@ yin-yang youtube-logo
 )
 
 end)() end,
-    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
+    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
 -- [[remix icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -17439,7 +17450,7 @@ zhihu-line zhipu-ai-fill zhipu-ai-line zoom-in-fill zoom-in-line zoom-out-fill z
 )
 
 end)() end,
-    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
+    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
 -- [[tabler icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -17967,7 +17978,7 @@ zoom-out-area zoom-out zoom-pan zoom-question zoom-replace zoom-reset zoom-scan 
 )
 
 end)() end,
-    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
+    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
 -- [[Theme resolution engine (themes/init.luau).]]
 -- [[]]
 -- [[Extracted verbatim from components/window.luau so the window no longer owns]]
@@ -18073,7 +18084,7 @@ end
 return themes
 
 end)() end,
-    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
+    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(16, 13, 24),
@@ -18139,7 +18150,7 @@ return {
 }
 
 end)() end,
-    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
+    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(11, 16, 25),
@@ -18205,7 +18216,7 @@ return {
 }
 
 end)() end,
-    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
+    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
 local crimson = require(script.Parent.Parent.core.state)
 
 return {
@@ -18280,7 +18291,7 @@ return {
 }
 
 end)() end,
-    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
+    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
 local default = require(script.Parent.Parent.core.state)
 
 -- [[Astra's default palette. The shared keys below are the historical set
@@ -18392,7 +18403,7 @@ return {
 }
 
 end)() end,
-    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
+    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(22, 18, 16),
@@ -18458,7 +18469,7 @@ return {
 }
 
 end)() end,
-    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
+    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
 local emerald = require(script.Parent.Parent.core.state)
 
 return {
@@ -18533,7 +18544,7 @@ return {
 }
 
 end)() end,
-    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
+    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
 local frost = require(script.Parent.Parent.core.state)
 
 return {
@@ -18608,7 +18619,7 @@ return {
 }
 
 end)() end,
-    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
+    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
 local gold = require(script.Parent.Parent.core.state)
 
 return {
@@ -18683,7 +18694,7 @@ return {
 }
 
 end)() end,
-    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
+    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
 local onyx = require(script.Parent.Parent.core.state)
 
 return {
@@ -18758,7 +18769,7 @@ return {
 }
 
 end)() end,
-    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
+    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(23, 15, 19),
@@ -18824,7 +18835,7 @@ return {
 }
 
 end)() end,
-    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
+    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 
 local hapticService = {}
@@ -18922,7 +18933,7 @@ end
 return hapticService
 
 end)() end,
-    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
+    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
 local networkUtil = require(script.Parent.network)
 local logger = require(script.Parent.log)
 
@@ -19100,13 +19111,15 @@ end
 return assetResolver
 
 end)() end,
-    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
+    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
 local iconRegistry = require(script.Parent.Parent.images.windowIcons)
+local uiIcons = require(script.Parent.Parent.images.uiIcons)
 local constants = {}
 
 constants.fontAsset = "rbxassetid://12187375716"
 
 constants.icons = iconRegistry.ids
+constants.uiIcons = uiIcons
 
 constants.accent = {
     on = Color3.fromRGB(23, 153, 110),
@@ -19148,7 +19161,7 @@ constants.displayOrder = {
 return constants
 
 end)() end,
-    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
+    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
 local enums = {}
 
 function enums.itemFromValue(enumType, value)
@@ -19178,7 +19191,7 @@ end
 return enums
 
 end)() end,
-    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
+    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
 local serviceProvider = require(script.Parent.services)
 local filesystem = {}
 
@@ -19429,7 +19442,7 @@ end
 return filesystem
 
 end)() end,
-    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
+    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 local pathUtil = require(script.Parent.path)
 
@@ -19478,7 +19491,7 @@ end
 return filesystemManager
 
 end)() end,
-    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
+    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
 local fontManager = require(script.Parent.services)
 local a2 = fontManager.getService("HttpService")
 local a3 = fontManager.getService("RunService")
@@ -19931,7 +19944,7 @@ end
 return a16
 
 end)() end,
-    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
+    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
 
 local functions = {}
 
@@ -19949,7 +19962,7 @@ functions.contrastText = textMetrics.contrastText
 return functions
 
 end)() end,
-    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
+    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
 local layouts = {}
 
 local sidebarLayout = require(script.Parent.Parent.layouts.Sidebar)
@@ -20070,7 +20083,7 @@ end
 return layouts
 
 end)() end,
-    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
+    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local logger = require(script.Parent.log)
 
@@ -20169,7 +20182,7 @@ end
 return locale
 
 end)() end,
-    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
+    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
 local function lockable<T>(element: T): T
     local target = element :: any
 
@@ -20191,7 +20204,7 @@ end
 return lockable
 
 end)() end,
-    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
+    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
 local log = {}
 
 type SuppressPredicate = () -> boolean
@@ -20245,7 +20258,7 @@ end
 return log
 
 end)() end,
-    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
+    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
 -- [[Astra motion service.
 --
 -- Every animation in the library used to build its own TweenInfo and call
@@ -20595,7 +20608,7 @@ end
 return motion
 
 end)() end,
-    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
+    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
 local function moveable<T>(dragState: T): T
     local target = dragState :: any
 
@@ -20631,7 +20644,7 @@ end
 return moveable
 
 end)() end,
-    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
+    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
 local network = {}
 network.__index = network
 
@@ -20649,7 +20662,7 @@ end
 return network
 
 end)() end,
-    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
+    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local motion = require(script.Parent.motion)
 local textService = coreState.textService
@@ -21003,7 +21016,7 @@ end
 return odometer
 
 end)() end,
-    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
+    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
 type OrderedElement = {
     main: GuiObject,
 }
@@ -21015,7 +21028,7 @@ end
 return ordering
 
 end)() end,
-    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
+    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
 local path = {}
 
 function path.join(base: string, suffix: string?): string
@@ -21066,7 +21079,7 @@ end
 return path
 
 end)() end,
-    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
+    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
 local persistence = {}
 
 local configPersistence = require(script.Parent.persistenceConfig)
@@ -21085,7 +21098,7 @@ persistence.loadSettings = settingsPersistence.loadSettings
 return persistence
 
 end)() end,
-    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
+    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local logger = require(script.Parent.log)
@@ -21336,7 +21349,7 @@ end
 return persistenceConfig
 
 end)() end,
-    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
+    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local pathUtil = require(script.Parent.path)
 
@@ -21380,7 +21393,7 @@ end
 return persistencePaths
 
 end)() end,
-    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
+    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local paths = require(script.Parent.persistencePaths)
@@ -21583,7 +21596,7 @@ end
 return persistenceSettings
 
 end)() end,
-    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
+    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 
 local persistenceWrite = {}
@@ -21611,7 +21624,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
+    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
 local services = {}
 
 function services.getService(serviceName)
@@ -21622,7 +21635,7 @@ end
 return services
 
 end)() end,
-    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
+    [117] = function()local wax,script,require=ImportGlobals(117)local ImportGlobals return (function(...)
 local layoutMetrics = require(script.Parent.layouts)
 local coreState = require(script.Parent.Parent.core.state)
 
@@ -21857,52 +21870,53 @@ local LineOffsets = {
     [67] = 15560,
     [69] = 15640,
     [70] = 15805,
-    [71] = 15625,
-    [72] = 16397,
-    [73] = 16441,
-    [74] = 16521,
-    [75] = 16714,
-    [76] = 16843,
-    [77] = 16938,
-    [78] = 17105,
-    [79] = 17443,
-    [80] = 15897,
-    [81] = 18077,
-    [82] = 18143,
-    [83] = 18209,
-    [84] = 18284,
-    [85] = 18396,
-    [86] = 18462,
-    [87] = 18537,
-    [88] = 18612,
-    [89] = 18687,
-    [90] = 18762,
-    [91] = 17971,
-    [92] = 18828,
-    [93] = 18926,
-    [94] = 19104,
-    [95] = 19152,
-    [96] = 19182,
-    [97] = 19433,
-    [98] = 19482,
-    [99] = 19935,
-    [100] = 19953,
-    [101] = 20074,
-    [102] = 20173,
-    [103] = 20195,
-    [104] = 20249,
-    [105] = 20599,
-    [106] = 20635,
-    [107] = 20653,
-    [108] = 21007,
-    [109] = 21019,
-    [110] = 21070,
-    [111] = 21089,
-    [112] = 21340,
-    [113] = 21384,
-    [114] = 21587,
-    [115] = 21615,
-    [116] = 21626,
+    [71] = 15822,
+    [72] = 15625,
+    [73] = 16408,
+    [74] = 16452,
+    [75] = 16532,
+    [76] = 16725,
+    [77] = 16854,
+    [78] = 16949,
+    [79] = 17116,
+    [80] = 17454,
+    [81] = 15911,
+    [82] = 18088,
+    [83] = 18154,
+    [84] = 18220,
+    [85] = 18295,
+    [86] = 18407,
+    [87] = 18473,
+    [88] = 18548,
+    [89] = 18623,
+    [90] = 18698,
+    [91] = 18773,
+    [92] = 17982,
+    [93] = 18839,
+    [94] = 18937,
+    [95] = 19115,
+    [96] = 19165,
+    [97] = 19195,
+    [98] = 19446,
+    [99] = 19495,
+    [100] = 19948,
+    [101] = 19966,
+    [102] = 20087,
+    [103] = 20186,
+    [104] = 20208,
+    [105] = 20262,
+    [106] = 20612,
+    [107] = 20648,
+    [108] = 20666,
+    [109] = 21020,
+    [110] = 21032,
+    [111] = 21083,
+    [112] = 21102,
+    [113] = 21353,
+    [114] = 21397,
+    [115] = 21600,
+    [116] = 21628,
+    [117] = 21639,
 }
 
 -- [[Misc AOT variable imports]]
@@ -22404,7 +22418,7 @@ local ObjectTree = {
                 },
             },
             {
-                71,
+                72,
                 2,
                 {
                     "images",
@@ -22421,69 +22435,76 @@ local ObjectTree = {
                         70,
                         2,
                         {
+                            "uiIcons",
+                        },
+                    },
+                    {
+                        71,
+                        2,
+                        {
                             "windowIcons",
                         },
                     },
                 },
             },
             {
-                80,
+                81,
                 2,
                 {
                     "icons",
                 },
                 {
                     {
-                        72,
+                        73,
                         2,
                         {
                             "feather",
                         },
                     },
                     {
-                        73,
+                        74,
                         2,
                         {
                             "heroicons",
                         },
                     },
                     {
-                        74,
+                        75,
                         2,
                         {
                             "lucide",
                         },
                     },
                     {
-                        75,
+                        76,
                         2,
                         {
                             "material",
                         },
                     },
                     {
-                        76,
+                        77,
                         2,
                         {
                             "packBuilder",
                         },
                     },
                     {
-                        77,
+                        78,
                         2,
                         {
                             "phosphor",
                         },
                     },
                     {
-                        78,
+                        79,
                         2,
                         {
                             "remix",
                         },
                     },
                     {
-                        79,
+                        80,
                         2,
                         {
                             "tabler",
@@ -22492,77 +22513,77 @@ local ObjectTree = {
                 },
             },
             {
-                91,
+                92,
                 2,
                 {
                     "themes",
                 },
                 {
                     {
-                        81,
+                        82,
                         2,
                         {
                             "amethyst",
                         },
                     },
                     {
-                        82,
+                        83,
                         2,
                         {
                             "cobalt",
                         },
                     },
                     {
-                        83,
+                        84,
                         2,
                         {
                             "crimson",
                         },
                     },
                     {
-                        84,
+                        85,
                         2,
                         {
                             "default",
                         },
                     },
                     {
-                        85,
+                        86,
                         2,
                         {
                             "ember",
                         },
                     },
                     {
-                        86,
+                        87,
                         2,
                         {
                             "emerald",
                         },
                     },
                     {
-                        87,
+                        88,
                         2,
                         {
                             "frost",
                         },
                     },
                     {
-                        88,
+                        89,
                         2,
                         {
                             "gold",
                         },
                     },
                     {
-                        89,
+                        90,
                         2,
                         {
                             "onyx",
                         },
                     },
                     {
-                        90,
+                        91,
                         2,
                         {
                             "rose",
@@ -22571,182 +22592,182 @@ local ObjectTree = {
                 },
             },
             {
-                117,
+                118,
                 1,
                 {
                     "utilities",
                 },
                 {
                     {
-                        92,
+                        93,
                         2,
                         {
                             "HapticEngine",
                         },
                     },
                     {
-                        93,
+                        94,
                         2,
                         {
                             "assetResolver",
                         },
                     },
                     {
-                        94,
+                        95,
                         2,
                         {
                             "constants",
                         },
                     },
                     {
-                        95,
+                        96,
                         2,
                         {
                             "enums",
                         },
                     },
                     {
-                        96,
+                        97,
                         2,
                         {
                             "filesystem",
                         },
                     },
                     {
-                        97,
+                        98,
                         2,
                         {
                             "filesystemManager",
                         },
                     },
                     {
-                        98,
+                        99,
                         2,
                         {
                             "fontManager",
                         },
                     },
                     {
-                        99,
+                        100,
                         2,
                         {
                             "functions",
                         },
                     },
                     {
-                        100,
+                        101,
                         2,
                         {
                             "layouts",
                         },
                     },
                     {
-                        101,
+                        102,
                         2,
                         {
                             "locale",
                         },
                     },
                     {
-                        102,
+                        103,
                         2,
                         {
                             "lockable",
                         },
                     },
                     {
-                        103,
+                        104,
                         2,
                         {
                             "log",
                         },
                     },
                     {
-                        104,
+                        105,
                         2,
                         {
                             "motion",
                         },
                     },
                     {
-                        105,
+                        106,
                         2,
                         {
                             "moveable",
                         },
                     },
                     {
-                        106,
+                        107,
                         2,
                         {
                             "network",
                         },
                     },
                     {
-                        107,
+                        108,
                         2,
                         {
                             "odometer",
                         },
                     },
                     {
-                        108,
+                        109,
                         2,
                         {
                             "ordering",
                         },
                     },
                     {
-                        109,
+                        110,
                         2,
                         {
                             "path",
                         },
                     },
                     {
-                        110,
+                        111,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        111,
+                        112,
                         2,
                         {
                             "persistenceConfig",
                         },
                     },
                     {
-                        112,
+                        113,
                         2,
                         {
                             "persistencePaths",
                         },
                     },
                     {
-                        113,
+                        114,
                         2,
                         {
                             "persistenceSettings",
                         },
                     },
                     {
-                        114,
+                        115,
                         2,
                         {
                             "persistenceWrite",
                         },
                     },
                     {
-                        115,
+                        116,
                         2,
                         {
                             "services",
                         },
                     },
                     {
-                        116,
+                        117,
                         2,
                         {
                             "windowSizing",

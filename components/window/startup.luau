@@ -62,9 +62,9 @@ function Window.new(props)
         _overlayQueue = {},
         _overlayQueueRunning = false,
 
-        icon = icons.resolve(providedIcon or "Sirius"),
+        icon = icons.resolve(providedIcon or constants.uiIcons.window),
         showName = props.showName or props.ShowName or "Astra",
-        showIcon = icons.resolve(providedIcon or "Sirius"),
+        showIcon = icons.resolve(providedIcon or constants.uiIcons.window),
                 showIconOnly = props.showIconOnly or props.ShowIconOnly or false,
 
         themeProperties = {},

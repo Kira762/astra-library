@@ -33,15 +33,20 @@ local function buildRail(window, layout)
 end
 
 function SidebarCollapsed.Build(window, layout)
+    -- [[Icon-only rail: same surface contract as the expanded rail
+    -- [[(layouts/Sidebar.luau) — the middle band of the window's three
+    -- [[section shades, solid and flush.]]
     window.sidebar = window:Create("Frame", {
         Name = "CollapsedSidebar",
         AnchorPoint = Vector2.new(0, 1),
         Position = UDim2.fromScale(0, 1),
         Size = UDim2.new(0, layout.railCollapsedWidth, 1, -layout.chromeHeight),
+        BorderSizePixel = 0,
         BackgroundTransparency = 1,
         Visible = false,
         Parent = window.main,
-    })
+    }, { BackgroundColor3 = "SidebarSurface" })
+    window:_roundCorners(window.sidebar, { "BottomLeftRadius" })
     buildRail(window, layout)
 end
 

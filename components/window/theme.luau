@@ -136,6 +136,9 @@ function Window:ChangeTheme(themeInput)
         if self.windowCorner.CornerRadius ~= pill then
             motion.tween(self.windowCorner, { CornerRadius = pill }, "smooth")
         end
+        -- [[The topbar band's corners follow the pill too (no-op while the
+        -- [[radii already match).]]
+        self:_syncTopbarCorners(pill, "smooth")
     end
 end
 

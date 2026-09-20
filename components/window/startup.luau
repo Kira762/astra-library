@@ -198,6 +198,9 @@ function Window.new(props)
 
     self.bottomFadeCorner = self:_roundCorners(self.bottomFade, self.layout.fadeCorners)
 
+    -- [[The bottom fade blends scrolling content into the elements area's own
+    -- [[surface (its lightest band of the three sections), not the window's
+    -- [[base gradient, which the opaque sections no longer show through.]]
     self.bottomFadeGradient = self:Create("UIGradient", {
         Rotation = 270,
         Offset = Vector2.new(0, 0.2),
@@ -206,21 +209,36 @@ function Window.new(props)
         Parent = self.bottomFade,
     }, {
                         Color = {
-            "WindowColor",
+            "ElementSurface",
             function(color)
                 return ColorSequence.new(functions.toColorSequence(color).Keypoints[1].Value)
             end,
         },
     })
 
+        -- [[Topbar band: the darkest of the window's three sections. Its own
+        -- [[surface sits under the title, controls, search and icons; the
+        -- [[top corners mirror the window's silhouette for themes that round
+        -- [[it. The surface is faded out only in the collapsed-capsule state
+        -- [[(see visibility.luau), where the 64px band would overshoot the
+        -- [[50px capsule and the capsule reads on the window's own gradient.]]
+        -- [[No white BaseColor3 prop here: `Window:Create` applies the theme
+        -- [[binding first and the props second, so a prop copy of the colour
+        -- [[would land on top of the bound token.]]
         self.topbar = self:Create("Frame", {
-
+        BorderSizePixel = 0,
         BackgroundTransparency = 1,
         Size = UDim2.new(1, 0, 0, self.layout.topbarHeight),
                         Active = true,
 
         Parent = self.main,
-    })
+    }, { BackgroundColor3 = "TopbarSurface" })
+
+        -- [[Kept by reference: the capsule / minimised bar states animate
+        -- [[the window's own corner to PillCornerRadius, and the opaque
+        -- [[band's top corners must follow or they would poke past the
+        -- [[silhouette (see Window:_syncTopbarCorners).]]
+        self.topbarCorner = self:_roundCorners(self.topbar, { "TopLeftRadius", "TopRightRadius" })
 
     self.topContainer = self:Create("Frame", {
         Size = UDim2.new(0, 300, 0, 24),
@@ -307,19 +325,23 @@ function Window.new(props)
         }, { TextColor3 = "TitlingColor", FontFace = "Font" })
     end
 
-        self.windowShadow = self:CreateGlow(self.main, "ShadowColor", 20, 1)
+                self.windowShadow = self:CreateGlow(self.main, "ShadowColor", 20, 1)
 
+                -- [[Elements band: the lightest of the window's three
+                -- [[sections, solid (its shown-state transparency is the
+                -- [[layout's cardTransparency, now 0) and flush against the
+                -- [[topbar and the tab rail — see the layout's cardCorners
+                -- [[for the square top-left edge.]]
                 self.elements = self:Create("Frame", {
         Size = UDim2.new(1, 0, 1, -self.layout.chromeHeight),
         Position = UDim2.fromScale(1, 1),
         AnchorPoint = Vector2.new(1, 1),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         ClipsDescendants = true,
 
         Parent = self.main,
-    })
+    }, { BackgroundColor3 = "ElementSurface" })
 
     if self.layout.mode == "sidebar" then
         self.elementsCorner = self:_roundCorners(self.elements, self.layout.cardCorners)

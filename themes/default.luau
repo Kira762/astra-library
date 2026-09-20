@@ -9,11 +9,16 @@ return {
     -- [[Semantic palette (derived from the base greys + teal accent)]]
     Background = Color3.fromRGB(10, 10, 10),
     WindowSurface = Color3.fromRGB(25, 25, 25),
-    TopbarSurface = Color3.fromRGB(30, 30, 30),
-    SidebarSurface = Color3.fromRGB(18, 18, 18),
+    -- [[Surface hierarchy the window's three sections are painted with: the
+    -- [[topbar is the darkest, the tab rail one step lighter, the elements
+    -- [[area the lightest, so the bands read distinctly from chrome to
+    -- [[content instead of blending into one flat gradient. The selected
+    -- [[tab row uses ElementSurface too, connecting it to the page it opens.]]
+    TopbarSurface = Color3.fromRGB(18, 18, 18),
+    SidebarSurface = Color3.fromRGB(25, 25, 25),
     TabSurface = Color3.fromRGB(35, 35, 35),
     TabSelected = Color3.fromRGB(23, 153, 110),
-    ElementSurface = Color3.fromRGB(30, 30, 30),
+    ElementSurface = Color3.fromRGB(33, 33, 33),
     ElementHover = Color3.fromRGB(40, 40, 40),
     ElementPressed = Color3.fromRGB(22, 22, 22),
     SecondaryElement = Color3.fromRGB(25, 25, 25),
@@ -43,7 +48,7 @@ return {
     }),
     ShadowColor = Color3.fromRGB(20, 20, 20),
     ElementStroke = Color3.fromRGB(58, 58, 58),
-    CardSurface = Color3.fromRGB(30, 30, 30),
+    CardSurface = Color3.fromRGB(33, 33, 33),
     ElementGradient = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 30, 30)),
         ColorSequenceKeypoint.new(0.9999, Color3.fromRGB(35, 35, 35)),

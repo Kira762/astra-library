@@ -58,9 +58,15 @@ layouts.sidebar = {
 
     pageDirection = Enum.FillDirection.Vertical,
 
-    cardTransparency = 0.98,
+    -- [[The elements area is a solid band, not a floating card: it is fully
+    -- [[opaque (cardTransparency 0) and its top-left corner is square, so the
+    -- [[content sits flush against the topbar and the tab rail. Only the
+    -- [[window's own bottom-right silhouette corner stays rounded, and the
+    -- [[nearly-invisible card stroke is the sole separator between the
+    -- [[sections instead of an empty gap.]]
+    cardTransparency = 0,
     cardStrokeRotation = 55,
-    cardCorners = { "TopLeftRadius", "BottomRightRadius" },
+    cardCorners = { "BottomRightRadius" },
     cardStrokeTransparency = NumberSequence.new({
         NumberSequenceKeypoint.new(0, 0.9),
         NumberSequenceKeypoint.new(0.128, 0.95),

@@ -2,6 +2,53 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-20 — Window surface hierarchy & flush spacing
+
+The window's three sections — topbar (title, controls, search, icons), the
+left tab rail and the elements area — used to be transparent frames over one
+shared `WindowColor` gradient, so the topbar and the rail blended into the
+same shade, and the elements area was a 98%-transparent "card" whose rounded
+top-left corner carved a notch against the rail. No remodel: the three
+sections now each carry their own theme surface, ordered darkest →
+lightest, and sit flush against each other.
+
+- **Colour hierarchy.** The topbar is painted `TopbarSurface`, the tab rail
+  `SidebarSurface` (one step lighter) and the elements area `ElementSurface`
+  (the lightest of the three), all opaque while shown, so the bands read
+  distinctly from chrome to content. All ten built-in themes were re-tuned
+  (hue-preserving) so the order `topbar < rail < elements` holds with a
+  visible step in each; `CardSurface` now mirrors `ElementSurface`.
+- **Flush spacing.** The elements area is a solid band instead of a floating
+  card: `cardTransparency` is 0, its top-left corner is square, and it starts
+  exactly where the topbar ends and where the rail ends (the frames were
+  already geometrically adjacent — the perceived gap was the card notch and
+  the shared flat gradient). Only the window's own bottom-right silhouette
+  corner stays rounded, and the nearly-invisible 1px card stroke is the sole
+  separator between the sections. The bottom fade now blends scrolling
+  content into `ElementSurface` instead of the window's base gradient.
+- **Active-tab connection.** The selected tab row is painted with
+  `ElementSurface` — the same token as the elements area — at full opacity,
+  so it reads as a continuation of the page it opens. Unselected rows stay
+  transparent and fall back to the rail's own `SidebarSurface`; hover lifts
+  a partial wash of the elements colour. The row's old `TabBackground`
+  gradient (which tinted every row off both bands) is gone; the `TabStroke`
+  gradient keeps the hover spin.
+- **Capsule & minimised bar stay coherent.** In the collapsed-capsule state
+  the topbar's surface fades away (the 64px band would overshoot the 50px
+  capsule, which keeps reading on the window's own gradient), the restore
+  brings it back, and the minimised bar keeps it because the bar *is* the
+  topbar. The band's top corners follow the window's corner radius,
+  including the pill radius while collapsed/minimised (a no-op for the
+  square built-in themes).
+- **New gate.** `scripts/surface_hierarchy_test.sh` runs the real bundle
+  against the stub environment and pins every contract above across all ten
+  themes (tokens on the frames, luminance order with a minimum visible step,
+  flush geometry, opacity, the selected-row colour, capsule/minimise
+  behaviour, the bottom fade). It is picked up automatically by
+  `scripts/check_all.sh`; the full gate passes apart from the pre-existing
+  `dropdown_rows_test` corner failure that already fails on `main`.
+  `version-1.luau` was regenerated from the source tree.
+
 ## 2026-09-20 — Discord push notification rebuilt
 
 The `discord-notify` workflow posts a new embed, and the jq program that builds

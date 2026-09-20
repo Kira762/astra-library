@@ -12,6 +12,7 @@ local tooltip = require(script.Parent.Parent.tooltip)
 local shared = require(script.Parent.constants)
 local contentRevealBeat = shared.contentRevealBeat
 local dragHandleGap = shared.dragHandleGap
+local hasPerCornerRadius = shared.hasPerCornerRadius
 local windowSurfaceTransparency = shared.windowSurfaceTransparency
 
 local Window = require(script.Parent.class)
@@ -65,6 +66,11 @@ function Window:Hide()
 
             self:_fadeSurfaces(false, hideTween)
 
+    -- [[Capsule state: the 64px topbar band would overshoot the 50px
+    -- [[capsule's bottom edge (the window does not clip its children), so
+    -- [[its surface folds away and the capsule reads on the window's own
+    -- [[gradient, exactly as it always has.]]
+    motion.tween(self.topbar, { BackgroundTransparency = 1 }, hideTween)
     if self.title then
         motion.tween(self.title, { TextTransparency = 1 }, hideTween)
     end
@@ -114,6 +120,7 @@ function Window:Hide()
     end
     -- [[Capsule bar: theme PillCornerRadius (the default theme is a full pill).]]
     motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(0, 0) }, cornerTween)
+    self:_syncTopbarCorners(self.theme.PillCornerRadius, cornerTween)
 
     self.topbar.Visible = true
     self:_setContentVisible(false)
@@ -162,6 +169,7 @@ function Window:ToggleMinimise()
         image.assign(self.minimiseAction.iconLabel, "Image", constants.icons.minimise)
         motion.tween(self.main, { Size = self.size }, expandTween)
         motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, expandTween)
+        self:_syncTopbarCorners(nil, expandTween)
         self:_fadeSurfaces(true, surfaceTween)	chrome.setCollapsedShown(self, false, surfaceTween)
 
         -- [[The expanded window has to fit: the capsule's own clamp only]]
@@ -236,6 +244,7 @@ function Window:ToggleMinimise()
         motion.tween(self.main, { Size = UDim2.fromOffset(self.size.X.Offset, self.layout.topbarHeight) }, expandTween)
         -- [[Minimised bar reads as a theme-aware capsule (PillCornerRadius).]]
         motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(0, 0) }, expandTween)
+        self:_syncTopbarCorners(self.theme.PillCornerRadius, expandTween)
 
         motion.tween(self.drag.drag, {
             Position = UDim2.new(
@@ -282,12 +291,47 @@ function Window:_setContentVisible(visible)
     self:_applySettingsLayout(self._settingsMode)
 end
 
+-- [[The topbar band's corners mirror the window's own corner radius. The
+-- [[static binding keeps them in step with CornerRoundness for the expanded
+-- [[window, but the capsule and minimised bar states animate the window's
+-- [[corner to PillCornerRadius instead — a theme with a rounded pill would
+-- [[otherwise show the opaque band's square corners poking past the
+-- [[silhouette. No-op for the square built-in themes (the targets already
+-- [[match).]]
+
+function Window:_syncTopbarCorners(radius, tween)
+    if not self.topbarCorner then
+        return
+    end
+    radius = radius or self.theme.CornerRoundness or UDim.new(0, 0)
+    local props = if hasPerCornerRadius
+        then { TopLeftRadius = radius, TopRightRadius = radius }
+        else { CornerRadius = radius }
+    if tween then
+        motion.tween(self.topbarCorner, props, tween)
+    else
+        for prop, value in props do
+            self.topbarCorner[prop] = value
+        end
+    end
+end
+
 function Window:_fadeSurfaces(shown, tweenInfo)
     local targets = {
         [self.windowShadow] = { Transparency = if shown then 0.6 else 1 },
         [self.windowStroke] = { Transparency = if shown then 0.95 else 1 },
         [self.bottomFade] = { BackgroundTransparency = if shown then 0 else 1 },
     }
+
+    -- [[The tab rail's own surface fades with the rest of the sections, so
+    -- [[the entrance and layout switches bring its band in at the same beat
+    -- [[as the elements' (a rebuilt rail's fresh instance starts transparent
+    -- [[too). The topbar is deliberately NOT here: it must stay opaque in
+    -- [[the minimised-bar state, where the bar IS the topbar — its surface
+    -- [[rides Hide/Show directly (see _firstShow / _quickRestore).]]
+    if self.sidebar then
+        targets[self.sidebar] = { BackgroundTransparency = if shown then 0 else 1 }
+    end
 
     if self.elementsStroke then
         targets[self.elements] = {
@@ -511,6 +555,11 @@ function Window:_quickRestore()
     -- [[walks it one card per beat, the same way opening a tab does.]]
     self:_applySettingsLayout(self._settingsMode)
     self:_fadeSurfaces(true)
+    -- [[The topbar surface is not part of _fadeSurfaces (it must stay
+    -- [[opaque in the minimised-bar state, where the bar IS the topbar),
+    -- [[so the restore brings it back in step with the shell's own
+    -- [[glide.]]
+    motion.tween(self.topbar, { BackgroundTransparency = 0 }, restoreTween)
 
     -- [[The window is back on screen with this restore, so re-clamp now]]
     -- [[that its full size is measurable (above it was still collapsed]]
@@ -567,6 +616,7 @@ function Window:_quickRestore()
         settle()
     end
     motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, restoreCornerTween)
+    self:_syncTopbarCorners(nil, restoreCornerTween)
     self:_stageContentReveal(motion.step(contentRevealBeat * 0.6), 0.02, 0.4, entranceId)
 end
 
@@ -589,6 +639,7 @@ function Window:_firstShow()
     self.windowScale.Scale = 0.94
     -- [[Entrance starts as a capsule (theme pill) then opens to CornerRoundness.]]
     self.windowCorner.CornerRadius = self.theme.PillCornerRadius or UDim.new(0, 0)
+    self:_syncTopbarCorners(self.theme.PillCornerRadius)
     -- [[Which entrance owns the staged content reveal below. A hide, a repeat
     -- [[show or a layout switch between now and then replaces it, and the
     -- [[older sequence stops instead of fighting the newer one for the page.]]
@@ -617,6 +668,7 @@ function Window:_firstShow()
     -- [[actually on screen, one control per beat.]]
     self:_applySettingsLayout(self._settingsMode)
     local tweenInfo = "smooth"
+    motion.tween(self.topbar, { BackgroundTransparency = 0 }, tweenInfo)
     if self.topbarIcon then
         self.topbarIcon.ImageTransparency = 1
         motion.tween(self.topbarIcon, { ImageTransparency = 0 }, tweenInfo)
@@ -681,6 +733,7 @@ function Window:_firstShow()
         settle()
     end
     motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, "pop")
+    self:_syncTopbarCorners(nil, "pop")
 
     -- [[Second beat of the entrance: the single cascade walks the page's
     -- [[controls in once the frame is close to its resting size, and only

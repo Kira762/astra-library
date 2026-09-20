@@ -127,7 +127,8 @@ function icons.loaded(): { string }
 end
 
 local namedAssets = {
-    Astra = "assets/Astra.png",
+    -- `Astra` reuses the window icon asset (80387863064905.png) — deduped from the former `assets/Astra.png` duplicate.
+    Astra = "assets/80387863064905.png",
 }
 
 local function environment(): any

@@ -35,7 +35,7 @@ source, not a runtime entry point.
 
 | Area | Highlights |
 |---|---|
-| Window | Sidebar / collapsed-sidebar layouts, minimise-to-capsule, draggable, notifications, modal popups, search, profile card, per-window settings. |
+| Window | Sidebar / collapsed-sidebar layouts, minimise-to-capsule, draggable, notifications, modal popups, search, per-window settings. |
 | Elements | Section, Text, Button, Toggle (and `Switch` alias), Slider, Dropdown (single + multi-select, searchable), Input, Stat, Divider, Group, Collapsible Group, Changelog. |
 | State | Flags with built-in auto save/load, named configs, `forgetState` opt-out, writable-storage persistence. |
 | Look | 10 built-in themes plus custom theme tables, seven icon packs (lucide, material, tabler, phosphor, heroicons, feather, remix) and a `custom_asset/` folder override. |
@@ -77,35 +77,6 @@ skills/astra/
 | [assets/icons/README.md](assets/icons/README.md) | Visual icon catalog with copyable names across all seven packs. |
 | [example.client.luau](example.client.luau) | End-to-end example that builds every element type in one tab. |
 | [changelog.example.luau](changelog.example.luau) | Host-side changelog data file consumed by the Changelog element. |
-| [website/](website/README.md) | The docs site: multi-page guide, search, live window preview, published to GitHub Pages. |
-
-## Docs website (GitHub Pages)
-
-The usage guide is also a static site: <https://kira762.github.io/astra-version-1/>
-
-It is a multi-page docs site — sidebar navigation, ⌘K search over every page and
-heading, on-page contents, copy buttons on code blocks, and a landing page whose
-hero is an interactive rebuild of an Astra window (the theme chips use the ten
-built-in themes' real accent colours). One tree in `website/lib/docs.ts` drives the
-sidebar, the search index, the previous/next pager and `sitemap.xml`.
-
-It is a Next.js app in `website/` that exports to `website/out/`, published by
-[.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml) on every
-push to `main` that touches `website/**`. No other host, no build output committed,
-and nothing outside `website/` is ever uploaded.
-
-One-time switch for the repo owner — Settings → Pages → Build and deployment →
-Source: **GitHub Actions** (<https://github.com/Kira762/astra-version-1/settings/pages>).
-Because a project site is served from the `/astra-version-1` sub-path, the workflow
-exports `NEXT_PUBLIC_BASE_PATH` so every asset URL is prefixed; building without it
-produces a page with no CSS.
-
-```sh
-npm run build:pages    # reproduce the Pages build locally → website/out/
-cd website && npm run dev   # local dev at http://localhost:3000
-```
-
-Details and troubleshooting: [website/README.md](website/README.md).
 
 ## Repository layout
 
@@ -119,7 +90,6 @@ settings/ themes/ icons/  settings registry, theme modules, icon packs
 utilities/                motion, persistence, icons, locale, layouts, diagnostics
 scripts/                  bundle generator, static checkers, runtime tests
 skills/astra/             the published Agent Skill
-website/                  Next.js docs site → GitHub Pages (outside the Rojo tree)
 ```
 
 ## Development
@@ -151,8 +121,8 @@ refreshed with `npx skills update`:
 | `skill-creator` | [anthropics/skills](https://github.com/anthropics/skills) | Authoring and refining the `astra` skill itself. |
 | `diagnosing-bugs` | [mattpocock/skills](https://github.com/mattpocock/skills) | Reproduce-then-fix discipline for the bug entries in the changelog. |
 | `codebase-design` | [mattpocock/skills](https://github.com/mattpocock/skills) | Architecture decisions across the modular tree. |
-| `web-design-guidelines` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | Reviewing the docs site against web interface guidelines — accessibility, focus states, motion, copy. |
-| `vercel-react-best-practices` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | React and Next.js performance patterns for `website/`. |
+| `web-design-guidelines` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | Web interface guidelines — accessibility, focus states, motion, copy — for any web-facing work. |
+| `vercel-react-best-practices` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | React and Next.js performance patterns for any web-facing work. |
 | `writing-guidelines` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | Prose quality for the usage guide and the docs pages. |
 | `doc-coauthoring` | [anthropics/skills](https://github.com/anthropics/skills) | A structured workflow for writing and revising long-form docs such as USAGE.md. |
 | `find-skills` | [vercel-labs/skills](https://github.com/vercel-labs/skills) | Discovering more skills when a task needs one. |

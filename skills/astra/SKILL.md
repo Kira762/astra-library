@@ -146,11 +146,11 @@ Elements support `:MoveTo(index)`, `:MoveUp()`, `:MoveDown()`, `:MoveToTop()`,
 `Show`, `Hide`, `ToggleHide`, `ToggleMinimise`, `Close`, `Save(name?)`, `Load(name?)`,
 `ListConfigs`, `DeleteConfig(name)`, `Get(flag)`, `Set(flag, value)`, `Flags`,
 `ChangeTheme(theme)`, `SetLocale(id)`, `SetTranslator(fn)`, `RegisterTranslations(t)`,
-`ResolveIcon(value, pack?)`, `GetPath()`, `Unload()`, plus `SetProfile({ subtitle, key, tier, whitelist })`.
+`ResolveIcon(value, pack?)`, `GetPath()`, `Unload()`.
 
 Built-in Settings live behind the gear action (General, Appearance, Persistence,
-About) and hold menu keybind, window behaviour, motion, themes, bar layout, profile
-card, auto save/load. They are window-scoped — user code does not build them.
+About) and hold menu keybind, window behaviour, motion, themes, bar layout and
+auto save/load. They are window-scoped — user code does not build them.
 
 ## References
 
@@ -159,7 +159,7 @@ Read only what the task needs:
 - `references/elements.md` — full props and handle methods for every element, plus
   tab/group rules and the Collapsible Group declarative schema.
 - `references/window.md` — window methods, popups/notifications, themes,
-  icon packs, motion service, localisation, profile card, persistence, startup pacing.
+  icon packs, motion service, localisation, persistence, startup pacing.
 - `references/repo-workflow.md` — working inside this repository: bundle generation,
   syntax and checker scripts, runtime tests, docs/changelog conventions.
 - `assets/example-window.luau` — a single-file, copy-pasteable hub covering every

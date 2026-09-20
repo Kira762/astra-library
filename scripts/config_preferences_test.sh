@@ -30,7 +30,7 @@ trap 'rm -f "$OUT"' EXIT
 
 {
 	cat "$ROOT/scripts/sidebar_sizing_stubs.luau"
-	cat "$ROOT/scripts/profile_image_stubs.luau"
+	cat "$ROOT/scripts/filesystem_stubs.luau"
 	echo ""
 	echo "Astra = (function()"
 	echo ""

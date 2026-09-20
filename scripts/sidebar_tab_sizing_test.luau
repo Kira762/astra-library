@@ -95,8 +95,6 @@ end
 local window = Astra:CreateWindow({ name = "Sidebar Sizing Test" })
 print("stage: window created")
 TestPump(0.5)
-EnableProfileCard(window) -- the profile card is lazy; T15 needs it present
-print("stage: profile card enabled")
 print("stage: initial pump done")
 
 local function groupTabs()
@@ -294,9 +292,13 @@ expect(
 -- T9d: every settings tab opens with its full content on its own page.
 local expectedSettingsContent = {
     General = 3,
-    Appearance = 3,
+    -- Theme + Layout. It was three groups while Appearance also carried the
+    -- profile-card group.
+    Appearance = 2,
     Persistence = 2,
-    About = 3,
+    -- Astra + Links. It was three groups while the panel carried a separate
+    -- upstream-lineage group beside Astra's own.
+    About = 2,
 }
 for name, wanted in expectedSettingsContent do
 	for _, tab in window._settingsTabs do
@@ -392,126 +394,5 @@ eq(cappedTitle.Size.X.Offset, cappedSlot, "T14b rebuilt capped title holds the a
 longAgain:Remove()
 TestPump(0.3)
 assertGroupSized(shortRail, "T14b removing the long row restores the name-driven rail")
-
--- T15: the profile panel beside the window (it replaces the in-window
--- profile). The window + gap + panel rest centred on screen as one unit:
--- the window itself sits half a panel away from the screen centre, on the
--- opposite side of the panel.
-local PANEL_W = 260
-local PANEL_GAP = 12
-local PANEL_H = 420 -- profilePanel.height: at default window height, matches window
-local PANEL_SHIFT = (PANEL_W + PANEL_GAP) / 2
-local main = window.main
-local halfW = main.Size.X.Offset / 2
-local halfPanelH = PANEL_H / 2
-
-expect(window.profilePanel ~= nil, "T15 the profile panel exists beside the window")
-eq(window.profilePanel.Visible, true, "T15 panel is visible while the window is shown")
-expect(window.profilePanel.Parent == window.screenGui, "T15 panel is a sibling of the window frame")
-
-eqUDim2(main.Position, 0.5, -PANEL_SHIFT, 0.5, 0, "T15 window shifted away from the default right-side panel")
-eq(main.Size.X.Offset, 600, "T15 desktop window width at the 1920x1080 viewport")
-eq(main.Size.Y.Offset, 420, "T15 desktop window height at the 1920x1080 viewport")
-
-eqVector2(window.profilePanel.AnchorPoint, 0, 0, "T15 right-side panel anchors at its left edge")
-eqUDim2(
-	window.profilePanel.Position,
-	0.5,
-	main.Position.X.Offset + halfW + PANEL_GAP,
-	0.5,
-	-halfPanelH,
-	"T15 panel flush with the window's right edge, centred on the window"
-)
-eq(window.profilePanel.Size.X.Offset, PANEL_W, "T15 panel width")
-eq(window.profilePanel.Size.Y.Offset, PANEL_H, "T15 panel uses its intrinsic content height")
-
-eq(window.profileName.Text, "Tes****", "T15 display name masked by default")
-eq(window.profileSubtitle.Text, "@Tes****", "T15 username masked by default")
-expect(window.profileAvatar ~= nil, "T15 avatar exists")
-expect(window.profileGear == nil, "T15 the card carries no settings gear")
-expect(window.profileTierLabel ~= nil, "T15 the tier pill exists")
-window:SetProfile("Panel subtitle")
-TestPump(0.1)
-eq(window.profileSubtitle.Text, "Panel subtitle", "T15 SetProfile drives the panel subtitle")
-eq(window.profileSubtitle.Visible, true, "T15 subtitle visible once set")
-
-eqUDim2(window.tabList.Size, 1, 0, 1, 0, "T15 the rail no longer reserves in-window profile footer space")
-
-local appearanceTab, sideDropdown, showProfileToggle
-for _, tab in window._settingsTabs do
-    if tab.name == "Appearance" then
-        appearanceTab = tab
-    end
-end
-expect(appearanceTab ~= nil, "T15 the Appearance settings tab exists")
--- [[The Profile controls sit inside the Profile collapsible group now, so]]
--- [[walk group children as well as the tab's top-level elements.]]
-local function scan(elements)
-    for _, el in elements do
-        if el.name == "Profile side" then
-            sideDropdown = el
-        elseif el.name == "Show profile" then
-            showProfileToggle = el
-        end
-        if el.elements then
-            scan(el.elements)
-        end
-    end
-end
-scan(appearanceTab.elements)
-expect(sideDropdown ~= nil, "T15 the Profile side option exists")
-expect(showProfileToggle ~= nil, "T15 the Show profile toggle exists")
-
--- Flipping the side moves the panel and shifts the window the other way.
-sideDropdown:Set("Left")
-TestPump(0.2)
-eqUDim2(main.Position, 0.5, PANEL_SHIFT, 0.5, 0, "T15 left-side panel shifts the window right")
-eqVector2(window.profilePanel.AnchorPoint, 1, 0, "T15 left-side panel anchors at its right edge")
-eqUDim2(
-	window.profilePanel.Position,
-	0.5,
-	main.Position.X.Offset - halfW - PANEL_GAP,
-	0.5,
-	-halfPanelH,
-	"T15 panel flush with the window's left edge, centred on the window"
-)
-sideDropdown:Set("Right")
-TestPump(0.2)
-eqUDim2(main.Position, 0.5, -PANEL_SHIFT, 0.5, 0, "T15 back to the right side re-centres the window")
-
--- Toggling the panel off re-centres the window on its own.
-showProfileToggle:Set(false)
-TestPump(0.2)
-eqUDim2(main.Position, 0.5, 0, 0.5, 0, "T15 hiding the panel re-centres the window")
-eq(window.profilePanel.Visible, false, "T15 panel hidden with the toggle")
-showProfileToggle:Set(true)
-TestPump(0.2)
-eqUDim2(main.Position, 0.5, -PANEL_SHIFT, 0.5, 0, "T15 showing the panel shifts the window again")
-eq(window.profilePanel.Visible, true, "T15 panel visible again")
-
--- The panel is gated by horizontal room, not by device type: a portrait
--- phone (window + gap + panel would not fit) hides it and uses the fixed
--- mobile window size; a wide landscape phone (plenty of room) still shows
--- the panel and recentres the window; the desktop viewport restores both.
-local inputService = game:GetService("UserInputService")
-inputService.TouchEnabled = true
-inputService.KeyboardEnabled = false
-TestViewport.set(360, 390)
-TestPump(0.4)
-eq(window.profilePanel.Visible, false, "T15 portrait phone has no room for the panel")
-eq(main.Size.X.Offset, 560, "T15 phone viewport uses the fixed mobile window width")
-eq(main.Size.Y.Offset, 380, "T15 phone viewport uses the fixed mobile window height")
-eqUDim2(main.Position, 0.5, 0, 0.5, 0, "T15 portrait phone window sits centred (no shift)")
-TestViewport.set(1320, 600)
-TestPump(0.4)
-eq(window.profilePanel.Visible, true, "T15 wide landscape phone has room, panel shows")
-eqUDim2(main.Position, 0.5, -PANEL_SHIFT, 0.5, 0, "T15 landscape phone window recentres for the panel")
-TestViewport.set(1920, 1080)
-TestPump(0.4)
-inputService.TouchEnabled = false
-inputService.KeyboardEnabled = true
-eq(window.profilePanel.Visible, true, "T15 desktop viewport restores the panel")
-eq(main.Size.X.Offset, 600, "T15 desktop window width restored")
-eq(main.Size.Y.Offset, 420, "T15 desktop window height restored")
 
 print("SIDEBAR TAB SIZING: all assertions passed")

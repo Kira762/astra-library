@@ -2,6 +2,211 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-19 — Profile card removed
+
+The profile card — the 260x420 companion panel that floated beside the window —
+is gone, along with everything that existed only to serve it.
+
+- **`components/profilePanel.luau` (2,428 lines) is deleted.** So is
+  `Window:SetProfile`, and so are the `showProfile`, `showFullUsername` and
+  `profileSide` settings: their registry definitions, their defaults, their
+  `appearance.validate` branches, their persistence round-trip, the one-time
+  migration that cleared a legacy `showProfile`, and the "Profile" collapsible
+  group in Settings → Appearance (that tab now holds two groups, Theme and
+  Layout, where it held three).
+- **`WindowProps.profile` is gone too.** It was already dead: nothing ever read
+  `props.profile`, and the window's `profileText` field was hard-initialised to
+  `nil` and only ever written by `SetProfile`.
+- **The window recentres on itself.** `_profileCenterPosition` returned the
+  screen centre offset by half a card; with no card there is nothing to offset,
+  so it is `_restingCenterPosition` and returns `UDim2.new(0.5, 0, 0.5, 0)`.
+  `_recenterForProfile` is `_recenterWindow`. The keep-on-screen clamp and the
+  drag clamp measured the window + card *pair* through
+  `profilePanel.pairHalfSize` — which, for a hidden card, returned exactly the
+  window's own half-extents — so both now compute those directly. The
+  late-player waiter (`_armProfilePlayerWaiter`) existed to fill a card that no
+  longer exists and is deleted.
+- **Six runtime suites are deleted** with the feature: `profile_compact`,
+  `profile_centering`, `profile_created`, `profile_details`, `profile_reveal`,
+  `profile_ui`, plus the `T15` block and the `EnableProfileCard` helper that
+  `sidebar_tab_sizing_test` used to reach the card. 26 suites remain.
+
+  `profile_compact_test.sh`'s D8 assertion (got 600, want 608) was the one
+  failing suite in this repository; it left with the feature rather than being
+  fixed. The sizing code it disagreed with is unchanged.
+
+- **`scripts/profile_image_stubs.luau` was misnamed and is now
+  `scripts/filesystem_stubs.luau`.** Despite the name it was not profile
+  infrastructure: it was the in-memory stand-in for `writefile` / `readfile` /
+  `isfile` / `listfiles` / `delfile` that `config_preferences_test.sh` also
+  cats. Deleting it with the other `profile_*` files broke that suite with
+  `attempt to call a nil value` on the first autosave assertion. The renamed
+  file keeps the filesystem stubs and drops the image modelling
+  (`getcustomasset`, `TestImageUri`) that only the card's avatar and game
+  thumbnail needed.
+- **Docs follow the code.** The profile-card section and the `SetProfile` row
+  are out of `USAGE.md`, `skills/astra/SKILL.md` and
+  `skills/astra/references/window.md`; the Appearance settings row no longer
+  lists the card controls; `MODULES.md` loses its 157-line `profilePanel`
+  section, its `SetProfile` entry and the profile rows in the settings and
+  checker tables; `README.md`'s Window row no longer advertises the card.
+  `PERFORMANCE_CHANGES.md` keeps its history but now opens the affected part
+  with a note that the card has since been removed. While in `MODULES.md`: its
+  `constants.luau` line named a `profileAvatarPlaceholder` icon that does not
+  exist anywhere in the tree — stale before this change, corrected now.
+
+- **The comments that described the card are gone too.** Removing the code
+  would have left a dozen comments asserting things that are no longer true:
+  `_clampedPosition`'s "the window and its profile card travel as one unit",
+  `ToggleMinimise`'s expand re-clamping "now the panel is shown again",
+  `_quickRestore` re-clamping "now that `pairHalfSize` can see it",
+  `_toggleSettingsMode` being "shared with the profile panel's gear",
+  `StyleWindowSurface`'s "the profile card beside the window calls this too",
+  the `_syncLiveAnimation` target list, the default theme's palette note, and
+  `icons/init.luau`'s justification for not falling back across packs (which
+  cited the card's alias chain). Each was rewritten to state what the code
+  actually does now.
+
+Files: `components/profilePanel.luau` (deleted), `components/window.luau`,
+`components/settings.luau`, `settings/registry.luau`, `settings/defaults.luau`,
+`settings/appearance.luau`, `utilities/persistenceSettings.luau`, `Types.luau`,
+`scripts/filesystem_stubs.luau` (new, from `profile_image_stubs.luau`),
+`scripts/config_preferences_test.sh`, `scripts/sidebar_tab_sizing_test.luau`,
+`scripts/sidebar_sizing_stubs.luau`, `scripts/drag_handle_test.luau`,
+`scripts/{instance_budget,motion,odometer}_test.sh`, six `scripts/profile_*`
+suites (deleted), `README.md`, `USAGE.md`, `MODULES.md`,
+`PERFORMANCE_CHANGES.md`, `skills/astra/SKILL.md`,
+`skills/astra/references/window.md`,
+`skills/astra/references/repo-workflow.md`, `version-1.luau` (regenerated).
+
+Verification: `scripts/check_syntax.sh` compiles all 102 published files,
+`scripts/check_requires.py` (96 files, 294 edges, no cycles) and
+`scripts/check_instance_fields.py` are clean, and `version-1.luau` is
+regenerated (`node scripts/generate_bundle.js` — **99 modules, 23,023 lines,
+931,398 bytes**, down from 102 modules and 1,041,455 bytes). **All 26 runtime
+suites pass, plus `scripts/smoke_test_bundle.sh`** — the first time this
+repository has had no failing suite.
+
+Because the runtime suites load `version-1.luau` and not the modular tree, every
+number above was taken after regenerating the bundle; an intermediate run
+against a stale bundle reported a pass that meant nothing, and the settings-tab
+element counts were confirmed by probing the built window directly (General 3,
+Appearance 2, Persistence 2, About 2) rather than inferred from the source.
+
+## 2026-09-19 — Astra-only branding, `.txt` configs, refreshed perf numbers
+
+- **Config and settings files are `.txt`, not `.rfld`.** `persistencePaths`
+  writes `AstraConfigs/<name>.txt` and `astra.txt`; `persistenceConfig`'s
+  corrupt-file backups (`… (Incorrect Format).txt`) and its `listfiles` scan
+  match the new extension. The scan compares `baseName:sub(-4)` now, not
+  `sub(-5)` — `.txt` is one character shorter than `.rfld`, and leaving `-5`
+  would have silently matched nothing.
+
+  **This is a breaking change for saved data.** Configs written by an earlier
+  version live in `.rfld` files and will not be picked up: `Load` finds no file
+  at the new path and the saved values stay on disk, unread. Anyone who needs
+  their old configs back renames the files (`AstraConfigs/*.rfld` →
+  `*.txt`), or asks for a read-fallback that tries `.rfld` when `.txt` is
+  missing.
+
+- **The About panel is Astra's own.** It had a `Rayfield Gen2` group, an
+  "Our Story" line about beginning from Rayfield Gen2, a "Customized by Haijo"
+  entry, and a Documentation link to `https://docs.sirius.menu/rayfield-gen2`.
+  It is now one `Astra` group (About / Highlights / What Astra Provides) plus a
+  `Links` group pointing at this repository and `USAGE.md` — two groups where
+  there were three, so `scripts/sidebar_tab_sizing_test.luau`'s T9d expectation
+  for the About tab's element count moved from 3 to 2.
+- **The default window icon is Astra.** `components/window.luau` resolved the
+  window icon from `"Sirius"` while the caption icon beside it already used
+  `"Astra"`; both use `"Astra"` now. The `Sirius` named asset is gone from
+  `icons/init.luau` and `assets/Sirius.png` is deleted, so `icon = "Sirius"`
+  no longer resolves — pass `"Astra"` or any catalog name.
+- **Upstream names are out of the comments too.** `themes/default.luau` no
+  longer describes itself as the "Rayfield Gen2 default palette" (its `Gen2
+  shared keys — values match src/themes/default.luau` comment also pointed at a
+  path that does not exist in this repository), and the `Gen2` mentions in
+  `components/chrome.luau`, `components/window.luau` and the
+  `amethyst`/`cobalt`/`ember`/`rose` themes now say "the default theme".
+  `grep -rn "Sirius\|Rayfield\|Haijo\|Gen2\|rfld"` over the shipped `.luau`
+  tree returns nothing.
+- **`PERFORMANCE_CHANGES.md` is re-measured.** The headline table claimed 66
+  shell instances, 64 peak allocations and a 987,741-byte bundle; the harness on
+  this checkout reports **67**, **57** and **1,039,418**. The table now carries
+  both the original and the current figure, marks the two rows the harness no
+  longer emits as `—` instead of carrying stale numbers, and drops the
+  wall-time row: timing the assembled harness under Luau 0.739 gives a 0.347 s
+  median, which includes process startup and the harness parse and so is not
+  comparable to the 0.074 s the old row claimed.
+
+Files: `utilities/persistencePaths.luau`, `utilities/persistenceConfig.luau`,
+`scripts/config_preferences_test.luau`, `components/settings.luau`,
+`components/window.luau`, `components/chrome.luau`, `icons/init.luau`,
+`themes/default.luau`, `themes/amethyst.luau`, `themes/cobalt.luau`,
+`themes/ember.luau`, `themes/rose.luau`, `assets/Sirius.png` (deleted),
+`PERFORMANCE_CHANGES.md`, `version-1.luau` (regenerated).
+
+Verification: `scripts/check_syntax.sh` compiles all 103 published files,
+`scripts/check_requires.py` (97 files, 304 edges, no cycles) and
+`scripts/check_instance_fields.py` are clean, and `version-1.luau` is
+regenerated (`node scripts/generate_bundle.js` — 100 modules, 1,039,418 bytes).
+31 of the 32 runtime suites plus `scripts/smoke_test_bundle.sh` pass;
+`profile_compact_test.sh` D8 (got 600, want 608) still fails exactly as before
+and is untouched by this change.
+
+## 2026-09-19 — Repository hygiene: dead code, dangling references, exec bits
+
+A sweep of the tree for things that are referenced but absent, or present but
+unreachable. No behaviour change for anyone loading the bundle.
+
+- **`core/registry.luau` and `core/loader.luau` are gone.** `registry.get` — the
+  only reader of what `registry.register` and `registerFactory` write — was never
+  called anywhere in the tree, so `loader.service(name, factory)` registered an
+  element-factory override that nothing could ever look up. It was an inert API,
+  not a working extension point. `core/init.luau` now exposes only `core.state`,
+  which is the one member anything actually reads (13 uses of `Astra.Core.state`
+  across the runtime suites). `Astra.Core` still exists and still carries `state`.
+- **`library_entrypoint.luau` binds `types`.** The file annotated 44 positions as
+  `types.Window`, `types.WindowProps`, `types.Astra` and so on without ever
+  binding the name — `MODULES.md` documented a `Types` require that was not in the
+  file. `local types = require(script.Parent.Types)` now supplies it. `Types.luau`
+  is a sibling of the entrypoint in both mounts (`ReplicatedStorage.Types` beside
+  `ReplicatedStorage.Astra` in the Rojo/wax projects, and a sibling of
+  `MainModule` inside the bundle's `Astra` folder) and returns an empty table, so
+  the require costs nothing at runtime. Type annotations erase at compile, so this
+  changes no runtime behaviour; it gives editors and the type checker a name to
+  resolve for the public API's 40 re-exported types.
+- **`icons.BASE` is gone.** It held `https://raw.githubusercontent.com/Haijo12/sisys_ididh/main`
+  — the *previous* author's repository — and was never read anywhere; the live
+  resolver uses `assetBase` (`…/Kira762/astra-version-1/main/`).
+- **`website/` references are gone.** The directory does not exist in this
+  repository, but `README.md` linked `website/README.md` (a dead link) and
+  documented a Pages build, the root `package.json` routed all five of its scripts
+  to `--prefix website`, and `.github/workflows/deploy-pages.yml` checked out and
+  built `website/`. The README sections, `package.json`, the workflow and the
+  `website/` ignore rules are removed; `skills/astra/references/repo-workflow.md`
+  no longer lists the folder. Nothing in the repository needs npm now.
+- **Ten `scripts/*.sh` files gained the executable bit**, including
+  `smoke_test_bundle.sh` and `startup_test.sh` — the two the README names in its
+  Development block. `git ls-files -s` showed 24 at `100755` and 10 at `100644`;
+  all 34 are `100755` now, so `./scripts/<name>.sh` works on a fresh clone.
+
+Files: `core/init.luau`, `core/registry.luau` (deleted), `core/loader.luau`
+(deleted), `library_entrypoint.luau`, `icons/init.luau`, `README.md`,
+`MODULES.md`, `skills/astra/references/repo-workflow.md`, `package.json`
+(deleted), `.github/workflows/deploy-pages.yml` (deleted), `.gitignore`,
+`version-1.luau` (regenerated).
+
+Verification: `scripts/check_syntax.sh` compiles all 103 published files,
+`scripts/check_requires.py` (97 files, 304 edges, no cycles) and
+`scripts/check_instance_fields.py` are clean, and `version-1.luau` is regenerated
+(`node scripts/generate_bundle.js` — 100 modules, down from 102, 1,039,811 bytes).
+31 of the 32 runtime suites plus `scripts/smoke_test_bundle.sh` pass;
+`profile_compact_test.sh` D8 (got 600, want 608) still fails exactly as before and
+is unrelated. That the entrypoint's new `Types` require is genuinely exercised was
+confirmed by negative control: pointing it at a non-existent sibling
+(`script.Parent.TypesBogus`) makes `scripts/startup_test.sh` fail, and the real
+bundle passes.
+
 ## 2026-09-19 — Locked tabs: `CreateTab({ locked = true })` + `tab:SetLocked`
 
 Tabs can now be built visible-but-gated, for the "this section exists, but not

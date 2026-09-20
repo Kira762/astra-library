@@ -1312,10 +1312,3 @@ function FindSettingsElement(targetWindow, tabName, elementName)
 	return nil
 end
 
-function EnableProfileCard(targetWindow)
-	local toggle = FindSettingsElement(targetWindow, "Appearance", "Show profile")
-	assert(toggle, "test harness: 'Show profile' toggle must exist")
-	toggle:Set(true)
-	TestPump(0.4)
-	return targetWindow
-end

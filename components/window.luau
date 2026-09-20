@@ -13,7 +13,6 @@ local layouts = require(utilities.layouts)
 local chrome = require(script.Parent.chrome)
 local search = require(script.Parent.search)
 local tabSelector = require(script.Parent.tabSelector)
-local profilePanel = require(script.Parent.profilePanel)
 local settingsComponent = require(script.Parent.settings)
 local overlayQueue = require(script.Parent.overlayQueue)
 local tooltip = require(script.Parent.tooltip)
@@ -51,9 +50,9 @@ local compactRowHeight = 41
 local dragHandleGap = 22
 
 -- [[The window's own surface, defined once. Everything that has to read as
--- [["the window background" — the frame itself and the profile card beside it —
--- [[is styled through Window:StyleWindowSurface, so the two can never drift
--- [[into near-miss shades of each other: same base colour, same WindowColor
+-- [["the window background" is styled through Window:StyleWindowSurface, so
+-- [[every surface that reads as part of the window shares one definition
+-- [[instead of near-miss copies: same base colour, same WindowColor
 -- [[gradient (theme token + the same rotation/offset, so a theme change moves
 -- [[both together) and the same opacity once shown.]]
 local windowSurfaceColor = Color3.fromRGB(255, 255, 255)
@@ -154,11 +153,10 @@ function Window.new(props)
         _overlayQueue = {},
         _overlayQueueRunning = false,
 
-        icon = icons.resolve(providedIcon or "Sirius"),
+        icon = icons.resolve(providedIcon or "Astra"),
         showName = props.showName or props.ShowName or "Astra",
         showIcon = icons.resolve(providedIcon or "Astra"),
                 showIconOnly = props.showIconOnly or props.ShowIconOnly or false,
-                profileText = nil,
 
         themeProperties = {},
         localeProperties = {},
@@ -219,9 +217,6 @@ function Window.new(props)
         theme = if type(props.theme or props.Theme) == "string" then string.lower(props.theme or props.Theme) else "default",
         mouseOverride = false,         keepOnScreen = true,         haptics = false,
         dragMinimisedBar = false,
-        showProfile = false,
-        showFullUsername = false,
-        profileSide = "right",
         antiWindowDuplicate = true,
         layoutMode = layout.mode,
         activeSubTab = 1,
@@ -563,20 +558,6 @@ function Window.new(props)
     chrome.buildCollapsedFace(self)
 
     self:_constructionCheckpoint(true)
-    -- [[The profile card is opt-in: it builds only when "Show profile" is on
-    -- [[(the default is off), so the common window skips its ~90 themed
-    -- [[instances on the spawn path. The first toggle to enable it builds the
-    -- [[card on demand through profilePanel.ensureBuilt.]]
-    profilePanel.ensureBuilt(self)
-    profilePanel.setSubtitle(self, self.profileText)
-    if profilePanel.isEnabled(self) then
-        self.main.Position = self:_profileCenterPosition()
-    end
-    -- [[Card on but the player object is not replicated yet: this waiter fills
-    -- [[and reveals it the moment the player arrives. It is also re-armed by
-    -- [[setEnabled when the card is switched on later (lazy build), so the
-    -- [[toggle path keeps the same late-player behaviour as startup.]]
-    self:_armProfilePlayerWaiter()
     self:_bindKeybind()
     self:_bindMouseOverride()
     self:_bindTopbarDrag()
@@ -604,8 +585,8 @@ end
 -- Yield at a completed construction boundary when the current frame has
 -- spent its budget. Batches are limited by both CPU time and instance count,
 -- and the check is unconditional: components that build lazily after startup
--- (the profile card on first enable, late settings panels) use this directly
--- so a deferred build can never monopolise a frame either. Yields land on the
+-- (late settings panels) use this directly so a deferred build can never
+-- monopolise a frame either. Yields land on the
 -- next Heartbeat (not another deferred task in the same frame).
 function Window:_paceBudget(force)
     local now = os.clock()
@@ -680,16 +661,9 @@ function Window:_syncLiveAnimation()
         local liveTweenInfo = motion.spec("drift")
 
         while self._liveGeneration == generation and self._liveAnimating and not self.unloaded do
-            -- [[The card beside the window is the same surface, so it rides the
-            -- [[same animation: a static card next to a live window would show
-            -- [[two different shades of the same gradient. It is read fresh
-            -- [[each cycle because the card is rebuilt from scratch whenever
-            -- [[the layout or the theme changes.]]
+            -- [[A list so the drift can be applied to more than one gradient
+            -- [[surface; the window's own is currently the only one.]]
             local liveTargets = { self.windowGradient }
-            local panelGradient = self.profilePanelGradient
-            if panelGradient then
-                table.insert(liveTargets, panelGradient)
-            end
 
             local tweens = {}
             for _, gradient in liveTargets do
@@ -1153,7 +1127,7 @@ function Window:Hide()
     if not motion.tween(self.main, { Size = collapsedSize, Position = collapsedPos }, surfaceTween, settleCollapse) then
         settleCollapse()
     end
-    -- [[Capsule bar: theme PillCornerRadius (Gen2 default is a full pill).]]
+    -- [[Capsule bar: theme PillCornerRadius (the default theme is a full pill).]]
     motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, cornerTween)
 
     self.topbar.Visible = true
@@ -1205,12 +1179,10 @@ function Window:ToggleMinimise()
         motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, expandTween)
         self:_fadeSurfaces(true, surfaceTween)	chrome.setCollapsedShown(self, false, surfaceTween)
 
-        -- [[The card comes back with the expanded window and the pair has]]
-        -- [[to fit: the capsule's own clamp only knew the capsule, so one]]
-        -- [[dragged into a corner used to expand with the window — or its]]
-        -- [[card — hanging off the edge. Re-clamp now the panel is shown]]
-        -- [[again (a no-op while the pair already fits, and while the card]]
-        -- [[is off).]]
+        -- [[The expanded window has to fit: the capsule's own clamp only]]
+        -- [[knew the capsule, so one dragged into a corner used to expand]]
+        -- [[with the window hanging off the edge. Re-clamp now the full]]
+        -- [[size is back (a no-op while it already fits).]]
         self:_clampToScreen()
 
         motion.tween(self.drag.drag, {
@@ -1321,12 +1293,9 @@ function Window:_clampedPosition(position: UDim2): UDim2
     end
 
     local screenSize = self.screenGui.AbsoluteSize
-    -- [[The window and its profile card travel as one unit, so the clamp]]
-    -- [[keeps the *pair* in view: the card adds its width + gap to one]]
-    -- [[side and, being taller than a short window, raises the vertical]]
-    -- [[half-extent too. Clamping the window alone let the card be dragged]]
-    -- [[off the edge while "keep window on screen" was still satisfied.]]
-    local halfLeft, halfRight, halfTop = profilePanel.pairHalfSize(self)
+    local halfLeft = self.size.X.Offset / 2
+    local halfRight = halfLeft
+    local halfTop = self.size.Y.Offset / 2
     local margin = 8
         local x = math.clamp(position.X.Offset, halfLeft + margin, math.max(halfLeft + margin, screenSize.X - halfRight - margin))
     local y = math.clamp(position.Y.Offset, halfTop + margin, math.max(halfTop + margin, screenSize.Y - halfTop - margin))
@@ -1340,25 +1309,16 @@ function Window:_clampToScreen()
     self.main.Position = self:_clampedPosition(self.main.Position)
 end
 
--- [[The window's canonical resting position. With the profile panel]]
--- [[enabled, the window + gap + panel are treated as one unit and that]]
--- [[unit is centred: the window itself sits half a panel away from the]]
--- [[screen centre, on the opposite side of the panel, so neither side of]]
--- [[the pair looks cramped.]]
-function Window:_profileCenterPosition(): UDim2
-    local shift = profilePanel.shiftFor(self)
-    if shift <= 0 then
-        return UDim2.new(0.5, 0, 0.5, 0)
-    end
-    local left = (self.settings.profileSide or "right") == "left"
-    return UDim2.new(0.5, if left then shift else -shift, 0.5, 0)
+-- [[The window's canonical resting position: dead centre of the screen.]]
+function Window:_restingCenterPosition(): UDim2
+    return UDim2.new(0.5, 0, 0.5, 0)
 end
 
-function Window:_recenterForProfile(animate)
-    local target = self:_profileCenterPosition()
+function Window:_recenterWindow(animate)
+    local target = self:_restingCenterPosition()
     if self.hidden or self.minimised then
         -- [[Nothing is on screen to move; park the remembered position so]]
-        -- [[the next restore lands centred for the current panel state.]]
+        -- [[the next restore lands centred.]]
         self._restorePosition = target
         return
     end
@@ -1366,8 +1326,8 @@ function Window:_recenterForProfile(animate)
         return
     end
     if animate and not self.animating then
-        -- [[A recenter slides the pair sideways between resting places: the
-        -- symmetric `glide` ease reads as deliberate, not reactive.]]
+        -- [[A recenter slides the window sideways between resting places:
+        -- the symmetric `glide` ease reads as deliberate, not reactive.]]
         motion.tween(self.main, { Position = target }, "glide")
         motion.tween(self.drag.drag, {
             Position = UDim2.new(target.X.Scale, target.X.Offset, target.Y.Scale, target.Y.Offset + self.size.Y.Offset / 2 + dragHandleGap),
@@ -1376,47 +1336,6 @@ function Window:_recenterForProfile(animate)
         self.main.Position = target
         self:_syncDragBar()
     end
-end
-
--- [[One-shot waiter for a LocalPlayer that has not replicated when the card
--- [[was enabled. On arrival it builds the (lazily skipped) card if needed,
--- [[fills its identity and reveals the window + card pair. Bounded by a short
--- [[deadline so a host with no player at all does not keep polling forever.
--- [[Safe to call repeatedly; the first arm wins.
-function Window:_armProfilePlayerWaiter()
-    if self._profileWaiterArmed or self.unloaded then
-        return
-    end
-    if self.settings.showProfile ~= true or state.localPlayer then
-        return
-    end
-    self._profileWaiterArmed = true
-
-    task.defer(function()
-        local deadline = os.clock() + 2
-        local connection
-        connection = state.runService.RenderStepped:Connect(function()
-            if self.unloaded then
-                connection:Disconnect()
-                return
-            end
-            if state.localPlayer or os.clock() > deadline then
-                connection:Disconnect()
-                if state.localPlayer and profilePanel.ensureBuilt(self) then
-                    profilePanel.applyIdentity(self)
-                    profilePanel.setShown(self, true, profilePanel.settleSpec)
-                    -- [[Centre the pair if the user has not dragged the
-                    -- [[window off its resting spot.]]
-                    if self.main.Position.X.Scale == 0.5 and self.main.Position.Y.Scale == 0.5 then
-                        self:_recenterForProfile(true)
-                    end
-                end
-            end
-        end)
-        -- [[Adopt the connection directly: Window:Connect takes a *signal*,
-        -- [[not a connection object.]]
-        table.insert(self.connections, connection)
-    end)
 end
 
 function Window:_applyWindowSize()
@@ -1448,16 +1367,10 @@ function Window:_applyWindowSize()
     self.main.Size = newSize
     self:_clampToScreen()
     self:_syncDragBar()
-    -- [[A viewport change (rotation, inset, keyboard) can turn the profile]]
-    -- [[panel on or off: there may suddenly be room for it, or none.]]
-    -- [[Re-evaluate its visibility alongside the resize and keep the card]]
-    -- [[height matched to the window height.]]
-    profilePanel.layout(self)
-    profilePanel.setShown(self, true, nil)
     if self.main.Position.X.Scale == 0.5 and self.main.Position.Y.Scale == 0.5 then
         -- [[Still anchored at the screen centre (the user has not dragged]]
-        -- [[it): re-apply the resting centre for the new panel state.]]
-        self:_recenterForProfile(false)
+        -- [[it): re-apply the resting centre for the new size.]]
+        self:_recenterWindow(false)
     end
 end
 
@@ -1605,11 +1518,11 @@ function Window:_bindTopbarDrag()
             local mainSize = self.main.AbsoluteSize
             local screenSize = self.screenGui.AbsoluteSize
             local margin = 8
-            -- [[Clamp the window + profile card pair rather than the window]]
-            -- [[alone, so a drag cannot leave the card hanging off the]]
-            -- [[screen. The frame's own size is passed in: mid-minimise it]]
-            -- [[is shorter than window.size.]]
-            local halfLeft, halfRight, halfTop = profilePanel.pairHalfSize(self, mainSize.X, mainSize.Y)
+            -- [[The frame's own size is used: mid-minimise it is shorter]]
+            -- [[than window.size.]]
+            local halfLeft = mainSize.X / 2
+            local halfRight = halfLeft
+            local halfTop = mainSize.Y / 2
             x = math.clamp(x, halfLeft + margin, math.max(halfLeft + margin, screenSize.X - halfRight - margin))
             y = math.clamp(y, halfTop + margin, math.max(halfTop + margin, screenSize.Y - halfTop - margin))
         end
@@ -1747,19 +1660,6 @@ function Window:_buildSettingsContent(tab)
     settingsComponent.buildContent(self, tab)
 end
 
--- [[Profile card content owned by the host. Accepts either the legacy
--- [[subtitle string (nil clears it and falls back to the @username line) or a
--- [[table carrying the card's host-supplied rows:
--- [[  window:SetProfile({ subtitle = "…", key = "…", tier = "PREMIUM",
--- [[    whitelist = { status = "Active", daysLeft = 14 } })
--- [[Anything not supplied reads "—" on the card; Astra holds no key or
--- [[whitelist store of its own.]]
-function Window:SetProfile(profile)
-    local data = profilePanel.setProfile(self, profile)
-    self.profileText = data and data.subtitle or nil
-    return self.profileText
-end
-
 function Window:SaveSettings()
     return persistence.saveSettings(self)
 end
@@ -1773,15 +1673,7 @@ function Window:LoadSettings()
     -- than only when the settings control is touched — otherwise a window
     -- that loaded settings would animate at whatever the last one used.]]
     self:_applyMotionSetting()
-    -- [["Reveal profile details" depends on "Show profile", and a settings]]
-    -- [[file written before that rule (or edited by hand) can carry reveal]]
-    -- [[= on with the card off. Normalise the pair on the way in, so the]]
-    -- [[card never unmasks identity data while it is hidden and the toggle]]
-    -- [[is built showing the truth.]]
-    profilePanel.syncReveal(self)
     if migrated then
-        -- [[Persist the normalized legacy profile state once. This keeps the
-        -- [[default off without overriding a deliberate choice on later boots.]]
         self:SaveSettings()
     end
     return loaded
@@ -2052,7 +1944,7 @@ function Window:_syncActionChrome(actionFrame, shown, tween)
     end
 end
 
--- [[Shared by the topbar gear action and the profile panel's gear.]]
+-- [[The topbar gear action's handler.]]
 function Window:_toggleSettingsMode()
     settingsComponent.toggleSettingsMode(self)
 end
@@ -2105,7 +1997,6 @@ function Window:_fadeSurfaces(shown, tweenInfo)
         end
     end
 
-    profilePanel.setShown(self, shown, tweenInfo)
 end
 
 function Window:_fadeSelectedElementsOut()
@@ -2269,11 +2160,10 @@ function Window:_quickRestore()
     local restore = self._restorePosition
     if not restore or (restore.X.Scale == 0.5 and restore.Y.Scale == 0.5) then
         -- [[Never dragged — or parked by a recenter that ran while the]]
-        -- [[window was hidden: come back to the pair's resting centre for]]
-        -- [[the panel state as it is *now* (the player, the viewport or the]]
-        -- [[setting may have changed since that position was recorded), so]]
-        -- [[the window and its card land centred together.]]
-        restore = self:_profileCenterPosition()
+        -- [[window was hidden: come back to the resting centre as it is]]
+        -- [[*now* (the viewport may have changed since that position was]]
+        -- [[recorded), so the window lands centred.]]
+        restore = self:_restingCenterPosition()
     end
     local targetPos = self:_clampedPosition(restore)
     self._restorePosition = targetPos
@@ -2290,7 +2180,7 @@ function Window:_quickRestore()
     self:_setTabSectionsVisible(true)
     self:_setTabSectionsShown(true)
     -- [[Same two-beat structure as the first show, on the shorter restore
-    -- [[timing: the card comes back first and the page follows it, instead of
+    -- [[timing: the shell comes back first and the page follows it, instead of
     -- [[every control on the page being rewritten on the frame the restore
     -- [[starts on.]]
     self._contentEntranceId = (self._contentEntranceId or 0) + 1
@@ -2310,9 +2200,9 @@ function Window:_quickRestore()
     self:_applySettingsLayout(self._settingsMode)
     self:_fadeSurfaces(true)
 
-    -- [[The card is back on screen with this restore, and the pair — not]]
-    -- [[the window alone — has to fit: re-clamp now that pairHalfSize can]]
-    -- [[see it (above, the panel was still hidden from the Hide).]]
+    -- [[The window is back on screen with this restore, so re-clamp now]]
+    -- [[that its full size is measurable (above it was still collapsed]]
+    -- [[from the Hide).]]
     targetPos = self:_clampedPosition(targetPos)
     self._restorePosition = targetPos
 
@@ -2375,13 +2265,11 @@ function Window:_firstShow()
 
     if self.main.Position.X.Scale == 0.5 and self.main.Position.Y.Scale == 0.5 then
         -- [[Still at the anchored resting spot (the user has not dragged]]
-        -- [[it), so centre the window + profile card pair for the panel]]
-        -- [[state as it is *now*. Between building the frame and this first]]
-        -- [[show the local player can turn up, the viewport can settle or]]
-        -- [["Show profile" can arrive from disk — any of which moves the]]
-        -- [[pair's centre — and a recenter that ran while the window was]]
-        -- [[still hidden only parked the remembered position.]]
-        self:_recenterForProfile(false)
+        -- [[it), so re-apply the resting centre as it is *now*: between]]
+        -- [[building the frame and this first show the viewport can settle,]]
+        -- [[and a recenter that ran while the window was still hidden only]]
+        -- [[parked the remembered position.]]
+        self:_recenterWindow(false)
     end
 
     self.main.Size = self.size
@@ -2641,10 +2529,9 @@ end
 -- [[The window's own background, applied to any frame: the base colour the
 -- [[WindowColor gradient is laid over, and the gradient itself (same theme
 -- [[token, rotation and offset as the frame the window is built from). The
--- [[profile card beside the window calls this too, so "the card is the window
--- [[in miniature" is enforced by construction instead of by two copies of the
--- [[same numbers that can drift apart. Returns the gradient so callers can
--- [[keep it in step with the window's own (see _syncLiveAnimation).]]
+-- [[definition is shared rather than copied, so surfaces cannot drift into
+-- [[near-miss shades of each other. Returns the gradient so callers can keep
+-- [[it in step with the window's own (see _syncLiveAnimation).]]
 function Window:StyleWindowSurface(frame): UIGradient
     frame.BackgroundColor3 = windowSurfaceColor
     return self:Create("UIGradient", {
@@ -2656,7 +2543,7 @@ function Window:StyleWindowSurface(frame): UIGradient
 end
 
 -- [[The window's own opacity once it is on screen. Kept beside the surface
--- [[style so the card can state the same value without guessing.]]
+-- [[style so callers state the same value without guessing.]]
 function Window:WindowSurfaceTransparency(): number
     return windowSurfaceTransparency
 end

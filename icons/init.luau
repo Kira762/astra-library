@@ -25,9 +25,6 @@
 
 local icons = {}
 
--- [[Raw GitHub base URL for all icons (kept for API compatibility).]]
-icons.BASE = "https://raw.githubusercontent.com/Haijo12/sisys_ididh/main"
-
 -- [[Pack priority for a bare name. Deterministic, and also the order packs]]
 -- [[load in: the search stops at the first pack that has the name, so a lucide]]
 -- [[icon never pulls in the other six tables.]]
@@ -131,7 +128,6 @@ end
 
 local namedAssets = {
     Astra = "assets/Astra.png",
-    Sirius = "assets/Sirius.png",
 }
 
 local function environment(): any
@@ -399,9 +395,9 @@ local function lookup(value: string, pack: string?): string?
         -- [[An explicit pack is exactly that: `resolve(name, "material")` and
         -- [[`window:ResolveIcon` (which passes the window's pack) answer from
         -- [[that pack or not at all. Falling back here would quietly overrule
-        -- [[the pack a host picked, and it is what the profile card's alias
-        -- [[chain relies on: a name the active pack does not have has to come
-        -- [[back unresolved so the next candidate is tried.]]
+        -- [[the pack a host picked. A caller walking a list of candidate
+        -- [[names also relies on it: a name the active pack does not have has
+        -- [[to come back unresolved so the next candidate is tried.]]
         if type(pack) ~= "string" or not packLoaders[pack] then
             warnUnknownPack(tostring(pack), value)
             return nil

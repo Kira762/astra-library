@@ -32,9 +32,10 @@ Usage example (not minified). Loads the bundle with the single-line loader — `
 ## core/
 
 ### `core/init.luau`
-- Requires `state`, `registry`, `loader` and exposes them as one table:
-  `core.state`, `core.registry`, `core.loader` (the entrypoint and
-  `components/*` consume it via `require(...core)`).
+- Requires `state` and exposes it as `core.state` (the entrypoint and
+  `components/*` consume it via `require(...core)`). The generic
+  registry/loader pair that used to sit beside it had no readers and was
+  removed.
 
 ### `core/state.luau`
 Shared runtime singletons:
@@ -46,13 +47,6 @@ Shared runtime singletons:
   `Enum.Font.BuilderSans`) + `setFallbackFont(font)`; `brandFont(weight)` —
   font resolver honoring the platform's brand font override.
 - Manager singletons: `fileSystemManager`, `assetResolver`, `fontManager`.
-
-### `core/registry.luau`
-- `a1..a3` — name→module map, lazy getter, registration list. `registerFactory` lets components override element factories.
-
-### `core/loader.luau`
-- `knownModules` — allow-list (`state`, `registry`); `loader.load(name)` requires a known core module exactly once (re-entrant guard + pcall re-throw).
-- `loader.service(name, factory)` — registers an element factory override through the registry and returns it.
 
 ---
 
@@ -68,7 +62,7 @@ Constructor/`new` locals:
 Notable instance fields set in `new`: `screenGui`, `main`, `elements`,
 `tabList`, `sidebar`, `settings` (plain table: `toggleKeybind`, `theme`,
 `mouseOverride`, `keepOnScreen`, `haptics`,
-`dragMinimisedBar`, `showProfile`, `showFullUsername`,
+`dragMinimisedBar`,
 `antiWindowDuplicate`, `layoutMode`, `activeSubTab`), `rfSettings` (the
 built-in "General" settings tab), `_settingsTabs` (settings-tab list),
 `_settingsMode` / `_previousTab` (settings-mode bookkeeping),
@@ -86,21 +80,17 @@ Method map (names preserved through minification). Settings-related:
   each tab stores a `_settingsContentBuilder` closure and
   `Window:_buildSettingsContent(tab)` runs it on the tab's first open
   (`Tab:Select`, after construction), so `CreateWindow` stays fast.
-  Appearance hosts theme picker + Bar Layout picker (both
-  popup-confirmed), the profile toggles (Show profile, Profile side
-  Right/Left, Reveal profile details — refused with a "Show profile is
-  required" notification while Show profile is off, and switched off with
-  the card when Show profile goes off) and window toggles, Reset Window
-  Position (recentres the window + card pair) and Reset Capsule Position;
+  Appearance hosts the theme picker and the Bar Layout picker (both
+  popup-confirmed), plus window toggles, Reset Window Position (recentres
+  the window) and Reset Capsule Position;
   Persistence always hosts saved-config Save/Load/Delete (independent of
   the `configuration` prop), plus default-on Auto Save Config and Auto Load
   Config toggles. Storage defaults are internal; the named-preset dropdown
   does not expose the default config filename. Auto-save writes are coalesced.
 - `settingsAction` (topbar gear, `linkedTab = rfSettings`) — toggles
   settings mode via `_toggleSettingsMode`: entering shows only settings
-  tabs and remembers the previous tab; a second click restores it. The
-  profile card no longer carries its own gear, so the topbar action is the
-  single settings entry point.
+  tabs and remembers the previous tab; a second click restores it. The topbar
+  action is the single settings entry point.
 - `_applySettingsLayout(active)` — reflows rail/elements for settings mode.
 - `SaveSettings` / `LoadSettings` — per-window settings persistence via
   `utilities.persistence` (settings JSON, includes `activeSubTab` round-trip).
@@ -115,7 +105,7 @@ Public surface:
   `components/overlayQueue.luau`)/`Popup`, `Show`/`Hide`/`ToggleHide`/`ToggleMinimise`, `Close` (animated
   close → `Unload`), `Save`/`Load`/`ListConfigs`/`DeleteConfig`/`GetPath`,
   `Get`/`Set`, `Navigate`, `SetLocale`/`SetTranslator`/
-  `RegisterTranslations`, `ResolveIcon`, `SetProfile`, `Unload`.
+  `RegisterTranslations`, `ResolveIcon`, `Unload`.
 - Lifecycle/extension helpers: `Connect`/`ConnectFor`/`Disconnect`/
   `DisconnectMany`, `DestroySubtree`/`DestroySubtrees`, `CreateGlow`,
   `CreateHoverOverlay`, `StyleElementBody`/`StyleElementPanel` (element
@@ -127,12 +117,11 @@ one control per beat, and then opens the overlay gate; `_contentEntranceId` is
 the generation that keeps a superseded entrance from touching the page, and
 `_revealElements` owns clearing `_elementsPending` for the tab it walks), `_bindTopbarDrag`/`_bindKeybind`/`_bindMouseOverride`,
 `_applyWindowSize`/`_applyRailWidth`/`_clampToScreen`/`_watchViewport`,
-`_clampedPosition` (keep-on-screen clamp — measures the window + profile-card
-pair through `profilePanel.pairHalfSize`, so neither half can be dragged off
-the edge), `_profileCenterPosition`/`_recenterForProfile` (window + profile-panel
-recentering; re-derived by `_firstShow` and `_quickRestore` while the window is
-still at its anchored resting spot, and by `ToggleMinimise`'s expand, which
-re-clamps for the card that comes back), `_setLayoutMode`, `_toggleSettingsMode`
+`_clampedPosition` (keep-on-screen clamp on the window's own half-extents),
+`_restingCenterPosition`/`_recenterWindow` (screen-centre recentering;
+re-derived by `_firstShow` and `_quickRestore` while the window is still at
+its anchored resting spot, and by `ToggleMinimise`'s expand),
+`_setLayoutMode`, `_toggleSettingsMode`
 (topbar gear), `_registerControl`/`_unregisterControl`/`_persist`,
 `_runGuarded`, `_setElementLocked`/`_buildLockScrim`, `_updateWindowTitle`.
 
@@ -157,167 +146,10 @@ Dedicated settings component providing UI generation and management for Astra's 
 Deleted. Release history now renders as a regular `elements/changelog` element; no window-scoped store, badge, or dedicated mode remains. `utilities/persistenceChangelog.luau` was deleted with it.
 
 ### `components/sidebar.luau`
-Tab-rail reflow (the profile system moved to `components/profilePanel.luau`):
-- `maskUsername(name)` — shared masking helper (first 3 chars + `****`), used by the profile panel.
+Tab-rail reflow:
+- `maskUsername(name)` — shared masking helper (first 3 chars + `****`).
 - `buildTabRail` — rail ScrollingFrame + UIPadding + UIListLayout (the layout implementations build their own rails).
 - `applyRailRows(window, width, layout)` — rows collapse only at the icon-only width (the responsive rail is often narrower than the old 219px fixed rail); ends with `tabSelector.relayoutSidebarRows`.
-
-### `components/profilePanel.luau`
-The profile panel — a compact 260x420 companion card floating beside the
-window frame (a sibling in the same ScreenGui), exactly the default window's
-height, replacing the in-window profile. Its surface is built by
-`Window:StyleWindowSurface` — the same call that builds the window frame's own
-background — so the plate takes the window's base colour, `WindowColor`
-gradient (same rotation/offset), `CornerRoundness` corners, SurfaceStroke and
-ShadowColor glow, shows at the window's own opacity (and fades with it on
-show/hide), and follows the window's live gradient animation when the theme
-turns it on. It reads as part of the shell rather than a separate card, and it
-matches the design mock's structure:
-
-- **Pinned header** — 48px avatar with a presence dot and hairline ring,
-  left-aligned display name (`TitlingColor`, 15px) over the `@username`
-  subtitle (12px, `TitlingColor` at the window's 0.7 secondary
-  transparency) and the tier pill (PREMIUM / FREEMIUM from
-  `MembershipType`, or the host's own word; it rides the handle row and
-  drops below the name only when it does not fit). A 1px divider closes
-  the header. The card carries no settings gear — the window's topbar gear
-  is the only settings entry point.
-- **Scrolling details** — `Account`, `Current Game`, `Server` and
-  `User Session` headings styled exactly like the window's Section element
-  (16px `ContentColor` icon at 0.65, 15px `ContentColor` title at 0.6)
-  over plates styled exactly like the window's element bodies
-  (`Window:StyleElementBody`: `ElementGradient` over a white body at
-  `ElementTransparency`, `ElementCornerRadius`, `ElementStroke` at
-  `ElementStrokeTransparency`): User ID (COPY), Join date, Account age,
-  Key (COPY) and Whitelist; the game thumbnail, the official game name and
-  Place ID (COPY); Players and Job ID (COPY); and the session timer.
-  Row icons/labels/values reuse the element row colours (`ContentColor`,
-  muted labels at 0.45). Only this region scrolls — the header never
-  moves, the card never grows past the window's height, and the 6px themed
-  scrollbar appears only once the content is taller than the region.
-
-- `build(window)` — builds the surface, header, detail cards and tooltip;
-  avatar with a generation guard via `images.image.avatar`; text truncated
-  at end. Mirrors `main`'s Position through property-change signals, so it
-  follows drags/restores/resizes without a per-frame loop.
-- `layout(window)` — places the fixed-size card on the selected side
-  (`settings.profileSide`, default `"right"`) flush with the window edge
-  (12px gap), vertically centred on the window's centre; re-flows the
-  scroll region (and its scrollbar thickness) whenever the window height
-  or the content changes, so the card never has to be taller than the
-  window.
-- `setShown(window, shown, info)` — effective = requested AND enabled AND
-  window visible (not hidden/minimised); fades every registered target
-  (panel pieces, text, tier pill); idempotent (skips instances already at
-  target).
-- `applyLive(window)` — the 1s Heartbeat tick while the card is shown:
-  player count (`#Players:GetPlayers()` / `MaxPlayers`), session time
-  (`os.clock()` since the panel loaded) and the whitelist countdown. The
-  connection is stored once in `window.profileRefreshConnection`.
-- `isEnabled` / `isShown` / `shiftFor` — content-enabled check
-  (`showProfile` on, player known, and the screen has horizontal room for
-  window + gap + panel plus vertical room for the card's height — a space
-  check, so landscape phones count), the same plus the window's own
-  visibility (what the on-screen clamp asks: a minimised capsule is not
-  shoved around by a card that is not there), and the off-centre shift
-  `((260 + 12) / 2 = 136px)`, 0 while the panel is off.
-- `pairHalfSize(window, width?, height?)` — how far the window + card pair
-  reaches left, right and up/down from the window's centre: the card adds
-  `width + gap` to its own side and, at 420px, can out-tall a short window.
-  Plain window halves while the card is not shown. `Window:_clampedPosition`
-  and the topbar drag both clamp with it, so "Keep window on screen" keeps
-  the card on screen too.
-- `setEnabled`, `setSide` — settings drivers (both recenter the window).
-  `setEnabled` also raises a notification when the card is switched on but
-  `hasRoom` fails, so an active toggle on a cramped viewport explains
-  itself instead of showing nothing; switching the card *off* clears the
-  reveal toggle with it (and says so), returning `revealCleared` so the
-  settings UI can roll its switch back.
-- `revealEnabled(window)` — the "Reveal profile details" toggle, still
-  persisted under the legacy `showFullUsername` key.
-- `revealAllowed` / `setReveal` / `syncReveal` — that toggle's dependency on
-  `showProfile`: it unmasks values that live on the card, so `setReveal`
-  refuses the on state while the card is off (setting stays off, card stays
-  masked, "Show profile is required" notification, `false` returned so the
-  caller rolls its switch back), and `syncReveal` normalises settings that
-  arrive from disk with reveal = on and the card off (`Window:LoadSettings`).
-- `applyIdentity(window)` — writes every identifying value on the card
-  from the local player and that toggle: display name (headline) and
-  @username (subtitle) through `sidebar.maskUsername`, user ID, place ID
-  and job ID as a fixed `••••••` block, and drives the COPY buttons
-  (registered in `window.profileCopyButtons`, each hidden while its value
-  is masked, and each refuses to copy a masked value). A successful copy
-  swaps the glyph for the success check for ~1.2s, states "Copied" on the
-  button's own label (the glyph-only button's accessible name; no hover
-  surface rides on the press), and then restores it; a
-  repeat press cancels the pending timer and restarts the window, so two
-  restores never race for one icon. An explicit
-  `Window:SetProfile` subtitle is developer copy, so the toggle leaves it
-  alone. Nil-safe on both the instances and the player; runs at the end of
-  `build`, so the card never shows an unmasked value first.
-- `applyLicense` — the host-owned key and whitelist rows. Astra ships no
-  key store of its own, so the key and whitelist come from what the host
-  handed to `Window:SetProfile` and read `—` when nothing was supplied.
-  `applyLicense` takes `{ key, tier, whitelist = { status, daysLeft |
-  expiresAt } }` (the host's table, copied, never mutated): the whitelist
-  row shows `14 days left`, `1 day left`, `Expired`, a non-"Active" status
-  spelled out, or the placeholder.
-- `cardIcon(window, name)` — every icon the card draws, resolved against the
-  window's active icon pack through a name-alias table (`iconAliases`) that
-  starts with the lucide name and lists the other packs' equivalents
-  (`badge-check` -> `check-badge` / `seal-check` / `verified_user` / `award`,
-  `copy` -> `clipboard` / `content_copy`, ...). A window built with any pack
-  therefore draws the card's icons instead of empty squares; the answer is
-  cached per window, and the default pack resolves to exactly the icons it
-  always used.
-- `tierText` / `applyTier` — the header tier pill. A host `tier` (uppercased)
-  wins; otherwise `MembershipType` decides PREMIUM vs FREEMIUM, so the pill
-  always states a real tier. PREMIUM keeps the accent crown; any other tier
-  reads in the muted placeholder colour with a badge icon, and the pill width
-  is re-measured from its own label. Both icons go through `cardIcon`, so the
-  pill states its tier with an icon on every pack.
-- `flashCopied(window, name)` / `setCopyStatus` — copy feedback: the row's
-  copy icon becomes a green (`Success`) check for ~1.2s and then returns to
-  the copy icon, while the button's own label says what it
-  copies ("Copy Job ID") and "Copied" while the check is up. A repeat click
-  cancels the pending timer and restarts the window (so two restores never
-  race for one icon) and a rebuilt card is ignored. The copy itself goes
-  through the executor's clipboard entry point (`setclipboard` and the common
-  aliases), so a missing/failing function means no feedback rather than a
-  false success.
-- `fetchUniverseId` / `resolveUniverseId` / `fetchGameName` — the official
-  two-step game-name flow: `apis.roblox.com/universes/v1/places/{PlaceId}/
-  universe` converts the place to its universe, then
-  `games.roblox.com/v1/games?universeIds={UniverseId}` answers the game
-  detail list whose matching entry's `name` is the game name. Cached per
-  place and queued while in flight; `resolveUniverseId` prefers
-  `DataModel.GameId` and also feeds the thumbnail fetch, and the label keeps
-  `DataModel.Name` until the platform answers.
-- `setProfile` / `setSubtitle` / `refreshName` — `Window:SetProfile`
-  accepts a string or `nil` (legacy: swaps only the subtitle line and
-  leaves the host's key/tier/whitelist rows alone), or a table
-  (`{ subtitle, key, tier, whitelist }`; omitted fields clear their rows).
-  `refreshName` is kept as an alias for `applyIdentity`.
-- `showTooltip` / `hideTooltip` — the card's own hover-help for values
-  that do not fit their row (measured with `functions.textWidth`), for the
-  display name and for the game name, shown on the card surface so the
-  scroll region never clips it. The label stacks above the surface itself
-  (`ZIndex` 11 over the surface's 10) because the window's ScreenGui stacks
-  by global z-index; copy buttons deliberately raise no tooltip of their
-  own — the glyph and the green check are the whole press feedback.
-
-The window rests off-centre so window + gap + panel are centred as one unit
-(`Window:_profileCenterPosition` / `Window:_recenterForProfile`): with the
-panel on the right the window sits 136px left of screen centre, and
-vice-versa. The resting centre is re-derived whenever the pair's state can
-have changed while nothing was on screen to move — `_firstShow` (a player
-turning up between the build and the first show), `_quickRestore` (a recenter
-that ran while hidden only parks `_restorePosition`) and `_applyWindowSize`
-(viewport changes) — but only while the window is still at its anchored
-`0.5/0.5` spot, so a position the user dragged to is never overridden
-(Reset Window Position recentres the pair on purpose). The panel hides when
-the screen lacks room for the pair (portrait phones) and with
-hide/minimise/close.
 
 ### `components/drag.luau` (the detached drag handle)
 - `Drag.new(window)` — builds the handle under the window: an 80x16 invisible
@@ -503,9 +335,6 @@ Per-element specifics:
   entry per setting. Keys: `toggleKeybind` (keybind/behavior),
   `mouseOverride` (boolean/behavior), `keepOnScreen` (boolean/appearance),
   `haptics` (boolean/performance),
-  `showProfile` (boolean/appearance), `showFullUsername` (boolean/appearance —
-  documented as requiring `showProfile`, the rule `profilePanel.setReveal`
-  enforces),
   `antiWindowDuplicate` (boolean/behavior), `layoutMode` (enum/appearance),
   `activeSubTab` (enum/appearance — persisted, retained for compatibility
   with the pre-rebuild sub-tab UI). Lookup: `registry.definition(key)`,
@@ -549,7 +378,7 @@ Per-element specifics:
   `(failedCount, failedRoles)`; `rewrites`/`onBlock`/`pending` — URL
   rewrites, blocklist hook, in-flight tracking.
 - `windowIcons.luau` — asset-id registry for built-in chrome icons (settings,
-  close, minimize, profile placeholder, …).
+  close, minimize, …).
 - `cache/imageCache.luau` — disk/memory cache; `pcall(callback, uri or "")` at the end of the retry chain.
 - `cache/moduleCache.luau`, `persistenceCache.luau`, `init.luau` — generic memoization layers.
 
@@ -602,7 +431,7 @@ Per-element specifics:
 
 ## utilities/ (selected)
 
-- `constants.luau` — static constants incl. `icons` map (with `profileAvatarPlaceholder`).
+- `constants.luau` — static constants incl. the `icons` map re-exported from `images/windowIcons.luau`.
 - `motion.luau` — the library's animation service: named `TweenInfo` specs
   created once (`instant`, `fast`, `snappy`, `normal`, `smooth`, `emphasized`,
   `pop`, `glide`, `exit`, `spring`, `settle`, `spin`, `drift` — entrances
@@ -644,9 +473,8 @@ Per-element specifics:
 |---|---|
 | `generate_bundle.js` | Rebuilds `version-1.luau` from the modular tree. |
 | `check_requires.py` | Static require graph: every module resolves, no cycles. |
-| `check_instance_fields.py` | Fails on custom-field writes on instances (the `_profileGeneration` crash class). |
+| `check_instance_fields.py` | Fails on custom-field writes on instances (the crash class that came from writing bookkeeping fields onto Instances). |
 | `check_syntax.sh` | Compiles every published file (modular tree, `example.client.luau`, `version-1.luau`). A syntax error in a loadstring'd bundle is invisible to the user — it only shows up as `attempt to call a nil value` at line 1 of the executor's chunk — so this is the gate that catches it here. |
-| `profile_{compact,centering,reveal,details}_test.sh` | Profile card suites: geometry/visibility, window-pair centring, the reveal toggle, and the redesigned card (tokens, pinned header + scrolling, live server/session values, license rows, tooltip, no-player case). |
 | `sidebar_tab_sizing_test.sh`, `smoke_test_bundle.sh` | Rail sizing (name-driven width, cap, restore) and a bundle smoke run; also the collapsed rail: rows are icon-only (title hidden, content centred, no expanded padding) whether they were collapsed in place, rebuilt by a layout switch, or created while the rail was already icon-only, and a capped title re-constrains after that rebuild. |
 | `collapsible_group_test.sh` | Collapsible groups: every declarative element type, state/callbacks, the connected-card geometry and surface recipe, and the corner treatment (band's top arcs matching the container, body clipper's bottom arcs). |
 | `instance_budget_test.sh` | Per-element instance ceilings plus a realistic-page budget — the frame-time proxy guard. |

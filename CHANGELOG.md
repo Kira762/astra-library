@@ -2,6 +2,82 @@
 
 All notable changes to Astra v1. Dates use 2026.
 
+## 2026-09-20 — Discord push notification rebuilt
+
+The `discord-notify` workflow posts a new embed, and the jq program that builds
+it moved out of the workflow YAML into a file that can be read, run and tested.
+
+- **The green accent bar is gone.** The embed was hard-coded to
+  `color: 3055683` (`#2EA043`, GitHub's green), which drew a stripe down the
+  left edge of every message. It is now `2829617` (`#2B2D31`) — Discord's own
+  dark-theme embed background, so the bar blends into the message instead of
+  outlining it. The colour is a repository variable,
+  `DISCORD_EMBED_COLOR`, for a channel on Discord's light theme (`15922165`,
+  `#F2F3F5`); an unreadable value falls back to the neutral default rather than
+  producing a payload Discord rejects.
+- **Five fields became three, and they sit on one row.** `Repository` and
+  `Author` were doing jobs the embed already does: the repository is now the
+  `author` line (with its avatar, linked to the repo) and the person who pushed
+  is the footer beside the timestamp. What is left — `Branch` (or `Tag`),
+  `Commit`, `Files` — is inline, so it renders as a single row instead of the
+  two-and-a-half rows the old layout wrapped to.
+- **The description is a commit log, not one message.** It listed the head
+  commit's message in full and repeated every commit again in a
+  `Commits in this push` field. Now it lists each commit once —
+  `` [`a1b2c3d`](url) subject — author ``, one line each, capped at 3000
+  characters with an explicit `… and N more commit(s) — open the compare link
+  above.` when they do not fit. The trade: a commit *body* is no longer sent,
+  only its first line (up to 300 characters for a single-commit push, 140
+  otherwise); the compare link the title now points at carries the rest.
+- **The title says what happened to the ref**, from `created` / `deleted` /
+  `forced` and the `refs/heads` vs `refs/tags` prefix: `Pushed 3 commits to
+  main`, `Created branch x with 2 commits`, `Force-pushed 2 commits to main`,
+  `Published tag v1.2.0`, `Deleted branch x`, `Updated branch x` for a push with
+  no commits. It links to the compare view, which the event already supplies,
+  and an all-zero `after` (a branch deletion) is no longer treated as a SHA.
+- **A new `Files` field** counts the file churn the push payload already lists
+  per commit — `5 files · 1 added · 1 deleted` — from unique paths, so a file
+  touched by three commits counts once and a path added and removed in the same
+  push counts as neither. It is omitted when the push has no commits.
+- **The builder is `.github/scripts/discord-embed.jq`** (269 lines) and the
+  sender is `.github/scripts/discord-notify.sh`; the workflow is 27 lines of
+  checkout-and-run where it was 203 with the jq program pasted inside a YAML
+  block scalar. `discord-notify.sh` checks its inputs, refuses a URL that is not
+  a `https://discord.com/api/webhooks/…` address unless
+  `DISCORD_ALLOW_ANY_WEBHOOK_URL=1` is set (a typo cannot quietly ship commit
+  messages somewhere else), posts the payload from a file, and on a non-2xx
+  prints the status and Discord's response body — `--fail` was throwing that
+  explanation away.
+- **A missing secret no longer fails the push.** An unconfigured
+  `DISCORD_WEBHOOK_URL` used to exit 1 and put a red cross on every push; it now
+  says why and exits 0, because the notification is decoration, not the build.
+- **`scripts/discord_notify_test.sh` (483 lines, 91 checks)** is the first suite
+  in the folder that needs no Luau toolchain — just `jq`, with `curl` stubbed so
+  nothing reaches the network. It covers the layout and the colour, every
+  Discord size limit and the absence of `null` values across ten fixture
+  events (normal, single-commit, tag, branch creation, branch deletion, force
+  push, empty push, 40-commit push, an event that is `{}`, and one whose commit
+  message carries quotes, backslashes, Markdown links, an emoji and a
+  500-character subject), the colour override, and the sender end to end:
+  posted payload, refused URL,
+  opt-out, missing secret, bad colour, and a 400 with Discord's body printed.
+  `scripts/check_all.sh` picks it up through its existing `scripts/*_test.sh`
+  loop.
+
+Files: `.github/scripts/discord-embed.jq` (new),
+`.github/scripts/discord-notify.sh` (new),
+`.github/workflows/discord-notify.yml`, `scripts/discord_notify_test.sh` (new),
+`CHANGELOG.md`.
+
+Verification: `sh scripts/check_all.sh` — **ALL CHECKS PASSED**: 109 files and
+367 require edges with no cycles, the bundle matches the source tree, 115 files
+compile, and 27 runtime suites pass (26 existing plus `discord_notify_test`).
+The embed assertions were checked against the payload the old builder produced
+for the same event, and the suite was confirmed to fail on purpose when the
+neutral colour was put back to green, when the URL guard was removed, and when
+the log cap was raised past Discord's description limit. No `.luau` file
+changed, so `version-1.luau` is untouched.
+
 ## 2026-09-19 — Profile card removed
 
 The profile card — the 260x420 companion panel that floated beside the window —

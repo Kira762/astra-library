@@ -17,6 +17,11 @@ local Constants = require(script.Parent.utilities.constants)
 local Icons = require(script.Parent.icons)
 local Motion = require(script.Parent.utilities.motion)
 local Settings = require(script.Parent.settings)
+-- [[Binds the `types` name used by every `types.X` annotation below. Types.luau
+-- [[is a sibling of the entrypoint in both mounts (`script.Parent.Types` in the
+-- [[Rojo/wax tree and in the generated bundle), and it returns an empty table,
+-- [[so this require exists only to give the type checker a name to resolve.]]
+local types = require(script.Parent.Types)
 
 export type Theme = types.Theme
 export type Translator = types.Translator
@@ -282,7 +287,7 @@ export type WindowProps = {
     icon: (string | number)?,
     showName: string?,
     showIcon: (string | number)?,
-    showIconOnly: boolean?,     profile: string?,     configuration: WindowConfiguration?,
+    showIconOnly: boolean?,     configuration: WindowConfiguration?,
     fallbackFont: (Font | Enum.Font)?,     locale: string?,     translations: Translations?,     translator: Translator?, }
 
 export type TabProps = {
@@ -623,101 +628,22 @@ export type Astra = {
 return {}
 
 end)() end,
-    [8] = function()local wax,script,require=ImportGlobals(8)local ImportGlobals return (function(...)
+    [6] = function()local wax,script,require=ImportGlobals(6)local ImportGlobals return (function(...)
+-- [[The `core` service surface. `state` is the only module anything consumes:
+-- [[the entrypoint and `components/*` read `core.state` for the shared runtime
+-- [[singletons. The generic registry/loader pair that used to sit beside it had
+-- [[no readers (`registry.get` was never called, so `loader.service` registered
+-- [[overrides nothing could look up) and was removed.]]
 local state = require(script.state)
-local registry = require(script.registry)
-local loader = require(script.loader)
 
 local core = {
     state = state,
-    registry = registry,
-    loader = loader,
 }
 
 return core
 
 end)() end,
     [5] = function()local wax,script,require=ImportGlobals(5)local ImportGlobals return (function(...)
-local loader = {}
-
-local loading: { [string]: boolean } = {}
-
-local knownModules = {
-	state = true,
-	registry = true,
-}
-
-function loader.load(name: string)
-	assert(knownModules[name], "Astra core loader: unknown module '" .. tostring(name) .. "'")
-	if loading[name] then
-		return nil
-	end
-	loading[name] = true
-	local ok, result = pcall(function()
-		return require((script :: any).Parent[name])
-	end)
-	loading[name] = nil
-	if not ok then
-		error(result, 0)
-	end
-	return result
-end
-
-function loader.service(name: string, factory: () -> any)
-	local reg = loader.load("registry")
-	reg.registerFactory(name, factory)
-	return reg
-end
-
-return loader
-
-end)() end,
-    [6] = function()local wax,script,require=ImportGlobals(6)local ImportGlobals return (function(...)
-local registry = {}
-
-local modules: { [string]: any } = {}
-local factories: { [string]: () -> any } = {}
-
-function registry.register(name: string, module: any)
-	modules[name] = module
-end
-
-function registry.registerFactory(name: string, factory: () -> any)
-	factories[name] = factory
-end
-
-function registry.get(name: string): any?
-	local cached = modules[name]
-	if cached ~= nil then
-		return cached
-	end
-	local factory = factories[name]
-	if factory then
-		local instance = factory()
-		modules[name] = instance
-		return instance
-	end
-	return nil
-end
-
-function registry.names(): { string }
-	local list = {}
-	for name in modules do
-		table.insert(list, name)
-	end
-	for name in factories do
-		if modules[name] == nil then
-			table.insert(list, name)
-		end
-	end
-	table.sort(list)
-	return list
-end
-
-return registry
-
-end)() end,
-    [7] = function()local wax,script,require=ImportGlobals(7)local ImportGlobals return (function(...)
 local services = require(script.Parent.Parent.utilities.services)
 local constants = require(script.Parent.Parent.utilities.constants)
 local log = require(script.Parent.Parent.utilities.log)
@@ -834,7 +760,7 @@ end
 return state
 
 end)() end,
-    [9] = function()local wax,script,require=ImportGlobals(9)local ImportGlobals return (function(...)
+    [7] = function()local wax,script,require=ImportGlobals(7)local ImportGlobals return (function(...)
 local Action = {}
 Action.__index = Action
 Action.__type = "Action"
@@ -967,7 +893,7 @@ end
 return Action
 
 end)() end,
-    [10] = function()local wax,script,require=ImportGlobals(10)local ImportGlobals return (function(...)
+    [8] = function()local wax,script,require=ImportGlobals(8)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local state = require(utilities.Parent.core.state)
 local motion = require(utilities.motion)
@@ -995,7 +921,7 @@ function chrome.buildCollapsedFace(window)
         Parent = window.main,
     }, { ImageColor3 = "TitlingColor" })
 
-    -- [[Gen2: PillCornerRadius drives tab pills and the collapsed capsule icon.]]
+    -- [[PillCornerRadius drives tab pills and the collapsed capsule icon.]]
     window:Create("UICorner", {
         Parent = window.collapsedIcon,
     }, { CornerRadius = "PillCornerRadius" })
@@ -1206,7 +1132,7 @@ end
 return chrome
 
 end)() end,
-    [11] = function()local wax,script,require=ImportGlobals(11)local ImportGlobals return (function(...)
+    [9] = function()local wax,script,require=ImportGlobals(9)local ImportGlobals return (function(...)
 local Drag = {}
 Drag.__index = Drag
 Drag.__type = "Drag"
@@ -1552,7 +1478,7 @@ end
 return Drag
 
 end)() end,
-    [12] = function()local wax,script,require=ImportGlobals(12)local ImportGlobals return (function(...)
+    [10] = function()local wax,script,require=ImportGlobals(10)local ImportGlobals return (function(...)
 local Notification = {}
 Notification.__index = Notification
 Notification.__type = "Notification"
@@ -1904,7 +1830,7 @@ end
 return Notification
 
 end)() end,
-    [13] = function()local wax,script,require=ImportGlobals(13)local ImportGlobals return (function(...)
+    [11] = function()local wax,script,require=ImportGlobals(11)local ImportGlobals return (function(...)
 -- [[Astra overlay entrance queue.
 --
 -- Notifications are the cheapest thing in the interface to look at
@@ -2192,7 +2118,7 @@ end
 return OverlayQueue
 
 end)() end,
-    [14] = function()local wax,script,require=ImportGlobals(14)local ImportGlobals return (function(...)
+    [12] = function()local wax,script,require=ImportGlobals(12)local ImportGlobals return (function(...)
 local Popup = {}
 Popup.__index = Popup
 Popup.__type = "Popup"
@@ -2913,2438 +2839,7 @@ end
 return Popup
 
 end)() end,
-    [15] = function()local wax,script,require=ImportGlobals(15)local ImportGlobals return (function(...)
-local utilities = script.Parent.Parent.utilities
-local state = require(utilities.Parent.core.state)
-local motion = require(utilities.motion)
-local services = require(utilities.services)
-local image = require(script.Parent.Parent.images.image)
-local functions = require(script.Parent.Parent.functions)
-local locale = require(utilities.locale)
-local sidebar = require(script.Parent.sidebar)
-local network = require(utilities.network)
-
--- [[The profile panel lives OUTSIDE the window frame, beside it: a companion]]
--- [[card whose height always matches the current window height. The window and]]
--- [[the panel are centred on screen as a single unit, so the window sits half a]]
--- [[panel (width + gap) away from the screen centre, on the opposite side of]]
--- [[the panel.]]
--- [[
---   Visual language: the card is the window, in miniature. Its surface is the
---   window frame's own (WindowColor gradient, CornerRoundness, hairline
---   SurfaceStroke, ShadowColor glow); every section plate is a window element
---   body (Window:StyleElementBody — ElementGradient over ElementTransparency,
---   ElementCornerRadius, ElementStroke at ElementStrokeTransparency); every
---   heading is a window Section title (16px ContentColor icon at 0.65 beside
---   a 15px ContentColor label at 0.6); every row reuses the element row
---   colours (ContentColor icons and values, muted ContentColor labels) and
---   the brand Font. Nothing here introduces a colour, radius, gradient or
---   shadow the rest of Astra does not already use.
---
---   Layout, top to bottom:
---     header   avatar (with its presence dot) on the left; display name,
---              @username and the tier pill (PREMIUM / FREEMIUM, or the host's
---              own word) beside it. The header is pinned — it never scrolls.
---     divider  one hairline rule, inset by the card padding.
---     details  a vertically scrolling column of sections, each a window-style
---              section heading above an element-style plate of compact
---              label/value rows:
---                Account       user ID (+ COPY), account created, elapsed time,
---                              key (+ COPY), whitelist
---                Current Game  thumbnail, game name, place ID (+ COPY)
---                Server        players, job ID (+ COPY)
---                User Session  time in server
---
---   Every plate, heading, row and pill on the card is styled with the very
---   same theme tokens the window and its elements use — nothing here
---   introduces a colour, radius, gradient or transparency of its own.
---
---   Every value is bound to a real source (see the DATA section below) and
---   falls back to a neutral "—" when the source is unavailable. Nothing on the
---   card is fabricated, and values the app treats as identifying stay masked
---   until "Reveal profile details" is on. The game name comes from Roblox's
---   official two-step API (place id -> universe id -> games list), falling
---   back to the DataModel's own name while the request is in flight or when
---   the executor exposes no request function.
--- ]]
-
-local profilePanel = {}
-
-profilePanel.width = 260
-profilePanel.gap = 12
-
--- [[Card metrics. Kept in lockstep with the layout code below; the scroll
--- [[region is the only part of the card that grows with content.]]
-local avatarSize = 48
-local avatarTop = 12
-local paddingX = 12
-local headerHeight = 74
-local dividerHeight = 1
-local scrollPaddingTop = 12
-local scrollPaddingBottom = 16
-local sectionGap = 12
--- [[Heading metrics mirror the window's Section element: a 16px icon beside a]]
--- [[16px-tall title row, both in ContentColor at the section's own]]
--- [[transparencies (title 0.6, icon 0.65).]]
-local headingHeight = 16
-local headingGap = 8
-local headingIconSize = 16
-local headingIconGap = 6
-local cardPaddingX = 10
-local cardPaddingY = 10
-local rowHeight = 18
-local rowGap = 6
-local rowIconSize = 14
-local labelWidth = 92
-local actionSize = 16
-local actionInset = actionSize + 6
-local gameThumbnailSize = 40
-local tooltipHeight = 32
-local scrollBarThickness = 6
-local scrollBarTransparency = 0.8
-local refreshInterval = 1
--- [[How long a copy action keeps its green check before the copy icon]]
--- [[returns.]]
-local copyFlashDuration = 1.2
--- [[Copy button wording: the idle label is built from the row's own name]]
--- [[("Copy " .. "Job ID"), the confirmation stands alone ("Copied"). Both go]]
--- [[through locale.resolve, so a host can translate them by their source]]
--- [[strings like every other line on the card.]]
-local copyLabelPrefix = "Copy "
-local copiedLabel = "Copied"
--- [[Tier pill box: measured from its own label so any tier word fits.]]
-local tierHeight = 16
-local tierPaddingLeft = 6
-local tierPaddingRight = 7
-local tierIconSize = 10
-local tierGap = 4
-
--- [[Neutral placeholder for a value the application cannot supply. Never a
--- [[made-up number: "—" reads as "no data" in every locale.]]
-local fallbackValue = "—"
-
--- [[Placeholder shown in place of an identifier while the reveal toggle is
--- [[off: a fixed-width block, so neither the value nor its length leaks. Names
--- [[keep the sidebar mask ("Tes****") instead.]]
-local maskedId = "••••••"
-local maskedKey = "••••••••"
-
-local nameTransparency = 0
--- [[The window's own secondary-text transparency (the topbar subtitle fades]]
--- [[to 0.7), reused for the card's @username line.]]
-local subtitleTransparency = 0.7
-local labelTransparency = 0.45
--- [[Section title / icon transparencies, taken from the Section element's]]
--- [[reveal values so headings read exactly like the window's own.]]
-local headingTransparency = 0.6
-local iconTransparency = 0.65
-local avatarBgTransparency = 0.95
-local idleStrokeTransparency = 0.95
-local glowTransparency = 0.6
-
-local settleTween, hoverTween = "snappy", "fast"
-
-local fallbackUri = "rbxassetid://0"
-
-profilePanel.settleSpec = settleTween
-
-local buildGeneration = 0
-
-local avatarGenerations = setmetatable({}, { __mode = "k" })
-local avatarReady = setmetatable({}, { __mode = "k" })
-local gameThumbnailGenerations = setmetatable({}, { __mode = "k" })
-
-local edgeMargin = 8
-
--- [[Effective card height: derived from the current window height so the]]
--- [[card never exceeds the window. At the default 420px window height the]]
--- [[card is exactly 420px; at other responsive sizes it matches the window.]]
-function profilePanel.effectiveHeight(window): number
-    if not window or not window.size then
-        return 420
-    end
-    local windowH = window.size.Y.Offset
-    if type(windowH) ~= "number" or windowH <= 0 then
-        return 420
-    end
-    return windowH
-end
-
-local function currentCardHeight(window): number
-    return profilePanel.effectiveHeight(window)
-end
-
-local function hasRoom(window): boolean
-    local camera = state.workspace.CurrentCamera
-    local viewport = camera and camera.ViewportSize
-    if not viewport then
-        return true
-    end
-    if viewport.X < window.size.X.Offset + profilePanel.gap + profilePanel.width + edgeMargin * 2 then
-        return false
-    end
-    local cardH = currentCardHeight(window)
-    return viewport.Y >= cardH + edgeMargin * 2
-end
-
--- [[The panel is "enabled" when its content should exist at all: the user]]
--- [[toggled it on, the player is known, and the screen has room. Window]]
--- [[visibility (hidden/minimised) layers on top in setShown.]]
-function profilePanel.isEnabled(window): boolean
-    return window.settings.showProfile
-        and state.localPlayer ~= nil
-        and hasRoom(window)
-end
-
--- [[How far the window rests off the screen centre so that the]]
--- [[window + gap + panel pair is centred (0 while the panel is off).]]
-function profilePanel.shiftFor(window): number
-    if not profilePanel.isEnabled(window) then
-        return 0
-    end
-    return (profilePanel.width + profilePanel.gap) / 2
-end
-
--- [[Is the card on screen right now? `isEnabled` answers "should its]]
--- [[content exist" (setting + player + room); this adds the window's own]]
--- [[visibility, which is what the on-screen clamp cares about — a]]
--- [[minimised capsule must not be shoved around by a card that is not]]
--- [[there.]]
-function profilePanel.isShown(window): boolean
-    local panel = window.profilePanel
-    return panel ~= nil and panel.Visible == true
-end
-
--- [[Half-extents of the window + card pair, measured from the window's]]
--- [[centre: how far the pair reaches left, right and up/down. The card]]
--- [[height matches the window height, so vertical half-extent is simply]]
--- [[the window half. Returns the plain window halves while the card is not shown.]]
--- [[`width` / `height` override the window size for callers mid-animation (the drag]]
--- [[path measures the frame, which is smaller while minimised).]]
-function profilePanel.pairHalfSize(window, width: number?, height: number?)
-    local size = window.size
-    local halfW = (width or size.X.Offset) / 2
-    local halfH = (height or size.Y.Offset) / 2
-    if not profilePanel.isShown(window) then
-        return halfW, halfW, halfH
-    end
-    local extra = profilePanel.width + profilePanel.gap
-    local left = (window.settings.profileSide or "right") == "left"
-    local cardH = if height then height else currentCardHeight(window)
-    local pairHalfH = math.max(halfH, cardH / 2)
-    if left then
-        return halfW + extra, halfW, pairHalfH
-    end
-    return halfW, halfW + extra, pairHalfH
-end
-
--- [[The "Reveal profile details" toggle (persisted under the legacy]]
--- [[`showFullUsername` key). Off = every identifying value on the card is]]
--- [[masked; on = display name, username, user ID, place ID, job ID and]]
--- [[license key show in full.]]
-function profilePanel.revealEnabled(window): boolean
-    return window.settings.showFullUsername == true
-end
-
--- [[The reveal toggle's prerequisite: it unmasks values that live ON the]]
--- [[card, so it is only meaningful while "Show profile" is on. Leaving it]]
--- [[active with the card off would silently unmask identity data the moment]]
--- [[the card came back, so the dependency is enforced rather than implied.]]
-function profilePanel.revealAllowed(window): boolean
-    return window.settings.showProfile == true
-end
-
--- [[Driver for the "Reveal profile details" toggle. Refuses the on state]]
--- [[while "Show profile" is off: the setting stays off, the card stays]]
--- [[masked, and a notification says what is required first. Returns whether]]
--- [[the requested value was accepted, so the caller can roll its own switch]]
--- [[back to match.]]
-function profilePanel.setReveal(window, enabled): boolean
-    local want = enabled == true
-    if want and not profilePanel.revealAllowed(window) then
-        window.settings.showFullUsername = false
-        profilePanel.applyIdentity(window)
-        profilePanel.applyLive(window)
-        window:Notify({
-            title = locale.resolve("Show profile is required"),
-            content = locale.resolve(
-                "Turn on \"Show profile\" first. Profile details can only be revealed while the profile card is visible."
-            ),
-        })
-        return false
-    end
-    window.settings.showFullUsername = want
-    profilePanel.applyIdentity(window)
-    profilePanel.applyLive(window)
-    return true
-end
-
--- [[Dependency normalisation for settings that arrive from somewhere other]]
--- [[than the toggle: a config saved before the rule existed (or edited by]]
--- [[hand) can carry reveal = on with the card off. Returns true when]]
--- [[something had to be corrected, so callers can resync a switch.]]
-function profilePanel.syncReveal(window): boolean
-    if window.settings.showFullUsername ~= true or profilePanel.revealAllowed(window) then
-        return false
-    end
-    window.settings.showFullUsername = false
-    profilePanel.applyIdentity(window)
-    return true
-end
-
--- =========================================================================
--- Formatting helpers
--- =========================================================================
-
--- [[Write a label's text only when it actually changes: the live refresh runs
--- [[every second, and touching a Text property repaints the tree.]]
-local function setText(label, text)
-    if label and label.Text ~= text then
-        label.Text = text
-    end
-end
-
--- [[Compact duration notation: "8s", "47m 12s", "2h 34m", "3d 4h". Used for]]
--- [[the current session; a missing/negative source is the neutral]]
--- [[placeholder, never a zero that would read as real.]]
-local function formatDuration(seconds: number?): string
-    if type(seconds) ~= "number" or seconds ~= seconds or seconds < 0 then
-        return fallbackValue
-    end
-    local total = math.floor(seconds)
-    local days = math.floor(total / 86400)
-    local hours = math.floor(total % 86400 / 3600)
-    local minutes = math.floor(total % 3600 / 60)
-    local secs = total % 60
-    if days > 0 then
-        return `{days}d {hours}h`
-    end
-    if hours > 0 then
-        return `{hours}h {minutes}m`
-    end
-    if minutes > 0 then
-        return `{minutes}m {secs}s`
-    end
-    return `{secs}s`
-end
-
-local monthNames = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" }
-
--- [[Civil date from a Unix timestamp without relying on os.date, which some
--- [[executor sandboxes strip (Howard Hinnant's days-from-civil algorithm).]]
-local function civilDate(daysSinceEpoch: number): (number, number, number)
-    local z = daysSinceEpoch + 719468
-    local era = math.floor(z / 146097)
-    local doe = z - era * 146097
-    local yoe = math.floor((doe - math.floor(doe / 1460) + math.floor(doe / 36524) - math.floor(doe / 146096)) / 365)
-    local y = yoe + era * 400
-    local doy = doe - (365 * yoe + math.floor(yoe / 4) - math.floor(yoe / 100))
-    local mp = math.floor((5 * doy + 2) / 153)
-    local d = doy - math.floor((153 * mp + 2) / 5) + 1
-    local m = mp + (if mp < 10 then 3 else -9)
-    y += (if m <= 2 then 1 else 0)
-    return y, m, d
-end
-
-local function formatDate(unixSeconds: number?): string
-    if type(unixSeconds) ~= "number" or unixSeconds <= 0 then
-        return fallbackValue
-    end
-    local ok, y, m, d = pcall(function()
-        return civilDate(math.floor(unixSeconds / 86400))
-    end)
-    if not ok or type(y) ~= "number" then
-        return fallbackValue
-    end
-    local month = monthNames[m]
-    if not month then
-        return fallbackValue
-    end
-    return `{d} {month} {y}`
-end
-
--- Elapsed time since creation, in the largest useful unit.
-local function formatAccountAge(seconds: number?): string
-    if type(seconds) ~= "number" or seconds ~= seconds or seconds < 0 then
-        return fallbackValue
-    end
-    for _, unit in { { 31557600, "year" }, { 2629800, "month" }, { 86400, "day" }, { 3600, "hour" } } do
-        local count = math.floor(seconds / unit[1])
-        if count >= 1 then
-            return `{count} {unit[2]}{if count == 1 then "" else "s"} ago`
-        end
-    end
-    return "Less than an hour ago"
-end
-
-local function nowSeconds(): number?
-    local ok, value = pcall(function()
-        return os.time()
-    end)
-    if ok and type(value) == "number" then
-        return value
-    end
-    return nil
-end
-
--- =========================================================================
--- Card icons
--- =========================================================================
--- [[Every icon the card draws, written as the lucide name (the library's
--- [[default pack) followed by the names the other packs ship for the same
--- [[idea. A window created with tabler / phosphor / heroicons / feather /
--- [[material therefore draws the card's icons as well, instead of leaving an
--- [[empty square wherever the backend pack does not carry the lucide name —
--- [[which is exactly what the tier pill used to do: its badge is a lucide-only
--- [[name, so FREEMIUM showed a word with no icon beside it and the pill's
--- [[crown vanished the same way on the packs without one.
--- [[The first name the active pack really has wins, and because every list
--- [[starts with the lucide name the default pack keeps the exact icon it had
--- [[before this table existed.]]
-local iconAliases = {
-    ["id-card"] = {
-        "id-card",
-        "id-badge",
-        "identification-card",
-        "identification-badge",
-        "identification",
-        "credit-card",
-        "account_box",
-        "user-square",
-    },
-    ["calendar-days"] = { "calendar-days", "calendar", "date_range", "calendar_month", "calendar-today" },
-    hourglass = { "hourglass", "hourglass-empty", "hourglass_empty", "timer", "clock" },
-    ["key-round"] = { "key-round", "key", "vpn_key", "keyhole", "lock" },
-    ["shield-check"] = { "shield-check", "verified_user", "security", "shield" },
-    ["user-round"] = { "user-round", "user", "person", "account_circle", "account-box" },
-    ["gamepad-2"] = {
-        "gamepad-2",
-        "gamepad",
-        "device-gamepad-2",
-        "device-gamepad",
-        "game-controller",
-        "sports_esports",
-        "cube",
-        "globe",
-    },
-    users = { "users", "users-alt", "user-group", "group", "people", "person" },
-    server = { "server", "dns", "database", "storage", "hard-drive", "cloud" },
-    activity = { "activity", "pulse", "bolt", "timeline", "show_chart", "history" },
-    clock = { "clock", "access_time", "schedule", "timer" },
-    -- [[Tier pill: the crown for a paid membership, a badge for a free one.]]
-    crown = { "crown", "star", "award", "medal" },
-    ["badge-check"] = {
-        "badge-check",
-        "check-badge",
-        "seal-check",
-        "verified_user",
-        "badge",
-        "award",
-        "star",
-    },
-    -- [[Copy actions: the copy glyph and the check it flashes on success.]]
-    copy = { "copy", "content_copy", "clipboard", "clipboard-copy", "file_copy", "document-duplicate" },
-    check = { "check", "done", "circle-check", "check-circle" },
-}
-
--- [[Resolve one of those names against the window's active pack. The resolver
--- [[hands an unknown name straight back, so the first candidate that comes
--- [[back changed is the one the pack actually ships; the answer is cached per
--- [[window because a window's pack never changes.]]
-local function cardIcon(window, name: string): string?
-    local cache = window.profileIconCache
-    if not cache then
-        cache = {}
-        window.profileIconCache = cache
-    end
-    local cached = cache[name]
-    if cached ~= nil then
-        return cached
-    end
-    local resolved = nil
-    for _, candidate in iconAliases[name] or { name } do
-        local value = window:ResolveIcon(candidate)
-        if type(value) == "string" and value ~= "" and value ~= candidate then
-            resolved = value
-            break
-        end
-    end
-    resolved = resolved or window:ResolveIcon(name)
-    cache[name] = resolved
-    return resolved
-end
-
--- =========================================================================
--- Data sources
--- =========================================================================
--- [[Every value on the card comes from one of these, with a neutral fallback]]
--- [[when the source is unavailable.
---
---   display name / username / user ID  Players.LocalPlayer
---   tier pill                          the host's `tier` from
---                                      Window:SetProfile, else
---                                      LocalPlayer.MembershipType
---                                      (PREMIUM / FREEMIUM)
---   account created / elapsed time     users.roblox.com creation timestamp
---                                      (AccountAge gives an approximate elapsed fallback)
---   game name                          Roblox's official two-step API:
---                                      place id -> universe id -> the games
---                                      list's "name" (DataModel.Name until
---                                      the request answers)
---   place ID                           DataModel.PlaceId
---   game thumbnail                     thumbnails.roblox.com (universe id)
---   players                            Players:GetPlayers() / Players.MaxPlayers
---   job ID                             DataModel.JobId
---   session time                       os.clock() since the client loaded
---   key / whitelist                    supplied by the host through
---                                      Window:SetProfile — no built-in store
--- ]]
-
-local function sessionStartedAt(): number?
-    local ok, value = pcall(function()
-        return os.clock()
-    end)
-    if ok and type(value) == "number" then
-        return value
-    end
-    return nil
-end
-
-local clientSessionStart = sessionStartedAt()
-
-local function sessionSeconds(): number?
-    if clientSessionStart == nil then
-        return nil
-    end
-    local now = sessionStartedAt()
-    if now == nil then
-        return nil
-    end
-    return math.max(0, now - clientSessionStart)
-end
-
-local function getJobId(): string?
-    local ok, value = pcall(function()
-        return (game :: any).JobId
-    end)
-    if ok and type(value) == "string" and value ~= "" then
-        return value
-    end
-    return nil
-end
-
-local function isStudio(): boolean
-    local ok, value = pcall(function()
-        return state.runService:IsStudio()
-    end)
-    return ok and value == true
-end
-
-local function playerCounts(): (number?, number?)
-    local ok, players = pcall(function()
-        return services.getService("Players")
-    end)
-    if not ok or players == nil then
-        return nil, nil
-    end
-    local listOk, list = pcall(function()
-        return players:GetPlayers()
-    end)
-    local maxOk, maxPlayers = pcall(function()
-        return players.MaxPlayers
-    end)
-    local current = if listOk and type(list) == "table" then #list else nil
-    local capacity = if maxOk and type(maxPlayers) == "number" and maxPlayers > 0 then maxPlayers else nil
-    return current, capacity
-end
-
--- [[MembershipType is the real Roblox source for the premium pill: every tier
--- [[but `None` is a paid one (`Premium`, plus the three legacy Builders Club
--- [[items), so "not None" is the whole test. There is no `Free` item - the enum
--- [[is None/BuildersClub/TurboBuildersClub/OutrageousBuildersClub/Premium - and
--- [[naming one raises `Free is not a valid member of "Enum.MembershipType"`
--- [[here, in the middle of drawing the pill. When the platform cannot be read
--- [[the pill stays hidden rather than claiming a status.]]
-local function isPremium(player): boolean
-    if not player then
-        return false
-    end
-    local ok, membership = pcall(function()
-        return player.MembershipType
-    end)
-    if not ok or membership == nil or typeof(membership) ~= "EnumItem" then
-        return false
-    end
-    return membership ~= Enum.MembershipType.None
-end
-
--- =========================================================================
--- Remote data: universe id, game name, game thumbnail
--- =========================================================================
-
-local resolvedGameIcons: { [number]: string? } = {}
-local pendingGameIconRequests: { [number]: { (string?) -> () } } = {}
-local resolvedUniverseIds: { [number]: number? } = {}
-local pendingUniverseRequests: { [number]: { (number?) -> () } } = {}
-local resolvedGameNames: { [number]: string? } = {}
-local pendingGameNameRequests: { [number]: { (string?) -> () } } = {}
-
-local function toValidNumber(value: any): number?
-    if type(value) == "number" and value > 0 then
-        return value
-    end
-    if type(value) == "string" then
-        local n = tonumber(value)
-        if n and n > 0 then
-            return n
-        end
-    end
-    return nil
-end
-
--- [[One shared JSON GET helper over the executor's request function — the
--- [[same `network.getRequestFn()` the rest of Astra uses. Missing request
--- [[function or a failed call hands the callback nil so every caller can fall
--- [[back to the neutral placeholder instead of inventing data.]]
-local function requestJson(url: string, callback: (any?) -> ())
-    local requestFn = network.getRequestFn()
-    if not requestFn then
-        callback(nil)
-        return
-    end
-    task.spawn(function()
-        local decoded = nil
-        local ok, result = pcall(requestFn, {
-            Url = url,
-            Method = "GET",
-        })
-        if ok and type(result) == "table" then
-            local body = (result :: any).Body
-            local success = false
-            if type((result :: any).StatusCode) == "number" then
-                local code = (result :: any).StatusCode :: number
-                success = code >= 200 and code < 300
-            elseif type((result :: any).Success) == "boolean" then
-                success = (result :: any).Success == true
-            else
-                success = type(body) == "string" and #body > 0
-            end
-            if success and type(body) == "string" and #body > 0 then
-                local decodeOk, parsed = pcall(function()
-                    return state.httpService:JSONDecode(body)
-                end)
-                if decodeOk then
-                    decoded = parsed
-                end
-            end
-        end
-        callback(decoded)
-    end)
-end
-
--- Fetch once per player/window; never infer an exact date from rounded AccountAge.
-function profilePanel.applyAccountCreated(window)
-    if window.unloaded or not window.profileJoinDateValue then
-        return
-    end
-    local player = state.localPlayer
-    local userId = player and player.UserId
-    if window.profileAccountUserId ~= userId then
-        window.profileAccountUserId = userId
-        window.profileAccountCreatedAt = nil
-        window.profileAccountRequested = false
-    end
-    local created = window.profileAccountCreatedAt
-    local now = nowSeconds()
-    local age = player and player.AccountAge
-    setText(window.profileJoinDateValue, formatDate(created))
-    local elapsed = if created and now then formatAccountAge(now - created)
-        elseif type(age) == "number" and age >= 0 then
-            (if age == 0 then "Less than a day ago" else "~ " .. formatAccountAge(age * 86400))
-        else fallbackValue
-    setText(window.profileAccountAgeValue, elapsed)
-
-    if type(userId) ~= "number" or userId <= 0 or window.profileAccountRequested then
-        return
-    end
-    window.profileAccountRequested = true
-    requestJson(`https://users.roblox.com/v1/users/{userId}`, function(parsed)
-        if window.unloaded or window.profileAccountUserId ~= userId then
-            return
-        end
-        local ok, timestamp = pcall(function()
-            if type(parsed) ~= "table" or type(parsed.created) ~= "string" then
-                return nil
-            end
-            return DateTime.fromIsoDate(parsed.created).UnixTimestamp
-        end)
-        local currentTime = nowSeconds()
-        if ok and type(timestamp) == "number" and timestamp > 0 and currentTime and timestamp <= currentTime then
-            window.profileAccountCreatedAt = timestamp
-            profilePanel.applyAccountCreated(window)
-        end
-    end)
-end
-
-local function getUniverseId(): number?
-    local ok, result = pcall(function()
-        return (game :: any).GameId
-    end)
-    if ok then
-        return toValidNumber(result)
-    end
-    return nil
-end
-
-local function getPlaceId(): number?
-    local ok, result = pcall(function()
-        return (game :: any).PlaceId
-    end)
-    if ok then
-        return toValidNumber(result)
-    end
-    return nil
-end
-
-local function buildFallbackUrl(placeId: number?): string
-    if not placeId then
-        return ""
-    end
-    -- [[Legacy rbxthumb GameIcon fallback: uses PlaceId in this runtime.]]
-    return `rbxthumb://type=GameIcon&id={placeId}&w=150&h=150`
-end
-
--- [[Roblox's official thumbnails endpoint expects the *universe* id
--- [[(game.GameId), not the place id. The displayed "Place ID" row still uses
--- [[game.PlaceId; the legacy rbxthumb fallback uses it as well, which is the
--- [[documented convention for that URI.]]
-local function fetchOfficialGameIcon(universeId: number, callback: (string?) -> ())
-    local cached = resolvedGameIcons[universeId]
-    if cached ~= nil then
-        callback(if type(cached) == "string" and cached ~= "" then cached else nil)
-        return
-    end
-
-    local pending = pendingGameIconRequests[universeId]
-    if pending then
-        table.insert(pending, callback)
-        return
-    end
-
-    pendingGameIconRequests[universeId] = { callback }
-
-    task.spawn(function()
-        local finalImageUrl: string? = nil
-        local url = `https://thumbnails.roblox.com/v1/games/icons?universeIds={universeId}&size=512x512&format=Png&isCircular=false`
-        requestJson(url, function(parsed)
-            if type(parsed) == "table" then
-                local data = (parsed :: any).data
-                if type(data) == "table" then
-                    -- [[Match by targetId; the response order is not guaranteed.]]
-                    for _, entry in ipairs(data) do
-                        if type(entry) == "table" then
-                            local tid = (entry :: any).targetId or (entry :: any).targetID or (entry :: any).id
-                            local stateName = (entry :: any).state
-                            local matches = tonumber(tid) == universeId
-                            if matches and (stateName == "Completed" or stateName == nil) then
-                                local img = (entry :: any).imageUrl or (entry :: any).contentUrl or (entry :: any).url
-                                if type(img) == "string" and #img > 0 then
-                                    finalImageUrl = img
-                                    break
-                                end
-                            end
-                        end
-                    end
-                    -- [[Fallback: first completed entry, still real response data.]]
-                    if not finalImageUrl then
-                        for _, entry in ipairs(data) do
-                            if type(entry) == "table" then
-                                local stateName = (entry :: any).state
-                                if stateName == "Completed" or stateName == nil then
-                                    local img = (entry :: any).imageUrl or (entry :: any).contentUrl
-                                    if type(img) == "string" and #img > 0 then
-                                        finalImageUrl = img
-                                        break
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-
-            if finalImageUrl and #finalImageUrl > 0 then
-                resolvedGameIcons[universeId] = finalImageUrl
-            end
-
-            local callbacks = pendingGameIconRequests[universeId]
-            pendingGameIconRequests[universeId] = nil
-            for _, cb in ipairs(callbacks or {}) do
-                pcall(cb, finalImageUrl)
-            end
-        end)
-    end)
-end
-
--- [[Step 1 of the official game-name flow: the universes endpoint converts a]]
--- [[place id into the universe that owns it. Cached per place and queued]]
--- [[while a request is in flight, exactly like the icon fetch above.]]
-local function fetchUniverseId(placeId: number, callback: (number?) -> ())
-    local cached = resolvedUniverseIds[placeId]
-    if cached ~= nil then
-        callback(cached)
-        return
-    end
-
-    local pending = pendingUniverseRequests[placeId]
-    if pending then
-        table.insert(pending, callback)
-        return
-    end
-
-    pendingUniverseRequests[placeId] = { callback }
-
-    requestJson(`https://apis.roblox.com/universes/v1/places/{placeId}/universe`, function(parsed)
-        local universeId: number? = nil
-        if type(parsed) == "table" then
-            universeId = toValidNumber(
-                (parsed :: any).universeId
-                    or (parsed :: any).universeID
-                    or (parsed :: any).universe_id
-                    or (parsed :: any).id
-            )
-        end
-        if universeId then
-            resolvedUniverseIds[placeId] = universeId
-        end
-        local callbacks = pendingUniverseRequests[placeId]
-        pendingUniverseRequests[placeId] = nil
-        for _, cb in ipairs(callbacks or {}) do
-            pcall(cb, universeId)
-        end
-    end)
-end
-
--- [[The universe id the thumbnail and the name flow need: DataModel.GameId]]
--- [[when the runtime supplies one, otherwise the official place -> universe]]
--- [[lookup (step 1).]]
-local function resolveUniverseId(callback: (number?) -> ())
-    local direct = getUniverseId()
-    if direct then
-        callback(direct)
-        return
-    end
-    local placeId = getPlaceId()
-    if placeId then
-        fetchUniverseId(placeId, callback)
-    else
-        callback(nil)
-    end
-end
-
--- [[Step 2 of the official game-name flow: the games endpoint answers the]]
--- [[game's detail list for a universe, and the matching entry's "name" field]]
--- [[IS the game name (DataModel.Name only carries the current place's title,]]
--- [[which is why the card asks the platform instead). The DataModel name]]
--- [[stays on the label until this answers, so the row is never empty.]]
-local function fetchGameName(placeId: number, callback: (string?) -> ())
-    local cached = resolvedGameNames[placeId]
-    if cached ~= nil then
-        callback(if type(cached) == "string" and cached ~= "" then cached else nil)
-        return
-    end
-
-    local pending = pendingGameNameRequests[placeId]
-    if pending then
-        table.insert(pending, callback)
-        return
-    end
-
-    pendingGameNameRequests[placeId] = { callback }
-
-    local function finish(name: string?)
-        if type(name) == "string" and name ~= "" then
-            resolvedGameNames[placeId] = name
-        end
-        local callbacks = pendingGameNameRequests[placeId]
-        pendingGameNameRequests[placeId] = nil
-        for _, cb in ipairs(callbacks or {}) do
-            pcall(cb, name)
-        end
-    end
-
-    fetchUniverseId(placeId, function(universeId: number?)
-        if not universeId then
-            finish(nil)
-            return
-        end
-        requestJson(`https://games.roblox.com/v1/games?universeIds={universeId}`, function(parsed)
-            local name: string? = nil
-            if type(parsed) == "table" then
-                local data = (parsed :: any).data
-                if type(data) == "table" then
-                    -- [[Match by the universe id when the entry carries one;]]
-                    -- [[the response order is not guaranteed.]]
-                    for _, entry in ipairs(data) do
-                        if type(entry) == "table" then
-                            local entryId = tonumber((entry :: any).id or (entry :: any).universeId)
-                            local entryName = (entry :: any).name
-                            if
-                                type(entryName) == "string"
-                                and #entryName > 0
-                                and (entryId == nil or entryId == universeId)
-                            then
-                                name = entryName
-                                break
-                            end
-                        end
-                    end
-                end
-            end
-            finish(name)
-        end)
-    end)
-end
-
--- =========================================================================
--- Card writers
--- =========================================================================
-
-local function licenseDaysLeft(data, now: number?): number?
-    local whitelist = data.whitelist
-    if not whitelist then
-        return nil
-    end
-    if type(whitelist.daysLeft) == "number" then
-        return whitelist.daysLeft
-    end
-    if type(whitelist.expiresAt) == "number" and now then
-        return math.ceil((whitelist.expiresAt - now) / 86400)
-    end
-    return nil
-end
-
--- [[License + whitelist rows. Astra ships no key store of its own, so these
--- [[come from what the host handed to Window:SetProfile; with nothing supplied
--- [[the rows read "—" rather than showing a made-up key.]]
-function profilePanel.applyLicense(window)
-    local data = window.profileData or {}
-    local reveal = profilePanel.revealEnabled(window)
-
-    local key = data.key
-    setText(window.profileKeyValue, if type(key) == "string" and key ~= ""
-        then (if reveal then key else maskedKey)
-        else fallbackValue)
-
-    local days = licenseDaysLeft(data, nowSeconds())
-    local status = if data.whitelist and type(data.whitelist.status) == "string" then data.whitelist.status else nil
-    -- [[Compact, reference-shaped value: a countdown when one is known, the
-    -- [[word "Expired" once it lapses, the host's own word when there is no
-    -- [[expiry to count, and the neutral placeholder when there is neither.
-    -- [[An unusual status ("Trial") is still spelled out, since dropping it
-    -- [[would hide real information.]]
-    local whitelistText
-    if days == nil then
-        whitelistText = status or fallbackValue
-    elseif days < 0 then
-        whitelistText = "Expired"
-    else
-        local dayText = if days == 1 then "1 day left" else `{days} days left`
-        whitelistText = if status and string.lower(status) ~= "active" then `{status} · {dayText}` else dayText
-    end
-    setText(window.profileWhitelistValue, whitelistText)
-end
-
--- [[The tier word the header pill shows. A host-supplied `tier` (through]]
--- [[Window:SetProfile) wins — uppercased, so "premium" and "PREMIUM" read the]]
--- [[same; without one the platform's own membership decides between PREMIUM]]
--- [[and FREEMIUM. The pill therefore always states a real tier instead of]]
--- [[vanishing for free accounts.]]
-function profilePanel.tierText(window): string
-    local data = window.profileData or {}
-    local custom = data.tier
-    if type(custom) == "string" and custom ~= "" then
-        return string.upper(custom)
-    end
-    return if isPremium(state.localPlayer) then "PREMIUM" else "FREEMIUM"
-end
-
--- [[Write the tier pill: word, icon, colour and width. PREMIUM keeps the]]
--- [[accent crown; every other tier reads in the muted placeholder colour]]
--- [[with a plain badge icon, so a free account is labelled, not decorated.]]
-function profilePanel.applyTier(window)
-    local badge = window.profilePremium
-    local label = window.profileTierLabel
-    local icon = window.profileTierIcon
-    if not (badge and label and icon) then
-        return
-    end
-    local text = profilePanel.tierText(window)
-    setText(label, text)
-    local premium = text == "PREMIUM"
-    local color = if premium then window.theme.AccentColor else window.theme.PlaceholderColor
-    if label.TextColor3 ~= color then
-        label.TextColor3 = color
-    end
-    if icon.ImageColor3 ~= color then
-        icon.ImageColor3 = color
-    end
-    -- [[Both tier states get an icon the active pack really ships: the pill
-    -- [[states a tier, so it must never render as a word with a blank square
-    -- [[beside it.]]
-    local wantedIcon = cardIcon(window, if premium then "crown" else "badge-check")
-    if window.profileTierIconSource ~= wantedIcon or window.profileTierIconTarget ~= icon then
-        window.profileTierIconTarget = icon
-        window.profileTierIconSource = wantedIcon
-        image.assign(icon, "Image", wantedIcon)
-    end
-    -- [[A fixed box measured from its own label, so the pill only ever grows]]
-    -- [[as wide as its word needs.]]
-    local textWidth = functions.textWidth(window.theme.Font, label.TextSize, text)
-    local width = tierPaddingLeft + tierIconSize + tierGap + textWidth + tierPaddingRight
-    badge.Size = UDim2.fromOffset(width, tierHeight)
-    label.Size = UDim2.fromOffset(textWidth, tierHeight)
-    profilePanel.layoutPremium(window)
-end
-
--- [[The executor's clipboard entry point. `setclipboard` is the common name;]]
--- [[the other spellings (and a Clipboard table) cover the remaining]]
--- [[executors. A missing or failing function means "copied nowhere", so the]]
--- [[icon gives no false success feedback.]]
-local function getClipboardFn(): ((string) -> ())?
-    local env = getfenv()
-    for _, candidate in ipairs({ "setclipboard", "set_clipboard", "toclipboard", "to_clipboard" }) do
-        local fn = env[candidate]
-        if type(fn) == "function" then
-            return fn
-        end
-    end
-    local clipboard = env.Clipboard
-    if type(clipboard) == "table" and type(clipboard.set) == "function" then
-        return function(text: string)
-            clipboard.set(clipboard, text)
-        end
-    end
-    return nil
-end
-
-local function clipboardSet(text: string): boolean
-    local fn = getClipboardFn()
-    if not fn then
-        return false
-    end
-    local ok = pcall(fn, text)
-    return ok
-end
-
--- [[Drop a scheduled timeout that is still waiting. Executors without
--- [[`task.cancel` (and the offline test harness) simply skip this: the stamp
--- [[check below already makes a superseded timer a no-op, so the cancel is
--- [[belt-and-braces rather than the thing correctness rests on.]]
-local function cancelTimer(thread)
-    if type(thread) ~= "thread" or type(task.cancel) ~= "function" then
-        return
-    end
-    if coroutine.status(thread) == "suspended" then
-        task.cancel(thread)
-    end
-end
-
--- [[The words a copy button owns: what it will copy while idle ("Copy Job
--- [[ID"), or the confirmation after a successful press ("Copied"). The button
--- [[is glyph-only, so the line is never drawn: it is the button's accessible
--- [[label alone — the press confirms itself with the green check, and no
--- [[hover surface rides on the button: a tooltip popping over the copy glyph
--- [[on every hover and press read as stray UI over the row, so the rows' own
--- [[truncation hover-help stays the only tooltip on the card. It is written
--- [[through the window's own locale binding, so a host translating
--- [["Copy Place ID" / "Copied" gets both, and Window:SetLocale re-states
--- [[whichever wording is on screen.]]
-function profilePanel.setCopyStatus(window, name: string, copied: boolean)
-    local entry = (window.profileCopyButtons or {})[name]
-    if not entry then
-        return
-    end
-    -- [[The binding stores the *source* wording ("Copy Job ID", "Copied"), so
-    -- [[a locale switch re-resolves the current state instead of freezing the
-    -- [[old language into it; _bindLocale writes the resolved text for us.]]
-    local source = if copied then copiedLabel else copyLabelPrefix .. (entry.label or name)
-    if entry.button and entry.button.Parent and entry.button.Text ~= locale.resolve(source) then
-        window:_bindLocale(entry.button, "Text", source)
-    end
-end
-
--- [[Copy feedback: the row's copy icon turns into a green check for a moment]]
--- [[and then the copy icon returns, with the button's status word following]]
--- [[("Copied" while the check is up, the action's own name after it). Only one
--- [[restore is ever outstanding per button: a repeat click cancels the pending
--- [[timer and restarts the window, and a rebuilt card (stale entry) is simply
--- [[ignored by the timer.]]
-function profilePanel.flashCopied(window, name: string)
-    local entry = (window.profileCopyButtons or {})[name]
-    if not entry or not entry.icon or not entry.icon.Parent then
-        return
-    end
-    image.assign(entry.icon, "Image", cardIcon(window, "check"))
-    entry.icon.ImageColor3 = window.theme.Success
-    cancelTimer(entry.flashThread)
-    entry.flashStamp = (entry.flashStamp or 0) + 1
-    local stamp = entry.flashStamp
-    entry.flashThread = task.delay(copyFlashDuration, function()
-        if entry.flashStamp ~= stamp or not entry.icon or not entry.icon.Parent then
-            return
-        end
-        entry.flashThread = nil
-        image.assign(entry.icon, "Image", cardIcon(window, "copy"))
-        entry.icon.ImageColor3 = window.theme.ActionColor
-        profilePanel.setCopyStatus(window, name, false)
-    end)
-    profilePanel.setCopyStatus(window, name, true)
-end
-
--- [[Tier pill placement. The reference keeps the pill on the handle row, so
--- [[it rides just after the subtitle text; it only drops under the headline
--- [[when there is no subtitle, or when the pair would not fit before the
--- [[card's right edge. Re-run whenever the headline, subtitle or tier text
--- [[changes (the pill's width is measured from its own label).]]
-function profilePanel.layoutPremium(window)
-    local badge = window.profilePremium
-    local subtitle = window.profileSubtitle
-    if not badge or not subtitle then
-        return
-    end
-    local width = badge.Size.X.Offset
-    if width <= 0 then
-        return
-    end
-    local nameX = paddingX + avatarSize + 10
-    local limit = profilePanel.width - paddingX - 8
-    local belowY = 49
-    local function inlineAfter(instance, y)
-        local text = instance.Text
-        local measured = if text == "" then 0 else functions.textWidth(window.theme.Font, instance.TextSize, text)
-        local x = nameX + measured + 8
-        if measured <= instance.Size.X.Offset and x + width <= limit then
-            badge.Position = UDim2.fromOffset(x, y)
-            return true
-        end
-        return false
-    end
-    if subtitle.Visible and subtitle.Text ~= "" then
-        if inlineAfter(subtitle, subtitle.Position.Y.Offset - 0.5) then
-            return
-        end
-        badge.Position = UDim2.fromOffset(nameX, belowY)
-        return
-    end
-    if not inlineAfter(window.profileName, 13) then
-        badge.Position = UDim2.fromOffset(nameX, belowY)
-    end
-end
-
--- [[Write every identity field on the card from the current player and the]]
--- [[reveal toggle: display name, @username, premium pill, user ID (with its]]
--- [[COPY action), place ID, job ID and the license rows. nil-safe on both]]
--- [[the instances and the player, so a missing player leaves placeholders]]
--- [[rather than erroring.]]
-function profilePanel.applyIdentity(window)
-    local player = state.localPlayer
-    local reveal = profilePanel.revealEnabled(window)
-    local data = window.profileData or {}
-
-    local username = ""
-    local displayName = ""
-    if player then
-        username = tostring(player.Name or "")
-        displayName = tostring(player.DisplayName or "")
-        if displayName == "" then
-            displayName = username
-        end
-    end
-
-    local name = window.profileName
-    if name then
-        setText(
-            name,
-            if displayName == "" then ""
-                elseif reveal then displayName
-                else sidebar.maskUsername(displayName)
-        )
-    end
-
-    local subtitle = window.profileSubtitle
-    if subtitle then
-        -- [[An explicit Window:SetProfile subtitle wins over the generated
-        -- [[@username: it is the developer's own copy, not identity data, so
-        -- [[the reveal toggle leaves it untouched.]]
-        local custom = if type(data.subtitle) == "string" and data.subtitle ~= "" then data.subtitle else nil
-        local text = if custom then locale.resolve(custom) else nil
-        if text == nil and username ~= "" then
-            text = "@" .. (if reveal then username else sidebar.maskUsername(username))
-        end
-        setText(subtitle, text or "")
-        subtitle.Visible = subtitle.Text ~= ""
-    end
-    profilePanel.applyTier(window)
-
-    local userId = window.profileUserIdValue
-    if userId then
-        local id = if player and player.UserId then tostring(player.UserId) else ""
-        setText(userId, if id == "" then fallbackValue elseif reveal then id else maskedId)
-    end
-
-    -- [[Copy actions ride only on values the reveal toggle unmasks: with the]]
-    -- [[detail masked there is nothing meaningful to copy, so the buttons]]
-    -- [[hide with it.]]
-    for name, entry in pairs(window.profileCopyButtons or {}) do
-        local shown = false
-        if reveal then
-            if name == "UserId" then
-                shown = player ~= nil
-            elseif name == "PlaceId" then
-                shown = getPlaceId() ~= nil
-            elseif name == "ServerId" then
-                shown = getJobId() ~= nil and not isStudio()
-            elseif name == "Key" then
-                local key = (window.profileData or {}).key
-                shown = type(key) == "string" and key ~= ""
-            end
-        end
-        if entry.button then
-            entry.button.Visible = shown
-        end
-    end
-
-    local placeId = window.profilePlaceId
-    if placeId then
-        local id = getPlaceId()
-        setText(placeId, if not id then fallbackValue elseif reveal then tostring(id) else maskedId)
-    end
-
-    local serverId = window.profileServerIdValue
-    if serverId then
-        local jobId = getJobId()
-        if not jobId then
-            -- [[Studio / local test servers have no JobId: say so instead of
-            -- [[showing a stale or invented server.]]
-            setText(serverId, if isStudio() then "Studio" else fallbackValue)
-        else
-            setText(serverId, if reveal then jobId else maskedId)
-        end
-    end
-
-    profilePanel.applyAccountCreated(window)
-
-    profilePanel.applyLicense(window)
-end
-
--- [[Live values: player count and the current session. Called by the refresh
--- [[loop, by reveal changes and whenever the card comes back.]]
-function profilePanel.applyLive(window)
-    if window.unloaded or not window.profileDetails then
-        return
-    end
-
-    local current, capacity = playerCounts()
-    setText(
-        window.profilePlayersValue,
-        if current ~= nil and capacity ~= nil then `{current} / {capacity}` else fallbackValue
-    )
-
-    setText(window.profileSessionValue, formatDuration(sessionSeconds()))
-    profilePanel.applyAccountCreated(window)
-
-    -- [[A whitelist entry that expires at a timestamp counts down here too.]]
-    profilePanel.applyLicense(window)
-end
-
--- =========================================================================
--- Card construction
--- =========================================================================
-
-local function sectionHeight(rowCount: number): number
-    if rowCount <= 0 then
-        return cardPaddingY * 2
-    end
-    return cardPaddingY * 2 + rowCount * rowHeight + (rowCount - 1) * rowGap
-end
-
-local function addRow(window, card, spec)
-    local fade = function(instance, prop, shown)
-        table.insert(window.profileFadeTargets, { instance = instance, prop = prop, shown = shown })
-    end
-
-    local y = spec.y
-    local x = spec.x or cardPaddingX
-    local textX = x
-    local rowLabelWidth = spec.labelWidth or labelWidth
-    -- [[Row icons follow the window's element icons: ContentColor, revealed]]
-    -- [[to the section icon's transparency so a compact row reads like a]]
-    -- [[small element line.]]
-    if spec.icon then
-        local icon = window:Create("ImageLabel", {
-            Name = spec.name .. "Icon",
-            Image = cardIcon(window, spec.icon),
-            Position = UDim2.fromOffset(x, y + (rowHeight - rowIconSize) / 2),
-            Size = UDim2.fromOffset(rowIconSize, rowIconSize),
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            ImageTransparency = 1,
-            Parent = card,
-        }, { ImageColor3 = spec.iconColor or "ContentColor" })
-        fade(icon, "ImageTransparency", iconTransparency)
-        textX = x + rowIconSize + 5
-    end
-
-    local label = window:Create("TextLabel", {
-        Name = spec.name .. "Label",
-        Text = spec.label,
-        Position = UDim2.fromOffset(textX, y),
-        Size = UDim2.fromOffset(rowLabelWidth, rowHeight),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        TextSize = 11,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextYAlignment = Enum.TextYAlignment.Center,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        TextTransparency = 1,
-        Parent = card,
-    }, { TextColor3 = spec.labelColor or "ContentColor", FontFace = "Font" })
-    fade(label, "TextTransparency", labelTransparency)
-
-    local inset = if spec.action then actionInset else 0
-    local value = window:Create("TextLabel", {
-        Name = spec.instanceName or (spec.name .. "Value"),
-        Text = fallbackValue,
-        Position = UDim2.fromOffset(textX + rowLabelWidth, y),
-        Size = UDim2.new(1, -(textX + rowLabelWidth + cardPaddingX + inset), 0, rowHeight),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        TextSize = spec.valueSize or 12,
-        TextXAlignment = Enum.TextXAlignment.Right,
-        TextYAlignment = Enum.TextYAlignment.Center,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        TextTransparency = 1,
-        Parent = card,
-    }, { TextColor3 = spec.valueColor or "ContentColor", FontFace = "Font" })
-    fade(value, "TextTransparency", nameTransparency)
-
-    if spec.action == "copy" then
-        local button = window:Create("TextButton", {
-            Name = "Copy" .. spec.name,
-            -- [[The button is glyph-only: its Text is never drawn (the
-            -- [[transparency above stays 1) and carries the button's own
-            -- [[accessible label instead — "Copy Job ID" while idle, "Copied"
-            -- [[after a successful press; setCopyStatus keeps it in step.
-            Text = "",
-            Position = UDim2.new(1, -(cardPaddingX + actionSize), 0, y + (rowHeight - actionSize) / 2),
-            Size = UDim2.fromOffset(actionSize, actionSize),
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            TextTransparency = 1,
-            Visible = false,
-            Parent = card,
-        })
-        local iconLabel = window:Create("ImageLabel", {
-            Name = "Icon",
-            Image = cardIcon(window, "copy"),
-            Size = UDim2.fromOffset(13, 13),
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.fromScale(0.5, 0.5),
-            BackgroundTransparency = 1,
-            ImageTransparency = 1,
-            Parent = button,
-        }, { ImageColor3 = "ActionColor" })
-        fade(iconLabel, "ImageTransparency", 0.15)
-        window.profileCopyButtons = window.profileCopyButtons or {}
-        window.profileCopyButtons[spec.name] = {
-            button = button,
-            icon = iconLabel,
-            -- [[What this press copies, for the label.]]
-            label = spec.label,
-        }
-        profilePanel.setCopyStatus(window, spec.name, false)
-        if spec.name == "UserId" then
-            -- [[Legacy handle, kept so hosts and tests that grabbed the]]
-            -- [[user ID's copy button still find it.]]
-            window.profileCopyUserId = button
-        end
-        -- [[No hover surface on the button: the glyph and the green check are
-        -- [[the whole story on press, and the row's own truncation hover-help
-        -- [[below stays the card's only tooltip.]]
-        window:Connect(button.Activated, function()
-            -- [[The action only exists while the value is revealed: with the]]
-            -- [[detail hidden there is nothing meaningful to copy, and the]]
-            -- [[button is hidden too (applyIdentity). A successful copy runs]]
-            -- [[through the executor's clipboard and flashes the green check.]]
-            if not profilePanel.revealEnabled(window) then
-                return
-            end
-            local text = if spec.copy then spec.copy() else nil
-            if type(text) ~= "string" or text == "" then
-                return
-            end
-            if clipboardSet(text) then
-                profilePanel.flashCopied(window, spec.name)
-            end
-        end)
-    end
-
-    -- [[Hover-help for values that do not fit: the row's full text is shown in
-    -- [[a small themed tooltip above (or below) the row.]]
-    local tooltipY = (spec.cardY or 0) + y
-    window:Connect(value.MouseEnter, function()
-        local text = value.Text
-        if text == "" or text == fallbackValue then
-            return
-        end
-        local available = value.AbsoluteSize.X
-        local measured = functions.textWidth(window.theme.Font, value.TextSize, text)
-        if available <= 0 or measured <= available then
-            return
-        end
-        profilePanel.showTooltip(window, text, tooltipY)
-    end)
-    window:Connect(value.MouseLeave, function()
-        profilePanel.hideTooltip(window)
-    end)
-
-    return value
-end
-
--- [[Position and reveal the hover tooltip. It lives on the card surface (not
--- [[inside the scroll region) so it is never clipped by the scrolling area;
--- [[`detailsY` is the row's offset from the top of the card's content.]]
-function profilePanel.showTooltip(window, text, contentY: number)
-    local tip = window.profileTooltip
-    if not tip or not window.profileTooltipLabel then
-        return
-    end
-    local details = window.profileDetails
-    local scrollY = 0
-    if details then
-        local ok, canvasPosition = pcall(function()
-            return details.CanvasPosition
-        end)
-        if ok and canvasPosition and typeof(canvasPosition) ~= "number" then
-            scrollY = canvasPosition.Y or 0
-        end
-    end
-    local cardH = currentCardHeight(window)
-    local y = headerHeight + dividerHeight + (contentY - scrollY) - tooltipHeight - 6
-    y = math.clamp(y, 4, math.max(4, cardH - tooltipHeight - 4))
-    setText(window.profileTooltipLabel, text)
-    tip.Position = UDim2.fromOffset(paddingX + cardPaddingX, y)
-    tip.Visible = true
-    motion.tween(tip, { BackgroundTransparency = 0 }, hoverTween)
-    motion.tween(window.profileTooltipLabel, { TextTransparency = 0 }, hoverTween)
-end
-
-function profilePanel.hideTooltip(window)
-    local tip = window.profileTooltip
-    if not tip or not tip.Visible then
-        return
-    end
-    motion.tween(tip, { BackgroundTransparency = 1 }, hoverTween)
-    if window.profileTooltipLabel then
-        motion.tween(window.profileTooltipLabel, { TextTransparency = 1 }, hoverTween)
-    end
-    task.delay(hoverTween.Time, function()
-        if tip.Parent and tip.BackgroundTransparency >= 1 then
-            tip.Visible = false
-        end
-    end)
-end
-
--- [[The card used to be built for every window - dozens of themed instances
--- [[on the spawn path - even though "Show profile" ships switched off. It is
--- [[now built on demand: the first time the setting is on (from disk during
--- [[construction, or when the user flips the toggle later). Every other
--- [[function in this module reads the card's instances through nil guards, so
--- [[an unbuilt card is simply inert. Returns the panel (or nil when the card
--- [[is disabled/gone).
-function profilePanel.ensureBuilt(window)
-    if window.profilePanel then
-        return window.profilePanel
-    end
-    if window.unloaded or window.settings.showProfile ~= true then
-        return nil
-    end
-    return profilePanel.build(window)
-end
-
-function profilePanel.build(window)
-    if window.profilePanel then
-        window:DestroySubtree(window.profilePanel)
-        window.profilePanel = nil
-    end
-
-    local player = state.localPlayer
-    local cardHeight = currentCardHeight(window)
-    profilePanel.height = cardHeight
-    window.profileFadeTargets = {}
-
-    window.profilePanel = window:Create("Frame", {
-        Name = "ProfilePanel",
-        AnchorPoint = Vector2.new(0, 0),
-        Position = UDim2.fromOffset(0, 0),
-        Size = UDim2.fromOffset(profilePanel.width, cardHeight),
-        BackgroundTransparency = 1,
-        ZIndex = 1,
-        Visible = false,
-
-        Parent = window.screenGui,
-    })
-
-    -- [[The card surface: the window's own background, not a lookalike. It is
-    -- [[built by Window:StyleWindowSurface — the very call that builds the
-    -- [[window frame's background — so the card takes the same base colour, the
-    -- [[same WindowColor theme token, the same gradient rotation/offset and the
-    -- [[same opacity the window shows, and a theme change moves both together
-    -- [[(both gradients are registered theme bindings). The card is centred on
-    -- [[the window's own height, so the shared gradient also lands on the same
-    -- [[shade at the same screen row: the two read as one surface, never as a
-    -- [[panel that is nearly the window's colour.]]
-    window.profilePanelSurface = window:Create("Frame", {
-        Name = "Surface",
-        Size = UDim2.fromScale(1, 1),
-        BorderSizePixel = 0,
-        BackgroundTransparency = window:WindowSurfaceTransparency(),
-        Parent = window.profilePanel,
-    })
-
-    -- [[Kept on the window so the window's live gradient animation can carry
-    -- [[the card with it (see Window:_syncLiveAnimation). A card rebuilt in the
-    -- [[middle of that animation starts from the window's current gradient
-    -- [[state rather than from the resting one, so a rebuild cannot leave the
-    -- [[pair mismatched until the next cycle.]]
-    window.profilePanelGradient = window:StyleWindowSurface(window.profilePanelSurface)
-    local liveGradient = window.windowGradient
-    if liveGradient then
-        window.profilePanelGradient.Rotation = liveGradient.Rotation
-        window.profilePanelGradient.Offset = liveGradient.Offset
-    end
-
-    window.profilePanelCorner = window:Create("UICorner", {
-        Parent = window.profilePanelSurface,
-    }, { CornerRadius = "CornerRoundness" })
-
-    window.profilePanelStroke = window:Create("UIStroke", {
-        Transparency = 1,
-        Parent = window.profilePanelSurface,
-    }, { Color = "SurfaceStroke" })
-
-    window.profilePanelGlow = window:CreateGlow(window.profilePanelSurface, "ShadowColor", 20, 1)
-
-    -- [[Everything the card fades in/out as a unit registers here once: the
-    -- [[panel show/hide pass then just walks the list.]]
-    local function fade(instance, prop, shown)
-        table.insert(window.profileFadeTargets, { instance = instance, prop = prop, shown = shown })
-    end
-
-    -- ===== header: avatar + presence, name / username / premium, gear =====
-
-    window.profileAvatar = window:Create("ImageLabel", {
-        Name = "Avatar",
-        Position = UDim2.fromOffset(paddingX, avatarTop),
-        Size = UDim2.fromOffset(avatarSize, avatarSize),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        ImageTransparency = 1,
-        Parent = window.profilePanelSurface,
-    }, { BackgroundColor3 = "ContentColor" })
-
-    window:Create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
-        Parent = window.profileAvatar,
-    })
-    window:Create("UIStroke", {
-        Thickness = 1,
-        Transparency = 0.4,
-        Parent = window.profileAvatar,
-    }, { Color = "SurfaceStroke" })
-
-    local onlineDot = window:Create("Frame", {
-        Name = "Online",
-        AnchorPoint = Vector2.new(1, 1),
-        Position = UDim2.fromOffset(paddingX + avatarSize, avatarTop + avatarSize),
-        Size = UDim2.fromOffset(12, 12),
-        BorderSizePixel = 0,
-        Parent = window.profilePanelSurface,
-    }, { BackgroundColor3 = "Success" })
-    window:Create("UICorner", { CornerRadius = UDim.new(1, 0), Parent = onlineDot })
-    window:Create("UIStroke", {
-        Thickness = 2,
-        Transparency = 0,
-        Parent = onlineDot,
-    }, { Color = "Background" })
-
-    local nameX = paddingX + avatarSize + 10
-    -- [[No gear occupies the header's right edge any more, so the handle]]
-    -- [[text may run to the card's own padding.]]
-    local nameWidth = profilePanel.width - nameX - paddingX
-
-    -- [[The headline/subtitle are filled by applyIdentity at the end of the
-    -- [[build, so the card never flashes an unmasked display name first.]]
-    window.profileName = window:Create("TextLabel", {
-        Name = "Name",
-        Text = "",
-        Position = UDim2.fromOffset(nameX, 12),
-        Size = UDim2.fromOffset(nameWidth, 18),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        TextSize = 15,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextYAlignment = Enum.TextYAlignment.Center,
-        TextWrapped = false,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        TextTransparency = 1,
-        Parent = window.profilePanelSurface,
-    }, { TextColor3 = "TitlingColor", FontFace = "Font" })
-
-    fade(window.profileName, "TextTransparency", nameTransparency)
-
-    window.profileSubtitle = window:Create("TextLabel", {
-        Name = "Subtitle",
-        Text = "",
-        Position = UDim2.fromOffset(nameX, 31),
-        Size = UDim2.fromOffset(nameWidth, 15),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        TextSize = 12,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextYAlignment = Enum.TextYAlignment.Center,
-        TextWrapped = false,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        Visible = false,
-        TextTransparency = 1,
-        Parent = window.profilePanelSurface,
-    }, { TextColor3 = "TitlingColor", FontFace = "Font" })
-
-    fade(window.profileSubtitle, "TextTransparency", subtitleTransparency)
-
-    -- [[Tier pill: always present, because a tier always exists — the host's]]
-    -- [[own word from Window:SetProfile, else PREMIUM / FREEMIUM from the]]
-    -- [[platform membership (applyTier writes word, icon, colour and width).]]
-    -- [[The pill width is measured from its own label, so it only ever grows]]
-    -- [[as wide as its word needs.]]
-    local premium = window:Create("Frame", {
-        Name = "TierBadge",
-        Position = UDim2.fromOffset(nameX, 49),
-        Size = UDim2.fromOffset(tierPaddingLeft + tierIconSize + tierGap + tierPaddingRight, tierHeight),
-        BorderSizePixel = 0,
-        Visible = true,
-        Parent = window.profilePanelSurface,
-    }, { BackgroundColor3 = "ElementSurface", BackgroundTransparency = "ElementTransparency" })
-    window.profilePremium = premium
-    window:Create("UICorner", {
-        Parent = premium,
-    }, { CornerRadius = "PillCornerRadius" })
-    window:Create("UIStroke", {
-        Transparency = 0.35,
-        Parent = premium,
-    }, { Color = "ElementStroke" })
-    local premiumIcon = window:Create("ImageLabel", {
-        Name = "Crown",
-        -- applyTier selects the correct icon; do not start a competing crown load.
-        Image = "",
-        Position = UDim2.fromOffset(tierPaddingLeft, (tierHeight - tierIconSize) / 2),
-        Size = UDim2.fromOffset(tierIconSize, tierIconSize),
-        BackgroundTransparency = 1,
-        ImageTransparency = 1,
-        Parent = premium,
-    }, { ImageColor3 = "AccentColor" })
-    local premiumLabel = window:Create("TextLabel", {
-        Name = "Label",
-        Text = "",
-        Position = UDim2.fromOffset(tierPaddingLeft + tierIconSize + tierGap, 0),
-        Size = UDim2.fromOffset(0, tierHeight),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        TextSize = 9,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextYAlignment = Enum.TextYAlignment.Center,
-        TextTransparency = 1,
-        Parent = premium,
-    }, { TextColor3 = "AccentColor", FontFace = "Font" })
-    window.profileTierIcon = premiumIcon
-    window.profileTierLabel = premiumLabel
-    fade(premiumIcon, "ImageTransparency", 0)
-    fade(premium, "BackgroundTransparency", 0)
-    fade(premiumLabel, "TextTransparency", 0)
-
-    -- [[Header hover-help for a truncated display name.]]
-    window:Connect(window.profileName.MouseEnter, function()
-        local text = window.profileName.Text
-        if text == "" then
-            return
-        end
-        local available = window.profileName.AbsoluteSize.X
-        if available <= 0 or functions.textWidth(window.theme.Font, window.profileName.TextSize, text) <= available then
-            return
-        end
-        profilePanel.showTooltip(window, text, 12)
-    end)
-    window:Connect(window.profileName.MouseLeave, function()
-        profilePanel.hideTooltip(window)
-    end)
-
-    -- [[Divider under the pinned header.]]
-    window.profileDivider = window:Create("Frame", {
-        Name = "Divider",
-        Position = UDim2.fromOffset(paddingX, headerHeight),
-        Size = UDim2.new(1, -paddingX * 2, 0, dividerHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        Parent = window.profilePanelSurface,
-    }, { BackgroundColor3 = "ElementStroke" })
-    table.insert(window.profileFadeTargets, {
-        instance = window.profileDivider,
-        prop = "BackgroundTransparency",
-        shown = 0.5,
-    })
-
-    local function label(parent, name, text, position, size, textSize, color, align, transparency)
-        local instance = window:Create("TextLabel", {
-            Name = name,
-            Text = text,
-            Position = position,
-            Size = size,
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            TextSize = textSize,
-            TextXAlignment = align or Enum.TextXAlignment.Left,
-            TextYAlignment = Enum.TextYAlignment.Center,
-            TextTruncate = Enum.TextTruncate.AtEnd,
-            TextTransparency = 1,
-            Parent = parent,
-        }, { TextColor3 = color, FontFace = "Font" })
-        fade(instance, "TextTransparency", transparency or nameTransparency)
-        return instance
-    end
-
-    -- ===== scrollable details =====
-
-    window.profileDetails = window:Create("ScrollingFrame", {
-        Name = "Details",
-        Position = UDim2.fromOffset(0, headerHeight + dividerHeight),
-        Size = UDim2.new(1, 0, 1, -(headerHeight + dividerHeight)),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        CanvasSize = UDim2.new(0, 0, 0, 0),
-        ScrollBarThickness = 0,
-        ScrollBarImageColor3 = Color3.fromRGB(255, 255, 255),
-        ScrollBarImageTransparency = scrollBarTransparency,
-        ScrollingDirection = Enum.ScrollingDirection.Y,
-        ClipsDescendants = true,
-        Parent = window.profilePanelSurface,
-    })
-
-    local content = window:Create("Frame", {
-        Name = "Content",
-        Position = UDim2.fromOffset(0, scrollPaddingTop),
-        Size = UDim2.new(1, 0, 0, 0),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        Parent = window.profileDetails,
-    })
-    window.profileDetailsContent = content
-
-    -- [[Section heading: the window's Section element, verbatim — a 16px]]
-    -- [[ContentColor icon beside a 15px ContentColor title at the section's]]
-    -- [[own transparencies, so the card titles its groups exactly the way]]
-    -- [[the window titles its tabs' sections.]]
-    local function heading(y: number, title: string, iconName: string): number
-        local icon = window:Create("ImageLabel", {
-            Name = title .. "Icon",
-            Image = cardIcon(window, iconName),
-            Position = UDim2.fromOffset(paddingX, y + (headingHeight - headingIconSize) / 2),
-            Size = UDim2.fromOffset(headingIconSize, headingIconSize),
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            ImageTransparency = 1,
-            Parent = content,
-        }, { ImageColor3 = "ContentColor" })
-        fade(icon, "ImageTransparency", iconTransparency)
-
-        label(
-            content,
-            title,
-            title,
-            UDim2.fromOffset(paddingX + headingIconSize + headingIconGap, y),
-            UDim2.new(1, -(paddingX * 2 + headingIconSize + headingIconGap), 0, headingHeight),
-            15,
-            "ContentColor",
-            Enum.TextXAlignment.Left,
-            headingTransparency
-        )
-        return y + headingHeight + headingGap
-    end
-
-    -- [[A section's plate: Window:StyleElementBody, verbatim — the element]]
-    -- [[gradient over a white body at ElementTransparency, the element]]
-    -- [[corner, and the element stroke at the theme's own transparency, so]]
-    -- [[every container on the card IS one of the window's element bodies.]]
-    local function card(y: number, name: string, height: number)
-        local frame = window:Create("Frame", {
-            Name = name,
-            Position = UDim2.fromOffset(paddingX, y),
-            Size = UDim2.new(1, -paddingX * 2, 0, height),
-            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-            BorderSizePixel = 0,
-            Parent = content,
-        }, { BackgroundTransparency = "ElementTransparency" })
-        local stroke = window:StyleElementBody(frame)
-        fade(frame, "BackgroundTransparency", 0)
-        fade(stroke, "Transparency", window.theme.ElementStrokeTransparency or 0)
-        return frame
-    end
-
-    local y = 0
-
-    -- [[Pinned header done; give the frame back before the detail cards if
-    -- [[the budget was spent. Unconditional pacing: the card may be building
-    -- [[lazily on a toggle click, when startup checkpoints have gone quiet.]]
-    window:_paceBudget()
-
-    -- ===== ACCOUNT =====
-
-    local accountRows = {
-        {
-            name = "UserId",
-            label = "User ID",
-            icon = "id-card",
-            action = "copy",
-            copy = function()
-                local current = state.localPlayer
-                return if current and current.UserId then tostring(current.UserId) else nil
-            end,
-        },
-        { name = "JoinDate", label = "Account created", icon = "calendar-days", labelWidth = 88, valueSize = 11 },
-        { name = "AccountAge", label = "Elapsed", icon = "hourglass" },
-        {
-            name = "Key",
-            label = "Key",
-            icon = "key-round",
-            labelWidth = 62,
-            valueSize = 12,
-            action = "copy",
-            copy = function()
-                local key = (window.profileData or {}).key
-                return if type(key) == "string" and key ~= "" then key else nil
-            end,
-        },
-        { name = "Whitelist", label = "Whitelist", icon = "shield-check", labelWidth = 62, valueSize = 12 },
-    }
-
-    y = heading(y, "Account", "user-round")
-    local accountCardY = y
-    local accountCard = card(y, "AccountCard", sectionHeight(#accountRows))
-    for index, row in ipairs(accountRows) do
-        local value = addRow(window, accountCard, {
-            name = row.name,
-            label = row.label,
-            icon = row.icon,
-            action = row.action,
-            copy = row.copy,
-            instanceName = row.instanceName,
-            labelWidth = row.labelWidth,
-            valueSize = row.valueSize,
-            y = cardPaddingY + (index - 1) * (rowHeight + rowGap),
-            cardY = accountCardY,
-        })
-        if row.name == "UserId" then
-            window.profileUserIdValue = value
-        elseif row.name == "JoinDate" then
-            window.profileJoinDateValue = value
-        elseif row.name == "AccountAge" then
-            window.profileAccountAgeValue = value
-        elseif row.name == "Key" then
-            window.profileKeyValue = value
-        elseif row.name == "Whitelist" then
-            window.profileWhitelistValue = value
-        end
-    end
-    y = accountCardY + sectionHeight(#accountRows) + sectionGap
-
-    -- ===== CURRENT GAME =====
-
-    y = heading(y, "Current Game", "gamepad-2")
-    local gameCardY = y
-    local gameCardHeight = cardPaddingY * 2 + gameThumbnailSize
-    local gameCard = card(y, "CurrentGame", gameCardHeight)
-
-    local gameThumbnail = window:Create("ImageLabel", {
-        Name = "GameThumbnail",
-        Image = "",
-        Position = UDim2.fromOffset(cardPaddingX, cardPaddingY),
-        Size = UDim2.fromOffset(gameThumbnailSize, gameThumbnailSize),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 0,
-        Parent = gameCard,
-    }, { BackgroundColor3 = "ElementSurface" })
-    window:Create("UICorner", { Parent = gameThumbnail }, { CornerRadius = "ElementCornerRadius" })
-    window:Create("UIStroke", {
-        Parent = gameThumbnail,
-    }, { Color = "ElementStroke", Transparency = "ElementStrokeTransparency" })
-
-    local gameNameX = cardPaddingX + gameThumbnailSize + 10
-    -- [[The DataModel's own name fills the row immediately; the official]]
-    -- [[two-step lookup (place -> universe -> games list) replaces it with]]
-    -- [[the real game name as soon as the platform answers.]]
-    local gameName = label(
-        gameCard,
-        "GameName",
-        tostring(game.Name or fallbackValue),
-        UDim2.fromOffset(gameNameX, cardPaddingY),
-        UDim2.new(1, -(gameNameX + cardPaddingX), 0, 17),
-        13,
-        "TitlingColor"
-    )
-    window.profileGameName = gameName
-    window.profilePlaceId = addRow(window, gameCard, {
-        name = "PlaceId",
-        label = "Place ID",
-        instanceName = "GameBy",
-        y = cardPaddingY + 22,
-        x = gameNameX,
-        labelWidth = 52,
-        cardY = gameCardY,
-        action = "copy",
-        copy = function()
-            local id = getPlaceId()
-            return if id then tostring(id) else nil
-        end,
-    })
-
-    window:Connect(gameName.MouseEnter, function()
-        local text = gameName.Text
-        if text == "" or text == fallbackValue then
-            return
-        end
-        local available = gameName.AbsoluteSize.X
-        if available <= 0 or functions.textWidth(window.theme.Font, gameName.TextSize, text) <= available then
-            return
-        end
-        profilePanel.showTooltip(window, text, gameCardY + cardPaddingY)
-    end)
-    window:Connect(gameName.MouseLeave, function()
-        profilePanel.hideTooltip(window)
-    end)
-
-    y = gameCardY + gameCardHeight + sectionGap
-
-    -- ===== SERVER =====
-
-    local serverRows = {
-        { name = "Players", label = "Players", icon = "users" },
-        {
-            -- [[The value is DataModel.JobId, so the row says so: "Job ID".
-            -- [[(The row's internal name stays ServerId — hosts, saved state
-            -- [[and the tests reach it as window.profileServerIdValue.)]]
-            name = "ServerId",
-            label = "Job ID",
-            icon = "server",
-            labelWidth = 64,
-            action = "copy",
-            copy = function()
-                local jobId = getJobId()
-                return if jobId and not isStudio() then jobId else nil
-            end,
-        },
-    }
-
-    y = heading(y, "Server", "server")
-    local serverCardY = y
-    local serverCard = card(y, "ServerCard", sectionHeight(#serverRows))
-    for index, row in ipairs(serverRows) do
-        local value = addRow(window, serverCard, {
-            name = row.name,
-            label = row.label,
-            icon = row.icon,
-            action = row.action,
-            copy = row.copy,
-            y = cardPaddingY + (index - 1) * (rowHeight + rowGap),
-            cardY = serverCardY,
-        })
-        if row.name == "Players" then
-            window.profilePlayersValue = value
-        elseif row.name == "ServerId" then
-            window.profileServerIdValue = value
-        end
-    end
-    y = serverCardY + sectionHeight(#serverRows) + sectionGap
-
-    -- ===== USER SESSION =====
-
-    y = heading(y, "User Session", "clock")
-    local sessionCardY = y
-    local sessionCard = card(y, "SessionCard", sectionHeight(1))
-    window.profileSessionValue = addRow(window, sessionCard, {
-        name = "Session",
-        label = "Time in server",
-        icon = "activity",
-        y = cardPaddingY,
-        cardY = sessionCardY,
-    })
-    y = sessionCardY + sectionHeight(1) + sectionGap
-
-    content.Size = UDim2.new(1, 0, 0, y)
-    window.profileDetails.CanvasSize = UDim2.fromOffset(0, scrollPaddingTop + y + scrollPaddingBottom)
-
-    -- [[Detail cards done; the tooltip and its wiring start on a fresh frame
-    -- [[when the previous section spent the budget.]]
-    window:_paceBudget()
-
-    -- [[Hover tooltip surface. Parented to the card (not the scroll region) so
-    -- [[it is never clipped by the scrolling area.]]
-    local tooltip = window:Create("Frame", {
-        Name = "Tooltip",
-        Position = UDim2.fromOffset(paddingX + cardPaddingX, 40),
-        Size = UDim2.new(1, -(paddingX * 2 + cardPaddingX * 2), 0, tooltipHeight),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        Visible = false,
-        -- [[The window's ScreenGui stacks by Global z-index, so this surface]]
-        -- [[has to outrank the card rows it floats over...]]
-        ZIndex = 10,
-        Parent = window.profilePanelSurface,
-    }, { BackgroundColor3 = "PopupSurface" })
-    window.profileTooltip = tooltip
-    window:Create("UICorner", { CornerRadius = UDim.new(0, 6), Parent = tooltip })
-    window:Create("UIStroke", {
-        Transparency = 0.25,
-        Parent = tooltip,
-    }, { Color = "ElementStroke" })
-    window:Create("UIPadding", {
-        PaddingLeft = UDim.new(0, 6),
-        PaddingRight = UDim.new(0, 6),
-        PaddingTop = UDim.new(0, 4),
-        PaddingBottom = UDim.new(0, 4),
-        Parent = tooltip,
-    })
-    window.profileTooltipLabel = window:Create("TextLabel", {
-        Name = "Label",
-        Text = "",
-        Size = UDim2.fromScale(1, 1),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        TextSize = 11,
-        TextWrapped = true,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextYAlignment = Enum.TextYAlignment.Top,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        TextTransparency = 1,
-        -- [[... and under Global stacking a parent draws over any child with
-        -- [[a lower z-index, so the label has to outrank its own surface or
-        -- [[the tooltip shows as an empty box with the text buried under it.
-        ZIndex = 11,
-        Parent = tooltip,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
-
-    -- [[The panel is a sibling of the window frame: mirroring the frame's]]
-    -- [[position keeps it following drags, restores and resizes without a]]
-    -- [[per-frame loop.]]
-    window:Connect(window.main:GetPropertyChangedSignal("Position"), function()
-        profilePanel.layout(window)
-    end)
-    window:Connect(window.main:GetPropertyChangedSignal("Size"), function()
-        profilePanel.layout(window)
-    end)
-
-    -- [[Live values (player count, uptime, session) refresh on a slow tick
-    -- [[while the card is on screen; the connection is created once per window
-    -- [[so rebuilds cannot stack loops.]]
-    if not window.profileRefreshConnection then
-        local elapsed = 0
-        window.profileRefreshConnection = window:Connect(state.runService.Heartbeat, function(dt: number)
-            if window.unloaded then
-                return
-            end
-            elapsed += dt
-            if elapsed < refreshInterval then
-                return
-            end
-            elapsed = 0
-            if profilePanel.isShown(window) then
-                profilePanel.applyLive(window)
-            end
-        end)
-    end
-
-    -- [[Avatar: same generation guard as the rest of the card so a rebuilt or
-    -- [[unloaded panel never receives a stale image.]]
-    buildGeneration += 1
-    local generation = buildGeneration
-    window.profileBuildGeneration = generation
-    gameThumbnailGenerations[gameThumbnail] = generation
-
-    local function safeAssign(url: string)
-        if window.unloaded or gameThumbnailGenerations[gameThumbnail] ~= generation then
-            return
-        end
-        if not gameThumbnail.Parent then
-            return
-        end
-        image.assign(gameThumbnail, "Image", url)
-    end
-
-    -- [[Game thumbnail: the universe id comes from DataModel.GameId when the]]
-    -- [[runtime supplies one, otherwise from the official place -> universe]]
-    -- [[lookup; the legacy rbxthumb URI is the last-resort fallback.]]
-    local fallbackUrl = buildFallbackUrl(getPlaceId())
-    resolveUniverseId(function(universeId: number?)
-        if not universeId then
-            if fallbackUrl ~= "" then
-                safeAssign(fallbackUrl)
-            end
-            return
-        end
-        local cachedIcon = resolvedGameIcons[universeId]
-        if type(cachedIcon) == "string" and cachedIcon ~= "" then
-            safeAssign(cachedIcon)
-        else
-            fetchOfficialGameIcon(universeId, function(officialUrl: string?)
-                if officialUrl and officialUrl ~= "" then
-                    safeAssign(officialUrl)
-                elseif fallbackUrl ~= "" then
-                    safeAssign(fallbackUrl)
-                end
-            end)
-        end
-    end)
-
-    -- [[The official game name (place -> universe -> games list). The label]]
-    -- [[keeps the DataModel's own name until the platform answers, and a]]
-    -- [[cached answer lands immediately on the next build.]]
-    local placeId = getPlaceId()
-    if placeId then
-        local cachedName = resolvedGameNames[placeId]
-        if type(cachedName) == "string" and cachedName ~= "" then
-            setText(gameName, cachedName)
-        else
-            fetchGameName(placeId, function(officialName: string?)
-                if window.unloaded or gameThumbnailGenerations[gameThumbnail] ~= generation then
-                    return
-                end
-                if type(officialName) == "string" and officialName ~= "" then
-                    setText(gameName, officialName)
-                end
-            end)
-        end
-    end
-
-    if player then
-        local avatarGeneration = generation
-        avatarGenerations[window.profileAvatar] = avatarGeneration
-
-        local function applyAvatar(avatarLabel, uri)
-            if avatarGenerations[avatarLabel] ~= avatarGeneration then
-                return
-            end
-            if uri ~= nil and uri ~= "" then
-                avatarReady[avatarLabel] = true
-                image.assign(avatarLabel, "Image", uri)
-                -- [[The avatar may finish loading after the panel already
-                -- [[faded in: reveal it now instead of waiting for the
-                -- [[next show/hide cycle.]]
-                if window.profilePanel and window.profilePanel.Visible then
-                    motion.tween(avatarLabel, { ImageTransparency = 0 }, settleTween)
-                end
-            else
-                avatarReady[avatarLabel] = nil
-                image.assign(avatarLabel, "Image", fallbackUri)
-            end
-        end
-
-        local cachedUri = image.avatar(player.UserId, function(uri)
-            if window.unloaded then
-                return
-            end
-            local avatar = window.profileAvatar
-            if not avatar then
-                return
-            end
-            applyAvatar(avatar, uri)
-        end)
-
-        if cachedUri ~= "" then
-            applyAvatar(window.profileAvatar, cachedUri)
-        end
-
-    end
-
-    profilePanel.applyIdentity(window)
-    profilePanel.applyLive(window)
-    profilePanel.layout(window)
-    return window.profilePanel
-end
-
--- [[Place the card beside the window frame, vertically centred on the]]
--- [[window's centre. The frame's position may carry scale (the centred]]
--- [[resting position) or be pure offset after a drag: the scale passes]]
--- [[through untouched, the offset gets the half-window + gap edge. The]]
--- [[card's height is derived from window.size.Y.Offset so it never exceeds]]
--- [[the window and aligns top/bottom edges with the window at default size.]]
-function profilePanel.layout(window)
-    local panel = window.profilePanel
-    if not panel then
-        return
-    end
-
-    local main = window.main
-    local pos = main.Position
-    local width = main.Size.X.Offset
-    local left = (window.settings.profileSide or "right") == "left"
-    local edge = width / 2 + profilePanel.gap
-    local cardH = currentCardHeight(window)
-    profilePanel.height = cardH
-
-    panel.AnchorPoint = Vector2.new(if left then 1 else 0, 0)
-    panel.Position = UDim2.new(
-        pos.X.Scale,
-        pos.X.Offset + (if left then -edge else edge),
-        pos.Y.Scale,
-        pos.Y.Offset - cardH / 2
-    )
-    panel.Size = UDim2.fromOffset(profilePanel.width, cardH)
-
-    -- [[The details region takes whatever the pinned header leaves. The
-    -- [[scrollbar only appears when the sections are taller than that region,
-    -- [[and the content narrows by its width so nothing slides underneath.]]
-    local details = window.profileDetails
-    local content = window.profileDetailsContent
-    if not (details and content) then
-        return
-    end
-    local regionHeight = math.max(0, cardH - headerHeight - dividerHeight)
-    details.Size = UDim2.new(1, 0, 0, regionHeight)
-    local scrollable = content.Size.Y.Offset > math.max(0, regionHeight - scrollPaddingTop - scrollPaddingBottom)
-    details.ScrollBarThickness = if scrollable then scrollBarThickness else 0
-    content.Size = UDim2.new(1, if scrollable then -scrollBarThickness else 0, 0, content.Size.Y.Offset)
-end
-
-function profilePanel.setShown(window, shown, tweenInfo)
-    local panel = window.profilePanel
-    if not panel then
-        return
-    end
-
-    -- [[Window visibility wins over the requested state: never fade the]]
-    -- [[panel in while the window is hidden or minimised.]]
-    shown = shown == true
-        and profilePanel.isEnabled(window)
-        and not window.hidden
-        and not window.minimised
-
-    local avatar = window.profileAvatar
-    local stroke = window.profilePanelStroke
-    local glow = window.profilePanelGlow
-
-    panel.Visible = shown
-
-    if not (avatar and stroke) then
-        return
-    end
-
-    if shown then
-        -- [[Fresh values the moment the card (re)appears.]]
-        profilePanel.applyLive(window)
-    end
-
-    local hasImage = avatarReady[avatar] == true
-        or (type(avatar.Image) == "string" and avatar.Image ~= "" and avatar.Image ~= fallbackUri)
-
-    local targets: { [Instance]: { [string]: any } } = {
-        [avatar] = {
-            ImageTransparency = if shown and hasImage then 0 else 1,
-            BackgroundTransparency = if shown then avatarBgTransparency else 1,
-        },
-        [stroke] = { Transparency = if shown then idleStrokeTransparency else 1 },
-    }
-
-    -- [[The card's own plate fades with the window's: while the window is]]
-    -- [[still fading in its background is part-transparent, so the card beside]]
-    -- [[it must be too — otherwise the card reads as a solid panel floating]]
-    -- [[next to a half-faded window.]]
-    local surface = window.profilePanelSurface
-    if surface then
-        targets[surface] = {
-            BackgroundTransparency = if shown then window:WindowSurfaceTransparency() else 1,
-        }
-    end
-
-    if glow then
-        targets[glow] = { Transparency = if shown then glowTransparency else 1 }
-    end
-
-    for _, entry in ipairs(window.profileFadeTargets or {}) do
-        local props = targets[entry.instance]
-        if not props then
-            props = {}
-            targets[entry.instance] = props
-        end
-        props[entry.prop] = if shown then entry.shown else 1
-    end
-
-    for instance, props in targets do
-        local needsUpdate = false
-        for prop, value in props do
-            if instance[prop] ~= value then
-                needsUpdate = true
-                break
-            end
-        end
-        if not needsUpdate then
-            continue
-        end
-        if tweenInfo then
-            motion.tween(instance, props, tweenInfo)
-        else
-            for prop, value in props do
-                instance[prop] = value
-            end
-        end
-    end
-end
-
-function profilePanel.setEnabled(window, enabled)
-    window.settings.showProfile = enabled == true
-
-    -- [[The card is built on demand the first time the setting is switched
-    -- [[on, so the default-off window never paid for its dozens of instances.
-    -- [[Build before the writers below run: applyIdentity fills the fresh
-    -- [[card and setShown fades it in as part of the same toggle.]]
-    if window.settings.showProfile then
-        profilePanel.ensureBuilt(window)
-        -- [[Player not replicated yet? The startup waiter only armed while
-        -- [[construction knew the setting was on; a card enabled later gets
-        -- [[its own waiter so it still reveals on arrival.]]
-        if not state.localPlayer and window._armProfilePlayerWaiter then
-            window:_armProfilePlayerWaiter()
-        end
-    end
-
-    -- [[The reveal toggle depends on the card, so switching the card off]]
-    -- [[switches the reveal off with it: it can never sit active while]]
-    -- [[there is nothing on screen to reveal. The caller (the settings UI)]]
-    -- [[rolls its own switch back from the return value.]]
-    local revealCleared = false
-    if not window.settings.showProfile and window.settings.showFullUsername then
-        window.settings.showFullUsername = false
-        revealCleared = true
-    end
-    profilePanel.applyIdentity(window)
-
-    profilePanel.setShown(window, window.settings.showProfile, settleTween)
-    window:_recenterForProfile(window.settings.showProfile)
-
-    if revealCleared then
-        window:Notify({
-            title = locale.resolve("Reveal profile details"),
-            content = locale.resolve(
-                "Turned off with the profile card: it unmasks the values on that card, so it needs \"Show profile\" to be on."
-            ),
-        })
-    end
-
-    -- [[The toggle is only half the story: the card also needs a player and]]
-    -- [[room on screen (260px beside the window, window-height tall). A missing]]
-    -- [[player resolves itself through the late-player waiter in Window.new,]]
-    -- [[but a small viewport would otherwise leave the user looking at an]]
-    -- [[active toggle and no card — so say why.]]
-    if window.settings.showProfile and state.localPlayer and not hasRoom(window) then
-        window:Notify({
-            title = locale.resolve("Profile card"),
-            content = locale.resolve(
-                "This screen has no room for the profile card, so it stays hidden. It needs 260px beside the window and enough height for the window — enlarge the window or rotate the device and it appears."
-            ),
-        })
-    end
-
-    return revealCleared
-end
-
-function profilePanel.setSide(window, side)
-    window.settings.profileSide = if side == "left" then "left" else "right"
-    profilePanel.layout(window)
-    window:_recenterForProfile(true)
-end
-
--- [[Window:SetProfile accepts either the legacy subtitle string / nil or a
--- [[table carrying everything the card's host-owned rows show:
--- [[  { subtitle = "…", key = "…", tier = "PREMIUM",
--- [[    whitelist = { status = "Active", daysLeft = 14 } }
--- [[`tier` drives the header pill (any word, uppercased on the card); with
--- [[none supplied the pill falls back to PREMIUM / FREEMIUM from the
--- [[platform membership.
--- [[`whitelist.expiresAt` (unix seconds) is accepted instead of `daysLeft` and
--- [[counted down live. Anything not supplied reads "—".]]
-function profilePanel.setProfile(window, props)
-    if type(props) ~= "table" then
-        -- [[Legacy call shape: a subtitle string (or nil to clear it). The
-        -- [[host's key / whitelist rows are left exactly as they were.]]
-        return profilePanel.setSubtitle(window, props)
-    end
-
-    local data = {}
-    if type(props) == "table" then
-        local subtitle = props.subtitle or props.Subtitle
-        if type(subtitle) == "string" and subtitle ~= "" then
-            data.subtitle = subtitle
-        end
-        local key = props.key or props.Key
-        if type(key) == "string" and key ~= "" then
-            data.key = key
-        end
-        local tier = props.tier or props.Tier
-        if type(tier) == "string" and tier ~= "" then
-            data.tier = tier
-        end
-        local whitelist = props.whitelist or props.Whitelist
-        if type(whitelist) == "table" then
-            local status = whitelist.status or whitelist.Status
-            local daysLeft = whitelist.daysLeft or whitelist.DaysLeft
-            local expiresAt = whitelist.expiresAt or whitelist.ExpiresAt
-            data.whitelist = {
-                status = if type(status) == "string" and status ~= "" then status else nil,
-                daysLeft = if type(daysLeft) == "number" then daysLeft else nil,
-                expiresAt = if type(expiresAt) == "number" then expiresAt else nil,
-            }
-        end
-    end
-    window.profileData = data
-    window.profileText = data.subtitle
-    profilePanel.applyIdentity(window)
-    profilePanel.applyLive(window)
-    return data
-end
-
--- [[Legacy setter (string / nil): swaps the subtitle while leaving any key,
--- [[tier or whitelist the host supplied in place.]]
-function profilePanel.setSubtitle(window, text)
-    if type(text) == "table" then
-        return profilePanel.setProfile(window, text)
-    end
-    local data = window.profileData or {}
-    -- [[Copy before mutating: the caller may still hold the table it passed.]]
-    data = { subtitle = data.subtitle, key = data.key, tier = data.tier, whitelist = data.whitelist }
-    data.subtitle = if type(text) == "string" and text ~= "" then text else nil
-    window.profileData = data
-    window.profileText = data.subtitle
-    profilePanel.applyIdentity(window)
-end
-
--- [[Kept as an alias: the reveal toggle no longer drives the name alone, so]]
--- [[refreshing the name refreshes the whole identity block.]]
-function profilePanel.refreshName(window)
-    profilePanel.applyIdentity(window)
-end
-
-return profilePanel
-
-end)() end,
-    [16] = function()local wax,script,require=ImportGlobals(16)local ImportGlobals return (function(...)
+    [13] = function()local wax,script,require=ImportGlobals(13)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local state = require(utilities.Parent.core.state)
 local motion = require(utilities.motion)
@@ -5673,12 +3168,11 @@ end
 return search
 
 end)() end,
-    [17] = function()local wax,script,require=ImportGlobals(17)local ImportGlobals return (function(...)
+    [14] = function()local wax,script,require=ImportGlobals(14)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local constants = require(utilities.constants)
 local locale = require(utilities.locale)
 local haptic = require(utilities.HapticEngine)
-local profilePanel = require(script.Parent.profilePanel)
 local layouts = require(utilities.layouts)
 
 local settingsComponent = {}
@@ -5827,39 +3321,23 @@ function settingsComponent.buildUI(window)
 
     local function buildAbout()
         about:CreateCollapsibleGroup({
-            name = "Rayfield Gen2",
-            icon = "info",
+            name = "Astra",
+            icon = "sparkles",
             elements = {
                 {
                     type = "Text",
-                    name = "About Rayfield Gen2",
-                    text = "Rayfield Gen2 is a ground-up rebuild of the Rayfield Interface Suite, built entirely in code for a faster, more stable, and more consistent experience.",
+                    name = "About Astra",
+                    text = "Astra is an interface library built entirely in code: one loader line, one window, and a set of reusable elements that stay fast to open and behave the same on desktop and mobile.",
                 },
                 {
                     type = "Text",
                     name = "Highlights",
                     text = "State can persist between sessions, themes can change at runtime, labels can be translated, and the interface is designed for both desktop and mobile.",
                 },
-            },
-        })
-        about:CreateCollapsibleGroup({
-            name = "Astra",
-            icon = "sparkles",
-            elements = {
-                {
-                    type = "Text",
-                    name = "Our Story",
-                    text = "Astra began from Rayfield Gen2 and was reshaped into a distinct interface library with its own visual language, behavior, and features.",
-                },
                 {
                     type = "Text",
                     name = "What Astra Provides",
                     text = "A responsive, customizable interface with persistent settings, runtime themes, localization support, animated window transitions, and a growing set of reusable elements.",
-                },
-                {
-                    type = "Text",
-                    name = "Customized by Haijo",
-                    text = "Originally from Rayfield, Astra is customized, refined, and maintained by Haijo.",
                 },
             },
         })
@@ -5869,8 +3347,13 @@ function settingsComponent.buildUI(window)
             elements = {
                 {
                     type = "Text",
-                    name = "Documentation",
-                    text = "https://docs.sirius.menu/rayfield-gen2",
+                    name = "Repository",
+                    text = "https://github.com/Kira762/astra-version-1",
+                },
+                {
+                    type = "Text",
+                    name = "Usage guide",
+                    text = "https://github.com/Kira762/astra-version-1/blob/main/USAGE.md",
                 },
             },
         })
@@ -5971,7 +3454,7 @@ function settingsComponent.buildUI(window)
                     type = "Button",
                     name = "Reset Window Position",
                     callback = function()
-                        window:_recenterForProfile(true)
+                        window:_recenterWindow(true)
                     end,
                 },
                 {
@@ -6260,51 +3743,6 @@ function settingsComponent.buildUI(window)
         })
         layoutDropdown = layoutGroup.elements[1]
 
-        local revealToggle
-        local profileGroup = appearance:CreateCollapsibleGroup({
-            name = "Profile",
-            icon = "user",
-            elements = {
-                {
-                    type = "Toggle",
-                    name = "Show profile",
-                    value = window.settings.showProfile,
-                    callback = function(value)
-                        local revealCleared = profilePanel.setEnabled(window, value)
-                        if revealCleared and revealToggle then
-                            revealToggle:Set(false, true)
-                        end
-                        window:SaveSettings()
-                    end,
-                },
-                {
-                    type = "Dropdown",
-                    name = "Profile side",
-                    options = { "Right", "Left" },
-                    value = if (window.settings.profileSide or "right") == "left" then "Left" else "Right",
-                    callback = function(choice)
-                        local side = if choice == "Left" then "left" else "right"
-                        if (window.settings.profileSide or "right") == side then
-                            return
-                        end
-                        profilePanel.setSide(window, side)
-                        window:SaveSettings()
-                    end,
-                },
-                {
-                    type = "Toggle",
-                    name = "Reveal profile details",
-                    value = window.settings.showFullUsername,
-                    callback = function(value)
-                        if not profilePanel.setReveal(window, value) and revealToggle then
-                            revealToggle:Set(false, true)
-                        end
-                        window:SaveSettings()
-                    end,
-                },
-            },
-        })
-        revealToggle = profileGroup.elements[3]
     end
     appearance._settingsContentBuilder = buildAppearance
 
@@ -6551,7 +3989,7 @@ end
 return settingsComponent
 
 end)() end,
-    [18] = function()local wax,script,require=ImportGlobals(18)local ImportGlobals return (function(...)
+    [15] = function()local wax,script,require=ImportGlobals(15)local ImportGlobals return (function(...)
 local tabSelector = require(script.Parent.tabSelector)
 local search = require(script.Parent.search)
 
@@ -6612,7 +4050,7 @@ end
 return sidebar
 
 end)() end,
-    [19] = function()local wax,script,require=ImportGlobals(19)local ImportGlobals return (function(...)
+    [16] = function()local wax,script,require=ImportGlobals(16)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local state = require(utilities.Parent.core.state)
 local motion = require(utilities.motion)
@@ -6980,7 +4418,7 @@ end
 return tabSelector
 
 end)() end,
-    [20] = function()local wax,script,require=ImportGlobals(20)local ImportGlobals return (function(...)
+    [17] = function()local wax,script,require=ImportGlobals(17)local ImportGlobals return (function(...)
 -- [[The floating element description.
 --
 -- One panel per window (`window.elementTooltip`), owned by the screen GUI and
@@ -7430,7 +4868,7 @@ end
 return tooltip
 
 end)() end,
-    [21] = function()local wax,script,require=ImportGlobals(21)local ImportGlobals return (function(...)
+    [18] = function()local wax,script,require=ImportGlobals(18)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local image = require(script.Parent.Parent.images.image)
 local icons = require(script.Parent.Parent.icons)
@@ -7446,7 +4884,6 @@ local layouts = require(utilities.layouts)
 local chrome = require(script.Parent.chrome)
 local search = require(script.Parent.search)
 local tabSelector = require(script.Parent.tabSelector)
-local profilePanel = require(script.Parent.profilePanel)
 local settingsComponent = require(script.Parent.settings)
 local overlayQueue = require(script.Parent.overlayQueue)
 local tooltip = require(script.Parent.tooltip)
@@ -7484,9 +4921,9 @@ local compactRowHeight = 41
 local dragHandleGap = 22
 
 -- [[The window's own surface, defined once. Everything that has to read as
--- [["the window background" — the frame itself and the profile card beside it —
--- [[is styled through Window:StyleWindowSurface, so the two can never drift
--- [[into near-miss shades of each other: same base colour, same WindowColor
+-- [["the window background" is styled through Window:StyleWindowSurface, so
+-- [[every surface that reads as part of the window shares one definition
+-- [[instead of near-miss copies: same base colour, same WindowColor
 -- [[gradient (theme token + the same rotation/offset, so a theme change moves
 -- [[both together) and the same opacity once shown.]]
 local windowSurfaceColor = Color3.fromRGB(255, 255, 255)
@@ -7587,11 +5024,10 @@ function Window.new(props)
         _overlayQueue = {},
         _overlayQueueRunning = false,
 
-        icon = icons.resolve(providedIcon or "Sirius"),
+        icon = icons.resolve(providedIcon or "Astra"),
         showName = props.showName or props.ShowName or "Astra",
         showIcon = icons.resolve(providedIcon or "Astra"),
                 showIconOnly = props.showIconOnly or props.ShowIconOnly or false,
-                profileText = nil,
 
         themeProperties = {},
         localeProperties = {},
@@ -7652,9 +5088,6 @@ function Window.new(props)
         theme = if type(props.theme or props.Theme) == "string" then string.lower(props.theme or props.Theme) else "default",
         mouseOverride = false,         keepOnScreen = true,         haptics = false,
         dragMinimisedBar = false,
-        showProfile = false,
-        showFullUsername = false,
-        profileSide = "right",
         antiWindowDuplicate = true,
         layoutMode = layout.mode,
         activeSubTab = 1,
@@ -7996,20 +5429,6 @@ function Window.new(props)
     chrome.buildCollapsedFace(self)
 
     self:_constructionCheckpoint(true)
-    -- [[The profile card is opt-in: it builds only when "Show profile" is on
-    -- [[(the default is off), so the common window skips its ~90 themed
-    -- [[instances on the spawn path. The first toggle to enable it builds the
-    -- [[card on demand through profilePanel.ensureBuilt.]]
-    profilePanel.ensureBuilt(self)
-    profilePanel.setSubtitle(self, self.profileText)
-    if profilePanel.isEnabled(self) then
-        self.main.Position = self:_profileCenterPosition()
-    end
-    -- [[Card on but the player object is not replicated yet: this waiter fills
-    -- [[and reveals it the moment the player arrives. It is also re-armed by
-    -- [[setEnabled when the card is switched on later (lazy build), so the
-    -- [[toggle path keeps the same late-player behaviour as startup.]]
-    self:_armProfilePlayerWaiter()
     self:_bindKeybind()
     self:_bindMouseOverride()
     self:_bindTopbarDrag()
@@ -8037,8 +5456,8 @@ end
 -- Yield at a completed construction boundary when the current frame has
 -- spent its budget. Batches are limited by both CPU time and instance count,
 -- and the check is unconditional: components that build lazily after startup
--- (the profile card on first enable, late settings panels) use this directly
--- so a deferred build can never monopolise a frame either. Yields land on the
+-- (late settings panels) use this directly so a deferred build can never
+-- monopolise a frame either. Yields land on the
 -- next Heartbeat (not another deferred task in the same frame).
 function Window:_paceBudget(force)
     local now = os.clock()
@@ -8113,16 +5532,9 @@ function Window:_syncLiveAnimation()
         local liveTweenInfo = motion.spec("drift")
 
         while self._liveGeneration == generation and self._liveAnimating and not self.unloaded do
-            -- [[The card beside the window is the same surface, so it rides the
-            -- [[same animation: a static card next to a live window would show
-            -- [[two different shades of the same gradient. It is read fresh
-            -- [[each cycle because the card is rebuilt from scratch whenever
-            -- [[the layout or the theme changes.]]
+            -- [[A list so the drift can be applied to more than one gradient
+            -- [[surface; the window's own is currently the only one.]]
             local liveTargets = { self.windowGradient }
-            local panelGradient = self.profilePanelGradient
-            if panelGradient then
-                table.insert(liveTargets, panelGradient)
-            end
 
             local tweens = {}
             for _, gradient in liveTargets do
@@ -8586,7 +5998,7 @@ function Window:Hide()
     if not motion.tween(self.main, { Size = collapsedSize, Position = collapsedPos }, surfaceTween, settleCollapse) then
         settleCollapse()
     end
-    -- [[Capsule bar: theme PillCornerRadius (Gen2 default is a full pill).]]
+    -- [[Capsule bar: theme PillCornerRadius (the default theme is a full pill).]]
     motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, cornerTween)
 
     self.topbar.Visible = true
@@ -8638,12 +6050,10 @@ function Window:ToggleMinimise()
         motion.tween(self.windowCorner, { CornerRadius = self.theme.CornerRoundness }, expandTween)
         self:_fadeSurfaces(true, surfaceTween)	chrome.setCollapsedShown(self, false, surfaceTween)
 
-        -- [[The card comes back with the expanded window and the pair has]]
-        -- [[to fit: the capsule's own clamp only knew the capsule, so one]]
-        -- [[dragged into a corner used to expand with the window — or its]]
-        -- [[card — hanging off the edge. Re-clamp now the panel is shown]]
-        -- [[again (a no-op while the pair already fits, and while the card]]
-        -- [[is off).]]
+        -- [[The expanded window has to fit: the capsule's own clamp only]]
+        -- [[knew the capsule, so one dragged into a corner used to expand]]
+        -- [[with the window hanging off the edge. Re-clamp now the full]]
+        -- [[size is back (a no-op while it already fits).]]
         self:_clampToScreen()
 
         motion.tween(self.drag.drag, {
@@ -8754,12 +6164,9 @@ function Window:_clampedPosition(position: UDim2): UDim2
     end
 
     local screenSize = self.screenGui.AbsoluteSize
-    -- [[The window and its profile card travel as one unit, so the clamp]]
-    -- [[keeps the *pair* in view: the card adds its width + gap to one]]
-    -- [[side and, being taller than a short window, raises the vertical]]
-    -- [[half-extent too. Clamping the window alone let the card be dragged]]
-    -- [[off the edge while "keep window on screen" was still satisfied.]]
-    local halfLeft, halfRight, halfTop = profilePanel.pairHalfSize(self)
+    local halfLeft = self.size.X.Offset / 2
+    local halfRight = halfLeft
+    local halfTop = self.size.Y.Offset / 2
     local margin = 8
         local x = math.clamp(position.X.Offset, halfLeft + margin, math.max(halfLeft + margin, screenSize.X - halfRight - margin))
     local y = math.clamp(position.Y.Offset, halfTop + margin, math.max(halfTop + margin, screenSize.Y - halfTop - margin))
@@ -8773,25 +6180,16 @@ function Window:_clampToScreen()
     self.main.Position = self:_clampedPosition(self.main.Position)
 end
 
--- [[The window's canonical resting position. With the profile panel]]
--- [[enabled, the window + gap + panel are treated as one unit and that]]
--- [[unit is centred: the window itself sits half a panel away from the]]
--- [[screen centre, on the opposite side of the panel, so neither side of]]
--- [[the pair looks cramped.]]
-function Window:_profileCenterPosition(): UDim2
-    local shift = profilePanel.shiftFor(self)
-    if shift <= 0 then
-        return UDim2.new(0.5, 0, 0.5, 0)
-    end
-    local left = (self.settings.profileSide or "right") == "left"
-    return UDim2.new(0.5, if left then shift else -shift, 0.5, 0)
+-- [[The window's canonical resting position: dead centre of the screen.]]
+function Window:_restingCenterPosition(): UDim2
+    return UDim2.new(0.5, 0, 0.5, 0)
 end
 
-function Window:_recenterForProfile(animate)
-    local target = self:_profileCenterPosition()
+function Window:_recenterWindow(animate)
+    local target = self:_restingCenterPosition()
     if self.hidden or self.minimised then
         -- [[Nothing is on screen to move; park the remembered position so]]
-        -- [[the next restore lands centred for the current panel state.]]
+        -- [[the next restore lands centred.]]
         self._restorePosition = target
         return
     end
@@ -8799,8 +6197,8 @@ function Window:_recenterForProfile(animate)
         return
     end
     if animate and not self.animating then
-        -- [[A recenter slides the pair sideways between resting places: the
-        -- symmetric `glide` ease reads as deliberate, not reactive.]]
+        -- [[A recenter slides the window sideways between resting places:
+        -- the symmetric `glide` ease reads as deliberate, not reactive.]]
         motion.tween(self.main, { Position = target }, "glide")
         motion.tween(self.drag.drag, {
             Position = UDim2.new(target.X.Scale, target.X.Offset, target.Y.Scale, target.Y.Offset + self.size.Y.Offset / 2 + dragHandleGap),
@@ -8809,47 +6207,6 @@ function Window:_recenterForProfile(animate)
         self.main.Position = target
         self:_syncDragBar()
     end
-end
-
--- [[One-shot waiter for a LocalPlayer that has not replicated when the card
--- [[was enabled. On arrival it builds the (lazily skipped) card if needed,
--- [[fills its identity and reveals the window + card pair. Bounded by a short
--- [[deadline so a host with no player at all does not keep polling forever.
--- [[Safe to call repeatedly; the first arm wins.
-function Window:_armProfilePlayerWaiter()
-    if self._profileWaiterArmed or self.unloaded then
-        return
-    end
-    if self.settings.showProfile ~= true or state.localPlayer then
-        return
-    end
-    self._profileWaiterArmed = true
-
-    task.defer(function()
-        local deadline = os.clock() + 2
-        local connection
-        connection = state.runService.RenderStepped:Connect(function()
-            if self.unloaded then
-                connection:Disconnect()
-                return
-            end
-            if state.localPlayer or os.clock() > deadline then
-                connection:Disconnect()
-                if state.localPlayer and profilePanel.ensureBuilt(self) then
-                    profilePanel.applyIdentity(self)
-                    profilePanel.setShown(self, true, profilePanel.settleSpec)
-                    -- [[Centre the pair if the user has not dragged the
-                    -- [[window off its resting spot.]]
-                    if self.main.Position.X.Scale == 0.5 and self.main.Position.Y.Scale == 0.5 then
-                        self:_recenterForProfile(true)
-                    end
-                end
-            end
-        end)
-        -- [[Adopt the connection directly: Window:Connect takes a *signal*,
-        -- [[not a connection object.]]
-        table.insert(self.connections, connection)
-    end)
 end
 
 function Window:_applyWindowSize()
@@ -8881,16 +6238,10 @@ function Window:_applyWindowSize()
     self.main.Size = newSize
     self:_clampToScreen()
     self:_syncDragBar()
-    -- [[A viewport change (rotation, inset, keyboard) can turn the profile]]
-    -- [[panel on or off: there may suddenly be room for it, or none.]]
-    -- [[Re-evaluate its visibility alongside the resize and keep the card]]
-    -- [[height matched to the window height.]]
-    profilePanel.layout(self)
-    profilePanel.setShown(self, true, nil)
     if self.main.Position.X.Scale == 0.5 and self.main.Position.Y.Scale == 0.5 then
         -- [[Still anchored at the screen centre (the user has not dragged]]
-        -- [[it): re-apply the resting centre for the new panel state.]]
-        self:_recenterForProfile(false)
+        -- [[it): re-apply the resting centre for the new size.]]
+        self:_recenterWindow(false)
     end
 end
 
@@ -9038,11 +6389,11 @@ function Window:_bindTopbarDrag()
             local mainSize = self.main.AbsoluteSize
             local screenSize = self.screenGui.AbsoluteSize
             local margin = 8
-            -- [[Clamp the window + profile card pair rather than the window]]
-            -- [[alone, so a drag cannot leave the card hanging off the]]
-            -- [[screen. The frame's own size is passed in: mid-minimise it]]
-            -- [[is shorter than window.size.]]
-            local halfLeft, halfRight, halfTop = profilePanel.pairHalfSize(self, mainSize.X, mainSize.Y)
+            -- [[The frame's own size is used: mid-minimise it is shorter]]
+            -- [[than window.size.]]
+            local halfLeft = mainSize.X / 2
+            local halfRight = halfLeft
+            local halfTop = mainSize.Y / 2
             x = math.clamp(x, halfLeft + margin, math.max(halfLeft + margin, screenSize.X - halfRight - margin))
             y = math.clamp(y, halfTop + margin, math.max(halfTop + margin, screenSize.Y - halfTop - margin))
         end
@@ -9180,19 +6531,6 @@ function Window:_buildSettingsContent(tab)
     settingsComponent.buildContent(self, tab)
 end
 
--- [[Profile card content owned by the host. Accepts either the legacy
--- [[subtitle string (nil clears it and falls back to the @username line) or a
--- [[table carrying the card's host-supplied rows:
--- [[  window:SetProfile({ subtitle = "…", key = "…", tier = "PREMIUM",
--- [[    whitelist = { status = "Active", daysLeft = 14 } })
--- [[Anything not supplied reads "—" on the card; Astra holds no key or
--- [[whitelist store of its own.]]
-function Window:SetProfile(profile)
-    local data = profilePanel.setProfile(self, profile)
-    self.profileText = data and data.subtitle or nil
-    return self.profileText
-end
-
 function Window:SaveSettings()
     return persistence.saveSettings(self)
 end
@@ -9206,15 +6544,7 @@ function Window:LoadSettings()
     -- than only when the settings control is touched — otherwise a window
     -- that loaded settings would animate at whatever the last one used.]]
     self:_applyMotionSetting()
-    -- [["Reveal profile details" depends on "Show profile", and a settings]]
-    -- [[file written before that rule (or edited by hand) can carry reveal]]
-    -- [[= on with the card off. Normalise the pair on the way in, so the]]
-    -- [[card never unmasks identity data while it is hidden and the toggle]]
-    -- [[is built showing the truth.]]
-    profilePanel.syncReveal(self)
     if migrated then
-        -- [[Persist the normalized legacy profile state once. This keeps the
-        -- [[default off without overriding a deliberate choice on later boots.]]
         self:SaveSettings()
     end
     return loaded
@@ -9485,7 +6815,7 @@ function Window:_syncActionChrome(actionFrame, shown, tween)
     end
 end
 
--- [[Shared by the topbar gear action and the profile panel's gear.]]
+-- [[The topbar gear action's handler.]]
 function Window:_toggleSettingsMode()
     settingsComponent.toggleSettingsMode(self)
 end
@@ -9538,7 +6868,6 @@ function Window:_fadeSurfaces(shown, tweenInfo)
         end
     end
 
-    profilePanel.setShown(self, shown, tweenInfo)
 end
 
 function Window:_fadeSelectedElementsOut()
@@ -9702,11 +7031,10 @@ function Window:_quickRestore()
     local restore = self._restorePosition
     if not restore or (restore.X.Scale == 0.5 and restore.Y.Scale == 0.5) then
         -- [[Never dragged — or parked by a recenter that ran while the]]
-        -- [[window was hidden: come back to the pair's resting centre for]]
-        -- [[the panel state as it is *now* (the player, the viewport or the]]
-        -- [[setting may have changed since that position was recorded), so]]
-        -- [[the window and its card land centred together.]]
-        restore = self:_profileCenterPosition()
+        -- [[window was hidden: come back to the resting centre as it is]]
+        -- [[*now* (the viewport may have changed since that position was]]
+        -- [[recorded), so the window lands centred.]]
+        restore = self:_restingCenterPosition()
     end
     local targetPos = self:_clampedPosition(restore)
     self._restorePosition = targetPos
@@ -9723,7 +7051,7 @@ function Window:_quickRestore()
     self:_setTabSectionsVisible(true)
     self:_setTabSectionsShown(true)
     -- [[Same two-beat structure as the first show, on the shorter restore
-    -- [[timing: the card comes back first and the page follows it, instead of
+    -- [[timing: the shell comes back first and the page follows it, instead of
     -- [[every control on the page being rewritten on the frame the restore
     -- [[starts on.]]
     self._contentEntranceId = (self._contentEntranceId or 0) + 1
@@ -9743,9 +7071,9 @@ function Window:_quickRestore()
     self:_applySettingsLayout(self._settingsMode)
     self:_fadeSurfaces(true)
 
-    -- [[The card is back on screen with this restore, and the pair — not]]
-    -- [[the window alone — has to fit: re-clamp now that pairHalfSize can]]
-    -- [[see it (above, the panel was still hidden from the Hide).]]
+    -- [[The window is back on screen with this restore, so re-clamp now]]
+    -- [[that its full size is measurable (above it was still collapsed]]
+    -- [[from the Hide).]]
     targetPos = self:_clampedPosition(targetPos)
     self._restorePosition = targetPos
 
@@ -9808,13 +7136,11 @@ function Window:_firstShow()
 
     if self.main.Position.X.Scale == 0.5 and self.main.Position.Y.Scale == 0.5 then
         -- [[Still at the anchored resting spot (the user has not dragged]]
-        -- [[it), so centre the window + profile card pair for the panel]]
-        -- [[state as it is *now*. Between building the frame and this first]]
-        -- [[show the local player can turn up, the viewport can settle or]]
-        -- [["Show profile" can arrive from disk — any of which moves the]]
-        -- [[pair's centre — and a recenter that ran while the window was]]
-        -- [[still hidden only parked the remembered position.]]
-        self:_recenterForProfile(false)
+        -- [[it), so re-apply the resting centre as it is *now*: between]]
+        -- [[building the frame and this first show the viewport can settle,]]
+        -- [[and a recenter that ran while the window was still hidden only]]
+        -- [[parked the remembered position.]]
+        self:_recenterWindow(false)
     end
 
     self.main.Size = self.size
@@ -10074,10 +7400,9 @@ end
 -- [[The window's own background, applied to any frame: the base colour the
 -- [[WindowColor gradient is laid over, and the gradient itself (same theme
 -- [[token, rotation and offset as the frame the window is built from). The
--- [[profile card beside the window calls this too, so "the card is the window
--- [[in miniature" is enforced by construction instead of by two copies of the
--- [[same numbers that can drift apart. Returns the gradient so callers can
--- [[keep it in step with the window's own (see _syncLiveAnimation).]]
+-- [[definition is shared rather than copied, so surfaces cannot drift into
+-- [[near-miss shades of each other. Returns the gradient so callers can keep
+-- [[it in step with the window's own (see _syncLiveAnimation).]]
 function Window:StyleWindowSurface(frame): UIGradient
     frame.BackgroundColor3 = windowSurfaceColor
     return self:Create("UIGradient", {
@@ -10089,7 +7414,7 @@ function Window:StyleWindowSurface(frame): UIGradient
 end
 
 -- [[The window's own opacity once it is on screen. Kept beside the surface
--- [[style so the card can state the same value without guessing.]]
+-- [[style so callers state the same value without guessing.]]
 function Window:WindowSurfaceTransparency(): number
     return windowSurfaceTransparency
 end
@@ -10645,7 +7970,7 @@ end
 return Window
 
 end)() end,
-    [23] = function()local wax,script,require=ImportGlobals(23)local ImportGlobals return (function(...)
+    [20] = function()local wax,script,require=ImportGlobals(20)local ImportGlobals return (function(...)
 -- [[Shared base card layout and styling for Astra UI elements.]]
 -- [[Handles standard background frame, theme strokes, hover overlay,]]
 -- [[content container, icon, and title label.]]
@@ -10749,7 +8074,7 @@ end
 return baseCard
 
 end)() end,
-    [24] = function()local wax,script,require=ImportGlobals(24)local ImportGlobals return (function(...)
+    [21] = function()local wax,script,require=ImportGlobals(21)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Button"
@@ -11072,7 +8397,7 @@ end
 return state
 
 end)() end,
-    [25] = function()local wax,script,require=ImportGlobals(25)local ImportGlobals return (function(...)
+    [22] = function()local wax,script,require=ImportGlobals(22)local ImportGlobals return (function(...)
 local Changelog = {}
 Changelog.__index = Changelog
 Changelog.__type = "Changelog"
@@ -11493,7 +8818,7 @@ moveable(Changelog)
 return Changelog
 
 end)() end,
-    [26] = function()local wax,script,require=ImportGlobals(26)local ImportGlobals return (function(...)
+    [23] = function()local wax,script,require=ImportGlobals(23)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local motion = require(utilities.motion)
 local locale = require(utilities.locale)
@@ -11895,7 +9220,7 @@ lockable(Collapsible)
 return Collapsible
 
 end)() end,
-    [27] = function()local wax,script,require=ImportGlobals(27)local ImportGlobals return (function(...)
+    [24] = function()local wax,script,require=ImportGlobals(24)local ImportGlobals return (function(...)
 -- [[The in-card description line. An element created with a `description` prop
 -- [[grows its own card by the measured height of this line instead of spawning
 -- [[a standalone row beneath the card, so the description can never sit on top
@@ -12065,7 +9390,7 @@ end
 return description
 
 end)() end,
-    [28] = function()local wax,script,require=ImportGlobals(28)local ImportGlobals return (function(...)
+    [25] = function()local wax,script,require=ImportGlobals(25)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Divider"
@@ -12210,7 +9535,7 @@ constants(state)
 return state
 
 end)() end,
-    [29] = function()local wax,script,require=ImportGlobals(29)local ImportGlobals return (function(...)
+    [26] = function()local wax,script,require=ImportGlobals(26)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Dropdown"
@@ -13744,7 +11069,7 @@ multiSelect(state)
 return state
 
 end)() end,
-    [30] = function()local wax,script,require=ImportGlobals(30)local ImportGlobals return (function(...)
+    [27] = function()local wax,script,require=ImportGlobals(27)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Group"
@@ -13963,7 +11288,7 @@ constants(state)
 return state
 
 end)() end,
-    [31] = function()local wax,script,require=ImportGlobals(31)local ImportGlobals return (function(...)
+    [28] = function()local wax,script,require=ImportGlobals(28)local ImportGlobals return (function(...)
 -- [[The circle-alert badge beside a functional element's name.
 --
 -- A functional element gets the badge from its optional `info` text: a string
@@ -14161,7 +11486,7 @@ end
 return infoHelper
 
 end)() end,
-    [32] = function()local wax,script,require=ImportGlobals(32)local ImportGlobals return (function(...)
+    [29] = function()local wax,script,require=ImportGlobals(29)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Input"
@@ -14448,7 +11773,7 @@ end
 return state
 
 end)() end,
-    [33] = function()local wax,script,require=ImportGlobals(33)local ImportGlobals return (function(...)
+    [30] = function()local wax,script,require=ImportGlobals(30)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Section"
@@ -14534,7 +11859,7 @@ constants(state)
 return state
 
 end)() end,
-    [34] = function()local wax,script,require=ImportGlobals(34)local ImportGlobals return (function(...)
+    [31] = function()local wax,script,require=ImportGlobals(31)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Slider"
@@ -15131,7 +12456,7 @@ end
 return state
 
 end)() end,
-    [35] = function()local wax,script,require=ImportGlobals(35)local ImportGlobals return (function(...)
+    [32] = function()local wax,script,require=ImportGlobals(32)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Statistic"
@@ -15980,7 +13305,7 @@ name(state)
 return state
 
 end)() end,
-    [36] = function()local wax,script,require=ImportGlobals(36)local ImportGlobals return (function(...)
+    [33] = function()local wax,script,require=ImportGlobals(33)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Tab"
@@ -16447,7 +13772,7 @@ end
 return state
 
 end)() end,
-    [37] = function()local wax,script,require=ImportGlobals(37)local ImportGlobals return (function(...)
+    [34] = function()local wax,script,require=ImportGlobals(34)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "TabSection"
@@ -16577,7 +13902,7 @@ end
 return state
 
 end)() end,
-    [38] = function()local wax,script,require=ImportGlobals(38)local ImportGlobals return (function(...)
+    [35] = function()local wax,script,require=ImportGlobals(35)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Text"
@@ -16729,7 +14054,7 @@ constants(state)
 return state
 
 end)() end,
-    [39] = function()local wax,script,require=ImportGlobals(39)local ImportGlobals return (function(...)
+    [36] = function()local wax,script,require=ImportGlobals(36)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Toggle"
@@ -17211,7 +14536,7 @@ end
 return state
 
 end)() end,
-    [48] = function()local wax,script,require=ImportGlobals(48)local ImportGlobals return (function(...)
+    [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
 
 local managerModule = require(script.manager)
 local registryModule = require(script.registry)
@@ -17236,12 +14561,12 @@ end
 return settings
 
 end)() end,
-    [41] = function()local wax,script,require=ImportGlobals(41)local ImportGlobals return (function(...)
+    [38] = function()local wax,script,require=ImportGlobals(38)local ImportGlobals return (function(...)
 
 local appearance = {}
 
 function appearance.validate(key: string, value: any): (boolean, any)
-    if key == "keepOnScreen" or key == "showProfile" or key == "showFullUsername" then
+    if key == "keepOnScreen" then
         return type(value) == "boolean", value == true
     end
     if key == "layoutMode" then
@@ -17259,7 +14584,7 @@ end
 return appearance
 
 end)() end,
-    [42] = function()local wax,script,require=ImportGlobals(42)local ImportGlobals return (function(...)
+    [39] = function()local wax,script,require=ImportGlobals(39)local ImportGlobals return (function(...)
 
 local behavior = {}
 
@@ -17276,7 +14601,7 @@ end
 return behavior
 
 end)() end,
-    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)
+    [40] = function()local wax,script,require=ImportGlobals(40)local ImportGlobals return (function(...)
 
 local defaults = {}
 
@@ -17285,8 +14610,6 @@ defaults.values = {
     mouseOverride = false,
     keepOnScreen = true,
     haptics = false,
-    showProfile = false,
-    showFullUsername = false,
     antiWindowDuplicate = true,
     layoutMode = "sidebar",
     activeSubTab = 1,
@@ -17308,7 +14631,7 @@ end
 return defaults
 
 end)() end,
-    [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)
+    [41] = function()local wax,script,require=ImportGlobals(41)local ImportGlobals return (function(...)
 
 local registry = require(script.Parent.registry)
 local defaults = require(script.Parent.defaults)
@@ -17430,7 +14753,7 @@ end
 return SettingsManager
 
 end)() end,
-    [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
+    [42] = function()local wax,script,require=ImportGlobals(42)local ImportGlobals return (function(...)
 
 local motion = require(script.Parent.Parent.utilities.motion)
 
@@ -17454,7 +14777,7 @@ end
 return performance
 
 end)() end,
-    [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
+    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)
 
 local settingsPersistence = require(script.Parent.Parent.utilities.persistenceSettings)
 local settingsCache = require(script.Parent.Parent.cache.persistenceCache)
@@ -17503,7 +14826,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [47] = function()local wax,script,require=ImportGlobals(47)local ImportGlobals return (function(...)
+    [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)
 
 local registry = {}
 
@@ -17546,27 +14869,6 @@ registry.definitions = {
         kind = "boolean",
         domain = "performance",
         description = "Toggles haptic feedback on supported devices.",
-    },
-    showProfile = {
-        key = "showProfile",
-        kind = "boolean",
-        domain = "appearance",
-        description = "Shows the account profile in a panel beside the window.",
-    },
-    showFullUsername = {
-        key = "showFullUsername",
-        kind = "boolean",
-        domain = "appearance",
-        -- [[Depends on showProfile: it unmasks values that live on the]]
-        -- [[profile card, so it can only be on while the card is. The rule]]
-        -- [[is enforced by profilePanel.revealAllowed/setReveal.]]
-        description = "Reveals the display name, username, user ID, place ID, job ID and license key on the profile card instead of the masked versions. Requires showProfile to be on.",
-    },
-    profileSide = {
-        key = "profileSide",
-        kind = "enum",
-        domain = "appearance",
-        description = "Which side of the window the profile panel sits on (right or left).",
     },
     antiWindowDuplicate = {
         key = "antiWindowDuplicate",
@@ -17616,7 +14918,7 @@ end
 return registry
 
 end)() end,
-    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
+    [49] = function()local wax,script,require=ImportGlobals(49)local ImportGlobals return (function(...)
 
 local imageCache = require(script.moduleCache)
 
@@ -17627,7 +14929,7 @@ local moduleCache = {
 return moduleCache
 
 end)() end,
-    [49] = function()local wax,script,require=ImportGlobals(49)local ImportGlobals return (function(...)
+    [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
 local filesystem = require(script.Parent.Parent.utilities.filesystem)
 local path = require(script.Parent.Parent.utilities.path)
 local variables = require(script.Parent.Parent.core.state)
@@ -17930,7 +15232,7 @@ end
 return imageCache
 
 end)() end,
-    [50] = function()local wax,script,require=ImportGlobals(50)local ImportGlobals return (function(...)
+    [47] = function()local wax,script,require=ImportGlobals(47)local ImportGlobals return (function(...)
 
 local moduleCache = {}
 
@@ -17961,7 +15263,7 @@ end
 return moduleCache
 
 end)() end,
-    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
+    [48] = function()local wax,script,require=ImportGlobals(48)local ImportGlobals return (function(...)
 
 local persistenceCache = {}
 
@@ -17986,7 +15288,7 @@ end
 return persistenceCache
 
 end)() end,
-    [56] = function()local wax,script,require=ImportGlobals(56)local ImportGlobals return (function(...)
+    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
 
 local textMetrics = require(script.textMetrics)
 local colors = require(script.colors)
@@ -18004,7 +15306,7 @@ functions.contrastText = colors.contrastText
 return functions
 
 end)() end,
-    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
+    [50] = function()local wax,script,require=ImportGlobals(50)local ImportGlobals return (function(...)
 local colors = {}
 
 function colors.contrastColor(color: Color3): Color3
@@ -18024,7 +15326,7 @@ end
 return colors
 
 end)() end,
-    [54] = function()local wax,script,require=ImportGlobals(54)local ImportGlobals return (function(...)
+    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
 local flagNames = {}
 
 local offsetBasis = 2166136261
@@ -18056,7 +15358,7 @@ end
 return flagNames
 
 end)() end,
-    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
+    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
 local state = require(script.Parent.Parent.core.state)
 local textService = state.textService
 
@@ -18163,7 +15465,7 @@ end
 return textMetrics
 
 end)() end,
-    [57] = function()local wax,script,require=ImportGlobals(57)local ImportGlobals return (function(...)
+    [54] = function()local wax,script,require=ImportGlobals(54)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local Sidebar = {}
@@ -18222,7 +15524,7 @@ end
 return Sidebar
 
 end)() end,
-    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
+    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local SidebarCollapsed = {}
@@ -18282,7 +15584,7 @@ end
 return SidebarCollapsed
 
 end)() end,
-    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
+    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
 
 local image = require(script.image)
 
@@ -18297,7 +15599,7 @@ local windowIcons = {
 return windowIcons
 
 end)() end,
-    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
+    [57] = function()local wax,script,require=ImportGlobals(57)local ImportGlobals return (function(...)
 local imageCache = require(script.Parent.Parent.cache.imageCache)
 local variables = require(script.Parent.Parent.core.state)
 
@@ -18462,7 +15764,7 @@ end
 return image
 
 end)() end,
-    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
+    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
 
 local windowIcons = {}
 
@@ -18538,7 +15840,7 @@ end
 return windowIcons
 
 end)() end,
-    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
+    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
 -- [[Icon resolver service.]]
 -- [[]]
 -- [[Public API is compatible with the previous single-module catalog:]]
@@ -18565,9 +15867,6 @@ end)() end,
 -- [[resolves to nothing rather than to some other pack.]]
 
 local icons = {}
-
--- [[Raw GitHub base URL for all icons (kept for API compatibility).]]
-icons.BASE = "https://raw.githubusercontent.com/Haijo12/sisys_ididh/main"
 
 -- [[Pack priority for a bare name. Deterministic, and also the order packs]]
 -- [[load in: the search stops at the first pack that has the name, so a lucide]]
@@ -18672,7 +15971,6 @@ end
 
 local namedAssets = {
     Astra = "assets/Astra.png",
-    Sirius = "assets/Sirius.png",
 }
 
 local function environment(): any
@@ -18940,9 +16238,9 @@ local function lookup(value: string, pack: string?): string?
         -- [[An explicit pack is exactly that: `resolve(name, "material")` and
         -- [[`window:ResolveIcon` (which passes the window's pack) answer from
         -- [[that pack or not at all. Falling back here would quietly overrule
-        -- [[the pack a host picked, and it is what the profile card's alias
-        -- [[chain relies on: a name the active pack does not have has to come
-        -- [[back unresolved so the next candidate is tried.]]
+        -- [[the pack a host picked. A caller walking a list of candidate
+        -- [[names also relies on it: a name the active pack does not have has
+        -- [[to come back unresolved so the next candidate is tried.]]
         if type(pack) ~= "string" or not packLoaders[pack] then
             warnUnknownPack(tostring(pack), value)
             return nil
@@ -19040,7 +16338,7 @@ end
 return icons
 
 end)() end,
-    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
+    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
 -- [[feather icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -19084,7 +16382,7 @@ x-square x youtube zap-off zap zoom-in zoom-out
 )
 
 end)() end,
-    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
+    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
 -- [[heroicons icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -19164,7 +16462,7 @@ wrench-screwdriver wrench-screwdriver_solid wrench wrench_solid x-circle x-circl
 )
 
 end)() end,
-    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
+    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
 -- [[lucide icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -19357,7 +16655,7 @@ zodiac-sagittarius zodiac-scorpio zodiac-taurus zodiac-virgo zoom-in zoom-out
 )
 
 end)() end,
-    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
+    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
 -- [[material icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -19486,7 +16784,7 @@ zoom_in zoom_out zoom_out_map
 )
 
 end)() end,
-    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
+    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
 -- [[Lazy icon-pack builder.
 -- [[]]
 -- [[A pack is a compact newline-separated list of kebab names plus the shared
@@ -19580,7 +16878,7 @@ end
 return PackBuilder
 
 end)() end,
-    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
+    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
 -- [[phosphor icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -19747,7 +17045,7 @@ yin-yang youtube-logo
 )
 
 end)() end,
-    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
+    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
 -- [[remix icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -20085,7 +17383,7 @@ zhihu-line zhipu-ai-fill zhipu-ai-line zoom-in-fill zoom-in-line zoom-out-fill z
 )
 
 end)() end,
-    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
+    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
 -- [[tabler icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -20613,7 +17911,7 @@ zoom-out-area zoom-out zoom-pan zoom-question zoom-replace zoom-reset zoom-scan 
 )
 
 end)() end,
-    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
+    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
 -- [[Theme resolution engine (themes/init.luau).]]
 -- [[]]
 -- [[Extracted verbatim from components/window.luau so the window no longer owns]]
@@ -20719,7 +18017,7 @@ end
 return themes
 
 end)() end,
-    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
+    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(16, 13, 24),
@@ -20763,7 +18061,7 @@ return {
     AccentGlow = 0.3,
     DropdownHighlight = Color3.fromRGB(197, 151, 244),
     ToggleKnobOff = Color3.fromRGB(216, 206, 225),
-    -- [[Solid off-knob: do not inherit Gen2 default's translucent white knob.]]
+    -- [[Solid off-knob: do not inherit the default theme's translucent white knob.]]
     ToggleKnobOffTransparency = 0.08,
     ToggleTrack = Color3.fromRGB(10, 8, 14),
     ToggleTrackTransparency = 0.82,
@@ -20785,7 +18083,7 @@ return {
 }
 
 end)() end,
-    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
+    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(11, 16, 25),
@@ -20829,7 +18127,7 @@ return {
     AccentGlow = 0.3,
     DropdownHighlight = Color3.fromRGB(105, 181, 248),
     ToggleKnobOff = Color3.fromRGB(196, 210, 226),
-    -- [[Solid off-knob: do not inherit Gen2 default's translucent white knob.]]
+    -- [[Solid off-knob: do not inherit the default theme's translucent white knob.]]
     ToggleKnobOffTransparency = 0.08,
     ToggleTrack = Color3.fromRGB(8, 12, 18),
     ToggleTrackTransparency = 0.82,
@@ -20851,7 +18149,7 @@ return {
 }
 
 end)() end,
-    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
+    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
 local crimson = require(script.Parent.Parent.core.state)
 
 return {
@@ -20926,15 +18224,16 @@ return {
 }
 
 end)() end,
-    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
+    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
 local default = require(script.Parent.Parent.core.state)
 
--- [[Rayfield Gen2 default palette, ported 1:1 for shared keys. Astra-only
--- [[semantic keys (Background, WindowSurface, text tiers, Success/Warning,
--- [[etc.) are derived from the same greyscale + teal accent so the capsule,
--- [[profile card and settings surfaces stay coherent with Gen2.]]
+-- [[Astra's default palette. The shared keys below are the historical set
+-- [[every theme module provides; the Astra-only semantic keys (Background,
+-- [[WindowSurface, text tiers, Success/Warning, etc.) are derived from the
+-- [[same greyscale + teal accent so the capsule and settings surfaces stay
+-- [[coherent with the rest of the theme.]]
 return {
-    -- [[Semantic palette (derived from Gen2 greys + teal accent)]]
+    -- [[Semantic palette (derived from the base greys + teal accent)]]
     Background = Color3.fromRGB(10, 10, 10),
     WindowSurface = Color3.fromRGB(25, 25, 25),
     TopbarSurface = Color3.fromRGB(30, 30, 30),
@@ -20962,7 +18261,7 @@ return {
     PopupSurface = Color3.fromRGB(25, 25, 25),
     InputSurface = Color3.fromRGB(18, 18, 18),
 
-    -- [[Gen2 shared keys — values match src/themes/default.luau]]
+    -- [[Shared keys — the set every theme module must provide]]
     CornerRoundness = UDim.new(0, 20),
     WindowColor = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(10, 10, 10)),
@@ -21032,7 +18331,7 @@ return {
 }
 
 end)() end,
-    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
+    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(22, 18, 16),
@@ -21076,7 +18375,7 @@ return {
     AccentGlow = 0.28,
     DropdownHighlight = Color3.fromRGB(243, 169, 78),
     ToggleKnobOff = Color3.fromRGB(226, 215, 202),
-    -- [[Solid off-knob: do not inherit Gen2 default's translucent white knob.]]
+    -- [[Solid off-knob: do not inherit the default theme's translucent white knob.]]
     ToggleKnobOffTransparency = 0.08,
     ToggleTrack = Color3.fromRGB(12, 9, 7),
     ToggleTrackTransparency = 0.82,
@@ -21098,7 +18397,7 @@ return {
 }
 
 end)() end,
-    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
+    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
 local emerald = require(script.Parent.Parent.core.state)
 
 return {
@@ -21173,7 +18472,7 @@ return {
 }
 
 end)() end,
-    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
+    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
 local frost = require(script.Parent.Parent.core.state)
 
 return {
@@ -21248,7 +18547,7 @@ return {
 }
 
 end)() end,
-    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
+    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
 local gold = require(script.Parent.Parent.core.state)
 
 return {
@@ -21323,7 +18622,7 @@ return {
 }
 
 end)() end,
-    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
+    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
 local onyx = require(script.Parent.Parent.core.state)
 
 return {
@@ -21398,7 +18697,7 @@ return {
 }
 
 end)() end,
-    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
+    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(23, 15, 19),
@@ -21442,7 +18741,7 @@ return {
     AccentGlow = 0.3,
     DropdownHighlight = Color3.fromRGB(237, 132, 168),
     ToggleKnobOff = Color3.fromRGB(228, 209, 217),
-    -- [[Solid off-knob: do not inherit Gen2 default's translucent white knob.]]
+    -- [[Solid off-knob: do not inherit the default theme's translucent white knob.]]
     ToggleKnobOffTransparency = 0.08,
     ToggleTrack = Color3.fromRGB(12, 8, 10),
     ToggleTrackTransparency = 0.82,
@@ -21464,7 +18763,7 @@ return {
 }
 
 end)() end,
-    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
+    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 
 local hapticService = {}
@@ -21562,7 +18861,7 @@ end
 return hapticService
 
 end)() end,
-    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
+    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
 local networkUtil = require(script.Parent.network)
 local logger = require(script.Parent.log)
 
@@ -21740,7 +19039,7 @@ end
 return assetResolver
 
 end)() end,
-    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
+    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
 local iconRegistry = require(script.Parent.Parent.images.windowIcons)
 local constants = {}
 
@@ -21788,7 +19087,7 @@ constants.displayOrder = {
 return constants
 
 end)() end,
-    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
+    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
 local enums = {}
 
 function enums.itemFromValue(enumType, value)
@@ -21818,7 +19117,7 @@ end
 return enums
 
 end)() end,
-    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
+    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
 local serviceProvider = require(script.Parent.services)
 local filesystem = {}
 
@@ -22069,7 +19368,7 @@ end
 return filesystem
 
 end)() end,
-    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
+    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 local pathUtil = require(script.Parent.path)
 
@@ -22118,7 +19417,7 @@ end
 return filesystemManager
 
 end)() end,
-    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
+    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
 local fontManager = require(script.Parent.services)
 local a2 = fontManager.getService("HttpService")
 local a3 = fontManager.getService("RunService")
@@ -22571,7 +19870,7 @@ end
 return a16
 
 end)() end,
-    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
+    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
 
 local functions = {}
 
@@ -22589,7 +19888,7 @@ functions.contrastText = textMetrics.contrastText
 return functions
 
 end)() end,
-    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
+    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
 local layouts = {}
 
 local sidebarLayout = require(script.Parent.Parent.layouts.Sidebar)
@@ -22704,7 +20003,7 @@ end
 return layouts
 
 end)() end,
-    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
+    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local logger = require(script.Parent.log)
 
@@ -22803,7 +20102,7 @@ end
 return locale
 
 end)() end,
-    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
+    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
 local function lockable<T>(element: T): T
     local target = element :: any
 
@@ -22825,7 +20124,7 @@ end
 return lockable
 
 end)() end,
-    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
+    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
 local log = {}
 
 type SuppressPredicate = () -> boolean
@@ -22879,7 +20178,7 @@ end
 return log
 
 end)() end,
-    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
+    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
 -- [[Astra motion service.
 --
 -- Every animation in the library used to build its own TweenInfo and call
@@ -23229,7 +20528,7 @@ end
 return motion
 
 end)() end,
-    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
+    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
 local function moveable<T>(dragState: T): T
     local target = dragState :: any
 
@@ -23265,7 +20564,7 @@ end
 return moveable
 
 end)() end,
-    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
+    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
 local network = {}
 network.__index = network
 
@@ -23283,7 +20582,7 @@ end
 return network
 
 end)() end,
-    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
+    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local motion = require(script.Parent.motion)
 local textService = coreState.textService
@@ -23637,7 +20936,7 @@ end
 return odometer
 
 end)() end,
-    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
+    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
 type OrderedElement = {
     main: GuiObject,
 }
@@ -23649,7 +20948,7 @@ end
 return ordering
 
 end)() end,
-    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
+    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
 local path = {}
 
 function path.join(base: string, suffix: string?): string
@@ -23700,7 +20999,7 @@ end
 return path
 
 end)() end,
-    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
+    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
 local persistence = {}
 
 local configPersistence = require(script.Parent.persistenceConfig)
@@ -23719,7 +21018,7 @@ persistence.loadSettings = settingsPersistence.loadSettings
 return persistence
 
 end)() end,
-    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
+    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local logger = require(script.Parent.log)
@@ -23835,11 +21134,11 @@ local function readFile(sourcePath: string): ({ [string]: unknown }?, string?)
 end
 
 local function backupPathFor(targetPath: string): string
-        local stem = pathUtil.stripExtension(targetPath, ".rfld")
-    local candidatePath = stem .. " (Incorrect Format).rfld"
+        local stem = pathUtil.stripExtension(targetPath, ".txt")
+    local candidatePath = stem .. " (Incorrect Format).txt"
     local counter = 2
     while counter <= 100 and fs.isfile(candidatePath) do
-        candidatePath = stem .. " (Incorrect Format " .. counter .. ").rfld"
+        candidatePath = stem .. " (Incorrect Format " .. counter .. ").txt"
         counter += 1
     end
     return candidatePath
@@ -23937,8 +21236,8 @@ function persistenceConfig.list(window: ConfigWindow): { string }
 
     for _, file in files do
         local baseName = pathUtil.basename(file)
-        if baseName:sub(-5):lower() == ".rfld" then
-            local configName = pathUtil.stripExtension(baseName, ".rfld")
+        if baseName:sub(-4):lower() == ".txt" then
+            local configName = pathUtil.stripExtension(baseName, ".txt")
             if configName and configName ~= "" and not configName:find(" %(Incorrect Format[^%)]*%)$") then
                 table.insert(names, configName)
             end
@@ -23970,7 +21269,7 @@ end
 return persistenceConfig
 
 end)() end,
-    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
+    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local pathUtil = require(script.Parent.path)
 
@@ -23994,7 +21293,7 @@ function persistencePaths.getConfigPath(window: ConfigWindow, configName: unknow
         if sanitizedName == "" then
             return nil, nil
         end
-        return folder, pathUtil.join(folder, sanitizedName .. ".rfld")
+        return folder, pathUtil.join(folder, sanitizedName .. ".txt")
     end
     local baseName = pathUtil.sanitizeFile(window.configuration.fileName or window.name)
     if baseName == "" then
@@ -24003,18 +21302,18 @@ function persistencePaths.getConfigPath(window: ConfigWindow, configName: unknow
     if baseName == "" then
         baseName = "Configuration"
     end
-    return folder, pathUtil.join(folder, baseName .. ".rfld")
+    return folder, pathUtil.join(folder, baseName .. ".txt")
 end
 
 function persistencePaths.getSettingsPath(): (string, string)
     local settingsFolder = coreState.fileSystemManager:getPath("settings")
-    return settingsFolder, pathUtil.join(settingsFolder, "astra.rfld")
+    return settingsFolder, pathUtil.join(settingsFolder, "astra.txt")
 end
 
 return persistencePaths
 
 end)() end,
-    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
+    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local paths = require(script.Parent.persistencePaths)
@@ -24037,9 +21336,6 @@ type SettingsWindow = {
         keepOnScreen: boolean,
         dragMinimisedBar: boolean,
         haptics: boolean,
-        showProfile: boolean,
-        showFullUsername: boolean,
-        profileSide: string,
         antiWindowDuplicate: boolean,
         layoutMode: string,
         activeSubTab: number,
@@ -24057,8 +21353,6 @@ type DecodedSettings = {
     keepOnScreen: unknown?,
     dragMinimisedBar: unknown?,
         haptics: unknown?,
-        showProfile: unknown?,
-        showFullUsername: unknown?,    profileSide: unknown?,
     antiWindowDuplicate: unknown?,
     layoutMode: unknown?,
     activeSubTab: unknown?,
@@ -24085,9 +21379,6 @@ function persistenceSettings.saveSettings(window: SettingsWindow): boolean
         keepOnScreen = window.settings.keepOnScreen,
         dragMinimisedBar = window.settings.dragMinimisedBar,
         haptics = window.settings.haptics,
-        showProfile = window.settings.showProfile,
-        showFullUsername = window.settings.showFullUsername,
-        profileSide = window.settings.profileSide,
         antiWindowDuplicate = window.settings.antiWindowDuplicate,
         layoutMode = window.settings.layoutMode,
         activeSubTab = window.settings.activeSubTab,
@@ -24157,13 +21448,6 @@ function persistenceSettings.loadSettings(window: SettingsWindow): (boolean, boo
 
     local storedVersion = tonumber(decodedSettings.settingsVersion) or 0
     local migrated = storedVersion < SETTINGS_VERSION
-    if migrated then
-        -- [[A legacy profile preference may have been saved as true. Clear it
-        -- [[only during the one-time migration; after this file is rewritten,
-        -- [[users can enable the profile normally and keep that choice.]]
-        decodedSettings.showProfile = false
-        decodedSettings.showFullUsername = false
-    end
 
     for _, key in { "autoSaveConfig", "autoLoadConfig" } do
         if type(decodedSettings[key]) == "boolean" then
@@ -24210,16 +21494,6 @@ function persistenceSettings.loadSettings(window: SettingsWindow): (boolean, boo
     if type(decodedSettings.haptics) == "boolean" then
         window.settings.haptics = decodedSettings.haptics
     end
-
-    if type(decodedSettings.showProfile) == "boolean" then
-        window.settings.showProfile = decodedSettings.showProfile
-    end
-    if type(decodedSettings.showFullUsername) == "boolean" then
-        window.settings.showFullUsername = decodedSettings.showFullUsername
-    end
-    if decodedSettings.profileSide == "left" or decodedSettings.profileSide == "right" then
-        window.settings.profileSide = decodedSettings.profileSide
-    end
     if type(decodedSettings.antiWindowDuplicate) == "boolean" then
         window.settings.antiWindowDuplicate = decodedSettings.antiWindowDuplicate
     end
@@ -24249,7 +21523,7 @@ end
 return persistenceSettings
 
 end)() end,
-    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
+    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 
 local persistenceWrite = {}
@@ -24277,7 +21551,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
+    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
 local services = {}
 
 function services.getService(serviceName)
@@ -24288,7 +21562,7 @@ end
 return services
 
 end)() end,
-    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
+    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
 local layoutMetrics = require(script.Parent.layouts)
 local coreState = require(script.Parent.Parent.core.state)
 
@@ -24459,107 +21733,104 @@ end)() end,
 
 local LineOffsets = {
     [2] = 12,
-    [3] = 243,
-    [5] = 641,
-    [6] = 676,
-    [7] = 721,
-    [8] = 627,
-    [9] = 838,
-    [10] = 971,
-    [11] = 1210,
-    [12] = 1556,
-    [13] = 1908,
-    [14] = 2196,
-    [15] = 2917,
-    [16] = 5348,
-    [17] = 5677,
-    [18] = 6555,
-    [19] = 6616,
-    [20] = 6984,
-    [21] = 7434,
-    [23] = 10649,
-    [24] = 10753,
-    [25] = 11076,
-    [26] = 11497,
-    [27] = 11899,
-    [28] = 12069,
-    [29] = 12214,
-    [30] = 13748,
-    [31] = 13967,
-    [32] = 14165,
-    [33] = 14452,
-    [34] = 14538,
-    [35] = 15135,
-    [36] = 15984,
-    [37] = 16451,
-    [38] = 16581,
-    [39] = 16733,
-    [41] = 17240,
-    [42] = 17263,
-    [43] = 17280,
-    [44] = 17312,
-    [45] = 17434,
-    [46] = 17458,
-    [47] = 17507,
-    [48] = 17215,
-    [49] = 17631,
-    [50] = 17934,
-    [51] = 17965,
-    [52] = 17620,
-    [53] = 18008,
-    [54] = 18028,
-    [55] = 18060,
-    [56] = 17990,
-    [57] = 18167,
-    [58] = 18226,
-    [60] = 18301,
-    [61] = 18466,
-    [62] = 18286,
-    [63] = 19044,
-    [64] = 19088,
-    [65] = 19168,
-    [66] = 19361,
-    [67] = 19490,
-    [68] = 19584,
-    [69] = 19751,
-    [70] = 20089,
-    [71] = 18542,
-    [72] = 20723,
-    [73] = 20789,
-    [74] = 20855,
-    [75] = 20930,
-    [76] = 21036,
-    [77] = 21102,
-    [78] = 21177,
-    [79] = 21252,
-    [80] = 21327,
-    [81] = 21402,
-    [82] = 20617,
-    [83] = 21468,
-    [84] = 21566,
-    [85] = 21744,
-    [86] = 21792,
-    [87] = 21822,
-    [88] = 22073,
-    [89] = 22122,
-    [90] = 22575,
-    [91] = 22593,
-    [92] = 22708,
-    [93] = 22807,
-    [94] = 22829,
-    [95] = 22883,
-    [96] = 23233,
-    [97] = 23269,
-    [98] = 23287,
-    [99] = 23641,
-    [100] = 23653,
-    [101] = 23704,
-    [102] = 23723,
-    [103] = 23974,
-    [104] = 24018,
-    [105] = 24253,
-    [106] = 24281,
-    [107] = 24292,
+    [3] = 248,
+    [5] = 647,
+    [6] = 632,
+    [7] = 764,
+    [8] = 897,
+    [9] = 1136,
+    [10] = 1482,
+    [11] = 1834,
+    [12] = 2122,
+    [13] = 2843,
+    [14] = 3172,
+    [15] = 3993,
+    [16] = 4054,
+    [17] = 4422,
+    [18] = 4872,
+    [20] = 7974,
+    [21] = 8078,
+    [22] = 8401,
+    [23] = 8822,
+    [24] = 9224,
+    [25] = 9394,
+    [26] = 9539,
+    [27] = 11073,
+    [28] = 11292,
+    [29] = 11490,
+    [30] = 11777,
+    [31] = 11863,
+    [32] = 12460,
+    [33] = 13309,
+    [34] = 13776,
+    [35] = 13906,
+    [36] = 14058,
+    [38] = 14565,
+    [39] = 14588,
+    [40] = 14605,
+    [41] = 14635,
+    [42] = 14757,
+    [43] = 14781,
+    [44] = 14830,
+    [45] = 14540,
+    [46] = 14933,
+    [47] = 15236,
+    [48] = 15267,
+    [49] = 14922,
+    [50] = 15310,
+    [51] = 15330,
+    [52] = 15362,
+    [53] = 15292,
+    [54] = 15469,
+    [55] = 15528,
+    [57] = 15603,
+    [58] = 15768,
+    [59] = 15588,
+    [60] = 16342,
+    [61] = 16386,
+    [62] = 16466,
+    [63] = 16659,
+    [64] = 16788,
+    [65] = 16882,
+    [66] = 17049,
+    [67] = 17387,
+    [68] = 15844,
+    [69] = 18021,
+    [70] = 18087,
+    [71] = 18153,
+    [72] = 18228,
+    [73] = 18335,
+    [74] = 18401,
+    [75] = 18476,
+    [76] = 18551,
+    [77] = 18626,
+    [78] = 18701,
+    [79] = 17915,
+    [80] = 18767,
+    [81] = 18865,
+    [82] = 19043,
+    [83] = 19091,
+    [84] = 19121,
+    [85] = 19372,
+    [86] = 19421,
+    [87] = 19874,
+    [88] = 19892,
+    [89] = 20007,
+    [90] = 20106,
+    [91] = 20128,
+    [92] = 20182,
+    [93] = 20532,
+    [94] = 20568,
+    [95] = 20586,
+    [96] = 20940,
+    [97] = 20952,
+    [98] = 21003,
+    [99] = 21022,
+    [100] = 21273,
+    [101] = 21317,
+    [102] = 21527,
+    [103] = 21555,
+    [104] = 21566,
 }
 
 -- [[Misc AOT variable imports]]
@@ -24597,7 +21868,7 @@ local ObjectTree = {
                 {},
             },
             {
-                8,
+                6,
                 2,
                 {
                     "core",
@@ -24607,118 +21878,97 @@ local ObjectTree = {
                         5,
                         2,
                         {
-                            "loader",
-                        },
-                    },
-                    {
-                        6,
-                        2,
-                        {
-                            "registry",
-                        },
-                    },
-                    {
-                        7,
-                        2,
-                        {
                             "state",
                         },
                     },
                 },
             },
             {
-                22,
+                19,
                 1,
                 {
                     "components",
                 },
                 {
                     {
-                        9,
+                        7,
                         2,
                         {
                             "action",
                         },
                     },
                     {
-                        10,
+                        8,
                         2,
                         {
                             "chrome",
                         },
                     },
                     {
-                        11,
+                        9,
                         2,
                         {
                             "drag",
                         },
                     },
                     {
-                        12,
+                        10,
                         2,
                         {
                             "notification",
                         },
                     },
                     {
-                        13,
+                        11,
                         2,
                         {
                             "overlayQueue",
                         },
                     },
                     {
-                        14,
+                        12,
                         2,
                         {
                             "popup",
                         },
                     },
                     {
-                        15,
-                        2,
-                        {
-                            "profilePanel",
-                        },
-                    },
-                    {
-                        16,
+                        13,
                         2,
                         {
                             "search",
                         },
                     },
                     {
-                        17,
+                        14,
                         2,
                         {
                             "settings",
                         },
                     },
                     {
-                        18,
+                        15,
                         2,
                         {
                             "sidebar",
                         },
                     },
                     {
-                        19,
+                        16,
                         2,
                         {
                             "tabSelector",
                         },
                     },
                     {
-                        20,
+                        17,
                         2,
                         {
                             "tooltip",
                         },
                     },
                     {
-                        21,
+                        18,
                         2,
                         {
                             "window",
@@ -24727,126 +21977,126 @@ local ObjectTree = {
                 },
             },
             {
-                40,
+                37,
                 1,
                 {
                     "elements",
                 },
                 {
                     {
-                        23,
+                        20,
                         2,
                         {
                             "baseCard",
                         },
                     },
                     {
-                        24,
+                        21,
                         2,
                         {
                             "button",
                         },
                     },
                     {
-                        25,
+                        22,
                         2,
                         {
                             "changelog",
                         },
                     },
                     {
-                        26,
+                        23,
                         2,
                         {
                             "collapsibleGroup",
                         },
                     },
                     {
-                        27,
+                        24,
                         2,
                         {
                             "description",
                         },
                     },
                     {
-                        28,
+                        25,
                         2,
                         {
                             "divider",
                         },
                     },
                     {
-                        29,
+                        26,
                         2,
                         {
                             "dropdown",
                         },
                     },
                     {
-                        30,
+                        27,
                         2,
                         {
                             "group",
                         },
                     },
                     {
-                        31,
+                        28,
                         2,
                         {
                             "infoHelper",
                         },
                     },
                     {
-                        32,
+                        29,
                         2,
                         {
                             "input",
                         },
                     },
                     {
-                        33,
+                        30,
                         2,
                         {
                             "section",
                         },
                     },
                     {
-                        34,
+                        31,
                         2,
                         {
                             "slider",
                         },
                     },
                     {
-                        35,
+                        32,
                         2,
                         {
                             "stat",
                         },
                     },
                     {
-                        36,
+                        33,
                         2,
                         {
                             "tab",
                         },
                     },
                     {
-                        37,
+                        34,
                         2,
                         {
                             "tabSection",
                         },
                     },
                     {
-                        38,
+                        35,
                         2,
                         {
                             "text",
                         },
                     },
                     {
-                        39,
+                        36,
                         2,
                         {
                             "toggle",
@@ -24855,56 +22105,56 @@ local ObjectTree = {
                 },
             },
             {
-                48,
+                45,
                 2,
                 {
                     "settings",
                 },
                 {
                     {
-                        41,
+                        38,
                         2,
                         {
                             "appearance",
                         },
                     },
                     {
-                        42,
+                        39,
                         2,
                         {
                             "behavior",
                         },
                     },
                     {
-                        43,
+                        40,
                         2,
                         {
                             "defaults",
                         },
                     },
                     {
-                        44,
+                        41,
                         2,
                         {
                             "manager",
                         },
                     },
                     {
-                        45,
+                        42,
                         2,
                         {
                             "performance",
                         },
                     },
                     {
-                        46,
+                        43,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        47,
+                        44,
                         2,
                         {
                             "registry",
@@ -24913,28 +22163,28 @@ local ObjectTree = {
                 },
             },
             {
-                52,
+                49,
                 2,
                 {
                     "cache",
                 },
                 {
                     {
-                        49,
+                        46,
                         2,
                         {
                             "imageCache",
                         },
                     },
                     {
-                        50,
+                        47,
                         2,
                         {
                             "moduleCache",
                         },
                     },
                     {
-                        51,
+                        48,
                         2,
                         {
                             "persistenceCache",
@@ -24943,28 +22193,28 @@ local ObjectTree = {
                 },
             },
             {
-                56,
+                53,
                 2,
                 {
                     "functions",
                 },
                 {
                     {
-                        53,
+                        50,
                         2,
                         {
                             "colors",
                         },
                     },
                     {
-                        54,
+                        51,
                         2,
                         {
                             "flagNames",
                         },
                     },
                     {
-                        55,
+                        52,
                         2,
                         {
                             "textMetrics",
@@ -24973,21 +22223,21 @@ local ObjectTree = {
                 },
             },
             {
-                59,
+                56,
                 1,
                 {
                     "layouts",
                 },
                 {
                     {
-                        57,
+                        54,
                         2,
                         {
                             "Sidebar",
                         },
                     },
                     {
-                        58,
+                        55,
                         2,
                         {
                             "SidebarCollapsed",
@@ -24996,21 +22246,21 @@ local ObjectTree = {
                 },
             },
             {
-                62,
+                59,
                 2,
                 {
                     "images",
                 },
                 {
                     {
-                        60,
+                        57,
                         2,
                         {
                             "image",
                         },
                     },
                     {
-                        61,
+                        58,
                         2,
                         {
                             "windowIcons",
@@ -25019,63 +22269,63 @@ local ObjectTree = {
                 },
             },
             {
-                71,
+                68,
                 2,
                 {
                     "icons",
                 },
                 {
                     {
-                        63,
+                        60,
                         2,
                         {
                             "feather",
                         },
                     },
                     {
-                        64,
+                        61,
                         2,
                         {
                             "heroicons",
                         },
                     },
                     {
-                        65,
+                        62,
                         2,
                         {
                             "lucide",
                         },
                     },
                     {
-                        66,
+                        63,
                         2,
                         {
                             "material",
                         },
                     },
                     {
-                        67,
+                        64,
                         2,
                         {
                             "packBuilder",
                         },
                     },
                     {
-                        68,
+                        65,
                         2,
                         {
                             "phosphor",
                         },
                     },
                     {
-                        69,
+                        66,
                         2,
                         {
                             "remix",
                         },
                     },
                     {
-                        70,
+                        67,
                         2,
                         {
                             "tabler",
@@ -25084,77 +22334,77 @@ local ObjectTree = {
                 },
             },
             {
-                82,
+                79,
                 2,
                 {
                     "themes",
                 },
                 {
                     {
-                        72,
+                        69,
                         2,
                         {
                             "amethyst",
                         },
                     },
                     {
-                        73,
+                        70,
                         2,
                         {
                             "cobalt",
                         },
                     },
                     {
-                        74,
+                        71,
                         2,
                         {
                             "crimson",
                         },
                     },
                     {
-                        75,
+                        72,
                         2,
                         {
                             "default",
                         },
                     },
                     {
-                        76,
+                        73,
                         2,
                         {
                             "ember",
                         },
                     },
                     {
-                        77,
+                        74,
                         2,
                         {
                             "emerald",
                         },
                     },
                     {
-                        78,
+                        75,
                         2,
                         {
                             "frost",
                         },
                     },
                     {
-                        79,
+                        76,
                         2,
                         {
                             "gold",
                         },
                     },
                     {
-                        80,
+                        77,
                         2,
                         {
                             "onyx",
                         },
                     },
                     {
-                        81,
+                        78,
                         2,
                         {
                             "rose",
@@ -25163,182 +22413,182 @@ local ObjectTree = {
                 },
             },
             {
-                108,
+                105,
                 1,
                 {
                     "utilities",
                 },
                 {
                     {
-                        83,
+                        80,
                         2,
                         {
                             "HapticEngine",
                         },
                     },
                     {
-                        84,
+                        81,
                         2,
                         {
                             "assetResolver",
                         },
                     },
                     {
-                        85,
+                        82,
                         2,
                         {
                             "constants",
                         },
                     },
                     {
-                        86,
+                        83,
                         2,
                         {
                             "enums",
                         },
                     },
                     {
-                        87,
+                        84,
                         2,
                         {
                             "filesystem",
                         },
                     },
                     {
-                        88,
+                        85,
                         2,
                         {
                             "filesystemManager",
                         },
                     },
                     {
-                        89,
+                        86,
                         2,
                         {
                             "fontManager",
                         },
                     },
                     {
-                        90,
+                        87,
                         2,
                         {
                             "functions",
                         },
                     },
                     {
-                        91,
+                        88,
                         2,
                         {
                             "layouts",
                         },
                     },
                     {
-                        92,
+                        89,
                         2,
                         {
                             "locale",
                         },
                     },
                     {
-                        93,
+                        90,
                         2,
                         {
                             "lockable",
                         },
                     },
                     {
-                        94,
+                        91,
                         2,
                         {
                             "log",
                         },
                     },
                     {
-                        95,
+                        92,
                         2,
                         {
                             "motion",
                         },
                     },
                     {
-                        96,
+                        93,
                         2,
                         {
                             "moveable",
                         },
                     },
                     {
-                        97,
+                        94,
                         2,
                         {
                             "network",
                         },
                     },
                     {
-                        98,
+                        95,
                         2,
                         {
                             "odometer",
                         },
                     },
                     {
-                        99,
+                        96,
                         2,
                         {
                             "ordering",
                         },
                     },
                     {
-                        100,
+                        97,
                         2,
                         {
                             "path",
                         },
                     },
                     {
-                        101,
+                        98,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        102,
+                        99,
                         2,
                         {
                             "persistenceConfig",
                         },
                     },
                     {
-                        103,
+                        100,
                         2,
                         {
                             "persistencePaths",
                         },
                     },
                     {
-                        104,
+                        101,
                         2,
                         {
                             "persistenceSettings",
                         },
                     },
                     {
-                        105,
+                        102,
                         2,
                         {
                             "persistenceWrite",
                         },
                     },
                     {
-                        106,
+                        103,
                         2,
                         {
                             "services",
                         },
                     },
                     {
-                        107,
+                        104,
                         2,
                         {
                             "windowSizing",

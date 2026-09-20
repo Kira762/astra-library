@@ -21,7 +21,7 @@ function persistencePaths.getConfigPath(window: ConfigWindow, configName: unknow
         if sanitizedName == "" then
             return nil, nil
         end
-        return folder, pathUtil.join(folder, sanitizedName .. ".rfld")
+        return folder, pathUtil.join(folder, sanitizedName .. ".txt")
     end
     local baseName = pathUtil.sanitizeFile(window.configuration.fileName or window.name)
     if baseName == "" then
@@ -30,12 +30,12 @@ function persistencePaths.getConfigPath(window: ConfigWindow, configName: unknow
     if baseName == "" then
         baseName = "Configuration"
     end
-    return folder, pathUtil.join(folder, baseName .. ".rfld")
+    return folder, pathUtil.join(folder, baseName .. ".txt")
 end
 
 function persistencePaths.getSettingsPath(): (string, string)
     local settingsFolder = coreState.fileSystemManager:getPath("settings")
-    return settingsFolder, pathUtil.join(settingsFolder, "astra.rfld")
+    return settingsFolder, pathUtil.join(settingsFolder, "astra.txt")
 end
 
 return persistencePaths

@@ -2,7 +2,6 @@ local utilities = script.Parent.Parent.utilities
 local constants = require(utilities.constants)
 local locale = require(utilities.locale)
 local haptic = require(utilities.HapticEngine)
-local profilePanel = require(script.Parent.profilePanel)
 local layouts = require(utilities.layouts)
 
 local settingsComponent = {}
@@ -151,39 +150,23 @@ function settingsComponent.buildUI(window)
 
     local function buildAbout()
         about:CreateCollapsibleGroup({
-            name = "Rayfield Gen2",
-            icon = "info",
+            name = "Astra",
+            icon = "sparkles",
             elements = {
                 {
                     type = "Text",
-                    name = "About Rayfield Gen2",
-                    text = "Rayfield Gen2 is a ground-up rebuild of the Rayfield Interface Suite, built entirely in code for a faster, more stable, and more consistent experience.",
+                    name = "About Astra",
+                    text = "Astra is an interface library built entirely in code: one loader line, one window, and a set of reusable elements that stay fast to open and behave the same on desktop and mobile.",
                 },
                 {
                     type = "Text",
                     name = "Highlights",
                     text = "State can persist between sessions, themes can change at runtime, labels can be translated, and the interface is designed for both desktop and mobile.",
                 },
-            },
-        })
-        about:CreateCollapsibleGroup({
-            name = "Astra",
-            icon = "sparkles",
-            elements = {
-                {
-                    type = "Text",
-                    name = "Our Story",
-                    text = "Astra began from Rayfield Gen2 and was reshaped into a distinct interface library with its own visual language, behavior, and features.",
-                },
                 {
                     type = "Text",
                     name = "What Astra Provides",
                     text = "A responsive, customizable interface with persistent settings, runtime themes, localization support, animated window transitions, and a growing set of reusable elements.",
-                },
-                {
-                    type = "Text",
-                    name = "Customized by Haijo",
-                    text = "Originally from Rayfield, Astra is customized, refined, and maintained by Haijo.",
                 },
             },
         })
@@ -193,8 +176,13 @@ function settingsComponent.buildUI(window)
             elements = {
                 {
                     type = "Text",
-                    name = "Documentation",
-                    text = "https://docs.sirius.menu/rayfield-gen2",
+                    name = "Repository",
+                    text = "https://github.com/Kira762/astra-version-1",
+                },
+                {
+                    type = "Text",
+                    name = "Usage guide",
+                    text = "https://github.com/Kira762/astra-version-1/blob/main/USAGE.md",
                 },
             },
         })
@@ -295,7 +283,7 @@ function settingsComponent.buildUI(window)
                     type = "Button",
                     name = "Reset Window Position",
                     callback = function()
-                        window:_recenterForProfile(true)
+                        window:_recenterWindow(true)
                     end,
                 },
                 {
@@ -584,51 +572,6 @@ function settingsComponent.buildUI(window)
         })
         layoutDropdown = layoutGroup.elements[1]
 
-        local revealToggle
-        local profileGroup = appearance:CreateCollapsibleGroup({
-            name = "Profile",
-            icon = "user",
-            elements = {
-                {
-                    type = "Toggle",
-                    name = "Show profile",
-                    value = window.settings.showProfile,
-                    callback = function(value)
-                        local revealCleared = profilePanel.setEnabled(window, value)
-                        if revealCleared and revealToggle then
-                            revealToggle:Set(false, true)
-                        end
-                        window:SaveSettings()
-                    end,
-                },
-                {
-                    type = "Dropdown",
-                    name = "Profile side",
-                    options = { "Right", "Left" },
-                    value = if (window.settings.profileSide or "right") == "left" then "Left" else "Right",
-                    callback = function(choice)
-                        local side = if choice == "Left" then "left" else "right"
-                        if (window.settings.profileSide or "right") == side then
-                            return
-                        end
-                        profilePanel.setSide(window, side)
-                        window:SaveSettings()
-                    end,
-                },
-                {
-                    type = "Toggle",
-                    name = "Reveal profile details",
-                    value = window.settings.showFullUsername,
-                    callback = function(value)
-                        if not profilePanel.setReveal(window, value) and revealToggle then
-                            revealToggle:Set(false, true)
-                        end
-                        window:SaveSettings()
-                    end,
-                },
-            },
-        })
-        revealToggle = profileGroup.elements[3]
     end
     appearance._settingsContentBuilder = buildAppearance
 

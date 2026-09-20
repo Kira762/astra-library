@@ -41,27 +41,6 @@ registry.definitions = {
         domain = "performance",
         description = "Toggles haptic feedback on supported devices.",
     },
-    showProfile = {
-        key = "showProfile",
-        kind = "boolean",
-        domain = "appearance",
-        description = "Shows the account profile in a panel beside the window.",
-    },
-    showFullUsername = {
-        key = "showFullUsername",
-        kind = "boolean",
-        domain = "appearance",
-        -- [[Depends on showProfile: it unmasks values that live on the]]
-        -- [[profile card, so it can only be on while the card is. The rule]]
-        -- [[is enforced by profilePanel.revealAllowed/setReveal.]]
-        description = "Reveals the display name, username, user ID, place ID, job ID and license key on the profile card instead of the masked versions. Requires showProfile to be on.",
-    },
-    profileSide = {
-        key = "profileSide",
-        kind = "enum",
-        domain = "appearance",
-        description = "Which side of the window the profile panel sits on (right or left).",
-    },
     antiWindowDuplicate = {
         key = "antiWindowDuplicate",
         kind = "boolean",

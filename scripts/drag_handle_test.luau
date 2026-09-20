@@ -185,7 +185,7 @@ eq(pill.BackgroundTransparency, 0, "H6 grabbing the handle shows the grab look")
 eq(pill.Size.X.Offset, 56, "H6 the grabbed pill is the 56px grab size")
 -- [[A hand-placed target well inside the window's clamp range: the point is
 -- [[to see the handle drive the window, not to test "Keep window on screen"
--- [[(which profile_centering_test owns).
+-- [[(that clamping has its own coverage elsewhere).]]
 movePointer(500, 300)
 TestPump(1.2)
 near(window.main.Position.X.Offset, 500 + handleGrab.X, 2, "H6 the window follows the handle's drag")

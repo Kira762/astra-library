@@ -2,7 +2,7 @@
 local appearance = {}
 
 function appearance.validate(key: string, value: any): (boolean, any)
-    if key == "keepOnScreen" or key == "showProfile" or key == "showFullUsername" then
+    if key == "keepOnScreen" then
         return type(value) == "boolean", value == true
     end
     if key == "layoutMode" then

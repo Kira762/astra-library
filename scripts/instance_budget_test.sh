@@ -31,7 +31,7 @@ if [ -z "$LUAU_BIN" ]; then
 fi
 
 TMPDIR_LOCAL="${TMPDIR:-/tmp}"
-OUT="$TMPDIR_LOCAL/astra_profile_ui_$$.luau"
+OUT="$TMPDIR_LOCAL/astra_instance_budget_$$.luau"
 trap 'rm -f "$OUT"' EXIT
 
 {

@@ -11,8 +11,8 @@ scripts load).
 | `version-1.luau` | **Generated** bundle — the artifact users load with `loadstring`. Never hand-edit; regenerate. |
 | `library_entrypoint.luau` | Public API singleton (`CreateWindow`, `Icons`, `Core`, `Settings`, `Motion`). |
 | `Types.luau` | Typed public surface (`export type …`). |
-| `core/` | `state` (runtime singletons, `secureMode`), `registry`, `loader`. |
-| `components/` | `window`, `sidebar`, `chrome`, `drag`, `notification`, `overlayQueue`, `popup`, `profilePanel`, `search`, `settings`, `tabSelector`, `action`. |
+| `core/` | `state` (runtime singletons, `secureMode`). |
+| `components/` | `window`, `sidebar`, `chrome`, `drag`, `notification`, `overlayQueue`, `popup`, `search`, `settings`, `tabSelector`, `action`. |
 | `elements/` | One module per element plus `tab`, `group`, `section`, `tabSection`, `baseCard`, `description`. |
 | `settings/` | `defaults`, `manager`, `registry`, `appearance`, `behavior`, `performance`, `persistence`. |
 | `themes/` | `init` resolver + one module per built-in theme. |
@@ -20,7 +20,6 @@ scripts load).
 | `icons/` | Seven icon packs, `packBuilder`, custom-asset resolution. |
 | `scripts/` | Build, syntax gate, static checkers and runtime tests. |
 | `skills/astra/` | The Agent Skill published to skills.sh (this folder). |
-| `website/` | The docs site: Next.js static export → GitHub Pages. Its navigation, on-page contents, search index and `sitemap.xml` all derive from `website/lib/docs.ts`; adding a page means adding it to `NAV` there. Never part of the Rojo tree or the bundle. |
 | `default.project.json`, `wax.project.json` | Rojo / Wax project mapping for Studio. |
 
 Function bodies in the tree are minified (locals renamed `a1`, `a2`, …); top-level

@@ -32,7 +32,7 @@ if [ -z "$LUAU_BIN" ]; then
 fi
 
 TMPDIR_LOCAL="${TMPDIR:-/tmp}"
-OUT="$TMPDIR_LOCAL/astra_profile_ui_$$.luau"
+OUT="$TMPDIR_LOCAL/astra_motion_$$.luau"
 trap 'rm -f "$OUT"' EXIT
 
 {

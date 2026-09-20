@@ -6,6 +6,11 @@ local Constants = require(script.Parent.utilities.constants)
 local Icons = require(script.Parent.icons)
 local Motion = require(script.Parent.utilities.motion)
 local Settings = require(script.Parent.settings)
+-- [[Binds the `types` name used by every `types.X` annotation below. Types.luau
+-- [[is a sibling of the entrypoint in both mounts (`script.Parent.Types` in the
+-- [[Rojo/wax tree and in the generated bundle), and it returns an empty table,
+-- [[so this require exists only to give the type checker a name to resolve.]]
+local types = require(script.Parent.Types)
 
 export type Theme = types.Theme
 export type Translator = types.Translator

@@ -113,11 +113,11 @@ local function readFile(sourcePath: string): ({ [string]: unknown }?, string?)
 end
 
 local function backupPathFor(targetPath: string): string
-        local stem = pathUtil.stripExtension(targetPath, ".rfld")
-    local candidatePath = stem .. " (Incorrect Format).rfld"
+        local stem = pathUtil.stripExtension(targetPath, ".txt")
+    local candidatePath = stem .. " (Incorrect Format).txt"
     local counter = 2
     while counter <= 100 and fs.isfile(candidatePath) do
-        candidatePath = stem .. " (Incorrect Format " .. counter .. ").rfld"
+        candidatePath = stem .. " (Incorrect Format " .. counter .. ").txt"
         counter += 1
     end
     return candidatePath
@@ -215,8 +215,8 @@ function persistenceConfig.list(window: ConfigWindow): { string }
 
     for _, file in files do
         local baseName = pathUtil.basename(file)
-        if baseName:sub(-5):lower() == ".rfld" then
-            local configName = pathUtil.stripExtension(baseName, ".rfld")
+        if baseName:sub(-4):lower() == ".txt" then
+            local configName = pathUtil.stripExtension(baseName, ".txt")
             if configName and configName ~= "" and not configName:find(" %(Incorrect Format[^%)]*%)$") then
                 table.insert(names, configName)
             end

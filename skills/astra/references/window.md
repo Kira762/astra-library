@@ -20,7 +20,6 @@
 | `window:SetLocale(id)` / `SetTranslator(fn)` / `RegisterTranslations(t)` | Localisation. |
 | `window:ResolveIcon(value, pack?)` | Icon name → asset URL/id. |
 | `window:GetPath()` | `(folder, file)` of the persistence path. |
-| `window:SetProfile(profile)` | Fill the profile card from real data. |
 | `window:Unload()` | Destroy the window and its instances. |
 
 Extension helpers used by library internals and safe for custom elements:
@@ -66,22 +65,6 @@ window:Popup({
 })
 ```
 
-### Profile card
-
-```lua
-window:SetProfile({
-    subtitle = "Beta tester",                 -- replaces the @username line
-    key = "ASTRA-XXXX-XXXX",                  -- masked until "Reveal profile details"
-    tier = "PREMIUM",                         -- header pill word
-    whitelist = { status = "Active", daysLeft = 14 },   -- or expiresAt = os.time() + n
-})
-window:SetProfile("Beta tester")              -- replace just the subtitle line
-```
-
-Omitted fields render as `—`; the card's own player/server values are never taken
-from this table. Window and card are centred as one unit, and "Keep window on
-screen" clamps the pair.
-
 ## Locked tabs
 
 `window:CreateTab({ name = "Premium", icon = "star", locked = true })` builds a
@@ -110,7 +93,7 @@ previous tab. User code does not build these tabs.
 | Tab | Contents |
 |---|---|
 | **General** | Menu toggle keybind field, unlock cursor, Window Behavior (prevent duplicate windows, keep on screen, draggable capsule, reset positions), Performance & Motion (haptics, animation speed). |
-| **Appearance** | Theme dropdown + Apply, Bar Layout dropdown, profile card controls (show / side / reveal details). |
+| **Appearance** | Theme dropdown + Apply, Bar Layout dropdown. |
 | **Persistence** | Auto Save Config, Auto Load Config, saved-configurations dropdown with name input and Save/Load/Delete. |
 | **About** | Library info and links. |
 

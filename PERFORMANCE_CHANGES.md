@@ -7,21 +7,35 @@ All public features, buttons, logic and responsive behaviour are preserved.
 ## Headline results
 
 Measured with the in-repo harness (`scripts/startup_test.sh`, virtual-time
-Heartbeat scheduler; numbers are the same on Luau CLI 0.669 and 0.738).
+Heartbeat scheduler). The *Original* column is the measurement taken when this
+refactor landed (Luau CLI 0.669/0.738). The *Current* column was re-measured on
+2026-09-19 against this checkout with Luau CLI 0.739; where the harness no longer
+emits a metric it is marked `—` rather than guessed at.
 
-| Metric (lower is better)                         | Before  | After   | Delta      |
-| ------------------------------------------------ | ------- | ------- | ---------- |
-| Instances built before the first shell reveal    | 155     | 66      | **−57%**   |
-| Window with one tab + two controls, after settle | 218     | 129     | **−41%**   |
-| Peak instance allocations in a single frame      | 82      | 64      | **−22%**   |
-| Profile card instances on the spawn path         | 89      | 0       | **−100%**  |
-| Bundle size (`version-1.luau`, bytes)            | 1,237,310 | 987,741 | **−20%** |
-| CLI parse + startup harness wall time            | 0.082 s | 0.074 s | **−10%**   |
+| Metric (lower is better)                         | Before  | Original | Current   | Notes |
+| ------------------------------------------------ | ------- | -------- | --------- | ----- |
+| Instances built before the first shell reveal    | 155     | 66       | **67**    | one instance added since the refactor |
+| Peak instance allocations in a single frame      | 82      | 64       | **57**    | improved since the refactor |
+| Frames the build is spread over                  | —       | ~41      | **42**    | |
+| Window with one tab + two controls, after settle | 218     | 129      | —         | harness no longer reports this |
+| Profile card instances on the spawn path         | 89      | 0        | —         | harness no longer reports this |
+| Bundle size (`version-1.luau`, bytes)            | 1,237,310 | 987,741 | **1,039,418** | grew with the features added since |
 
-The profile card still exists in full when enabled (383 total instances,
-identical to before) — it simply isn't built for users who never turn it on.
+> **Since this document was written the profile card has been removed from the
+> library entirely.** Sections 2 and 5 below, the "Profile card instances" row
+> and the `EnableProfileCard` note in Verification describe work that is no
+> longer in the tree; they are kept as the record of how the startup budget was
+> reached, not as a description of current behaviour.
 
-The work that used to run in one frozen chunk is now spread over ~41 cheap
+> On the wall-time row the original table carried (0.082 s → 0.074 s): that
+> figure is not reproducible here and has been dropped rather than replaced.
+> Timing the whole assembled harness (`stubs + bundle + assertions`, 27,131
+> lines) under `luau` 0.739 gives a median of **0.347 s** over six runs, but that
+> number includes process startup and the parse of the harness itself, so it
+> measures something different from the original row and the two are not
+> comparable.
+
+The work that used to run in one frozen chunk is now spread over ~42 cheap
 frames. Each frame respects a **3 ms CPU budget and a 48-instance budget**, so
 the opening tween and input never starve; this is the accepted trade-off of a
 slightly longer time-to-fully-interactive in exchange for an instant shell.

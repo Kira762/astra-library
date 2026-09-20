@@ -1,11 +1,12 @@
 local default = require(script.Parent.Parent.core.state)
 
--- [[Rayfield Gen2 default palette, ported 1:1 for shared keys. Astra-only
--- [[semantic keys (Background, WindowSurface, text tiers, Success/Warning,
--- [[etc.) are derived from the same greyscale + teal accent so the capsule,
--- [[profile card and settings surfaces stay coherent with Gen2.]]
+-- [[Astra's default palette. The shared keys below are the historical set
+-- [[every theme module provides; the Astra-only semantic keys (Background,
+-- [[WindowSurface, text tiers, Success/Warning, etc.) are derived from the
+-- [[same greyscale + teal accent so the capsule and settings surfaces stay
+-- [[coherent with the rest of the theme.]]
 return {
-    -- [[Semantic palette (derived from Gen2 greys + teal accent)]]
+    -- [[Semantic palette (derived from the base greys + teal accent)]]
     Background = Color3.fromRGB(10, 10, 10),
     WindowSurface = Color3.fromRGB(25, 25, 25),
     TopbarSurface = Color3.fromRGB(30, 30, 30),
@@ -33,7 +34,7 @@ return {
     PopupSurface = Color3.fromRGB(25, 25, 25),
     InputSurface = Color3.fromRGB(18, 18, 18),
 
-    -- [[Gen2 shared keys — values match src/themes/default.luau]]
+    -- [[Shared keys — the set every theme module must provide]]
     CornerRoundness = UDim.new(0, 20),
     WindowColor = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(10, 10, 10)),

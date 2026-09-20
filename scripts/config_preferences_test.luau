@@ -31,7 +31,7 @@ local window, group = create()
 assert(window.configuration.autoSave and window.configuration.autoLoad, "Save/load defaults are on")
 assert(window.configuration.customFolder == "AstraConfigs" and window.configuration.fileName == "Astra-Hub", "Hidden path defaults")
 local folder, path = window:GetPath()
-assert(path:match("AstraConfigs/Astra%-Hub%.rfld$"), "Default path is used without a configuration prop")
+assert(path:match("AstraConfigs/Astra%-Hub%.txt$"), "Default path is used without a configuration prop")
 local writes = 0
 local originalSave = window.Save
 window.Save = function(self, ...)

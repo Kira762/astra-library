@@ -169,18 +169,7 @@ and locale binding), `window:Connect(signal, fn)` /
 `window:DestroySubtrees(list)`, `window:CreateGlow(parent, color, blurRadius, transparency)`,
 `window:CreateHoverOverlay(parent)`, `window:StyleElementBody(frame)` /
 `window:StyleElementPanel(frame)`, `window:SaveSettings()` /
-`window:LoadSettings()`, `window:SetProfile(profile)` — fills the profile card from real data with nothing invented: pass a string (or `nil`) to set/replace just the subtitle line (legacy behaviour: `nil` falls back to the `@username` line and leaves the host's key/whitelist rows alone), or a table for the whole payload:
-
-```lua
-window:SetProfile({
-    subtitle = "Beta tester",              -- optional, replaces the @username line
-    key = "ASTRA-XXXX-XXXX",               -- optional, masked until "Reveal profile details"
-    tier = "PREMIUM",                      -- optional, the header pill's word (else PREMIUM / FREEMIUM from membership)
-    whitelist = { status = "Active", daysLeft = 14 },  -- or expiresAt = os.time() + n
-})
-```
-
-Fields you leave out read `—` on the card, and the whole row set stays masked until the window's **Reveal profile details** setting is on (the panel's own values always come from the player and the running server — never from this table).
+`window:LoadSettings()`.
 
 Popup options: `options = { { text = "Cancel" }, { text = "Confirm", style = "primary" | "danger" | "neutral", callback = fn } }`.
 Popup props: `title`, `subtitle`, `icon`, `content`, `boxes`, `options`, `dismissable`.
@@ -394,19 +383,15 @@ The settings tabs are:
 | Tab | Contents |
 |---|---|
 | **General** | Menu Toggle keybind field — type a key name (`K`, `Space`, `MB2`) and click away to bind it, `none` or an empty field to unbind — plus the unlock-cursor toggle, welcome toast toggle, Window Behavior (prevent duplicate windows, keep window on screen, draggable capsule, reset window & capsule positions), and Performance & Motion (haptics, animation speed). |
-| **Appearance** | Theme dropdown + Apply (popup confirm), Bar Layout dropdown (Sidebar / Collapsed Sidebar), and Profile card controls (Show profile / Profile side / Reveal profile details). |
+| **Appearance** | Theme dropdown + Apply (popup confirm) and the Bar Layout dropdown (Sidebar / Collapsed Sidebar). |
 | **Persistence** | Auto Save Config / Auto Load Config toggles; Saved-configurations dropdown + name input + Save/Load/Delete. |
 | **About** | Library info and links. |
 
-The window and its profile card (a compact 260x420 card — the default
-window's height) are centred as one unit: with the card on, the window rests
-half a card (136px) off the screen centre on the opposite side of it, so
-window + 12px gap + card line up in the middle together. That resting
-centre is re-derived on the first show, on every hide/show restore and whenever
-the card's state changes (toggle, side, viewport, a player turning up late), and
-"Keep window on screen" clamps the pair rather than the window alone, so a drag
-can push neither of them off the edge. A position you dragged to is respected —
-auto-centring never overrides it; **Reset Window Position** recentres the pair.
+The window rests dead centre of the screen. That resting centre is re-derived
+on the first show and on every hide/show restore, and "Keep window on screen"
+clamps the window inside the viewport so a drag cannot push it off the edge. A
+position you dragged to is respected — auto-centring never overrides it;
+**Reset Window Position** recentres the window.
 
 There is no sub-tab API: these tabs are built by the window itself
 (`Window:_buildSettingsUI`), not by user code.

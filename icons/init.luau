@@ -127,6 +127,14 @@ function icons.loaded(): { string }
 end
 
 local namedAssets = {
+    -- Brand icon for the window topbar and the collapsed capsule (pill).
+    -- The file lives under assets/window-icons/ so the secure-mode preload
+    -- manifest (windowIcons.files.window) fetches the same source; a user
+    -- file at custom_asset/sirius.png still wins, because custom assets are
+    -- checked before named assets. "Sirius" is kept for scripts written
+    -- before icon names went lowercase.
+    sirius = "assets/window-icons/sirius.png",
+    Sirius = "assets/window-icons/sirius.png",
 }
 
 local function environment(): any

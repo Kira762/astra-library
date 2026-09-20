@@ -11,6 +11,7 @@ local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762
 local window = Astra:CreateWindow({
     name = "Astra Element Test",
     subtitle = "All elements in one paced tab",
+    icon = "Sirius",
     configuration = {
         fileName = "Astra-Example",
         customFolder = "AstraExamples",

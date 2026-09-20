@@ -113,7 +113,7 @@ function Window:Hide()
         settleCollapse()
     end
     -- [[Capsule bar: theme PillCornerRadius (the default theme is a full pill).]]
-    motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, cornerTween)
+    motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(0, 0) }, cornerTween)
 
     self.topbar.Visible = true
     self:_setContentVisible(false)
@@ -235,7 +235,7 @@ function Window:ToggleMinimise()
         self:_fadeSurfaces(false, surfaceTween)	chrome.setCollapsedShown(self, true, surfaceTween)
         motion.tween(self.main, { Size = UDim2.fromOffset(self.size.X.Offset, self.layout.topbarHeight) }, expandTween)
         -- [[Minimised bar reads as a theme-aware capsule (PillCornerRadius).]]
-        motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0) }, expandTween)
+        motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(0, 0) }, expandTween)
 
         motion.tween(self.drag.drag, {
             Position = UDim2.new(
@@ -588,7 +588,7 @@ function Window:_firstShow()
     self.main.Size = self.size
     self.windowScale.Scale = 0.94
     -- [[Entrance starts as a capsule (theme pill) then opens to CornerRoundness.]]
-    self.windowCorner.CornerRadius = self.theme.PillCornerRadius or UDim.new(1, 0)
+    self.windowCorner.CornerRadius = self.theme.PillCornerRadius or UDim.new(0, 0)
     -- [[Which entrance owns the staged content reveal below. A hide, a repeat
     -- [[show or a layout switch between now and then replaces it, and the
     -- [[older sequence stops instead of fighting the newer one for the page.]]

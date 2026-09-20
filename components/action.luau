@@ -66,7 +66,7 @@ function Action.new(window, props)
             Parent = self.action,
         })
         self.window:Create("UICorner", {
-            CornerRadius = UDim.new(1, 0),
+            CornerRadius = UDim.new(0, 0),
             Parent = self.badge,
         })
     end

@@ -21,8 +21,8 @@ local callback = name.icons.check
 local element = name.icons.dot
 local frame = name.icons.search
 
-local button = UDim.new(0, 12)
-local list = UDim.new(0, 7)
+local button = UDim.new(0, 0)
+local list = UDim.new(0, 0)
 
 local isOpen = 30
 local selected = 38
@@ -45,7 +45,7 @@ local a27 = 4
 -- [[of the box are never a size apart.]]
 local a28 = 32
 local actionBox = 12
-local actionBoxRadius = UDim.new(0, 3)
+local actionBoxRadius = UDim.new(0, 0)
 local actionStrokeIdle = 0.45
 local actionStrokeHover = 0.2
 local actionStrokeChecked = 1
@@ -660,7 +660,7 @@ function state:_buildSearch()
     })
 
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 12),
+        CornerRadius = UDim.new(0, 0),
         Parent = self.searchbar,
     })
 

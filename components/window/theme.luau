@@ -132,7 +132,7 @@ function Window:ChangeTheme(themeInput)
     -- [[Capsule / minimised bar: keep the live corner on the theme's pill
     -- [[radius so ChangeTheme restyles the bar without needing a re-collapse.]]
     if self.windowCorner and (self._collapsedShown or self.minimised) and not self.animating then
-        local pill = self.theme.PillCornerRadius or UDim.new(1, 0)
+        local pill = self.theme.PillCornerRadius or UDim.new(0, 0)
         if self.windowCorner.CornerRadius ~= pill then
             motion.tween(self.windowCorner, { CornerRadius = pill }, "smooth")
         end

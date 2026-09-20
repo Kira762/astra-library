@@ -48,7 +48,7 @@ layouts.sidebar = {
     railCollapseBelow = 520,
 
     rowHeight = 38,
-    rowCornerRadius = 14,
+    rowCornerRadius = 0,
     rowSpacing = 4,
     railPadding = 17,
     rowInset = 15,

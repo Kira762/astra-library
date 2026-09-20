@@ -44,7 +44,7 @@ local boxIconSpacing = 8
 local boxContentPad = 10
 local footerHeight = 40
 local footerSpacing = 8
-local buttonCorner = UDim.new(1, 0)
+local buttonCorner = UDim.new(0, 0)
 local buttonTextSize = 16
 
 local backdropTransparency = 0.5

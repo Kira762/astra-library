@@ -132,7 +132,7 @@ function state.new(ownerTab, a31)
     }, { BackgroundColor3 = "SliderBackground" })
 
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 13),
+        CornerRadius = UDim.new(0, 0),
 
         Parent = self.track,
     })
@@ -149,7 +149,7 @@ function state.new(ownerTab, a31)
     })
 
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 13),
+        CornerRadius = UDim.new(0, 0),
 
         Parent = self.progress,
     })
@@ -178,7 +178,7 @@ function state.new(ownerTab, a31)
     }, { BackgroundColor3 = "SliderHandle" })
 
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(1, 0),
+        CornerRadius = UDim.new(0, 0),
 
         Parent = self.handle,
     })

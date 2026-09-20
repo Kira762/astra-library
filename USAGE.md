@@ -194,9 +194,10 @@ Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`
 ### Locked tabs
 
 `CreateTab({ locked = true })` builds a tab that is visible in the sidebar but
-gated: the row draws a lock badge in its top-right corner, stays dimmed, and
-cannot be opened by the user. It is the library's answer to "this section
-exists, but not for this user yet".
+gated: the row draws a small lock badge on its trailing edge — vertically
+centred, inset by the row padding, with room reserved in the rail's width —
+stays dimmed, and cannot be opened by the user. It is the library's answer to
+"this section exists, but not for this user yet".
 
 ```lua
 local premium = window:CreateTab({ name = "Premium", icon = "star", locked = true })
@@ -669,3 +670,4 @@ are rejected before creating any UI.
 - Controls are built in startup batches even while collapsed, so saved flags
   are usable before the first expansion. The optional feature adds
   no container instances unless you explicitly create one.
+ly create one.

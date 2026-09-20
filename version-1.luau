@@ -4095,7 +4095,26 @@ local function buildGradients(tab, item, stroke)
     }, { Color = { "TabStroke", functions.toColorSequence } })
 end
 
-local function buildContent(tab, iconSize, useInitial)
+-- [[Trailing lock badge: a small glyph pinned to the row's right edge,
+-- [[vertically centred, inset by the same row padding the content keeps on
+-- [[the left — so a locked row reads as part of the tab structure instead
+-- [[of carrying a corner pin. The rail reserves `lockIconSize` plus one
+-- [[content gap for it (see rowNaturalWidth / relayoutSidebarRows), which
+-- [[is why a locked tab measures wider than the same tab unlocked. The
+-- [[icon-only rail has no trailing room, so the badge keeps the corner
+-- [[seat it always had there (see setRowCollapsed).]]
+local lockIconSize = 13
+local lockCornerPosition = UDim2.new(1, -20, 0, 11)
+
+local function lockReserve(layout)
+    return lockIconSize + layout.rowContentSpacing
+end
+
+local function lockTrailingPosition(layout)
+    return UDim2.new(1, -layout.rowPadding, 0.5, 0)
+end
+
+local function buildContent(tab, layout, iconSize, useInitial)
     if useInitial and not tab.icon then
         tab.topbarItemInitial = tab.window:Create("TextLabel", {
             Text = getInitial(tab.name),
@@ -4139,16 +4158,19 @@ local function buildContent(tab, iconSize, useInitial)
     end
 
     -- [[The lock badge rides the row itself rather than the content container:
-    -- [[the container recentres for icon-only rows, but the badge stays in the
-    -- [[row's top-right corner in both. It is created for every row and only
-    -- [[Visible while the tab is locked, so SetLocked flips a flag instead of
-    -- [[rebuilding the row — and an unlocked tab draws no icon at all.]]
+    -- [[the container recentres for icon-only rows, but the badge keeps its
+    -- [[own seat in each state — trailing-centred while expanded, the corner
+    -- [[while collapsed (setRowCollapsed moves it). It is created for every
+    -- [[row and only Visible while the tab is locked, so SetLocked flips a
+    -- [[flag instead of rebuilding the row — and an unlocked tab draws no
+    -- [[icon at all.]]
     local lockImage = tab.window:ResolveIcon("lock")
     if lockImage then
         tab.topbarItemLock = tab.window:Create("ImageLabel", {
             Image = lockImage,
-            Size = UDim2.fromOffset(13, 13),
-            Position = UDim2.new(1, -20, 0, 11),
+            Size = UDim2.fromOffset(lockIconSize, lockIconSize),
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = lockTrailingPosition(layout),
             BorderSizePixel = 0,
             BackgroundTransparency = 1,
             ImageTransparency = 1,
@@ -4222,7 +4244,7 @@ local function buildSidebarStyle(tab, layout)
         Parent = tab.topbarItemContainer,
     })
 
-    buildContent(tab, layout.rowIconSize, true)
+    buildContent(tab, layout, layout.rowIconSize, true)
 end
 
 -- [[Whether the rail is currently at its icon-only width. The rail's own Size
@@ -4281,6 +4303,12 @@ local function rowNaturalWidth(tab, window, layout)
     if tab.name then
         width += functions.textWidth(window.theme.Font, 16, locale.resolve(tab.name))
     end
+    if tab.locked then
+        -- [[The trailing badge is part of the row's measured width: one
+        -- [[content gap plus the glyph itself, inside the same right
+        -- [[padding every row keeps.]]
+        width += lockReserve(layout)
+    end
     return width
 end
 
@@ -4325,6 +4353,12 @@ function tabSelector.relayoutSidebarRows(window, layout, railWidth)
             if title and tab.name then
                 local slot = rowWidth - layout.rowPadding * 2
                     - (if tab.icon then layout.rowIconSize + layout.rowContentSpacing else 0)
+                if tab.locked then
+                    -- [[Hold the title clear of the trailing badge: a long
+                    -- [[locked name wraps before it instead of running
+                    -- [[underneath it.]]
+                    slot -= lockReserve(layout)
+                end
                 if
                     slot >= 24
                     and functions.textWidth(window.theme.Font, 16, locale.resolve(tab.name)) > slot
@@ -4359,7 +4393,16 @@ function tabSelector.setRowCollapsed(tab, collapsed, layout)
             tab.topbarItemTitle.TextTransparency = 1
         else
             tab.topbarItemTitle.Visible = true
-            motion.tween(tab.topbarItemTitle, { TextTransparency = 0 }, "fast")
+            -- [[An expanding row restores its own state, not full brightness:
+            -- [[selected rows read 0, locked rows hold the 0.7 gated floor
+            -- [[(see Tab:_applyVisual), everything else the unselected wash
+            -- [[— so a rail re-apply (tab add, lock flip, theme or locale
+            -- [[change) never brightens rows it did not mean to.]]
+            local titleTarget = if tab.locked
+                then 0.7
+                elseif tab.window.selectedTab == tab then 0
+                else tabSelector.states.sidebar.unselected.content
+            motion.tween(tab.topbarItemTitle, { TextTransparency = titleTarget }, "fast")
         end
     end
     if tab.topbarItemInitial then
@@ -4379,6 +4422,18 @@ function tabSelector.setRowCollapsed(tab, collapsed, layout)
     tab.topbarItemLayout.HorizontalAlignment = if collapsed
         then Enum.HorizontalAlignment.Center
         else Enum.HorizontalAlignment.Left
+    if tab.topbarItemLock then
+        -- [[The badge follows the row's state: trailing-centred while the
+        -- [[row is expanded, back to the corner seat on an icon tile, where
+        -- [[a trailing glyph would sit on top of the centred icon.]]
+        if collapsed then
+            tab.topbarItemLock.AnchorPoint = Vector2.new(0, 0)
+            tab.topbarItemLock.Position = lockCornerPosition
+        else
+            tab.topbarItemLock.AnchorPoint = Vector2.new(1, 0.5)
+            tab.topbarItemLock.Position = lockTrailingPosition(layout)
+        end
+    end
 end
 
 function tabSelector.applyVisual(tab, visualState, tweenInfo)
@@ -13909,6 +13964,11 @@ function state:SetLocked(locked)
         self.topbarItemLock.Visible = locked
     end
 
+    -- [[The badge is part of the row's measured width: re-derive the rail so
+    -- [[locking the widest tab grows it and unlocking shrinks it back (the
+    -- [[same call Remove makes when the longest row leaves).]]
+    win:_applyContentRailWidth()
+
     if not locked then
         self:_applyVisual(if win.selectedTab == self then "selected" else "unselected", element)
         return
@@ -22065,104 +22125,104 @@ local LineOffsets = {
     [14] = 3172,
     [15] = 3993,
     [16] = 4054,
-    [17] = 4427,
-    [18] = 4901,
-    [19] = 4913,
-    [20] = 4970,
-    [21] = 5087,
-    [22] = 5424,
-    [23] = 5635,
-    [24] = 5939,
-    [25] = 6022,
-    [26] = 6071,
-    [27] = 6646,
-    [28] = 6833,
-    [29] = 7080,
-    [30] = 7471,
-    [31] = 4877,
-    [33] = 8284,
-    [34] = 8388,
-    [35] = 8711,
-    [36] = 9132,
-    [37] = 9534,
-    [38] = 9704,
-    [39] = 9849,
-    [40] = 11383,
-    [41] = 11602,
-    [42] = 11800,
-    [43] = 12087,
-    [44] = 12173,
-    [45] = 12770,
-    [46] = 13619,
-    [47] = 14089,
-    [48] = 14219,
-    [49] = 14371,
-    [51] = 14878,
-    [52] = 14898,
-    [53] = 14915,
-    [54] = 14944,
-    [55] = 15066,
-    [56] = 15090,
-    [57] = 15139,
-    [58] = 14853,
-    [59] = 15236,
-    [60] = 15539,
-    [61] = 15570,
-    [62] = 15225,
-    [63] = 15613,
-    [64] = 15633,
-    [65] = 15665,
-    [66] = 15595,
-    [67] = 15772,
-    [68] = 15838,
-    [70] = 15918,
-    [71] = 16083,
-    [72] = 15903,
-    [73] = 16657,
-    [74] = 16701,
-    [75] = 16781,
-    [76] = 16974,
-    [77] = 17103,
-    [78] = 17197,
-    [79] = 17364,
-    [80] = 17702,
-    [81] = 16159,
-    [82] = 18336,
-    [83] = 18402,
-    [84] = 18468,
-    [85] = 18543,
-    [86] = 18655,
-    [87] = 18721,
-    [88] = 18796,
-    [89] = 18871,
-    [90] = 18946,
-    [91] = 19021,
-    [92] = 18230,
-    [93] = 19087,
-    [94] = 19185,
-    [95] = 19363,
-    [96] = 19411,
-    [97] = 19441,
-    [98] = 19692,
-    [99] = 19741,
-    [100] = 20194,
-    [101] = 20212,
-    [102] = 20333,
-    [103] = 20432,
-    [104] = 20454,
-    [105] = 20508,
-    [106] = 20858,
-    [107] = 20894,
-    [108] = 20912,
-    [109] = 21266,
-    [110] = 21278,
-    [111] = 21329,
-    [112] = 21348,
-    [113] = 21599,
-    [114] = 21643,
-    [115] = 21846,
-    [116] = 21874,
-    [117] = 21885,
+    [17] = 4482,
+    [18] = 4956,
+    [19] = 4968,
+    [20] = 5025,
+    [21] = 5142,
+    [22] = 5479,
+    [23] = 5690,
+    [24] = 5994,
+    [25] = 6077,
+    [26] = 6126,
+    [27] = 6701,
+    [28] = 6888,
+    [29] = 7135,
+    [30] = 7526,
+    [31] = 4932,
+    [33] = 8339,
+    [34] = 8443,
+    [35] = 8766,
+    [36] = 9187,
+    [37] = 9589,
+    [38] = 9759,
+    [39] = 9904,
+    [40] = 11438,
+    [41] = 11657,
+    [42] = 11855,
+    [43] = 12142,
+    [44] = 12228,
+    [45] = 12825,
+    [46] = 13674,
+    [47] = 14149,
+    [48] = 14279,
+    [49] = 14431,
+    [51] = 14938,
+    [52] = 14958,
+    [53] = 14975,
+    [54] = 15004,
+    [55] = 15126,
+    [56] = 15150,
+    [57] = 15199,
+    [58] = 14913,
+    [59] = 15296,
+    [60] = 15599,
+    [61] = 15630,
+    [62] = 15285,
+    [63] = 15673,
+    [64] = 15693,
+    [65] = 15725,
+    [66] = 15655,
+    [67] = 15832,
+    [68] = 15898,
+    [70] = 15978,
+    [71] = 16143,
+    [72] = 15963,
+    [73] = 16717,
+    [74] = 16761,
+    [75] = 16841,
+    [76] = 17034,
+    [77] = 17163,
+    [78] = 17257,
+    [79] = 17424,
+    [80] = 17762,
+    [81] = 16219,
+    [82] = 18396,
+    [83] = 18462,
+    [84] = 18528,
+    [85] = 18603,
+    [86] = 18715,
+    [87] = 18781,
+    [88] = 18856,
+    [89] = 18931,
+    [90] = 19006,
+    [91] = 19081,
+    [92] = 18290,
+    [93] = 19147,
+    [94] = 19245,
+    [95] = 19423,
+    [96] = 19471,
+    [97] = 19501,
+    [98] = 19752,
+    [99] = 19801,
+    [100] = 20254,
+    [101] = 20272,
+    [102] = 20393,
+    [103] = 20492,
+    [104] = 20514,
+    [105] = 20568,
+    [106] = 20918,
+    [107] = 20954,
+    [108] = 20972,
+    [109] = 21326,
+    [110] = 21338,
+    [111] = 21389,
+    [112] = 21408,
+    [113] = 21659,
+    [114] = 21703,
+    [115] = 21906,
+    [116] = 21934,
+    [117] = 21945,
 }
 
 -- [[Misc AOT variable imports]]

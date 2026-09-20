@@ -291,6 +291,11 @@ function state:SetLocked(locked)
         self.topbarItemLock.Visible = locked
     end
 
+    -- [[The badge is part of the row's measured width: re-derive the rail so
+    -- [[locking the widest tab grows it and unlocking shrinks it back (the
+    -- [[same call Remove makes when the longest row leaves).]]
+    win:_applyContentRailWidth()
+
     if not locked then
         self:_applyVisual(if win.selectedTab == self then "selected" else "unselected", element)
         return

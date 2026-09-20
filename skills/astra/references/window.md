@@ -72,10 +72,12 @@ tab that is visible in the sidebar but gated. Host code unlocks it with
 `tab:SetLocked(false)` — the only switch; there is no UI control, the state is
 per-session (not a flag, never persisted), and it is a UI gate, not security.
 
-- While locked: a `lock` badge sits in the row's top-right corner (drawn **only
+- While locked: a small `lock` badge sits trailing-centred in the row (drawn **only
   while locked** — an unlocked tab is identical to one that never had the
   prop), the row is dimmed and has no hover state, and tapping it raises a
-  short "This tab is locked" notification instead of selecting.
+  short "This tab is locked" notification instead of selecting. The rail fits
+  around the badge (a long locked name wraps clear of it); on the collapsed
+  icon tile the badge keeps a corner seat.
 - `tab:Select()`, `window:Navigate(tab)` and the new-window auto-select all
   skip locked tabs; search never indexes a locked tab's elements, and elements
   registered on one stay hidden until it is unlocked and opened.

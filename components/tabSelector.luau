@@ -42,7 +42,26 @@ local function buildGradients(tab, item, stroke)
     }, { Color = { "TabStroke", functions.toColorSequence } })
 end
 
-local function buildContent(tab, iconSize, useInitial)
+-- [[Trailing lock badge: a small glyph pinned to the row's right edge,
+-- [[vertically centred, inset by the same row padding the content keeps on
+-- [[the left — so a locked row reads as part of the tab structure instead
+-- [[of carrying a corner pin. The rail reserves `lockIconSize` plus one
+-- [[content gap for it (see rowNaturalWidth / relayoutSidebarRows), which
+-- [[is why a locked tab measures wider than the same tab unlocked. The
+-- [[icon-only rail has no trailing room, so the badge keeps the corner
+-- [[seat it always had there (see setRowCollapsed).]]
+local lockIconSize = 13
+local lockCornerPosition = UDim2.new(1, -20, 0, 11)
+
+local function lockReserve(layout)
+    return lockIconSize + layout.rowContentSpacing
+end
+
+local function lockTrailingPosition(layout)
+    return UDim2.new(1, -layout.rowPadding, 0.5, 0)
+end
+
+local function buildContent(tab, layout, iconSize, useInitial)
     if useInitial and not tab.icon then
         tab.topbarItemInitial = tab.window:Create("TextLabel", {
             Text = getInitial(tab.name),
@@ -86,16 +105,19 @@ local function buildContent(tab, iconSize, useInitial)
     end
 
     -- [[The lock badge rides the row itself rather than the content container:
-    -- [[the container recentres for icon-only rows, but the badge stays in the
-    -- [[row's top-right corner in both. It is created for every row and only
-    -- [[Visible while the tab is locked, so SetLocked flips a flag instead of
-    -- [[rebuilding the row — and an unlocked tab draws no icon at all.]]
+    -- [[the container recentres for icon-only rows, but the badge keeps its
+    -- [[own seat in each state — trailing-centred while expanded, the corner
+    -- [[while collapsed (setRowCollapsed moves it). It is created for every
+    -- [[row and only Visible while the tab is locked, so SetLocked flips a
+    -- [[flag instead of rebuilding the row — and an unlocked tab draws no
+    -- [[icon at all.]]
     local lockImage = tab.window:ResolveIcon("lock")
     if lockImage then
         tab.topbarItemLock = tab.window:Create("ImageLabel", {
             Image = lockImage,
-            Size = UDim2.fromOffset(13, 13),
-            Position = UDim2.new(1, -20, 0, 11),
+            Size = UDim2.fromOffset(lockIconSize, lockIconSize),
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = lockTrailingPosition(layout),
             BorderSizePixel = 0,
             BackgroundTransparency = 1,
             ImageTransparency = 1,
@@ -169,7 +191,7 @@ local function buildSidebarStyle(tab, layout)
         Parent = tab.topbarItemContainer,
     })
 
-    buildContent(tab, layout.rowIconSize, true)
+    buildContent(tab, layout, layout.rowIconSize, true)
 end
 
 -- [[Whether the rail is currently at its icon-only width. The rail's own Size
@@ -228,6 +250,12 @@ local function rowNaturalWidth(tab, window, layout)
     if tab.name then
         width += functions.textWidth(window.theme.Font, 16, locale.resolve(tab.name))
     end
+    if tab.locked then
+        -- [[The trailing badge is part of the row's measured width: one
+        -- [[content gap plus the glyph itself, inside the same right
+        -- [[padding every row keeps.]]
+        width += lockReserve(layout)
+    end
     return width
 end
 
@@ -272,6 +300,12 @@ function tabSelector.relayoutSidebarRows(window, layout, railWidth)
             if title and tab.name then
                 local slot = rowWidth - layout.rowPadding * 2
                     - (if tab.icon then layout.rowIconSize + layout.rowContentSpacing else 0)
+                if tab.locked then
+                    -- [[Hold the title clear of the trailing badge: a long
+                    -- [[locked name wraps before it instead of running
+                    -- [[underneath it.]]
+                    slot -= lockReserve(layout)
+                end
                 if
                     slot >= 24
                     and functions.textWidth(window.theme.Font, 16, locale.resolve(tab.name)) > slot
@@ -306,7 +340,16 @@ function tabSelector.setRowCollapsed(tab, collapsed, layout)
             tab.topbarItemTitle.TextTransparency = 1
         else
             tab.topbarItemTitle.Visible = true
-            motion.tween(tab.topbarItemTitle, { TextTransparency = 0 }, "fast")
+            -- [[An expanding row restores its own state, not full brightness:
+            -- [[selected rows read 0, locked rows hold the 0.7 gated floor
+            -- [[(see Tab:_applyVisual), everything else the unselected wash
+            -- [[— so a rail re-apply (tab add, lock flip, theme or locale
+            -- [[change) never brightens rows it did not mean to.]]
+            local titleTarget = if tab.locked
+                then 0.7
+                elseif tab.window.selectedTab == tab then 0
+                else tabSelector.states.sidebar.unselected.content
+            motion.tween(tab.topbarItemTitle, { TextTransparency = titleTarget }, "fast")
         end
     end
     if tab.topbarItemInitial then
@@ -326,6 +369,18 @@ function tabSelector.setRowCollapsed(tab, collapsed, layout)
     tab.topbarItemLayout.HorizontalAlignment = if collapsed
         then Enum.HorizontalAlignment.Center
         else Enum.HorizontalAlignment.Left
+    if tab.topbarItemLock then
+        -- [[The badge follows the row's state: trailing-centred while the
+        -- [[row is expanded, back to the corner seat on an icon tile, where
+        -- [[a trailing glyph would sit on top of the centred icon.]]
+        if collapsed then
+            tab.topbarItemLock.AnchorPoint = Vector2.new(0, 0)
+            tab.topbarItemLock.Position = lockCornerPosition
+        else
+            tab.topbarItemLock.AnchorPoint = Vector2.new(1, 0.5)
+            tab.topbarItemLock.Position = lockTrailingPosition(layout)
+        end
+    end
 end
 
 function tabSelector.applyVisual(tab, visualState, tweenInfo)

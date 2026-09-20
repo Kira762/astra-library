@@ -122,7 +122,7 @@ local premium = window:CreateTab({ name = "Premium", icon = "star", locked = tru
 premium:CreateSection({ name = "Premium only" })
 premium:CreateText({
     name = "Gated content",
-    text = "This tab was built locked. The badge in its row's corner stays until host code unlocks it, and its contents are never built visible or indexed by search.",
+    text = "This tab was built locked. The trailing badge in its row stays until host code unlocks it, and its contents are never built visible or indexed by search.",
 })
 premium:CreateButton({
     name = "Re-lock this tab",

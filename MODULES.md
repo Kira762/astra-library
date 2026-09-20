@@ -199,18 +199,24 @@ fixed widths elsewhere), and `tabSelector.relayoutSidebarRows` constrains an
 overlong title to the row's remaining slot so its existing `TextWrapped`
 wraps it in place. Re-derived from `sidebar.applyRailRows` (rail width
 changes), `Window:_applyContentRailWidth` (layout/settings/locale/theme
-changes, tab removal), `Tab:Remove`, `Window:SetLocale` and
+changes, tab removal, lock flips), `Tab:Remove`, `Window:SetLocale` and
 `Window:ChangeTheme`. No-op for the collapsed-sidebar layout.
 `applyRailRows` treats the rail as collapsed only at the icon-only width
 (`railCollapsedWidth`), so a content-sized rail narrower than the old fixed
 219px still shows titles.
 
 `tabSelector.buildContent` also creates the lock badge (`tab.topbarItemLock`,
-13px, top-right of the row — it rides the row itself rather than the content
-container, so it stays put in the icon-only tile too): `Visible` only while
-`tab.locked`, so an unlocked row draws no icon at all and `SetLocked` flips a
-flag instead of rebuilding; `applyVisual` dims it with the row's content
-transparency.
+13px, trailing-centred in the row — inset by the row padding, riding the row
+itself rather than the content container): `Visible` only while `tab.locked`,
+so an unlocked row draws no icon at all and `SetLocked` flips a flag instead
+of rebuilding; `applyVisual` dims it with the row's content transparency. The
+badge is part of the row's measured width (`lockReserve`: glyph + one content
+gap), so `railContentWidth` fits the rail around it, `relayoutSidebarRows`
+wraps a long locked title clear of it, and `SetLocked` re-derives the rail.
+`setRowCollapsed` moves the badge to a corner seat on the icon-only tile
+(where a trailing glyph would cover the centred icon) and restores each
+expanding row's own title state (selected 0, locked 0.7, unselected 0.5) so a
+rail re-apply never brightens rows it did not mean to.
 
 `tabSelector.railCollapsed(window, layout)` answers whether the rail is at that
 icon-only width right now (the rail's own `Size`, written by the layout's
@@ -494,7 +500,7 @@ Per-element specifics:
 | `dropdown_rows_test.sh` | Dropdown option rows: none (and no search bar) while closed whatever the list length, one per option in order on open plus the bar once, the rendered selected/unselected state and corner tiers, reopening reusing the rows, edits and picks made while closed, and the search filter. |
 | `dropdown_actions_test.sh` | The multi-select action row: only a multi-select dropdown builds it, the checkbox's two states (the drawn outline against the rows' check glyph), Select all filling the visible set and toggling it back off, Clear sparing what the filter hides, the box following picks and filters, the 32px row in the open height, and the bin resolving to the pack's trash icon. |
 | `tab_elements_test.sh` | Tab elements: only the selected tab is walked on a show/hide, a tab opened later shows its elements in the same frame and state, the search shows every tab it renders, and a late element shows with its tab. |
-| `tab_lock_test.sh` | Locked tabs: the flag + badge (visible locked, invisible unlocked) and auto-select skipping a locked first tab; tap → notification with no selection; hover leaves the locked row dimmed; `Navigate`/`Select` guards; `SetLocked(false)` re-enables; locking the open tab moves the selection to a same-rail fallback; search excludes locked tabs' elements; locking every remaining tab clears the selection and hides content, and unlocking restores it. |
+| `tab_lock_test.sh` | Locked tabs: the flag + badge (visible locked, invisible unlocked) and auto-select skipping a locked first tab; tap → notification with no selection; hover leaves the locked row dimmed; `Navigate`/`Select` guards; `SetLocked(false)` re-enables; locking the open tab moves the selection to a same-rail fallback; search excludes locked tabs' elements; locking every remaining tab clears the selection and hides content, and unlocking restores it; integrated badge geometry (trailing-centred, rail reserve, badge-clear wrap slot, collapsed corner seat). |
 | `toggle_switch_test.sh` | Switch geometry: one set of metrics, mirrored resting states, equal clearance, the sheen under the knob, and the animated positions matching the built ones. |
 | `input_field_test.sh` | Field-box corners: the Input field rounds with the theme's `ElementCornerRadius` as a theme binding (pixel radius, never a capsule scale), re-stated on a theme switch, and shared with its element card. |
 | `keybind_input_test.sh` | Menu-toggle binding: the Settings menu binding is an `Input` field whose typed text commits an `EnumItem` (case/alias tolerant, `MB2`, `none`/empty clearing), refuses junk and left click without saving, keeps typing inside the field from toggling the window, and still toggles it afterwards. |

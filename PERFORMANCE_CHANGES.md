@@ -4,6 +4,18 @@ Goal: remove the 1–3 s startup freeze. The shell must spawn **instantly with z
 frame drops**; the rest of the UI is allowed to finish streaming in behind it.
 All public features, buttons, logic and responsive behaviour are preserved.
 
+## 2026-09-21 — Button/keybind and tab refresh
+
+Measured with Luau CLI 0.640 and the repository's virtual-time runtime harness
+(not an engine FPS or wall-time measurement):
+
+- `startup_test.sh`: shell instances **68**, peak allocations/frame **68**,
+  build frames **41**, controls at reveal **4**. Lazy settings still pass.
+- `instance_budget_test.sh`: sample page uses **252 instances**; all budgets pass.
+- Generated bundle: **119 modules**, **1,053,099 bytes** (baseline 1,054,291 bytes).
+- Buttons no longer allocate their trailing ImageLabel/UIScale pair. Keybind
+  uses the shared window input listener, not a global listener per control.
+
 ## Headline results
 
 Measured with the in-repo harness (`scripts/startup_test.sh`, virtual-time

@@ -115,14 +115,12 @@ panel:SetIcon("scroll-text")         -- left icon only; nil releases the gutter
 ```lua
 local b = tab:CreateButton({
     name = "Refresh", icon = "refresh-cw",
-    tapIcon = false,                 -- hide the built-in tap glyph
     callback = function() end,
 })
 ```
 
-Every button carries a built-in tap glyph on its right edge, resolved through the
-icon catalog; the glyph is part of the card, so tapping it taps the button.
-`tapIcon = false` hides it, and `tapIcon = "name"` or an asset id replaces it.
+Buttons never draw a trailing cursor glyph. `icon` is the optional leading icon;
+legacy `tapIcon` / `TapIcon` props are ignored. Click feedback uses card/stroke motion.
 
 ## Toggle
 
@@ -167,6 +165,29 @@ d:Remove("A")
 Multi-select rows carry a checkbox and a Select all / Clear action row that only
 touches the currently visible options. Long lists get a search filter inside the
 open list.
+
+## Keybind
+
+```lua
+local key = tab:CreateKeybind({
+    name = "Shortcut", value = "K", flag = "shortcut",
+    callback = function(letter) print(letter) end,
+})
+key:Set("p")                 -- normalises to P; false for invalid values
+key:Set(Enum.KeyCode.T, true) -- silent
+key:Capture()
+key:CancelCapture()
+```
+
+- A dedicated keycap button, never a TextBox. Click, then press one A–Z letter.
+- Required value; defaults to K. Cannot clear or bind numbers, punctuation,
+  special keys or mouse buttons. Invalid `Set` retains the previous letter.
+- Values/callbacks are uppercase strings; callbacks run on changes only.
+- Escape, a second click, focus loss, tab switches, folding the parent, hide or
+  unload cancel capture. Capturing a key never triggers the window toggle.
+- Supports `name`, `icon`, `description`, `value`, `flag`, `forgetState`, `callback`,
+  move/lock methods, tabs, column Groups and declarative `type = "Keybind"`.
+- Records the key; only the built-in Settings control assigns the menu shortcut.
 
 ## Input
 

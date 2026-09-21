@@ -114,7 +114,6 @@ export type ButtonProps = {
     info: string?,
     infoIcon: (string | number)?,
     -- Built-in right-edge tap glyph: false hides it, a name/asset id replaces it.
-    tapIcon: (string | number | boolean)?,
     callback: (() -> ())?,
 }
 
@@ -154,6 +153,17 @@ export type DropdownProps = {
     placeholder: string?,
     forgetState: boolean?,
     callback: ((value: any) -> ())?,
+}
+
+-- Required A–Z key capture. Strings are normalised to uppercase; no clearing.
+export type KeybindProps = {
+    name: string?,
+    icon: (string | number)?,
+    description: string?,
+    value: (string | EnumItem)?,
+    flag: string?,
+    forgetState: boolean?,
+    callback: ((letter: string) -> ())?,
 }
 
 export type InputProps = {
@@ -290,6 +300,13 @@ export type Dropdown = Moveable & Lockable & {
     SetInfo: (self: Dropdown, text: string?) -> (),
 }
 
+export type Keybind = Moveable & Lockable & {
+    value: string,
+    Set: (self: Keybind, value: (string | EnumItem), silent: boolean?) -> boolean,
+    Capture: (self: Keybind) -> boolean,
+    CancelCapture: (self: Keybind) -> (),
+}
+
 export type Input = Moveable & Lockable & {
     value: string,
     Set: (self: Input, value: string, skipCallback: boolean?) -> (),
@@ -363,6 +380,7 @@ export type Group = Moveable & {
     CreateButton: (self: Group, props: ButtonProps) -> Button,
     CreateToggle: (self: Group, props: ToggleProps) -> Toggle,
     CreateStat: (self: Group, props: StatProps) -> Stat,
+    CreateKeybind: (self: Group, props: KeybindProps) -> Keybind?,
     CreateSlider: (self: Group, props: SliderProps) -> Slider,
         CreateDropdown: (self: Group, props: DropdownProps) -> Dropdown?,
     CreateSection: (self: Group, props: SectionProps) -> Section?,
@@ -399,6 +417,7 @@ export type Tab = {
     CreateToggle: (self: Tab, props: ToggleProps) -> Toggle,
     CreateSlider: (self: Tab, props: SliderProps) -> Slider,
     CreateDropdown: (self: Tab, props: DropdownProps) -> Dropdown,
+    CreateKeybind: (self: Tab, props: KeybindProps) -> Keybind,
     CreateInput: (self: Tab, props: InputProps) -> Input,
     CreateLink: (self: Tab, props: LinkProps) -> Link,
     CreateAboutCard: (self: Tab, props: AboutCardProps) -> AboutCard,

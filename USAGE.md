@@ -257,22 +257,9 @@ tab:CreateButton({
 })
 ```
 
-Every Button carries a built-in tap glyph on its right edge (phosphor `hand-tap`,
-resolved through the icon catalog). Tapping the card fires `callback` and pulses
-that glyph; the glyph itself is part of the card, so tapping it taps the button.
-`tapIcon = false` hides it, and `tapIcon = "name" | <assetId>` replaces it.
-
-```lua
-tab:CreateButton({
-    name = "Silent", icon = "bell-off",
-    tapIcon = false,
-    callback = function() end,
-})
-tab:CreateButton({
-    name = "Refresh", tapIcon = "refresh-cw",
-    callback = function() end,
-})
-```
+Buttons have no trailing cursor/tap icon in either full cards or compact groups.
+The optional `icon` is a **leading** icon; card/stroke motion provides click feedback.
+Legacy `tapIcon` / `TapIcon` props are ignored and cannot restore the removed glyph.
 
 ### Toggle
 ```lua
@@ -305,6 +292,36 @@ d:Refresh({ "A", "B" })
 d:Add("C")
 d:Remove("A")
 ```
+
+### Keybind
+
+```lua
+local shortcut = tab:CreateKeybind({
+    name = "Shortcut", value = "K", flag = "shortcut",
+    description = "Click the keycap, then press one letter.",
+    callback = function(letter) print(letter) end, -- uppercase string
+})
+shortcut:Set("p")                 -- stores P and calls back on a change
+shortcut:Set(Enum.KeyCode.T, true) -- silent update
+shortcut:Capture()                -- only when visible and interactive
+shortcut:CancelCapture()          -- keep the previous letter
+```
+
+This is a key-capture button, **not a text input**. Click its keycap and press one
+letter **A–Z**. Escape, clicking again, changing tabs, closing a group, hiding the
+window or losing window focus cancels capture without clearing the old value.
+Numbers, punctuation, mouse buttons, special keys, blank values and multi-letter
+strings are rejected. A binding is always required: invalid initial values default
+to **K**, while invalid `Set` calls return `false` and retain the previous letter.
+`Set` returns `true` for valid values and invokes the callback only on a change
+(unless silent). Capture consumes the key before the menu-toggle handler, so
+rebinding the menu's current letter does not accidentally hide the window.
+
+Available on tabs, column Groups, and declarative Collapsible Groups using
+`type = "Keybind"` (not compact rows). Supports flags, `forgetState`, move/lock
+methods, a leading `icon`, and descriptions. Values and callbacks use uppercase
+strings for config persistence. The control records a shortcut; hosts decide what
+to do with it. Built-in Settings → Controls uses it to set the menu-toggle KeyCode.
 
 ### Input
 ```lua
@@ -492,10 +509,20 @@ The settings tabs are:
 
 | Tab | Contents |
 |---|---|
-| **General** | Menu Toggle keybind field — type a key name (`K`, `Space`, `MB2`) and click away to bind it, `none` or an empty field to unbind — plus the unlock-cursor toggle, welcome toast toggle, Window Behavior (prevent duplicate windows, keep window on screen, draggable capsule, reset window & capsule positions), and Performance & Motion (haptics, animation speed). |
-| **Appearance** | Theme dropdown + Apply (popup confirm) and the Bar Layout dropdown (Sidebar / Collapsed Sidebar). |
-| **Persistence** | Auto Save Config / Auto Load Config toggles; Saved-configurations dropdown + name input + Save/Load/Delete. |
-| **About** | Library info and links. |
+| **Overview** | First tab: library About Card, copyable repository and guide Links, and a Footer. |
+| **Controls** | Required A–Z menu Keybind, unlock-cursor toggle, and Window Behavior (duplicate protection, keep on screen, draggable capsule, reset positions). |
+| **Appearance** | Current-theme Stat, theme Dropdown + Apply/Reset actions; standalone Bar Layout Dropdown; Motion & Feedback (haptics, animation speed). |
+| **Persistence** | Auto Save / Auto Load toggles; saved-configurations Dropdown + name Input + Save/Load/Delete actions. |
+
+The menu binding cannot be cleared. Saved legacy non-letter bindings (including
+Space, mouse buttons and unbound values) migrate to **K**. The settings pages
+remain lazy-built. Single controls are shown directly, never hidden in a
+one-element Collapsible Group.
+
+The restore capsule's icon, text and hit target stay invisible throughout the
+fold and appear only after `Hide()` completes. They disappear immediately when
+restoring. `ToggleMinimise()` keeps the normal topbar, not the restore capsule.
+
 
 The window rests dead centre of the screen. That resting centre is re-derived
 on the first show and on every hide/show restore, and "Keep window on screen"

@@ -8,8 +8,20 @@ local dragHandleGap = shared.dragHandleGap
 local Window = require(script.Parent.class)
 
 function Window:_bindKeybind()
+    self:Connect(state.userInputService.WindowFocusReleased, function()
+        if self._keybindCapture then self._keybindCapture:CancelCapture() end
+    end)
     self:Connect(state.userInputService.InputBegan, function(input, gameProcessed)
-        if gameProcessed then
+        -- Route capture before the toggle so rebinding the current key cannot
+        -- hide the window. Only one element owns capture at a time.
+        local capture = self._keybindCapture
+        if capture then
+            if not gameProcessed and not state.userInputService:GetFocusedTextBox() then
+                capture:_captureInput(input)
+            end
+            return
+        end
+        if gameProcessed or state.userInputService:GetFocusedTextBox() then
             return
         end
         if input.KeyCode == self.settings.toggleKeybind or input.UserInputType == self.settings.toggleKeybind then

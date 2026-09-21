@@ -148,6 +148,10 @@ end
 function state:CreateSlider(a21)
     return self:_add("slider", a21)
 end
+function state:CreateKeybind(props)
+    return self:_add("keybind", props)
+end
+
 function state:CreateDropdown(a22)
     return self:_add("dropdown", a22)
 end

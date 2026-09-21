@@ -1,16 +1,9 @@
--- [[Astra element-coverage example.]]
--- [[Everything lives in one tab so startup pacing and every element type can be
--- [[tested without navigating through a collection of duplicate demo tabs —
--- [[plus one locked tab demonstrating the lock badge and SetLocked.]]
-
--- [[The one and only bundle loader: fetch the published bundle and call the
--- [[chunk it compiles to. `loadstring` needs an executor — plain Studio does
--- [[not provide it — and the URL must be the raw file of a public repo.]]
+-- [[Executor entry point. In Studio/Rojo, require ReplicatedStorage.Astra instead.]]
 local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"))()
 
 local window = Astra:CreateWindow({
-    name = "Astra Element Test",
-    subtitle = "All elements in one paced tab",
+    name = "Astra Element Studio",
+    subtitle = "Explore • interact • customise",
     icon = "sirius",
     configuration = {
         fileName = "Astra-Example",
@@ -20,266 +13,135 @@ local window = Astra:CreateWindow({
     },
 })
 
--- [[One tab intentionally contains every supported element type.]]
-local elements = window:CreateTab({ name = "Element Test", icon = "flask-conical" })
+-- [[Information comes first. The remaining tabs group controls by what they do,
+-- not by constructor name. Every supported element has a useful place here.]]
+local overview = window:CreateTab({ name = "Overview", icon = "house" })
+local actions = window:CreateTab({ name = "Actions", icon = "play" })
+local preferences = window:CreateTab({ name = "Preferences", icon = "sliders-horizontal" })
+local releaseHistory
 
--- [[The About action is built before the Isolated panel lower in this file, but
--- [[the callback runs only after construction. Keep the handle here so the band
--- [[can open the real release history and bring its header into view instead of
--- [[showing a notification that leaves the changelog closed.]]
-local changelogPanel
-local function openChangelog()
-    if not changelogPanel then
-        return
-    end
-    changelogPanel:Expand()
-    task.defer(function()
-        if not changelogPanel.main.Parent then
-            return
-        end
-        local page = elements.tabPage
-        local top = page.CanvasPosition.Y + changelogPanel.main.AbsolutePosition.Y - page.AbsolutePosition.Y
-        page.CanvasPosition = Vector2.new(0, math.max(0, top - 10))
-    end)
-end
-
--- [[The About card: a brand header, up to three data rows, a description
--- [[paragraph and an optional trailing action band. This one carries Astra's
--- [[own release facts — the leading mark is the library's asset id (a pack name
--- [[would do just as well) — and its action band is the card's only tappable
--- [[surface.]] 
-elements:CreateAboutCard({
+overview:CreateAboutCard({
     name = "Astra",
-    subtitle = "UI Library for a better experience.",
+    subtitle = "A small studio for every element.",
     icon = 80387863064905,
     rows = {
         { icon = "code", label = "Version", value = "1.4.0" },
-        { icon = "package", label = "Build", value = "2026.09.12" },
+        { icon = "package", label = "Build", value = "2026.09.21" },
         { icon = "user", label = "Author", value = "Astra Team" },
     },
-    description = "Astra is a modern and flexible UI library designed to make your experience smoother, cleaner, and more customizable. Built for developers, by developers.",
+    description = "Explore the library in three focused spaces. Read the essentials here, try feedback and actions next, then tune a sample profile in Preferences.",
     action = {
         icon = "file-text",
-        name = "View Changelog",
-        subtitle = "See what's new in this version",
-        callback = openChangelog,
+        name = "Release history",
+        subtitle = "Explore the changes behind this studio",
+        callback = function()
+            if not releaseHistory then return end
+            overview:Select()
+            releaseHistory:Expand()
+            task.defer(function()
+                if not releaseHistory.main.Parent then return end
+                local page = overview.tabPage
+                local top = page.CanvasPosition.Y + releaseHistory.main.AbsolutePosition.Y - page.AbsolutePosition.Y
+                page.CanvasPosition = Vector2.new(0, math.max(0, top - 10))
+            end)
+        end,
     },
 })
-
-elements:CreateSection({ name = "Basic elements" })
-elements:CreateText({
-    name = "Text",
-    text = "This single tab builds every Astra element so startup batching and layout pacing are easy to observe.",
+overview:CreateSection({ name = "Start here" })
+overview:CreateText({
+    name = "Your quick tour",
+    text = "Actions demonstrates buttons, compact groups, statistics and feedback. Preferences covers switches, ranges, choices, text and letter-only key capture. The gear opens library settings; its Overview always comes first.",
 })
-
-local stat = elements:CreateStat({
-    name = "Stat",
-    value = 128,
-    suffix = " requests",
-    compact = true,
-    changeMode = "delta",
-    changeBaseline = "initial",
+overview:CreateDivider({ text = "Resources" })
+overview:CreateLink({
+    name = "Source & releases", subtitle = "Copy the repository link", icon = "code",
+    link = "https://github.com/Kira762/astra-version-1",
 })
-
-elements:CreateDivider({ text = "Interactive elements" })
-
--- [[Every functional element below carries an `info` description: the (!) badge
--- [[sits right after the element's name, and hovering it (or tapping it, or
--- [[holding it down on touch) reveals the floating description. Tap the badge
--- [[again to close it. Elements without `info` draw no badge at all.]] 
-
-elements:CreateButton({
-    name = "Button",
-    icon = "hand-tap",
-    callback = function()
-        stat:Set(stat.value + 1)
-        window:Notify({ title = "Button", content = "Stat was updated." })
-    end,
+overview:CreateLink({
+    name = "Build with Astra", subtitle = "Copy the element and API guide", icon = "book-open",
+    link = "https://github.com/Kira762/astra-version-1/blob/main/USAGE.md",
 })
-
-elements:CreateToggle({
-    name = "Toggle",
-    value = true,
-    callback = function(value)
-        window:Notify({ title = "Toggle", content = if value then "Enabled" else "Disabled" })
-    end,
-})
-
-elements:CreateSlider({
-    name = "Slider",
-    range = { 0, 100 },
-    value = 50,
-    increment = 5,
-    suffix = "%",
-    callback = function(value)
-        stat:Set(value)
-    end,
-})
-
-elements:CreateDropdown({
-    name = "Dropdown",
-    options = { "Low", "Medium", "High" },
-    value = "Medium",
-    callback = function(value)
-        window:Notify({ title = "Dropdown", content = tostring(value) })
-    end,
-})
-
-elements:CreateDropdown({
-    name = "Multi-select dropdown",
-    options = { "Combat", "Movement", "Visual" },
-    value = { "Combat" },
-    multiSelect = true,
-    placeholder = "Choose tags",
-})
-
--- [[Keep the example to the original Input element: one useful text field,
--- [[not extra one-off input rows.]]
-elements:CreateInput({
-    name = "Input",
-    placeholder = "Type something",
-    callback = function(value)
-        window:Notify({ title = "Input", content = tostring(value) })
-    end,
-})
-
--- [[A Link card carries its URL as a hidden value: the title and the subtitle
--- [[are the whole card, and the trailing control copies the link and confirms
--- [[with a check mark. The link itself is never rendered as text.]] 
-elements:CreateLink({
-    name = "Discord",
-    subtitle = "Join our community",
-    link = "https://discord.gg/example",
-    icon = "message-circle",
-})
-
---[=[ Lock-tab demo temporarily disabled pending the UI redesign.
--- [[Locked tab: built gated, with a lock badge when lockUIEnabled is restored.
--- [[Tapping it raises a notification instead of opening it; only host code
--- [[unlocks it, through tab:SetLocked(false).]]
-local premium = window:CreateTab({ name = "Premium", icon = "star", locked = true })
-premium:CreateSection({ name = "Premium only" })
-premium:CreateText({
-    name = "Gated content",
-    text = "This tab was built locked. The trailing badge in its row stays until host code unlocks it, and its contents are never built visible or indexed by search.",
-})
-premium:CreateButton({
-    name = "Re-lock this tab",
-    icon = "lock",
-    callback = function()
-        premium:SetLocked(true)
-        elements:Select()
-    end,
-})
-
-elements:CreateButton({
-    name = "Unlock the Premium tab",
-    icon = "lock-open",
-    callback = function()
-        premium:SetLocked(false)
-        premium:Select()
-    end,
-})
-
-]=]
-
-elements:CreateChangelog({
-    name = "Release history",
-    emptyText = "No entries yet.",
+overview:CreateChangelog({
+    name = "Studio highlights",
     entries = {
-        {
-            version = "Element Test",
-            date = "Live",
-            title = "All supported elements",
-            changes = {
-                { symbol = "+", category = "Added", text = "This changelog renders as a standalone element." },
-            },
-        },
+        { version = "Current", date = "2026.09.21", title = "Focused controls, quieter chrome", changes = {
+            { symbol = "+", text = "Dedicated A–Z key capture, with a required letter and Escape to cancel." },
+            { symbol = "~", text = "Buttons no longer carry a trailing cursor. The restore capsule appears only after hiding." },
+            { symbol = "~", text = "Information comes first; controls are organised by purpose." },
+        } },
     },
 })
+releaseHistory = overview:CreateIsolated({
+    name = "Release history", subtitle = "Earlier library milestones", icon = "history",
+    elements = {
+        { type = "Changelog", name = "Earlier releases", entries = {
+            { version = "1.4.0", date = "2026.09.12", changes = {
+                { symbol = "+", text = "About cards, links and richer grouped controls." },
+            } },
+            { version = "1.2.0", title = "Structured content", changes = {
+                { symbol = "+", text = "Isolated changelog containers and collapsible groups." },
+            } },
+        } },
+    },
+})
+overview:CreateDivider()
+overview:CreateFooter({ parts = { { text = "Built with" }, { icon = "zap" }, { text = "Astra" }, { icon = "heart" } } })
 
--- [[A normal Group is an element too. Its children use the compact row layout.]]
-local group = elements:CreateGroup({ direction = "column" })
-group:CreateSection({ name = "Group" })
-group:CreateButton({
-    name = "Grouped button",
+-- [[Actions: an immediate result, a compact action pair and a related advanced
+-- group. No collapsible wrapper is used for a lone control.]]
+actions:CreateSection({ name = "Activity" })
+local runs = actions:CreateStat({ name = "Completed runs", value = 0, suffix = " runs", changeMode = "delta", changeBaseline = "initial" })
+actions:CreateButton({
+    name = "Run a check", icon = "play", description = "Increment the counter and show a success notification.",
     callback = function()
-        window:Notify({ title = "Group", content = "The ordinary Group child is working." })
+        runs:Set(runs.value + 1)
+        window:Notify({ title = "Check complete", content = "The button callback ran successfully." })
     end,
 })
-group:CreateToggle({ name = "Grouped toggle", value = false })
-
--- [[The declarative group exercises the CollapsibleGroup path with useful child
--- [[rows; the standalone Input above covers the original input element.]]
-elements:CreateCollapsibleGroup({
-    name = "Collapsible Group",
-    icon = "panels-top-left",
-    description = "Expand this card to inspect the useful declarative child rows.",
+local shortcuts = actions:CreateGroup({ direction = "row" })
+shortcuts:CreateButton({ name = "Reset counter", icon = "rotate-ccw", callback = function() runs:Set(0) end })
+shortcuts:CreateButton({ name = "Notify", icon = "bell", callback = function()
+    window:Notify({ title = "Hello from Astra", content = "Compact buttons share the same clean, icon-optional style." })
+end })
+actions:CreateDivider({ text = "Window preview" })
+actions:CreateButton({ name = "Hide to capsule", icon = "minus", description = "Restore by tapping the capsule or pressing your menu letter.", callback = function() window:Hide() end })
+actions:CreateCollapsibleGroup({
+    name = "Feedback lab", icon = "flask-conical", description = "Two ways to test the overlay system.",
     elements = {
-        { type = "Section", name = "Declarative children" },
-        { type = "Text", name = "Text child", text = "All child controls are constructed while the group is collapsed." },
-        { type = "Button", name = "Button child", callback = function() window:Notify({ title = "Child button", content = "Clicked" }) end },
-        { type = "Toggle", name = "Toggle child", value = true },
-        { type = "Switch", name = "Switch alias child", value = false },
-        { type = "Slider", name = "Slider child", range = { 0, 100 }, value = 25 },
-        { type = "Dropdown", name = "Dropdown child", options = { "One", "Two" }, value = "One" },
-        { type = "Stat", name = "Stat child", value = 42, suffix = " checks" },
-        { type = "Link", name = "Link child", subtitle = "Copy the invite", link = "https://discord.gg/example", icon = "message-circle" },
-        { type = "Divider", text = "Nested diagnostics" },
-        { type = "Changelog", name = "Nested changelog", entries = { { version = "1.0", date = "Live", changes = { { symbol = "+", text = "Changelog inside collapsible group" } } } } },
-        {
-            type = "Group",
-            direction = "column",
-            elements = {
-                { type = "Text", name = "Nested Group", text = "Ordinary Groups may be nested." },
-                { type = "Button", name = "Nested action", callback = function() window:Notify({ title = "Nested Group", content = "The nested action works." }) end },
-            },
-        },
+        { type = "Button", name = "Show confirmation", icon = "message-square", callback = function()
+            window:Popup({ title = "Preview complete?", content = "This is a sample confirmation; it does not change your settings.", options = {
+                { text = "Cancel" }, { text = "Confirm", style = "primary", callback = function()
+                    window:Notify({ title = "Confirmed", content = "The popup action ran." })
+                end },
+            } })
+        end },
+        { type = "Button", name = "Show notification", icon = "bell", callback = function()
+            window:Notify({ title = "Feedback lab", content = "Notifications are queued, not stacked all at once." })
+        end },
     },
 })
 
--- [[The Isolated container is the Changelog's own home: a collapsed header
--- [[card with a changeable icon, title and subtitle, the built-in chevron, and
--- [[a body that only ever holds Changelog elements.]]
-changelogPanel = elements:CreateIsolated({
-	name = "View Changelog",
-	subtitle = "See what's new in this version",
-	icon = "file-text",
-	elements = {
-		{
-			type = "Changelog",
-			name = "Release history",
-			entries = {
-				{
-					version = "1.2.0",
-					date = "Live",
-					title = "Isolated container",
-					changes = {
-						{ symbol = "+", text = "Added Isolated changelog container" },
-						{ symbol = "~", text = "Chevron now rotates when expanded" },
-					},
-				},
-				{
-					version = "1.1.0",
-					date = "Live",
-					changes = { { symbol = "-", text = "Fixed CollapsibleGroup tween overflow" } },
-				},
-			},
-		},
-	},
+-- [[Preferences: text stays an Input; shortcuts get their own Keybind.]]
+preferences:CreateSection({ name = "Sample profile" })
+preferences:CreateInput({ name = "Profile name", placeholder = "e.g. Evening session", clearOnFocus = false, flag = "demo.profileName" })
+preferences:CreateToggle({ name = "Enable profile", value = true, flag = "demo.enabled" })
+preferences:CreateSlider({ name = "Preview intensity", range = { 0, 100 }, value = 50, increment = 5, suffix = "%", flag = "demo.intensity" })
+preferences:CreateDropdown({ name = "Quality preset", options = { "Low", "Balanced", "High" }, value = "Balanced", flag = "demo.quality" })
+preferences:CreateDropdown({ name = "Active modules", options = { "Visuals", "Audio", "Notifications" }, value = { "Visuals" }, multiSelect = true, placeholder = "Choose modules", flag = "demo.modules" })
+preferences:CreateDivider({ text = "Keyboard" })
+preferences:CreateKeybind({
+    name = "Sample shortcut", value = "P", flag = "demo.shortcut",
+    description = "Click to capture one letter. This sample stores a key; it does not toggle the window. Change the menu key in Settings → Controls.",
+    callback = function(letter)
+        window:Notify({ title = "Shortcut saved", content = "Sample shortcut: " .. letter })
+    end,
+})
+preferences:CreateCollapsibleGroup({
+    name = "Delivery options", icon = "bell", description = "Related switches belong together.",
+    elements = {
+        { type = "Toggle", name = "Desktop notifications", value = true, flag = "demo.desktop" },
+        { type = "Switch", name = "Quiet mode", value = false, flag = "demo.quiet" },
+    },
 })
 
--- [[The centred credit line: text and inline icons as one ordered run that
--- [[stays centred as a unit and re-centres itself when it changes.]]
-elements:CreateDivider()
-elements:CreateFooter({
-	parts = {
-		{ text = "Built with" },
-		{ icon = "zap" },
-		{ text = "Astra" },
-		{ icon = "heart" },
-	},
-})
-
--- [[Select the only user tab explicitly so the example is deterministic.]]
-elements:Select()
+overview:Select()

@@ -124,7 +124,8 @@ line on `CreateCollapsibleGroup`.
 |---|---|---|
 | `CreateSection({ name, icon })` | heading band for a part of the page | — |
 | `CreateText({ name, text, icon })` | body copy card | `:Set(text)`, `:SetTitle(name)` |
-| `CreateButton({ name, icon, callback, tapIcon })` | `tapIcon = false` hides the built-in tap glyph, a name or asset id replaces it | — |
+| `CreateButton({ name, icon, callback })` | Optional leading icon; no trailing cursor glyph | — |
+| `CreateKeybind({ name, value, flag, callback })` | Required A–Z key capture; uppercase string value, default K | `Set`, `Capture`, `CancelCapture` |
 | `CreateToggle({ name, value, flag, callback })` | fires `callback(on)` | `:Set(on, skipCallback?)` |
 | `CreateSlider({ name, range = { min, max }, value, increment, suffix, minimal, flag, callback })` | `callback(value, dragging)` | `:Set(value)` |
 | `CreateDropdown({ name, options, value, multiSelect, placeholder, flag, callback })` | multi-select value is a table | `:Refresh(options)`, `:Add(option)`, `:Remove(option)` |
@@ -160,8 +161,8 @@ Elements support `:MoveTo(index)`, `:MoveUp()`, `:MoveDown()`, `:MoveToTop()`,
 `ChangeTheme(theme)`, `SetLocale(id)`, `SetTranslator(fn)`, `RegisterTranslations(t)`,
 `ResolveIcon(value, pack?)`, `GetPath()`, `Unload()`.
 
-Built-in Settings live behind the gear action (General, Appearance, Persistence,
-About) and hold menu keybind, window behaviour, motion, themes, bar layout and
+Built-in Settings live behind the gear action (Overview, Controls, Appearance,
+Persistence) and hold menu keybind, window behaviour, motion, themes, bar layout and
 auto save/load. They are window-scoped — user code does not build them.
 
 ## References

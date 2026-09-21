@@ -25,7 +25,7 @@ Exported names (typed surface is `Types.luau`'s `Astra`): `CreateWindow`, `Icons
 `CreateWindow` side effects: enforces the anti-duplicate guard (persisted `antiWindowDuplicate` setting, per-window opt-out via `settings.antiWindowDuplicate`; generation token + live-window list so rapid overlapping constructions still collapse to one window), in secure mode preloads window images (`Image.preload` → failure `Notify`) and swaps in the brand fonts via `ChangeTheme({ Font, TitleFont })` once the entrance has landed (a theme pass over every instance the window owns is not something to spend while the window is still arriving; `FONT_SETTLE_BUDGET` bounds the wait so a window that never shows still gets its font), then auto-`Show()`s the window on the next frame (a `task.defer` plus one heartbeat, so a script's first synchronous `CreateTab` calls land before the shell appears; remaining constructors stream in behind it in small budget-limited batches until the build goes quiet, and an explicit `Hide()` before that tick cancels it via `_autoShowCancelled`). The two secure-mode branches (optional-icon preload, brand-font swap) run as sibling threads under one guard.
 
 ### `example.client.luau`
-Usage example (not minified). Loads the bundle with the single-line loader — `local Astra = loadstring(game:HttpGet(url))()` — then builds one tab holding every supported element type: Section, Text, Stat, Divider, Button, Toggle, Slider, a single-select and a multi-select Dropdown, Input, an ordinary Group, a Collapsible Group of declarative children and an Isolated changelog container; release history renders via `tab:CreateChangelog` (see `changelog.example.luau`). It ends with an explicit `elements:Select()` so the run is deterministic.
+Usage example (not minified). Loads the published bundle, then creates three purpose-based tabs: Overview (About Card, guide Text, Links, Changelog, Isolated history and Footer), Actions (Stat, Button, compact Group and multi-control feedback Collapsible Group), and Preferences (Input, Toggle/Switch, Slider, Dropdowns, Keybind and a related-options fold). Sections and Dividers provide structure. It ends with `overview:Select()`; all information lives on the first tab. The skill starter mirrors it.
 
 ---
 
@@ -71,7 +71,7 @@ Notable instance fields set in `new`: `screenGui`, `main`, `elements`,
 `mouseOverride`, `keepOnScreen`, `haptics`,
 `dragMinimisedBar`,
 `antiWindowDuplicate`, `layoutMode`), `rfSettings` (the
-built-in "General" settings tab), `_settingsTabs` (settings-tab list),
+built-in "Overview" settings tab), `_settingsTabs` (settings-tab list),
 `_settingsMode` / `_previousTab` (settings-mode bookkeeping),
 `settingsAction` / `minimiseAction` (topbar actions), `drag`,
 `collapsedInteract`, `connections` / `instances` / `themeProperties` /
@@ -79,17 +79,12 @@ built-in "General" settings tab), `_settingsTabs` (settings-tab list),
 `Flags` (metatable view over `controls`).
 
 Method map (names preserved through minification). Settings-related:
-- `_buildSettingsUI` — creates the six built-in settings tab shells
-  (General via `rfSettings`, plus Appearance, Behavior, Performance,
-  Persistence, About; all `isSettingsTab`, `forgetState`). Rail/page order
-  follows `customOrder` (General 1001 first, About 1006 last) so opening
-  settings highlights the first rail row. Element content is built lazily:
-  each tab stores a `_settingsContentBuilder` closure and
-  `Window:_buildSettingsContent(tab)` runs it on the tab's first open
-  (`Tab:Select`, after construction), so `CreateWindow` stays fast.
-  Appearance hosts the theme picker and the Bar Layout picker (both
-  popup-confirmed), plus window toggles, Reset Window Position (recentres
-  the window) and Reset Capsule Position;
+- `_buildSettingsUI` — creates four built-in settings tab shells: Overview
+  (`rfSettings`, order 1001), Controls (1002), Appearance (1003) and Persistence
+  (1004), all `isSettingsTab` and `forgetState`. The gear opens the first row.
+  Each stores a `_settingsContentBuilder`; `_buildSettingsContent(tab)` runs it
+  on first selection after construction. Controls owns keyboard, cursor and
+  window behavior. Appearance owns theme/layout and Motion & Feedback.
   Persistence always hosts saved-config Save/Load/Delete (independent of
   the `configuration` prop), plus default-on Auto Save Config and Auto Load
   Config toggles. Storage defaults are internal; the named-preset dropdown
@@ -137,22 +132,10 @@ its anchored resting spot, and by `ToggleMinimise`'s expand),
 `_runGuarded`, `_setElementLocked`/`_buildLockScrim`, `_updateWindowTitle`.
 
 ### `components/settings.luau`
-Dedicated settings component providing UI generation and management for Astra's built-in settings tabs (Appearance, Persistence, About, and General controls):
-- `keyLabel(item)` / `parseKey(text)` — the menu binding's display and parse
-  rules. The General → Toggle Keybind row is an ordinary `Input` field, so the
-  label writes the bound key's name into it (`None` when unbound, `MB2`/`MB3`
-  for mouse buttons) and the parse reads a typed name back into the `EnumItem`
-  `window.settings.toggleKeybind` holds: canonical names for the keys people
-  type (`k`, `space`, `left shift`, `f7`, `5`, `mb2`/`rmb`), separators dropped,
-  an empty field or `none` clearing the binding, left click refused, and any
-  unlisted name left to an `Enum.KeyCode`/`Enum.UserInputType` lookup. Text
-  that names no key is refused with the previous binding restored.
-- `buildUI(window)` — instantiates the settings tab shells on demand. The About
-  tab's builder renders one `elements/aboutCard` (brand header, the version /
-  build / author rows and the description paragraph) from the module-local
-  `aboutVersion`, `aboutBuild` and `aboutAuthor` strings, which a release bumps;
-  the card's optional action band is left off there because the tab has no
-  changelog to open.
+Dedicated settings component providing lazy UI generation for Overview, Controls, Appearance and Persistence, in that order:
+- `buildUI(window)` — reuses `rfSettings` as the first Overview shell and adds the other three. Overview renders the About Card, copyable resource Links and Footer.
+- Controls uses `elements/keybind` for the menu letter (callback converts the uppercase string to a KeyCode), an unlock-cursor Toggle and Window Behavior. There is no typed-key parser or mouse/unbound menu option.
+- Appearance owns theme Stat/Dropdown/actions, the standalone layout Dropdown, and a related Motion & Feedback group. Persistence owns configuration toggles and save/load/delete controls. No built-in Collapsible Group contains only one element.
 - `buildContent(window, tab)` — lazily constructs controls within a given settings tab upon first selection.
 - `toggleSettingsMode(window)` — toggles between user tabs and settings tabs.
 - `setSettingsMode(window, active)` — applies visibility and layout for settings mode.
@@ -408,7 +391,11 @@ Per-element specifics:
   frame is an untinted transparent host and deliberately carries no theme
   binding (unlike the element cards, nothing gradients it, so a theme pass
   must never paint it opaque); visibility lives on the runs alone.
-- `button.luau` — action card with a built-in right-edge tap glyph (`tapIcon` opts out or replaces it), themed through `ContentColor`, revealed with the card, and pulsed on press. Compact/grouped buttons explicitly sort their horizontal layout by `LayoutOrder`: optional custom icon, title, then built-in tap glyph.
+- `button.luau` — action card with no trailing glyph in full or compact mode. Optional leading icon and title retain explicit LayoutOrder; the card and stroke animate on press. Legacy tap-icon props are ignored.
+- `keybind.luau` — required A–Z capture card with a themed TextButton keycap, shared base-card layout, descriptions, flags, guarded callbacks and move/lock methods. `value` is an uppercase string. `_canCapture` checks visibility, selected tab and ancestors; `Capture`/`CancelCapture` own `window._keybindCapture`; `_captureInput` accepts letters and Escape; `Set` validates without clearing. Tab and column Group expose `CreateKeybind`; declarative Collapsible Groups accept `Keybind`.
+- `utilities/keybind.luau` — shared `letter(value)` validation for strings and KeyCode EnumItems; settings defaults, live validation and saved-setting migration use the same rule. Settings schema 2 migrates unsupported bindings to K.
+- `components/window/input.luau` — routes input to the capture owner before the menu toggle; ignores game-processed/focused-TextBox input and cancels on focus loss. Tab changes, hide, minimise, group collapse, lock, removal and unload cancel capture.
+- `components/chrome.luau` / `window/visibility.luau` — capsule icon/text use explicit Visible gates; only the Hide completion reveals them. Expanded, folding, restoring and topbar-minimised states never show the restore face.
 - `baseCard.luau` — shared card container and header layout helper for element modules.
 - Functional info badges: `infoHelper.luau` and badge gesture bindings were
   deleted. Legacy `info`/`infoIcon` props are ignored and `SetInfo` methods are
@@ -596,7 +583,10 @@ Per-element specifics:
 | `toggle_switch_test.sh` | Switch geometry: one set of metrics, mirrored resting states, equal clearance, the sheen under the knob, and the animated positions matching the built ones. |
 | `input_field_test.sh` | Field-box corners: the Input field rounds with the theme's `ElementCornerRadius` as a theme binding (pixel radius, never a capsule scale), re-stated on a theme switch, and shared with its element card. |
 | `corner_scale_test.sh` | The corner scale: the three nested tiers (12px shell, 8px elements, 32px folds) and which surface wears which, the round-by-nature controls deriving a half-height pill from their own metrics (switch track/knob/sheen, slider track/fill/handle, drag pill), the dropdown's row tiers read from the panel that clips them, a `ChangeTheme` reaching every bound surface, the corners that stay square on purpose (the elements band's top edge), and a sweep that fails if any painted surface in the tree is left with an all-zero corner. |
-| `keybind_input_test.sh` | Menu-toggle binding: the Settings menu binding is an `Input` field whose typed text commits an `EnumItem` (case/alias tolerant, `MB2`, `none`/empty clearing), refuses junk and left click without saving, keeps typing inside the field from toggling the window, and still toggles it afterwards. |
+| `keybind_input_test.sh` | Dedicated A–Z capture: required value, validation, focus handling, cancellation, current-key suppression, groups, flags, lock/removal/unload and settings validation. |
+| `keybind_persistence_test.sh` | Config and settings round trips; unsupported legacy bindings migrate to required K. |
+| `capsule_visibility_test.sh` | Held-tween assertions before/after Hide completion, both styles, restore, topbar minimisation, instant motion and stale completion after unload. |
+| `example_test.sh` | Runs the real local demo; covers every element, information-first tabs and no single-child Collapsible Groups in the demo/settings. |
 | `slider_travel_test.sh` | Slider knob travel: the capsule's centre stays half a knob inside each track end (resting, held and after release), so it never overlaps the track end or card edge at max/min, and the fill ends at the knob's centre. |
 | `icons_test.sh` | Icon resolver: name-only lookup across the packs in priority order (and how lazily they load), qualified `pack:name`, case sensitivity, unknown-pack warnings, custom assets (one import per path, memoised misses, the `listfiles` index), cache-key separation, and `window:ResolveIcon`. |
 | `motion_test.sh` | Motion service: shared specs, time scale + its cache, profiles, tween ownership (cancel-on-overlap vs. unrelated properties), the no-op and animation-off paths, the window's "Animation speed" setting, and hover going through the service. |

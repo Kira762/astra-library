@@ -15,6 +15,7 @@ local flagNames = require(script.Parent.Parent.functions.flagNames)
 
 local function customOrder(window, forgetState)
     for _, element in forgetState do
+        if element.CancelCapture then element:CancelCapture() end
         if element.__type == "Group" or element.__type == "CollapsibleGroup" or element.__type == "Isolated" then
             customOrder(window, element.elements)
         else
@@ -228,6 +229,9 @@ function state:Select(a24)
         name.close(self.window, { showTabs = true, jumpTo = false })
     end
 
+    if self.window.selectedTab ~= self and self.window._keybindCapture then
+        self.window._keybindCapture:CancelCapture()
+    end
     self.window.selectedTab = self
     if self.window._setSettingsMode then
         self.window:_setSettingsMode(self._isSettingsTab == true)
@@ -402,6 +406,10 @@ end
 
 function state:CreateDropdown(a37)
     return self:_register(require(script.Parent.dropdown).new(self, a37))
+end
+
+function state:CreateKeybind(props)
+    return self:_register(require(script.Parent.keybind).new(self, props))
 end
 
 function state:CreateInput(a38)

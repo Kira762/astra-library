@@ -267,6 +267,7 @@ function Window:_destroyWhenConstructionQuiet()
 end
 
 function Window:Unload()
+    if self._keybindCapture then self._keybindCapture:CancelCapture() end
     if self.unloaded then
         -- [[A repeat unload (hosts often end with one) has only the detached
         -- [[graveyard of a superseded script's tail construction left to

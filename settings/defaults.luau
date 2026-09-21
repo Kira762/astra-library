@@ -1,3 +1,4 @@
+local keybind = require(script.Parent.Parent.utilities.keybind)
 
 local defaults = {}
 
@@ -20,6 +21,8 @@ function defaults.clone(overrides: { [string]: any }?): { [string]: any }
             result[key] = value
         end
     end
+    local letter = keybind.letter(result.toggleKeybind)
+    result.toggleKeybind = if letter then Enum.KeyCode[letter] else Enum.KeyCode.K
     return result
 end
 

@@ -3,6 +3,46 @@
 Dated entries, newest first. Each entry explains the cause and the behaviour
 change, then names the files it touched.
 
+## 2026-09-21 — Clean buttons, letter-only key capture and information-first tabs
+
+Buttons no longer carry the semi-transparent trailing cursor, and settings no
+longer ask users to type a key name into a general-purpose Input. The restore
+capsule used to reveal while the main frame was still folding, painting its face
+behind the window. It now stays explicitly invisible until the hide settles.
+The element studio and built-in settings are arranged by purpose, with library
+information on the first tab and no single-control collapsible wrappers.
+
+- `elements/button.luau`, `components/window/elements.luau`, `Types.luau`:
+  permanently remove the trailing tap image/scale and reveal paths in full and
+  compact buttons. Optional leading icons and callback/press feedback remain.
+  Legacy `tapIcon` props are ignored, not a way to re-enable the glyph.
+- `elements/keybind.luau`, `utilities/keybind.luau`, tab/group/collapsible
+  constructors and `Types.luau`: add `CreateKeybind` and declarative `Keybind`.
+  Click the keycap, then press A–Z. One letter is required; callbacks/flags use
+  uppercase strings. Escape cancels; blank, mouse, number and special-key
+  bindings cannot replace the previous letter. Invalid initial values use K.
+- Window input and lifecycle paths: capture runs before the menu toggle and
+  respects processed/text-focused input. Switching tabs, folding a group,
+  hiding/minimising, focus loss, locking, removing the tab or unloading cancels
+  capture. No per-element global keyboard listeners are added.
+- Settings validation/defaults and `utilities/persistenceSettings.luau`: keep
+  the menu binding as a letter KeyCode; schema 2 migrates old non-letter and
+  unbound settings to K, preserving valid letter bindings.
+- `components/chrome.luau`, `components/window/visibility.luau`: the capsule
+  icon, text and hit target only appear after Hide completes, never during the
+  fold or topbar-only minimisation. Restore hides them immediately.
+- `components/settings.luau`, window startup: Overview → Controls → Appearance
+  → Persistence. Overview uses an About Card, copyable Links and Footer;
+  Controls uses Keybind; Appearance owns theme/layout and motion/feedback.
+  Layout is a standalone Dropdown, not a one-element Collapsible Group.
+- `example.client.luau` and the skill starter: Overview → Actions → Preferences,
+  covering every element with meaningful interactions and related-control
+  groups. Information and release history stay on Overview.
+- Updated guides, types, existing regressions and three new runtime suites:
+  held-tween capsule visibility, keybind persistence/migration, and execution of
+  the real multi-tab example. Verification uses the Luau CLI/stub harness;
+  actual Roblox Studio visual validation is still a manual check.
+
 ## 2026-09-21 — Popups show their content again (dedicated `ScreenGui` restored)
 
 A dialog opened as a blank card: the rounded surface arrived, the title, the

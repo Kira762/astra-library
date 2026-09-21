@@ -36,9 +36,11 @@ function Window:Hide()
         search.close(self, { showTabs = false, jumpTo = self.selectedTab and self.selectedTab.tabPage })
     end
 
+    if self._keybindCapture then self._keybindCapture:CancelCapture() end
     self.animating = true
     self._revealing = true
     self.hidden = true
+    chrome.setCollapsedShown(self, false)
     self.collapsedInteract.Visible = false
                 if self.minimised then
         self.minimised = false
@@ -110,7 +112,8 @@ function Window:Hide()
         end
         collapsed = true
 
-                        self._collapsedShown = true
+        self._collapsedShown = true
+        chrome.setCollapsedShown(self, true, collapseShowTween)
         self.collapsedInteract.Visible = true
         self.animating = false
         self._revealing = false
@@ -125,7 +128,6 @@ function Window:Hide()
 
     self.topbar.Visible = true
     self:_setContentVisible(false)
-    chrome.setCollapsedShown(self, true, collapseShowTween)
 end
 
 function Window:ToggleHide()
@@ -148,6 +150,7 @@ function Window:ToggleMinimise()
         search.close(self, { showTabs = true })
     end
 
+    if self._keybindCapture then self._keybindCapture:CancelCapture() end
     self.animating = true
     -- [[Either direction moves one surface between two shapes, and the handle
     -- [[is not one of them: it fades out with the shell and is handed back by
@@ -241,7 +244,8 @@ function Window:ToggleMinimise()
             self:_setTabSectionsVisible(false)
         end)
 
-        self:_fadeSurfaces(false, surfaceTween)	chrome.setCollapsedShown(self, true, surfaceTween)
+        self:_fadeSurfaces(false, surfaceTween)
+        chrome.setCollapsedShown(self, false)
         motion.tween(self.main, { Size = UDim2.fromOffset(self.size.X.Offset, self.layout.topbarHeight) }, expandTween)
         -- [[Minimised bar reads as a theme-aware capsule (PillCornerRadius).]]
         motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(0, 0) }, expandTween)
@@ -508,6 +512,7 @@ function Window:Show()
         if self.animating or self.unloaded or not self.hidden then
         return
     end
+    if self._keybindCapture then self._keybindCapture:CancelCapture() end
     self.animating = true
     self._revealing = true
     -- [[The handle waits while the shell is in the air: it is handed back by

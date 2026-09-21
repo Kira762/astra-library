@@ -79,7 +79,7 @@ expect(applyBtn.main.Visible == false, "no pending change: Apply is absent")
 
 -- Navigate away and back: the staged state survives tab switches.
 for _, otherTab in window._settingsTabs do
-	if otherTab.name == "General" then
+	if otherTab.name == "Controls" then
 		otherTab:Select()
 		TestPump(0.15)
 		break
@@ -140,7 +140,7 @@ expect(resetBtn.main.Visible == true, "Reset is untouched by applying a theme")
 
 -- …and stays that way across a tab switch.
 for _, otherTab in window._settingsTabs do
-	if otherTab.name == "General" then
+	if otherTab.name == "Controls" then
 		otherTab:Select()
 		TestPump(0.15)
 		break

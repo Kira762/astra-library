@@ -4,13 +4,15 @@ local paths = require(script.Parent.persistencePaths)
 local writer = require(script.Parent.persistenceWrite)
 local enumHelper = require(script.Parent.enums)
 
+local keybind = require(script.Parent.keybind)
+
 local persistenceSettings = {}
 
 -- [[Settings files written before profile visibility was explicitly kept off
 -- [[did not carry a schema marker. Treat those files as legacy once, clear the
 -- [[profile visibility pair, and write the marker back so a user can still turn
 -- [[the profile on intentionally afterward.]]
-local SETTINGS_VERSION = 1
+local SETTINGS_VERSION = 2
 
 type SettingsWindow = {
     settings: {
@@ -142,9 +144,8 @@ function persistenceSettings.loadSettings(window: SettingsWindow): (boolean, boo
             local enumType = (Enum :: any)[enumTypeName]
             if enumType then
                 local keybindItem = enumHelper.itemFromValue(enumType, decodedSettings.toggleKeybind[2])
-                if keybindItem then
-                    window.settings.toggleKeybind = keybindItem
-                end
+                local letter = keybind.letter(keybindItem)
+                window.settings.toggleKeybind = if letter then Enum.KeyCode[letter] else Enum.KeyCode.K
             end
         end)
     end

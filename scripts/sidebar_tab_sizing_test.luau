@@ -219,9 +219,7 @@ end
 -- T9: the settings-mode rail group sizes from the settings tab names.
 window:_buildSettingsUI() -- first settings access materialises its tab shells
 
--- T9a: the settings rail order - General must be the first row (the tab the
--- gear action opens), About the last; the old About customOrder (1000)
--- sorted it before General, so opening settings highlighted the SECOND row.
+-- T9a: the gear opens the information-first Overview, followed by purpose-based controls.
 do
 	local rows = {}
 	for _, tab in window._settingsTabs do
@@ -233,7 +231,7 @@ do
 		return a.order < b.order
 	end)
 	local names = { rows[1] and rows[1].name, rows[2] and rows[2].name, rows[3] and rows[3].name, rows[4] and rows[4].name }
-	if #rows ~= 4 or names[1] ~= "General" or names[2] ~= "Appearance" or names[3] ~= "Persistence" or names[4] ~= "About" then
+	if #rows ~= 4 or names[1] ~= "Overview" or names[2] ~= "Controls" or names[3] ~= "Appearance" or names[4] ~= "Persistence" then
 		error("SMOKE FAIL: T9a settings rail order (got " .. table.concat(names, ", ") .. ")", 0)
 	end
 end
@@ -263,42 +261,38 @@ eq(#persistenceTab.elements, builtOnce, "T9b settings content is built exactly o
 window.rfSettings:Select()
 TestPump(0.2)
 local settingsRail = math.max(
-	naturalRail("General", true),
+	naturalRail("Overview", true),
 	naturalRail("Appearance", true),
 	naturalRail("Persistence", true),
-	naturalRail("About", true)
+	naturalRail("Controls", true)
 )
 assertGroupSized(settingsRail, "T9 settings-mode rail group uses its own longest name")
 
 -- T9c: opening settings via the gear path lands on the FIRST settings tab
--- (General), the page the content area shows is General's page, and the
--- lazy content for General is built on that first open.
+-- (Overview), the page the content area shows is Overview's page, and the
+-- lazy content for Overview is built on that first open.
 window.selectedTab = t1
 window._previousTab = t1
 window._settingsMode = false
 window.rfSettings:Select()
 TestPump(0.2)
-eq(window.selectedTab, window.rfSettings, "T9c opening settings selects General")
+eq(window.selectedTab, window.rfSettings, "T9c opening settings selects Overview")
 local currentPage = window.elementsLayout.__currentPage
 expect(
 	currentPage == window.rfSettings.tabPage,
-	"T9c the content area shows General's page when settings opens"
+	"T9c the content area shows Overview's page when settings opens"
 )
 expect(
 	#window.rfSettings.elements >= 3,
-	"T9c opening settings builds General's lazy content (got " .. tostring(#window.rfSettings.elements) .. " elements)"
+	"T9c opening settings builds Overview's lazy content (got " .. tostring(#window.rfSettings.elements) .. " elements)"
 )
 
 -- T9d: every settings tab opens with its full content on its own page.
 local expectedSettingsContent = {
-    General = 3,
-    -- Theme + Layout. It was three groups while Appearance also carried the
-    -- profile-card group.
-    Appearance = 2,
+    Overview = 6,
+    Controls = 5,
+    Appearance = 4,
     Persistence = 2,
-    -- Astra + Links. It was three groups while the panel carried a separate
-    -- upstream-lineage group beside Astra's own.
-    About = 2,
 }
 for name, wanted in expectedSettingsContent do
 	for _, tab in window._settingsTabs do

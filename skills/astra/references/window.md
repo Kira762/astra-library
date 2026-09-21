@@ -98,10 +98,15 @@ previous tab. User code does not build these tabs.
 
 | Tab | Contents |
 |---|---|
-| **General** | Menu toggle keybind field, unlock cursor, Window Behavior (prevent duplicate windows, keep on screen, draggable capsule, reset positions), Performance & Motion (haptics, animation speed). |
-| **Appearance** | Theme dropdown + Apply, Bar Layout dropdown. |
-| **Persistence** | Auto Save Config, Auto Load Config, saved-configurations dropdown with name input and Save/Load/Delete. |
-| **About** | Library info and links. |
+| **Overview** | First tab: About Card, resource Links and Footer. |
+| **Controls** | Required single-letter A–Z Keybind, unlock cursor, Window Behavior and reset positions. |
+| **Appearance** | Current-theme Stat, theme choice + Apply/Reset, standalone Bar Layout, Motion & Feedback. |
+| **Persistence** | Auto Save / Auto Load, configurations Dropdown, name Input and Save/Load/Delete. |
+
+Old non-letter menu bindings migrate to K. Capsule content only appears after
+`Hide()` settles; it is invisible during folding, restoration and topbar-only
+minimisation. Keep one-off settings standalone; reserve collapsible groups for
+multiple related controls.
 
 ## Themes
 

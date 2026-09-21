@@ -151,6 +151,21 @@ home:CreateCollapsibleGroup({
 })
 
 local about = window:CreateTab({ name = "About", icon = "info" })
+local changelogPanel
+local function openChangelog()
+    if not changelogPanel then
+        return
+    end
+    changelogPanel:Expand()
+    task.defer(function()
+        if not changelogPanel.main.Parent then
+            return
+        end
+        local page = about.tabPage
+        local top = page.CanvasPosition.Y + changelogPanel.main.AbsolutePosition.Y - page.AbsolutePosition.Y
+        page.CanvasPosition = Vector2.new(0, math.max(0, top - 10))
+    end)
+end
 
 -- [[The About card carries four blocks: a brand header, one to three data rows,
 -- [[a description paragraph and an optional action band — the card's only
@@ -169,9 +184,7 @@ about:CreateAboutCard({
         icon = "file-text",
         name = "View Changelog",
         subtitle = "See what's new in this version",
-        callback = function()
-            window:Notify({ title = "View Changelog", content = "The release history is on this tab." })
-        end,
+        callback = openChangelog,
     },
 })
 
@@ -180,7 +193,7 @@ about:CreateAboutCard({
 
 -- [[The Isolated container is the Changelog's own home: a collapsed header
 -- [[card (icon, title/subtitle, built-in chevron) that only holds Changelogs.]]
-local changelogPanel = about:CreateIsolated({
+changelogPanel = about:CreateIsolated({
 	name = "View Changelog",
 	subtitle = "See what's new in this version",
 	icon = "file-text",
@@ -199,7 +212,6 @@ local changelogPanel = about:CreateIsolated({
 		},
 	},
 })
-changelogPanel:Expand(false)
 
 -- [[Release history renders as a standalone element.]]
 about:CreateChangelog({

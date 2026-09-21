@@ -205,7 +205,12 @@ function Isolated.new(tab, props)
     w:ConnectFor(self, self.contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
         self:_resize(true)
     end)
-    w:ConnectFor(self, self.interact.Activated, function()
+    -- [[Use the same primary-click signal as Astra's other full-row controls.
+    -- [[Some executor input bridges do not forward GuiButton.Activated, which
+    -- [[left an otherwise visible Isolated header unable to open. Roblox maps
+    -- [[touch taps to MouseButton1Click too, so the whole header stays usable on
+    -- [[both pointer and touch input without wiring two signals and double-firing.
+    w:ConnectFor(self, self.interact.MouseButton1Click, function()
         if self.locked or not w:_interactive() then return end
         haptic.click()
         self:_setExpanded(not self._expanded, true)

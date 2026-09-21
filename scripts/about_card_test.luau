@@ -7,8 +7,8 @@
 -- action band. Expected behavior under test:
 --   * A1 the header renders the leading icon, the title and the subtitle, and
 --        the band is as tall as the copy it carries,
---   * A2 the tiles share the row evenly (one, two and three of them) and each
---        carries its badge icon and its own label and value,
+--   * A2 one, two or three compact tiles always share a single row evenly and
+--        each carries its badge icon and its own label and value,
 --   * A3 the description is one wrapped paragraph,
 --   * A4 the action band is the card's tap target: it renders its copy, its
 --        trailing chevron and fires its callback,
@@ -115,104 +115,43 @@ eq(card.main.AutomaticSize, Enum.AutomaticSize.Y, "A1 the card grows with its co
 
 eq(#card.rows, 3, "A2 three rows build three tiles")
 eq(card.rowsHost.Visible, true, "A2 the rows section is on")
-eq(
-	card.rowsHost.Size.Y.Offset,
-	#card._rowLines * 58 + (#card._rowLines - 1) * 10,
-	"A2 the rows band is as tall as the lines it packed"
-)
+eq(card.rowsHost.Size.Y.Offset, 48, "A2 the compact rows band is one tile tall")
+eq(#card._rowLines, 1, "A2 all three tiles stay on one line")
+eq(#card._rowLines[1], 3, "A2 that line contains all three rows")
 
 local labels = { "Version", "Build", "Author" }
 local values = { "1.4.0", "2026.09.12", "Astra Team" }
 local icons = { "code", "package", "user" }
 for index, entry in ipairs(card.rows) do
-	eq(entry.main.Size.Y.Offset, 58, "A2 row " .. index .. " wears the tile height")
+	eq(entry.main.Size.Y.Offset, 48, "A2 row " .. index .. " wears the compact tile height")
+	eq(entry.main.Position.Y.Offset, 0, "A2 row " .. index .. " never wraps below the line")
+	close(entry.main.Size.X.Scale, 1 / 3, "A2 row " .. index .. " takes an equal third")
+	close(entry.main.Size.X.Offset, -16 / 3, "A2 row " .. index .. " pays its share of both 8px gaps")
+	close(entry.main.Position.X.Scale, (index - 1) / 3, "A2 row " .. index .. " is ordered left to right")
+	close(entry.main.Position.X.Offset, 8 * (index - 1) / 3, "A2 row " .. index .. " keeps the compact gap")
 	eq(entry.labelLabel.Text, labels[index], "A2 row " .. index .. " renders its label")
 	eq(entry.valueLabel.Text, values[index], "A2 ... and its value")
-	eq(entry.labelLabel.TextSize, 12, "A2 the label is the small line")
-	eq(entry.valueLabel.TextSize, 16, "A2 the value is the large one")
+	eq(entry.labelLabel.TextSize, 11, "A2 the label is the compact small line")
+	eq(entry.valueLabel.TextSize, 14, "A2 the value is the compact strong line")
+	eq(entry.badge.Size.X.Offset, 28, "A2 the badge is compact")
+	eq(entry.badgeIcon.Size.X.Offset, 14, "A2 ... with a compact glyph")
 	eq(entry.badge.Visible, true, "A2 row " .. index .. " draws its badge")
 	eq(entry.badgeIcon.Visible, true, "A2 ... with the row icon in it")
 	eq(entry.icon, window:ResolveIcon(icons[index]), "A2 ... resolved through the icon catalog")
 	expect(entry.icon ~= nil and entry.icon ~= "", "A2 row " .. index .. " resolved a real icon")
 	expect(type(entry.badgeIcon.Image) == "string", "A2 ... and the badge carries the image slot")
-	eq(entry.textColumn.Size.X.Offset, -44, "A2 the text column reserves the badge and its gap")
+	eq(entry.textColumn.Size.X.Offset, -36, "A2 the text column reserves only the compact badge and gap")
 end
 
 expect(card.rows[1].icon ~= card.rows[2].icon, "A2 the rows carry their own icons")
-
--- [[A tile is never narrower than its own copy: the packing measures each row
--- [[with the fonts it renders in and wraps the ones that stop fitting. The
--- [[widths below are derived from those minimums, so the assertions hold
--- [[whatever the host's text metrics report.
-local minimums = {}
-local widest = 0
-for index, entry in ipairs(card.rows) do
-	minimums[index] = card:_rowMinWidth(entry)
-	expect(minimums[index] > 68, "A2 a row minimum includes the badge, the padding and its copy")
-	widest = math.max(widest, minimums[index])
-end
-
--- [[Wide enough for all three: one line, equal slices, gaps out of the slice.
-local lineWidth = widest * 3 + 10 * 2
-card:_layoutRows(lineWidth)
-eq(#card._rowLines, 1, "A2 a wide card packs all three tiles on one line")
-local slice = (lineWidth - 10 * 2) / 3
-for index, entry in ipairs(card.rows) do
-	close(entry.main.Size.X.Offset, slice, "A2 line tile " .. index .. " takes its third")
-	close(entry.main.Position.X.Offset, (index - 1) * (slice + 10), "A2 ... laid out left to right")
-	close(entry.main.Position.Y.Offset, 0, "A2 ... on the single line")
-end
-eq(card.rowsHost.Size.Y.Offset, 58, "A2 the one-line band is one tile tall")
-
--- [[Exactly two of them fit on this width (a line pays its widest tile twice
--- [[plus the gap), so the third wraps under it.
-local pairWidth = widest * 2 + 10
-card:_layoutRows(pairWidth)
-eq(#card._rowLines, 2, "A2 a width that holds two rows wraps the third")
-close(card.rows[1].main.Size.X.Offset, widest, "A2 the shared line splits between the pair")
-close(card.rows[3].main.Position.Y.Offset, 68, "A2 the wrapped row rides the second line")
-close(card.rows[2].main.Position.X.Offset, widest + 10, "A2 ... one gap after its neighbour")
-eq(card.rowsHost.Size.Y.Offset, 58 * 2 + 10, "A2 the two-line band pays one gap")
-
--- [[One row per line when nothing fits beside anything.
-card:_layoutRows(widest)
-eq(#card._rowLines, 3, "A2 a card only as wide as one row stacks all three")
-for index, entry in ipairs(card.rows) do
-	close(entry.main.Size.X.Offset, widest, "A2 stacked row " .. index .. " uses the whole width")
-	close(entry.main.Position.X.Offset, 0, "A2 ... flush left")
-	close(entry.main.Position.Y.Offset, (index - 1) * 68, "A2 ... below the previous one")
-end
-eq(card.rowsHost.Size.Y.Offset, 58 * 3 + 10 * 2, "A2 the stacked band pays both gaps")
-
--- [[The invariant every width shares: no packed tile is handed less room than
--- [[its own copy needs, as long as the card itself is that wide.
-for width = widest, widest * 3 + 20, 7 do
-	card:_layoutRows(width)
-	local packed = 0
-	for _, line in ipairs(card._rowLines) do
-		packed += #line
-	end
-	eq(packed, 3, "A2 every width packs all three rows")
-	for index, entry in ipairs(card.rows) do
-		expect(
-			entry.main.Size.X.Offset + 0.5 >= minimums[index],
-			"A2 row " .. index .. " is not squeezed at " .. width .. "px"
-		)
-	end
-end
-
--- [[The automatic pass measures the card itself (the width watcher re-runs it
--- [[when the window resizes or the layout mode changes).
-card:_layoutRows()
-eq(card.rowsHost.Size.Y.Offset, #card._rowLines * 58 + (#card._rowLines - 1) * 10, "A2 the automatic pass packs the measured width")
-expect(card:_availableWidth() > 0, "A2 ... which the card reports")
 close(card.main.Size.X.Offset, -20, "A2 the card keeps the element gutter")
 
 -- [[One row fills the band on its own; two split it between them.]]
 local single = tab:CreateAboutCard({ name = "One", rows = { { icon = "code", label = "Only", value = "1" } } })
 TestPump(0.3)
 eq(#single._rowLines, 1, "A2 a single row is its own line")
-close(single.rows[1].main.Size.X.Offset, single:_availableWidth(), "A2 ... filling the whole band")
+eq(single.rows[1].main.Size.X.Scale, 1, "A2 ... filling the whole band")
+eq(single.rows[1].main.Size.X.Offset, 0, "A2 ... without a reserved gap")
 eq(single.rows[1].main.Position.X.Offset, 0, "A2 ... from the left edge")
 eq(single.header.Size.Y.Offset, 26, "A2 a header without a subtitle is the single-line band")
 eq(single.subtitleLabel.Visible, false, "A2 ... and its subtitle slot is off")
@@ -228,8 +167,11 @@ local pair = tab:CreateAboutCard({
 })
 TestPump(0.3)
 eq(#pair._rowLines, 1, "A2 two rows share one line")
-close(pair.rows[1].main.Size.X.Offset, pair.rows[2].main.Size.X.Offset, "A2 ... splitting it evenly")
-close(pair.rows[2].main.Position.X.Offset, pair.rows[1].main.Size.X.Offset + 10, "A2 ... one gap apart")
+close(pair.rows[1].main.Size.X.Scale, 0.5, "A2 the first of two takes half the band")
+close(pair.rows[2].main.Size.X.Scale, 0.5, "A2 the second takes the other half")
+close(pair.rows[1].main.Size.X.Offset, -4, "A2 each half pays half the 8px gap")
+close(pair.rows[2].main.Position.X.Scale, 0.5, "A2 the second starts after half the band")
+close(pair.rows[2].main.Position.X.Offset, 4, "A2 ... and half the gap")
 
 local noRows = tab:CreateAboutCard({ name = "Bare", description = "Copy only." })
 TestPump(0.3)
@@ -323,7 +265,7 @@ eq(card.iconLabel.Visible, false, "A6 SetIcon(nil) takes the slot out")
 card:SetRow(1, { icon = "box", label = "Version", value = "1.5.0" })
 TestPump(0.2)
 eq(card.rows[1].labelLabel.Text, "Version", "A6 SetRow rewrites the label")
-eq(card._rowLines and #card._rowLines >= 1, true, "A6 ... and the row re-packs after the change")
+eq(card._rowLines and #card._rowLines == 1, true, "A6 ... and the compact row stays on one line")
 eq(card.rows[1].valueLabel.Text, "1.5.0", "A6 ... and the value")
 eq(card.rows[1].icon, window:ResolveIcon("box"), "A6 ... and re-resolves the row icon")
 eq(card.rows[2].valueLabel.Text, "2026.09.12", "A6 ... leaving the other rows alone")
@@ -357,6 +299,8 @@ local theme = window.theme
 eq(card.main.BackgroundTransparency, theme.ElementTransparency, "A7 the card rests on the element surface")
 eq(card.stroke.Transparency, theme.ElementStrokeTransparency, "A7 ... with its stroke drawn")
 eq(card.rows[1].main.BackgroundTransparency, theme.ElementTransparency, "A7 a tile rests on its own surface")
+eq(card.rows[1].main.BackgroundColor3, theme.ElementSurface, "A7 the tile uses the regular element fill, not the dark window surface")
+eq(card.actionBand.BackgroundColor3, theme.ElementSurface, "A7 the action band uses that same UI surface")
 eq(card.rows[1].stroke.Transparency, theme.ElementStrokeTransparency, "A7 ... with its own stroke")
 eq(card.rows[1].badge.BackgroundTransparency, theme.ElementTransparency, "A7 the badge is drawn")
 eq(card.rows[1].valueLabel.TextTransparency, 0, "A7 values rest solid")
@@ -384,6 +328,8 @@ TestPump(0.4)
 local frost = window.theme
 eq(card.main.BackgroundTransparency, frost.ElementTransparency, "A7 a theme change re-reads the card surface")
 eq(card.rows[1].stroke.Transparency, frost.ElementStrokeTransparency, "A7 ... and the tile stroke")
+eq(card.rows[1].main.BackgroundColor3, frost.ElementSurface, "A7 ... including the lighter tile fill")
+eq(card.actionBand.BackgroundColor3, frost.ElementSurface, "A7 ... and the matching action fill")
 eq(card.rows[1].labelLabel.TextTransparency, 0.45, "A7 ... keeping the muted lines muted")
 eq(card.rows[1].valueLabel.TextTransparency, 0, "A7 ... and the values solid")
 eq(card.rows[1].badge.BackgroundColor3, frost.ElementSurface, "A7 the badge follows the content surface token")

@@ -368,6 +368,7 @@ like the other interactive elements.
 
 ### About card
 ```lua
+local changelogPanel -- assign below with tab:CreateIsolated(...)
 local card = tab:CreateAboutCard({
     name = "Astra",                                  -- header title
     subtitle = "UI Library for a better experience.", -- muted line under it
@@ -383,7 +384,9 @@ local card = tab:CreateAboutCard({
         icon = "file-text",
         name = "View Changelog",
         subtitle = "See what's new in this version",
-        callback = function() tab:Select() end,
+        callback = function()
+            if changelogPanel then changelogPanel:Expand() end
+        end,
     },
 })
 ```
@@ -392,11 +395,13 @@ One card with four blocks: a header (icon, title, subtitle), a row of data
 tiles (each a leading icon, a label and a value), a description paragraph, and
 an optional action band that is the card's only tappable surface.
 
-The tiles are packed against the width the card actually has, so the copy never
-gets cut by a growing window: as many rows as fit share one line (split evenly,
-left to right) and the rest wrap underneath, each line full width. In a default
-window's sidebar layout the three rows above end up stacked; on a wide window
-they share one line. A fourth row errors at construction
+All data tiles share one compact 48px line, split evenly from left to right. The
+standard Version / Build / Author recipe therefore stays three-across instead
+of placing Author alone on a second line; on an unusually narrow window a long
+value truncates inside its own tile rather than changing the card's structure.
+Tiles and the action band use the regular `ElementSurface` fill, not the darker
+window gradient, so they remain consistent with the rest of the controls. A
+fourth row errors at construction
 (`Astra:CreateAboutCard — at most 3 data rows are supported, got 4`) because the
 action band is the card's trailing row. A row without `icon`, or a card without
 `rows`/`description`/`action`, simply leaves those parts out of the layout.

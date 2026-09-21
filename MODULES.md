@@ -372,16 +372,15 @@ Per-element specifics:
   description paragraph and an optional action band (icon, label, subtitle, the
   built-in trailing chevron and one full-band tap target). Surfaces reuse the
   shared nesting recipe: the card is the standard element body, a tile and the
-  band are the window surface with the element corner and stroke
-  (`insetSurface`), and a badge is the content surface. The tiles are packed
-  against the card's measured width (`_availableWidth` reads the card and falls
-  back to the default window's content width before the first measure,
-  `_rowMinWidth` measures each row's own copy with the fonts it renders in, and
-  `_packRows` is a greedy fill where a line costs its widest tile times its tile
-  count plus the gaps) so a line never squeezes a tile below its copy: the tiles
-  that fit share the line evenly and the rest wrap under it (`_layoutRows`), and
-  the packing re-runs from the card's `AbsoluteSize` watcher and after `SetRow`
-  changes a row's copy. A fourth row errors at construction with
+  band use the regular `ElementSurface` fill with the element corner and stroke
+  (`insetSurface`) instead of the darker window gradient, and a badge stays in
+  the same control-surface family. `_layoutRows` keeps all one to three tiles on
+  one compact 48px line and gives each an equal scale-based slice after its 8px
+  gaps, so the Version / Build / Author recipe remains three-across rather than
+  leaving Author alone on a second line. The scale geometry follows window
+  resizing directly and `SetRow` refreshes it after an icon reservation changes;
+  unusually long copy truncates inside its tile instead of changing the card's
+  structure. A fourth row errors at construction with
   `Astra:CreateAboutCard — at most 3 data rows are supported, got N` because the
   action band is the card's trailing row. A row without an icon drops its badge
   and hands the tile to its text (`_applyRowIcon`), and a card without rows,

@@ -12,31 +12,10 @@ local icon = require(constants.locale)
 local callback = require(constants.HapticEngine)
 local baseCard = require(script.Parent.baseCard)
 local description = require(script.Parent.description)
--- [[The click choreography rides the motion service's specs: the tap glyph
--- dips on `fast` and springs back on `settle` (a small overshoot that reads
--- as a physical press), the card nudges in on `snappy` and lands back on
--- `settle`, and the stroke follows hover on `snappy`.]]
+-- [[The card and stroke provide press feedback without a trailing glyph.]]
 local motion = require(constants.motion)
 local element = "snappy"
-local tapPress = "fast"
 local tapRelease = "settle"
-
--- [[Built-in "tap" glyph for the card's right edge. Uses `mouse-pointer-click`
--- [[(lucide) as the trailing affordance, revealed at 50% transparency.]]
-local tapCandidates = { "mouse-pointer-click" }
-
-local function resolveTapIcon(window, override)
-    if override ~= nil and override ~= true then
-        return window:ResolveIcon(override)
-    end
-    for _, candidate in ipairs(tapCandidates) do
-        local resolved = window:ResolveIcon(candidate)
-        if resolved ~= candidate then
-            return resolved
-        end
-    end
-    return nil
-end
 
 function state.new(tab, frame)
     frame = if typeof(frame) == "table" then frame else {}
@@ -50,17 +29,6 @@ function state.new(tab, frame)
         compact = tab.compact or false,
         callback = frame.callback or frame.Callback or function() end,
     }, state)
-
-    -- [[The trailing tap affordance is built-in: present unless the caller
-    -- [[opts out with `tapIcon = false`, and any icon request (name, pack
-    -- [[name, or asset id) replaces the glyph.]]
-    local tapValue = frame.tapIcon
-    if tapValue == nil then
-        tapValue = frame.TapIcon
-    end
-    if tapValue ~= false then
-        self.tapImage = resolveTapIcon(self.window, tapValue)
-    end
 
     if self.compact then
         self:_buildCompact()
@@ -82,10 +50,6 @@ function state:_buildFull()
         titleText = icon.t(self.name),
     })
 
-    -- [[The tap glyph sits in the card's right gutter, centred in the base
-    -- [[region exactly like the title row, and is created after `interact`
-    -- [[so it paints above the (invisible) click surface.]]
-
     self.interact = self.window:Create("TextButton", {
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 1),
@@ -97,34 +61,10 @@ function state:_buildFull()
         Parent = self.main,
     })
 
-    if self.tapImage then
-        local centerScale, centerOffset = description.center(self, 43)
-        self.tapIcon = self.window:Create("ImageLabel", {
-            Image = self.tapImage,
-            Size = UDim2.fromOffset(16, 16),
-            Position = UDim2.new(1, -15, centerScale, centerOffset),
-            AnchorPoint = Vector2.new(1, 0.5),
-            BorderSizePixel = 0,
-            BackgroundTransparency = 1,
-
-            ImageTransparency = 1,
-            Parent = self.main,
-        }, { ImageColor3 = "ContentColor" })
-
-        self.tapScale = self.window:Create("UIScale", {
-            Scale = 1,
-
-            Parent = self.tapIcon,
-        })
-    end
-
     self.window:_wireElementHover(self)
 
     self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
         callback.click()
-        if self.tapScale then
-            Button.tweenService:Create(self.tapScale, motion.spec(tapPress), { Scale = 0.78 }):Play()
-        end
         Button.tweenService
             :Create(
                 self.stroke,
@@ -148,9 +88,6 @@ function state:_buildFull()
             return
         end
 
-        if self.tapScale then
-            Button.tweenService:Create(self.tapScale, motion.spec(tapRelease), { Scale = 1 }):Play()
-        end
         Button.tweenService
             :Create(
                 self.main,
@@ -224,35 +161,10 @@ function state:_buildCompact()
         Parent = self.title,
     })
 
-    -- [[Trailing item of the row: the same tap glyph as the full card, at the
-    -- [[row's right edge. `interact` owns the row, so the icon is inside the
-    -- [[click surface and tapping it is tapping the button.]]
-    if self.tapImage then
-        self.tapIcon = window:Create("ImageLabel", {
-            Image = self.tapImage,
-            Size = UDim2.fromOffset(16, 16),
-            BorderSizePixel = 0,
-            BackgroundTransparency = 1,
-            LayoutOrder = 3,
-
-            ImageTransparency = 1,
-            Parent = self.interact,
-        }, { ImageColor3 = "ContentColor" })
-
-        self.tapScale = window:Create("UIScale", {
-            Scale = 1,
-
-            Parent = self.tapIcon,
-        })
-    end
-
     self.window:_wireElementHover(self)
 
     self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
         callback.click()
-        if self.tapScale then
-            Button.tweenService:Create(self.tapScale, motion.spec(tapPress), { Scale = 0.78 }):Play()
-        end
         Button.tweenService
             :Create(
                 self.stroke,
@@ -269,9 +181,6 @@ function state:_buildCompact()
             return
         end
 
-        if self.tapScale then
-            Button.tweenService:Create(self.tapScale, motion.spec(tapRelease), { Scale = 1 }):Play()
-        end
         Button.tweenService
             :Create(
                 self.stroke,
@@ -293,9 +202,6 @@ end
 function state:_minWidth()
     local w = 32
     if self.icon then
-        w += 22
-    end
-    if self.tapIcon then
         w += 22
     end
     w += tab.textWidth(self.window.theme.Font, 16, icon.resolve(self.name))

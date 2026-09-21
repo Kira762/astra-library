@@ -70,7 +70,7 @@ assert(launchedOverlays() == 2 and #window._overlayQueue.pending == 1, "The next
 window:_toggleSettingsMode()
 TestPump(0.6)
 assert(#window._settingsTabs == 4, "Opening settings builds all navigation tabs")
-assert(#window.rfSettings.elements > 0, "General builds on first access")
+assert(#window.rfSettings.elements > 0, "Overview builds on first access")
 for _, tab in window._settingsTabs do
     if tab ~= window.rfSettings then assert(#tab.elements == 0, "Unopened settings content stays lazy") end
 end

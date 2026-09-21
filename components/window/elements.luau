@@ -72,6 +72,7 @@ function Window:_setElementLocked(element, locked, message)
         return
     end
     element.locked = locked
+    if locked and element.CancelCapture then element:CancelCapture() end
 
     if not element.lockScrim then
         self:_buildLockScrim(element)
@@ -299,9 +300,6 @@ function Window:_revealCommon(element, animate)
     if element.iconLabel then
         self:_reveal(element.iconLabel, { ImageTransparency = 0 }, animate)
     end
-    if element.tapIcon then
-        self:_reveal(element.tapIcon, { ImageTransparency = 0.5 }, animate)
-    end
     if element.descriptionLabel then
         self:_reveal(element.descriptionLabel, { TextTransparency = 0.45 }, animate)
     end
@@ -313,9 +311,6 @@ function Window:_hideCommon(element, animate)
     self:_reveal(element.main, { BackgroundTransparency = 1 }, animate)
     if element.iconLabel then
         self:_reveal(element.iconLabel, { ImageTransparency = 1 }, animate)
-    end
-    if element.tapIcon then
-        self:_reveal(element.tapIcon, { ImageTransparency = 1 }, animate)
     end
     if element.descriptionLabel then
         self:_reveal(element.descriptionLabel, { TextTransparency = 1 }, animate)

@@ -21,7 +21,7 @@ registry.definitions = {
         key = "toggleKeybind",
         kind = "keybind",
         domain = "behavior",
-        description = "Keybind used to show/hide the window.",
+        description = "Required single letter (A–Z) used to show/hide the window.",
     },
     mouseOverride = {
         key = "mouseOverride",

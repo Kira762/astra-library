@@ -18,6 +18,7 @@ local constructors = {
     Switch = function(parent, props) return require(script.Parent.toggle).new(parent, props) end,
     Slider = function(parent, props) return require(script.Parent.slider).new(parent, props) end,
     Dropdown = function(parent, props) return require(script.Parent.dropdown).new(parent, props) end,
+    Keybind = function(parent, props) return require(script.Parent.keybind).new(parent, props) end,
     Input = function(parent, props) return require(script.Parent.input).new(parent, props) end,
     Link = function(parent, props) return require(script.Parent.link).new(parent, props) end,
     Stat = function(parent, props) return require(script.Parent.stat).new(parent, props) end,
@@ -342,6 +343,7 @@ function Collapsible:_setExpanded(expanded, animate)
         visit(self.elements, function(child)
             if child.__type == "Dropdown" and child._isOpen then child:_close() end
             if child.recording then child:_stopRecording() end
+            if child.CancelCapture then child:CancelCapture() end
             -- [[Same rule as the open dropdown: a transient state that belongs
             -- [[to a visible card cannot survive the body being put away, so a
             -- [[Link that was confirming its copy comes back on the copy mark

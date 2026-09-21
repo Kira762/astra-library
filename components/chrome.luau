@@ -15,6 +15,7 @@ function chrome.buildCollapsedFace(window)
 
     window.collapsedIcon = window:Create("ImageLabel", {
         Name = "CollapsedIcon",
+        Visible = false,
         AnchorPoint = if iconOnly then Vector2.new(0.5, 0.5) else Vector2.new(0, 0.5),
         Position = if iconOnly then UDim2.fromScale(0.5, 0.5) else UDim2.new(0, 16, 0.5, 0),
         Size = UDim2.fromOffset(24, 24),
@@ -32,7 +33,7 @@ function chrome.buildCollapsedFace(window)
 
     local collapsedTextFrame = window:Create("Frame", {
         Name = "CollapsedText",
-        Visible = not iconOnly,
+        Visible = false,
         AnchorPoint = Vector2.new(0, 0.5),
         Position = UDim2.new(0, 50, 0.5, 0),
         Size = UDim2.new(1, -60, 0, 32),
@@ -40,6 +41,8 @@ function chrome.buildCollapsedFace(window)
         ZIndex = constants.zIndex.restoreContent,
         Parent = window.main,
     })
+
+    window.collapsedTextFrame = collapsedTextFrame
 
     window:Create("UIListLayout", {
         Padding = UDim.new(0, 1),
@@ -213,6 +216,11 @@ end
 -- the speed setting like everything else — or applies instantly when no spec
 -- is given (the silent state-sync path).]]
 function chrome.setCollapsedShown(window, shown, spec)
+    -- Visibility is authoritative: never paint the restore face behind an open
+    -- window or during its fold, even if an earlier fade is still running.
+    shown = shown and window.hidden and window._collapsedShown == true
+    window.collapsedIcon.Visible = shown
+    window.collapsedTextFrame.Visible = shown and not window.showIconOnly
     local targets = {
         [window.collapsedIcon] = { ImageTransparency = if shown then 0 else 1 },
     }

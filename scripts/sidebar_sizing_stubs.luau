@@ -217,16 +217,36 @@ Enum = setmetatable({}, {
 		if not cat then
 			local known = strictEnumMembers[category]
 			cat = setmetatable({}, {
+                __tostring = function() return "Enum." .. category end,
 				-- [[An Enum category is an Enum, not a table: typeof() below reads
 				-- [[this marker so the library sees the engine's answer.]]
 				__type = "Enum",
 				__index = function(self, item)
+                    if item == "GetEnumItems" then
+                        return function()
+                            local items = {}
+                            for _, entry in self do table.insert(items, entry) end
+                            return items
+                        end
+                    elseif item == "FromValue" then
+                        return function(_, value)
+                            for _, entry in self do
+                                if entry.Value == value then return entry end
+                            end
+                            return nil
+                        end
+                    end
 					if known and not enumMethods[item] and known[item] == nil then
 						error(tostring(item) .. ' is not a valid member of "Enum.' .. tostring(category) .. '"', 2)
 					end
 					local entry = rawget(self, item)
 					if not entry then
-						entry = setmetatable({ Name = tostring(item), Category = tostring(category) }, {
+						local value = known and known[item]
+                        if category == "KeyCode" then
+                            local special = { Unknown = 0, Space = 32, Escape = 27, Backspace = 8, F1 = 282, One = 49 }
+                            value = special[item] or (if #item == 1 then string.byte(item:lower()) else nil)
+                        end
+                        entry = setmetatable({ Name = tostring(item), Category = tostring(category), EnumType = self, Value = value }, {
 							__type = "EnumItem",
 						})
 						rawset(self, item, entry)
@@ -869,6 +889,7 @@ do
 		MouseIconEnabled = true,
 		_propSignals = {},
 	}
+	input.GetFocusedTextBox = function() return input._focusedTextBox end
 	input.InputBegan = newSignal()
 	input.InputEnded = newSignal()
 	input.WindowFocusReleased = newSignal()

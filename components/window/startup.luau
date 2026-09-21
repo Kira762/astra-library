@@ -407,8 +407,8 @@ function Window.new(props)
     self:_constructionCheckpoint(true)
 
     self.rfSettings = self:CreateTab({
-        name = "General",
-        icon = "sliders-horizontal",
+        name = "Overview",
+        icon = "info",
         customOrder = 1001,
         forgetState = true,
         isSettingsTab = true,

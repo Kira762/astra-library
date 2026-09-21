@@ -4,7 +4,7 @@
 
 A Roblox/Luau interface library for executor scripts: one loader line, one
 `CreateWindow` call, and tabs full of elements — buttons, toggles, sliders,
-dropdowns, inputs, stats, text, dividers, groups, collapsible
+dropdowns, inputs, letter-only keybinds, stats, text, dividers, groups, collapsible
 groups and changelog — with built-in settings, themes, icon packs, saved configs and staged
 startup.
 
@@ -36,7 +36,7 @@ source, not a runtime entry point.
 | Area | Highlights |
 |---|---|
 | Window | Sidebar / collapsed-sidebar layouts, minimise-to-capsule, draggable, notifications, modal popups, search, per-window settings. |
-| Elements | Section, Text, Footer (centred text + inline icons), Button, Toggle (and `Switch` alias), Slider, Dropdown (single + multi-select, searchable), Input, Stat, Link (hidden URL with a copy control), About Card (brand header, up to three data rows, description and an optional action band), Divider, Group, Collapsible Group, Changelog, Isolated (changelog-only collapsible container). |
+| Elements | Section, Text, Footer (centred text + inline icons), Button, Toggle (and `Switch` alias), Slider, Dropdown (single + multi-select, searchable), Input, Keybind (required A–Z capture), Stat, Link (hidden URL with a copy control), About Card (brand header, up to three data rows, description and an optional action band), Divider, Group, Collapsible Group, Changelog, Isolated (changelog-only collapsible container). |
 | State | Flags with built-in auto save/load, named configs, `forgetState` opt-out, writable-storage persistence. |
 | Look | 10 built-in themes plus custom theme tables, seven icon packs (lucide, material, tabler, phosphor, heroicons, feather, remix), a `custom_asset/` folder override and a three-tier corner scale — 12px shell, 8px elements, pill folds — with round-by-nature controls (switch, slider, drag pill) deriving their own half-height radii. |
 | Motion | One motion service behind every transition, driven by the user's animation-speed setting. |
@@ -75,7 +75,7 @@ skills/astra/
 | [CHANGELOG.md](CHANGELOG.md) | Dated entries explaining each behaviour change. |
 | [PERFORMANCE_CHANGES.md](PERFORMANCE_CHANGES.md) | Startup and instance-budget work with measured numbers. |
 | [assets/icons/README.md](assets/icons/README.md) | Visual icon catalog with copyable names across all seven packs. |
-| [example.client.luau](example.client.luau) | End-to-end example that builds every element type in one tab. |
+| [example.client.luau](example.client.luau) | Three-tab element studio: Overview first, then Actions and Preferences. |
 | [changelog.example.luau](changelog.example.luau) | Host-side changelog data file consumed by the Changelog element. |
 
 ## Repository layout
@@ -97,7 +97,7 @@ skills/astra/             the published Agent Skill
 ```sh
 node scripts/generate_bundle.js             # regenerate version-1.luau from the tree
 sh scripts/install_luau.sh                 # build the Luau toolchain into .tools/bin (once)
-sh scripts/check_all.sh                    # requires + bundle freshness + syntax + 31 runtime tests
+sh scripts/check_all.sh                    # requires + bundle freshness + syntax + runtime tests
 sh scripts/check_syntax.sh                  # compile every published .luau file
 python3 scripts/check_requires.py           # require paths and cycles
 python3 scripts/check_instance_fields.py    # no custom fields written on Instances

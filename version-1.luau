@@ -508,7 +508,6 @@ export type ButtonProps = {
     info: string?,
     infoIcon: (string | number)?,
     -- Built-in right-edge tap glyph: false hides it, a name/asset id replaces it.
-    tapIcon: (string | number | boolean)?,
     callback: (() -> ())?,
 }
 
@@ -548,6 +547,17 @@ export type DropdownProps = {
     placeholder: string?,
     forgetState: boolean?,
     callback: ((value: any) -> ())?,
+}
+
+-- Required A–Z key capture. Strings are normalised to uppercase; no clearing.
+export type KeybindProps = {
+    name: string?,
+    icon: (string | number)?,
+    description: string?,
+    value: (string | EnumItem)?,
+    flag: string?,
+    forgetState: boolean?,
+    callback: ((letter: string) -> ())?,
 }
 
 export type InputProps = {
@@ -684,6 +694,13 @@ export type Dropdown = Moveable & Lockable & {
     SetInfo: (self: Dropdown, text: string?) -> (),
 }
 
+export type Keybind = Moveable & Lockable & {
+    value: string,
+    Set: (self: Keybind, value: (string | EnumItem), silent: boolean?) -> boolean,
+    Capture: (self: Keybind) -> boolean,
+    CancelCapture: (self: Keybind) -> (),
+}
+
 export type Input = Moveable & Lockable & {
     value: string,
     Set: (self: Input, value: string, skipCallback: boolean?) -> (),
@@ -757,6 +774,7 @@ export type Group = Moveable & {
     CreateButton: (self: Group, props: ButtonProps) -> Button,
     CreateToggle: (self: Group, props: ToggleProps) -> Toggle,
     CreateStat: (self: Group, props: StatProps) -> Stat,
+    CreateKeybind: (self: Group, props: KeybindProps) -> Keybind?,
     CreateSlider: (self: Group, props: SliderProps) -> Slider,
         CreateDropdown: (self: Group, props: DropdownProps) -> Dropdown?,
     CreateSection: (self: Group, props: SectionProps) -> Section?,
@@ -793,6 +811,7 @@ export type Tab = {
     CreateToggle: (self: Tab, props: ToggleProps) -> Toggle,
     CreateSlider: (self: Tab, props: SliderProps) -> Slider,
     CreateDropdown: (self: Tab, props: DropdownProps) -> Dropdown,
+    CreateKeybind: (self: Tab, props: KeybindProps) -> Keybind,
     CreateInput: (self: Tab, props: InputProps) -> Input,
     CreateLink: (self: Tab, props: LinkProps) -> Link,
     CreateAboutCard: (self: Tab, props: AboutCardProps) -> AboutCard,
@@ -1181,6 +1200,7 @@ function chrome.buildCollapsedFace(window)
 
     window.collapsedIcon = window:Create("ImageLabel", {
         Name = "CollapsedIcon",
+        Visible = false,
         AnchorPoint = if iconOnly then Vector2.new(0.5, 0.5) else Vector2.new(0, 0.5),
         Position = if iconOnly then UDim2.fromScale(0.5, 0.5) else UDim2.new(0, 16, 0.5, 0),
         Size = UDim2.fromOffset(24, 24),
@@ -1198,7 +1218,7 @@ function chrome.buildCollapsedFace(window)
 
     local collapsedTextFrame = window:Create("Frame", {
         Name = "CollapsedText",
-        Visible = not iconOnly,
+        Visible = false,
         AnchorPoint = Vector2.new(0, 0.5),
         Position = UDim2.new(0, 50, 0.5, 0),
         Size = UDim2.new(1, -60, 0, 32),
@@ -1206,6 +1226,8 @@ function chrome.buildCollapsedFace(window)
         ZIndex = constants.zIndex.restoreContent,
         Parent = window.main,
     })
+
+    window.collapsedTextFrame = collapsedTextFrame
 
     window:Create("UIListLayout", {
         Padding = UDim.new(0, 1),
@@ -1379,6 +1401,11 @@ end
 -- the speed setting like everything else — or applies instantly when no spec
 -- is given (the silent state-sync path).]]
 function chrome.setCollapsedShown(window, shown, spec)
+    -- Visibility is authoritative: never paint the restore face behind an open
+    -- window or during its fold, even if an earlier fade is still running.
+    shown = shown and window.hidden and window._collapsedShown == true
+    window.collapsedIcon.Visible = shown
+    window.collapsedTextFrame.Visible = shown and not window.showIconOnly
     local targets = {
         [window.collapsedIcon] = { ImageTransparency = if shown then 0 else 1 },
     }
@@ -3512,7 +3539,7 @@ local settingsComponent = {}
 -- [[are simply the values this build stamps into the Settings tab's card, so a
 -- [[release updates them here and nowhere else.
 local aboutVersion = "1.4.0"
-local aboutBuild = "2026.09.12"
+local aboutBuild = "2026.09.21"
 local aboutAuthor = "Astra Team"
 
 local function layoutKey(layout)
@@ -3522,131 +3549,16 @@ local function layoutKey(layout)
     return if type(layout) == "table" and layout.mode then layout.mode else "sidebar"
 end
 
--- [[The Settings toggle binding is an ordinary Input field: it shows the bound
--- key's name and reads one back, so the row uses the same typed-value input as
--- every other field in the library. Labels read "None" for a cleared binding
--- and MB2/MB3 for mouse buttons, so window.settings.toggleKeybind stays an
--- EnumItem — which is what Window:_bindKeybind compares against and what the
--- settings file stores.]]
-local mouseLabels = {
-    [Enum.UserInputType.MouseButton2] = "MB2",
-    [Enum.UserInputType.MouseButton3] = "MB3",
-}
-
--- [[The short mouse forms the field accepts. MouseButton1 is absent on purpose:
--- a menu toggle bound to left click would fire on every click in the game.]]
-local mouseNames = {
-    mb2 = Enum.UserInputType.MouseButton2,
-    mousebutton2 = Enum.UserInputType.MouseButton2,
-    rmb = Enum.UserInputType.MouseButton2,
-    mb3 = Enum.UserInputType.MouseButton3,
-    mousebutton3 = Enum.UserInputType.MouseButton3,
-    mmb = Enum.UserInputType.MouseButton3,
-}
-
-local leftMouseNames = { mb1 = true, lmb = true, mousebutton1 = true, leftmouse = true }
-
--- [[Canonical KeyCode names, keyed by what people actually type. A mis-cased
--- Enum lookup is an error in the engine, so the field resolves the usual keys
--- itself ("k", "space", "left shift") and leaves the rest to the lookup below,
--- which keeps uncommon but real names ("KeypadPlus") working.]]
-local keyNames = {
-    esc = "Escape",
-    enter = "Return",
-    ctrl = "LeftControl",
-    control = "LeftControl",
-    shift = "LeftShift",
-    alt = "LeftAlt",
-    del = "Delete",
-    spacebar = "Space",
-    back = "Backspace",
-}
-for _, name in {
-    "Space", "Escape", "Return", "Tab", "Backspace", "Delete", "Insert", "Home", "End",
-    "PageUp", "PageDown", "Up", "Down", "Left", "Right",
-    "LeftShift", "RightShift", "LeftControl", "RightControl", "LeftAlt", "RightAlt",
-    "CapsLock", "Minus", "Equals", "LeftBracket", "RightBracket", "Semicolon", "Quote",
-    "Comma", "Period", "Slash", "BackSlash",
-} do
-    keyNames[name:lower()] = name
-end
-for letter = string.byte("A"), string.byte("Z") do
-    keyNames[string.char(letter):lower()] = string.char(letter)
-end
-for index = 1, 12 do
-    keyNames[("f%d"):format(index)] = ("F%d"):format(index)
-end
-for digit, name in { "Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine" } do
-    keyNames[tostring(digit - 1)] = name
-end
-
-local function keyLabel(item)
-    if typeof(item) ~= "EnumItem" or item == Enum.KeyCode.Unknown then
-        return "None"
-    end
-    return mouseLabels[item] or item.Name
-end
-
--- [[Returns the key the text names, or Enum.KeyCode.Unknown for an empty or
--- "none" field (an unbound menu key). Text that names no key returns nil, with
--- a reason when the refusal needs its own wording.]]
-local function parseKey(text)
-    if type(text) ~= "string" then
-        return nil
-    end
-    local trimmed = (text:gsub("^%s+", ""):gsub("%s+$", ""))
-    local typed = trimmed:lower()
-    if typed == "" or typed == "none" then
-        return Enum.KeyCode.Unknown
-    end
-    -- [[Separators are dropped so "left shift" and "MB-2" read like their enum
-    -- names; whatever is left still has to be a plain word.]]
-    local name = (typed:gsub("[%s_%-]", ""))
-    if name == "" or not name:match("^%w+$") then
-        return nil
-    end
-    if leftMouseNames[name] then
-        return nil, "leftMouse"
-    end
-    local mouse = mouseNames[name]
-    if mouse then
-        return mouse
-    end
-    local canonical = keyNames[name]
-    if canonical then
-        local ok, key = pcall(function()
-            return Enum.KeyCode[canonical]
-        end)
-        if ok and typeof(key) == "EnumItem" then
-            return key
-        end
-    end
-    for _, candidate in { trimmed, trimmed:sub(1, 1):upper() .. trimmed:sub(2), trimmed:upper() } do
-        local keyOk, key = pcall(function()
-            return Enum.KeyCode[candidate]
-        end)
-        if keyOk and typeof(key) == "EnumItem" then
-            return key
-        end
-        local typeOk, inputType = pcall(function()
-            return Enum.UserInputType[candidate]
-        end)
-        if typeOk and mouseLabels[inputType] then
-            return inputType
-        end
-    end
-    return nil
-end
-
 function settingsComponent.buildUI(window)
     if window._settingsUIBuilt then
         return
     end
     window._settingsUIBuilt = true
-    local appearance = window:CreateTab({ name = "Appearance", icon = "palette", customOrder = 1002, forgetState = true, isSettingsTab = true })
-    local persistence = window:CreateTab({ name = "Persistence", icon = "save", customOrder = 1003, forgetState = true, isSettingsTab = true })
-    local about = window:CreateTab({ name = "About", icon = "info", customOrder = 1004, forgetState = true, isSettingsTab = true })
-    for _, tab in { appearance, persistence, about } do
+    local about = window.rfSettings
+    local general = window:CreateTab({ name = "Controls", icon = "keyboard", customOrder = 1002, forgetState = true, isSettingsTab = true })
+    local appearance = window:CreateTab({ name = "Appearance", icon = "palette", customOrder = 1003, forgetState = true, isSettingsTab = true })
+    local persistence = window:CreateTab({ name = "Persistence", icon = "save", customOrder = 1004, forgetState = true, isSettingsTab = true })
+    for _, tab in { general, appearance, persistence } do
         tab._isSettingsTab = true
         table.insert(window._settingsTabs, tab)
     end
@@ -3675,85 +3587,42 @@ function settingsComponent.buildUI(window)
             },
             description = "Astra is a modern and flexible UI library designed to make your experience smoother, cleaner, and more customizable. Built for developers, by developers.",
         })
-        about:CreateCollapsibleGroup({
-            name = "Links",
-            icon = "link",
-            elements = {
-                {
-                    type = "Text",
-                    name = "Repository",
-                    text = "https://github.com/Kira762/astra-version-1",
-                },
-                {
-                    type = "Text",
-                    name = "Usage guide",
-                    text = "https://github.com/Kira762/astra-version-1/blob/main/USAGE.md",
-                },
-            },
+        about:CreateSection({ name = "Resources" })
+        about:CreateLink({
+            name = "Repository", subtitle = "Source, releases and issue reports", icon = "code",
+            link = "https://github.com/Kira762/astra-version-1",
         })
+        about:CreateLink({
+            name = "Usage guide", subtitle = "Learn the elements and public API", icon = "book-open",
+            link = "https://github.com/Kira762/astra-version-1/blob/main/USAGE.md",
+        })
+        about:CreateDivider()
+        about:CreateFooter({ parts = { { text = "Built with" }, { icon = "heart" }, { text = "Astra" } } })
     end
     about._settingsContentBuilder = buildAbout
 
     local function buildGeneral()
-        local keybindField
-
-        -- [[A typed key becomes the menu toggle. The field is refused, with the
-        -- previous binding restored, when the text is not a key.]]
-        local function refuseKeybind(message, previous)
-            window:Notify({ title = locale.resolve("Keybind unavailable"), content = message })
-            keybindField:Set(previous, true)
-            -- [[The field already flashed for the commit that reached here; the
-            -- refusal flash replaces it so the row reads as rejected.]]
-            window:_flashResult(keybindField, false)
-        end
-
-        local function commitKeybind(text)
-            local previous = keyLabel(window.settings.toggleKeybind)
-            local key, reason = parseKey(text)
-            if not key then
-                local message = if reason == "leftMouse"
-                    then string.format(locale.resolve("Left click can't toggle the menu. Kept %s."), previous)
-                    else string.format(locale.resolve("%s is not a key name. Kept %s."), tostring(text), previous)
-                refuseKeybind(message, previous)
-                return
-            end
-            if key == window.settings.toggleKeybind then
-                -- [[Unchanged binding: normalise the field ("k" reads "K", an
-                -- empty field reads "None") without writing settings again.]]
-                keybindField:Set(previous, true)
-                return
-            end
-            window.settings.toggleKeybind = key
-            keybindField:Set(keyLabel(key), true)
-            window:SaveSettings()
-        end
-
-        local generalControls = window.rfSettings:CreateCollapsibleGroup({
-            name = "General Controls",
-            icon = constants.icons.settings,
-            elements = {
-                {
-                    type = "Input",
-                    name = "Toggle Keybind",
-                    icon = "keyboard",
-                    value = keyLabel(window.settings.toggleKeybind),
-                    placeholder = "e.g. K, Space, MB2",
-                    callback = commitKeybind,
-                },
-                {
-                    type = "Toggle",
-                    name = "Unlock cursor while open",
-                    value = window.settings.mouseOverride,
-                    callback = function(value)
-                        window.settings.mouseOverride = value
-                        window:SaveSettings()
-                    end,
-                },
-            },
+        general:CreateSection({ name = "Keyboard & cursor" })
+        general:CreateKeybind({
+            name = "Toggle Keybind",
+            description = "Click the key, then press one letter (A–Z). Escape cancels. A letter is required.",
+            value = window.settings.toggleKeybind,
+            callback = function(letter)
+                window.settings.toggleKeybind = Enum.KeyCode[letter]
+                window:SaveSettings()
+            end,
         })
-        keybindField = generalControls.elements[1]
+        general:CreateToggle({
+            name = "Unlock cursor while open",
+            value = window.settings.mouseOverride,
+            callback = function(value)
+                window.settings.mouseOverride = value
+                window:SaveSettings()
+            end,
+        })
+        general:CreateDivider({ text = "Window & capsule" })
 
-        window.rfSettings:CreateCollapsibleGroup({
+        general:CreateCollapsibleGroup({
             name = "Window Behavior",
             icon = "layout",
             elements = {
@@ -3801,44 +3670,8 @@ function settingsComponent.buildUI(window)
             },
         })
 
-        local motionLabels = { relaxed = "Relaxed", normal = "Normal", snappy = "Snappy", instant = "Instant" }
-        local motionOptions = { "Relaxed", "Normal", "Snappy", "Instant" }
-        local motionProfiles = { Relaxed = "relaxed", Normal = "normal", Snappy = "snappy", Instant = "instant" }
-        local currentMotion = motionLabels[window.settings.motionSpeed] or motionLabels.normal
-
-        window.rfSettings:CreateCollapsibleGroup({
-            name = "Performance & Motion",
-            icon = "gauge",
-            elements = {
-                {
-                    type = "Toggle",
-                    name = "Haptics",
-                    value = window.settings.haptics,
-                    callback = function(value)
-                        window.settings.haptics = value
-                        haptic.setEnabled(value)
-                        window:SaveSettings()
-                    end,
-                },
-                {
-                    type = "Dropdown",
-                    name = "Animation speed",
-                    options = motionOptions,
-                    value = currentMotion,
-                    callback = function(value)
-                        local profile = motionProfiles[value]
-                        if not profile or profile == window.settings.motionSpeed then
-                            return
-                        end
-                        window.settings.motionSpeed = profile
-                        window:_applyMotionSetting()
-                        window:SaveSettings()
-                    end,
-                },
-            },
-        })
     end
-    window.rfSettings._settingsContentBuilder = buildGeneral
+    general._settingsContentBuilder = buildGeneral
 
     local function buildAppearance()
         local themeOrder = { "default", "amethyst", "cobalt", "crimson", "ember", "emerald", "frost", "gold", "onyx", "rose" }
@@ -4012,70 +3845,100 @@ function settingsComponent.buildUI(window)
         local layoutDropdown
         local currentLayout = window.settings.layoutMode or window.layout.mode
 
-        local layoutGroup = appearance:CreateCollapsibleGroup({
-            name = "Layout",
-            icon = "panel-left",
+        appearance:CreateSection({ name = "Layout" })
+        layoutDropdown = appearance:CreateDropdown({
+            name = "Bar Layout",
+            options = { layoutMap.sidebar, layoutMap.collapsedSidebar },
+            value = layoutMap[currentLayout],
+            callback = function(choice)
+                local requested
+                for key, label in layoutMap do
+                    if choice == label then
+                        requested = key
+                        break
+                    end
+                end
+                if not requested then
+                    return
+                end
+                local active = layoutKey(window.layout)
+                if requested == active then
+                    window:Notify({ title = "Bar layout", content = "The " .. choice .. " layout is already active." })
+                    if layoutDropdown then
+                        layoutDropdown:Set(layoutMap[active], true)
+                    end
+                    return
+                end
+                if layoutDropdown then
+                    layoutDropdown:Set(layoutMap[active], true)
+                end
+                window:Popup({
+                    title = "Apply bar layout?",
+                    content = "Are you sure you want to change the layout to " .. choice .. "?",
+                    options = {
+                        { text = "Cancel" },
+                        {
+                            text = "Apply",
+                            style = "primary",
+                            callback = function()
+                                if window:_setLayoutMode(requested) then
+                                    currentLayout = requested
+                                    window.settings.layoutMode = requested
+                                    window:SaveSettings()
+                                    if layoutDropdown then
+                                        layoutDropdown:Set(layoutMap[requested], true)
+                                    end
+                                    window:Notify({ title = "Bar layout changed", content = "Switched to the " .. layoutMap[requested] .. " layout." })
+                                else
+                                    currentLayout = layoutKey(window.layout)
+                                    if layoutDropdown then
+                                        layoutDropdown:Set(layoutMap[currentLayout], true)
+                                    end
+                                    window:Notify({ title = "Bar layout", content = "The selected bar layout could not be applied right now." })
+                                end
+                            end,
+                        },
+                    },
+                })
+            end,
+        })
+
+        local motionLabels = { relaxed = "Relaxed", normal = "Normal", snappy = "Snappy", instant = "Instant" }
+        local motionOptions = { "Relaxed", "Normal", "Snappy", "Instant" }
+        local motionProfiles = { Relaxed = "relaxed", Normal = "normal", Snappy = "snappy", Instant = "instant" }
+        local currentMotion = motionLabels[window.settings.motionSpeed] or motionLabels.normal
+
+        appearance:CreateCollapsibleGroup({
+            name = "Motion & Feedback",
+            icon = "gauge",
             elements = {
                 {
+                    type = "Toggle",
+                    name = "Haptics",
+                    value = window.settings.haptics,
+                    callback = function(value)
+                        window.settings.haptics = value
+                        haptic.setEnabled(value)
+                        window:SaveSettings()
+                    end,
+                },
+                {
                     type = "Dropdown",
-                    name = "Bar Layout",
-                    options = { layoutMap.sidebar, layoutMap.collapsedSidebar },
-                    value = layoutMap[currentLayout],
-                    callback = function(choice)
-                        local requested
-                        for key, label in layoutMap do
-                            if choice == label then
-                                requested = key
-                                break
-                            end
-                        end
-                        if not requested then
+                    name = "Animation speed",
+                    options = motionOptions,
+                    value = currentMotion,
+                    callback = function(value)
+                        local profile = motionProfiles[value]
+                        if not profile or profile == window.settings.motionSpeed then
                             return
                         end
-                        local active = layoutKey(window.layout)
-                        if requested == active then
-                            window:Notify({ title = "Bar layout", content = "The " .. choice .. " layout is already active." })
-                            if layoutDropdown then
-                                layoutDropdown:Set(layoutMap[active], true)
-                            end
-                            return
-                        end
-                        if layoutDropdown then
-                            layoutDropdown:Set(layoutMap[active], true)
-                        end
-                        window:Popup({
-                            title = "Apply bar layout?",
-                            content = "Are you sure you want to change the layout to " .. choice .. "?",
-                            options = {
-                                { text = "Cancel" },
-                                {
-                                    text = "Apply",
-                                    style = "primary",
-                                    callback = function()
-                                        if window:_setLayoutMode(requested) then
-                                            currentLayout = requested
-                                            window.settings.layoutMode = requested
-                                            window:SaveSettings()
-                                            if layoutDropdown then
-                                                layoutDropdown:Set(layoutMap[requested], true)
-                                            end
-                                            window:Notify({ title = "Bar layout changed", content = "Switched to the " .. layoutMap[requested] .. " layout." })
-                                        else
-                                            currentLayout = layoutKey(window.layout)
-                                            if layoutDropdown then
-                                                layoutDropdown:Set(layoutMap[currentLayout], true)
-                                            end
-                                            window:Notify({ title = "Bar layout", content = "The selected bar layout could not be applied right now." })
-                                        end
-                                    end,
-                                },
-                            },
-                        })
+                        window.settings.motionSpeed = profile
+                        window:_applyMotionSetting()
+                        window:SaveSettings()
                     end,
                 },
             },
         })
-        layoutDropdown = layoutGroup.elements[1]
 
     end
     appearance._settingsContentBuilder = buildAppearance
@@ -5401,6 +5264,7 @@ function Window:_setElementLocked(element, locked, message)
         return
     end
     element.locked = locked
+    if locked and element.CancelCapture then element:CancelCapture() end
 
     if not element.lockScrim then
         self:_buildLockScrim(element)
@@ -5628,9 +5492,6 @@ function Window:_revealCommon(element, animate)
     if element.iconLabel then
         self:_reveal(element.iconLabel, { ImageTransparency = 0 }, animate)
     end
-    if element.tapIcon then
-        self:_reveal(element.tapIcon, { ImageTransparency = 0.5 }, animate)
-    end
     if element.descriptionLabel then
         self:_reveal(element.descriptionLabel, { TextTransparency = 0.45 }, animate)
     end
@@ -5642,9 +5503,6 @@ function Window:_hideCommon(element, animate)
     self:_reveal(element.main, { BackgroundTransparency = 1 }, animate)
     if element.iconLabel then
         self:_reveal(element.iconLabel, { ImageTransparency = 1 }, animate)
-    end
-    if element.tapIcon then
-        self:_reveal(element.tapIcon, { ImageTransparency = 1 }, animate)
     end
     if element.descriptionLabel then
         self:_reveal(element.descriptionLabel, { TextTransparency = 1 }, animate)
@@ -5668,8 +5526,20 @@ local dragHandleGap = shared.dragHandleGap
 local Window = require(script.Parent.class)
 
 function Window:_bindKeybind()
+    self:Connect(state.userInputService.WindowFocusReleased, function()
+        if self._keybindCapture then self._keybindCapture:CancelCapture() end
+    end)
     self:Connect(state.userInputService.InputBegan, function(input, gameProcessed)
-        if gameProcessed then
+        -- Route capture before the toggle so rebinding the current key cannot
+        -- hide the window. Only one element owns capture at a time.
+        local capture = self._keybindCapture
+        if capture then
+            if not gameProcessed and not state.userInputService:GetFocusedTextBox() then
+                capture:_captureInput(input)
+            end
+            return
+        end
+        if gameProcessed or state.userInputService:GetFocusedTextBox() then
             return
         end
         if input.KeyCode == self.settings.toggleKeybind or input.UserInputType == self.settings.toggleKeybind then
@@ -6724,8 +6594,8 @@ function Window.new(props)
     self:_constructionCheckpoint(true)
 
     self.rfSettings = self:CreateTab({
-        name = "General",
-        icon = "sliders-horizontal",
+        name = "Overview",
+        icon = "info",
         customOrder = 1001,
         forgetState = true,
         isSettingsTab = true,
@@ -7377,6 +7247,7 @@ function Window:_destroyWhenConstructionQuiet()
 end
 
 function Window:Unload()
+    if self._keybindCapture then self._keybindCapture:CancelCapture() end
     if self.unloaded then
         -- [[A repeat unload (hosts often end with one) has only the detached
         -- [[graveyard of a superseded script's tail construction left to
@@ -7877,9 +7748,11 @@ function Window:Hide()
         search.close(self, { showTabs = false, jumpTo = self.selectedTab and self.selectedTab.tabPage })
     end
 
+    if self._keybindCapture then self._keybindCapture:CancelCapture() end
     self.animating = true
     self._revealing = true
     self.hidden = true
+    chrome.setCollapsedShown(self, false)
     self.collapsedInteract.Visible = false
                 if self.minimised then
         self.minimised = false
@@ -7951,7 +7824,8 @@ function Window:Hide()
         end
         collapsed = true
 
-                        self._collapsedShown = true
+        self._collapsedShown = true
+        chrome.setCollapsedShown(self, true, collapseShowTween)
         self.collapsedInteract.Visible = true
         self.animating = false
         self._revealing = false
@@ -7966,7 +7840,6 @@ function Window:Hide()
 
     self.topbar.Visible = true
     self:_setContentVisible(false)
-    chrome.setCollapsedShown(self, true, collapseShowTween)
 end
 
 function Window:ToggleHide()
@@ -7989,6 +7862,7 @@ function Window:ToggleMinimise()
         search.close(self, { showTabs = true })
     end
 
+    if self._keybindCapture then self._keybindCapture:CancelCapture() end
     self.animating = true
     -- [[Either direction moves one surface between two shapes, and the handle
     -- [[is not one of them: it fades out with the shell and is handed back by
@@ -8082,7 +7956,8 @@ function Window:ToggleMinimise()
             self:_setTabSectionsVisible(false)
         end)
 
-        self:_fadeSurfaces(false, surfaceTween)	chrome.setCollapsedShown(self, true, surfaceTween)
+        self:_fadeSurfaces(false, surfaceTween)
+        chrome.setCollapsedShown(self, false)
         motion.tween(self.main, { Size = UDim2.fromOffset(self.size.X.Offset, self.layout.topbarHeight) }, expandTween)
         -- [[Minimised bar reads as a theme-aware capsule (PillCornerRadius).]]
         motion.tween(self.windowCorner, { CornerRadius = self.theme.PillCornerRadius or UDim.new(0, 0) }, expandTween)
@@ -8349,6 +8224,7 @@ function Window:Show()
         if self.animating or self.unloaded or not self.hidden then
         return
     end
+    if self._keybindCapture then self._keybindCapture:CancelCapture() end
     self.animating = true
     self._revealing = true
     -- [[The handle waits while the shell is in the air: it is handed back by
@@ -9618,31 +9494,10 @@ local icon = require(constants.locale)
 local callback = require(constants.HapticEngine)
 local baseCard = require(script.Parent.baseCard)
 local description = require(script.Parent.description)
--- [[The click choreography rides the motion service's specs: the tap glyph
--- dips on `fast` and springs back on `settle` (a small overshoot that reads
--- as a physical press), the card nudges in on `snappy` and lands back on
--- `settle`, and the stroke follows hover on `snappy`.]]
+-- [[The card and stroke provide press feedback without a trailing glyph.]]
 local motion = require(constants.motion)
 local element = "snappy"
-local tapPress = "fast"
 local tapRelease = "settle"
-
--- [[Built-in "tap" glyph for the card's right edge. Uses `mouse-pointer-click`
--- [[(lucide) as the trailing affordance, revealed at 50% transparency.]]
-local tapCandidates = { "mouse-pointer-click" }
-
-local function resolveTapIcon(window, override)
-    if override ~= nil and override ~= true then
-        return window:ResolveIcon(override)
-    end
-    for _, candidate in ipairs(tapCandidates) do
-        local resolved = window:ResolveIcon(candidate)
-        if resolved ~= candidate then
-            return resolved
-        end
-    end
-    return nil
-end
 
 function state.new(tab, frame)
     frame = if typeof(frame) == "table" then frame else {}
@@ -9656,17 +9511,6 @@ function state.new(tab, frame)
         compact = tab.compact or false,
         callback = frame.callback or frame.Callback or function() end,
     }, state)
-
-    -- [[The trailing tap affordance is built-in: present unless the caller
-    -- [[opts out with `tapIcon = false`, and any icon request (name, pack
-    -- [[name, or asset id) replaces the glyph.]]
-    local tapValue = frame.tapIcon
-    if tapValue == nil then
-        tapValue = frame.TapIcon
-    end
-    if tapValue ~= false then
-        self.tapImage = resolveTapIcon(self.window, tapValue)
-    end
 
     if self.compact then
         self:_buildCompact()
@@ -9688,10 +9532,6 @@ function state:_buildFull()
         titleText = icon.t(self.name),
     })
 
-    -- [[The tap glyph sits in the card's right gutter, centred in the base
-    -- [[region exactly like the title row, and is created after `interact`
-    -- [[so it paints above the (invisible) click surface.]]
-
     self.interact = self.window:Create("TextButton", {
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 1),
@@ -9703,34 +9543,10 @@ function state:_buildFull()
         Parent = self.main,
     })
 
-    if self.tapImage then
-        local centerScale, centerOffset = description.center(self, 43)
-        self.tapIcon = self.window:Create("ImageLabel", {
-            Image = self.tapImage,
-            Size = UDim2.fromOffset(16, 16),
-            Position = UDim2.new(1, -15, centerScale, centerOffset),
-            AnchorPoint = Vector2.new(1, 0.5),
-            BorderSizePixel = 0,
-            BackgroundTransparency = 1,
-
-            ImageTransparency = 1,
-            Parent = self.main,
-        }, { ImageColor3 = "ContentColor" })
-
-        self.tapScale = self.window:Create("UIScale", {
-            Scale = 1,
-
-            Parent = self.tapIcon,
-        })
-    end
-
     self.window:_wireElementHover(self)
 
     self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
         callback.click()
-        if self.tapScale then
-            Button.tweenService:Create(self.tapScale, motion.spec(tapPress), { Scale = 0.78 }):Play()
-        end
         Button.tweenService
             :Create(
                 self.stroke,
@@ -9754,9 +9570,6 @@ function state:_buildFull()
             return
         end
 
-        if self.tapScale then
-            Button.tweenService:Create(self.tapScale, motion.spec(tapRelease), { Scale = 1 }):Play()
-        end
         Button.tweenService
             :Create(
                 self.main,
@@ -9830,35 +9643,10 @@ function state:_buildCompact()
         Parent = self.title,
     })
 
-    -- [[Trailing item of the row: the same tap glyph as the full card, at the
-    -- [[row's right edge. `interact` owns the row, so the icon is inside the
-    -- [[click surface and tapping it is tapping the button.]]
-    if self.tapImage then
-        self.tapIcon = window:Create("ImageLabel", {
-            Image = self.tapImage,
-            Size = UDim2.fromOffset(16, 16),
-            BorderSizePixel = 0,
-            BackgroundTransparency = 1,
-            LayoutOrder = 3,
-
-            ImageTransparency = 1,
-            Parent = self.interact,
-        }, { ImageColor3 = "ContentColor" })
-
-        self.tapScale = window:Create("UIScale", {
-            Scale = 1,
-
-            Parent = self.tapIcon,
-        })
-    end
-
     self.window:_wireElementHover(self)
 
     self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
         callback.click()
-        if self.tapScale then
-            Button.tweenService:Create(self.tapScale, motion.spec(tapPress), { Scale = 0.78 }):Play()
-        end
         Button.tweenService
             :Create(
                 self.stroke,
@@ -9875,9 +9663,6 @@ function state:_buildCompact()
             return
         end
 
-        if self.tapScale then
-            Button.tweenService:Create(self.tapScale, motion.spec(tapRelease), { Scale = 1 }):Play()
-        end
         Button.tweenService
             :Create(
                 self.stroke,
@@ -9899,9 +9684,6 @@ end
 function state:_minWidth()
     local w = 32
     if self.icon then
-        w += 22
-    end
-    if self.tapIcon then
         w += 22
     end
     w += tab.textWidth(self.window.theme.Font, 16, icon.resolve(self.name))
@@ -10360,6 +10142,7 @@ local constructors = {
     Switch = function(parent, props) return require(script.Parent.toggle).new(parent, props) end,
     Slider = function(parent, props) return require(script.Parent.slider).new(parent, props) end,
     Dropdown = function(parent, props) return require(script.Parent.dropdown).new(parent, props) end,
+    Keybind = function(parent, props) return require(script.Parent.keybind).new(parent, props) end,
     Input = function(parent, props) return require(script.Parent.input).new(parent, props) end,
     Link = function(parent, props) return require(script.Parent.link).new(parent, props) end,
     Stat = function(parent, props) return require(script.Parent.stat).new(parent, props) end,
@@ -10684,6 +10467,7 @@ function Collapsible:_setExpanded(expanded, animate)
         visit(self.elements, function(child)
             if child.__type == "Dropdown" and child._isOpen then child:_close() end
             if child.recording then child:_stopRecording() end
+            if child.CancelCapture then child:CancelCapture() end
             -- [[Same rule as the open dropdown: a transient state that belongs
             -- [[to a visible card cannot survive the body being put away, so a
             -- [[Link that was confirming its copy comes back on the copy mark
@@ -12993,6 +12777,10 @@ end
 function state:CreateSlider(a21)
     return self:_add("slider", a21)
 end
+function state:CreateKeybind(props)
+    return self:_add("keybind", props)
+end
+
 function state:CreateDropdown(a22)
     return self:_add("dropdown", a22)
 end
@@ -13758,6 +13546,158 @@ return Isolated
 
 end)() end,
     [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
+-- [[A key-capture control, never a free-form TextBox. Values are required A–Z
+-- letters; callbacks and config flags use their uppercase string spelling.]]
+local utilities = script.Parent.Parent.utilities
+local baseCard = require(script.Parent.baseCard)
+local description = require(script.Parent.description)
+local locale = require(utilities.locale)
+local keys = require(utilities.keybind)
+local haptic = require(utilities.HapticEngine)
+local moveable = require(utilities.moveable)
+local lockable = require(utilities.lockable)
+
+local Keybind = {}
+Keybind.__index = Keybind
+Keybind.__type = "Keybind"
+
+function Keybind.new(tab, props)
+    props = if type(props) == "table" then props else {}
+    local self = setmetatable({
+        tab = tab,
+        window = tab.window,
+        name = props.name or props.Name or "Keybind",
+        icon = tab.window:ResolveIcon(props.icon or props.Icon or "keyboard"),
+        description = props.description or props.Description,
+        value = keys.letter(props.value or props.Value) or "K",
+        callback = props.callback or props.Callback or function() end,
+        forgetState = props.forgetState or props.ForgetState or tab.forgetState,
+    }, Keybind)
+    self.flag = props.flag or props.Flag or (not self.forgetState and tab.deriveFlagFromName(self.name) or nil)
+    self.window:_registerControl(self)
+    baseCard.buildFull(self, { height = 43, rightPadding = 128, titleText = locale.t(self.name) })
+    self.keyButton = self.window:Create("TextButton", {
+        Name = "Keycap",
+        Text = self.value,
+        TextSize = 15,
+        TextTransparency = 1,
+        AutoButtonColor = false,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Size = UDim2.fromOffset(94, 29),
+        Position = UDim2.new(1, -15, description.center(self, 43)),
+        AnchorPoint = Vector2.new(1, 0.5),
+        Parent = self.main,
+    }, { BackgroundColor3 = "FieldBackground", TextColor3 = "ContentColor", FontFace = "Font" })
+    self.window:Create("UICorner", { Parent = self.keyButton }, { CornerRadius = "ElementCornerRadius" })
+    self.window:ConnectFor(self, self.keyButton.MouseButton1Click, function()
+        if self.capturing then
+            self:CancelCapture()
+        else
+            self:Capture()
+        end
+    end)
+    self.window:_wireElementHover(self)
+    return self
+end
+
+function Keybind:_canCapture()
+    if not self._shown or self.locked or self.window.unloaded or self.window.minimised
+        or self.window._searching or not self.window:_interactive() or not self.main.Parent
+    then
+        return false
+    end
+    local owner = self.tab
+    while owner do
+        if owner.locked or (owner.__type == "CollapsibleGroup" and not owner._expanded) then
+            return false
+        end
+        if owner.__type == "Tab" then
+            return self.window.selectedTab == owner
+        end
+        owner = owner.tab
+    end
+    return false
+end
+
+function Keybind:Capture()
+    if not self:_canCapture() then
+        return false
+    end
+    if self.window._keybindCapture then
+        self.window._keybindCapture:CancelCapture()
+    end
+    self.window._keybindCapture = self
+    self.capturing = true
+    self.keyButton.Text = "Press A–Z"
+    return true
+end
+
+function Keybind:CancelCapture()
+    if self.window._keybindCapture == self then
+        self.window._keybindCapture = nil
+    end
+    self.capturing = false
+    self.keyButton.Text = self.value
+end
+
+function Keybind:_captureInput(input)
+    if not self:_canCapture() then
+        self:CancelCapture()
+        return
+    end
+    if input.KeyCode == Enum.KeyCode.Escape then
+        self:CancelCapture()
+        return
+    end
+    if input.UserInputType ~= Enum.UserInputType.Keyboard then
+        return
+    end
+    local letter = keys.letter(input.KeyCode)
+    if not letter then
+        self.window:_flashResult(self, false)
+        return
+    end
+    self:Set(letter)
+end
+
+function Keybind:Set(value, silent)
+    local letter = keys.letter(value)
+    if not letter then
+        return false
+    end
+    local changed = letter ~= self.value
+    self.value = letter
+    self:CancelCapture()
+    if changed and not silent then
+        haptic.click()
+        self.window:_runGuarded(self, self.callback, letter)
+        self.window:_persist(self)
+        self.window:_flashResult(self, true)
+    end
+    return true
+end
+
+function Keybind:_setShown(shown, animate)
+    self._shown = shown
+    if shown then
+        self.window:_revealCommon(self, animate)
+    else
+        self:CancelCapture()
+        self.window:_hideCommon(self, animate)
+    end
+    self.window:_reveal(self.keyButton, {
+        BackgroundTransparency = if shown then self.window.theme.FieldTransparency else 1,
+        TextTransparency = if shown then 0 else 1,
+    }, animate)
+end
+
+moveable(Keybind)
+lockable(Keybind)
+return Keybind
+
+end)() end,
+    [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
 -- [[CreateLink: a card that carries a URL and copies it.
 --
 -- [[The card shows a leading icon, a title and a subtitle. The `link` itself is
@@ -14380,7 +14320,7 @@ lockable(state)
 return state
 
 end)() end,
-    [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
+    [47] = function()local wax,script,require=ImportGlobals(47)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Section"
@@ -14466,7 +14406,7 @@ constants(state)
 return state
 
 end)() end,
-    [47] = function()local wax,script,require=ImportGlobals(47)local ImportGlobals return (function(...)
+    [48] = function()local wax,script,require=ImportGlobals(48)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Slider"
@@ -15067,7 +15007,7 @@ end
 return state
 
 end)() end,
-    [48] = function()local wax,script,require=ImportGlobals(48)local ImportGlobals return (function(...)
+    [49] = function()local wax,script,require=ImportGlobals(49)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Statistic"
@@ -15916,7 +15856,7 @@ name(state)
 return state
 
 end)() end,
-    [49] = function()local wax,script,require=ImportGlobals(49)local ImportGlobals return (function(...)
+    [50] = function()local wax,script,require=ImportGlobals(50)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Tab"
@@ -15934,6 +15874,7 @@ local flagNames = require(script.Parent.Parent.functions.flagNames)
 
 local function customOrder(window, forgetState)
     for _, element in forgetState do
+        if element.CancelCapture then element:CancelCapture() end
         if element.__type == "Group" or element.__type == "CollapsibleGroup" or element.__type == "Isolated" then
             customOrder(window, element.elements)
         else
@@ -16147,6 +16088,9 @@ function state:Select(a24)
         name.close(self.window, { showTabs = true, jumpTo = false })
     end
 
+    if self.window.selectedTab ~= self and self.window._keybindCapture then
+        self.window._keybindCapture:CancelCapture()
+    end
     self.window.selectedTab = self
     if self.window._setSettingsMode then
         self.window:_setSettingsMode(self._isSettingsTab == true)
@@ -16323,6 +16267,10 @@ function state:CreateDropdown(a37)
     return self:_register(require(script.Parent.dropdown).new(self, a37))
 end
 
+function state:CreateKeybind(props)
+    return self:_register(require(script.Parent.keybind).new(self, props))
+end
+
 function state:CreateInput(a38)
     return self:_register(require(script.Parent.input).new(self, a38))
 end
@@ -16415,7 +16363,7 @@ end
 return state
 
 end)() end,
-    [50] = function()local wax,script,require=ImportGlobals(50)local ImportGlobals return (function(...)
+    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "TabSection"
@@ -16545,7 +16493,7 @@ end
 return state
 
 end)() end,
-    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
+    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Text"
@@ -16697,7 +16645,7 @@ constants(state)
 return state
 
 end)() end,
-    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
+    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Toggle"
@@ -17181,7 +17129,7 @@ end
 return state
 
 end)() end,
-    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
+    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
 
 local managerModule = require(script.manager)
 local registryModule = require(script.registry)
@@ -17206,7 +17154,7 @@ end
 return settings
 
 end)() end,
-    [54] = function()local wax,script,require=ImportGlobals(54)local ImportGlobals return (function(...)
+    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
 
 local appearance = {}
 
@@ -17226,13 +17174,15 @@ end
 return appearance
 
 end)() end,
-    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
+    [56] = function()local wax,script,require=ImportGlobals(56)local ImportGlobals return (function(...)
+local keybind = require(script.Parent.Parent.utilities.keybind)
 
 local behavior = {}
 
 function behavior.validate(key: string, value: any): (boolean, any)
     if key == "toggleKeybind" then
-        return typeof(value) == "EnumItem", value
+        local letter = keybind.letter(value)
+        return letter ~= nil, if letter then Enum.KeyCode[letter] else nil
     end
     if key == "mouseOverride" or key == "antiWindowDuplicate" or key == "autoSaveConfig" or key == "autoLoadConfig" then
         return type(value) == "boolean", value == true
@@ -17243,7 +17193,8 @@ end
 return behavior
 
 end)() end,
-    [56] = function()local wax,script,require=ImportGlobals(56)local ImportGlobals return (function(...)
+    [57] = function()local wax,script,require=ImportGlobals(57)local ImportGlobals return (function(...)
+local keybind = require(script.Parent.Parent.utilities.keybind)
 
 local defaults = {}
 
@@ -17266,13 +17217,15 @@ function defaults.clone(overrides: { [string]: any }?): { [string]: any }
             result[key] = value
         end
     end
+    local letter = keybind.letter(result.toggleKeybind)
+    result.toggleKeybind = if letter then Enum.KeyCode[letter] else Enum.KeyCode.K
     return result
 end
 
 return defaults
 
 end)() end,
-    [57] = function()local wax,script,require=ImportGlobals(57)local ImportGlobals return (function(...)
+    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
 
 local registry = require(script.Parent.registry)
 local defaults = require(script.Parent.defaults)
@@ -17394,7 +17347,7 @@ end
 return SettingsManager
 
 end)() end,
-    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
+    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
 
 local motion = require(script.Parent.Parent.utilities.motion)
 
@@ -17418,7 +17371,7 @@ end
 return performance
 
 end)() end,
-    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
+    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
 
 local settingsPersistence = require(script.Parent.Parent.utilities.persistenceSettings)
 local settingsCache = require(script.Parent.Parent.cache.persistenceCache)
@@ -17467,7 +17420,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
+    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
 
 local registry = {}
 
@@ -17491,7 +17444,7 @@ registry.definitions = {
         key = "toggleKeybind",
         kind = "keybind",
         domain = "behavior",
-        description = "Keybind used to show/hide the window.",
+        description = "Required single letter (A–Z) used to show/hide the window.",
     },
     mouseOverride = {
         key = "mouseOverride",
@@ -17553,7 +17506,7 @@ end
 return registry
 
 end)() end,
-    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
+    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
 
 local imageCache = require(script.moduleCache)
 
@@ -17564,7 +17517,7 @@ local moduleCache = {
 return moduleCache
 
 end)() end,
-    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
+    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
 local filesystem = require(script.Parent.Parent.utilities.filesystem)
 local path = require(script.Parent.Parent.utilities.path)
 local variables = require(script.Parent.Parent.core.state)
@@ -17869,7 +17822,7 @@ end
 return imageCache
 
 end)() end,
-    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
+    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
 
 local moduleCache = {}
 
@@ -17900,7 +17853,7 @@ end
 return moduleCache
 
 end)() end,
-    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
+    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
 
 local persistenceCache = {}
 
@@ -17925,7 +17878,7 @@ end
 return persistenceCache
 
 end)() end,
-    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
+    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
 
 local textMetrics = require(script.textMetrics)
 local colors = require(script.colors)
@@ -17943,7 +17896,7 @@ functions.contrastText = colors.contrastText
 return functions
 
 end)() end,
-    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
+    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
 local colors = {}
 
 function colors.contrastColor(color: Color3): Color3
@@ -17963,7 +17916,7 @@ end
 return colors
 
 end)() end,
-    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
+    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
 local flagNames = {}
 
 local offsetBasis = 2166136261
@@ -17995,7 +17948,7 @@ end
 return flagNames
 
 end)() end,
-    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
+    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
 local state = require(script.Parent.Parent.core.state)
 local textService = state.textService
 
@@ -18102,7 +18055,7 @@ end
 return textMetrics
 
 end)() end,
-    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
+    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local Sidebar = {}
@@ -18168,7 +18121,7 @@ end
 return Sidebar
 
 end)() end,
-    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
+    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local SidebarCollapsed = {}
@@ -18233,7 +18186,7 @@ end
 return SidebarCollapsed
 
 end)() end,
-    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
+    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
 
 local image = require(script.image)
 
@@ -18248,7 +18201,7 @@ local windowIcons = {
 return windowIcons
 
 end)() end,
-    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
+    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
 local imageCache = require(script.Parent.Parent.cache.imageCache)
 local variables = require(script.Parent.Parent.core.state)
 
@@ -18413,7 +18366,7 @@ end
 return image
 
 end)() end,
-    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
+    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
 -- Single source of truth for Astra's window and Settings UI icons.
 -- Names are intentionally lowercase and case-sensitive. Custom assets resolve
 -- from the executor's custom_asset/ directory.
@@ -18430,7 +18383,7 @@ return {
 }
 
 end)() end,
-    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
+    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
 
 local windowIcons = {}
 
@@ -18522,7 +18475,7 @@ end
 return windowIcons
 
 end)() end,
-    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
+    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
 -- [[Icon resolver service.]]
 -- [[]]
 -- [[Public API is compatible with the previous single-module catalog:]]
@@ -19027,7 +18980,7 @@ end
 return icons
 
 end)() end,
-    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
+    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
 -- [[feather icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -19071,7 +19024,7 @@ x-square x youtube zap-off zap zoom-in zoom-out
 )
 
 end)() end,
-    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
+    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
 -- [[heroicons icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -19151,7 +19104,7 @@ wrench-screwdriver wrench-screwdriver_solid wrench wrench_solid x-circle x-circl
 )
 
 end)() end,
-    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
+    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
 -- [[lucide icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -19344,7 +19297,7 @@ zodiac-sagittarius zodiac-scorpio zodiac-taurus zodiac-virgo zoom-in zoom-out
 )
 
 end)() end,
-    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
+    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
 -- [[material icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -19473,7 +19426,7 @@ zoom_in zoom_out zoom_out_map
 )
 
 end)() end,
-    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
+    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
 -- [[Lazy icon-pack builder.
 -- [[]]
 -- [[A pack is a compact newline-separated list of kebab names plus the shared
@@ -19568,7 +19521,7 @@ end
 return PackBuilder
 
 end)() end,
-    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
+    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
 -- [[phosphor icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -19735,7 +19688,7 @@ yin-yang youtube-logo
 )
 
 end)() end,
-    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
+    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
 -- [[remix icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -20073,7 +20026,7 @@ zhihu-line zhipu-ai-fill zhipu-ai-line zoom-in-fill zoom-in-line zoom-out-fill z
 )
 
 end)() end,
-    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
+    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
 -- [[tabler icon pack.]]
 -- [[Compact catalog: names only. PNG URLs are derived on demand by]]
 -- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
@@ -20601,7 +20554,7 @@ zoom-out-area zoom-out zoom-pan zoom-question zoom-replace zoom-reset zoom-scan 
 )
 
 end)() end,
-    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
+    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
 -- [[Theme resolution engine (themes/init.luau).]]
 -- [[]]
 -- [[Extracted verbatim from components/window.luau so the window no longer owns]]
@@ -20707,7 +20660,7 @@ end
 return themes
 
 end)() end,
-    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
+    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(16, 13, 24),
@@ -20773,7 +20726,7 @@ return {
 }
 
 end)() end,
-    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
+    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(11, 16, 25),
@@ -20839,7 +20792,7 @@ return {
 }
 
 end)() end,
-    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
+    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
 local crimson = require(script.Parent.Parent.core.state)
 
 return {
@@ -20914,7 +20867,7 @@ return {
 }
 
 end)() end,
-    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
+    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
 local default = require(script.Parent.Parent.core.state)
 
 -- [[Astra's default palette. The shared keys below are the historical set
@@ -21045,7 +20998,7 @@ return {
 }
 
 end)() end,
-    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
+    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(22, 18, 16),
@@ -21111,7 +21064,7 @@ return {
 }
 
 end)() end,
-    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
+    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
 local emerald = require(script.Parent.Parent.core.state)
 
 return {
@@ -21186,7 +21139,7 @@ return {
 }
 
 end)() end,
-    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
+    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
 local frost = require(script.Parent.Parent.core.state)
 
 return {
@@ -21261,7 +21214,7 @@ return {
 }
 
 end)() end,
-    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
+    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
 local gold = require(script.Parent.Parent.core.state)
 
 return {
@@ -21336,7 +21289,7 @@ return {
 }
 
 end)() end,
-    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
+    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
 local onyx = require(script.Parent.Parent.core.state)
 
 return {
@@ -21411,7 +21364,7 @@ return {
 }
 
 end)() end,
-    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
+    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
 return {
     -- [[Semantic palette]]
     Background = Color3.fromRGB(23, 15, 19),
@@ -21477,7 +21430,7 @@ return {
 }
 
 end)() end,
-    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
+    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 
 local hapticService = {}
@@ -21575,7 +21528,7 @@ end
 return hapticService
 
 end)() end,
-    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
+    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
 local networkUtil = require(script.Parent.network)
 local logger = require(script.Parent.log)
 
@@ -21753,7 +21706,7 @@ end
 return assetResolver
 
 end)() end,
-    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
+    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
 local iconRegistry = require(script.Parent.Parent.images.windowIcons)
 local uiIcons = require(script.Parent.Parent.images.uiIcons)
 local constants = {}
@@ -21803,7 +21756,7 @@ constants.displayOrder = {
 return constants
 
 end)() end,
-    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
+    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
 local enums = {}
 
 function enums.itemFromValue(enumType, value)
@@ -21833,7 +21786,7 @@ end
 return enums
 
 end)() end,
-    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
+    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
 local serviceProvider = require(script.Parent.services)
 local filesystem = {}
 
@@ -22084,7 +22037,7 @@ end
 return filesystem
 
 end)() end,
-    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
+    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 local pathUtil = require(script.Parent.path)
 
@@ -22133,7 +22086,7 @@ end
 return filesystemManager
 
 end)() end,
-    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
+    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
 local fontManager = require(script.Parent.services)
 local a2 = fontManager.getService("HttpService")
 local a3 = fontManager.getService("RunService")
@@ -22586,7 +22539,7 @@ end
 return a16
 
 end)() end,
-    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
+    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
 
 local functions = {}
 
@@ -22604,7 +22557,7 @@ functions.contrastText = textMetrics.contrastText
 return functions
 
 end)() end,
-    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
+    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
 -- [[Astra Hardware Performance Engine.
 --
 -- Automatically detects GPU, CPU, frame timing, and device capabilities to
@@ -22805,7 +22758,27 @@ end
 return hardwarePerformance
 
 end)() end,
-    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
+    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
+-- [[Shared validation for required, single-letter key bindings.]]
+local keybind = {}
+
+function keybind.letter(value)
+    if typeof(value) == "EnumItem" then
+        if value.EnumType ~= Enum.KeyCode then
+            return nil
+        end
+        value = value.Name
+    end
+    if type(value) ~= "string" or not value:match("^[A-Za-z]$") then
+        return nil
+    end
+    return value:upper()
+end
+
+return keybind
+
+end)() end,
+    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
 local layouts = {}
 
 local sidebarLayout = require(script.Parent.Parent.layouts.Sidebar)
@@ -22929,7 +22902,7 @@ end
 return layouts
 
 end)() end,
-    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
+    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local logger = require(script.Parent.log)
 
@@ -23028,7 +23001,7 @@ end
 return locale
 
 end)() end,
-    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
+    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
 local function lockable<T>(element: T): T
     local target = element :: any
 
@@ -23050,7 +23023,7 @@ end
 return lockable
 
 end)() end,
-    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
+    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
 local log = {}
 
 type SuppressPredicate = () -> boolean
@@ -23104,7 +23077,7 @@ end
 return log
 
 end)() end,
-    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
+    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
 -- [[Astra motion service.
 --
 -- Every animation in the library used to build its own TweenInfo and call
@@ -23531,7 +23504,7 @@ end
 return motion
 
 end)() end,
-    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
+    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
 local function moveable<T>(dragState: T): T
     local target = dragState :: any
 
@@ -23567,7 +23540,7 @@ end
 return moveable
 
 end)() end,
-    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
+    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
 local network = {}
 network.__index = network
 
@@ -23585,7 +23558,7 @@ end
 return network
 
 end)() end,
-    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
+    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local motion = require(script.Parent.motion)
 local textService = coreState.textService
@@ -23939,7 +23912,7 @@ end
 return odometer
 
 end)() end,
-    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
+    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
 type OrderedElement = {
     main: GuiObject,
 }
@@ -23951,7 +23924,7 @@ end
 return ordering
 
 end)() end,
-    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
+    [117] = function()local wax,script,require=ImportGlobals(117)local ImportGlobals return (function(...)
 local path = {}
 
 function path.join(base: string, suffix: string?): string
@@ -24002,7 +23975,7 @@ end
 return path
 
 end)() end,
-    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
+    [118] = function()local wax,script,require=ImportGlobals(118)local ImportGlobals return (function(...)
 local persistence = {}
 
 local configPersistence = require(script.Parent.persistenceConfig)
@@ -24021,7 +23994,7 @@ persistence.loadSettings = settingsPersistence.loadSettings
 return persistence
 
 end)() end,
-    [117] = function()local wax,script,require=ImportGlobals(117)local ImportGlobals return (function(...)
+    [119] = function()local wax,script,require=ImportGlobals(119)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local logger = require(script.Parent.log)
@@ -24278,7 +24251,7 @@ end
 return persistenceConfig
 
 end)() end,
-    [118] = function()local wax,script,require=ImportGlobals(118)local ImportGlobals return (function(...)
+    [120] = function()local wax,script,require=ImportGlobals(120)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local pathUtil = require(script.Parent.path)
 
@@ -24322,12 +24295,14 @@ end
 return persistencePaths
 
 end)() end,
-    [119] = function()local wax,script,require=ImportGlobals(119)local ImportGlobals return (function(...)
+    [121] = function()local wax,script,require=ImportGlobals(121)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local paths = require(script.Parent.persistencePaths)
 local writer = require(script.Parent.persistenceWrite)
 local enumHelper = require(script.Parent.enums)
+
+local keybind = require(script.Parent.keybind)
 
 local persistenceSettings = {}
 
@@ -24335,7 +24310,7 @@ local persistenceSettings = {}
 -- [[did not carry a schema marker. Treat those files as legacy once, clear the
 -- [[profile visibility pair, and write the marker back so a user can still turn
 -- [[the profile on intentionally afterward.]]
-local SETTINGS_VERSION = 1
+local SETTINGS_VERSION = 2
 
 type SettingsWindow = {
     settings: {
@@ -24467,9 +24442,8 @@ function persistenceSettings.loadSettings(window: SettingsWindow): (boolean, boo
             local enumType = (Enum :: any)[enumTypeName]
             if enumType then
                 local keybindItem = enumHelper.itemFromValue(enumType, decodedSettings.toggleKeybind[2])
-                if keybindItem then
-                    window.settings.toggleKeybind = keybindItem
-                end
+                local letter = keybind.letter(keybindItem)
+                window.settings.toggleKeybind = if letter then Enum.KeyCode[letter] else Enum.KeyCode.K
             end
         end)
     end
@@ -24525,7 +24499,7 @@ end
 return persistenceSettings
 
 end)() end,
-    [120] = function()local wax,script,require=ImportGlobals(120)local ImportGlobals return (function(...)
+    [122] = function()local wax,script,require=ImportGlobals(122)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 
 local persistenceWrite = {}
@@ -24553,7 +24527,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [121] = function()local wax,script,require=ImportGlobals(121)local ImportGlobals return (function(...)
+    [123] = function()local wax,script,require=ImportGlobals(123)local ImportGlobals return (function(...)
 local services = {}
 
 function services.getService(serviceName)
@@ -24564,7 +24538,7 @@ end
 return services
 
 end)() end,
-    [122] = function()local wax,script,require=ImportGlobals(122)local ImportGlobals return (function(...)
+    [124] = function()local wax,script,require=ImportGlobals(124)local ImportGlobals return (function(...)
 local layoutMetrics = require(script.Parent.layouts)
 local coreState = require(script.Parent.Parent.core.state)
 
@@ -24736,121 +24710,123 @@ end)() end,
 local LineOffsets = {
     [2] = 12,
     [3] = 395,
-    [5] = 912,
-    [6] = 897,
-    [7] = 1029,
-    [8] = 1167,
-    [9] = 1406,
-    [10] = 1758,
-    [11] = 2136,
-    [12] = 2438,
-    [13] = 3173,
-    [14] = 3503,
-    [15] = 4327,
-    [16] = 4388,
-    [17] = 4820,
-    [18] = 5144,
-    [19] = 5156,
-    [20] = 5213,
-    [21] = 5330,
-    [22] = 5661,
-    [23] = 5872,
-    [24] = 6176,
-    [25] = 6269,
-    [26] = 6318,
-    [27] = 6924,
-    [28] = 7111,
-    [29] = 7428,
-    [30] = 7842,
-    [31] = 5120,
-    [33] = 8687,
-    [34] = 9512,
-    [35] = 9607,
-    [36] = 9922,
-    [37] = 10343,
-    [38] = 10753,
-    [39] = 10923,
-    [40] = 11068,
-    [41] = 12618,
-    [42] = 12846,
-    [43] = 13073,
-    [44] = 13354,
-    [45] = 13761,
-    [46] = 14384,
-    [47] = 14470,
-    [48] = 15071,
-    [49] = 15920,
-    [50] = 16419,
-    [51] = 16549,
-    [52] = 16701,
-    [54] = 17210,
-    [55] = 17230,
-    [56] = 17247,
-    [57] = 17276,
-    [58] = 17398,
-    [59] = 17422,
-    [60] = 17471,
-    [61] = 17185,
-    [62] = 17568,
-    [63] = 17873,
-    [64] = 17904,
-    [65] = 17557,
-    [66] = 17947,
-    [67] = 17967,
-    [68] = 17999,
-    [69] = 17929,
-    [70] = 18106,
-    [71] = 18172,
-    [73] = 18252,
-    [74] = 18417,
-    [75] = 18434,
-    [76] = 18237,
-    [77] = 19031,
-    [78] = 19075,
-    [79] = 19155,
-    [80] = 19348,
-    [81] = 19477,
-    [82] = 19572,
-    [83] = 19739,
-    [84] = 20077,
-    [85] = 18526,
-    [86] = 20711,
-    [87] = 20777,
-    [88] = 20843,
-    [89] = 20918,
-    [90] = 21049,
-    [91] = 21115,
-    [92] = 21190,
-    [93] = 21265,
-    [94] = 21340,
-    [95] = 21415,
-    [96] = 20605,
-    [97] = 21481,
-    [98] = 21579,
-    [99] = 21757,
-    [100] = 21807,
-    [101] = 21837,
-    [102] = 22088,
-    [103] = 22137,
-    [104] = 22590,
-    [105] = 22608,
-    [106] = 22809,
-    [107] = 22933,
-    [108] = 23032,
-    [109] = 23054,
-    [110] = 23108,
-    [111] = 23535,
-    [112] = 23571,
-    [113] = 23589,
-    [114] = 23943,
-    [115] = 23955,
-    [116] = 24006,
-    [117] = 24025,
-    [118] = 24282,
-    [119] = 24326,
-    [120] = 24529,
-    [121] = 24557,
-    [122] = 24568,
+    [5] = 931,
+    [6] = 916,
+    [7] = 1048,
+    [8] = 1186,
+    [9] = 1433,
+    [10] = 1785,
+    [11] = 2163,
+    [12] = 2465,
+    [13] = 3200,
+    [14] = 3530,
+    [15] = 4190,
+    [16] = 4251,
+    [17] = 4683,
+    [18] = 5007,
+    [19] = 5019,
+    [20] = 5076,
+    [21] = 5193,
+    [22] = 5519,
+    [23] = 5742,
+    [24] = 6046,
+    [25] = 6139,
+    [26] = 6188,
+    [27] = 6794,
+    [28] = 6981,
+    [29] = 7299,
+    [30] = 7713,
+    [31] = 4983,
+    [33] = 8563,
+    [34] = 9388,
+    [35] = 9483,
+    [36] = 9704,
+    [37] = 10125,
+    [38] = 10537,
+    [39] = 10707,
+    [40] = 10852,
+    [41] = 12402,
+    [42] = 12630,
+    [43] = 12861,
+    [44] = 13142,
+    [45] = 13549,
+    [46] = 13701,
+    [47] = 14324,
+    [48] = 14410,
+    [49] = 15011,
+    [50] = 15860,
+    [51] = 16367,
+    [52] = 16497,
+    [53] = 16649,
+    [55] = 17158,
+    [56] = 17178,
+    [57] = 17197,
+    [58] = 17229,
+    [59] = 17351,
+    [60] = 17375,
+    [61] = 17424,
+    [62] = 17133,
+    [63] = 17521,
+    [64] = 17826,
+    [65] = 17857,
+    [66] = 17510,
+    [67] = 17900,
+    [68] = 17920,
+    [69] = 17952,
+    [70] = 17882,
+    [71] = 18059,
+    [72] = 18125,
+    [74] = 18205,
+    [75] = 18370,
+    [76] = 18387,
+    [77] = 18190,
+    [78] = 18984,
+    [79] = 19028,
+    [80] = 19108,
+    [81] = 19301,
+    [82] = 19430,
+    [83] = 19525,
+    [84] = 19692,
+    [85] = 20030,
+    [86] = 18479,
+    [87] = 20664,
+    [88] = 20730,
+    [89] = 20796,
+    [90] = 20871,
+    [91] = 21002,
+    [92] = 21068,
+    [93] = 21143,
+    [94] = 21218,
+    [95] = 21293,
+    [96] = 21368,
+    [97] = 20558,
+    [98] = 21434,
+    [99] = 21532,
+    [100] = 21710,
+    [101] = 21760,
+    [102] = 21790,
+    [103] = 22041,
+    [104] = 22090,
+    [105] = 22543,
+    [106] = 22561,
+    [107] = 22762,
+    [108] = 22782,
+    [109] = 22906,
+    [110] = 23005,
+    [111] = 23027,
+    [112] = 23081,
+    [113] = 23508,
+    [114] = 23544,
+    [115] = 23562,
+    [116] = 23916,
+    [117] = 23928,
+    [118] = 23979,
+    [119] = 23998,
+    [120] = 24255,
+    [121] = 24299,
+    [122] = 24503,
+    [123] = 24531,
+    [124] = 24542,
 }
 
 -- [[Misc AOT variable imports]]
@@ -25090,7 +25066,7 @@ local ObjectTree = {
                 },
             },
             {
-                53,
+                54,
                 1,
                 {
                     "elements",
@@ -25184,53 +25160,60 @@ local ObjectTree = {
                         45,
                         2,
                         {
-                            "link",
+                            "keybind",
                         },
                     },
                     {
                         46,
                         2,
                         {
-                            "section",
+                            "link",
                         },
                     },
                     {
                         47,
                         2,
                         {
-                            "slider",
+                            "section",
                         },
                     },
                     {
                         48,
                         2,
                         {
-                            "stat",
+                            "slider",
                         },
                     },
                     {
                         49,
                         2,
                         {
-                            "tab",
+                            "stat",
                         },
                     },
                     {
                         50,
                         2,
                         {
-                            "tabSection",
+                            "tab",
                         },
                     },
                     {
                         51,
                         2,
                         {
-                            "text",
+                            "tabSection",
                         },
                     },
                     {
                         52,
+                        2,
+                        {
+                            "text",
+                        },
+                    },
+                    {
+                        53,
                         2,
                         {
                             "toggle",
@@ -25239,56 +25222,56 @@ local ObjectTree = {
                 },
             },
             {
-                61,
+                62,
                 2,
                 {
                     "settings",
                 },
                 {
                     {
-                        54,
+                        55,
                         2,
                         {
                             "appearance",
                         },
                     },
                     {
-                        55,
+                        56,
                         2,
                         {
                             "behavior",
                         },
                     },
                     {
-                        56,
+                        57,
                         2,
                         {
                             "defaults",
                         },
                     },
                     {
-                        57,
+                        58,
                         2,
                         {
                             "manager",
                         },
                     },
                     {
-                        58,
+                        59,
                         2,
                         {
                             "performance",
                         },
                     },
                     {
-                        59,
+                        60,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        60,
+                        61,
                         2,
                         {
                             "registry",
@@ -25297,28 +25280,28 @@ local ObjectTree = {
                 },
             },
             {
-                65,
+                66,
                 2,
                 {
                     "cache",
                 },
                 {
                     {
-                        62,
+                        63,
                         2,
                         {
                             "imageCache",
                         },
                     },
                     {
-                        63,
+                        64,
                         2,
                         {
                             "moduleCache",
                         },
                     },
                     {
-                        64,
+                        65,
                         2,
                         {
                             "persistenceCache",
@@ -25327,28 +25310,28 @@ local ObjectTree = {
                 },
             },
             {
-                69,
+                70,
                 2,
                 {
                     "functions",
                 },
                 {
                     {
-                        66,
+                        67,
                         2,
                         {
                             "colors",
                         },
                     },
                     {
-                        67,
+                        68,
                         2,
                         {
                             "flagNames",
                         },
                     },
                     {
-                        68,
+                        69,
                         2,
                         {
                             "textMetrics",
@@ -25357,21 +25340,21 @@ local ObjectTree = {
                 },
             },
             {
-                72,
+                73,
                 1,
                 {
                     "layouts",
                 },
                 {
                     {
-                        70,
+                        71,
                         2,
                         {
                             "Sidebar",
                         },
                     },
                     {
-                        71,
+                        72,
                         2,
                         {
                             "SidebarCollapsed",
@@ -25380,28 +25363,28 @@ local ObjectTree = {
                 },
             },
             {
-                76,
+                77,
                 2,
                 {
                     "images",
                 },
                 {
                     {
-                        73,
+                        74,
                         2,
                         {
                             "image",
                         },
                     },
                     {
-                        74,
+                        75,
                         2,
                         {
                             "uiIcons",
                         },
                     },
                     {
-                        75,
+                        76,
                         2,
                         {
                             "windowIcons",
@@ -25410,63 +25393,63 @@ local ObjectTree = {
                 },
             },
             {
-                85,
+                86,
                 2,
                 {
                     "icons",
                 },
                 {
                     {
-                        77,
+                        78,
                         2,
                         {
                             "feather",
                         },
                     },
                     {
-                        78,
+                        79,
                         2,
                         {
                             "heroicons",
                         },
                     },
                     {
-                        79,
+                        80,
                         2,
                         {
                             "lucide",
                         },
                     },
                     {
-                        80,
+                        81,
                         2,
                         {
                             "material",
                         },
                     },
                     {
-                        81,
+                        82,
                         2,
                         {
                             "packBuilder",
                         },
                     },
                     {
-                        82,
+                        83,
                         2,
                         {
                             "phosphor",
                         },
                     },
                     {
-                        83,
+                        84,
                         2,
                         {
                             "remix",
                         },
                     },
                     {
-                        84,
+                        85,
                         2,
                         {
                             "tabler",
@@ -25475,77 +25458,77 @@ local ObjectTree = {
                 },
             },
             {
-                96,
+                97,
                 2,
                 {
                     "themes",
                 },
                 {
                     {
-                        86,
+                        87,
                         2,
                         {
                             "amethyst",
                         },
                     },
                     {
-                        87,
+                        88,
                         2,
                         {
                             "cobalt",
                         },
                     },
                     {
-                        88,
+                        89,
                         2,
                         {
                             "crimson",
                         },
                     },
                     {
-                        89,
+                        90,
                         2,
                         {
                             "default",
                         },
                     },
                     {
-                        90,
+                        91,
                         2,
                         {
                             "ember",
                         },
                     },
                     {
-                        91,
+                        92,
                         2,
                         {
                             "emerald",
                         },
                     },
                     {
-                        92,
+                        93,
                         2,
                         {
                             "frost",
                         },
                     },
                     {
-                        93,
+                        94,
                         2,
                         {
                             "gold",
                         },
                     },
                     {
-                        94,
+                        95,
                         2,
                         {
                             "onyx",
                         },
                     },
                     {
-                        95,
+                        96,
                         2,
                         {
                             "rose",
@@ -25554,189 +25537,196 @@ local ObjectTree = {
                 },
             },
             {
-                123,
+                125,
                 1,
                 {
                     "utilities",
                 },
                 {
                     {
-                        97,
+                        98,
                         2,
                         {
                             "HapticEngine",
                         },
                     },
                     {
-                        98,
+                        99,
                         2,
                         {
                             "assetResolver",
                         },
                     },
                     {
-                        99,
+                        100,
                         2,
                         {
                             "constants",
                         },
                     },
                     {
-                        100,
+                        101,
                         2,
                         {
                             "enums",
                         },
                     },
                     {
-                        101,
+                        102,
                         2,
                         {
                             "filesystem",
                         },
                     },
                     {
-                        102,
+                        103,
                         2,
                         {
                             "filesystemManager",
                         },
                     },
                     {
-                        103,
+                        104,
                         2,
                         {
                             "fontManager",
                         },
                     },
                     {
-                        104,
+                        105,
                         2,
                         {
                             "functions",
                         },
                     },
                     {
-                        105,
+                        106,
                         2,
                         {
                             "hardwarePerformance",
                         },
                     },
                     {
-                        106,
-                        2,
-                        {
-                            "layouts",
-                        },
-                    },
-                    {
                         107,
                         2,
                         {
-                            "locale",
+                            "keybind",
                         },
                     },
                     {
                         108,
                         2,
                         {
-                            "lockable",
+                            "layouts",
                         },
                     },
                     {
                         109,
                         2,
                         {
-                            "log",
+                            "locale",
                         },
                     },
                     {
                         110,
                         2,
                         {
-                            "motion",
+                            "lockable",
                         },
                     },
                     {
                         111,
                         2,
                         {
-                            "moveable",
+                            "log",
                         },
                     },
                     {
                         112,
                         2,
                         {
-                            "network",
+                            "motion",
                         },
                     },
                     {
                         113,
                         2,
                         {
-                            "odometer",
+                            "moveable",
                         },
                     },
                     {
                         114,
                         2,
                         {
-                            "ordering",
+                            "network",
                         },
                     },
                     {
                         115,
                         2,
                         {
-                            "path",
+                            "odometer",
                         },
                     },
                     {
                         116,
                         2,
                         {
-                            "persistence",
+                            "ordering",
                         },
                     },
                     {
                         117,
                         2,
                         {
-                            "persistenceConfig",
+                            "path",
                         },
                     },
                     {
                         118,
                         2,
                         {
-                            "persistencePaths",
+                            "persistence",
                         },
                     },
                     {
                         119,
                         2,
                         {
-                            "persistenceSettings",
+                            "persistenceConfig",
                         },
                     },
                     {
                         120,
                         2,
                         {
-                            "persistenceWrite",
+                            "persistencePaths",
                         },
                     },
                     {
                         121,
                         2,
                         {
-                            "services",
+                            "persistenceSettings",
                         },
                     },
                     {
                         122,
+                        2,
+                        {
+                            "persistenceWrite",
+                        },
+                    },
+                    {
+                        123,
+                        2,
+                        {
+                            "services",
+                        },
+                    },
+                    {
+                        124,
                         2,
                         {
                             "windowSizing",

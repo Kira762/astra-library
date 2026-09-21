@@ -3,9 +3,9 @@ TestPump(0.8)
 window:_buildSettingsUI()
 local general
 for _, tab in window._settingsTabs do
-    if tab.name == "General" then general = tab end
+    if tab.name == "Controls" then general = tab end
 end
-assert(general, "General tab exists")
+assert(general, "Controls tab exists")
 general:Select()
 TestPump(0.6)
 local reset

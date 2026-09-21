@@ -3,7 +3,9 @@
 # text-and-icon strip. Covers run order, the centring layout, icon scaling,
 # the reveal path on selected and unselected tabs, Set() replacement,
 # unresolved-name dropping, the shorthand forms, Group and declarative
-# Collapsible Group construction, the empty run, and the move API.
+# Collapsible Group construction, the empty run, the move API, and the
+# transparency regression — a theme pass or a bar-layout switch must never
+# paint the footer's transparent container.
 #
 # Assembles: mini Roblox stubs + bundle (wrapped in a function to keep
 # `local` scoping) + assertions, writes it to a temp file, and runs it under

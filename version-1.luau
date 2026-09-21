@@ -12648,6 +12648,16 @@ function state.new(tab, props)
 
     self.iconSize = self.textSize + iconWeightBonus
 
+    -- [[The container is a transparent host and carries NO theme binding —
+    -- [[deliberately. Every other white frame that binds BackgroundTransparency
+    -- [[to ElementTransparency is an element card: a StyleElementBody/
+    -- [[StyleElementPanel gradient tints it dark the moment the binding paints
+    -- [[it opaque. This frame never receives that styling, so the next theme
+    -- [[pass (a settings Apply/Reset, the secure-mode font swap, any host
+    -- [[ChangeTheme — e.g. after a bar-layout switch) would tween its bare
+    -- [[white base to opaque and bury the run: the solid white band that made
+    -- [[the footer look "white only". Transparency 1 is its permanent state;
+    -- [[visibility lives entirely on the text/icon runs (see _setShown).]]
     self.main = self.window:Create("Frame", {
         Size = UDim2.new(1, -40, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
@@ -12656,7 +12666,7 @@ function state.new(tab, props)
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BackgroundTransparency = 1,
         Parent = self.tab.tabPage,
-    }, { BackgroundTransparency = "ElementTransparency" })
+    })
 
     -- [[The single horizontal layout is the whole trick of the element: it]]
     -- [[centres every segment as one unit and re-centres automatically when]]
@@ -12734,8 +12744,13 @@ end
 function state:Set(parts)
     self.parts = normalizeParts(parts)
 
+    -- [[Destroy through the window, like every other element's rebuild path:
+    -- [[DestroySubtree unregisters the run from themeProperties/localeProperties
+    -- [[first, so the next theme pass is not pointed at a destroyed label (a
+    -- [[raw :Destroy() left the binding behind and ChangeTheme then failed on
+    -- [["property cannot be assigned ... instance has been destroyed").]]
     for _, run in self.runs do
-        run.instance:Destroy()
+        self.window:DestroySubtree(run.instance)
     end
     self.runs = {}
 
@@ -24418,84 +24433,84 @@ local LineOffsets = {
     [39] = 10863,
     [40] = 11008,
     [41] = 12558,
-    [42] = 12771,
-    [43] = 12998,
-    [44] = 13279,
-    [45] = 13686,
-    [46] = 14309,
-    [47] = 14395,
-    [48] = 14996,
-    [49] = 15845,
-    [50] = 16343,
-    [51] = 16473,
-    [52] = 16625,
-    [54] = 17134,
-    [55] = 17154,
-    [56] = 17171,
-    [57] = 17200,
-    [58] = 17322,
-    [59] = 17346,
-    [60] = 17395,
-    [61] = 17109,
-    [62] = 17492,
-    [63] = 17797,
-    [64] = 17828,
-    [65] = 17481,
-    [66] = 17871,
-    [67] = 17891,
-    [68] = 17923,
-    [69] = 17853,
-    [70] = 18030,
-    [71] = 18096,
-    [73] = 18176,
-    [74] = 18341,
-    [75] = 18358,
-    [76] = 18161,
-    [77] = 18955,
-    [78] = 18999,
-    [79] = 19079,
-    [80] = 19272,
-    [81] = 19401,
-    [82] = 19496,
-    [83] = 19663,
-    [84] = 20001,
-    [85] = 18450,
-    [86] = 20635,
-    [87] = 20701,
-    [88] = 20767,
-    [89] = 20842,
-    [90] = 20973,
-    [91] = 21039,
-    [92] = 21114,
-    [93] = 21189,
-    [94] = 21264,
-    [95] = 21339,
-    [96] = 20529,
-    [97] = 21405,
-    [98] = 21503,
-    [99] = 21681,
-    [100] = 21731,
-    [101] = 21761,
-    [102] = 22012,
-    [103] = 22061,
-    [104] = 22514,
-    [105] = 22532,
-    [106] = 22656,
-    [107] = 22755,
-    [108] = 22777,
-    [109] = 22831,
-    [110] = 23181,
-    [111] = 23217,
-    [112] = 23235,
-    [113] = 23589,
-    [114] = 23601,
-    [115] = 23652,
-    [116] = 23671,
-    [117] = 23928,
-    [118] = 23972,
-    [119] = 24175,
-    [120] = 24203,
-    [121] = 24214,
+    [42] = 12786,
+    [43] = 13013,
+    [44] = 13294,
+    [45] = 13701,
+    [46] = 14324,
+    [47] = 14410,
+    [48] = 15011,
+    [49] = 15860,
+    [50] = 16358,
+    [51] = 16488,
+    [52] = 16640,
+    [54] = 17149,
+    [55] = 17169,
+    [56] = 17186,
+    [57] = 17215,
+    [58] = 17337,
+    [59] = 17361,
+    [60] = 17410,
+    [61] = 17124,
+    [62] = 17507,
+    [63] = 17812,
+    [64] = 17843,
+    [65] = 17496,
+    [66] = 17886,
+    [67] = 17906,
+    [68] = 17938,
+    [69] = 17868,
+    [70] = 18045,
+    [71] = 18111,
+    [73] = 18191,
+    [74] = 18356,
+    [75] = 18373,
+    [76] = 18176,
+    [77] = 18970,
+    [78] = 19014,
+    [79] = 19094,
+    [80] = 19287,
+    [81] = 19416,
+    [82] = 19511,
+    [83] = 19678,
+    [84] = 20016,
+    [85] = 18465,
+    [86] = 20650,
+    [87] = 20716,
+    [88] = 20782,
+    [89] = 20857,
+    [90] = 20988,
+    [91] = 21054,
+    [92] = 21129,
+    [93] = 21204,
+    [94] = 21279,
+    [95] = 21354,
+    [96] = 20544,
+    [97] = 21420,
+    [98] = 21518,
+    [99] = 21696,
+    [100] = 21746,
+    [101] = 21776,
+    [102] = 22027,
+    [103] = 22076,
+    [104] = 22529,
+    [105] = 22547,
+    [106] = 22671,
+    [107] = 22770,
+    [108] = 22792,
+    [109] = 22846,
+    [110] = 23196,
+    [111] = 23232,
+    [112] = 23250,
+    [113] = 23604,
+    [114] = 23616,
+    [115] = 23667,
+    [116] = 23686,
+    [117] = 23943,
+    [118] = 23987,
+    [119] = 24190,
+    [120] = 24218,
+    [121] = 24229,
 }
 
 -- [[Misc AOT variable imports]]

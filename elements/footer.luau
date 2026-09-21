@@ -91,6 +91,16 @@ function state.new(tab, props)
 
     self.iconSize = self.textSize + iconWeightBonus
 
+    -- [[The container is a transparent host and carries NO theme binding —
+    -- [[deliberately. Every other white frame that binds BackgroundTransparency
+    -- [[to ElementTransparency is an element card: a StyleElementBody/
+    -- [[StyleElementPanel gradient tints it dark the moment the binding paints
+    -- [[it opaque. This frame never receives that styling, so the next theme
+    -- [[pass (a settings Apply/Reset, the secure-mode font swap, any host
+    -- [[ChangeTheme — e.g. after a bar-layout switch) would tween its bare
+    -- [[white base to opaque and bury the run: the solid white band that made
+    -- [[the footer look "white only". Transparency 1 is its permanent state;
+    -- [[visibility lives entirely on the text/icon runs (see _setShown).]]
     self.main = self.window:Create("Frame", {
         Size = UDim2.new(1, -40, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
@@ -99,7 +109,7 @@ function state.new(tab, props)
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BackgroundTransparency = 1,
         Parent = self.tab.tabPage,
-    }, { BackgroundTransparency = "ElementTransparency" })
+    })
 
     -- [[The single horizontal layout is the whole trick of the element: it]]
     -- [[centres every segment as one unit and re-centres automatically when]]
@@ -177,8 +187,13 @@ end
 function state:Set(parts)
     self.parts = normalizeParts(parts)
 
+    -- [[Destroy through the window, like every other element's rebuild path:
+    -- [[DestroySubtree unregisters the run from themeProperties/localeProperties
+    -- [[first, so the next theme pass is not pointed at a destroyed label (a
+    -- [[raw :Destroy() left the binding behind and ChangeTheme then failed on
+    -- [["property cannot be assigned ... instance has been destroyed").]]
     for _, run in self.runs do
-        run.instance:Destroy()
+        self.window:DestroySubtree(run.instance)
     end
     self.runs = {}
 

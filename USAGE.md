@@ -366,6 +366,53 @@ the copy mark and logs the reason, because the check mark means the link is on t
 clipboard and nothing else may show it. The element supports the move and lock API
 like the other interactive elements.
 
+### About card
+```lua
+local card = tab:CreateAboutCard({
+    name = "Astra",                                  -- header title
+    subtitle = "UI Library for a better experience.", -- muted line under it
+    icon = 80387863064905,                           -- leading mark (name or asset id)
+    rows = {                                         -- 1 to 3 data rows
+        { icon = "code",    label = "Version", value = "1.4.0" },
+        { icon = "package", label = "Build",   value = "2026.09.12" },
+        { icon = "user",    label = "Author",  value = "Astra Team" },
+    },
+    description = "Astra is a modern and flexible UI library designed to make "
+        .. "your experience smoother, cleaner, and more customizable.",
+    action = {                                       -- optional trailing band
+        icon = "file-text",
+        name = "View Changelog",
+        subtitle = "See what's new in this version",
+        callback = function() tab:Select() end,
+    },
+})
+```
+
+One card with four blocks: a header (icon, title, subtitle), a row of data
+tiles (each a leading icon, a label and a value), a description paragraph, and
+an optional action band that is the card's only tappable surface.
+
+The tiles are packed against the width the card actually has, so the copy never
+gets cut by a growing window: as many rows as fit share one line (split evenly,
+left to right) and the rest wrap underneath, each line full width. In a default
+window's sidebar layout the three rows above end up stacked; on a wide window
+they share one line. A fourth row errors at construction
+(`Astra:CreateAboutCard — at most 3 data rows are supported, got 4`) because the
+action band is the card's trailing row. A row without `icon`, or a card without
+`rows`/`description`/`action`, simply leaves those parts out of the layout.
+
+```lua
+card:SetTitle("Release notes")        -- header title
+card:SetSubtitle(nil)                 -- drop the second line (header closes to one band)
+card:SetIcon("sparkles")              -- leading mark (nil removes it)
+card:SetRow(1, { icon = "box", label = "Version", value = "1.5.0" })  -- rewrite one row in place
+card:SetDescription("Shorter copy.")  -- paragraph (nil/"" removes it)
+```
+
+`SetRow` addresses a row the card already has and only touches the fields it is
+given. The card supports the move and lock API; locking it disables the action
+band.
+
 ### Text / Divider / Group
 ```lua
 local x = tab:CreateText({ name = "Title", text = "Body text", icon = "info" })

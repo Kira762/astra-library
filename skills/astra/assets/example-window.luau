@@ -152,11 +152,31 @@ home:CreateCollapsibleGroup({
 
 local about = window:CreateTab({ name = "About", icon = "info" })
 
-about:CreateText({
+-- [[The About card carries four blocks: a brand header, one to three data rows,
+-- [[a description paragraph and an optional action band — the card's only
+-- [[tappable surface.]] 
+about:CreateAboutCard({
     name = "Astra",
-    text = "One loader, one window, tabs full of elements. Flags are saved automatically.",
-    icon = "sparkles",
+    subtitle = "UI Library for a better experience.",
+    icon = 80387863064905,
+    rows = {
+        { icon = "code", label = "Version", value = "1.4.0" },
+        { icon = "package", label = "Build", value = "2026.09.12" },
+        { icon = "user", label = "Author", value = "Astra Team" },
+    },
+    description = "One loader, one window, tabs full of elements. Flags are saved automatically.",
+    action = {
+        icon = "file-text",
+        name = "View Changelog",
+        subtitle = "See what's new in this version",
+        callback = function()
+            window:Notify({ title = "View Changelog", content = "The release history is on this tab." })
+        end,
+    },
 })
+
+-- [[The card's paragraph is this tab's intro; a plain CreateText card would
+-- [[repeat it (one is on the Home tab's column group).]]
 
 -- [[The Isolated container is the Changelog's own home: a collapsed header
 -- [[card (icon, title/subtitle, built-in chevron) that only holds Changelogs.]]

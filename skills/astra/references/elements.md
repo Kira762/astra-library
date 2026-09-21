@@ -231,6 +231,53 @@ link:IsConfirming()                   -- true while the check mark is showing
 - Works standalone, in a Group (row or column) and as a declarative
   `{ type = "Link", ... }` child.
 
+## About card (tab only)
+
+```lua
+local card = tab:CreateAboutCard({
+    name = "Astra",                                   -- header title
+    subtitle = "UI Library for a better experience.", -- muted line under it
+    icon = 80387863064905,                            -- pack name or asset id
+    rows = {                                          -- 1 to 3 rows
+        { icon = "code",    label = "Version", value = "1.4.0" },
+        { icon = "package", label = "Build",   value = "2026.09.12" },
+        { icon = "user",    label = "Author",  value = "Astra Team" },
+    },
+    description = "One wrapped paragraph.",
+    action = {                                        -- optional trailing band
+        icon = "file-text",
+        name = "View Changelog",
+        subtitle = "See what's new in this version",
+        callback = function() end,                    -- fires on a tap of the band
+    },
+})
+
+card:SetTitle("Release notes")
+card:SetSubtitle(nil)                 -- "" / nil drops the header to one band
+card:SetIcon("sparkles")              -- nil removes the leading mark
+card:SetRow(1, { icon = "box", label = "Version", value = "1.5.0" })
+card:SetDescription("Shorter copy.")  -- "" / nil removes the paragraph
+```
+
+- Four blocks in one card: header (icon, title, subtitle), the data rows, the
+  description paragraph and the optional action band.
+- `rows` takes **1 to 3** entries. They are packed against the width the card
+  actually has: as many as fit share one line (split evenly, left to right) and
+  the rest wrap underneath — a tile is never squeezed below the width of its own
+  copy, so values are not truncated by a narrow window. A fourth row errors at
+  construction: `Astra:CreateAboutCard — at most 3 data rows are supported, got N`
+  — the action band is the card's trailing row.
+- Optional parts drop out of the layout instead of rendering blank: a row without
+  `icon` loses its badge, a card without `rows`, `description` or `action` simply
+  has one block fewer.
+- The action band is the card's only tappable surface: a tap (anywhere on the
+  band, not only the chevron) fires `callback` once, with a haptic click. The
+  trailing chevron itself is fixed and has no setter.
+- `SetRow(index, row)` addresses a row the card already has, rewrites only the
+  fields given, and errors for an index it does not have.
+- Supports the move API and `Lock()`/`Unlock()`/`IsLocked()`; a locked card fires
+  no action.
+
 ## Text, Section, Divider
 
 ```lua

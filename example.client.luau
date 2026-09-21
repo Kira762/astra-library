@@ -23,6 +23,31 @@ local window = Astra:CreateWindow({
 -- [[One tab intentionally contains every supported element type.]]
 local elements = window:CreateTab({ name = "Element Test", icon = "flask-conical" })
 
+-- [[The About card: a brand header, up to three data rows, a description
+-- [[paragraph and an optional trailing action band. This one carries Astra's
+-- [[own release facts — the leading mark is the library's asset id (a pack name
+-- [[would do just as well) — and its action band is the card's only tappable
+-- [[surface.]] 
+elements:CreateAboutCard({
+    name = "Astra",
+    subtitle = "UI Library for a better experience.",
+    icon = 80387863064905,
+    rows = {
+        { icon = "code", label = "Version", value = "1.4.0" },
+        { icon = "package", label = "Build", value = "2026.09.12" },
+        { icon = "user", label = "Author", value = "Astra Team" },
+    },
+    description = "Astra is a modern and flexible UI library designed to make your experience smoother, cleaner, and more customizable. Built for developers, by developers.",
+    action = {
+        icon = "file-text",
+        name = "View Changelog",
+        subtitle = "See what's new in this version",
+        callback = function()
+            window:Notify({ title = "View Changelog", content = "The release history lives further down this tab." })
+        end,
+    },
+})
+
 elements:CreateSection({ name = "Basic elements" })
 elements:CreateText({
     name = "Text",

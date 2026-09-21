@@ -6,6 +6,13 @@ local layouts = require(utilities.layouts)
 
 local settingsComponent = {}
 
+-- [[The About card's copy. The card itself is a reusable element — these three
+-- [[are simply the values this build stamps into the Settings tab's card, so a
+-- [[release updates them here and nowhere else.
+local aboutVersion = "1.4.0"
+local aboutBuild = "2026.09.12"
+local aboutAuthor = "Astra Team"
+
 local function layoutKey(layout)
     if type(layout) == "table" and layout.mode == "sidebar" and layout.forceCollapsed then
         return "collapsedSidebar"
@@ -149,26 +156,22 @@ function settingsComponent.buildUI(window)
     window._settingsContentBuilt = window._settingsContentBuilt or {}
 
     local function buildAbout()
-        about:CreateCollapsibleGroup({
+        -- [[The About page is one About card: the brand header, the three data
+        -- [[rows and the description paragraph. The card's optional action band
+        -- [[is left off here because the Settings tab has no changelog to open;
+        -- [[a host that keeps release notes passes `action` with its own
+        -- [[callback. The version, build and author strings live at the top of
+        -- [[this module — bump them with a release.]]
+        about:CreateAboutCard({
             name = "Astra",
-            icon = "sparkles",
-            elements = {
-                {
-                    type = "Text",
-                    name = "About Astra",
-                    text = "Astra is an interface library built entirely in code: one loader line, one window, and a set of reusable elements that stay fast to open and behave the same on desktop and mobile.",
-                },
-                {
-                    type = "Text",
-                    name = "Highlights",
-                    text = "State can persist between sessions, themes can change at runtime, labels can be translated, and the interface is designed for both desktop and mobile.",
-                },
-                {
-                    type = "Text",
-                    name = "What Astra Provides",
-                    text = "A responsive, customizable interface with persistent settings, runtime themes, localization support, animated window transitions, and a growing set of reusable elements.",
-                },
+            subtitle = "UI Library for a better experience.",
+            icon = constants.icons.dot,
+            rows = {
+                { icon = "code", label = "Version", value = aboutVersion },
+                { icon = "package", label = "Build", value = aboutBuild },
+                { icon = "user", label = "Author", value = aboutAuthor },
             },
+            description = "Astra is a modern and flexible UI library designed to make your experience smoother, cleaner, and more customizable. Built for developers, by developers.",
         })
         about:CreateCollapsibleGroup({
             name = "Links",

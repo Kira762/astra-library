@@ -196,6 +196,33 @@ export type LinkProps = {
     callback: ((link: string) -> ())?,
 }
 
+-- One data row of an About card: a leading icon, a label and a value. Up to
+-- three rows share the row; the count drives each tile's width.
+export type AboutCardRow = {
+    icon: (string | number)?,
+    label: string?,
+    value: (string | number)?,
+}
+
+-- The card's optional trailing band. It is the fourth block of the card — the
+-- one the data rows stop at three for — and it is the card's only tappable
+-- surface.
+export type AboutCardAction = {
+    icon: (string | number)?,
+    name: string?,
+    subtitle: string?,
+    callback: (() -> ())?,
+}
+
+export type AboutCardProps = {
+    name: string?,
+    subtitle: string?,
+    icon: (string | number)?,
+    rows: { AboutCardRow }?,
+    description: string?,
+    action: AboutCardAction?,
+}
+
 -- Exact title/content duplicates refresh an active card or coalesce in the queue.
 export type NotifyProps = {
     title: string?,
@@ -320,6 +347,14 @@ export type Link = Moveable & Lockable & {
     IsConfirming: (self: Link) -> boolean,
 }
 
+export type AboutCard = Moveable & Lockable & {
+    SetTitle: (self: AboutCard, title: string) -> (),
+    SetSubtitle: (self: AboutCard, subtitle: string?) -> (),
+    SetIcon: (self: AboutCard, icon: (string | number)?) -> (),
+    SetRow: (self: AboutCard, index: number, row: AboutCardRow) -> (),
+    SetDescription: (self: AboutCard, text: string?) -> (),
+}
+
 export type Popup = {
     Close: (self: Popup) -> (),
 }
@@ -366,6 +401,7 @@ export type Tab = {
     CreateDropdown: (self: Tab, props: DropdownProps) -> Dropdown,
     CreateInput: (self: Tab, props: InputProps) -> Input,
     CreateLink: (self: Tab, props: LinkProps) -> Link,
+    CreateAboutCard: (self: Tab, props: AboutCardProps) -> AboutCard,
     CreateStat: (self: Tab, props: StatProps) -> Stat,
     CreateSection: (self: Tab, props: SectionProps) -> Section,
     CreateText: (self: Tab, props: TextProps) -> Text,

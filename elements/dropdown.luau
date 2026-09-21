@@ -20,8 +20,11 @@ local callback = name.icons.check
 local element = name.icons.dot
 local frame = name.icons.search
 
-local button = UDim.new(0, 0)
-local list = UDim.new(0, 0)
+-- [[Open-list corner tiers: the first visible row rounds its top ends and the
+-- [[last rounds its bottom at the outer 12px tier, rows meet each other at the
+-- [[inner 7px tier, so the open list reads as one rounded card made of rows.]]
+local button = UDim.new(0, 12)
+local list = UDim.new(0, 7)
 
 local isOpen = 30
 local selected = 38

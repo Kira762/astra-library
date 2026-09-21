@@ -78,6 +78,8 @@ type WindowModule = { new: (types.WindowProps) -> types.Window }
 local Astra = {} :: Astra
 local activeWindow: types.Window? = nil
 local ACTIVE_WINDOW_KEY = "__ASTRA_ACTIVE_WINDOW_V1"
+local LIVE_WINDOWS_KEY = "__ASTRA_LIVE_WINDOWS_V1"
+local GENERATION_KEY = "__ASTRA_WINDOW_GENERATION_V1"
 
 -- [[How long a font download waits for the entrance before it triggers its own
 -- full theme pass. It is a cooldown between *parts* of startup, not extra
@@ -99,6 +101,99 @@ end
 
 local globalStore = getGlobalStore()
 
+local function getLiveWindows(): { types.Window }
+	local live = globalStore[LIVE_WINDOWS_KEY]
+	if type(live) ~= "table" then
+		live = {}
+		globalStore[LIVE_WINDOWS_KEY] = live
+	end
+	return live
+end
+
+local function trackedWindows(): { types.Window }
+	local seen: { [types.Window]: boolean } = {}
+	local list: { types.Window } = {}
+
+	local function add(value: any)
+		if type(value) ~= "table" then
+			return
+		end
+		local window = value :: types.Window
+		if seen[window] then
+			return
+		end
+		seen[window] = true
+		table.insert(list, window)
+	end
+
+	add(activeWindow)
+	add(globalStore[ACTIVE_WINDOW_KEY])
+	local live = globalStore[LIVE_WINDOWS_KEY]
+	if type(live) == "table" then
+		for _, window in live do
+			add(window)
+		end
+	end
+	return list
+end
+
+local function forgetWindow(window: types.Window)
+	if activeWindow == window then
+		activeWindow = nil
+	end
+	if globalStore[ACTIVE_WINDOW_KEY] == window then
+		globalStore[ACTIVE_WINDOW_KEY] = nil
+	end
+	local live = globalStore[LIVE_WINDOWS_KEY]
+	if type(live) ~= "table" then
+		return
+	end
+	for index = #live, 1, -1 do
+		if live[index] == window then
+			table.remove(live, index)
+		end
+	end
+end
+
+local function rememberWindow(window: types.Window)
+	activeWindow = window
+	globalStore[ACTIVE_WINDOW_KEY] = window
+	local live = getLiveWindows()
+	for _, existing in live do
+		if existing == window then
+			return
+		end
+	end
+	table.insert(live, window)
+end
+
+local function isReplaceableWindow(window: types.Window): boolean
+	local anyWindow = window :: any
+	if anyWindow.unloaded then
+		return false
+	end
+	local settings = anyWindow.settings
+	return not (type(settings) == "table" and settings.antiWindowDuplicate == false)
+end
+
+local function unloadWindow(window: types.Window)
+	local anyWindow = window :: any
+	if type(anyWindow.Unload) == "function" and not anyWindow.unloaded then
+		pcall(anyWindow.Unload, anyWindow)
+	end
+	forgetWindow(window)
+end
+
+local function unloadReplaceableWindows(except: types.Window?)
+	for _, window in trackedWindows() do
+		if window ~= except and isReplaceableWindow(window) then
+			unloadWindow(window)
+		elseif (window :: any).unloaded then
+			forgetWindow(window)
+		end
+	end
+end
+
 Astra.Icons = Icons
 
 -- [[The motion service is public: hosts can animate with the library's own
@@ -110,23 +205,22 @@ Astra.Core = Core
 Astra.Settings = Settings
 
 function Astra:CreateWindow(props: types.WindowProps): types.Window
-	local existingWindow = activeWindow or globalStore[ACTIVE_WINDOW_KEY]
-	activeWindow = existingWindow
-	if existingWindow then
-		local existingAny = existingWindow :: any
-		if existingAny.unloaded then
-			activeWindow = nil
-			if globalStore[ACTIVE_WINDOW_KEY] == existingWindow then
-				globalStore[ACTIVE_WINDOW_KEY] = nil
-			end
-		else
-			local antiDuplicateEnabled = Settings.readPersisted("antiWindowDuplicate", true)
-			if antiDuplicateEnabled and (not existingAny.settings or existingAny.settings.antiWindowDuplicate ~= false) then
-				existingAny:Unload()
-				activeWindow = nil
-				if globalStore[ACTIVE_WINDOW_KEY] == existingWindow then
-					globalStore[ACTIVE_WINDOW_KEY] = nil
-				end
+	-- [[Anti-duplicate has to claim the slot *before* `Window.new` can yield.
+	-- Construction checkpoints with `task.wait`, so a second `loadstring` can
+	-- start while the first window is still being built. Storing only the
+	-- finished window (and only one of them) is what left orphans behind when
+	-- the script was spam-executed: the later call saw an empty store, built
+	-- another shell, and the earlier one was never unloaded.]]
+	local antiDuplicateEnabled = Settings.readPersisted("antiWindowDuplicate", true)
+	local claimedGeneration: number? = nil
+	if antiDuplicateEnabled then
+		claimedGeneration = (tonumber(globalStore[GENERATION_KEY]) or 0) + 1
+		globalStore[GENERATION_KEY] = claimedGeneration
+		unloadReplaceableWindows(nil)
+	else
+		for _, existing in trackedWindows() do
+			if (existing :: any).unloaded then
+				forgetWindow(existing)
 			end
 		end
 	end
@@ -139,8 +233,19 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 	end
 
 	local window = result :: types.Window
-	activeWindow = window
-	globalStore[ACTIVE_WINDOW_KEY] = window
+	if antiDuplicateEnabled then
+		if globalStore[GENERATION_KEY] ~= claimedGeneration then
+			-- A later CreateWindow claimed the slot while we were constructing.
+			unloadWindow(window)
+		else
+			unloadReplaceableWindows(window)
+			if not (window :: any).unloaded then
+				rememberWindow(window)
+			end
+		end
+	else
+		rememberWindow(window)
+	end
 	-- [[One secure-mode branch: the optional-icon preload and the brand-font
 	-- swap are independent, so they run as sibling threads rather than in two
 	-- separately-guarded blocks.]]
@@ -24114,121 +24219,121 @@ end)() end,
 
 local LineOffsets = {
     [2] = 12,
-    [3] = 255,
-    [5] = 769,
-    [6] = 754,
-    [7] = 886,
-    [8] = 1024,
-    [9] = 1263,
-    [10] = 1615,
-    [11] = 1993,
-    [12] = 2295,
-    [13] = 3015,
-    [14] = 3345,
-    [15] = 4169,
-    [16] = 4230,
-    [17] = 4662,
-    [18] = 4986,
-    [19] = 4998,
-    [20] = 5055,
-    [21] = 5172,
-    [22] = 5503,
-    [23] = 5714,
-    [24] = 6018,
-    [25] = 6111,
-    [26] = 6160,
-    [27] = 6735,
-    [28] = 6922,
-    [29] = 7169,
-    [30] = 7560,
-    [31] = 4962,
-    [33] = 8373,
-    [34] = 9198,
-    [35] = 9293,
-    [36] = 9608,
-    [37] = 10029,
-    [38] = 10439,
-    [39] = 10609,
-    [40] = 10754,
-    [41] = 12304,
-    [42] = 12517,
-    [43] = 12744,
-    [44] = 13025,
-    [45] = 13432,
-    [46] = 14055,
-    [47] = 14141,
-    [48] = 14742,
-    [49] = 15591,
-    [50] = 16082,
-    [51] = 16212,
-    [52] = 16364,
-    [54] = 16873,
-    [55] = 16893,
-    [56] = 16910,
-    [57] = 16939,
-    [58] = 17061,
-    [59] = 17085,
-    [60] = 17134,
-    [61] = 16848,
-    [62] = 17231,
-    [63] = 17536,
-    [64] = 17567,
-    [65] = 17220,
-    [66] = 17610,
-    [67] = 17630,
-    [68] = 17662,
-    [69] = 17592,
-    [70] = 17769,
-    [71] = 17835,
-    [73] = 17915,
-    [74] = 18080,
-    [75] = 18097,
-    [76] = 17900,
-    [77] = 18694,
-    [78] = 18738,
-    [79] = 18818,
-    [80] = 19011,
-    [81] = 19140,
-    [82] = 19235,
-    [83] = 19402,
-    [84] = 19740,
-    [85] = 18189,
-    [86] = 20374,
-    [87] = 20440,
-    [88] = 20506,
-    [89] = 20581,
-    [90] = 20712,
-    [91] = 20778,
-    [92] = 20853,
-    [93] = 20928,
-    [94] = 21003,
-    [95] = 21078,
-    [96] = 20268,
-    [97] = 21144,
-    [98] = 21242,
-    [99] = 21420,
-    [100] = 21470,
-    [101] = 21500,
-    [102] = 21751,
-    [103] = 21800,
-    [104] = 22253,
-    [105] = 22271,
-    [106] = 22395,
-    [107] = 22494,
-    [108] = 22516,
-    [109] = 22570,
-    [110] = 22920,
-    [111] = 22956,
-    [112] = 22974,
-    [113] = 23328,
-    [114] = 23340,
-    [115] = 23391,
-    [116] = 23410,
-    [117] = 23661,
-    [118] = 23705,
-    [119] = 23908,
-    [120] = 23936,
-    [121] = 23947,
+    [3] = 360,
+    [5] = 874,
+    [6] = 859,
+    [7] = 991,
+    [8] = 1129,
+    [9] = 1368,
+    [10] = 1720,
+    [11] = 2098,
+    [12] = 2400,
+    [13] = 3120,
+    [14] = 3450,
+    [15] = 4274,
+    [16] = 4335,
+    [17] = 4767,
+    [18] = 5091,
+    [19] = 5103,
+    [20] = 5160,
+    [21] = 5277,
+    [22] = 5608,
+    [23] = 5819,
+    [24] = 6123,
+    [25] = 6216,
+    [26] = 6265,
+    [27] = 6840,
+    [28] = 7027,
+    [29] = 7274,
+    [30] = 7665,
+    [31] = 5067,
+    [33] = 8478,
+    [34] = 9303,
+    [35] = 9398,
+    [36] = 9713,
+    [37] = 10134,
+    [38] = 10544,
+    [39] = 10714,
+    [40] = 10859,
+    [41] = 12409,
+    [42] = 12622,
+    [43] = 12849,
+    [44] = 13130,
+    [45] = 13537,
+    [46] = 14160,
+    [47] = 14246,
+    [48] = 14847,
+    [49] = 15696,
+    [50] = 16187,
+    [51] = 16317,
+    [52] = 16469,
+    [54] = 16978,
+    [55] = 16998,
+    [56] = 17015,
+    [57] = 17044,
+    [58] = 17166,
+    [59] = 17190,
+    [60] = 17239,
+    [61] = 16953,
+    [62] = 17336,
+    [63] = 17641,
+    [64] = 17672,
+    [65] = 17325,
+    [66] = 17715,
+    [67] = 17735,
+    [68] = 17767,
+    [69] = 17697,
+    [70] = 17874,
+    [71] = 17940,
+    [73] = 18020,
+    [74] = 18185,
+    [75] = 18202,
+    [76] = 18005,
+    [77] = 18799,
+    [78] = 18843,
+    [79] = 18923,
+    [80] = 19116,
+    [81] = 19245,
+    [82] = 19340,
+    [83] = 19507,
+    [84] = 19845,
+    [85] = 18294,
+    [86] = 20479,
+    [87] = 20545,
+    [88] = 20611,
+    [89] = 20686,
+    [90] = 20817,
+    [91] = 20883,
+    [92] = 20958,
+    [93] = 21033,
+    [94] = 21108,
+    [95] = 21183,
+    [96] = 20373,
+    [97] = 21249,
+    [98] = 21347,
+    [99] = 21525,
+    [100] = 21575,
+    [101] = 21605,
+    [102] = 21856,
+    [103] = 21905,
+    [104] = 22358,
+    [105] = 22376,
+    [106] = 22500,
+    [107] = 22599,
+    [108] = 22621,
+    [109] = 22675,
+    [110] = 23025,
+    [111] = 23061,
+    [112] = 23079,
+    [113] = 23433,
+    [114] = 23445,
+    [115] = 23496,
+    [116] = 23515,
+    [117] = 23766,
+    [118] = 23810,
+    [119] = 24013,
+    [120] = 24041,
+    [121] = 24052,
 }
 
 -- [[Misc AOT variable imports]]

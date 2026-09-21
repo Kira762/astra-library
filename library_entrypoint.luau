@@ -67,6 +67,8 @@ type WindowModule = { new: (types.WindowProps) -> types.Window }
 local Astra = {} :: Astra
 local activeWindow: types.Window? = nil
 local ACTIVE_WINDOW_KEY = "__ASTRA_ACTIVE_WINDOW_V1"
+local LIVE_WINDOWS_KEY = "__ASTRA_LIVE_WINDOWS_V1"
+local GENERATION_KEY = "__ASTRA_WINDOW_GENERATION_V1"
 
 -- [[How long a font download waits for the entrance before it triggers its own
 -- full theme pass. It is a cooldown between *parts* of startup, not extra
@@ -88,6 +90,99 @@ end
 
 local globalStore = getGlobalStore()
 
+local function getLiveWindows(): { types.Window }
+	local live = globalStore[LIVE_WINDOWS_KEY]
+	if type(live) ~= "table" then
+		live = {}
+		globalStore[LIVE_WINDOWS_KEY] = live
+	end
+	return live
+end
+
+local function trackedWindows(): { types.Window }
+	local seen: { [types.Window]: boolean } = {}
+	local list: { types.Window } = {}
+
+	local function add(value: any)
+		if type(value) ~= "table" then
+			return
+		end
+		local window = value :: types.Window
+		if seen[window] then
+			return
+		end
+		seen[window] = true
+		table.insert(list, window)
+	end
+
+	add(activeWindow)
+	add(globalStore[ACTIVE_WINDOW_KEY])
+	local live = globalStore[LIVE_WINDOWS_KEY]
+	if type(live) == "table" then
+		for _, window in live do
+			add(window)
+		end
+	end
+	return list
+end
+
+local function forgetWindow(window: types.Window)
+	if activeWindow == window then
+		activeWindow = nil
+	end
+	if globalStore[ACTIVE_WINDOW_KEY] == window then
+		globalStore[ACTIVE_WINDOW_KEY] = nil
+	end
+	local live = globalStore[LIVE_WINDOWS_KEY]
+	if type(live) ~= "table" then
+		return
+	end
+	for index = #live, 1, -1 do
+		if live[index] == window then
+			table.remove(live, index)
+		end
+	end
+end
+
+local function rememberWindow(window: types.Window)
+	activeWindow = window
+	globalStore[ACTIVE_WINDOW_KEY] = window
+	local live = getLiveWindows()
+	for _, existing in live do
+		if existing == window then
+			return
+		end
+	end
+	table.insert(live, window)
+end
+
+local function isReplaceableWindow(window: types.Window): boolean
+	local anyWindow = window :: any
+	if anyWindow.unloaded then
+		return false
+	end
+	local settings = anyWindow.settings
+	return not (type(settings) == "table" and settings.antiWindowDuplicate == false)
+end
+
+local function unloadWindow(window: types.Window)
+	local anyWindow = window :: any
+	if type(anyWindow.Unload) == "function" and not anyWindow.unloaded then
+		pcall(anyWindow.Unload, anyWindow)
+	end
+	forgetWindow(window)
+end
+
+local function unloadReplaceableWindows(except: types.Window?)
+	for _, window in trackedWindows() do
+		if window ~= except and isReplaceableWindow(window) then
+			unloadWindow(window)
+		elseif (window :: any).unloaded then
+			forgetWindow(window)
+		end
+	end
+end
+
 Astra.Icons = Icons
 
 -- [[The motion service is public: hosts can animate with the library's own
@@ -99,23 +194,22 @@ Astra.Core = Core
 Astra.Settings = Settings
 
 function Astra:CreateWindow(props: types.WindowProps): types.Window
-	local existingWindow = activeWindow or globalStore[ACTIVE_WINDOW_KEY]
-	activeWindow = existingWindow
-	if existingWindow then
-		local existingAny = existingWindow :: any
-		if existingAny.unloaded then
-			activeWindow = nil
-			if globalStore[ACTIVE_WINDOW_KEY] == existingWindow then
-				globalStore[ACTIVE_WINDOW_KEY] = nil
-			end
-		else
-			local antiDuplicateEnabled = Settings.readPersisted("antiWindowDuplicate", true)
-			if antiDuplicateEnabled and (not existingAny.settings or existingAny.settings.antiWindowDuplicate ~= false) then
-				existingAny:Unload()
-				activeWindow = nil
-				if globalStore[ACTIVE_WINDOW_KEY] == existingWindow then
-					globalStore[ACTIVE_WINDOW_KEY] = nil
-				end
+	-- [[Anti-duplicate has to claim the slot *before* `Window.new` can yield.
+	-- Construction checkpoints with `task.wait`, so a second `loadstring` can
+	-- start while the first window is still being built. Storing only the
+	-- finished window (and only one of them) is what left orphans behind when
+	-- the script was spam-executed: the later call saw an empty store, built
+	-- another shell, and the earlier one was never unloaded.]]
+	local antiDuplicateEnabled = Settings.readPersisted("antiWindowDuplicate", true)
+	local claimedGeneration: number? = nil
+	if antiDuplicateEnabled then
+		claimedGeneration = (tonumber(globalStore[GENERATION_KEY]) or 0) + 1
+		globalStore[GENERATION_KEY] = claimedGeneration
+		unloadReplaceableWindows(nil)
+	else
+		for _, existing in trackedWindows() do
+			if (existing :: any).unloaded then
+				forgetWindow(existing)
 			end
 		end
 	end
@@ -128,8 +222,19 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 	end
 
 	local window = result :: types.Window
-	activeWindow = window
-	globalStore[ACTIVE_WINDOW_KEY] = window
+	if antiDuplicateEnabled then
+		if globalStore[GENERATION_KEY] ~= claimedGeneration then
+			-- A later CreateWindow claimed the slot while we were constructing.
+			unloadWindow(window)
+		else
+			unloadReplaceableWindows(window)
+			if not (window :: any).unloaded then
+				rememberWindow(window)
+			end
+		end
+	else
+		rememberWindow(window)
+	end
 	-- [[One secure-mode branch: the optional-icon preload and the brand-font
 	-- swap are independent, so they run as sibling threads rather than in two
 	-- separately-guarded blocks.]]

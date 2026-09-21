@@ -3,6 +3,26 @@
 Dated entries, newest first. Each entry explains the cause and the behaviour
 change, then names the files it touched.
 
+## 2026-09-21 — Anti Duplicate Window survives spam-execute
+
+The guard only remembered the last *finished* window, and only one of them.
+`Window.new` yields at construction checkpoints, so executing the script again
+while the previous shell was still building saw an empty store, created another
+window, and never unloaded the one that was still in flight. Rapid re-entry
+left duplicate windows on screen.
+
+`CreateWindow` now claims a generation token in the `getgenv()` store before
+construction can yield, tracks every live window (not just the last one),
+unloads every replaceable predecessor immediately, and unloads itself if a
+later claim overtook it while it was still building. Per-window opt-out
+(`settings.antiWindowDuplicate = false`) and the persisted setting still
+disable the guard.
+
+- `library_entrypoint.luau` — generation token, live-window list, post-construction self-unload.
+- `scripts/anti_duplicate_window_test.luau`, `scripts/anti_duplicate_window_test.sh` — sequential replace, opt-out, and overlapping re-entry.
+- `MODULES.md` — documents the race-safe guard.
+- `version-1.luau` regenerated from the modular sources.
+
 ## 2026-09-21 — A corner scale: the UI is no longer square
 
 Every radius the library shipped was zero. The three theme tokens

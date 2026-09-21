@@ -27,7 +27,9 @@ Destruction of a replaced window now never interrupts active construction:
   of crashing: pacing checkpoints on an unloaded window neither yield nor
   assert, and `Window:Create` builds into a detached throwaway container
   instead of the destroyed tree (a repeat `Unload` clears the container).
-- A configuration load stops applying values once the window is unloaded.
+- A configuration load stops applying values once the window is unloaded,
+  and `Tab:Select` becomes a no-op on an unloaded window, so a superseded
+  script's final selection call cannot write into destroyed chrome.
 
 - `components/window/teardown.luau` — two-phase unload: the soft half
   (unloaded flag, off-screen, queues stopped) runs at once; `_destroyTree`
@@ -42,6 +44,9 @@ Destruction of a replaced window now never interrupts active construction:
   synchronous unload.
 - `utilities/persistenceConfig.luau` — the apply loop stops on an unloaded
   window.
+- `elements/tab.luau` — `Tab:Select` bails out on an unloaded window like
+  the other runtime APIs, so a superseded script's final selection call
+  cannot write into destroyed chrome.
 - `scripts/anti_duplicate_window_test.luau` — regression coverage for
   replacing a window while a host thread is suspended at a checkpoint and
   for overtaking a construction mid-`Window.new` whose host keeps adding

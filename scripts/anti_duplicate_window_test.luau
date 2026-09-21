@@ -167,6 +167,15 @@ end
 expect(busyHostDone, "the superseded host thread finished its construction without crashing")
 expect(#busy.instances == 0, "the superseded tree was destroyed once construction went quiet")
 expect(alive(replacer), "the replacement survives the superseded teardown")
+
+-- A selection call the superseded script still owed (builds that end with a
+-- Select, like the published examples) lands after the tree is gone; it must
+-- be a no-op, not a write into destroyed chrome.
+local lateSelectOk = pcall(function()
+	busyTab:Select()
+end)
+expect(lateSelectOk, "Select on an unloaded window is a harmless no-op")
+
 replacer:Unload()
 TestPump(0.2)
 expect(screenGuis() == 0, "unloading the replacer clears the screen")
@@ -184,6 +193,9 @@ task.spawn(function()
 		table.insert(elements, { type = "Toggle", name = "Overtaken " .. index })
 	end
 	tab:CreateCollapsibleGroup({ name = "Overtaken group", elements = elements })
+	-- The published examples end their build with a selection; a superseded
+	-- script's must survive the same way.
+	tab:Select()
 	overtakenHostDone = true
 end)
 -- One frame: the overtaken construction is suspended inside Window.new.
@@ -201,6 +213,7 @@ expect(overtaken.unloaded, "the overtaken window was unloaded")
 expect(#overtaken.instances == 0, "the overtaken window destroyed its instances")
 expect(alive(overtopper), "the overtaking window survives")
 expect(screenGuis() == 1, "only the overtaker's ScreenGui remains")
+
 overtopper:Unload()
 TestPump(0.2)
 expect(screenGuis() == 0, "unloading the overtaker clears the screen")

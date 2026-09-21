@@ -2,7 +2,12 @@
 #
 #   input   the event payload GitHub hands the workflow ($GITHUB_EVENT_PATH)
 #   output  one JSON object, ready to POST to a Discord webhook URL
-#   env     DISCORD_EMBED_COLOR  decimal accent colour, default 2829617
+#   env     DISCORD_EMBED_COLOR      decimal accent colour, default 2829617
+#           DISCORD_DIFFSTAT_JSON    optional. The per-file line counts that
+#                                    discord-diffstat.sh collected, as one
+#                                    compact JSON string. Without it the paths
+#                                    in the event are still listed, just
+#                                    without their +24 -9.
 #
 # Run it on its own with:
 #   jq -f .github/scripts/discord-embed.jq event.json
@@ -13,7 +18,9 @@
 #   title        "Pushed 3 commits to main" / "Created branch x" / "Published
 #                tag v1" / "Deleted branch x", linked to the compare view
 #   description  the commit log - one line per commit, newest last, capped
-#   fields       Branch | Commit | Files, inline, one row of three
+#   fields       Branch | Commit | Changes, inline, one row of three
+#   files        a fenced block of `path +24 -9` lines, biggest change first,
+#                ending in a count of the files that did not fit
 #   footer       "Pushed by <login>" beside the commit timestamp
 #   color        $color - a neutral bar. Discord's dark-theme embed background
 #                is #2B2D31 (2829617), so the default accent disappears into
@@ -112,6 +119,76 @@ def commit_log($limit; $subject_limit; $repo_url):
     | clamp($limit)
   end;
 
+# --- per-file churn ----------------------------------------------------------
+
+# A line count with its sign. Zero, or a number the API never reported, shows
+# as nothing at all: a rename or a binary file would otherwise print `+0 -0`,
+# and a column of zeroes reads worse than a column of blanks.
+def churn($value; $sign):
+  if (($value | type) == "number") and $value > 0
+  then ($sign + ($value | tostring))
+  else ""
+  end;
+
+def pad_right($text; $width): $text + (" " * ([$width - ($text | length), 0] | max));
+def pad_left($text; $width): (" " * ([$width - ($text | length), 0] | max)) + $text;
+
+# Git allows almost anything in a file name, and this block is a fence with one
+# line per file in it. A newline would forge a line, and a backtick could close
+# the fence early - so both are flattened before the path is ever printed. The
+# same rule as the commit log: nothing from Git reaches Discord as it came.
+def clean_path: (tostring) | gsub("[[:cntrl:]]"; " ") | gsub("`"; "'");
+
+# When a path is too long for its column the tail is what survives: the file
+# name says more about which file changed than the top directory does.
+def fit_path($path; $width):
+  if ($path | length) <= $width then $path
+  elif $width <= 1 then $path[0:$width]
+  else "…" + $path[-($width - 1):]
+  end;
+
+# One line: the path, then the counts right-aligned so the signs line up down
+# the block, and a file that only grew shown as `+24` rather than `+24 -0`.
+def diffstat_line($path_width; $add_width; $del_width):
+  ((.path | clean_path)) as $path
+  | (churn(.additions; "+")) as $add
+  | (churn(.deletions; "-")) as $del
+  | pad_right(fit_path($path; $path_width); $path_width)
+    + " " + pad_left($add; $add_width)
+    + " " + pad_left($del; $del_width)
+  | gsub("[ ]+$"; "");
+
+# The block: biggest change first, inside a fence, and with a last line that
+# counts what did not fit instead of dropping it. Two ceilings, not one - the
+# line budget keeps a twelve-file push from turning into a wall of text, the
+# character budget keeps a fourteen-file push with long paths inside the 1024
+# a field is allowed.
+def diffstat_block($files; $max_lines; $budget):
+  ($files | sort_by([(- ((.additions // 0) + (.deletions // 0))), .path])) as $sorted
+  | ($sorted[0:$max_lines]) as $shown
+  | ([$shown[] | (.path | clean_path | length)] | max // 0) as $widest_path
+  | ([$widest_path, 44] | min) as $path_width
+  | ([$shown[] | churn(.additions; "+") | length] | max // 1) as $add_width
+  | ([$shown[] | churn(.deletions; "-") | length] | max // 1) as $del_width
+  | ($shown | map(diffstat_line($path_width; $add_width; $del_width))) as $lines
+  | (reduce $lines[] as $line
+      ({kept: [], used: 0, dropped: 0};
+       ($line | length) as $length
+       | ((if (.kept | length) > 0 then 1 else 0 end) + $length) as $cost
+       | if (.dropped == 0) and ((.used + $cost) <= $budget) then
+           .kept += [$line] | .used += $cost
+         else
+           .dropped += 1
+         end))
+  | (.dropped + (($sorted | length) - ($shown | length))) as $dropped
+  | (.kept
+     + (if $dropped > 0
+        then ["… and " + ($dropped | tostring) + " more file(s)"]
+        else []
+        end))
+  | join("\n")
+  | "```\n" + . + "\n```";
+
 # --- the event ---------------------------------------------------------------
 
 . as $event
@@ -165,26 +242,54 @@ def commit_log($limit; $subject_limit; $repo_url):
      $commit_url
    end) as $target_url
 
-# File churn, from the per-commit file lists. Unique paths, so a file touched
-# by three commits counts once; a path both added and removed in one push
-# (renamed, or added then reverted) counts as neither.
-| ([$commits[] | ((.added // [])[])] | unique) as $added
-| ([$commits[] | ((.removed // [])[])] | unique) as $removed
-| ([$commits[] | ((.modified // [])[])] | unique) as $modified
-| (($added + $removed + $modified) | unique) as $files
-| (($added - $removed) | length) as $created_files
-| (($removed - $added) | length) as $deleted_files
-| ((if ($files | length) > 0 then
-     (($files | length) | tostring)
-     + (if ($files | length) == 1 then " file" else " files" end)
-     + " · "
-     + ($created_files | tostring)
-     + " added · "
-     + ($deleted_files | tostring)
-     + " deleted"
+# File churn. The line counts come from the workflow (discord-diffstat.sh):
+# GitHub's push payload carries the paths a commit touched but never how much
+# of them, so a notification that wants `README.md +24 -9` has to ask the API.
+# It arrives as JSON in the environment rather than through --slurpfile, so the
+# filter still runs on its own against a plain event file.
+| ((env.DISCORD_DIFFSTAT_JSON // "")
+   | if length > 0 then (try fromjson catch null) else null end) as $diffstat
+| (($diffstat.files // [])
+   | map(select(((.path // "") | length) > 0))) as $counted_files
+| (($counted_files | length) > 0) as $counts_known
+
+# Without counts the event's own file lists still say which files moved - worth
+# more than the sentence this block used to post in their place. A deleted ref
+# is the exception: its commits are not changes to the repository any more, and
+# "Deleted branch x" does not need a diff.
+| (if $counts_known then
+     $counted_files
+   elif $event.deleted != true then
+     ([$commits[] | ((.added // [])[]), ((.removed // [])[]), ((.modified // [])[])]
+      | unique | sort
+      | map({path: ., additions: null, deletions: null}))
    else
-     "No file details in this push."
-   end)) as $files_summary
+     []
+   end) as $changed_files
+
+# Totals are summed by discord-diffstat.jq over every file the API reported,
+# including the ones past the end of the list, so they can out-run the block.
+| ((if $counts_known then ($diffstat.total_additions // ([$counted_files[].additions] | add // 0)) else 0 end)) as $total_add
+| ((if $counts_known then ($diffstat.total_deletions // ([$counted_files[].deletions] | add // 0)) else 0 end)) as $total_del
+| ((if $counts_known then ($diffstat.total_files // ($counted_files | length)) else 0 end)) as $total_files
+
+# The inline tally, and the block it counts down from. `(partial)` is the API
+# admitting it could not see the whole push: /compare stops at 300 files, and a
+# commit whose diff never arrived is a commit whose lines are not in the total.
+| (if $counts_known then
+     ("+" + ($total_add | tostring) + " -" + ($total_del | tostring))
+     + "\n"
+     + ($total_files | tostring)
+     + (if $total_files == 1 then " file" else " files" end)
+     + (if ($diffstat.truncated // false) then " (partial)" else "" end)
+   else
+     null
+   end) as $changes_text
+| (if ($changed_files | length) > 0 then
+     diffstat_block($changed_files; 15; 880)
+   else
+     null
+   end) as $files_block
 
 # Title: what actually happened to the ref.
 | ((if $count == 1 then "1 commit" else ($count | tostring) + " commits" end)) as $count_phrase
@@ -256,10 +361,13 @@ def commit_log($limit; $subject_limit; $repo_url):
               inline: true
             }
           ]
-          + (if $count > 0 then
-               [{name: "Files", value: ($files_summary | clamp(900)), inline: true}]
-             else
-               []
+          + (if $changes_text != null
+             then [{name: "Changes", value: $changes_text, inline: true}]
+             else []
+             end)
+          + (if $files_block != null
+             then [{name: "Files changed", value: ($files_block | clamp(1024)), inline: false}]
+             else []
              end)
         ),
         footer: {text: $footer},

@@ -3,6 +3,41 @@
 Dated entries, newest first. Each entry explains the cause and the behaviour
 change, then names the files it touched.
 
+## 2026-09-22 — Footer no longer turns into a white bar on theme re-application
+
+The Footer (the centred "Built with ⚡ Astra ♡" strip) rendered as a solid
+white band after any theme re-application — Apply Theme / Reset in Settings,
+the secure-mode font swap, a host calling `window:ChangeTheme` after a
+bar-layout switch — leaving it showing nothing readable at all.
+
+Two footer defects combined into that bar:
+
+- The container frame is a transparent host (its text/icon runs are the whole
+  element), yet it registered `BackgroundTransparency = "ElementTransparency"`
+  like an element card. Element cards can afford that binding because their
+  `StyleElementBody`/`StyleElementPanel` gradient tints the white base dark
+  the moment the binding paints it opaque; the footer never receives that
+  styling, so the very next `ChangeTheme` pass tweened its bare white base to
+  `ElementTransparency` (0) and buried the run. The binding is simply gone:
+  the container's transparency is permanently 1, and visibility lives
+  entirely on the runs, exactly as `_setShown` already treats it. Every other
+  element was audited — each keeps the binding only where a gradient or a
+  surface colour tints the frame, so none share the defect.
+- `Footer:Set()` destroyed the old run labels with a raw `:Destroy()` while
+  their theme bindings were still registered, so the first `ChangeTheme`
+  afterwards failed with "property cannot be assigned ... instance has been
+  destroyed". The rebuild now goes through `Window:DestroySubtree` like every
+  other element's rebuild path, unregistering theme/locale bindings first.
+
+- `elements/footer.luau` — no theme binding on the transparent container
+  frame; `Set` destroys rebuilt runs via `DestroySubtree`.
+- `scripts/footer_test.luau` — new F9 section: a theme pass, a
+  sidebar → collapsed-sidebar → sidebar round trip and a later theme edit
+  all leave the container transparent and the run at resting transparency;
+  the Set path no longer leaves destroyed labels registered. F10 teardown.
+- `scripts/footer_test.sh` — suite description covers the regression.
+- `version-1.luau` regenerated from the modular sources.
+
 ## 2026-09-21 — Anti Duplicate Window no longer unloads a window mid-construction
 
 The spam-execute guard destroyed the previous window the moment a new

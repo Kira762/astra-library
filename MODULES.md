@@ -403,7 +403,11 @@ Per-element specifics:
 - `footer.luau` — the centred inline text-and-icon strip ("Built with ⚡ Astra ♡"):
   an ordered run of `{ text }` / `{ icon }` segments under one centring list
   layout; icons resolve through the catalog, scale with `textSize`, and
-  unresolvable names drop instead of leaving gaps. `Set` rebuilds the run.
+  unresolvable names drop instead of leaving gaps. `Set` rebuilds the run,
+  destroying the old segments through `Window:DestroySubtree`. The container
+  frame is an untinted transparent host and deliberately carries no theme
+  binding (unlike the element cards, nothing gradients it, so a theme pass
+  must never paint it opaque); visibility lives on the runs alone.
 - `button.luau` — action card with a built-in right-edge tap glyph (`tapIcon` opts out or replaces it), themed through `ContentColor`, revealed with the card, and pulsed on press. Compact/grouped buttons explicitly sort their horizontal layout by `LayoutOrder`: optional custom icon, title, then built-in tap glyph.
 - `baseCard.luau` — shared card container and header layout helper for element modules.
 - Functional info badges: `infoHelper.luau` and badge gesture bindings were

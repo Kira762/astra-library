@@ -25,7 +25,11 @@
 --        a Collapsible Group (`type = "Footer"`),
 --   * F7 an empty run renders nothing (the row hides instead of showing a
 --        blank band),
---   * F8 the move API works like on every other element.
+--   * F8 the move API works like on every other element,
+--   * F9 neither a theme pass nor a bar-layout switch ever paints the
+--        container: the transparent host stays transparent and the run keeps
+--        its muted resting transparency (the "white bar" regression),
+--   * F10 teardown.
 
 local function expect(cond, message)
 	if not cond then
@@ -250,7 +254,42 @@ footer:MoveDown()
 footer:MoveUp()
 TestPump(0.2)
 
--- ===== F9: teardown =========================================================
+-- ===== F9: theme pass and layout switches never paint the container =========
+
+-- [[Regression: the container used to register BackgroundTransparency against
+-- the theme's ElementTransparency. Element cards can afford that binding —
+-- their StyleElementBody/StyleElementPanel gradient tints the white base —
+-- but the footer's host is never tinted, so the next theme pass tweened it
+-- to opaque and the strip read as a solid white bar. The container carries
+-- no binding any more; these assertions lock that in.]]
+eq(footer.main.BackgroundTransparency, 1, "F9 the container starts transparent")
+
+window:ChangeTheme("default")
+TestPump(0.6)
+eq(footer.main.BackgroundTransparency, 1, "F9 a theme pass never paints the container")
+
+local liveRuns = runsOf(footer)
+eq(liveRuns[1].instance.__props.TextTransparency, 0.5, "F9 ... and the run keeps resting transparency")
+
+local switched = window:_setLayoutMode("collapsedSidebar")
+eq(switched, true, "F9 the collapsed-sidebar switch applies")
+TestPump(0.8)
+eq(footer.main.BackgroundTransparency, 1, "F9 ... leaving the container unpainted")
+eq(liveRuns[1].instance.__props.TextTransparency, 0.5, "F9 ... with the run still revealed")
+
+switched = window:_setLayoutMode("sidebar")
+eq(switched, true, "F9 the sidebar switch applies")
+TestPump(0.8)
+eq(footer.main.BackgroundTransparency, 1, "F9 ... and back again, still transparent")
+eq(liveRuns[1].instance.__props.TextTransparency, 0.5, "F9 ... with the run still revealed")
+
+-- A theme pass after the round trip as well: the container must stay
+-- transparent however the two gestures are interleaved.
+window:ChangeTheme({ Accent = Color3.fromRGB(255, 0, 0) })
+TestPump(0.6)
+eq(footer.main.BackgroundTransparency, 1, "F9 a later theme edit still never paints the container")
+
+-- ===== F10: teardown ========================================================
 
 window:Unload()
 TestPump(0.6)

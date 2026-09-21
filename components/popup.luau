@@ -108,29 +108,24 @@ function Popup:_build()
     local window = self.window
     local hasIcon = self.icon ~= nil and self.icon ~= 0 and self.icon ~= ""
 
-    -- Only keep one UI: place popup layers within window.screenGui when available
-    local rootGui = window.screenGui
-    if not rootGui or not rootGui.Parent then
-        rootGui = window:Create("ScreenGui", {
-            Name = state.httpService:GenerateGUID(false),
-            IgnoreGuiInset = true,
-            ResetOnSpawn = false,
-            Enabled = true,
-            DisplayOrder = constants.displayOrder.popup,
-            ZIndexBehavior = Enum.ZIndexBehavior.Global,
-            Parent = state.guiContainer,
-        })
-    end
-    self.screenGui = rootGui
-
-    self.popupContainer = window:Create("Frame", {
-        Name = "PopupContainer",
-        Size = UDim2.fromScale(1, 1),
-        Position = UDim2.fromScale(0, 0),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        ZIndex = 200000,
-        Parent = self.screenGui,
+    -- [[The dialog keeps its own ScreenGui. Nesting its layers in
+    -- `window.screenGui` instead put the card at the top of the window's ZIndex
+    -- stack, and under `Global` ZIndex that rank is compared against the card's
+    -- own descendants too: the surface painted over the Header, the copy and the
+    -- action buttons, leaving a blank rounded rectangle. A dedicated root at the
+    -- popup DisplayOrder lifts the whole dialog above the window, so inside it
+    -- the backdrop and the card can keep plain ranks and the card's children are
+    -- never outranked by the surface they sit on.
+    -- The window still owns the root (`window:Create` registers it), so an
+    -- unload destroys every open dialog with it.]]
+    self.screenGui = window:Create("ScreenGui", {
+        Name = state.httpService:GenerateGUID(false),
+        IgnoreGuiInset = true,
+        ResetOnSpawn = false,
+        Enabled = true,
+        DisplayOrder = constants.displayOrder.popup,
+        ZIndexBehavior = Enum.ZIndexBehavior.Global,
+        Parent = state.guiContainer,
     })
 
     self.backdrop = window:Create("Frame", {
@@ -140,8 +135,8 @@ function Popup:_build()
         Size = UDim2.fromScale(1, 1),
         Active = true,
         BackgroundTransparency = 1,
-        ZIndex = 200000,
-        Parent = self.popupContainer,
+        ZIndex = 1,
+        Parent = self.screenGui,
     })
     self:_fade(self.backdrop, "BackgroundTransparency", backdropTransparency)
 
@@ -154,9 +149,9 @@ function Popup:_build()
         AutomaticSize = Enum.AutomaticSize.Y,
         Active = true,
         BorderSizePixel = 0,
-        ZIndex = 200001,
+        ZIndex = 1,
         BackgroundTransparency = 1,
-        Parent = self.popupContainer,
+        Parent = self.screenGui,
     })
     self:_fade(self.card, "BackgroundTransparency", 0)
 
@@ -722,9 +717,7 @@ function Popup:Close()
             oldConnection:Disconnect()
         end
         if playbackState == Enum.PlaybackState.Completed and self._closed then
-            if self.popupContainer and self.popupContainer.Parent then
-                self.window:DestroySubtree(self.popupContainer)
-            elseif self.screenGui and self.screenGui.Parent and self.screenGui ~= self.window.screenGui then
+            if self.screenGui and self.screenGui.Parent then
                 self.window:DestroySubtree(self.screenGui)
             end
         end

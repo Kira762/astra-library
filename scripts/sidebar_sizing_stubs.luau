@@ -825,11 +825,18 @@ services.TweenService = {
 					local ok, err = pcall(function()
 						target[key] = value
 					end)
-					if not ok then
-						error(err, 0)
+						if not ok then
+							error(err, 0)
+						end
 					end
-				end
-				completed:Fire()
+					-- [[The engine hands the finished PlaybackState to every
+					-- `Completed` listener; firing nothing left listeners that
+					-- gate their teardown on `Enum.PlaybackState.Completed`
+					-- (`Popup:Close`, the notification collapse) never running
+					-- at all, so dismissed dialogs stayed parented forever.
+					-- The harness plays a tween to its end, so Completed is
+					-- the only state it ever reports.]]
+					completed:Fire(Enum.PlaybackState.Completed)
 			end,
 			Cancel = function()
 				done = true

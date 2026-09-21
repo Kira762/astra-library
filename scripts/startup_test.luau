@@ -130,7 +130,15 @@ for _ = 1, 20 do
 end
 assert(building and added < 100, "Test must intercept a yielding batch")
 building:Unload()
-TestPump(0.6)
-assert(done and buildOk == false, "Unloading must stop the in-flight builder")
-assert(not building.hasShownOnce and #building.instances == 0, "Canceled window cannot reappear or keep instances")
+assert(building.unloaded, "Unload marks the window unloaded at once")
+for _ = 1, 120 do
+    TestPump(0.05)
+    if done and #building.instances == 0 then break end
+end
+-- An unload must never interrupt an in-flight builder: the suspended
+-- constructor resumes, finishes detached (the tree is whole until the
+-- build goes quiet), and the window's instances are destroyed after it.
+assert(done and buildOk == true, "Unloading must not crash the in-flight builder")
+assert(not building.hasShownOnce, "Canceled window cannot reappear")
+assert(#building.instances == 0, "Canceled window keeps no instances once construction settles")
 print("STARTUP: unloading during construction is safe")

@@ -1,6 +1,9 @@
 -- Regression: Anti Duplicate Window must leave exactly one live window even
 -- when CreateWindow is re-entered while a previous construction is still
--- yielding at its startup checkpoints (the spam-execute race).
+-- yielding at its startup checkpoints (the spam-execute race). Replacing a
+-- window whose constructors are still suspended at a checkpoint must not
+-- crash those threads: the window is marked unloaded and vanishes at once,
+-- but its tree is only destroyed once that construction has gone quiet.
 
 local function expect(condition, message)
 	if not condition then
@@ -81,6 +84,17 @@ end
 
 expect(finished == 8, "every overlapping CreateWindow returns")
 expect(sawOverlap, "CreateWindow was re-entered while a previous construction was still yielding")
+
+-- A window overtaken mid-construction unloads once its construction goes
+-- quiet, so the final state settles a few frames after the last call
+-- returns. Pump until it has.
+for _ = 1, 200 do
+	if countAlive(overlapping) == 1 and screenGuis() == 1 then
+		break
+	end
+	TestPump(0.05)
+end
+
 expect(countAlive(overlapping) == 1, "rapid re-entry leaves exactly one live window")
 
 local survivor
@@ -110,4 +124,85 @@ followup:Unload()
 TestPump(0.2)
 expect(screenGuis() == 0, "unloading the last window removes its ScreenGui")
 
-print("ANTI DUPLICATE: sequential replace, opt-out, overlapping spam, and cleanup passed")
+-- The reported crash: re-executing while the previous script's host thread
+-- is suspended at a construction checkpoint (mid-CreateCollapsibleGroup).
+-- The replacement must mark the window unloaded and take the screen at once
+-- without pulling the tree out from under the suspended constructors; the
+-- superseded host thread resumes, finishes its build harmlessly, and the
+-- tree is destroyed once that construction has gone quiet.
+local busy = Astra:CreateWindow({ name = "Busy", configuration = { autoSave = false, autoLoad = false } })
+local busyTab = busy:CreateTab({ name = "Busy tab" })
+local busyHostDone = false
+task.spawn(function()
+	local elements = {}
+	for index = 1, 40 do
+		table.insert(elements, { type = "Button", name = "Busy " .. index, callback = function() end })
+	end
+	busyTab:CreateCollapsibleGroup({ name = "Busy group", elements = elements })
+	busyHostDone = true
+end)
+
+-- Pump until the host thread is suspended inside a pacing checkpoint.
+local caughtSuspended = false
+for _ = 1, 200 do
+	TestPump(0.05)
+	if (busy._constructionBusy or 0) > 0 then
+		caughtSuspended = true
+		break
+	end
+end
+expect(caughtSuspended, "a host thread was caught suspended at a construction checkpoint")
+
+local replacer = Astra:CreateWindow({ name = "Replacer", configuration = { autoSave = false, autoLoad = false } })
+expect(busy.unloaded, "a window under construction is marked unloaded at once")
+expect(alive(replacer), "the replacement window stays alive")
+expect(screenGuis() == 1, "the replacement is the only window on screen")
+
+for _ = 1, 400 do
+	TestPump(0.05)
+	if busyHostDone and #busy.instances == 0 then
+		break
+	end
+end
+expect(busyHostDone, "the superseded host thread finished its construction without crashing")
+expect(#busy.instances == 0, "the superseded tree was destroyed once construction went quiet")
+expect(alive(replacer), "the replacement survives the superseded teardown")
+replacer:Unload()
+TestPump(0.2)
+expect(screenGuis() == 0, "unloading the replacer clears the screen")
+
+-- Overtaken while still inside Window.new: the overtaken CreateWindow must
+-- hand its host a window that keeps accepting constructors; that window is
+-- never shown and is torn down once the host's construction goes quiet.
+local overtaken
+local overtakenHostDone = false
+task.spawn(function()
+	overtaken = Astra:CreateWindow({ name = "Overtaken", configuration = { autoSave = false, autoLoad = false } })
+	local tab = overtaken:CreateTab({ name = "Overtaken tab" })
+	local elements = {}
+	for index = 1, 24 do
+		table.insert(elements, { type = "Toggle", name = "Overtaken " .. index })
+	end
+	tab:CreateCollapsibleGroup({ name = "Overtaken group", elements = elements })
+	overtakenHostDone = true
+end)
+-- One frame: the overtaken construction is suspended inside Window.new.
+TestPump(0.05)
+local overtopper = Astra:CreateWindow({ name = "Overtopper", configuration = { autoSave = false, autoLoad = false } })
+
+for _ = 1, 400 do
+	TestPump(0.05)
+	if overtakenHostDone and overtaken and overtaken.unloaded and #overtaken.instances == 0 then
+		break
+	end
+end
+expect(overtakenHostDone, "the overtaken host finished adding its elements")
+expect(overtaken.unloaded, "the overtaken window was unloaded")
+expect(#overtaken.instances == 0, "the overtaken window destroyed its instances")
+expect(alive(overtopper), "the overtaking window survives")
+expect(screenGuis() == 1, "only the overtaker's ScreenGui remains")
+overtopper:Unload()
+TestPump(0.2)
+expect(screenGuis() == 0, "unloading the overtaker clears the screen")
+
+print("ANTI DUPLICATE: sequential replace, opt-out, overlapping spam, mid-build replace, and cleanup passed")

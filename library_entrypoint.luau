@@ -224,8 +224,17 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 	local window = result :: types.Window
 	if antiDuplicateEnabled then
 		if globalStore[GENERATION_KEY] ~= claimedGeneration then
-			-- A later CreateWindow claimed the slot while we were constructing.
-			unloadWindow(window)
+			-- [[A later CreateWindow claimed the slot while this one was
+			-- [[still constructing. Do not unload here: the host that called
+			-- [[us keeps running and is about to add tabs and elements to
+			-- [[the window we return, so destroying it now would interrupt
+			-- [[that construction (the "Window unloaded during
+			-- [[construction" crash). Mark it superseded instead — the
+			-- [[reveal thread below never shows it and unloads it as soon
+			-- [[as its construction has gone quiet, and the checkpoints
+			-- [[plus `Window:Create` keep any tail that outlives even that
+			-- [[moment detached instead of crashed.]]
+			(window :: any)._superseded = true
 		else
 			unloadReplaceableWindows(window)
 			if not (window :: any).unloaded then
@@ -297,6 +306,30 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 			task.wait()
 
 			if window.unloaded then
+				return
+			end
+			if (window :: any)._superseded then
+				-- [[A later CreateWindow overtook this one mid-construction.
+				-- [[The host already received the window and keeps adding
+				-- [[controls to it, so wait for that construction to go
+				-- [[quiet (the same two-stable-frames signal used below)
+				-- [[before unloading — never show it. Unloading any earlier
+				-- [[could land between two of the host's constructors; the
+				-- [[checkpoint and `Window:Create` detach paths keep even
+				-- [[that tail harmless.]]
+				local stableFrames = 0
+				while not window.unloaded and stableFrames < 2 do
+					local revision = window._constructionRevision
+					task.wait()
+					if (window._constructionBusy or 0) == 0 and revision == window._constructionRevision then
+						stableFrames += 1
+					else
+						stableFrames = 0
+					end
+				end
+				if not window.unloaded then
+					unloadWindow(window)
+				end
 				return
 			end
 			if window._autoShowCancelled then

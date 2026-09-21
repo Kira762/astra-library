@@ -235,8 +235,17 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 	local window = result :: types.Window
 	if antiDuplicateEnabled then
 		if globalStore[GENERATION_KEY] ~= claimedGeneration then
-			-- A later CreateWindow claimed the slot while we were constructing.
-			unloadWindow(window)
+			-- [[A later CreateWindow claimed the slot while this one was
+			-- [[still constructing. Do not unload here: the host that called
+			-- [[us keeps running and is about to add tabs and elements to
+			-- [[the window we return, so destroying it now would interrupt
+			-- [[that construction (the "Window unloaded during
+			-- [[construction" crash). Mark it superseded instead — the
+			-- [[reveal thread below never shows it and unloads it as soon
+			-- [[as its construction has gone quiet, and the checkpoints
+			-- [[plus `Window:Create` keep any tail that outlives even that
+			-- [[moment detached instead of crashed.]]
+			(window :: any)._superseded = true
 		else
 			unloadReplaceableWindows(window)
 			if not (window :: any).unloaded then
@@ -308,6 +317,30 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 			task.wait()
 
 			if window.unloaded then
+				return
+			end
+			if (window :: any)._superseded then
+				-- [[A later CreateWindow overtook this one mid-construction.
+				-- [[The host already received the window and keeps adding
+				-- [[controls to it, so wait for that construction to go
+				-- [[quiet (the same two-stable-frames signal used below)
+				-- [[before unloading — never show it. Unloading any earlier
+				-- [[could land between two of the host's constructors; the
+				-- [[checkpoint and `Window:Create` detach paths keep even
+				-- [[that tail harmless.]]
+				local stableFrames = 0
+				while not window.unloaded and stableFrames < 2 do
+					local revision = window._constructionRevision
+					task.wait()
+					if (window._constructionBusy or 0) == 0 and revision == window._constructionRevision then
+						stableFrames += 1
+					else
+						stableFrames = 0
+					end
+				end
+				if not window.unloaded then
+					unloadWindow(window)
+				end
 				return
 			end
 			if window._autoShowCancelled then
@@ -6782,8 +6815,18 @@ end
 -- (late settings panels) use this directly so a deferred build can never
 -- monopolise a frame either. Yields land on the
 -- next Heartbeat (not another deferred task in the same frame).
+--
+-- An unloaded window never paces: the anti-duplicate guard may unload this
+-- window while its superseded script's constructors are still running (they
+-- yield here between batches). Those threads must finish harmlessly, not
+-- crash, so construction resumes detached — `Window:Create` builds into a
+-- throwaway container once `unloaded` is set — and the checkpoint stays a
+-- no-op instead of asserting.
 
 function Window:_paceBudget(force)
+    if self.unloaded then
+        return
+    end
     local now = os.clock()
     local last = self._constructionClock or now
     local count = #self.instances
@@ -6799,7 +6842,12 @@ function Window:_paceBudget(force)
     self._constructionBusy = (self._constructionBusy or 0) + 1
     task.wait()
     self._constructionBusy -= 1
-    assert(not self.unloaded, "Window unloaded during construction")
+    if self.unloaded then
+        -- [[Replaced mid-construction (anti-duplicate): the remaining
+        -- [[constructors run on, detached, so the host thread that owns them
+        -- [[ends cleanly instead of erroring on the next checkpoint.]]
+        return
+    end
     self._constructionClock = os.clock()
     self._constructionInstances = #self.instances
 end
@@ -6823,9 +6871,17 @@ end
 -- the freshly-opened window hitch. This is called only by persistenceConfig.
 
 function Window:_loadCheckpoint(appliedCount)
+    if self.unloaded then
+        -- [[The controls a configuration load writes into are gone once the
+        -- [[window is unloaded; persistenceConfig stops the loop on the same
+        -- [[condition, so this checkpoint just never paces a dead window.]]
+        return
+    end
     if appliedCount % 6 == 0 then
         task.wait()
-        assert(not self.unloaded, "Window unloaded while loading configuration")
+        if self.unloaded then
+            return
+        end
     end
 end
 
@@ -7226,9 +7282,86 @@ function Window:DestroySubtrees(roots)
     end
 end
 
+-- [[The destructive half of an unload: kill tweens and connections, destroy
+-- [[every instance the window owns (the detached graveyard a superseded
+-- [[script's tail construction builds into, included) and clear the
+-- [[bookkeeping. Runs either at once or, when a construction thread is still
+-- [[suspended at a checkpoint, once that construction has gone quiet — see
+-- [[`Window:Unload`.]]
+function Window:_destroyTree()
+    if self._treeDestroyed then
+        return
+    end
+    self._treeDestroyed = true
+            haptic.teardown()
+    haptic.releaseContainer(self.screenGui)
+    for _, liveTween in self._liveTweens or {} do
+        liveTween:Cancel()
+    end
+    self._liveTweens = nil
+    for i = #self.connections, 1, -1 do
+        self.connections[i]:Disconnect()
+    end
+    for i = #self.instances, 1, -1 do
+        self.instances[i]:Destroy()
+    end
+    if self._constructionGraveyard then
+        self._constructionGraveyard:Destroy()
+        self._constructionGraveyard = nil
+    end
+
+                table.clear(self.connections)
+    table.clear(self.instances)
+    table.clear(self.themeProperties)
+    table.clear(self.localeProperties)
+    table.clear(self.controls)
+    table.clear(self.tabs)
+    -- [[overlayQueue.close already drained the queue into its safe resting
+    -- [[shape (empty pending list, closed flag); wiping the table itself used
+    -- [[to pull `pending` out from under the pump coroutine on its next resume
+    -- [[(a `#nil` error racing an unload that landed mid-gate).]]
+    self._overlayQueueRunning = false
+end
+
+-- [[Wait for the window's construction to go quiet, then destroy the tree.
+-- [[Quiet is the same signal the startup reveal watches: two consecutive
+-- [[frames with no thread suspended at a checkpoint and no pacing activity.
+-- [[A superseded script's constructors resume into a window whose tree is
+-- [[still whole, finish what they were building, and only then does the tree
+-- [[go — anything they add after the destruction is detached by
+-- [[`Window:Create` instead, so nothing here can crash them.]]
+function Window:_destroyWhenConstructionQuiet()
+    task.spawn(function()
+        local stableFrames = 0
+        while stableFrames < 2 and not self._treeDestroyed do
+            local revision = self._constructionRevision
+            task.wait()
+            if (self._constructionBusy or 0) == 0 and revision == self._constructionRevision then
+                stableFrames += 1
+            else
+                stableFrames = 0
+            end
+        end
+        if not self._treeDestroyed then
+            self:_destroyTree()
+        end
+    end)
+end
+
 function Window:Unload()
+    if self.unloaded then
+        -- [[A repeat unload (hosts often end with one) has only the detached
+        -- [[graveyard of a superseded script's tail construction left to
+        -- [[clear; the tree itself is either already destroyed or already
+        -- [[promised to the quiet-waiter above.]]
+        if self._constructionGraveyard then
+            self._constructionGraveyard:Destroy()
+            self._constructionGraveyard = nil
+        end
+        return
+    end
     -- Do not lose the final edit if the window closes inside the save debounce.
-    if not self.unloaded and self._saveScheduled and self.configuration.autoSave and not self._loading then
+    if self._saveScheduled and self.configuration.autoSave and not self._loading then
         self._saveScheduled = false
         pcall(self.Save, self)
     end
@@ -7243,30 +7376,23 @@ function Window:Unload()
     -- [[its turn yet has no layer to be built into any more, and the pump must
     -- [[not wake up on a window whose instances are about to be destroyed.]]
     overlayQueue.close(self)
-            haptic.teardown()
-    haptic.releaseContainer(self.screenGui)
-    for _, liveTween in self._liveTweens or {} do
-        liveTween:Cancel()
+    -- [[Vanish from the screen at once, even when the tree's destruction has
+    -- [[to wait for an in-flight construction: the anti-duplicate guard must
+    -- [[never show two windows, and a superseded script's constructors keep
+    -- [[running against the tree underneath for as long as they need.]]
+    if self.screenGui then
+        self.screenGui.Parent = nil
     end
-    self._liveTweens = nil
-    for i = #self.connections, 1, -1 do
-        self.connections[i]:Disconnect()
+    if (self._constructionBusy or 0) > 0 then
+        -- [[A constructor thread is suspended at a pacing checkpoint right
+        -- [[now; destroying the tree would pull its half-built element out
+        -- [[from under it the moment it resumes ("Window unloaded during
+        -- [[construction"). Defer the destruction until that construction
+        -- [[has gone quiet.]]
+        self:_destroyWhenConstructionQuiet()
+    else
+        self:_destroyTree()
     end
-    for i = #self.instances, 1, -1 do
-        self.instances[i]:Destroy()
-    end
-
-                table.clear(self.connections)
-    table.clear(self.instances)
-    table.clear(self.themeProperties)
-    table.clear(self.localeProperties)
-    table.clear(self.controls)
-    table.clear(self.tabs)
-    -- [[overlayQueue.close already drained the queue into its safe resting
-    -- [[shape (empty pending list, closed flag); wiping the table itself used
-    -- [[to pull `pending` out from under the pump coroutine on its next resume
-    -- [[(a `#nil` error racing an unload that landed mid-gate).]]
-    self._overlayQueueRunning = false
 end
 
 end)() end,
@@ -7598,6 +7724,24 @@ function Window:Create(className, props, themeBindings)
     assert(typeof(className) == "string", "Invalid argument #1 (string expected)")
     local instance = Instance.new(className)
 
+    -- [[The anti-duplicate guard may unload this window while its superseded
+    -- [[script's constructors are still running: they yield between batches,
+    -- [[and the replacement executes during one of those yields. Those
+    -- [[constructors simply finish what they were building — but the live
+    -- [[tree is already destroyed, so they cannot parent into it (the engine
+    -- [[rejects any write to a destroyed instance). One detached throwaway
+    -- [[container per dead window collects the strays instead: nothing
+    -- [[under it is ever shown, `Unload` destroys it, and once the
+    -- [[superseded host drops its window reference the rest is collected.]]
+    local graveyard
+    if self.unloaded then
+        graveyard = self._constructionGraveyard
+        if not graveyard then
+            graveyard = Instance.new("Folder")
+            self._constructionGraveyard = graveyard
+        end
+    end
+
             if themeBindings and self.theme then
         for prop, binding in themeBindings do
             instance[prop] = (
@@ -7610,6 +7754,9 @@ function Window:Create(className, props, themeBindings)
 
     if props then
         for prop, value in props do
+            if graveyard and prop == "Parent" then
+                value = graveyard
+            end
             if locale.isToken(value) then
                 self:_bindLocale(instance, prop, locale.sourceOf(value))
             else
@@ -7618,7 +7765,9 @@ function Window:Create(className, props, themeBindings)
         end
     end
 
-    table.insert(self.instances, instance)
+    if not graveyard then
+        table.insert(self.instances, instance)
+    end
     return instance
 end
 
@@ -23677,6 +23826,12 @@ function persistenceConfig.load(window: ConfigWindow, loadName: unknown?): boole
     local applyOk, applyErr = pcall(function()
         local appliedCount = 0
         for loadedFlag, loadedControl in window.controls do
+            -- [[An anti-duplicate replacement can unload the window while a
+            -- [[large load is pacing across frames; its controls are already
+            -- [[destroyed, so stop applying instead of writing into them.]]
+            if window.unloaded then
+                break
+            end
             local storedValue = values[loadedFlag]
             if storedValue ~= nil or loadedControl._canBeNil then
                 persistenceConfig.applyTo(loadedControl, storedValue)
@@ -24219,121 +24374,121 @@ end)() end,
 
 local LineOffsets = {
     [2] = 12,
-    [3] = 360,
-    [5] = 874,
-    [6] = 859,
-    [7] = 991,
-    [8] = 1129,
-    [9] = 1368,
-    [10] = 1720,
-    [11] = 2098,
-    [12] = 2400,
-    [13] = 3120,
-    [14] = 3450,
-    [15] = 4274,
-    [16] = 4335,
-    [17] = 4767,
-    [18] = 5091,
-    [19] = 5103,
-    [20] = 5160,
-    [21] = 5277,
-    [22] = 5608,
-    [23] = 5819,
-    [24] = 6123,
-    [25] = 6216,
-    [26] = 6265,
-    [27] = 6840,
-    [28] = 7027,
-    [29] = 7274,
-    [30] = 7665,
-    [31] = 5067,
-    [33] = 8478,
-    [34] = 9303,
-    [35] = 9398,
-    [36] = 9713,
-    [37] = 10134,
-    [38] = 10544,
-    [39] = 10714,
-    [40] = 10859,
-    [41] = 12409,
-    [42] = 12622,
-    [43] = 12849,
-    [44] = 13130,
-    [45] = 13537,
-    [46] = 14160,
-    [47] = 14246,
-    [48] = 14847,
-    [49] = 15696,
-    [50] = 16187,
-    [51] = 16317,
-    [52] = 16469,
-    [54] = 16978,
-    [55] = 16998,
-    [56] = 17015,
-    [57] = 17044,
-    [58] = 17166,
-    [59] = 17190,
-    [60] = 17239,
-    [61] = 16953,
-    [62] = 17336,
-    [63] = 17641,
-    [64] = 17672,
-    [65] = 17325,
-    [66] = 17715,
-    [67] = 17735,
-    [68] = 17767,
-    [69] = 17697,
-    [70] = 17874,
-    [71] = 17940,
-    [73] = 18020,
-    [74] = 18185,
-    [75] = 18202,
-    [76] = 18005,
-    [77] = 18799,
-    [78] = 18843,
-    [79] = 18923,
-    [80] = 19116,
-    [81] = 19245,
-    [82] = 19340,
-    [83] = 19507,
-    [84] = 19845,
-    [85] = 18294,
-    [86] = 20479,
-    [87] = 20545,
-    [88] = 20611,
-    [89] = 20686,
-    [90] = 20817,
-    [91] = 20883,
-    [92] = 20958,
-    [93] = 21033,
-    [94] = 21108,
-    [95] = 21183,
-    [96] = 20373,
-    [97] = 21249,
-    [98] = 21347,
-    [99] = 21525,
-    [100] = 21575,
-    [101] = 21605,
-    [102] = 21856,
-    [103] = 21905,
-    [104] = 22358,
-    [105] = 22376,
-    [106] = 22500,
-    [107] = 22599,
-    [108] = 22621,
-    [109] = 22675,
-    [110] = 23025,
-    [111] = 23061,
-    [112] = 23079,
-    [113] = 23433,
-    [114] = 23445,
-    [115] = 23496,
-    [116] = 23515,
-    [117] = 23766,
-    [118] = 23810,
-    [119] = 24013,
-    [120] = 24041,
-    [121] = 24052,
+    [3] = 393,
+    [5] = 907,
+    [6] = 892,
+    [7] = 1024,
+    [8] = 1162,
+    [9] = 1401,
+    [10] = 1753,
+    [11] = 2131,
+    [12] = 2433,
+    [13] = 3153,
+    [14] = 3483,
+    [15] = 4307,
+    [16] = 4368,
+    [17] = 4800,
+    [18] = 5124,
+    [19] = 5136,
+    [20] = 5193,
+    [21] = 5310,
+    [22] = 5641,
+    [23] = 5852,
+    [24] = 6156,
+    [25] = 6249,
+    [26] = 6298,
+    [27] = 6896,
+    [28] = 7083,
+    [29] = 7400,
+    [30] = 7814,
+    [31] = 5100,
+    [33] = 8627,
+    [34] = 9452,
+    [35] = 9547,
+    [36] = 9862,
+    [37] = 10283,
+    [38] = 10693,
+    [39] = 10863,
+    [40] = 11008,
+    [41] = 12558,
+    [42] = 12771,
+    [43] = 12998,
+    [44] = 13279,
+    [45] = 13686,
+    [46] = 14309,
+    [47] = 14395,
+    [48] = 14996,
+    [49] = 15845,
+    [50] = 16336,
+    [51] = 16466,
+    [52] = 16618,
+    [54] = 17127,
+    [55] = 17147,
+    [56] = 17164,
+    [57] = 17193,
+    [58] = 17315,
+    [59] = 17339,
+    [60] = 17388,
+    [61] = 17102,
+    [62] = 17485,
+    [63] = 17790,
+    [64] = 17821,
+    [65] = 17474,
+    [66] = 17864,
+    [67] = 17884,
+    [68] = 17916,
+    [69] = 17846,
+    [70] = 18023,
+    [71] = 18089,
+    [73] = 18169,
+    [74] = 18334,
+    [75] = 18351,
+    [76] = 18154,
+    [77] = 18948,
+    [78] = 18992,
+    [79] = 19072,
+    [80] = 19265,
+    [81] = 19394,
+    [82] = 19489,
+    [83] = 19656,
+    [84] = 19994,
+    [85] = 18443,
+    [86] = 20628,
+    [87] = 20694,
+    [88] = 20760,
+    [89] = 20835,
+    [90] = 20966,
+    [91] = 21032,
+    [92] = 21107,
+    [93] = 21182,
+    [94] = 21257,
+    [95] = 21332,
+    [96] = 20522,
+    [97] = 21398,
+    [98] = 21496,
+    [99] = 21674,
+    [100] = 21724,
+    [101] = 21754,
+    [102] = 22005,
+    [103] = 22054,
+    [104] = 22507,
+    [105] = 22525,
+    [106] = 22649,
+    [107] = 22748,
+    [108] = 22770,
+    [109] = 22824,
+    [110] = 23174,
+    [111] = 23210,
+    [112] = 23228,
+    [113] = 23582,
+    [114] = 23594,
+    [115] = 23645,
+    [116] = 23664,
+    [117] = 23921,
+    [118] = 23965,
+    [119] = 24168,
+    [120] = 24196,
+    [121] = 24207,
 }
 
 -- [[Misc AOT variable imports]]

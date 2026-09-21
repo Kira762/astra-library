@@ -518,8 +518,18 @@ end
 -- (late settings panels) use this directly so a deferred build can never
 -- monopolise a frame either. Yields land on the
 -- next Heartbeat (not another deferred task in the same frame).
+--
+-- An unloaded window never paces: the anti-duplicate guard may unload this
+-- window while its superseded script's constructors are still running (they
+-- yield here between batches). Those threads must finish harmlessly, not
+-- crash, so construction resumes detached — `Window:Create` builds into a
+-- throwaway container once `unloaded` is set — and the checkpoint stays a
+-- no-op instead of asserting.
 
 function Window:_paceBudget(force)
+    if self.unloaded then
+        return
+    end
     local now = os.clock()
     local last = self._constructionClock or now
     local count = #self.instances
@@ -535,7 +545,12 @@ function Window:_paceBudget(force)
     self._constructionBusy = (self._constructionBusy or 0) + 1
     task.wait()
     self._constructionBusy -= 1
-    assert(not self.unloaded, "Window unloaded during construction")
+    if self.unloaded then
+        -- [[Replaced mid-construction (anti-duplicate): the remaining
+        -- [[constructors run on, detached, so the host thread that owns them
+        -- [[ends cleanly instead of erroring on the next checkpoint.]]
+        return
+    end
     self._constructionClock = os.clock()
     self._constructionInstances = #self.instances
 end
@@ -559,9 +574,17 @@ end
 -- the freshly-opened window hitch. This is called only by persistenceConfig.
 
 function Window:_loadCheckpoint(appliedCount)
+    if self.unloaded then
+        -- [[The controls a configuration load writes into are gone once the
+        -- [[window is unloaded; persistenceConfig stops the loop on the same
+        -- [[condition, so this checkpoint just never paces a dead window.]]
+        return
+    end
     if appliedCount % 6 == 0 then
         task.wait()
-        assert(not self.unloaded, "Window unloaded while loading configuration")
+        if self.unloaded then
+            return
+        end
     end
 end
 

@@ -325,6 +325,24 @@ function Window:Create(className, props, themeBindings)
     assert(typeof(className) == "string", "Invalid argument #1 (string expected)")
     local instance = Instance.new(className)
 
+    -- [[The anti-duplicate guard may unload this window while its superseded
+    -- [[script's constructors are still running: they yield between batches,
+    -- [[and the replacement executes during one of those yields. Those
+    -- [[constructors simply finish what they were building — but the live
+    -- [[tree is already destroyed, so they cannot parent into it (the engine
+    -- [[rejects any write to a destroyed instance). One detached throwaway
+    -- [[container per dead window collects the strays instead: nothing
+    -- [[under it is ever shown, `Unload` destroys it, and once the
+    -- [[superseded host drops its window reference the rest is collected.]]
+    local graveyard
+    if self.unloaded then
+        graveyard = self._constructionGraveyard
+        if not graveyard then
+            graveyard = Instance.new("Folder")
+            self._constructionGraveyard = graveyard
+        end
+    end
+
             if themeBindings and self.theme then
         for prop, binding in themeBindings do
             instance[prop] = (
@@ -337,6 +355,9 @@ function Window:Create(className, props, themeBindings)
 
     if props then
         for prop, value in props do
+            if graveyard and prop == "Parent" then
+                value = graveyard
+            end
             if locale.isToken(value) then
                 self:_bindLocale(instance, prop, locale.sourceOf(value))
             else
@@ -345,7 +366,9 @@ function Window:Create(className, props, themeBindings)
         end
     end
 
-    table.insert(self.instances, instance)
+    if not graveyard then
+        table.insert(self.instances, instance)
+    end
     return instance
 end
 

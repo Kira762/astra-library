@@ -1,5 +1,6 @@
--- The shared stub completes tweens synchronously but omits PlaybackState.
--- Supply the Roblox completion argument so dismissal cleanup is exercised.
+-- Regression test for duplicate notification replacement. An exact duplicate
+-- must retire the old live card and build a new card through the normal
+-- entrance path; only requests that have not been built yet may coalesce.
 local tweens = game:GetService("TweenService")
 local createTween = tweens.Create
 tweens.Create = function(self, ...)
@@ -11,14 +12,12 @@ tweens.Create = function(self, ...)
     return tween
 end
 
--- Advance one frame at a time: large TestPump calls jump virtual time in the
--- stub scheduler and are unsuitable for expiry/deadline assertions.
 local function advance(seconds)
     for _ = 1, math.ceil(seconds / 0.05) do TestPump(0.05) end
 end
 
 local function expect(condition, message)
-    if not condition then error("NOTIFICATION DEDUP FAIL: " .. message, 0) end
+    if not condition then error("NOTIFICATION REPLACEMENT FAIL: " .. message, 0) end
 end
 local function live(window)
     return window._liveNotifications or {}
@@ -40,45 +39,49 @@ local function countInstances(window)
     return count
 end
 
--- Exact queued duplicates coalesce before the cap and use the newest snapshot.
-local window = Astra:CreateWindow({ name = "Deduplication" })
+-- Pending duplicates still collapse because there is no old card to remove.
+local window = Astra:CreateWindow({ name = "Replacement" })
 window:CreateTab({ name = "Home" })
 window:Notify({ title = "Other", content = "Do not evict", duration = 30 })
-local reused = { title = "Same", content = "Value", duration = 1 }
+local pending = { title = "Same", content = "Value", duration = 1 }
 for index = 1, 20 do
-    reused.duration = index
-    window:Notify(reused)
+    pending.duration = index
+    window:Notify(pending)
 end
-expect(#window._overlayQueue.pending == 2, "spam does not evict unrelated queued text")
-reused.title = "Mutated after request"
+expect(#window._overlayQueue.pending == 2, "pending duplicate keeps one queue entry")
+pending.title = "Mutated after request"
 advance(2)
 expect(built(window) == 2 and #live(window) == 2, "only two distinct cards were constructed")
 local card = find(window, "Same", "Value")
-expect(card ~= nil and card.duration == 20, "queued card uses newest copied props")
-local main = card.main
-local before = built(window)
-for _ = 1, 20 do
-    window:Notify({ Title = "Same", Content = "Value", Duration = 4 })
-end
-expect(built(window) == before and card.main == main, "active duplicates update the same instance")
-expect(countInstances(window) == 2, "no overlapping duplicate instances")
-expect(card._elapsed == 0 and card.duration == 4, "duplicate resets lifetime using aliased props")
+expect(card ~= nil and card.duration == 20, "pending card uses newest copied props")
 
--- The old expiry must not dismiss the refreshed card; hover still pauses time.
-advance(2.5)
+-- A live duplicate is dismissed before a fresh replacement is queued.
+local oldMain = card.main
+local before = built(window)
 window:Notify({ title = "Same", content = "Value", duration = 4 })
-advance(2)
-expect(not card._dismissed, "refreshed card survives its original expiry")
-card.body.MouseEnter:Fire()
-local elapsed = card._elapsed
-advance(3)
-expect(card._elapsed == elapsed and not card._dismissed, "hover pauses the refreshed hold")
-card.body.MouseLeave:Fire()
-advance(2.5)
-expect(card._dismissed and not card.main.Parent, "refreshed card eventually expires and is destroyed")
-window:Notify({ title = "Same", content = "Value", duration = 20 })
-advance(0.8)
-expect(find(window, "Same", "Value").main ~= main, "expired text may open a fresh card")
+expect(card._dismissed and table.find(live(window), card) == nil, "old matching card leaves the live registry")
+advance(1)
+local replacement = find(window, "Same", "Value")
+expect(replacement ~= nil and replacement ~= card, "duplicate builds a new card")
+expect(built(window) == before + 1, "replacement takes a new build turn")
+expect(oldMain.Parent == nil, "old duplicate is removed from the notification layer")
+expect(countInstances(window) == 2, "replacement does not leave an overlapping duplicate")
+
+-- Repeating while the replacement is visible always creates a new generation;
+-- the queued part of the burst is still bounded to one pending snapshot.
+local generations = { replacement }
+for _ = 1, 4 do
+    window:Notify({ title = "Same", content = "Value", duration = 4 })
+    local current = find(window, "Same", "Value")
+    if current and current ~= generations[#generations] then
+        table.insert(generations, current)
+    end
+end
+advance(1.5)
+local newest = find(window, "Same", "Value")
+expect(newest ~= replacement and not newest._dismissed, "repeated duplicate has a fresh live card")
+expect(built(window) >= before + 2, "repeated duplicate is rebuilt, not refreshed in place")
+expect(#live(window) <= 6, "visibility cap remains bounded")
 
 -- Title AND body must match exactly: preserve case, whitespace and boundaries.
 local distinct = {
@@ -97,8 +100,8 @@ expect(#live(window) <= 6, "visibility cap remains bounded")
 window:Unload()
 advance(0.5)
 
--- Empty/default text and duplicates during entrance use the same path.
-local entrance = Astra:CreateWindow({ name = "Entrance dedup" })
+-- Empty/default text and replacement during entrance use the same path.
+local entrance = Astra:CreateWindow({ name = "Entrance replacement" })
 entrance:CreateTab({ name = "Home" })
 advance(1.5)
 entrance:Notify({ duration = 30 })
@@ -106,48 +109,48 @@ advance(0.05)
 local first = live(entrance)[1]
 expect(first ~= nil, "card is constructed during its entrance")
 entrance:Notify({ Title = "Notification", Content = "", Duration = 12 })
-expect(built(entrance) == 1 and first.duration == 12, "defaults and aliases match during entrance")
-first:_dismiss()
-entrance:Notify({ title = "Notification", content = "", duration = 12 })
+expect(first._dismissed, "default aliases dismiss the active card")
 advance(1)
-expect(built(entrance) == 2 and #live(entrance) == 1, "dismissed card does not suppress later messages")
+local second = find(entrance, "Notification", "")
+expect(built(entrance) == 2 and second ~= first, "default duplicate receives a fresh card")
+entrance:Unload()
+advance(0.5)
 
--- The registry is per window; unloading clears the pending queue.
-local other = Astra:CreateWindow({ name = "Independent dedup" })
+-- The registry is per window; unloading clears pending identity entries.
+local other = Astra:CreateWindow({ name = "Independent replacement" })
 other:CreateTab({ name = "Home" })
 other:Notify({ duration = 12 })
 advance(1.5)
-expect(built(other) == 1, "matching message in another window is independent")
+expect(built(other) == 1, "matching text in another window is independent")
 other:Notify({ title = "Pending", content = "Remove on unload" })
 other:Notify({ title = "Pending", content = "Remove on unload" })
 local beforeUnload = built(other)
 other:Unload()
 advance(1)
-expect(built(other) == beforeUnload, "unload prevents queued duplicate construction")
+expect(built(other) == beforeUnload, "unload prevents queued construction")
 expect(#other._overlayQueue.pending == 0, "unload clears queued identity entries")
-entrance:Unload()
-advance(0.5)
--- A request already parked inside the entrance gate must still be replaceable.
-local gated = Astra:CreateWindow({ name = "Gated duplicates" })
+
+-- A request parked behind a cancelled entrance still coalesces by snapshot and
+-- then builds one fresh card when the gate opens.
+local gated = Astra:CreateWindow({ name = "Gated replacement" })
 gated:CreateTab({ name = "Home" })
-gated:Hide() -- cancel auto-show so the pump genuinely waits at the gate
+gated:Hide()
 advance(0.2)
 gated:Notify({ title = "Held", content = "Same text", duration = 1 })
 advance(0.1)
 expect(built(gated) == 0, "closed entrance gate defers construction")
 gated:Notify({ title = "Held", content = "Same text", duration = 25 })
-expect(#gated._overlayQueue.pending == 1, "in-flight gated request is still coalesced")
+expect(#gated._overlayQueue.pending == 1, "gated duplicate uses one pending snapshot")
 gated:Show()
 advance(1.5)
-expect(built(gated) == 1 and live(gated)[1].duration == 25, "opening gate builds only the newest snapshot")
+expect(built(gated) == 1 and live(gated)[1].duration == 25, "opening gate builds newest snapshot")
+
 Astra.Motion.setProfile("instant")
-gated:Notify({ title = "Instant", content = "Duplicate", duration = 10 })
-gated:Notify({ title = "Instant", content = "Duplicate", duration = 20 })
+local instant = find(gated, "Held", "Same text")
+gated:Notify({ title = "Held", content = "Same text", duration = 10 })
 advance(0.2)
-expect(built(gated) == 2, "motion-off duplicate builds once")
-gated:Notify({ title = "Instant", content = "Duplicate", duration = 30 })
-expect(built(gated) == 2 and find(gated, "Instant", "Duplicate").duration == 30, "motion-off active refresh works")
+expect(built(gated) == 2 and find(gated, "Held", "Same text") ~= instant, "instant mode still replaces active duplicate")
 gated:Unload()
 Astra.Motion.setProfile("normal")
 advance(0.2)
-print("NOTIFICATION DEDUP: exact matching, active refresh, queued coalescing, lifetime and cleanup passed")
+print("NOTIFICATION REPLACEMENT: pending coalescing, active removal, fresh animation path and cleanup passed")

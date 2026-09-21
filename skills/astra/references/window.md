@@ -65,9 +65,11 @@ window:Popup({
 })
 ```
 
-`Notify` refreshes an existing card for an exact title/content match and resets
-its lifetime. Queued duplicates coalesce using the latest props. Different case,
-whitespace, title or content remain distinct; matching is per window.
+`Notify` removes an existing card for an exact title/content match before
+queueing a replacement, so the replacement gets a fresh entrance animation.
+Queued duplicates coalesce using the latest props because an unbuilt request has
+no card to remove. Different case, whitespace, title or content remain
+distinct; matching is per window.
 
 ## Locked tabs
 

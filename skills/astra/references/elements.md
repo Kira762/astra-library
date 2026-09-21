@@ -179,14 +179,17 @@ key:Capture()
 key:CancelCapture()
 ```
 
-- A dedicated keycap button, never a TextBox. Click, then press one A–Z letter.
+- A dedicated one-letter TextBox is editable in place; click inside it and type
+  or paste one A–Z letter.
 - Required value; defaults to K. Cannot clear or bind numbers, punctuation,
-  special keys or mouse buttons. Invalid `Set` retains the previous letter.
+  special keys or mouse buttons. Invalid edits and `Set` calls retain the prior
+  letter.
 - Values/callbacks are uppercase strings; callbacks run on changes only.
-- Escape, a second click, focus loss, tab switches, folding the parent, hide or
-  unload cancel capture. Capturing a key never triggers the window toggle.
-- Supports `name`, `icon`, `description`, `value`, `flag`, `forgetState`, `callback`,
-  move/lock methods, tabs, column Groups and declarative `type = "Keybind"`.
+- Escape, focus loss, tab switches, folding the parent, hide or unload cancel
+  capture. Capturing a key never triggers the window toggle.
+- Supports `name`, `icon`, `value`, `flag`, `forgetState`, `callback`, move/lock
+  methods, tabs, column Groups and declarative `type = "Keybind"`; it has no
+  description row.
 - Records the key; only the built-in Settings control assigns the menu shortcut.
 
 ## Input

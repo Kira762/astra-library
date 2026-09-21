@@ -155,11 +155,11 @@ export type DropdownProps = {
     callback: ((value: any) -> ())?,
 }
 
--- Required A–Z key capture. Strings are normalised to uppercase; no clearing.
+-- Required, editable one-letter key field. Strings are normalised to uppercase;
+-- invalid edits restore the previous letter instead of leaving the control blank.
 export type KeybindProps = {
     name: string?,
     icon: (string | number)?,
-    description: string?,
     value: (string | EnumItem)?,
     flag: string?,
     forgetState: boolean?,

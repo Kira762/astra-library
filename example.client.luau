@@ -101,7 +101,7 @@ actions:CreateButton({
 local shortcuts = actions:CreateGroup({ direction = "row" })
 shortcuts:CreateButton({ name = "Reset counter", icon = "rotate-ccw", callback = function() runs:Set(0) end })
 shortcuts:CreateButton({ name = "Notify", icon = "bell", callback = function()
-    window:Notify({ title = "Hello from Astra", content = "Compact buttons share the same clean, icon-optional style." })
+    window:Notify({ title = "Hello from Astra", content = "Click again to replace this exact notification with a fresh animated card." })
 end })
 actions:CreateDivider({ text = "Window preview" })
 actions:CreateButton({ name = "Hide to capsule", icon = "minus", description = "Restore by tapping the capsule or pressing your menu letter.", callback = function() window:Hide() end })
@@ -131,7 +131,6 @@ preferences:CreateDropdown({ name = "Active modules", options = { "Visuals", "Au
 preferences:CreateDivider({ text = "Keyboard" })
 preferences:CreateKeybind({
     name = "Sample shortcut", value = "P", flag = "demo.shortcut",
-    description = "Click to capture one letter. This sample stores a key; it does not toggle the window. Change the menu key in Settings → Controls.",
     callback = function(letter)
         window:Notify({ title = "Shortcut saved", content = "Sample shortcut: " .. letter })
     end,

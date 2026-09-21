@@ -56,17 +56,16 @@ function Window:_showNotification(props)
     -- not have its last write end up on every card.]]
     local snapshot = self:_copyOverlayProps(props)
     local notification = require(script.Parent.Parent.notification)
-    if notification.refresh(self, snapshot) then
-        return
-    end
+
+    -- Exact duplicates are replacements, not refreshes. Remove every matching
+    -- card first, then send the new snapshot through the normal entrance queue
+    -- so the replacement always gets its own reveal animation. The queue still
+    -- coalesces a duplicate that has not been built yet; there is no old card to
+    -- remove in that case, so replacing its pending snapshot avoids needless
+    -- construction while keeping the newest request.
+    notification.dismissMatching(self, snapshot)
     overlayQueue.request(self, function(release)
-        -- Recheck on the build turn: another request may have opened the same
-        -- message while this one waited for the window entrance.
-        if notification.refresh(self, snapshot) then
-            release(true)
-        else
-            notification.new(self, snapshot, release)
-        end
+        notification.new(self, snapshot, release)
     end, notification.key(snapshot))
 end
 

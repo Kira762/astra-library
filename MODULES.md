@@ -263,11 +263,12 @@ description); `Window:Notify` builds the layer
 immediately but constructs the card only on its turn, so a burst at load time
 costs one card per frame instead of all of them at once. `Popup` is modal and
 stays outside the queue.
-Exact notification title/content pairs are keyed per window. `Notification.refresh`
-reuses active cards and resets their shared hold counter/duration; the entrance
-queue coalesces pending keys with the newest snapshot (before enforcing its cap).
-Matching is case/whitespace-sensitive, honours aliases/defaults, and does not
-include icon or duration. Dismissed/expired cards do not block future requests.
+Exact notification title/content pairs are keyed per window. A matching live
+card is dismissed through its exit motion before a replacement is queued, so the
+new card runs a fresh entrance; pending keys coalesce to the newest snapshot
+before the queue cap is enforced. Matching is case/whitespace-sensitive,
+honours aliases/defaults, and does not include icon or duration. Dismissed/expired
+cards do not block future requests.
 
 `tooltip.luau` retains the independent `Window:ShowTooltip` / `HideTooltip` API:
 one locale-aware floating panel per window, positioned over the supplied anchor.
@@ -392,9 +393,9 @@ Per-element specifics:
   binding (unlike the element cards, nothing gradients it, so a theme pass
   must never paint it opaque); visibility lives on the runs alone.
 - `button.luau` — action card with no trailing glyph in full or compact mode. Optional leading icon and title retain explicit LayoutOrder; the card and stroke animate on press. Legacy tap-icon props are ignored.
-- `keybind.luau` — required A–Z capture card with a themed TextButton keycap, shared base-card layout, descriptions, flags, guarded callbacks and move/lock methods. `value` is an uppercase string. `_canCapture` checks visibility, selected tab and ancestors; `Capture`/`CancelCapture` own `window._keybindCapture`; `_captureInput` accepts letters and Escape; `Set` validates without clearing. Tab and column Group expose `CreateKeybind`; declarative Collapsible Groups accept `Keybind`.
+- `keybind.luau` — required A–Z editable TextBox with a one-letter themed keycap, shared base-card layout, flags, guarded callbacks and move/lock methods. `value` is an uppercase string. `_canCapture` checks visibility, selected tab and ancestors; `Capture`/`CancelCapture` own `window._keybindCapture`; the TextBox sanitises direct edits while `_captureInput` accepts letters and Escape; `Set` validates without clearing. Keybinds intentionally have no description row. Tab and column Group expose `CreateKeybind`; declarative Collapsible Groups accept `Keybind`.
 - `utilities/keybind.luau` — shared `letter(value)` validation for strings and KeyCode EnumItems; settings defaults, live validation and saved-setting migration use the same rule. Settings schema 2 migrates unsupported bindings to K.
-- `components/window/input.luau` — routes input to the capture owner before the menu toggle; ignores game-processed/focused-TextBox input and cancels on focus loss. Tab changes, hide, minimise, group collapse, lock, removal and unload cancel capture.
+- `components/window/input.luau` — routes input to the capture owner before the menu toggle; ignores game-processed input and focused *other* TextBoxes while allowing the editable keybind field to keep its capture. Tab changes, hide, minimise, group collapse, lock, removal and unload cancel capture.
 - `components/chrome.luau` / `window/visibility.luau` — capsule icon/text use explicit Visible gates; only the Hide completion reveals them. Expanded, folding, restoring and topbar-minimised states never show the restore face.
 - `baseCard.luau` — shared card container and header layout helper for element modules.
 - Functional info badges: `infoHelper.luau` and badge gesture bindings were

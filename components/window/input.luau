@@ -16,7 +16,11 @@ function Window:_bindKeybind()
         -- hide the window. Only one element owns capture at a time.
         local capture = self._keybindCapture
         if capture then
-            if not gameProcessed and not state.userInputService:GetFocusedTextBox() then
+            local focused = state.userInputService:GetFocusedTextBox()
+            -- The keybind is itself an editable TextBox. Let its owner keep
+            -- receiving keyboard input while focused; other text boxes still
+            -- retain the normal protection from global shortcut capture.
+            if not gameProcessed and (not focused or focused == capture.input or focused == capture.keyButton) then
                 capture:_captureInput(input)
             end
             return

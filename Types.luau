@@ -79,6 +79,20 @@ export type CollapsibleGroupProps = {
     elements: { CollapsibleElementProps }?,
 }
 
+-- The Isolated changelog container only accepts Changelog definitions; any
+-- other child type errors at construction.
+export type IsolatedElementProps = {
+    type: "Changelog",
+    [string]: any,
+}
+
+export type IsolatedProps = {
+    name: string?,
+    subtitle: string?,
+    icon: (string | number)?,
+    elements: { IsolatedElementProps }?,
+}
+
 export type ButtonProps = {
     name: string?,
     icon: (string | number)?,
@@ -305,8 +319,20 @@ export type CollapsibleGroup = Moveable & Lockable & {
     elements: { any },
 }
 
+export type Isolated = Moveable & Lockable & {
+    elements: { any },
+    Expand: (self: Isolated, animate: boolean?) -> (),
+    Collapse: (self: Isolated, animate: boolean?) -> (),
+    Toggle: (self: Isolated, animate: boolean?) -> (),
+    SetTitle: (self: Isolated, title: string) -> (),
+    SetSubtitle: (self: Isolated, subtitle: string?) -> (),
+    -- Left header icon only; the built-in right chevron has no setter.
+    SetIcon: (self: Isolated, icon: (string | number)?) -> (),
+}
+
 export type Tab = {
     CreateCollapsibleGroup: (self: Tab, props: CollapsibleGroupProps) -> CollapsibleGroup,
+    CreateIsolated: (self: Tab, props: IsolatedProps) -> Isolated,
     Select: (self: Tab, noAnimation: boolean?) -> (),
     Deselect: (self: Tab, noAnimation: boolean?) -> (),
     SetLocked: (self: Tab, locked: boolean) -> (),

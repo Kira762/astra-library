@@ -27,7 +27,7 @@ notification, search skips its elements, `Select`/`Navigate` bail). Only
 
 Tab constructors: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`,
 `CreateInput`, `CreateLink`, `CreateStat`, `CreateSection`, `CreateText`,
-`CreateDivider`, `CreateGroup`, and `CreateCollapsibleGroup`.
+`CreateDivider`, `CreateGroup`, `CreateCollapsibleGroup`, and `CreateIsolated`.
 
 ## Group
 
@@ -73,6 +73,40 @@ tab:CreateCollapsibleGroup({
 - Controls are built (and saved flags applied) while collapsed, so values survive
   open/close; closing cancels an uncommitted input edit and closes open dropdowns.
 - Child handles are exposed in the container's `elements` array, in definition order.
+
+## Isolated (tab only, Changelog-only container)
+
+A CollapsibleGroup-style expandable card dedicated to release history: header
+with a left icon, a title/subtitle stack and the built-in right chevron; the
+revealed body only ever holds Changelog elements.
+
+```lua
+local panel = tab:CreateIsolated({
+    name = "View Changelog",                     -- title line (changeable)
+    subtitle = "See what's new in this version", -- muted line (changeable)
+    icon = "file-text",                          -- left icon (changeable)
+    elements = {                                 -- ONLY Changelog definitions
+        { type = "Changelog", name = "Release history", entries = {
+            { version = "1.2.0", date = "2025-06-14", changes = {
+                { symbol = "+", text = "Added Isolated changelog container" },
+            } },
+        } },
+    },
+})
+
+panel:Expand()  panel:Collapse()  panel:Toggle()   -- same tween as CollapsibleGroup
+panel:SetTitle("Release Notes")
+panel:SetSubtitle("v1.2.0 is live")  -- nil clears the line and shrinks the header
+panel:SetIcon("scroll-text")         -- left icon only; nil releases the gutter
+```
+
+- Any non-Changelog child errors at construction, before any UI exists:
+  `Astra:CreateIsolated — only Changelog elements can be placed inside Isolated`.
+  Isolated containers also cannot nest inside Collapsible Groups.
+- The right chevron is built in: always rendered, rotates with the expansion
+  state, never changeable or removable — no setter reaches it.
+- Starts collapsed; search indexes child names and expands matches; the
+  move/lock API applies to the container; child handles live in `elements`.
 - `:MoveTo`, `:MoveToTop`, `:MoveToBottom`, `:MoveUp`, `:MoveDown`, `:Lock`,
   `:Unlock` work on the container.
 

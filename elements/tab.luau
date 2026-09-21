@@ -15,7 +15,7 @@ local flagNames = require(script.Parent.Parent.functions.flagNames)
 
 local function customOrder(window, forgetState)
     for _, element in forgetState do
-        if element.__type == "Group" or element.__type == "CollapsibleGroup" then
+        if element.__type == "Group" or element.__type == "CollapsibleGroup" or element.__type == "Isolated" then
             customOrder(window, element.elements)
         else
             window:_unregisterControl(element)
@@ -402,6 +402,10 @@ end
 
 function state:CreateCollapsibleGroup(props)
     return self:_register(require(script.Parent.collapsibleGroup).new(self, props))
+end
+
+function state:CreateIsolated(props)
+    return self:_register(require(script.Parent.isolated).new(self, props))
 end
 
 function state:CreateGroup(a41)

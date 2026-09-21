@@ -195,5 +195,36 @@ elements:CreateCollapsibleGroup({
     },
 })
 
+-- [[The Isolated container is the Changelog's own home: a collapsed header
+-- [[card with a changeable icon, title and subtitle, the built-in chevron, and
+-- [[a body that only ever holds Changelog elements.]]
+elements:CreateIsolated({
+	name = "View Changelog",
+	subtitle = "See what's new in this version",
+	icon = "file-text",
+	elements = {
+		{
+			type = "Changelog",
+			name = "Release history",
+			entries = {
+				{
+					version = "1.2.0",
+					date = "Live",
+					title = "Isolated container",
+					changes = {
+						{ symbol = "+", text = "Added Isolated changelog container" },
+						{ symbol = "~", text = "Chevron now rotates when expanded" },
+					},
+				},
+				{
+					version = "1.1.0",
+					date = "Live",
+					changes = { { symbol = "-", text = "Fixed CollapsibleGroup tween overflow" } },
+				},
+			},
+		},
+	},
+})
+
 -- [[Select the only user tab explicitly so the example is deterministic.]]
 elements:Select()

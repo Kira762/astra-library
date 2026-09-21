@@ -187,7 +187,7 @@ local col = row:CreateGroup({ direction = "column" }) -- nested column
 col:CreateToggle({ name = "Left 1" })
 ```
 
-Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateLink`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup`.
+Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateLink`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup` and `CreateIsolated`.
 
 Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateLink`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
 
@@ -698,6 +698,65 @@ are rejected before creating any UI.
 - `MoveTo`, `MoveToTop`, `MoveToBottom`, `MoveUp`, `MoveDown`, `Lock`, and `Unlock`
   work on the container. Created child handles are also available in its
   `elements` array, in definition order, just like an ordinary Group.
+
+### Isolated (changelog container)
+
+`tab:CreateIsolated` is the Changelog's own container: a collapsed header card —
+left icon, title/subtitle stack and the built-in expansion chevron — that
+reveals a body of release-history entries with exactly the Collapsible Group
+tween. It is a strict container: **only Changelog elements work inside it**.
+
+```lua
+local changelogPanel = tab:CreateIsolated({
+    name = "View Changelog",                     -- title line (changeable)
+    subtitle = "See what's new in this version", -- muted line (changeable)
+    icon = "file-text",                          -- left icon (changeable)
+    elements = {                                 -- ONLY Changelog definitions
+        {
+            type = "Changelog",
+            name = "Release history",
+            entries = {
+                {
+                    version = "1.2.0",
+                    date = "2025-06-14",
+                    changes = {
+                        { symbol = "+", text = "Added Isolated changelog container" },
+                        { symbol = "~", text = "Chevron now rotates when expanded" },
+                    },
+                },
+            },
+        },
+    },
+})
+
+--[[ RUNTIME METHODS ]]
+changelogPanel:Expand()                            -- open (CollapsibleGroup-style tween)
+changelogPanel:Collapse()                          -- close
+changelogPanel:Toggle()                            -- open / close
+changelogPanel:SetTitle("Release Notes")           -- changeable
+changelogPanel:SetSubtitle("v1.2.0 is live")       -- changeable; nil clears the line
+changelogPanel:SetIcon("scroll-text")              -- changeable (left icon only)
+-- No setter exists for the right-side chevron: it is built in and fixed.
+```
+
+- **Guard:** any non-Changelog child definition — another control type, a
+  nested container, a built element or a non-table value — errors at
+  construction with
+  `Astra:CreateIsolated — only Changelog elements can be placed inside Isolated`,
+  before any UI exists. Isolated containers cannot nest inside Collapsible
+  Groups either, and, like Collapsible Groups, are created directly on a tab.
+- **Built-in chevron:** the right-facing expansion glyph is always rendered,
+  rotates with the expansion state, and is never changeable or removable —
+  the container exposes no setter that reaches it. `SetIcon` only ever
+  touches the left icon slot.
+- **Header:** the title rides the standard 41px band; a subtitle adds the muted
+  14px line under it (61px band), and clearing the subtitle at runtime returns
+  the card to the single-line band. Icon and chevron stay vertically centred on
+  whichever band the header is.
+- Everything else behaves like a Collapsible Group: search indexes the child
+  names and expands matching containers, `MoveTo`/`Lock`/`Unlock` work, child
+  handles live in `elements` in definition order, and collapsed children keep
+  their state without rerunning callbacks.
 - Controls are built in startup batches even while collapsed, so saved flags
   are usable before the first expansion. The optional feature adds
   no container instances unless you explicitly create one.

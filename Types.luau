@@ -485,12 +485,15 @@ export type MotionService = {
     cancel: (instance: Instance?) -> boolean,
     tween: (instance: Instance?, props: { [string]: any }, spec: MotionSpec?, onCompleted: (() -> ())?) -> Tween?,
     set: (instance: Instance?, props: { [string]: any }) -> (),
+    uiSpec: (componentType: string?, action: string?) -> TweenInfo,
+    forUI: (componentType: string?, action: string?) -> TweenInfo,
 }
 
 export type Astra = {
     CreateWindow: (self: Astra, props: WindowProps) -> Window,
     Icons: IconCatalog,
     Motion: MotionService,
+    Performance: any?,
 }
 
 return {}

@@ -108,14 +108,29 @@ function Popup:_build()
     local window = self.window
     local hasIcon = self.icon ~= nil and self.icon ~= 0 and self.icon ~= ""
 
-    self.screenGui = window:Create("ScreenGui", {
-        Name = state.httpService:GenerateGUID(false),
-        IgnoreGuiInset = true,
-        ResetOnSpawn = false,
-        Enabled = true,
-        DisplayOrder = constants.displayOrder.popup,
-        ZIndexBehavior = Enum.ZIndexBehavior.Global,
-        Parent = state.guiContainer,
+    -- Only keep one UI: place popup layers within window.screenGui when available
+    local rootGui = window.screenGui
+    if not rootGui or not rootGui.Parent then
+        rootGui = window:Create("ScreenGui", {
+            Name = state.httpService:GenerateGUID(false),
+            IgnoreGuiInset = true,
+            ResetOnSpawn = false,
+            Enabled = true,
+            DisplayOrder = constants.displayOrder.popup,
+            ZIndexBehavior = Enum.ZIndexBehavior.Global,
+            Parent = state.guiContainer,
+        })
+    end
+    self.screenGui = rootGui
+
+    self.popupContainer = window:Create("Frame", {
+        Name = "PopupContainer",
+        Size = UDim2.fromScale(1, 1),
+        Position = UDim2.fromScale(0, 0),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = 200000,
+        Parent = self.screenGui,
     })
 
     self.backdrop = window:Create("Frame", {
@@ -125,7 +140,8 @@ function Popup:_build()
         Size = UDim2.fromScale(1, 1),
         Active = true,
         BackgroundTransparency = 1,
-        Parent = self.screenGui,
+        ZIndex = 200000,
+        Parent = self.popupContainer,
     })
     self:_fade(self.backdrop, "BackgroundTransparency", backdropTransparency)
 
@@ -138,8 +154,9 @@ function Popup:_build()
         AutomaticSize = Enum.AutomaticSize.Y,
         Active = true,
         BorderSizePixel = 0,
+        ZIndex = 200001,
         BackgroundTransparency = 1,
-        Parent = self.screenGui,
+        Parent = self.popupContainer,
     })
     self:_fade(self.card, "BackgroundTransparency", 0)
 
@@ -653,13 +670,14 @@ function Popup:_measureBoxes()
 end
 
 function Popup:_show()
-    if self._closed or not self.screenGui.Parent then
+    if self._closed or not (self.screenGui and self.screenGui.Parent) then
         return
     end
 
     haptic.notify()
 
-    motion.tween(self.card, { Position = UDim2.new(0.5, 0, 0.5, 0) }, cardShowTween)
+    -- Aesthetic canvas-style modal entrance with fluid deceleration
+    motion.tween(self.card, { Position = UDim2.new(0.5, 0, 0.5, 0) }, "modal")
 
     for _, reveal in self._reveal do
         local tweenInfo = if reveal.instance == self.backdrop then backdropTween else fadeInTween
@@ -683,7 +701,7 @@ function Popup:Close()
     end
     self._connections = {}
 
-    if not self.screenGui.Parent then
+    if not (self.screenGui and self.screenGui.Parent) then
         return
     end
 
@@ -694,7 +712,7 @@ function Popup:Close()
 
     local closeTween = state.tweenService:Create(
         self.card,
-        motion.spec(textFadeTween),
+        motion.spec("dropdownClose"),
         { Position = UDim2.new(0.5, 0, 0.5, 10) }
     )
     self._closeConnection = closeTween.Completed:Connect(function(playbackState)
@@ -703,14 +721,18 @@ function Popup:Close()
         if oldConnection then
             oldConnection:Disconnect()
         end
-        if playbackState == Enum.PlaybackState.Completed and self._closed and self.screenGui.Parent then
-            self.window:DestroySubtree(self.screenGui)
+        if playbackState == Enum.PlaybackState.Completed and self._closed then
+            if self.popupContainer and self.popupContainer.Parent then
+                self.window:DestroySubtree(self.popupContainer)
+            elseif self.screenGui and self.screenGui.Parent and self.screenGui ~= self.window.screenGui then
+                self.window:DestroySubtree(self.screenGui)
+            end
         end
     end)
     closeTween:Play()
 
     for _, reveal in self._reveal do
-        motion.tween(reveal.instance, { [reveal.prop] = 1 }, textFadeTween)
+        motion.tween(reveal.instance, { [reveal.prop] = 1 }, "dropdownClose")
     end
 end
 

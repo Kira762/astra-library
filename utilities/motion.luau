@@ -101,6 +101,21 @@ local SPECS: { [string]: TweenInfo } = {
 
 	-- [[The slow ambient drift of a theme's LiveAnimation gradient.]]
 	drift = TweenInfo.new(10, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+
+	-- [[Modern canvas-inspired and UI-tailored aesthetic specs:
+	-- Decelerating Circular & Cubic curves provide fluid physical weight and organic
+	-- motion that elevates the UI aesthetic beyond mechanical linear/exponential ramps.]]
+	canvasEntrance = TweenInfo.new(0.45, Enum.EasingStyle.Circular, Enum.EasingDirection.Out),
+	canvasPop = TweenInfo.new(0.48, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+	canvasCard = TweenInfo.new(0.36, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out),
+	fluid = TweenInfo.new(0.38, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out),
+	tabSwitch = TweenInfo.new(0.32, Enum.EasingStyle.Cubic, Enum.EasingDirection.InOut),
+	modal = TweenInfo.new(0.42, Enum.EasingStyle.Circular, Enum.EasingDirection.Out),
+	control = TweenInfo.new(0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+	micro = TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+	dropdownOpen = TweenInfo.new(0.32, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out),
+	dropdownClose = TweenInfo.new(0.22, Enum.EasingStyle.Cubic, Enum.EasingDirection.In),
+	toast = TweenInfo.new(0.46, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 }
 
 local DEFAULT_SPEC = "normal"
@@ -129,6 +144,17 @@ motion.specNames = {
 	"settle",
 	"spin",
 	"drift",
+	"canvasEntrance",
+	"canvasPop",
+	"canvasCard",
+	"fluid",
+	"tabSwitch",
+	"modal",
+	"control",
+	"micro",
+	"dropdownOpen",
+	"dropdownClose",
+	"toast",
 }
 
 motion.enabled = true
@@ -222,6 +248,57 @@ end
 function motion.isEnabled(): boolean
 	return motion.enabled
 end
+
+-- [[Selects the most aesthetic, tailored animation spec based on the UI
+-- component and its interaction context. Allows animations to depend on the UI.]]
+function motion.uiSpec(componentType: string?, action: string?): TweenInfo
+	local comp = string.lower(tostring(componentType or ""))
+	local act = string.lower(tostring(action or ""))
+
+	if comp == "window" or comp == "shell" then
+		if act == "close" or act == "exit" then
+			return motion.spec("exit")
+		elseif act == "collapse" or act == "fold" or act == "minimise" then
+			return motion.spec("glide")
+		end
+		return motion.spec("pop")
+	elseif comp == "popup" or comp == "modal" or comp == "dialog" then
+		if act == "close" or act == "exit" then
+			return motion.spec("dropdownClose")
+		end
+		return motion.spec("modal")
+	elseif comp == "tab" or comp == "tabswitch" or comp == "nav" then
+		return motion.spec("tabSwitch")
+	elseif comp == "toggle" or comp == "switch" or comp == "knob" then
+		return motion.spec("settle")
+	elseif comp == "button" or comp == "click" or comp == "press" then
+		if act == "press" or act == "tap" or act == "down" then
+			return motion.spec("micro")
+		end
+		return motion.spec("fast")
+	elseif comp == "dropdown" or comp == "menu" then
+		if act == "close" or act == "collapse" then
+			return motion.spec("dropdownClose")
+		end
+		return motion.spec("dropdownOpen")
+	elseif comp == "notification" or comp == "toast" then
+		if act == "dismiss" or act == "exit" then
+			return motion.spec("exit")
+		end
+		return motion.spec("toast")
+	elseif comp == "element" or comp == "card" or comp == "row" then
+		if act == "hover" then
+			return motion.spec("snappy")
+		end
+		return motion.spec("canvasCard")
+	elseif comp == "tooltip" then
+		return motion.spec("fast")
+	end
+
+	return motion.spec(action or componentType or DEFAULT_SPEC)
+end
+
+motion.forUI = motion.uiSpec
 
 -- [[Applies a named profile. Unknown names are ignored (returns false) so a
 -- stale persisted value can never leave the library in a half-configured

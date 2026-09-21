@@ -343,6 +343,7 @@ end
 
 function state:_register(element)
     table.insert(self.elements, element)
+    self.window._totalElements = (self.window._totalElements or 0) + 1
     window(element, #self.elements * 10)
     self.window:_restoreLate(element)
 

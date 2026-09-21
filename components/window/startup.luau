@@ -11,6 +11,7 @@ local motion = require(utilities.motion)
 local overlayQueue = require(script.Parent.Parent.overlayQueue)
 local search = require(script.Parent.Parent.search)
 local state = require(utilities.Parent.core.state)
+local hardwarePerformance = require(utilities.hardwarePerformance)
 
 local themes = require(script.Parent.Parent.Parent.themes)
 local resolveTheme = themes.resolve
@@ -530,13 +531,19 @@ function Window:_paceBudget(force)
     if self.unloaded then
         return
     end
+    local totalElements = self._totalElements or 0
+    local tabCount = self.tabs and #self.tabs or 0
+    local frameBudget, instanceBudget = hardwarePerformance.getBudgets(totalElements, tabCount)
+    local struggling = hardwarePerformance.isStruggling()
+
     local now = os.clock()
     local last = self._constructionClock or now
     local count = #self.instances
     if
         not force
-        and now - last < constructionFrameBudget
-        and count - (self._constructionInstances or 0) < constructionInstanceBudget
+        and not struggling
+        and now - last < frameBudget
+        and count - (self._constructionInstances or 0) < instanceBudget
     then
         self._constructionClock = last
         return
@@ -580,7 +587,8 @@ function Window:_loadCheckpoint(appliedCount)
         -- [[condition, so this checkpoint just never paces a dead window.]]
         return
     end
-    if appliedCount % 6 == 0 then
+    local step = hardwarePerformance.getLoadCheckpointStep()
+    if appliedCount % step == 0 then
         task.wait()
         if self.unloaded then
             return

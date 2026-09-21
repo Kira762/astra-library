@@ -16,6 +16,11 @@
 #                                  does not look like a Discord webhook is
 #                                  refused, so a typo cannot quietly ship the
 #                                  repository's commit log to a stranger.
+#   DISCORD_DIFFSTAT               optional. Path to the JSON discord-diffstat.sh
+#                                  wrote: the per-file line counts for the
+#                                  `path +24 -9` block. A missing, empty or
+#                                  unreadable file is not an error - the embed
+#                                  falls back to the paths in the event.
 #
 # Reads the event from the argument, or from $GITHUB_EVENT_PATH when there is
 # no argument. The payload itself is built by discord-embed.jq beside this
@@ -92,7 +97,20 @@ trap 'rm -rf "$WORK"' EXIT INT TERM
 PAYLOAD="$WORK/payload.json"
 RESPONSE="$WORK/response.txt"
 
-if ! DISCORD_EMBED_COLOR="$COLOR" jq -c -f "$EMBED_FILTER" "$EVENT" >"$PAYLOAD"; then
+# The diffstat reaches the filter as one environment value rather than a path,
+# so discord-embed.jq stays runnable on a bare event file. Compacting it here
+# also means a collection that half-finished - a truncated write, a stray log
+# line - is caught before it can turn the whole payload into a 400.
+DIFFSTAT_JSON=""
+if [ -n "${DISCORD_DIFFSTAT:-}" ]; then
+	DIFFSTAT_JSON="$(jq -c . "$DISCORD_DIFFSTAT" 2>/dev/null || printf '')"
+	if [ -z "$DIFFSTAT_JSON" ]; then
+		warn "no usable diffstat at $DISCORD_DIFFSTAT - posting the file list without line counts."
+	fi
+fi
+
+if ! DISCORD_EMBED_COLOR="$COLOR" DISCORD_DIFFSTAT_JSON="$DIFFSTAT_JSON" \
+	jq -c -f "$EMBED_FILTER" "$EVENT" >"$PAYLOAD"; then
 	die "could not build a payload from $EVENT."
 fi
 

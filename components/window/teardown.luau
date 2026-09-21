@@ -200,9 +200,86 @@ function Window:DestroySubtrees(roots)
     end
 end
 
+-- [[The destructive half of an unload: kill tweens and connections, destroy
+-- [[every instance the window owns (the detached graveyard a superseded
+-- [[script's tail construction builds into, included) and clear the
+-- [[bookkeeping. Runs either at once or, when a construction thread is still
+-- [[suspended at a checkpoint, once that construction has gone quiet — see
+-- [[`Window:Unload`.]]
+function Window:_destroyTree()
+    if self._treeDestroyed then
+        return
+    end
+    self._treeDestroyed = true
+            haptic.teardown()
+    haptic.releaseContainer(self.screenGui)
+    for _, liveTween in self._liveTweens or {} do
+        liveTween:Cancel()
+    end
+    self._liveTweens = nil
+    for i = #self.connections, 1, -1 do
+        self.connections[i]:Disconnect()
+    end
+    for i = #self.instances, 1, -1 do
+        self.instances[i]:Destroy()
+    end
+    if self._constructionGraveyard then
+        self._constructionGraveyard:Destroy()
+        self._constructionGraveyard = nil
+    end
+
+                table.clear(self.connections)
+    table.clear(self.instances)
+    table.clear(self.themeProperties)
+    table.clear(self.localeProperties)
+    table.clear(self.controls)
+    table.clear(self.tabs)
+    -- [[overlayQueue.close already drained the queue into its safe resting
+    -- [[shape (empty pending list, closed flag); wiping the table itself used
+    -- [[to pull `pending` out from under the pump coroutine on its next resume
+    -- [[(a `#nil` error racing an unload that landed mid-gate).]]
+    self._overlayQueueRunning = false
+end
+
+-- [[Wait for the window's construction to go quiet, then destroy the tree.
+-- [[Quiet is the same signal the startup reveal watches: two consecutive
+-- [[frames with no thread suspended at a checkpoint and no pacing activity.
+-- [[A superseded script's constructors resume into a window whose tree is
+-- [[still whole, finish what they were building, and only then does the tree
+-- [[go — anything they add after the destruction is detached by
+-- [[`Window:Create` instead, so nothing here can crash them.]]
+function Window:_destroyWhenConstructionQuiet()
+    task.spawn(function()
+        local stableFrames = 0
+        while stableFrames < 2 and not self._treeDestroyed do
+            local revision = self._constructionRevision
+            task.wait()
+            if (self._constructionBusy or 0) == 0 and revision == self._constructionRevision then
+                stableFrames += 1
+            else
+                stableFrames = 0
+            end
+        end
+        if not self._treeDestroyed then
+            self:_destroyTree()
+        end
+    end)
+end
+
 function Window:Unload()
+    if self.unloaded then
+        -- [[A repeat unload (hosts often end with one) has only the detached
+        -- [[graveyard of a superseded script's tail construction left to
+        -- [[clear; the tree itself is either already destroyed or already
+        -- [[promised to the quiet-waiter above.]]
+        if self._constructionGraveyard then
+            self._constructionGraveyard:Destroy()
+            self._constructionGraveyard = nil
+        end
+        return
+    end
     -- Do not lose the final edit if the window closes inside the save debounce.
-    if not self.unloaded and self._saveScheduled and self.configuration.autoSave and not self._loading then
+    if self._saveScheduled and self.configuration.autoSave and not self._loading then
         self._saveScheduled = false
         pcall(self.Save, self)
     end
@@ -217,28 +294,21 @@ function Window:Unload()
     -- [[its turn yet has no layer to be built into any more, and the pump must
     -- [[not wake up on a window whose instances are about to be destroyed.]]
     overlayQueue.close(self)
-            haptic.teardown()
-    haptic.releaseContainer(self.screenGui)
-    for _, liveTween in self._liveTweens or {} do
-        liveTween:Cancel()
+    -- [[Vanish from the screen at once, even when the tree's destruction has
+    -- [[to wait for an in-flight construction: the anti-duplicate guard must
+    -- [[never show two windows, and a superseded script's constructors keep
+    -- [[running against the tree underneath for as long as they need.]]
+    if self.screenGui then
+        self.screenGui.Parent = nil
     end
-    self._liveTweens = nil
-    for i = #self.connections, 1, -1 do
-        self.connections[i]:Disconnect()
+    if (self._constructionBusy or 0) > 0 then
+        -- [[A constructor thread is suspended at a pacing checkpoint right
+        -- [[now; destroying the tree would pull its half-built element out
+        -- [[from under it the moment it resumes ("Window unloaded during
+        -- [[construction"). Defer the destruction until that construction
+        -- [[has gone quiet.]]
+        self:_destroyWhenConstructionQuiet()
+    else
+        self:_destroyTree()
     end
-    for i = #self.instances, 1, -1 do
-        self.instances[i]:Destroy()
-    end
-
-                table.clear(self.connections)
-    table.clear(self.instances)
-    table.clear(self.themeProperties)
-    table.clear(self.localeProperties)
-    table.clear(self.controls)
-    table.clear(self.tabs)
-    -- [[overlayQueue.close already drained the queue into its safe resting
-    -- [[shape (empty pending list, closed flag); wiping the table itself used
-    -- [[to pull `pending` out from under the pump coroutine on its next resume
-    -- [[(a `#nil` error racing an unload that landed mid-gate).]]
-    self._overlayQueueRunning = false
 end

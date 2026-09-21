@@ -211,6 +211,13 @@ function state:_spinGradients()
 end
 
 function state:Select(a24)
+    if self.window.unloaded then
+        -- [[A superseded script's build can end with a selection call after
+        -- [[the anti-duplicate guard has unloaded its window; the chrome the
+        -- [[selection writes into is gone, so bail out like the other
+        -- [[runtime APIs instead of writing into destroyed instances.]]
+        return
+    end
     if self.locked then
         -- [[Locked tabs are unreachable by selection: the row tap answers
         -- [[with a notification instead, Navigate bails out, and Remove and

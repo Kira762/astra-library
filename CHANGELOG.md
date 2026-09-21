@@ -3,6 +3,58 @@
 Dated entries, newest first. Each entry explains the cause and the behaviour
 change, then names the files it touched.
 
+## 2026-09-21 — Anti Duplicate Window no longer unloads a window mid-construction
+
+The spam-execute guard destroyed the previous window the moment a new
+`CreateWindow` claimed the slot. Construction yields at pacing checkpoints,
+so a re-executed script could land while the previous one's constructors
+were suspended at one of those checkpoints — or had built half an element —
+and the destroy pulled the tree out from under them: the resumed checkpoint
+asserted ("Window unloaded during construction"), and a constructor that had
+yielded mid-element then wrote into instances that were already destroyed.
+
+Destruction of a replaced window now never interrupts active construction:
+
+- A window with a constructor thread suspended at a checkpoint is marked
+  unloaded and vanishes from the screen at once, but its tree is only
+  destroyed once that construction has gone quiet (two consecutive frames
+  with no suspended checkpoint and no pacing activity).
+- A window overtaken while still inside `Window.new` is marked superseded
+  instead of being unloaded on the spot: the host that received it keeps
+  adding controls to a live window, the window is never shown, and it
+  unloads once its construction goes quiet.
+- Constructors that still outlive the destruction finish harmlessly instead
+  of crashing: pacing checkpoints on an unloaded window neither yield nor
+  assert, and `Window:Create` builds into a detached throwaway container
+  instead of the destroyed tree (a repeat `Unload` clears the container).
+- A configuration load stops applying values once the window is unloaded,
+  and `Tab:Select` becomes a no-op on an unloaded window, so a superseded
+  script's final selection call cannot write into destroyed chrome.
+
+- `components/window/teardown.luau` — two-phase unload: the soft half
+  (unloaded flag, off-screen, queues stopped) runs at once; `_destroyTree`
+  runs immediately or, while `_constructionBusy > 0`, via
+  `_destroyWhenConstructionQuiet`.
+- `components/window/startup.luau` — `_paceBudget` and `_loadCheckpoint`
+  never pace or assert on an unloaded window.
+- `components/window/theme.luau` — `Window:Create` detaches post-unload
+  construction into a per-window graveyard container.
+- `library_entrypoint.luau` — an overtaken construction marks its window
+  `_superseded`; the reveal thread unloads it at quiet instead of the old
+  synchronous unload.
+- `utilities/persistenceConfig.luau` — the apply loop stops on an unloaded
+  window.
+- `elements/tab.luau` — `Tab:Select` bails out on an unloaded window like
+  the other runtime APIs, so a superseded script's final selection call
+  cannot write into destroyed chrome.
+- `scripts/anti_duplicate_window_test.luau` — regression coverage for
+  replacing a window while a host thread is suspended at a checkpoint and
+  for overtaking a construction mid-`Window.new` whose host keeps adding
+  elements.
+- `scripts/startup_test.luau` — the in-flight-builder case now expects the
+  builder to finish detached and error-free instead of being stopped.
+- `version-1.luau` regenerated from the modular sources.
+
 ## 2026-09-21 — Anti Duplicate Window survives spam-execute
 
 The guard only remembered the last *finished* window, and only one of them.

@@ -20,7 +20,7 @@ Type definitions only (`export type ...`). No runtime locals.
 ### `library_entrypoint.luau`
 Public API singleton. Key top-level locals:
 - Requires — `core` (state/registry/loader), `core.state`, `images.image`, `utilities.locale`, `utilities.constants`, `icons`, `settings`, `Types`.
-- Singleton bookkeeping: existing-window guard backed by a module-local `activeWindow` **and** a `getgenv()`-backed global store so the anti-duplicate guard survives across `loadstring`ed instances. The store keeps the last window (`__ASTRA_ACTIVE_WINDOW_V1`), every still-live window (`__ASTRA_LIVE_WINDOWS_V1`), and a generation token (`__ASTRA_WINDOW_GENERATION_V1`) claimed *before* `Window.new` can yield; a construction that is overtaken unloads itself after `new` returns so overlapping spam-executes cannot leave orphans. The `CreateWindow` dispatcher (pcall around `components.window.new`, re-throws on failure); the export table.
+- Singleton bookkeeping: existing-window guard backed by a module-local `activeWindow` **and** a `getgenv()`-backed global store so the anti-duplicate guard survives across `loadstring`ed instances. The store keeps the last window (`__ASTRA_ACTIVE_WINDOW_V1`), every still-live window (`__ASTRA_LIVE_WINDOWS_V1`), and a generation token (`__ASTRA_WINDOW_GENERATION_V1`) claimed *before* `Window.new` can yield, so overlapping spam-executes still collapse to one window. Replacement never interrupts active construction: a predecessor whose constructors are still running is unloaded without pulling its tree out from under them (the teardown defers destruction until that construction goes quiet), and a construction that is overtaken while still inside `Window.new` marks its window `_superseded` — never shown, still usable by the host that received it, unloaded by its reveal thread once its construction goes quiet. The `CreateWindow` dispatcher (pcall around `components.window.new`, re-throws on failure); the export table.
 Exported names (typed surface is `Types.luau`'s `Astra`): `CreateWindow`, `Icons`; `Core` and `Settings` are also assigned on the table at runtime. There is no top-level `ChangeTheme`/`SetLocale`/`SetTranslator`/`RegisterTranslations`/`Unload` — those are window methods.
 `CreateWindow` side effects: enforces the anti-duplicate guard (persisted `antiWindowDuplicate` setting, per-window opt-out via `settings.antiWindowDuplicate`; generation token + live-window list so rapid overlapping constructions still collapse to one window), in secure mode preloads window images (`Image.preload` → failure `Notify`) and swaps in the brand fonts via `ChangeTheme({ Font, TitleFont })` once the entrance has landed (a theme pass over every instance the window owns is not something to spend while the window is still arriving; `FONT_SETTLE_BUDGET` bounds the wait so a window that never shows still gets its font), then auto-`Show()`s the window on the next frame (a `task.defer` plus one heartbeat, so a script's first synchronous `CreateTab` calls land before the shell appears; remaining constructors stream in behind it in small budget-limited batches until the build goes quiet, and an explicit `Hide()` before that tick cancels it via `_autoShowCancelled`). The two secure-mode branches (optional-icon preload, brand-font swap) run as sibling threads under one guard.
 
@@ -105,7 +105,11 @@ Public surface:
 - `Create(className, props, themeBindings?)` — instance factory: theme-bound
   property recording (`themeProperties`), locale-token binding
   (`_bindLocale`), image-guessed property assignment; tracks every instance
-  for `Unload`.
+  for `Unload`. On an already-unloaded window it builds detached instead:
+  the instance is parented under a throwaway per-window graveyard container
+  (never into the destroyed tree) and left out of `instances`, so a
+  superseded script's constructors finish harmlessly; `Unload` destroys the
+  container.
   `_railGroup(tab)` / `_activeRail()` — the main/settings rail filters every visibility site shares.
 - `ChangeTheme`, `CreateTab`/`CreateSection`, `Notify`
   (constructs its card on the entrance queue's turn, see
@@ -592,7 +596,7 @@ Per-element specifics:
 | `slider_travel_test.sh` | Slider knob travel: the capsule's centre stays half a knob inside each track end (resting, held and after release), so it never overlaps the track end or card edge at max/min, and the fill ends at the knob's centre. |
 | `icons_test.sh` | Icon resolver: name-only lookup across the packs in priority order (and how lazily they load), qualified `pack:name`, case sensitivity, unknown-pack warnings, custom assets (one import per path, memoised misses, the `listfiles` index), cache-key separation, and `window:ResolveIcon`. |
 | `motion_test.sh` | Motion service: shared specs, time scale + its cache, profiles, tween ownership (cancel-on-overlap vs. unrelated properties), the no-op and animation-off paths, the window's "Animation speed" setting, and hover going through the service. |
-| `anti_duplicate_window_test.sh` | Anti Duplicate Window: sequential CreateWindow replaces the previous shell, per-window opt-out still allows a second window, and overlapping constructions from rapid re-entry collapse to exactly one live window. |
+| `anti_duplicate_window_test.sh` | Anti Duplicate Window: sequential CreateWindow replaces the previous shell, per-window opt-out still allows a second window, overlapping constructions from rapid re-entry collapse to exactly one live window, and replacement never interrupts active construction — a window whose host thread is suspended at a pacing checkpoint is marked unloaded at once and torn down only once that construction goes quiet, and a construction overtaken mid-`Window.new` hands its host a window that keeps accepting constructors before it is torn down unshown. |
 
 All of them assemble `scripts/sidebar_sizing_stubs.luau` + `version-1.luau`
 (so regenerate the bundle after a source edit) and run under the Luau CLI.

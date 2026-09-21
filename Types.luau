@@ -58,6 +58,20 @@ export type TextProps = {
     name: string?,     text: string?,     icon: (string | number)?,
 }
 
+-- [[One segment of a Footer's centred run: a `text` run, an `icon` run, or]]
+-- [[both (the text renders, then the icon). Plain strings in `parts` are]]
+-- [[shorthand for `{ text = ... }`.]]
+export type FooterPart = {
+    text: string?,
+    icon: (string | number)?,
+}
+
+export type FooterProps = {
+    parts: { (string | FooterPart) }?,
+    textSize: number?,
+    spacing: number?,
+}
+
 export type DividerProps = {
     text: string?,     spacing: number?,     line: boolean?, }
 
@@ -68,7 +82,7 @@ export type GroupProps = {
 -- `elements` is allowed only for ordinary Groups; CollapsibleGroups cannot nest.
 export type CollapsibleElementProps = {
     type: "Button" | "Toggle" | "Switch" | "Slider" | "Dropdown" | "Input"
-        | "Link" | "Stat" | "Section" | "Text" | "Changelog" | "Divider" | "Group",
+        | "Link" | "Stat" | "Section" | "Text" | "Footer" | "Changelog" | "Divider" | "Group",
     elements: { CollapsibleElementProps }?,
     [string]: any,
 }
@@ -273,6 +287,14 @@ export type Text = Moveable & {
     SetTitle: (self: Text, title: string) -> (),
 }
 
+export type Footer = Moveable & {
+    -- [[The normalised run: ordered `{ kind = "text" | "icon", value }` entries.]]
+    parts: { FooterPart },
+    textSize: number,
+    spacing: number,
+    Set: (self: Footer, parts: { (string | FooterPart) }?) -> (),
+}
+
 export type Changelog = Moveable & {
     Set: (self: Changelog, entries: { ChangelogEntry }) -> (),
     Refresh: (self: Changelog, entries: { ChangelogEntry }) -> (),
@@ -310,6 +332,7 @@ export type Group = Moveable & {
         CreateDropdown: (self: Group, props: DropdownProps) -> Dropdown?,
     CreateSection: (self: Group, props: SectionProps) -> Section?,
     CreateText: (self: Group, props: TextProps) -> Text?,
+    CreateFooter: (self: Group, props: FooterProps?) -> Footer?,
     CreateDivider: (self: Group, props: DividerProps?) -> Divider?,
     CreateLink: (self: Group, props: LinkProps) -> Link,
     CreateGroup: (self: Group, props: GroupProps?) -> Group,
@@ -346,6 +369,7 @@ export type Tab = {
     CreateStat: (self: Tab, props: StatProps) -> Stat,
     CreateSection: (self: Tab, props: SectionProps) -> Section,
     CreateText: (self: Tab, props: TextProps) -> Text,
+    CreateFooter: (self: Tab, props: FooterProps?) -> Footer,
     CreateChangelog: (self: Tab, props: ChangelogProps) -> Changelog,
     CreateDivider: (self: Tab, props: DividerProps?) -> Divider,
     CreateGroup: (self: Tab, props: GroupProps?) -> Group,

@@ -131,10 +131,11 @@ line on `CreateCollapsibleGroup`.
 | `CreateInput({ name, value, placeholder, numeric, clearOnFocus, flag, callback })` | text field, `callback(text)` | `:Set(text)` |
 | `CreateLink({ name, subtitle, link, icon, callback })` | card carrying a hidden URL; the trailing control copies it and swaps in a check mark for two seconds — the link is never rendered | `:Set(link)`, `:SetLink(link)`, `:SetTitle(name)`, `:SetSubtitle(text)`, `:SetIcon(icon)`, `:Copy()`, `:IsConfirming()` |
 | `CreateStat({ name, value, prefix, suffix, display, compact, letter, changeMode, changeBaseline })` | readout card; a string `value` shows one letter unless `letter = false`, which reads the whole value | `:Set(value)`, `:SetText(text)`, `:ResetBaseline(n)` |
+| `CreateFooter({ parts, textSize, spacing })` | centred run of text and inline icons (`parts = { { text = "Built with" }, { icon = "zap" }, { text = "Astra" } }`; plain strings are text shorthand); re-centres as one unit | `:Set(parts)` |
 | `CreateDivider({ text, line, spacing })` | rule between controls | — |
 | `CreateGroup({ direction = "row" \| "column" })` | horizontal row by default | nesting via `Create…` |
 Tab-only declarative container: `tab:CreateCollapsibleGroup({ name, icon, description, elements = { ... } })`
-where each child is `{ type = "Toggle" | "Button" | "Slider" | "Dropdown" | "Input" | "Link" | "Switch" | "Stat" | "Section" | "Text" | "Divider" | "Group" | "Changelog", ...same props }`.
+where each child is `{ type = "Toggle" | "Button" | "Slider" | "Dropdown" | "Input" | "Link" | "Switch" | "Stat" | "Section" | "Text" | "Footer" | "Divider" | "Group" | "Changelog", ...same props }`.
 Groups may nest inside it; collapsible groups never nest, and every collapsible
 starts collapsed. `Changelog` renders as a regular element wherever it is declared.
 

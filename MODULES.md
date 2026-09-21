@@ -362,6 +362,10 @@ Per-element specifics:
   window's `Create` applies. Full card for a tab or a column Group, compact row for
   a horizontal one.
 - `divider.luau`, `stat.luau`, `text.luau` — display and interaction elements.
+- `footer.luau` — the centred inline text-and-icon strip ("Built with ⚡ Astra ♡"):
+  an ordered run of `{ text }` / `{ icon }` segments under one centring list
+  layout; icons resolve through the catalog, scale with `textSize`, and
+  unresolvable names drop instead of leaving gaps. `Set` rebuilds the run.
 - `button.luau` — action card with a built-in right-edge tap glyph (`tapIcon` opts out or replaces it), themed through `ContentColor`, revealed with the card, and pulsed on press. Compact/grouped buttons explicitly sort their horizontal layout by `LayoutOrder`: optional custom icon, title, then built-in tap glyph.
 - `baseCard.luau` — shared card container and header layout helper for element modules.
 - Functional info badges: `infoHelper.luau` and badge gesture bindings were

@@ -206,5 +206,16 @@ about:CreateButton({
     end,
 })
 
+-- [[Centred credit line under a divider — text and inline icons as one run.]]
+about:CreateDivider()
+about:CreateFooter({
+    parts = {
+        { text = "Built with" },
+        { icon = "zap" },
+        { text = "Astra" },
+        { icon = "heart" },
+    },
+})
+
 -- [[Switching tabs explicitly keeps the example deterministic.]]
 home:Select()

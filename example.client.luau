@@ -226,5 +226,17 @@ elements:CreateIsolated({
 	},
 })
 
+-- [[The centred credit line: text and inline icons as one ordered run that
+-- [[stays centred as a unit and re-centres itself when it changes.]]
+elements:CreateDivider()
+elements:CreateFooter({
+	parts = {
+		{ text = "Built with" },
+		{ icon = "zap" },
+		{ text = "Astra" },
+		{ icon = "heart" },
+	},
+})
+
 -- [[Select the only user tab explicitly so the example is deterministic.]]
 elements:Select()

@@ -372,6 +372,10 @@ function state:CreateText(a31)
     return self:_register(require(script.Parent.text).new(self, a31))
 end
 
+function state:CreateFooter(props)
+    return self:_register(require(script.Parent.footer).new(self, props))
+end
+
 function state:CreateChangelog(a32)
     return self:_register(require(script.Parent.changelog).new(self, a32))
 end

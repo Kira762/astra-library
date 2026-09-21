@@ -68,7 +68,7 @@ export type GroupProps = {
 -- `elements` is allowed only for ordinary Groups; CollapsibleGroups cannot nest.
 export type CollapsibleElementProps = {
     type: "Button" | "Toggle" | "Switch" | "Slider" | "Dropdown" | "Input"
-        | "Stat" | "Section" | "Text" | "Changelog" | "Divider" | "Group",
+        | "Link" | "Stat" | "Section" | "Text" | "Changelog" | "Divider" | "Group",
     elements: { CollapsibleElementProps }?,
     [string]: any,
 }
@@ -155,6 +155,17 @@ export type StatProps = {
     -- change readout) that Set / SetText / ResetBaseline all write to.
     letter: boolean?,
     changeMode: string?,     changeBaseline: string?,     numberEasing: boolean?,
+}
+
+-- `link` is the hidden value: stored on the element and copied by the card's
+-- trailing control, never rendered as text.
+export type LinkProps = {
+    name: string?,
+    subtitle: string?,
+    link: string?,
+    icon: (string | number)?,
+    description: string?,
+    callback: ((link: string) -> ())?,
 }
 
 -- Exact title/content duplicates refresh an active card or coalesce in the queue.
@@ -259,6 +270,20 @@ export type Divider = Moveable & {
     text: string,     Set: (self: Divider, text: string?) -> (),
 }
 
+export type Link = Moveable & Lockable & {
+    -- The hidden value the copy control writes to the clipboard.
+    link: string,
+    Set: (self: Link, link: string) -> (),
+    SetLink: (self: Link, link: string) -> (),
+    SetTitle: (self: Link, title: string) -> (),
+    SetSubtitle: (self: Link, subtitle: string) -> (),
+    SetIcon: (self: Link, icon: (string | number)?) -> (),
+    -- Copy the link now: the same cycle a tap runs, including the check mark.
+    Copy: (self: Link) -> boolean,
+    -- True while the control is showing its confirmation instead of the copy mark.
+    IsConfirming: (self: Link) -> boolean,
+}
+
 export type Popup = {
     Close: (self: Popup) -> (),
 }
@@ -272,6 +297,7 @@ export type Group = Moveable & {
     CreateSection: (self: Group, props: SectionProps) -> Section?,
     CreateText: (self: Group, props: TextProps) -> Text?,
     CreateDivider: (self: Group, props: DividerProps?) -> Divider?,
+    CreateLink: (self: Group, props: LinkProps) -> Link,
     CreateGroup: (self: Group, props: GroupProps?) -> Group,
 }
 
@@ -290,6 +316,7 @@ export type Tab = {
     CreateSlider: (self: Tab, props: SliderProps) -> Slider,
     CreateDropdown: (self: Tab, props: DropdownProps) -> Dropdown,
     CreateInput: (self: Tab, props: InputProps) -> Input,
+    CreateLink: (self: Tab, props: LinkProps) -> Link,
     CreateStat: (self: Tab, props: StatProps) -> Stat,
     CreateSection: (self: Tab, props: SectionProps) -> Section,
     CreateText: (self: Tab, props: TextProps) -> Text,

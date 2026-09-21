@@ -100,6 +100,16 @@ elements:CreateInput({
     end,
 })
 
+-- [[A Link card carries its URL as a hidden value: the title and the subtitle
+-- [[are the whole card, and the trailing control copies the link and confirms
+-- [[with a check mark. The link itself is never rendered as text.]] 
+elements:CreateLink({
+    name = "Discord",
+    subtitle = "Join our community",
+    link = "https://discord.gg/example",
+    icon = "message-circle",
+})
+
 --[=[ Lock-tab demo temporarily disabled pending the UI redesign.
 -- [[Locked tab: built gated, with a lock badge when lockUIEnabled is restored.
 -- [[Tapping it raises a notification instead of opening it; only host code
@@ -171,6 +181,7 @@ elements:CreateCollapsibleGroup({
         { type = "Slider", name = "Slider child", range = { 0, 100 }, value = 25 },
         { type = "Dropdown", name = "Dropdown child", options = { "One", "Two" }, value = "One" },
         { type = "Stat", name = "Stat child", value = 42, suffix = " checks" },
+        { type = "Link", name = "Link child", subtitle = "Copy the invite", link = "https://discord.gg/example", icon = "message-circle" },
         { type = "Divider", text = "Nested diagnostics" },
         { type = "Changelog", name = "Nested changelog", entries = { { version = "1.0", date = "Live", changes = { { symbol = "+", text = "Changelog inside collapsible group" } } } } },
         {

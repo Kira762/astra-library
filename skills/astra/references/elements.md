@@ -26,7 +26,7 @@ notification, search skips its elements, `Select`/`Navigate` bail). Only
 `tab:SetLocked(false)` unlocks it.
 
 Tab constructors: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`,
-`CreateInput`, `CreateStat`, `CreateSection`, `CreateText`,
+`CreateInput`, `CreateLink`, `CreateStat`, `CreateSection`, `CreateText`,
 `CreateDivider`, `CreateGroup`, and `CreateCollapsibleGroup`.
 
 ## Group
@@ -63,7 +63,7 @@ tab:CreateCollapsibleGroup({
 ```
 
 - Supported `type` values: `Button`, `Toggle`, `Switch` (alias of Toggle), `Slider`,
-  `Dropdown`, `Input`, `Stat`, `Section`, `Text`, `Divider`, `Group`, `Changelog`.
+  `Dropdown`, `Input`, `Link`, `Stat`, `Section`, `Text`, `Divider`, `Group`, `Changelog`.
   Each entry uses exactly the same props as its `Create…` method and renders as a regular child.
 - `elements` may be omitted for an empty header. Every group starts **collapsed**;
   there is no `expanded` prop.
@@ -163,6 +163,39 @@ any other value, numbers included, is read as `"previous"` — use
 no change readout): `tab:CreateStat({ name = "Current theme", value = "Default",
 letter = false })` reads "Default". `Set`, `SetText` and `ResetBaseline` all
 write that label.
+
+## Link
+
+```lua
+local link = tab:CreateLink({
+    name = "Discord",                       -- title
+    subtitle = "Join our community",        -- muted second line
+    link = "https://discord.gg/example",    -- hidden value: copied, never rendered
+    icon = "message-circle",
+    callback = function(copied) end,        -- optional, after a successful copy
+})
+
+link:Set("https://discord.gg/new")    -- or SetLink: rewrite the hidden value
+link:SetTitle("Discord server")
+link:SetSubtitle("Now with a stage")  -- "" drops the card to its single-line height
+link:SetIcon("messages-square")       -- nil removes the leading icon
+link:Copy()                           -- run the cycle from code; true when it landed
+link:IsConfirming()                   -- true while the check mark is showing
+```
+
+- The link is a hidden value: it is stored on the element (`handle.link`) and never
+  drawn as text, so a card can carry an invite without printing it on screen.
+- The trailing control is fixed and non-configurable: it copies the link, swaps the
+  copy mark for a check mark for two seconds, then reverts on its own.
+- Each card owns its cycle. Two cards can be in different states, and a container
+  never carries the feedback: a Collapsible Group that collapses while a card is
+  confirming reveals that card on the copy mark.
+- The copy asks the host for a clipboard (`setclipboard`, `toclipboard`,
+  `setrbxclipboard`, a `Clipboard` object, or Studio's `StudioService`). With none
+  available the card keeps the copy mark and logs the reason instead of claiming
+  success.
+- Works standalone, in a Group (row or column) and as a declarative
+  `{ type = "Link", ... }` child.
 
 ## Text, Section, Divider
 

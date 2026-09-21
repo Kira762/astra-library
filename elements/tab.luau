@@ -396,6 +396,10 @@ function state:CreateInput(a38)
     return self:_register(require(script.Parent.input).new(self, a38))
 end
 
+function state:CreateLink(a40)
+    return self:_register(require(script.Parent.link).new(self, a40))
+end
+
 function state:CreateCollapsibleGroup(props)
     return self:_register(require(script.Parent.collapsibleGroup).new(self, props))
 end

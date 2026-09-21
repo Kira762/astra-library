@@ -187,9 +187,9 @@ local col = row:CreateGroup({ direction = "column" }) -- nested column
 col:CreateToggle({ name = "Left 1" })
 ```
 
-Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateLink`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup` and `CreateIsolated`.
+Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateLink`, `CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup` and `CreateIsolated`.
 
-Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateLink`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
+Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateLink`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
 
 Selected tabs retain their outline and highlight. Unselected tabs retain an
 outline but have no fill/shadow highlight, including on hover.
@@ -377,6 +377,32 @@ local row = tab:CreateGroup()
 local col = row:CreateGroup({ direction = "column" })
 col:CreateToggle({ name = "Left 1" })
 ```
+
+### Footer (centred inline text + icons)
+
+A quiet, centred line of text runs and inline icons that stays centred as one
+unit and re-centres itself whenever its content changes — the classic
+"Built with ⚡ Astra ♡" credit row. `parts` is an ordered list; each entry is
+`{ text = "..." }`, `{ icon = "..." }`, both in one entry (text then icon), or
+a plain string shorthand for text. Icons resolve through the icon catalog and
+scale with the text size automatically; unresolvable names drop instead of
+leaving a gap.
+
+```lua
+local footer = tab:CreateFooter({
+    parts = {
+        { text = "Built with" },
+        { icon = "zap" },
+        { text = "Astra" },
+        { icon = "heart" },
+    },
+})
+
+footer:Set({ "Made", { icon = "heart" }, "with Astra" })  -- replace the whole run
+```
+
+Optional props: `textSize` (default 13), `spacing` (default 6). Text runs
+accept RichText markup. The element supports the move API.
 
 ### Changelog (element)
 

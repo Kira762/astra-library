@@ -157,6 +157,9 @@ end
 function state:CreateText(a24)
     return self:_add("text", a24)
 end
+function state:CreateFooter(props)
+    return self:_add("footer", props)
+end
 function state:CreateDivider(a25)
     return self:_add("divider", a25)
 end

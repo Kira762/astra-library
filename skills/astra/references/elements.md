@@ -27,7 +27,7 @@ notification, search skips its elements, `Select`/`Navigate` bail). Only
 
 Tab constructors: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`,
 `CreateInput`, `CreateLink`, `CreateStat`, `CreateSection`, `CreateText`,
-`CreateDivider`, `CreateGroup`, `CreateCollapsibleGroup`, and `CreateIsolated`.
+`CreateFooter`, `CreateDivider`, `CreateGroup`, `CreateCollapsibleGroup`, and `CreateIsolated`.
 
 ## Group
 
@@ -63,7 +63,7 @@ tab:CreateCollapsibleGroup({
 ```
 
 - Supported `type` values: `Button`, `Toggle`, `Switch` (alias of Toggle), `Slider`,
-  `Dropdown`, `Input`, `Link`, `Stat`, `Section`, `Text`, `Divider`, `Group`, `Changelog`.
+  `Dropdown`, `Input`, `Link`, `Stat`, `Section`, `Text`, `Footer`, `Divider`, `Group`, `Changelog`.
   Each entry uses exactly the same props as its `Create…` method and renders as a regular child.
 - `elements` may be omitted for an empty header. Every group starts **collapsed**;
   there is no `expanded` prop.
@@ -242,7 +242,23 @@ tab:CreateSection({ name = "Basic elements", icon = "list" })
 tab:CreateDivider()                          -- plain rule
 tab:CreateDivider({ text = "or" })           -- labelled rule
 tab:CreateDivider({ line = false, spacing = 8 })
+
+-- Footer: a centred run of text and inline icons that re-centres as one unit.
+local footer = tab:CreateFooter({
+    parts = {
+        { text = "Built with" },
+        { icon = "zap" },
+        { text = "Astra" },
+        { icon = "heart" },
+    },
+})
+footer:Set({ "Made", { icon = "heart" }, "with Astra" })  -- replace the run
 ```
+
+`CreateFooter` takes `parts` (ordered; `{ text = ... }` / `{ icon = ... }` /
+plain-string shorthand), optional `textSize` (13) and `spacing` (6). Icons
+resolve through the icon catalog and scale to the text; unresolvable names
+drop. Text runs accept RichText.
 
 ## Changelog
 

@@ -23,6 +23,7 @@ local constructors = {
     Stat = function(parent, props) return require(script.Parent.stat).new(parent, props) end,
     Section = function(parent, props) return require(script.Parent.section).new(parent, props) end,
     Text = function(parent, props) return require(script.Parent.text).new(parent, props) end,
+    Footer = function(parent, props) return require(script.Parent.footer).new(parent, props) end,
     Changelog = function(parent, props) return require(script.Parent.changelog).new(parent, props) end,
     Divider = function(parent, props) return require(script.Parent.divider).new(parent, props) end,
     Group = function(parent, props) return require(script.Parent.group).new(parent, props) end,

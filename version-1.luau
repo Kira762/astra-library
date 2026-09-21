@@ -894,6 +894,11 @@ local log = require(utilities.log)
 local haptic = require(utilities.HapticEngine)
 local motion = require(utilities.motion)
 
+-- [[The unread dot is a dot: half its own size, so the 8px badge is a circle
+-- [[pinned to the action's corner rather than a small red square.]]
+local badgeSize = 8
+local badgeRadius = UDim.new(0, badgeSize / 2)
+
 function Action.new(window, props)
     props = if typeof(props) == "table" then props else {}
 
@@ -943,7 +948,7 @@ function Action.new(window, props)
             Name = "Badge",
             AnchorPoint = Vector2.new(1, 0),
             Position = UDim2.new(1, 1, 0, -1),
-            Size = UDim2.fromOffset(8, 8),
+            Size = UDim2.fromOffset(badgeSize, badgeSize),
             BorderSizePixel = 0,
             BackgroundColor3 = Color3.fromRGB(239, 68, 68),
             BackgroundTransparency = 1,
@@ -951,7 +956,7 @@ function Action.new(window, props)
             Parent = self.action,
         })
         self.window:Create("UICorner", {
-            CornerRadius = UDim.new(0, 0),
+            CornerRadius = badgeRadius,
             Parent = self.badge,
         })
     end
@@ -1278,10 +1283,16 @@ local motion = require(utilities.motion)
 -- [[               window leaves the screen;
 -- [[  * `parked` — off the screen: the pill shrinks to nothing instead of
 -- [[               being left mid-hover for the next entrance to inherit.
-local handleHover = { Size = UDim2.fromOffset(64, 3), BackgroundTransparency = 0.5 }
-local handleGrab = { Size = UDim2.fromOffset(56, 3), BackgroundTransparency = 0 }
-local handleIdle = { Size = UDim2.fromOffset(48, 3), BackgroundTransparency = 0.7 }
-local handleParked = { Size = UDim2.fromOffset(0, 3), BackgroundTransparency = 1 }
+local handleThickness = 3
+local handleHover = { Size = UDim2.fromOffset(64, handleThickness), BackgroundTransparency = 0.5 }
+local handleGrab = { Size = UDim2.fromOffset(56, handleThickness), BackgroundTransparency = 0 }
+local handleIdle = { Size = UDim2.fromOffset(48, handleThickness), BackgroundTransparency = 0.7 }
+local handleParked = { Size = UDim2.fromOffset(0, handleThickness), BackgroundTransparency = 1 }
+
+-- [[Half the thickness, so the pill the states above describe actually reads
+-- [[as one: the width tweens 0 -> 48 -> 56 -> 64 while the height never
+-- [[moves, and a square 3px bar looks like a stray line under the window.]]
+local handleRadius = UDim.new(0, handleThickness / 2)
 
 -- [[How long the pill takes to shrink away before the hitbox that carries it
 -- [[may be switched off without cutting the fade short: the `fast` spec the
@@ -1342,7 +1353,7 @@ function Drag.new(window, props)
     })
 
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 0),
+        CornerRadius = handleRadius,
         Parent = self.dragCosmetic,
     })
 
@@ -2327,7 +2338,6 @@ local boxIconSpacing = 8
 local boxContentPad = 10
 local footerHeight = 40
 local footerSpacing = 8
-local buttonCorner = UDim.new(0, 0)
 local buttonTextSize = 16
 
 local backdropTransparency = 0.5
@@ -2816,7 +2826,7 @@ function Popup:_buildButton(footerFrame, option, index)
     self:_fade(buttonFrame, "BackgroundTransparency", 0)
 
     window:Create("UIFlexItem", { FlexMode = Enum.UIFlexMode.Fill, Parent = buttonFrame })
-    window:Create("UICorner", { CornerRadius = buttonCorner, Parent = buttonFrame })
+    window:Create("UICorner", { Parent = buttonFrame }, { CornerRadius = "ElementCornerRadius" })
 
     local buttonStroke = window:Create("UIStroke", {
         Color = strokeColor,
@@ -3257,10 +3267,11 @@ function search.buildContent(window)
         Parent = window.main,
     })
 
+    -- [[The bar is a field floating over the content, so it wears the
+    -- [[element tier rather than the shell's own arc.]]
     window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 0),
         Parent = window.searchPill,
-    })
+    }, { CornerRadius = "ElementCornerRadius" })
 
     window.searchStroke = window:Create("UIStroke", {
         Color = Color3.fromRGB(255, 255, 255),
@@ -4737,9 +4748,8 @@ function tooltip.ensure(window)
     window.elementTooltip = tip
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 0),
         Parent = tip,
-    })
+    }, { CornerRadius = "ElementCornerRadius" })
 
     local stroke = window:Create("UIStroke", {
         Transparency = 1,
@@ -10764,10 +10774,22 @@ local element = name.icons.dot
 local frame = name.icons.search
 
 -- [[Open-list corner tiers: the first visible row rounds its top ends and the
--- [[last rounds its bottom at the outer 12px tier, rows meet each other at the
--- [[inner 7px tier, so the open list reads as one rounded card made of rows.]]
-local button = UDim.new(0, 12)
-local list = UDim.new(0, 7)
+-- [[last rounds its bottom at the outer tier, rows meet each other at the inner
+-- [[tier, so the open list reads as one rounded card made of rows. Read from
+-- [[the theme rather than baked, because the panel that clips the rows wears
+-- [[`ElementCornerRadius` and the rows sit `rowInset` inside it: the outer tier
+-- [[IS that radius, so a row's arc lands inside the panel's clip instead of
+-- [[being cut by it, and a theme that squares the panel squares the list too.
+-- [[The inner tier sits `rowSeam` below the outer, which keeps the seam between
+-- [[two options readable without sharpening it back to a corner.]]
+local rowInset = 6
+local rowSeam = 4
+
+local function rowTiers(window)
+    local panel = window.theme.ElementCornerRadius or UDim.new(0, 0)
+    local outer = math.max(0, panel.Offset)
+    return UDim.new(0, outer), UDim.new(0, math.max(0, outer - rowSeam))
+end
 
 local isOpen = 30
 local selected = 38
@@ -10790,7 +10812,13 @@ local a27 = 4
 -- [[of the box are never a size apart.]]
 local a28 = 32
 local actionBox = 12
-local actionBoxRadius = UDim.new(0, 0)
+-- [[A quarter of the box: enough to take the sharpness off a 12px checkbox
+-- [[without turning it into a dot (the glyph it swaps to is round already).]]
+local actionBoxRadius = UDim.new(0, actionBox / 4)
+-- [[The dropdown's own search field is 30px tall and sits inside the panel's
+-- [[`rowInset` padding. It rounds a tier below the rows so it reads as a field
+-- [[you type into, not as another option.]]
+local searchFieldRadius = UDim.new(0, 6)
 local actionStrokeIdle = 0.45
 local actionStrokeHover = 0.2
 local actionStrokeChecked = 1
@@ -11107,7 +11135,7 @@ function state.new(tab, a49)
 
             self.emptyLabel = self.window:Create("TextLabel", {
         Name = "Empty",
-        Size = UDim2.new(1, -12, 0, a19),
+        Size = UDim2.new(1, -rowInset * 2, 0, a19),
         BackgroundTransparency = 1,
         Text = flag.t("No matches"),
         TextSize = 14,
@@ -11163,8 +11191,10 @@ function state.new(tab, a49)
     self._updateSelectedLabel = a63
 
     local function a64(a65)
+        local _, rowInner = rowTiers(self.window)
+
         local a66 = self.window:Create("Frame", {
-            Size = UDim2.new(1, -12, 0, a19),
+            Size = UDim2.new(1, -rowInset * 2, 0, a19),
             BorderSizePixel = 0,
                                     LayoutOrder = #self._optionFrames + 1,
 
@@ -11173,8 +11203,8 @@ function state.new(tab, a49)
             Parent = self.list,
         }, { BackgroundColor3 = "DropdownHighlight" })
 
-                local a67 = self.window:Create("UICorner", {
-            CornerRadius = list,
+        local a67 = self.window:Create("UICorner", {
+            CornerRadius = rowInner,
             Parent = a66,
         })
 
@@ -11400,7 +11430,7 @@ function state:_buildSearch()
     })
 
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 0),
+        CornerRadius = searchFieldRadius,
         Parent = self.searchbar,
     })
 
@@ -11843,6 +11873,8 @@ function state:_resizeToOptions()
 end
 
 function state:_updateCorners()
+    local rowOuter, rowInner = rowTiers(self.window)
+
     local a97 = {}
     for _, a98 in self._optionFrames do
         if a98.frame.Visible then
@@ -11851,8 +11883,8 @@ function state:_updateCorners()
     end
 
     for i, a99 in a97 do
-        local a100 = if i == 1 then button else list
-        local a101 = if i == #a97 then button else list
+        local a100 = if i == 1 then rowOuter else rowInner
+        local a101 = if i == #a97 then rowOuter else rowInner
         a99.corner.TopLeftRadius = a100
         a99.corner.TopRightRadius = a100
         a99.corner.BottomLeftRadius = a101
@@ -14152,6 +14184,15 @@ local a22 = 300
 local a23 = Vector2.new(35, 20)
 local a24 = Vector2.new(41, 22)
 
+-- [[The track, its fill and the handle are pills: each radius is half the
+-- [[surface's own height, so the fill's ends stay concentric inside the
+-- [[track's arc and the handle reads as a grabber rather than as a block.
+-- [[Derived from the metrics beside them, not from a theme token — a slider
+-- [[that squared off with a theme would look broken, not themed.]]
+local trackSize = Vector2.new(222, 14)
+local trackRadius = UDim.new(0, trackSize.Y / 2)
+local handleRadius = UDim.new(0, a23.Y / 2)
+
 local function a28(x: number, a29: number, a30: number): number
     return math.clamp((x - a29) / a30, 0, 1)
 end
@@ -14230,14 +14271,14 @@ function state.new(ownerTab, a31)
     self.track = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -15, 0.5, 0),
-        Size = UDim2.fromOffset(222, 14),
+        Size = UDim2.fromOffset(trackSize.X, trackSize.Y),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         Parent = self.main,
     }, { BackgroundColor3 = "SliderBackground" })
 
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 0),
+        CornerRadius = trackRadius,
 
         Parent = self.track,
     })
@@ -14254,7 +14295,7 @@ function state.new(ownerTab, a31)
     })
 
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 0),
+        CornerRadius = trackRadius,
 
         Parent = self.progress,
     })
@@ -14283,7 +14324,7 @@ function state.new(ownerTab, a31)
     }, { BackgroundColor3 = "SliderHandle" })
 
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 0),
+        CornerRadius = handleRadius,
 
         Parent = self.handle,
     })
@@ -16363,6 +16404,14 @@ local switchKnobWidth = 26
 local switchKnobHeight = 18
 local switchInset = 2
 
+-- [[The pills the metrics above describe: each radius is half its own
+-- [[surface's height, so the track's arc and the knob's arc are concentric
+-- [[(the knob's 2px clearance reads the same all the way round) and neither
+-- [[depends on a theme token that could square the switch off. The sheen
+-- [[overlay covers the track exactly, so it wears the track's radius too.]]
+local switchTrackRadius = UDim.new(0, switchTrackHeight / 2)
+local switchKnobRadius = UDim.new(0, switchKnobHeight / 2)
+
 local switchKnobActive = UDim2.new(1, -(switchKnobWidth + switchInset), 0.5, 0)
 local switchKnobRest = UDim2.new(1, -(switchTrackWidth - switchInset), 0.5, 0)
 
@@ -16413,7 +16462,7 @@ function state:_buildSwitch(frame)
     }, { BackgroundColor3 = "ToggleTrack" })
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 0),
+        CornerRadius = switchTrackRadius,
         Parent = self.functionContainer,
     })
 
@@ -16435,7 +16484,7 @@ function state:_buildSwitch(frame)
     })
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 0),
+        CornerRadius = switchKnobRadius,
         Parent = self.indicator,
     })
 
@@ -16458,7 +16507,7 @@ function state:_buildSwitch(frame)
     }, { Visible = "DarkToggleOverlay" })
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 0),
+        CornerRadius = switchTrackRadius,
         Parent = self.overlay,
     })
 
@@ -20571,7 +20620,26 @@ return {
     InputSurface = Color3.fromRGB(18, 18, 18),
 
     -- [[Shared keys — the set every theme module must provide]]
-    CornerRoundness = UDim.new(0, 0),
+    -- [[Corner scale. Three tiers, each nested inside the one above so the
+    -- [[arcs stay concentric instead of fighting:
+    -- [[  12px `CornerRoundness` — the shell: the window silhouette and the
+    -- [[     three bands that mirror its corners (topbar top pair, rail
+    -- [[     bottom-left, elements bottom-right), plus the surfaces that
+    -- [[     float over it (notification, popup).
+    -- [[   8px `ElementCornerRadius` — everything that sits *inside* the
+    -- [[     shell with padding around it: element cards, field boxes,
+    -- [[     hover overlays, tab rows, panels and small chrome.
+    -- [[  32px `PillCornerRadius` — the folded states. Half the 64px chrome
+    -- [[     height, so the minimised bar reads as a full pill; the 50px
+    -- [[     capsule clamps to its own half-height and comes out a pill
+    -- [[     too (a circle in the icon-only size). Roblox clamps a corner
+    -- [[     to half the smaller side, which is what makes one value serve
+    -- [[     both shapes.
+    -- [[Controls whose shape is inherently round — the switch, the slider
+    -- [[track and handle, the drag grabber, the unread dot — derive a
+    -- [[half-height pill from their own metrics rather than reading a token,
+    -- [[so they stay round whatever the theme says.]]
+    CornerRoundness = UDim.new(0, 12),
     WindowColor = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(10, 10, 10)),
         ColorSequenceKeypoint.new(0.9999, Color3.fromRGB(25, 25, 25)),
@@ -20613,7 +20681,7 @@ return {
     ElementStrokeHoverTransparency = 0,
     CollapsibleChildElementStrokeHoverTransparency = 0,
     ElementStrokeHover = Color3.fromRGB(82, 82, 82),
-    ElementCornerRadius = UDim.new(0, 0),
+    ElementCornerRadius = UDim.new(0, 8),
     ElementTextHoverColor = Color3.fromRGB(255, 255, 255),
     TitlingColor = Color3.fromRGB(255, 255, 255),
     DropdownHighlight = Color3.fromRGB(255, 255, 255),
@@ -20622,7 +20690,7 @@ return {
     AccentGlow = 0.4,
     StatBackground = Color3.fromRGB(25, 25, 25),
     SliderHandle = Color3.fromRGB(255, 255, 255),
-    PillCornerRadius = UDim.new(0, 0),
+    PillCornerRadius = UDim.new(0, 32),
     ToggleTrack = Color3.fromRGB(0, 0, 0),
     ToggleTrackTransparency = 0.9,
     ToggleKnobOff = Color3.fromRGB(255, 255, 255),
@@ -22250,7 +22318,10 @@ layouts.sidebar = {
     railCollapseBelow = 520,
 
     rowHeight = 38,
-    rowCornerRadius = 0,
+    -- [[The rail's rows are inset `rowInset` from the rail's edges, so they
+    -- [[read as chips rather than as full-bleed bands — and a chip wants the
+    -- [[element-card radius, the tier one step inside the shell's own arc.]]
+    rowCornerRadius = 8,
     rowSpacing = 4,
     railPadding = 17,
     rowInset = 15,
@@ -24047,117 +24118,117 @@ local LineOffsets = {
     [5] = 769,
     [6] = 754,
     [7] = 886,
-    [8] = 1019,
-    [9] = 1258,
-    [10] = 1604,
-    [11] = 1982,
-    [12] = 2284,
-    [13] = 3005,
-    [14] = 3334,
-    [15] = 4158,
-    [16] = 4219,
-    [17] = 4651,
-    [18] = 4976,
-    [19] = 4988,
-    [20] = 5045,
-    [21] = 5162,
-    [22] = 5493,
-    [23] = 5704,
-    [24] = 6008,
-    [25] = 6101,
-    [26] = 6150,
-    [27] = 6725,
-    [28] = 6912,
-    [29] = 7159,
-    [30] = 7550,
-    [31] = 4952,
-    [33] = 8363,
-    [34] = 9188,
-    [35] = 9283,
-    [36] = 9598,
-    [37] = 10019,
-    [38] = 10429,
-    [39] = 10599,
-    [40] = 10744,
-    [41] = 12272,
-    [42] = 12485,
-    [43] = 12712,
-    [44] = 12993,
-    [45] = 13400,
-    [46] = 14023,
-    [47] = 14109,
-    [48] = 14701,
-    [49] = 15550,
-    [50] = 16041,
-    [51] = 16171,
-    [52] = 16323,
-    [54] = 16824,
-    [55] = 16844,
-    [56] = 16861,
-    [57] = 16890,
-    [58] = 17012,
-    [59] = 17036,
-    [60] = 17085,
-    [61] = 16799,
-    [62] = 17182,
-    [63] = 17487,
-    [64] = 17518,
-    [65] = 17171,
-    [66] = 17561,
-    [67] = 17581,
-    [68] = 17613,
-    [69] = 17543,
-    [70] = 17720,
-    [71] = 17786,
-    [73] = 17866,
-    [74] = 18031,
-    [75] = 18048,
-    [76] = 17851,
-    [77] = 18645,
-    [78] = 18689,
-    [79] = 18769,
-    [80] = 18962,
-    [81] = 19091,
-    [82] = 19186,
-    [83] = 19353,
-    [84] = 19691,
-    [85] = 18140,
-    [86] = 20325,
-    [87] = 20391,
-    [88] = 20457,
-    [89] = 20532,
-    [90] = 20644,
-    [91] = 20710,
-    [92] = 20785,
-    [93] = 20860,
-    [94] = 20935,
-    [95] = 21010,
-    [96] = 20219,
-    [97] = 21076,
-    [98] = 21174,
-    [99] = 21352,
-    [100] = 21402,
-    [101] = 21432,
-    [102] = 21683,
-    [103] = 21732,
-    [104] = 22185,
-    [105] = 22203,
-    [106] = 22324,
-    [107] = 22423,
-    [108] = 22445,
-    [109] = 22499,
-    [110] = 22849,
-    [111] = 22885,
-    [112] = 22903,
-    [113] = 23257,
-    [114] = 23269,
-    [115] = 23320,
-    [116] = 23339,
-    [117] = 23590,
-    [118] = 23634,
-    [119] = 23837,
-    [120] = 23865,
-    [121] = 23876,
+    [8] = 1024,
+    [9] = 1263,
+    [10] = 1615,
+    [11] = 1993,
+    [12] = 2295,
+    [13] = 3015,
+    [14] = 3345,
+    [15] = 4169,
+    [16] = 4230,
+    [17] = 4662,
+    [18] = 4986,
+    [19] = 4998,
+    [20] = 5055,
+    [21] = 5172,
+    [22] = 5503,
+    [23] = 5714,
+    [24] = 6018,
+    [25] = 6111,
+    [26] = 6160,
+    [27] = 6735,
+    [28] = 6922,
+    [29] = 7169,
+    [30] = 7560,
+    [31] = 4962,
+    [33] = 8373,
+    [34] = 9198,
+    [35] = 9293,
+    [36] = 9608,
+    [37] = 10029,
+    [38] = 10439,
+    [39] = 10609,
+    [40] = 10754,
+    [41] = 12304,
+    [42] = 12517,
+    [43] = 12744,
+    [44] = 13025,
+    [45] = 13432,
+    [46] = 14055,
+    [47] = 14141,
+    [48] = 14742,
+    [49] = 15591,
+    [50] = 16082,
+    [51] = 16212,
+    [52] = 16364,
+    [54] = 16873,
+    [55] = 16893,
+    [56] = 16910,
+    [57] = 16939,
+    [58] = 17061,
+    [59] = 17085,
+    [60] = 17134,
+    [61] = 16848,
+    [62] = 17231,
+    [63] = 17536,
+    [64] = 17567,
+    [65] = 17220,
+    [66] = 17610,
+    [67] = 17630,
+    [68] = 17662,
+    [69] = 17592,
+    [70] = 17769,
+    [71] = 17835,
+    [73] = 17915,
+    [74] = 18080,
+    [75] = 18097,
+    [76] = 17900,
+    [77] = 18694,
+    [78] = 18738,
+    [79] = 18818,
+    [80] = 19011,
+    [81] = 19140,
+    [82] = 19235,
+    [83] = 19402,
+    [84] = 19740,
+    [85] = 18189,
+    [86] = 20374,
+    [87] = 20440,
+    [88] = 20506,
+    [89] = 20581,
+    [90] = 20712,
+    [91] = 20778,
+    [92] = 20853,
+    [93] = 20928,
+    [94] = 21003,
+    [95] = 21078,
+    [96] = 20268,
+    [97] = 21144,
+    [98] = 21242,
+    [99] = 21420,
+    [100] = 21470,
+    [101] = 21500,
+    [102] = 21751,
+    [103] = 21800,
+    [104] = 22253,
+    [105] = 22271,
+    [106] = 22395,
+    [107] = 22494,
+    [108] = 22516,
+    [109] = 22570,
+    [110] = 22920,
+    [111] = 22956,
+    [112] = 22974,
+    [113] = 23328,
+    [114] = 23340,
+    [115] = 23391,
+    [116] = 23410,
+    [117] = 23661,
+    [118] = 23705,
+    [119] = 23908,
+    [120] = 23936,
+    [121] = 23947,
 }
 
 -- [[Misc AOT variable imports]]

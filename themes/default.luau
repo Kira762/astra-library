@@ -40,7 +40,26 @@ return {
     InputSurface = Color3.fromRGB(18, 18, 18),
 
     -- [[Shared keys — the set every theme module must provide]]
-    CornerRoundness = UDim.new(0, 0),
+    -- [[Corner scale. Three tiers, each nested inside the one above so the
+    -- [[arcs stay concentric instead of fighting:
+    -- [[  12px `CornerRoundness` — the shell: the window silhouette and the
+    -- [[     three bands that mirror its corners (topbar top pair, rail
+    -- [[     bottom-left, elements bottom-right), plus the surfaces that
+    -- [[     float over it (notification, popup).
+    -- [[   8px `ElementCornerRadius` — everything that sits *inside* the
+    -- [[     shell with padding around it: element cards, field boxes,
+    -- [[     hover overlays, tab rows, panels and small chrome.
+    -- [[  32px `PillCornerRadius` — the folded states. Half the 64px chrome
+    -- [[     height, so the minimised bar reads as a full pill; the 50px
+    -- [[     capsule clamps to its own half-height and comes out a pill
+    -- [[     too (a circle in the icon-only size). Roblox clamps a corner
+    -- [[     to half the smaller side, which is what makes one value serve
+    -- [[     both shapes.
+    -- [[Controls whose shape is inherently round — the switch, the slider
+    -- [[track and handle, the drag grabber, the unread dot — derive a
+    -- [[half-height pill from their own metrics rather than reading a token,
+    -- [[so they stay round whatever the theme says.]]
+    CornerRoundness = UDim.new(0, 12),
     WindowColor = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(10, 10, 10)),
         ColorSequenceKeypoint.new(0.9999, Color3.fromRGB(25, 25, 25)),
@@ -82,7 +101,7 @@ return {
     ElementStrokeHoverTransparency = 0,
     CollapsibleChildElementStrokeHoverTransparency = 0,
     ElementStrokeHover = Color3.fromRGB(82, 82, 82),
-    ElementCornerRadius = UDim.new(0, 0),
+    ElementCornerRadius = UDim.new(0, 8),
     ElementTextHoverColor = Color3.fromRGB(255, 255, 255),
     TitlingColor = Color3.fromRGB(255, 255, 255),
     DropdownHighlight = Color3.fromRGB(255, 255, 255),
@@ -91,7 +110,7 @@ return {
     AccentGlow = 0.4,
     StatBackground = Color3.fromRGB(25, 25, 25),
     SliderHandle = Color3.fromRGB(255, 255, 255),
-    PillCornerRadius = UDim.new(0, 0),
+    PillCornerRadius = UDim.new(0, 32),
     ToggleTrack = Color3.fromRGB(0, 0, 0),
     ToggleTrackTransparency = 0.9,
     ToggleKnobOff = Color3.fromRGB(255, 255, 255),

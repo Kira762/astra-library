@@ -9,6 +9,11 @@ local log = require(utilities.log)
 local haptic = require(utilities.HapticEngine)
 local motion = require(utilities.motion)
 
+-- [[The unread dot is a dot: half its own size, so the 8px badge is a circle
+-- [[pinned to the action's corner rather than a small red square.]]
+local badgeSize = 8
+local badgeRadius = UDim.new(0, badgeSize / 2)
+
 function Action.new(window, props)
     props = if typeof(props) == "table" then props else {}
 
@@ -58,7 +63,7 @@ function Action.new(window, props)
             Name = "Badge",
             AnchorPoint = Vector2.new(1, 0),
             Position = UDim2.new(1, 1, 0, -1),
-            Size = UDim2.fromOffset(8, 8),
+            Size = UDim2.fromOffset(badgeSize, badgeSize),
             BorderSizePixel = 0,
             BackgroundColor3 = Color3.fromRGB(239, 68, 68),
             BackgroundTransparency = 1,
@@ -66,7 +71,7 @@ function Action.new(window, props)
             Parent = self.action,
         })
         self.window:Create("UICorner", {
-            CornerRadius = UDim.new(0, 0),
+            CornerRadius = badgeRadius,
             Parent = self.badge,
         })
     end

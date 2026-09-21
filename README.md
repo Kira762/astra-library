@@ -38,7 +38,7 @@ source, not a runtime entry point.
 | Window | Sidebar / collapsed-sidebar layouts, minimise-to-capsule, draggable, notifications, modal popups, search, per-window settings. |
 | Elements | Section, Text, Footer (centred text + inline icons), Button, Toggle (and `Switch` alias), Slider, Dropdown (single + multi-select, searchable), Input, Stat, Link (hidden URL with a copy control), About Card (brand header, up to three data rows, description and an optional action band), Divider, Group, Collapsible Group, Changelog, Isolated (changelog-only collapsible container). |
 | State | Flags with built-in auto save/load, named configs, `forgetState` opt-out, writable-storage persistence. |
-| Look | 10 built-in themes plus custom theme tables, seven icon packs (lucide, material, tabler, phosphor, heroicons, feather, remix) and a `custom_asset/` folder override. |
+| Look | 10 built-in themes plus custom theme tables, seven icon packs (lucide, material, tabler, phosphor, heroicons, feather, remix), a `custom_asset/` folder override and a three-tier corner scale — 12px shell, 8px elements, pill folds — with round-by-nature controls (switch, slider, drag pill) deriving their own half-height radii. |
 | Motion | One motion service behind every transition, driven by the user's animation-speed setting. |
 
 ## Install the agent skill

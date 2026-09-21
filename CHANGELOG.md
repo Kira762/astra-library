@@ -3,6 +3,62 @@
 Dated entries, newest first. Each entry explains the cause and the behaviour
 change, then names the files it touched.
 
+## 2026-09-21 — A corner scale: the UI is no longer square
+
+Every radius the library shipped was zero. The three theme tokens
+(`CornerRoundness`, `ElementCornerRadius`, `PillCornerRadius`) were all
+`UDim.new(0, 0)` in `themes/default.luau`, no other theme overrode them, and
+eleven more surfaces baked `UDim.new(0, 0)` into their own `UICorner` — so 34
+of the 35 corner sites in the tree drew a hard 90-degree edge. The one exception
+was the dropdown's option rows, which rounded at 12px/7px inside an otherwise
+square UI. The switch's own metrics comment already called the track and knob
+"pills", and the drag handle's called itself "the pill in the reference
+screenshot"; neither was round.
+
+The library now works on three nested tiers, each one step inside the tier above
+so the arcs stay concentric instead of fighting:
+
+- **12px `CornerRoundness`** — the shell. The window silhouette and the three
+  bands that mirror its corners (topbar top pair, rail bottom-left, elements
+  bottom-right), the bottom fade, notifications and popups.
+- **8px `ElementCornerRadius`** — everything inside the shell: element cards,
+  field boxes, hover overlays, lock scrims, tab rows, dropdown panels, tooltips,
+  the search bar, popup buttons and the About card's tiles.
+- **32px `PillCornerRadius`** — the folded states. Half the 64px chrome height,
+  so the minimised bar reads as a full pill; the 50px capsule clamps to its own
+  half-height and comes out a pill too (a circle in the icon-only size).
+
+Controls whose shape is inherently round derive a half-height radius from their
+own metrics rather than reading a token, so no theme can square them off: the
+switch (11px track, 9px knob), the slider (7px track and fill, 10px handle), the
+drag pill (1.5px on a 3px bar) and the unread dot (a 4px circle on an 8px
+badge). The dropdown's row tiers are now read from the theme — the outer tier is
+the panel's own `ElementCornerRadius`, because the rows sit 6px inside the panel
+that clips them, so a row's arc lands inside the clip instead of being cut by it
+— with the seam where two rows meet 4px below it. Its search field rounds at 6px
+and the multi-select checkbox at a quarter of its 12px box.
+
+All eleven baked zeros are gone: the surfaces that belong to a family now bind
+to that family's token, so `ChangeTheme` restyles them too.
+
+- `themes/default.luau` — the three tokens, with the scale written down beside
+  them.
+- `utilities/layouts.luau` — `rowCornerRadius` 0 -> 8 (the rail's rows are inset
+  chips, not full-bleed bands).
+- `elements/toggle.luau`, `elements/slider.luau`, `components/drag.luau`,
+  `components/action.luau` — geometry-derived pill/circle radii, with the
+  metrics named (`handleThickness`, `trackSize`, `badgeSize`) instead of inline.
+- `elements/dropdown.luau` — `rowTiers(window)` replaces the baked 12/7
+  constants; `rowInset` names the 6px the rows were already inset; the search
+  field and checkbox round.
+- `components/search.luau`, `components/tooltip.luau`, `components/popup.luau` —
+  bound to `ElementCornerRadius`; the dead `buttonCorner` local is gone.
+- `scripts/dropdown_rows_test.luau` — D3 reads both tiers from the theme instead
+  of pinning 12 and 7.
+- `USAGE.md`, `MODULES.md`, `README.md` — the corner scale, documented where a
+  host writing a custom theme table will look for it.
+- `version-1.luau` regenerated from the modular sources.
+
 ## 2026-09-21 — Compact About rows and working changelog entry point
 
 The About card's original width-aware packing treated its three status items as

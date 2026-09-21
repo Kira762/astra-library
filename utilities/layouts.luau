@@ -48,7 +48,10 @@ layouts.sidebar = {
     railCollapseBelow = 520,
 
     rowHeight = 38,
-    rowCornerRadius = 0,
+    -- [[The rail's rows are inset `rowInset` from the rail's edges, so they
+    -- [[read as chips rather than as full-bleed bands — and a chip wants the
+    -- [[element-card radius, the tier one step inside the shell's own arc.]]
+    rowCornerRadius = 8,
     rowSpacing = 4,
     railPadding = 17,
     rowInset = 15,

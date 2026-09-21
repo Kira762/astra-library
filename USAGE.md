@@ -518,6 +518,28 @@ window:ChangeTheme({
 })
 ```
 
+**Corner scale.** Three radius tokens carry every surface, nested one step
+inside each other so the arcs stay concentric:
+
+| Token | Default | What wears it |
+|---|---|---|
+| `CornerRoundness` | `UDim.new(0, 12)` | The shell: the window silhouette and the bands that mirror its corners (topbar top pair, tab rail bottom-left, elements area bottom-right), the bottom fade, notifications, popups. |
+| `ElementCornerRadius` | `UDim.new(0, 8)` | Everything inside the shell: element cards, field boxes, hover overlays, tab rows, dropdown panels and rows, About-card tiles, tooltips, the search bar, popup buttons. |
+| `PillCornerRadius` | `UDim.new(0, 32)` | The folded states: the minimised bar (half the 64px chrome height, so a full pill) and the collapsed capsule (Roblox clamps a corner to half the smaller side, so the 50px capsule comes out a pill and the icon-only size a circle). |
+
+```lua
+-- a sharper build: same tiers, tighter numbers
+window:ChangeTheme({ CornerRoundness = UDim.new(0, 6), ElementCornerRadius = UDim.new(0, 4) })
+```
+
+Keep all three **pixel** radii (`Scale` 0). A scale-based radius turns the
+Input's field box into a capsule, and the two tiers have to stay comparable for
+the nested surfaces to line up.
+
+Controls that are round by nature do not read a token — they take half their own
+height, so no theme can square them off: the switch (11px track, 9px knob), the
+slider (7px track and fill, 10px handle), the drag pill and the unread dot.
+
 ### Icons
 
 ```lua

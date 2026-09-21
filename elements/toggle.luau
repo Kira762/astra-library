@@ -41,6 +41,14 @@ local switchKnobWidth = 26
 local switchKnobHeight = 18
 local switchInset = 2
 
+-- [[The pills the metrics above describe: each radius is half its own
+-- [[surface's height, so the track's arc and the knob's arc are concentric
+-- [[(the knob's 2px clearance reads the same all the way round) and neither
+-- [[depends on a theme token that could square the switch off. The sheen
+-- [[overlay covers the track exactly, so it wears the track's radius too.]]
+local switchTrackRadius = UDim.new(0, switchTrackHeight / 2)
+local switchKnobRadius = UDim.new(0, switchKnobHeight / 2)
+
 local switchKnobActive = UDim2.new(1, -(switchKnobWidth + switchInset), 0.5, 0)
 local switchKnobRest = UDim2.new(1, -(switchTrackWidth - switchInset), 0.5, 0)
 
@@ -91,7 +99,7 @@ function state:_buildSwitch(frame)
     }, { BackgroundColor3 = "ToggleTrack" })
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 0),
+        CornerRadius = switchTrackRadius,
         Parent = self.functionContainer,
     })
 
@@ -113,7 +121,7 @@ function state:_buildSwitch(frame)
     })
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 0),
+        CornerRadius = switchKnobRadius,
         Parent = self.indicator,
     })
 
@@ -136,7 +144,7 @@ function state:_buildSwitch(frame)
     }, { Visible = "DarkToggleOverlay" })
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 0),
+        CornerRadius = switchTrackRadius,
         Parent = self.overlay,
     })
 

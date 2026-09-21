@@ -44,6 +44,15 @@ local a22 = 300
 local a23 = Vector2.new(35, 20)
 local a24 = Vector2.new(41, 22)
 
+-- [[The track, its fill and the handle are pills: each radius is half the
+-- [[surface's own height, so the fill's ends stay concentric inside the
+-- [[track's arc and the handle reads as a grabber rather than as a block.
+-- [[Derived from the metrics beside them, not from a theme token — a slider
+-- [[that squared off with a theme would look broken, not themed.]]
+local trackSize = Vector2.new(222, 14)
+local trackRadius = UDim.new(0, trackSize.Y / 2)
+local handleRadius = UDim.new(0, a23.Y / 2)
+
 local function a28(x: number, a29: number, a30: number): number
     return math.clamp((x - a29) / a30, 0, 1)
 end
@@ -122,14 +131,14 @@ function state.new(ownerTab, a31)
     self.track = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -15, 0.5, 0),
-        Size = UDim2.fromOffset(222, 14),
+        Size = UDim2.fromOffset(trackSize.X, trackSize.Y),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         Parent = self.main,
     }, { BackgroundColor3 = "SliderBackground" })
 
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 0),
+        CornerRadius = trackRadius,
 
         Parent = self.track,
     })
@@ -146,7 +155,7 @@ function state.new(ownerTab, a31)
     })
 
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 0),
+        CornerRadius = trackRadius,
 
         Parent = self.progress,
     })
@@ -175,7 +184,7 @@ function state.new(ownerTab, a31)
     }, { BackgroundColor3 = "SliderHandle" })
 
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 0),
+        CornerRadius = handleRadius,
 
         Parent = self.handle,
     })

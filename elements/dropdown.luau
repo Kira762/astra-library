@@ -21,10 +21,22 @@ local element = name.icons.dot
 local frame = name.icons.search
 
 -- [[Open-list corner tiers: the first visible row rounds its top ends and the
--- [[last rounds its bottom at the outer 12px tier, rows meet each other at the
--- [[inner 7px tier, so the open list reads as one rounded card made of rows.]]
-local button = UDim.new(0, 12)
-local list = UDim.new(0, 7)
+-- [[last rounds its bottom at the outer tier, rows meet each other at the inner
+-- [[tier, so the open list reads as one rounded card made of rows. Read from
+-- [[the theme rather than baked, because the panel that clips the rows wears
+-- [[`ElementCornerRadius` and the rows sit `rowInset` inside it: the outer tier
+-- [[IS that radius, so a row's arc lands inside the panel's clip instead of
+-- [[being cut by it, and a theme that squares the panel squares the list too.
+-- [[The inner tier sits `rowSeam` below the outer, which keeps the seam between
+-- [[two options readable without sharpening it back to a corner.]]
+local rowInset = 6
+local rowSeam = 4
+
+local function rowTiers(window)
+    local panel = window.theme.ElementCornerRadius or UDim.new(0, 0)
+    local outer = math.max(0, panel.Offset)
+    return UDim.new(0, outer), UDim.new(0, math.max(0, outer - rowSeam))
+end
 
 local isOpen = 30
 local selected = 38
@@ -47,7 +59,13 @@ local a27 = 4
 -- [[of the box are never a size apart.]]
 local a28 = 32
 local actionBox = 12
-local actionBoxRadius = UDim.new(0, 0)
+-- [[A quarter of the box: enough to take the sharpness off a 12px checkbox
+-- [[without turning it into a dot (the glyph it swaps to is round already).]]
+local actionBoxRadius = UDim.new(0, actionBox / 4)
+-- [[The dropdown's own search field is 30px tall and sits inside the panel's
+-- [[`rowInset` padding. It rounds a tier below the rows so it reads as a field
+-- [[you type into, not as another option.]]
+local searchFieldRadius = UDim.new(0, 6)
 local actionStrokeIdle = 0.45
 local actionStrokeHover = 0.2
 local actionStrokeChecked = 1
@@ -364,7 +382,7 @@ function state.new(tab, a49)
 
             self.emptyLabel = self.window:Create("TextLabel", {
         Name = "Empty",
-        Size = UDim2.new(1, -12, 0, a19),
+        Size = UDim2.new(1, -rowInset * 2, 0, a19),
         BackgroundTransparency = 1,
         Text = flag.t("No matches"),
         TextSize = 14,
@@ -420,8 +438,10 @@ function state.new(tab, a49)
     self._updateSelectedLabel = a63
 
     local function a64(a65)
+        local _, rowInner = rowTiers(self.window)
+
         local a66 = self.window:Create("Frame", {
-            Size = UDim2.new(1, -12, 0, a19),
+            Size = UDim2.new(1, -rowInset * 2, 0, a19),
             BorderSizePixel = 0,
                                     LayoutOrder = #self._optionFrames + 1,
 
@@ -430,8 +450,8 @@ function state.new(tab, a49)
             Parent = self.list,
         }, { BackgroundColor3 = "DropdownHighlight" })
 
-                local a67 = self.window:Create("UICorner", {
-            CornerRadius = list,
+        local a67 = self.window:Create("UICorner", {
+            CornerRadius = rowInner,
             Parent = a66,
         })
 
@@ -657,7 +677,7 @@ function state:_buildSearch()
     })
 
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 0),
+        CornerRadius = searchFieldRadius,
         Parent = self.searchbar,
     })
 
@@ -1100,6 +1120,8 @@ function state:_resizeToOptions()
 end
 
 function state:_updateCorners()
+    local rowOuter, rowInner = rowTiers(self.window)
+
     local a97 = {}
     for _, a98 in self._optionFrames do
         if a98.frame.Visible then
@@ -1108,8 +1130,8 @@ function state:_updateCorners()
     end
 
     for i, a99 in a97 do
-        local a100 = if i == 1 then button else list
-        local a101 = if i == #a97 then button else list
+        local a100 = if i == 1 then rowOuter else rowInner
+        local a101 = if i == #a97 then rowOuter else rowInner
         a99.corner.TopLeftRadius = a100
         a99.corner.TopRightRadius = a100
         a99.corner.BottomLeftRadius = a101

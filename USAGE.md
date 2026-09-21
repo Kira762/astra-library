@@ -194,12 +194,12 @@ Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`
 Selected tabs retain their outline and highlight. Unselected tabs retain an
 outline but have no fill/shadow highlight, including on hover.
 
-`window:Notify` deduplicates exact **title + content** pairs per window
-(including the `Title` / `Content` aliases and default text). An active match
-keeps its instance and icon, and restarts its lifetime with the latest duration.
-Queued matches use the latest props without taking another queue slot. Case,
-whitespace, or a different title/body remain separate messages; expired or
-dismissed text may be notified again.
+`window:Notify` replaces exact **title + content** pairs per window (including the
+`Title` / `Content` aliases and default text). An active match exits first, then
+the new card takes the normal entrance queue and plays its reveal animation
+again. A matching request that has not been built yet uses the newest props
+without taking another queue slot. Case, whitespace, or a different title/body
+remain separate messages; expired or dismissed text may be notified again.
 
 ### Locked tabs
 

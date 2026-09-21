@@ -31,26 +31,39 @@ end
 -- Length-prefix the title so distinct title/body pairs cannot collide, even
 -- when their text contains separators. Match exact text (no trim/case folding);
 -- duration and icon are presentation options, not part of message identity.
+local function messageText(value, fallback)
+    if value == nil then
+        return fallback
+    end
+    return tostring(value)
+end
+
 function Notification.key(props)
     props = if typeof(props) == "table" then props else {}
-    local title = props.title or props.Title or "Notification"
-    local content = props.content or props.Content or ""
+    local title = messageText(props.title or props.Title, "Notification")
+    local content = messageText(props.content or props.Content, "")
     return tostring(#title) .. ":" .. title .. content
 end
 
--- Refresh in place, including during entrance. The existing hold loop reads
--- these fields each frame, so no stale timer can dismiss a refreshed card.
-function Notification.refresh(window, props): boolean
-    props = if typeof(props) == "table" then props else {}
+-- Remove matching cards before the queue accepts the new request. A duplicate
+-- is deliberately not refreshed in place: the old card leaves through the
+-- normal exit motion and the replacement gets a fresh entrance, so repeated
+-- notifications are visible as a new event instead of silently extending an
+-- existing card's lifetime.
+function Notification.dismissMatching(window, props): number
     local key = Notification.key(props)
-    for _, card in window._liveNotifications or {} do
+    local dismissed = 0
+    local liveNotifications = window._liveNotifications or {}
+
+    for index = #liveNotifications, 1, -1 do
+        local card = liveNotifications[index]
         if not card._dismissed and card.main.Parent and card._key == key then
-            card.duration = props.duration or props.Duration or autoDuration(card.content)
-            card._elapsed = 0
-            return true
+            card:_dismiss()
+            dismissed += 1
         end
     end
-    return false
+
+    return dismissed
 end
 
 function Notification.new(window, props, release)
@@ -58,8 +71,8 @@ function Notification.new(window, props, release)
 
     local self = setmetatable({
         window = assert(window, "Missing argument #1 (Window expected)"),
-        title = props.title or props.Title or "Notification",
-        content = props.content or props.Content or "",
+        title = messageText(props.title or props.Title, "Notification"),
+        content = messageText(props.content or props.Content, ""),
         icon = window:ResolveIcon(props.icon or props.Icon),
         _key = Notification.key(props),
         _elapsed = 0,

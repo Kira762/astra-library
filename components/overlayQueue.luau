@@ -240,9 +240,12 @@ function OverlayQueue.request(window, build, key: string?): boolean
         return false
     end
 
-    -- A duplicate waiting for its turn keeps its position but uses the newest
-    -- snapshot. Coalescing before the cap prevents spam from evicting unrelated
-    -- messages. Unkeyed overlay callers keep their original behaviour.
+    -- A keyed request that has not been built yet keeps its position but uses
+    -- the newest snapshot. This is only a pending-request optimisation: active
+    -- notification cards are removed by the notification layer before their
+    -- replacement is queued. Coalescing before the cap prevents spam from
+    -- evicting unrelated messages. Unkeyed overlay callers keep their original
+    -- behaviour.
     if key then
         for _, entry in queue.pending do
             if entry.key == key then

@@ -125,7 +125,7 @@ line on `CreateCollapsibleGroup`.
 | `CreateSection({ name, icon })` | heading band for a part of the page | — |
 | `CreateText({ name, text, icon })` | body copy card | `:Set(text)`, `:SetTitle(name)` |
 | `CreateButton({ name, icon, callback })` | Optional leading icon; no trailing cursor glyph | — |
-| `CreateKeybind({ name, value, flag, callback })` | Required A–Z key capture; uppercase string value, default K | `Set`, `Capture`, `CancelCapture` |
+| `CreateKeybind({ name, value, flag, callback })` | Required editable one-letter A–Z field; uppercase string value, default K; no description row | `Set`, `Capture`, `CancelCapture` |
 | `CreateToggle({ name, value, flag, callback })` | fires `callback(on)` | `:Set(on, skipCallback?)` |
 | `CreateSlider({ name, range = { min, max }, value, increment, suffix, minimal, flag, callback })` | `callback(value, dragging)` | `:Set(value)` |
 | `CreateDropdown({ name, options, value, multiSelect, placeholder, flag, callback })` | multi-select value is a table | `:Refresh(options)`, `:Add(option)`, `:Remove(option)` |

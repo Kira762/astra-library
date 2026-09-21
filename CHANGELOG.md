@@ -3,6 +3,37 @@
 Dated entries, newest first. Each entry explains the cause and the behaviour
 change, then names the files it touched.
 
+## 2026-09-21 — Compact About rows and working changelog entry point
+
+The About card's original width-aware packing treated its three status items as
+large standalone cards. At the normal sidebar width, Version and Build occupied
+the first line while Author wrapped into an oversized full-width tile below.
+Those inset tiles also used `WindowColor`, making them much darker than the
+surrounding element UI. The demo's **View Changelog** action only raised a
+notification, and the Isolated header listened to `GuiButton.Activated`, which
+some executor input bridges do not forward.
+
+About data tiles are now a compact 48px status line with smaller 28px badges,
+8px insets/gaps and compact label/value type. One to three tiles divide that
+single line evenly, so the standard Version / Build / Author set remains three
+columns and never leaves one row below the others. Tiles and the action band now
+use `ElementSurface` with the existing element stroke rather than the dark
+window gradient. Theme changes continue to update those fills.
+
+Isolated headers now use `MouseButton1Click`, matching Astra's other full-row
+controls while retaining touch-tap support. Both published examples wire the
+About action to the actual Isolated handle: tapping it expands the changelog and
+scrolls its header into view instead of showing a dead-end notification.
+
+- `elements/aboutCard.luau`, `elements/isolated.luau` — compact single-line data
+  geometry, regular element fills and the reliable Isolated click signal.
+- `example.client.luau`, `skills/astra/assets/example-window.luau` — action to
+  Isolated expansion and scrolling.
+- `scripts/about_card_test.luau`, `scripts/isolated_test.luau` — compact geometry,
+  surface/theme and primary-click regression coverage.
+- `USAGE.md`, `MODULES.md`, and the Astra skill docs — updated behavior and
+  examples; `version-1.luau` regenerated from the modular sources.
+
 ## 2026-09-21 — About card
 
 The Settings → About tab was three prose Text cards that described the library

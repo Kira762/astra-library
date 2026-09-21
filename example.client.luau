@@ -23,6 +23,26 @@ local window = Astra:CreateWindow({
 -- [[One tab intentionally contains every supported element type.]]
 local elements = window:CreateTab({ name = "Element Test", icon = "flask-conical" })
 
+-- [[The About action is built before the Isolated panel lower in this file, but
+-- [[the callback runs only after construction. Keep the handle here so the band
+-- [[can open the real release history and bring its header into view instead of
+-- [[showing a notification that leaves the changelog closed.]]
+local changelogPanel
+local function openChangelog()
+    if not changelogPanel then
+        return
+    end
+    changelogPanel:Expand()
+    task.defer(function()
+        if not changelogPanel.main.Parent then
+            return
+        end
+        local page = elements.tabPage
+        local top = page.CanvasPosition.Y + changelogPanel.main.AbsolutePosition.Y - page.AbsolutePosition.Y
+        page.CanvasPosition = Vector2.new(0, math.max(0, top - 10))
+    end)
+end
+
 -- [[The About card: a brand header, up to three data rows, a description
 -- [[paragraph and an optional trailing action band. This one carries Astra's
 -- [[own release facts — the leading mark is the library's asset id (a pack name
@@ -42,9 +62,7 @@ elements:CreateAboutCard({
         icon = "file-text",
         name = "View Changelog",
         subtitle = "See what's new in this version",
-        callback = function()
-            window:Notify({ title = "View Changelog", content = "The release history lives further down this tab." })
-        end,
+        callback = openChangelog,
     },
 })
 
@@ -223,7 +241,7 @@ elements:CreateCollapsibleGroup({
 -- [[The Isolated container is the Changelog's own home: a collapsed header
 -- [[card with a changeable icon, title and subtitle, the built-in chevron, and
 -- [[a body that only ever holds Changelog elements.]]
-elements:CreateIsolated({
+changelogPanel = elements:CreateIsolated({
 	name = "View Changelog",
 	subtitle = "See what's new in this version",
 	icon = "file-text",

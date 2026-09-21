@@ -5,11 +5,10 @@
 -- [[The recipe is fixed and every string in it is host copy:
 --
 -- [[  * header — a leading icon plus a title/subtitle stack,
--- [[  * rows — one to three data tiles, each a leading icon with a label above
--- [[    its value. The tiles are packed against the width the card actually
--- [[    has: the ones that fit share a line evenly and the rest wrap under it,
--- [[    and a tile is never handed less room than its own copy needs, so a
--- [[    narrow window stacks them instead of truncating their values,
+-- [[  * rows — one to three compact data tiles, each a leading icon with a
+-- [[    label above its value. Every tile shares one line evenly: the three-row
+-- [[    About recipe stays three-across instead of leaving its last tile alone
+-- [[    on a second line,
 -- [[  * description — one wrapped paragraph under the tiles,
 -- [[  * action (optional) — a tappable band carrying an icon, a label, a
 -- [[    subtitle and the card's trailing chevron. It is the card's trailing
@@ -17,9 +16,9 @@
 -- [[    action itself.
 --
 -- [[Every surface stays inside the shared theme tokens — the card is the
--- [[standard element body, a tile and the action band are the window surface
--- [[one shade under it, the nested badge is the content surface — so the card
--- [[themes itself like every other element instead of hard-coding a palette.
+-- [[standard element body, each tile and the action band use ElementSurface,
+-- [[and the nested badge uses that same control family — so the card themes
+-- [[itself like every other element instead of hard-coding a dark inset.
 
 local state = {}
 state.__index = state
@@ -27,7 +26,6 @@ state.__type = "AboutCard"
 
 local utilities = script.Parent.Parent.utilities
 
-local functions = require(script.Parent.Parent.functions)
 local image = require(script.Parent.Parent.images.image)
 local haptic = require(utilities.HapticEngine)
 local locale = require(utilities.locale)
@@ -35,20 +33,14 @@ local lockable = require(utilities.lockable)
 local motion = require(utilities.motion)
 local moveable = require(utilities.moveable)
 
--- [[The rows section is capped at three tiles: a fourth tile would read as a
--- [[second line of tiles and push the description (and the action band) off the
--- [[fold.]]
+-- [[The rows section is capped at three tiles so the compact status band keeps
+-- [[useful room for every label and value; the action remains its trailing row.]]
 local maxRows = 3
 
--- [[Pre-layout width guess for the packing below, used before the card has a
--- [[real width to measure against (elements/description.luau reserves its room
--- [[the same way). It is the default window's content width, so the first
--- [[layout already matches what a standard window shows.]]
-local fallbackWidth = 320
-
--- [[Card metrics. The card keeps the library's 20px gutter; a tile and the
--- [[action band inset by 12 and 14 instead, so a nested surface stays readable
--- [[as a surface and not as a second card edge.
+-- [[Card metrics. The card keeps the library's 20px gutter. Data tiles are a
+-- [[deliberately compact 48px band: the smaller inset and badge leave enough
+-- [[copy room for three equal tiles on the normal card width without making the
+-- [[third row wrap below the first two.
 local gutter = 20
 local sectionGap = 14
 local headerIconSize = 38
@@ -58,17 +50,18 @@ local headerTitleHeight = 26
 local headerSubtitleSize = 14
 local headerSubtitleHeight = 18
 local headerLineGap = 2
-local tileHeight = 58
-local tileGap = 10
-local tilePad = 12
-local badgeSize = 34
-local badgeIconSize = 16
-local badgeGap = 10
-local tileLabelSize = 12
-local tileLabelHeight = 14
-local tileValueSize = 16
-local tileValueHeight = 19
+local tileHeight = 48
+local tileGap = 8
+local tilePad = 8
+local badgeSize = 28
+local badgeIconSize = 14
+local badgeGap = 8
+local tileLabelSize = 11
+local tileLabelHeight = 13
+local tileValueSize = 14
+local tileValueHeight = 17
 local tileLineGap = 1
+local tileTextHeight = tileLabelHeight + tileLineGap + tileValueHeight
 local descriptionSize = 14
 local actionHeight = 56
 local actionHeightSingle = 41
@@ -141,12 +134,11 @@ local function textOrNil(value)
     return text
 end
 
--- [[A nested surface: the window gradient under the element's corner and
--- [[stroke, the same recipe the Isolated body uses, so a tile or the action
--- [[band reads as a shade under the card on every theme — not only on the one
--- [[the metrics were tuned against.
+-- [[A nested surface uses the theme's element fill, not the much darker window
+-- [[gradient. The surrounding stroke still separates each tile and action band
+-- [[from the card, while their colour stays in the same hierarchy as the rest
+-- [[of Astra's controls.
 local function insetSurface(window, frame)
-    window:Create("UIGradient", { Rotation = 270, Parent = frame }, { Color = "WindowColor" })
     window:Create("UICorner", { Parent = frame }, { CornerRadius = "ElementCornerRadius" })
     return window:Create("UIStroke", { Transparency = 1, Parent = frame }, {
         Color = "ElementStroke",
@@ -349,9 +341,8 @@ end
 function state:_buildRows(rows)
     local window = self.window
 
-    -- [[The tiles are placed by `_layoutRows`, not by a list layout: how many
-    -- [[of them share a line depends on the width the card actually has (see
-    -- [[`_packRows`), so their geometry is written explicitly.
+    -- [[The tiles are placed by `_layoutRows`, not by a list layout, so one to
+    -- [[three equal slices can account for their gaps without wrapping.
     self.rowsHost = window:Create("Frame", {
         Name = "Rows",
         Size = UDim2.new(1, 0, 0, tileHeight),
@@ -366,8 +357,8 @@ function state:_buildRows(rows)
         self.rows[index] = self:_buildRow(index, row)
     end
     self:_layoutRows()
-    -- [[A window resize, a layout-mode switch or the search page changes the
-    -- [[width the tiles have to share, so the packing re-runs when it moves.
+    -- [[Scale-based slices follow resizes themselves; refreshing here also
+    -- [[keeps `_rowLines` and any runtime metric changes in sync.
     window:ConnectFor(self, self.main:GetPropertyChangedSignal("AbsoluteSize"), function()
         self:_layoutRows()
     end)
@@ -387,11 +378,13 @@ function state:_buildRow(index, row)
         Name = `Row{index}`,
         Size = UDim2.fromOffset(0, tileHeight),
         BorderSizePixel = 0,
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BackgroundTransparency = 1,
         LayoutOrder = index,
         Parent = self.rowsHost,
-    }, { BackgroundTransparency = "ElementTransparency" })
+    }, {
+        BackgroundColor3 = "ElementSurface",
+        BackgroundTransparency = "ElementTransparency",
+    })
     entry.stroke = insetSurface(window, entry.main)
 
     window:Create("UIPadding", {
@@ -443,7 +436,7 @@ function state:_buildRow(index, row)
 
     entry.textColumn = window:Create("Frame", {
         Name = "Text",
-        Size = UDim2.new(1, 0, 0, badgeSize),
+        Size = UDim2.new(1, 0, 0, tileTextHeight),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         LayoutOrder = 1,
@@ -505,84 +498,28 @@ function state:_applyRowIcon(entry)
     local hasIcon = entry.icon ~= nil
     entry.badge.Visible = hasIcon
     image.assign(entry.badgeIcon, "Image", entry.icon or "")
-    entry.textColumn.Size = UDim2.new(1, if hasIcon then -(badgeSize + badgeGap) else 0, 0, badgeSize)
+    entry.textColumn.Size = UDim2.new(1, if hasIcon then -(badgeSize + badgeGap) else 0, 0, tileTextHeight)
 end
 
--- [[The narrowest a tile can be without cutting its own copy: its padding, its
--- [[badge and the wider of its two lines, measured with the fonts they render
--- [[in. A shared line is only allowed to give a tile this much; below it the
--- [[tile moves to the next line instead of truncating its value.
-function state:_rowMinWidth(entry)
-    local theme = self.window.theme
-    local text = math.max(
-        functions.textWidth(theme.Font, tileLabelSize, locale.resolve(entry.label)),
-        functions.textWidth(theme.TitleFont, tileValueSize, entry.value)
-    )
-    local width = tilePad * 2 + text
-    if entry.icon then
-        width += badgeSize + badgeGap
-    end
-    return math.ceil(width)
-end
-
--- [[Greedy packing of the tiles into lines of the measured width. A line gives
--- [[every tile the same slice, so what a line costs is its widest tile times
--- [[its tile count plus the gaps: the check below is exactly that, which is why
--- [[a line never squeezes the tile that asked for the room. The first tile of a
--- [[line always stays, however narrow the card is.
-function state:_packRows(width)
-    local lines = {}
-    local current = {}
-    local widest = 0
-    for index, entry in ipairs(self.rows) do
-        local minimum = self:_rowMinWidth(entry)
-        local grown = math.max(widest, minimum)
-        local needed = grown * (#current + 1) + tileGap * #current
-        if #current > 0 and needed > width then
-            table.insert(lines, current)
-            current = { index }
-            widest = minimum
-        else
-            table.insert(current, index)
-            widest = grown
-        end
-    end
-    if #current > 0 then
-        table.insert(lines, current)
-    end
-    return lines
-end
-
--- [[The width the tiles have to share: the card's own width inside its
--- [[gutters, or the pre-layout guess before the card has been measured.
-function state:_availableWidth()
-    local width = self.main.AbsoluteSize.X - gutter * 2
-    return if width > 0 then width else fallbackWidth
-end
-
--- [[Place the tiles: one line takes an equal slice each (the gaps come out of
--- [[the slice, so the line lands flush on both edges), and a line that cannot
--- [[hold all of them wraps the rest underneath at the same width.
-function state:_layoutRows(width)
+-- [[The tiles always occupy one compact line. Their equal slices make the
+-- [[Version / Build / Author recipe read as one three-part status row instead
+-- [[of a two-column grid with an oversized orphan below it. The first layout
+-- [[can run before Roblox has measured the card; scale-based width keeps that
+-- [[pass correct and automatically follows later window resizing without a
+-- [[minimum-width packing threshold.
+function state:_layoutRows()
     local count = #self.rows
     if count == 0 then
         return
     end
-    local available = width or self:_availableWidth()
-    local lines = self:_packRows(available)
-    self._rowLines = lines
-    self.rowsHost.Size = UDim2.new(1, 0, 0, #lines * tileHeight + (#lines - 1) * tileGap)
 
-    for lineIndex, line in ipairs(lines) do
-        local slice = (available - (#line - 1) * tileGap) / #line
-        for columnIndex, entryIndex in ipairs(line) do
-            local entry = self.rows[entryIndex]
-            entry.main.Size = UDim2.fromOffset(slice, tileHeight)
-            entry.main.Position = UDim2.fromOffset(
-                (columnIndex - 1) * (slice + tileGap),
-                (lineIndex - 1) * (tileHeight + tileGap)
-            )
-        end
+    self._rowLines = { {} }
+    self.rowsHost.Size = UDim2.new(1, 0, 0, tileHeight)
+    local gapShare = tileGap * (count - 1) / count
+    for index, entry in ipairs(self.rows) do
+        table.insert(self._rowLines[1], index)
+        entry.main.Size = UDim2.new(1 / count, -gapShare, 0, tileHeight)
+        entry.main.Position = UDim2.new((index - 1) / count, tileGap * (index - 1) / count, 0, 0)
     end
 end
 
@@ -635,11 +572,13 @@ function state:_buildAction(action)
         Name = "Action",
         Size = UDim2.new(1, 0, 0, height),
         BorderSizePixel = 0,
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BackgroundTransparency = 1,
         LayoutOrder = 4,
         Parent = self.main,
-    }, { BackgroundTransparency = "ElementTransparency" })
+    }, {
+        BackgroundColor3 = "ElementSurface",
+        BackgroundTransparency = "ElementTransparency",
+    })
     self.actionStroke = insetSurface(window, self.actionBand)
 
     self.actionIcon = window:Create("ImageLabel", {
@@ -858,9 +797,9 @@ function state:SetRow(index, row)
         changed = true
     end
 
-    -- [[New copy changes how much room the tile needs, so the row is re-packed
-    -- [[before the reconnect below: a longer value can push its tile onto the
-    -- [[next line instead of being truncated in place.
+    -- [[Refresh the equal-slice row after an icon changes the text reservation;
+    -- [[copy is truncated inside its own compact tile rather than wrapping the
+    -- [[last tile onto another line.
     if changed then
         self:_layoutRows()
         self:_setShown(self._shown, false)

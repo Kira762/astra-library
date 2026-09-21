@@ -196,8 +196,8 @@ export type LinkProps = {
     callback: ((link: string) -> ())?,
 }
 
--- One data row of an About card: a leading icon, a label and a value. Up to
--- three rows share the row; the count drives each tile's width.
+-- One compact data tile of an About card: a leading icon, a label and a value.
+-- Up to three tiles share one line; the count drives each tile's width.
 export type AboutCardRow = {
     icon: (string | number)?,
     label: string?,

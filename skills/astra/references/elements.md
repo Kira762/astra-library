@@ -234,6 +234,7 @@ link:IsConfirming()                   -- true while the check mark is showing
 ## About card (tab only)
 
 ```lua
+local changelogPanel -- assign below with tab:CreateIsolated(...)
 local card = tab:CreateAboutCard({
     name = "Astra",                                   -- header title
     subtitle = "UI Library for a better experience.", -- muted line under it
@@ -248,7 +249,9 @@ local card = tab:CreateAboutCard({
         icon = "file-text",
         name = "View Changelog",
         subtitle = "See what's new in this version",
-        callback = function() end,                    -- fires on a tap of the band
+        callback = function()
+            if changelogPanel then changelogPanel:Expand() end
+        end,                                         -- fires on a tap of the band
     },
 })
 
@@ -261,12 +264,13 @@ card:SetDescription("Shorter copy.")  -- "" / nil removes the paragraph
 
 - Four blocks in one card: header (icon, title, subtitle), the data rows, the
   description paragraph and the optional action band.
-- `rows` takes **1 to 3** entries. They are packed against the width the card
-  actually has: as many as fit share one line (split evenly, left to right) and
-  the rest wrap underneath — a tile is never squeezed below the width of its own
-  copy, so values are not truncated by a narrow window. A fourth row errors at
-  construction: `Astra:CreateAboutCard — at most 3 data rows are supported, got N`
-  — the action band is the card's trailing row.
+- `rows` takes **1 to 3** entries. All entries stay on one compact 48px line and
+  split it evenly from left to right, so Version / Build / Author renders as
+  three columns rather than two columns plus an orphan below. On an unusually
+  narrow window, long copy truncates inside its tile instead of wrapping the
+  tile. A fourth row errors at construction:
+  `Astra:CreateAboutCard — at most 3 data rows are supported, got N` — the action
+  band is the card's trailing row.
 - Optional parts drop out of the layout instead of rendering blank: a row without
   `icon` loses its badge, a card without `rows`, `description` or `action` simply
   has one block fewer.

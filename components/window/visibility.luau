@@ -8,6 +8,7 @@ local overlayQueue = require(script.Parent.Parent.overlayQueue)
 local search = require(script.Parent.Parent.search)
 local state = require(utilities.Parent.core.state)
 local tooltip = require(script.Parent.Parent.tooltip)
+local hardwarePerformance = require(utilities.hardwarePerformance)
 
 local shared = require(script.Parent.constants)
 local contentRevealBeat = shared.contentRevealBeat
@@ -364,12 +365,43 @@ function Window:_fadeSelectedElementsOut()
     end
 end
 
--- [[Show every element of one tab (instantly) and clear its pending mark.]]
+-- [[Show every element of one tab and clear its pending mark.
+-- Automatically adapts loading for tabs with many elements and low-end devices
+-- to prevent UI hitching, frame jitter, and memory crashes.]]
 
 function Window:_showTabElements(tab)
     tab._elementsPending = false
-    for _, element in ipairs(tab.elements) do
-        element:_setShown(true, false)
+    local elements = tab.elements
+    local count = #elements
+    if count <= 8 then
+        for _, element in ipairs(elements) do
+            element:_setShown(true, false)
+        end
+        return
+    end
+
+    -- Tab with many elements: reveal the primary batch immediately without delay,
+    -- then stream remaining elements across micro-batches respecting hardware load.
+    local batchSize = hardwarePerformance.getElementBatchSize()
+    local initialCount = math.min(count, math.max(6, batchSize))
+    for i = 1, initialCount do
+        elements[i]:_setShown(true, false)
+    end
+
+    if initialCount < count then
+        task.spawn(function()
+            local index = initialCount + 1
+            while index <= count and not self.unloaded and self.selectedTab == tab do
+                local nextBatch = math.min(count, index + batchSize - 1)
+                for j = index, nextBatch do
+                    elements[j]:_setShown(true, false)
+                end
+                index = nextBatch + 1
+                if index <= count then
+                    task.wait()
+                end
+            end
+        end)
     end
 end
 

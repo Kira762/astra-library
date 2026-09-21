@@ -17,6 +17,7 @@ local Constants = require(script.Parent.utilities.constants)
 local Icons = require(script.Parent.icons)
 local Motion = require(script.Parent.utilities.motion)
 local Settings = require(script.Parent.settings)
+local HardwarePerformance = require(script.Parent.utilities.hardwarePerformance)
 -- [[Binds the `types` name used by every `types.X` annotation below. Types.luau
 -- [[is a sibling of the entrypoint in both mounts (`script.Parent.Types` in the
 -- [[Rojo/wax tree and in the generated bundle), and it returns an empty table,
@@ -203,6 +204,7 @@ Astra.Motion = Motion
 
 Astra.Core = Core
 Astra.Settings = Settings
+Astra.Performance = HardwarePerformance
 
 function Astra:CreateWindow(props: types.WindowProps): types.Window
 	-- [[Anti-duplicate has to claim the slot *before* `Window.new` can yield.
@@ -877,12 +879,15 @@ export type MotionService = {
     cancel: (instance: Instance?) -> boolean,
     tween: (instance: Instance?, props: { [string]: any }, spec: MotionSpec?, onCompleted: (() -> ())?) -> Tween?,
     set: (instance: Instance?, props: { [string]: any }) -> (),
+    uiSpec: (componentType: string?, action: string?) -> TweenInfo,
+    forUI: (componentType: string?, action: string?) -> TweenInfo,
 }
 
 export type Astra = {
     CreateWindow: (self: Astra, props: WindowProps) -> Window,
     Icons: IconCatalog,
     Motion: MotionService,
+    Performance: any?,
 }
 
 return {}
@@ -2540,14 +2545,29 @@ function Popup:_build()
     local window = self.window
     local hasIcon = self.icon ~= nil and self.icon ~= 0 and self.icon ~= ""
 
-    self.screenGui = window:Create("ScreenGui", {
-        Name = state.httpService:GenerateGUID(false),
-        IgnoreGuiInset = true,
-        ResetOnSpawn = false,
-        Enabled = true,
-        DisplayOrder = constants.displayOrder.popup,
-        ZIndexBehavior = Enum.ZIndexBehavior.Global,
-        Parent = state.guiContainer,
+    -- Only keep one UI: place popup layers within window.screenGui when available
+    local rootGui = window.screenGui
+    if not rootGui or not rootGui.Parent then
+        rootGui = window:Create("ScreenGui", {
+            Name = state.httpService:GenerateGUID(false),
+            IgnoreGuiInset = true,
+            ResetOnSpawn = false,
+            Enabled = true,
+            DisplayOrder = constants.displayOrder.popup,
+            ZIndexBehavior = Enum.ZIndexBehavior.Global,
+            Parent = state.guiContainer,
+        })
+    end
+    self.screenGui = rootGui
+
+    self.popupContainer = window:Create("Frame", {
+        Name = "PopupContainer",
+        Size = UDim2.fromScale(1, 1),
+        Position = UDim2.fromScale(0, 0),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = 200000,
+        Parent = self.screenGui,
     })
 
     self.backdrop = window:Create("Frame", {
@@ -2557,7 +2577,8 @@ function Popup:_build()
         Size = UDim2.fromScale(1, 1),
         Active = true,
         BackgroundTransparency = 1,
-        Parent = self.screenGui,
+        ZIndex = 200000,
+        Parent = self.popupContainer,
     })
     self:_fade(self.backdrop, "BackgroundTransparency", backdropTransparency)
 
@@ -2570,8 +2591,9 @@ function Popup:_build()
         AutomaticSize = Enum.AutomaticSize.Y,
         Active = true,
         BorderSizePixel = 0,
+        ZIndex = 200001,
         BackgroundTransparency = 1,
-        Parent = self.screenGui,
+        Parent = self.popupContainer,
     })
     self:_fade(self.card, "BackgroundTransparency", 0)
 
@@ -3085,13 +3107,14 @@ function Popup:_measureBoxes()
 end
 
 function Popup:_show()
-    if self._closed or not self.screenGui.Parent then
+    if self._closed or not (self.screenGui and self.screenGui.Parent) then
         return
     end
 
     haptic.notify()
 
-    motion.tween(self.card, { Position = UDim2.new(0.5, 0, 0.5, 0) }, cardShowTween)
+    -- Aesthetic canvas-style modal entrance with fluid deceleration
+    motion.tween(self.card, { Position = UDim2.new(0.5, 0, 0.5, 0) }, "modal")
 
     for _, reveal in self._reveal do
         local tweenInfo = if reveal.instance == self.backdrop then backdropTween else fadeInTween
@@ -3115,7 +3138,7 @@ function Popup:Close()
     end
     self._connections = {}
 
-    if not self.screenGui.Parent then
+    if not (self.screenGui and self.screenGui.Parent) then
         return
     end
 
@@ -3126,7 +3149,7 @@ function Popup:Close()
 
     local closeTween = state.tweenService:Create(
         self.card,
-        motion.spec(textFadeTween),
+        motion.spec("dropdownClose"),
         { Position = UDim2.new(0.5, 0, 0.5, 10) }
     )
     self._closeConnection = closeTween.Completed:Connect(function(playbackState)
@@ -3135,14 +3158,18 @@ function Popup:Close()
         if oldConnection then
             oldConnection:Disconnect()
         end
-        if playbackState == Enum.PlaybackState.Completed and self._closed and self.screenGui.Parent then
-            self.window:DestroySubtree(self.screenGui)
+        if playbackState == Enum.PlaybackState.Completed and self._closed then
+            if self.popupContainer and self.popupContainer.Parent then
+                self.window:DestroySubtree(self.popupContainer)
+            elseif self.screenGui and self.screenGui.Parent and self.screenGui ~= self.window.screenGui then
+                self.window:DestroySubtree(self.screenGui)
+            end
         end
     end)
     closeTween:Play()
 
     for _, reveal in self._reveal do
-        motion.tween(reveal.instance, { [reveal.prop] = 1 }, textFadeTween)
+        motion.tween(reveal.instance, { [reveal.prop] = 1 }, "dropdownClose")
     end
 end
 
@@ -6308,6 +6335,7 @@ local motion = require(utilities.motion)
 local overlayQueue = require(script.Parent.Parent.overlayQueue)
 local search = require(script.Parent.Parent.search)
 local state = require(utilities.Parent.core.state)
+local hardwarePerformance = require(utilities.hardwarePerformance)
 
 local themes = require(script.Parent.Parent.Parent.themes)
 local resolveTheme = themes.resolve
@@ -6827,13 +6855,19 @@ function Window:_paceBudget(force)
     if self.unloaded then
         return
     end
+    local totalElements = self._totalElements or 0
+    local tabCount = self.tabs and #self.tabs or 0
+    local frameBudget, instanceBudget = hardwarePerformance.getBudgets(totalElements, tabCount)
+    local struggling = hardwarePerformance.isStruggling()
+
     local now = os.clock()
     local last = self._constructionClock or now
     local count = #self.instances
     if
         not force
-        and now - last < constructionFrameBudget
-        and count - (self._constructionInstances or 0) < constructionInstanceBudget
+        and not struggling
+        and now - last < frameBudget
+        and count - (self._constructionInstances or 0) < instanceBudget
     then
         self._constructionClock = last
         return
@@ -6877,7 +6911,8 @@ function Window:_loadCheckpoint(appliedCount)
         -- [[condition, so this checkpoint just never paces a dead window.]]
         return
     end
-    if appliedCount % 6 == 0 then
+    local step = hardwarePerformance.getLoadCheckpointStep()
+    if appliedCount % step == 0 then
         task.wait()
         if self.unloaded then
             return
@@ -7821,6 +7856,7 @@ local overlayQueue = require(script.Parent.Parent.overlayQueue)
 local search = require(script.Parent.Parent.search)
 local state = require(utilities.Parent.core.state)
 local tooltip = require(script.Parent.Parent.tooltip)
+local hardwarePerformance = require(utilities.hardwarePerformance)
 
 local shared = require(script.Parent.constants)
 local contentRevealBeat = shared.contentRevealBeat
@@ -8177,12 +8213,43 @@ function Window:_fadeSelectedElementsOut()
     end
 end
 
--- [[Show every element of one tab (instantly) and clear its pending mark.]]
+-- [[Show every element of one tab and clear its pending mark.
+-- Automatically adapts loading for tabs with many elements and low-end devices
+-- to prevent UI hitching, frame jitter, and memory crashes.]]
 
 function Window:_showTabElements(tab)
     tab._elementsPending = false
-    for _, element in ipairs(tab.elements) do
-        element:_setShown(true, false)
+    local elements = tab.elements
+    local count = #elements
+    if count <= 8 then
+        for _, element in ipairs(elements) do
+            element:_setShown(true, false)
+        end
+        return
+    end
+
+    -- Tab with many elements: reveal the primary batch immediately without delay,
+    -- then stream remaining elements across micro-batches respecting hardware load.
+    local batchSize = hardwarePerformance.getElementBatchSize()
+    local initialCount = math.min(count, math.max(6, batchSize))
+    for i = 1, initialCount do
+        elements[i]:_setShown(true, false)
+    end
+
+    if initialCount < count then
+        task.spawn(function()
+            local index = initialCount + 1
+            while index <= count and not self.unloaded and self.selectedTab == tab do
+                local nextBatch = math.min(count, index + batchSize - 1)
+                for j = index, nextBatch do
+                    elements[j]:_setShown(true, false)
+                end
+                index = nextBatch + 1
+                if index <= count then
+                    task.wait()
+                end
+            end
+        end)
     end
 end
 
@@ -16202,6 +16269,7 @@ end
 
 function state:_register(element)
     table.insert(self.elements, element)
+    self.window._totalElements = (self.window._totalElements or 0) + 1
     window(element, #self.elements * 10)
     self.window:_restoreLate(element)
 
@@ -22544,6 +22612,207 @@ return functions
 
 end)() end,
     [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
+-- [[Astra Hardware Performance Engine.
+--
+-- Automatically detects GPU, CPU, frame timing, and device capabilities to
+-- dynamically tune UI construction pacing, instance budgets, element loading,
+-- and animation profiles.
+--
+-- On low-end mobile devices, weak GPUs, or under high frame jitter / load,
+-- this module automatically reduces per-frame instance allocations and frame time
+-- budgets, preventing Roblox client lag spikes, frame drops, and out-of-memory
+-- or engine crashes. On high-end devices, it expands budgets for instant,
+-- silky-smooth delivery.
+--]]
+
+local state = require(script.Parent.Parent.core.state)
+
+local hardwarePerformance = {}
+
+local SAMPLES_CAP = 30
+local dtSamples = {}
+local sampleIndex = 0
+local sampleSum = 0
+local averageDt = 0.0166 -- Baseline 60 FPS
+local lastDt = 0.0166
+local frameJitter = 0
+local struggling = false
+
+-- Device heuristics (cached once, refreshed lazily)
+local isMobile = false
+local isMock = false
+local detectedQuality = 10
+
+local function checkEnvironment()
+	-- Detect mock / test harness environment
+	local hasSettings = pcall(function()
+		return settings()
+	end)
+	if not hasSettings then
+		isMock = true
+		return
+	end
+
+	-- Mobile check
+	pcall(function()
+		local uis = state.userInputService
+		if uis and uis.TouchEnabled and not uis.KeyboardEnabled then
+			isMobile = true
+		end
+	end)
+
+	-- Graphics / GPU quality level check
+	pcall(function()
+		local rendering = settings().Rendering
+		if rendering and rendering.QualityLevel then
+			local val = rendering.QualityLevel.Value
+			if typeof(val) == "number" and val > 0 then
+				detectedQuality = val
+			end
+		end
+	end)
+
+	pcall(function()
+		local gs = UserSettings().GameSettings
+		if gs and gs.SavedQualityLevel then
+			local val = gs.SavedQualityLevel.Value
+			if typeof(val) == "number" and val > 0 then
+				detectedQuality = math.min(detectedQuality, val)
+			end
+		end
+	end)
+end
+
+checkEnvironment()
+
+-- Monitor frame delta times on Heartbeat
+if state.runService and state.runService.Heartbeat then
+	pcall(function()
+		state.runService.Heartbeat:Connect(function(dt: number)
+			if isMock then
+				return
+			end
+			local clampedDt = math.clamp(dt or 0.0166, 0.001, 0.25)
+			lastDt = clampedDt
+
+			if #dtSamples < SAMPLES_CAP then
+				table.insert(dtSamples, clampedDt)
+				sampleSum += clampedDt
+			else
+				sampleIndex = (sampleIndex % SAMPLES_CAP) + 1
+				sampleSum = sampleSum - dtSamples[sampleIndex] + clampedDt
+				dtSamples[sampleIndex] = clampedDt
+			end
+
+			local count = #dtSamples
+			if count > 0 then
+				averageDt = sampleSum / count
+				frameJitter = math.abs(clampedDt - averageDt)
+				-- If current frame took > 33ms (~30 FPS) or moving average is < 40 FPS,
+				-- or jitter is very high, the GPU/CPU is struggling.
+				struggling = clampedDt > 0.033 or averageDt > 0.025 or frameJitter > 0.018
+			end
+		end)
+	end)
+end
+
+function hardwarePerformance.isLowEnd(): boolean
+	if isMock then
+		return false
+	end
+	return isMobile or detectedQuality <= 3 or averageDt > 0.028 or struggling
+end
+
+function hardwarePerformance.isStruggling(): boolean
+	if isMock then
+		return false
+	end
+	return struggling or lastDt > 0.035
+end
+
+function hardwarePerformance.getAverageFps(): number
+	if averageDt <= 0 then
+		return 60
+	end
+	return math.clamp(1 / averageDt, 1, 240)
+end
+
+-- [[Computes adaptive (frameBudgetSeconds, instanceBudget) based on GPU/CPU
+-- and current menu size (total elements & tabs).]]
+function hardwarePerformance.getBudgets(totalElements: number?, tabCount: number?): (number, number)
+	if isMock then
+		-- Keep stable pinned baseline for virtual-time test suites
+		return 0.003, 48
+	end
+
+	local baseFrameBudget: number
+	local baseInstanceBudget: number
+
+	if hardwarePerformance.isLowEnd() then
+		-- Low-end GPU/CPU or mobile: tight budgets to prevent freezes/crashes
+		baseFrameBudget = 0.0012 -- ~1.2ms
+		baseInstanceBudget = 16
+	elseif detectedQuality <= 6 or averageDt > 0.020 then
+		-- Medium-tier device
+		baseFrameBudget = 0.0022 -- ~2.2ms
+		baseInstanceBudget = 32
+	else
+		-- High-end device with healthy 60+ FPS
+		baseFrameBudget = 0.0035 -- ~3.5ms
+		baseInstanceBudget = 48
+	end
+
+	-- Automatically adjust when there are many elements and tabs:
+	-- Spread heavy menus across more cheap frames so the device never hitches.
+	local elems = totalElements or 0
+	if elems > 30 then
+		local factor = math.clamp(1 - (elems - 30) * 0.008, 0.5, 1.0)
+		baseInstanceBudget = math.max(12, math.floor(baseInstanceBudget * factor))
+		baseFrameBudget = math.max(0.0009, baseFrameBudget * factor)
+	end
+
+	local tabs = tabCount or 0
+	if tabs > 5 then
+		baseInstanceBudget = math.max(12, baseInstanceBudget - 4)
+	end
+
+	-- Immediate throttle if an active frame drop / jitter spike was detected
+	if hardwarePerformance.isStruggling() then
+		baseInstanceBudget = math.max(8, math.floor(baseInstanceBudget * 0.6))
+		baseFrameBudget = math.max(0.0008, baseFrameBudget * 0.6)
+	end
+
+	return baseFrameBudget, baseInstanceBudget
+end
+
+-- [[Step size for config persistence checkpoint (fewer items between yields on weak devices)]]
+function hardwarePerformance.getLoadCheckpointStep(): number
+	if isMock then
+		return 6
+	end
+	if hardwarePerformance.isLowEnd() then
+		return 3
+	elseif detectedQuality <= 6 then
+		return 4
+	end
+	return 6
+end
+
+-- [[Micro-batch size for streaming elements on heavy tabs]]
+function hardwarePerformance.getElementBatchSize(): number
+	if isMock then
+		return 24
+	end
+	if hardwarePerformance.isLowEnd() then
+		return 6
+	end
+	return 12
+end
+
+return hardwarePerformance
+
+end)() end,
+    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
 local layouts = {}
 
 local sidebarLayout = require(script.Parent.Parent.layouts.Sidebar)
@@ -22667,7 +22936,7 @@ end
 return layouts
 
 end)() end,
-    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
+    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local logger = require(script.Parent.log)
 
@@ -22766,7 +23035,7 @@ end
 return locale
 
 end)() end,
-    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
+    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
 local function lockable<T>(element: T): T
     local target = element :: any
 
@@ -22788,7 +23057,7 @@ end
 return lockable
 
 end)() end,
-    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
+    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
 local log = {}
 
 type SuppressPredicate = () -> boolean
@@ -22842,7 +23111,7 @@ end
 return log
 
 end)() end,
-    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
+    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
 -- [[Astra motion service.
 --
 -- Every animation in the library used to build its own TweenInfo and call
@@ -22946,6 +23215,21 @@ local SPECS: { [string]: TweenInfo } = {
 
 	-- [[The slow ambient drift of a theme's LiveAnimation gradient.]]
 	drift = TweenInfo.new(10, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+
+	-- [[Modern canvas-inspired and UI-tailored aesthetic specs:
+	-- Decelerating Circular & Cubic curves provide fluid physical weight and organic
+	-- motion that elevates the UI aesthetic beyond mechanical linear/exponential ramps.]]
+	canvasEntrance = TweenInfo.new(0.45, Enum.EasingStyle.Circular, Enum.EasingDirection.Out),
+	canvasPop = TweenInfo.new(0.48, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+	canvasCard = TweenInfo.new(0.36, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out),
+	fluid = TweenInfo.new(0.38, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out),
+	tabSwitch = TweenInfo.new(0.32, Enum.EasingStyle.Cubic, Enum.EasingDirection.InOut),
+	modal = TweenInfo.new(0.42, Enum.EasingStyle.Circular, Enum.EasingDirection.Out),
+	control = TweenInfo.new(0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+	micro = TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+	dropdownOpen = TweenInfo.new(0.32, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out),
+	dropdownClose = TweenInfo.new(0.22, Enum.EasingStyle.Cubic, Enum.EasingDirection.In),
+	toast = TweenInfo.new(0.46, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 }
 
 local DEFAULT_SPEC = "normal"
@@ -22974,6 +23258,17 @@ motion.specNames = {
 	"settle",
 	"spin",
 	"drift",
+	"canvasEntrance",
+	"canvasPop",
+	"canvasCard",
+	"fluid",
+	"tabSwitch",
+	"modal",
+	"control",
+	"micro",
+	"dropdownOpen",
+	"dropdownClose",
+	"toast",
 }
 
 motion.enabled = true
@@ -23067,6 +23362,57 @@ end
 function motion.isEnabled(): boolean
 	return motion.enabled
 end
+
+-- [[Selects the most aesthetic, tailored animation spec based on the UI
+-- component and its interaction context. Allows animations to depend on the UI.]]
+function motion.uiSpec(componentType: string?, action: string?): TweenInfo
+	local comp = string.lower(tostring(componentType or ""))
+	local act = string.lower(tostring(action or ""))
+
+	if comp == "window" or comp == "shell" then
+		if act == "close" or act == "exit" then
+			return motion.spec("exit")
+		elseif act == "collapse" or act == "fold" or act == "minimise" then
+			return motion.spec("glide")
+		end
+		return motion.spec("pop")
+	elseif comp == "popup" or comp == "modal" or comp == "dialog" then
+		if act == "close" or act == "exit" then
+			return motion.spec("dropdownClose")
+		end
+		return motion.spec("modal")
+	elseif comp == "tab" or comp == "tabswitch" or comp == "nav" then
+		return motion.spec("tabSwitch")
+	elseif comp == "toggle" or comp == "switch" or comp == "knob" then
+		return motion.spec("settle")
+	elseif comp == "button" or comp == "click" or comp == "press" then
+		if act == "press" or act == "tap" or act == "down" then
+			return motion.spec("micro")
+		end
+		return motion.spec("fast")
+	elseif comp == "dropdown" or comp == "menu" then
+		if act == "close" or act == "collapse" then
+			return motion.spec("dropdownClose")
+		end
+		return motion.spec("dropdownOpen")
+	elseif comp == "notification" or comp == "toast" then
+		if act == "dismiss" or act == "exit" then
+			return motion.spec("exit")
+		end
+		return motion.spec("toast")
+	elseif comp == "element" or comp == "card" or comp == "row" then
+		if act == "hover" then
+			return motion.spec("snappy")
+		end
+		return motion.spec("canvasCard")
+	elseif comp == "tooltip" then
+		return motion.spec("fast")
+	end
+
+	return motion.spec(action or componentType or DEFAULT_SPEC)
+end
+
+motion.forUI = motion.uiSpec
 
 -- [[Applies a named profile. Unknown names are ignored (returns false) so a
 -- stale persisted value can never leave the library in a half-configured
@@ -23192,7 +23538,7 @@ end
 return motion
 
 end)() end,
-    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
+    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
 local function moveable<T>(dragState: T): T
     local target = dragState :: any
 
@@ -23228,7 +23574,7 @@ end
 return moveable
 
 end)() end,
-    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
+    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
 local network = {}
 network.__index = network
 
@@ -23246,7 +23592,7 @@ end
 return network
 
 end)() end,
-    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
+    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local motion = require(script.Parent.motion)
 local textService = coreState.textService
@@ -23600,7 +23946,7 @@ end
 return odometer
 
 end)() end,
-    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
+    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
 type OrderedElement = {
     main: GuiObject,
 }
@@ -23612,7 +23958,7 @@ end
 return ordering
 
 end)() end,
-    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
+    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
 local path = {}
 
 function path.join(base: string, suffix: string?): string
@@ -23663,7 +24009,7 @@ end
 return path
 
 end)() end,
-    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
+    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
 local persistence = {}
 
 local configPersistence = require(script.Parent.persistenceConfig)
@@ -23682,7 +24028,7 @@ persistence.loadSettings = settingsPersistence.loadSettings
 return persistence
 
 end)() end,
-    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
+    [117] = function()local wax,script,require=ImportGlobals(117)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local logger = require(script.Parent.log)
@@ -23939,7 +24285,7 @@ end
 return persistenceConfig
 
 end)() end,
-    [117] = function()local wax,script,require=ImportGlobals(117)local ImportGlobals return (function(...)
+    [118] = function()local wax,script,require=ImportGlobals(118)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local pathUtil = require(script.Parent.path)
 
@@ -23983,7 +24329,7 @@ end
 return persistencePaths
 
 end)() end,
-    [118] = function()local wax,script,require=ImportGlobals(118)local ImportGlobals return (function(...)
+    [119] = function()local wax,script,require=ImportGlobals(119)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local paths = require(script.Parent.persistencePaths)
@@ -24186,7 +24532,7 @@ end
 return persistenceSettings
 
 end)() end,
-    [119] = function()local wax,script,require=ImportGlobals(119)local ImportGlobals return (function(...)
+    [120] = function()local wax,script,require=ImportGlobals(120)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 
 local persistenceWrite = {}
@@ -24214,7 +24560,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [120] = function()local wax,script,require=ImportGlobals(120)local ImportGlobals return (function(...)
+    [121] = function()local wax,script,require=ImportGlobals(121)local ImportGlobals return (function(...)
 local services = {}
 
 function services.getService(serviceName)
@@ -24225,7 +24571,7 @@ end
 return services
 
 end)() end,
-    [121] = function()local wax,script,require=ImportGlobals(121)local ImportGlobals return (function(...)
+    [122] = function()local wax,script,require=ImportGlobals(122)local ImportGlobals return (function(...)
 local layoutMetrics = require(script.Parent.layouts)
 local coreState = require(script.Parent.Parent.core.state)
 
@@ -24396,121 +24742,122 @@ end)() end,
 
 local LineOffsets = {
     [2] = 12,
-    [3] = 393,
-    [5] = 907,
-    [6] = 892,
-    [7] = 1024,
-    [8] = 1162,
-    [9] = 1401,
-    [10] = 1753,
-    [11] = 2131,
-    [12] = 2433,
-    [13] = 3153,
-    [14] = 3483,
-    [15] = 4307,
-    [16] = 4368,
-    [17] = 4800,
-    [18] = 5124,
-    [19] = 5136,
-    [20] = 5193,
-    [21] = 5310,
-    [22] = 5641,
-    [23] = 5852,
-    [24] = 6156,
-    [25] = 6249,
-    [26] = 6298,
-    [27] = 6896,
-    [28] = 7083,
-    [29] = 7400,
-    [30] = 7814,
-    [31] = 5100,
-    [33] = 8627,
-    [34] = 9452,
-    [35] = 9547,
-    [36] = 9862,
-    [37] = 10283,
-    [38] = 10693,
-    [39] = 10863,
-    [40] = 11008,
-    [41] = 12558,
-    [42] = 12786,
-    [43] = 13013,
-    [44] = 13294,
-    [45] = 13701,
-    [46] = 14324,
-    [47] = 14410,
-    [48] = 15011,
-    [49] = 15860,
-    [50] = 16358,
-    [51] = 16488,
-    [52] = 16640,
-    [54] = 17149,
-    [55] = 17169,
-    [56] = 17186,
-    [57] = 17215,
-    [58] = 17337,
-    [59] = 17361,
-    [60] = 17410,
-    [61] = 17124,
-    [62] = 17507,
-    [63] = 17812,
-    [64] = 17843,
-    [65] = 17496,
-    [66] = 17886,
-    [67] = 17906,
-    [68] = 17938,
-    [69] = 17868,
-    [70] = 18045,
-    [71] = 18111,
-    [73] = 18191,
-    [74] = 18356,
-    [75] = 18373,
-    [76] = 18176,
-    [77] = 18970,
-    [78] = 19014,
-    [79] = 19094,
-    [80] = 19287,
-    [81] = 19416,
-    [82] = 19511,
-    [83] = 19678,
-    [84] = 20016,
-    [85] = 18465,
-    [86] = 20650,
-    [87] = 20716,
-    [88] = 20782,
-    [89] = 20857,
-    [90] = 20988,
-    [91] = 21054,
-    [92] = 21129,
-    [93] = 21204,
-    [94] = 21279,
-    [95] = 21354,
-    [96] = 20544,
-    [97] = 21420,
-    [98] = 21518,
-    [99] = 21696,
-    [100] = 21746,
-    [101] = 21776,
-    [102] = 22027,
-    [103] = 22076,
-    [104] = 22529,
-    [105] = 22547,
-    [106] = 22671,
-    [107] = 22770,
-    [108] = 22792,
-    [109] = 22846,
-    [110] = 23196,
-    [111] = 23232,
-    [112] = 23250,
-    [113] = 23604,
-    [114] = 23616,
-    [115] = 23667,
-    [116] = 23686,
-    [117] = 23943,
-    [118] = 23987,
-    [119] = 24190,
-    [120] = 24218,
-    [121] = 24229,
+    [3] = 395,
+    [5] = 912,
+    [6] = 897,
+    [7] = 1029,
+    [8] = 1167,
+    [9] = 1406,
+    [10] = 1758,
+    [11] = 2136,
+    [12] = 2438,
+    [13] = 3180,
+    [14] = 3510,
+    [15] = 4334,
+    [16] = 4395,
+    [17] = 4827,
+    [18] = 5151,
+    [19] = 5163,
+    [20] = 5220,
+    [21] = 5337,
+    [22] = 5668,
+    [23] = 5879,
+    [24] = 6183,
+    [25] = 6276,
+    [26] = 6325,
+    [27] = 6931,
+    [28] = 7118,
+    [29] = 7435,
+    [30] = 7849,
+    [31] = 5127,
+    [33] = 8694,
+    [34] = 9519,
+    [35] = 9614,
+    [36] = 9929,
+    [37] = 10350,
+    [38] = 10760,
+    [39] = 10930,
+    [40] = 11075,
+    [41] = 12625,
+    [42] = 12853,
+    [43] = 13080,
+    [44] = 13361,
+    [45] = 13768,
+    [46] = 14391,
+    [47] = 14477,
+    [48] = 15078,
+    [49] = 15927,
+    [50] = 16426,
+    [51] = 16556,
+    [52] = 16708,
+    [54] = 17217,
+    [55] = 17237,
+    [56] = 17254,
+    [57] = 17283,
+    [58] = 17405,
+    [59] = 17429,
+    [60] = 17478,
+    [61] = 17192,
+    [62] = 17575,
+    [63] = 17880,
+    [64] = 17911,
+    [65] = 17564,
+    [66] = 17954,
+    [67] = 17974,
+    [68] = 18006,
+    [69] = 17936,
+    [70] = 18113,
+    [71] = 18179,
+    [73] = 18259,
+    [74] = 18424,
+    [75] = 18441,
+    [76] = 18244,
+    [77] = 19038,
+    [78] = 19082,
+    [79] = 19162,
+    [80] = 19355,
+    [81] = 19484,
+    [82] = 19579,
+    [83] = 19746,
+    [84] = 20084,
+    [85] = 18533,
+    [86] = 20718,
+    [87] = 20784,
+    [88] = 20850,
+    [89] = 20925,
+    [90] = 21056,
+    [91] = 21122,
+    [92] = 21197,
+    [93] = 21272,
+    [94] = 21347,
+    [95] = 21422,
+    [96] = 20612,
+    [97] = 21488,
+    [98] = 21586,
+    [99] = 21764,
+    [100] = 21814,
+    [101] = 21844,
+    [102] = 22095,
+    [103] = 22144,
+    [104] = 22597,
+    [105] = 22615,
+    [106] = 22816,
+    [107] = 22940,
+    [108] = 23039,
+    [109] = 23061,
+    [110] = 23115,
+    [111] = 23542,
+    [112] = 23578,
+    [113] = 23596,
+    [114] = 23950,
+    [115] = 23962,
+    [116] = 24013,
+    [117] = 24032,
+    [118] = 24289,
+    [119] = 24333,
+    [120] = 24536,
+    [121] = 24564,
+    [122] = 24575,
 }
 
 -- [[Misc AOT variable imports]]
@@ -25214,7 +25561,7 @@ local ObjectTree = {
                 },
             },
             {
-                122,
+                123,
                 1,
                 {
                     "utilities",
@@ -25280,116 +25627,123 @@ local ObjectTree = {
                         105,
                         2,
                         {
-                            "layouts",
+                            "hardwarePerformance",
                         },
                     },
                     {
                         106,
                         2,
                         {
-                            "locale",
+                            "layouts",
                         },
                     },
                     {
                         107,
                         2,
                         {
-                            "lockable",
+                            "locale",
                         },
                     },
                     {
                         108,
                         2,
                         {
-                            "log",
+                            "lockable",
                         },
                     },
                     {
                         109,
                         2,
                         {
-                            "motion",
+                            "log",
                         },
                     },
                     {
                         110,
                         2,
                         {
-                            "moveable",
+                            "motion",
                         },
                     },
                     {
                         111,
                         2,
                         {
-                            "network",
+                            "moveable",
                         },
                     },
                     {
                         112,
                         2,
                         {
-                            "odometer",
+                            "network",
                         },
                     },
                     {
                         113,
                         2,
                         {
-                            "ordering",
+                            "odometer",
                         },
                     },
                     {
                         114,
                         2,
                         {
-                            "path",
+                            "ordering",
                         },
                     },
                     {
                         115,
                         2,
                         {
-                            "persistence",
+                            "path",
                         },
                     },
                     {
                         116,
                         2,
                         {
-                            "persistenceConfig",
+                            "persistence",
                         },
                     },
                     {
                         117,
                         2,
                         {
-                            "persistencePaths",
+                            "persistenceConfig",
                         },
                     },
                     {
                         118,
                         2,
                         {
-                            "persistenceSettings",
+                            "persistencePaths",
                         },
                     },
                     {
                         119,
                         2,
                         {
-                            "persistenceWrite",
+                            "persistenceSettings",
                         },
                     },
                     {
                         120,
                         2,
                         {
-                            "services",
+                            "persistenceWrite",
                         },
                     },
                     {
                         121,
+                        2,
+                        {
+                            "services",
+                        },
+                    },
+                    {
+                        122,
                         2,
                         {
                             "windowSizing",

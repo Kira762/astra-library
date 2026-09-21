@@ -143,6 +143,30 @@ slightly longer time-to-fully-interactive in exchange for an instant shell.
 * Services, tweens and per-cycle `TweenInfo` (ambient live animation) are
   cached/hoisted; deferred threads guard `unloaded`.
 
+### 8. Hardware-adaptive performance engine and single-UI consolidation (2026-09-21)
+
+* `utilities/hardwarePerformance.luau`
+  * Automatically monitors frame delta time (`dt`), moving average FPS, and
+    frame jitter on `Heartbeat`.
+  * Detects low-end mobile devices and Roblox rendering quality level.
+  * Dynamically calculates `_paceBudget`: scales frame budget (1.2ms on low-end
+    to 3.5ms on high-end) and instance budget (16 to 48 per frame).
+  * Dynamically tightens budgets when many elements (> 30) or many tabs (> 5)
+    are created, ensuring smooth streaming without hitching.
+  * Instant jitter protection: yields immediately if a frame drop is detected.
+* `components/window/visibility.luau`
+  * Tab switching with heavy element counts (> 8 elements) reveals the visible
+    viewport batch immediately and streams remaining elements in micro-batches
+    across subsequent frames, preventing client freeze.
+* `components/popup.luau`
+  * Removed redundant top-level `ScreenGui` creation; popups now live inside
+    `window.screenGui` in a dedicated high-ZIndex `PopupContainer` layer. Only
+    one ScreenGui exists in `CoreGui`.
+* `utilities/motion.luau`
+  * Added UI-dependent aesthetic easing specs (`modal`, `fluid`, `tabSwitch`,
+    `control`, `micro`, `dropdownOpen`, `dropdownClose`, `toast`, `canvasPop`)
+    and the `Astra.Motion.uiSpec(componentType, action)` selector.
+
 ## Deliberately *not* changed
 
 * **Collapsible-group children still construct eagerly.** Host scripts

@@ -361,13 +361,29 @@ def diffstat_block($files; $max_lines; $budget):
               inline: true
             }
           ]
-          + (if $changes_text != null
-             then [{name: "Changes", value: $changes_text, inline: true}]
-             else []
-             end)
-          + (if $files_block != null
-             then [{name: "Files changed", value: ($files_block | clamp(1024)), inline: false}]
-             else []
+          + (if $counts_known then
+               (if $changes_text != null
+                then [{name: "Changes", value: $changes_text, inline: true}]
+                else []
+                end)
+               + (if $files_block != null
+                then [{name: "Files changed", value: ($files_block | clamp(1024)), inline: false}]
+                else []
+                end)
+             elif ($event.deleted != true and ($changed_files | length) > 0) then
+               [{
+                 name: "Files",
+                 value: ((($changed_files | length) | tostring)
+                   + (if ($changed_files | length) == 1 then " file" else " files" end)
+                   + " · "
+                   + (([$commits[] | (.added // [])[]] | unique | length) | tostring)
+                   + " added · "
+                   + (([$commits[] | (.removed // [])[]] | unique | length) | tostring)
+                   + " deleted"),
+                 inline: true
+               }]
+             else
+               []
              end)
         ),
         footer: {text: $footer},

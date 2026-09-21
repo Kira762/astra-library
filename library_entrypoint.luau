@@ -6,6 +6,7 @@ local Constants = require(script.Parent.utilities.constants)
 local Icons = require(script.Parent.icons)
 local Motion = require(script.Parent.utilities.motion)
 local Settings = require(script.Parent.settings)
+local HardwarePerformance = require(script.Parent.utilities.hardwarePerformance)
 -- [[Binds the `types` name used by every `types.X` annotation below. Types.luau
 -- [[is a sibling of the entrypoint in both mounts (`script.Parent.Types` in the
 -- [[Rojo/wax tree and in the generated bundle), and it returns an empty table,
@@ -192,6 +193,7 @@ Astra.Motion = Motion
 
 Astra.Core = Core
 Astra.Settings = Settings
+Astra.Performance = HardwarePerformance
 
 function Astra:CreateWindow(props: types.WindowProps): types.Window
 	-- [[Anti-duplicate has to claim the slot *before* `Window.new` can yield.

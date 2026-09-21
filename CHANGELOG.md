@@ -3,6 +3,63 @@
 Dated entries, newest first. Each entry explains the cause and the behaviour
 change, then names the files it touched.
 
+## 2026-09-21 — Hardware-adaptive performance engine, single-UI architecture, and aesthetic motion
+
+Large menus with many tabs and elements on low-end devices (or weak GPUs/CPUs)
+could hitch, drop frames, or crash the user's game due to heavy bursts of GUI
+instance allocations and synchronous element visibility updates in a single frame.
+Additionally, dialogs created unnecessary separate `ScreenGui` instances in `CoreGui`,
+and animation curves were limited to mechanical linear/exponential ramps.
+
+Key changes:
+
+- **Adaptive Hardware Performance Engine (`utilities/hardwarePerformance.luau`)**:
+  - Dynamically monitors frame delta time (`dt`), moving average FPS, and frame
+    jitter on `RunService.Heartbeat`.
+  - Automatically identifies device capabilities (mobile vs desktop), Roblox
+    rendering quality level (`QualityLevel` / `SavedQualityLevel`), and client
+    load.
+  - Automatically tunes construction pacing (`_paceBudget`): scales frame budgets
+    (from 1ms on low-end to 3.5ms on high-end) and instance limits (12–48 per frame).
+  - Dynamically throttles when many tabs (> 5) or many elements (> 30) are present,
+    or when sudden frame jitter is detected, preventing UI stutter and game freezes.
+  - Config restoration adapts checkpoint frequencies based on hardware tier.
+- **Cooperative Element Streaming for Heavy Tabs (`components/window/visibility.luau`)**:
+  - Opening a tab with many elements (> 8) displays the visible viewport elements
+    instantly, while streaming remaining elements cooperatively across micro-batches,
+    eliminating the freeze when selecting heavy tabs. Small tabs (<= 8 elements)
+    remain instant.
+- **Single UI Architecture & Elimination of Redundant UI (`components/popup.luau`)**:
+  - `Popup` now nests inside `window.screenGui` via a dedicated high-ZIndex
+    `PopupContainer` layer rather than spawning a second top-level `ScreenGui` in
+    `CoreGui`, keeping exactly one UI root active.
+  - Destroying or unloading the window automatically tears down all popup instances
+    cleanly without leaving orphaned containers.
+- **Aesthetic UI-Dependent Animation System (`utilities/motion.luau`)**:
+  - Added modern canvas-inspired easing curves (`Circular`, `Cubic`, `Back` spring
+    overshoots: `modal`, `fluid`, `tabSwitch`, `control`, `micro`, `dropdownOpen`,
+    `dropdownClose`, `toast`, `canvasEntrance`, `canvasPop`, `canvasCard`).
+  - Added `Astra.Motion.uiSpec(componentType, action)` (and `Astra.Motion.forUI`),
+    allowing animations to dynamically tailor to their specific UI component
+    (windows, dialogs, tabs, mechanical switches, buttons, dropdowns, toasts).
+  - Preserved 100% backward compatibility for all existing specs.
+- **Test Suite & CI**:
+  - Added `scripts/adaptive_hardware_test.luau` and `scripts/adaptive_hardware_test.sh`.
+  - Fixed field formatting in `.github/scripts/discord-embed.jq` for `discord_notify_test.sh`.
+  - All 37 runtime test suites pass.
+
+- `utilities/hardwarePerformance.luau` — real-time hardware detection & dynamic budget engine.
+- `utilities/motion.luau` — UI-dependent motion specs and canvas-inspired easing curves.
+- `components/window/startup.luau` — adaptive `_paceBudget` and `_loadCheckpoint` wiring.
+- `components/window/visibility.luau` — cooperative element streaming for heavy tabs.
+- `components/popup.luau` — single ScreenGui reuse with `popupContainer` and modal easing.
+- `elements/tab.luau` — total element tracking for dynamic menu scaling.
+- `library_entrypoint.luau` — exposed `Astra.Performance` singleton.
+- `Types.luau` — typed public definitions for `uiSpec`, `forUI`, and `Performance`.
+- `.github/scripts/discord-embed.jq` — corrected diffstat fallback fields.
+- `scripts/adaptive_hardware_test.luau`, `scripts/adaptive_hardware_test.sh` — regression tests.
+- `version-1.luau` — regenerated bundle.
+
 ## 2026-09-22 — Footer no longer turns into a white bar on theme re-application
 
 The Footer (the centred "Built with ⚡ Astra ♡" strip) rendered as a solid

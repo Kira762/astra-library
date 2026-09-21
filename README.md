@@ -36,7 +36,7 @@ source, not a runtime entry point.
 | Area | Highlights |
 |---|---|
 | Window | Sidebar / collapsed-sidebar layouts, minimise-to-capsule, draggable, notifications, modal popups, search, per-window settings. |
-| Elements | Section, Text, Button, Toggle (and `Switch` alias), Slider, Dropdown (single + multi-select, searchable), Input, Stat, Divider, Group, Collapsible Group, Changelog. |
+| Elements | Section, Text, Button, Toggle (and `Switch` alias), Slider, Dropdown (single + multi-select, searchable), Input, Stat, Link (hidden URL with a copy control), Divider, Group, Collapsible Group, Changelog. |
 | State | Flags with built-in auto save/load, named configs, `forgetState` opt-out, writable-storage persistence. |
 | Look | 10 built-in themes plus custom theme tables, seven icon packs (lucide, material, tabler, phosphor, heroicons, feather, remix) and a `custom_asset/` folder override. |
 | Motion | One motion service behind every transition, driven by the user's animation-speed setting. |
@@ -97,7 +97,7 @@ skills/astra/             the published Agent Skill
 ```sh
 node scripts/generate_bundle.js             # regenerate version-1.luau from the tree
 sh scripts/install_luau.sh                 # build the Luau toolchain into .tools/bin (once)
-sh scripts/check_all.sh                    # requires + bundle freshness + syntax + 26 runtime tests
+sh scripts/check_all.sh                    # requires + bundle freshness + syntax + 31 runtime tests
 sh scripts/check_syntax.sh                  # compile every published .luau file
 python3 scripts/check_requires.py           # require paths and cycles
 python3 scripts/check_instance_fields.py    # no custom fields written on Instances

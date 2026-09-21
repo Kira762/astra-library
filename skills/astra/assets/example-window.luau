@@ -102,6 +102,15 @@ home:CreateInput({
     end,
 })
 
+-- [[A Link card hides its URL: only the title and subtitle render, and the
+-- [[trailing control copies the link and confirms with a check mark.]]
+home:CreateLink({
+    name = "Discord",
+    subtitle = "Join our community",
+    link = "https://discord.gg/example",
+    icon = "message-circle",
+})
+
 home:CreateDivider({ text = "Groups" })
 
 -- [[A plain Group is an element too: a row by default, a column on request.]]

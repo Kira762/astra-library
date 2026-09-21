@@ -187,9 +187,9 @@ local col = row:CreateGroup({ direction = "column" }) -- nested column
 col:CreateToggle({ name = "Left 1" })
 ```
 
-Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup`.
+Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateLink`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup`.
 
-Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
+Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateStat`, `CreateSection`, `CreateText`, `CreateDivider`, `CreateLink`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
 
 Selected tabs retain their outline and highlight. Unselected tabs retain an
 outline but have no fill/shadow highlight, including on hover.
@@ -329,6 +329,42 @@ A stat's `value` may be a string. Text values render as a single-letter badge by
 local theme = tab:CreateStat({ name = "Current theme", value = "Default", letter = false })
 theme:SetText("Emerald")  -- the card reads "Emerald", not "E"
 ```
+
+### Link
+```lua
+tab:CreateLink({
+    name = "Discord",                       -- title
+    subtitle = "Join our community",        -- muted second line
+    link = "https://discord.gg/example",    -- hidden value: copied, never shown
+    icon = "message-circle",
+    callback = function(link) end,          -- optional, after a successful copy
+})
+```
+
+A card that carries a URL. The link is stored on the element and never rendered
+as text: the trailing control copies it, swaps the copy mark for a check mark for
+two seconds, then puts the copy mark back. Every card owns that cycle, whether it
+stands alone, sits in a Group, or sits in a Collapsible Group — a card hidden
+while it is confirming (a group that closes) is back on the copy mark the next
+time it is revealed.
+
+```lua
+local link = tab:CreateLink({ name = "Discord", subtitle = "Join us", link = "https://discord.gg/example" })
+link:Set("https://discord.gg/new")   -- or SetLink: rewrite the hidden value
+link:SetTitle("Discord server")      -- title
+link:SetSubtitle("Now with a stage") -- second line (empty drops the card to one line)
+link:SetIcon("messages-square")      -- leading icon (nil removes it)
+link:Copy()                          -- run the cycle from code; true when the copy landed
+link:IsConfirming()                  -- true while the check mark is showing
+```
+
+`Set`, `SetLink`, `SetTitle`, `SetSubtitle`, `SetIcon` take effect immediately and
+the copy always follows the link currently stored. The card asks its host for a
+clipboard (`setclipboard`, `toclipboard`, `setrbxclipboard`, a `Clipboard` object,
+or Studio's `StudioService:CopyToClipboard`); where none exists the control keeps
+the copy mark and logs the reason, because the check mark means the link is on the
+clipboard and nothing else may show it. The element supports the move and lock API
+like the other interactive elements.
 
 ### Text / Divider / Group
 ```lua
@@ -628,7 +664,7 @@ local playerControls = tab:CreateCollapsibleGroup({
 ```
 
 **Supported types:** `Button`, `Toggle`, `Switch` (declarative alias of the
-toggle control), `Slider`, `Dropdown`, `Input`, `Stat`,
+toggle control), `Slider`, `Dropdown`, `Input`, `Link`, `Stat`,
 `Section`, `Text`, `Divider`, and ordinary `Group`. Each uses the
 same properties and implementation as its normal `Create…` method, including
 the optional `description` helper line. `elements` can be omitted for an empty

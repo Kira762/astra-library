@@ -14,6 +14,7 @@ local direction = {
     switch = true,
     stat = true,
     slider = true,
+    link = true,
 }
 
 function state.new(tab, element)
@@ -158,6 +159,10 @@ function state:CreateText(a24)
 end
 function state:CreateDivider(a25)
     return self:_add("divider", a25)
+end
+
+function state:CreateLink(a30)
+    return self:_add("link", a30)
 end
 
 function state:_addGroup(a26)

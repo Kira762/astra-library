@@ -336,6 +336,17 @@ Per-element specifics:
 - `tab.luau` — tab class: `tabPage` (ScrollingFrame), `_register(element)` pipeline into `window.controls[flag]`, selector button visuals. `CreateChangelog` builds a regular changelog element wherever declared. Locked tabs (`locked` prop / `SetLocked(bool)`): the flag gates `Select` (no-op), the row tap (short "This tab is locked" notification instead), and hover; `_applyVisual` raises the row's content transparency while locked (copy of the shared state table, never a mutation of it); `SetLocked(true)` on the open tab clears `window.selectedTab` and selects the first unlocked non-neglect tab with same-rail preference (the `Remove` fallback rule), hiding the tab's elements and marking `_elementsPending` when no fallback exists.
 - `group.luau`, `section.luau`, `tabSection.luau` — container classes with UIListLayout locals.
 - `changelog.luau` — release-history element (`__type = "Changelog"`): normalizes `ChangelogEntry`/`ChangelogChange` props, maps symbols (`+`/`-`/`~`, or words like "added"/"removed"/"changed") to green/red/amber, fades entries in, supports `Set`/`Refresh`/`Add(entry, prepend?)`/`Clear`. Renders as a regular standalone element; supports `Set`/`Refresh`/`Add`/`Clear` and move/lock API.
+- `link.luau` — a card that carries a URL: icon, title, subtitle and a fixed
+  trailing copy control. The link is a hidden value (stored on the element, never
+  rendered), and the control copies it, swaps in the confirmation glyph for two
+  seconds and reverts — one token per card, so a container that hides the card
+  (`_setShown(false)`, or a Collapsible Group collapsing) ends the hold instead of
+  carrying a stale check mark into the next reveal. The copy reaches the host for a
+  clipboard each tap (`setclipboard` / `toclipboard` / `setrbxclipboard` / a
+  `Clipboard` object / `StudioService:CopyToClipboard`), and glyph swaps go through
+  `images/image.luau`'s `assign` so remote icons get the same cache rewrite the
+  window's `Create` applies. Full card for a tab or a column Group, compact row for
+  a horizontal one.
 - `divider.luau`, `stat.luau`, `text.luau` — display and interaction elements.
 - `button.luau` — action card with a built-in right-edge tap glyph (`tapIcon` opts out or replaces it), themed through `ContentColor`, revealed with the card, and pulsed on press. Compact/grouped buttons explicitly sort their horizontal layout by `LayoutOrder`: optional custom icon, title, then built-in tap glyph.
 - `baseCard.luau` — shared card container and header layout helper for element modules.

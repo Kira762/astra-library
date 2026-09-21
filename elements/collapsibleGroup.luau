@@ -19,6 +19,7 @@ local constructors = {
     Slider = function(parent, props) return require(script.Parent.slider).new(parent, props) end,
     Dropdown = function(parent, props) return require(script.Parent.dropdown).new(parent, props) end,
     Input = function(parent, props) return require(script.Parent.input).new(parent, props) end,
+    Link = function(parent, props) return require(script.Parent.link).new(parent, props) end,
     Stat = function(parent, props) return require(script.Parent.stat).new(parent, props) end,
     Section = function(parent, props) return require(script.Parent.section).new(parent, props) end,
     Text = function(parent, props) return require(script.Parent.text).new(parent, props) end,
@@ -26,7 +27,7 @@ local constructors = {
     Divider = function(parent, props) return require(script.Parent.divider).new(parent, props) end,
     Group = function(parent, props) return require(script.Parent.group).new(parent, props) end,
 }
-local compactTypes = { Button = true, Toggle = true, Switch = true, Slider = true, Stat = true, Group = true }
+local compactTypes = { Button = true, Toggle = true, Switch = true, Slider = true, Stat = true, Group = true, Link = true }
 
 -- [[Which corners of the header band carry the container's arcs. Open, the band
 -- [[is only the top of the card: its bottom edge is the straight divider, so the
@@ -339,6 +340,11 @@ function Collapsible:_setExpanded(expanded, animate)
         visit(self.elements, function(child)
             if child.__type == "Dropdown" and child._isOpen then child:_close() end
             if child.recording then child:_stopRecording() end
+            -- [[Same rule as the open dropdown: a transient state that belongs
+            -- [[to a visible card cannot survive the body being put away, so a
+            -- [[Link that was confirming its copy comes back on the copy mark
+            -- [[instead of greeting the next open with a stale check.]]
+            if child.__type == "Link" then child:_resetCopyState() end
             if child.__type == "Input" then
                 local ok, focused = pcall(function() return child.input:IsFocused() end)
                 if ok and focused then

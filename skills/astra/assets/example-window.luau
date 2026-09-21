@@ -158,6 +158,29 @@ about:CreateText({
     icon = "sparkles",
 })
 
+-- [[The Isolated container is the Changelog's own home: a collapsed header
+-- [[card (icon, title/subtitle, built-in chevron) that only holds Changelogs.]]
+local changelogPanel = about:CreateIsolated({
+	name = "View Changelog",
+	subtitle = "See what's new in this version",
+	icon = "file-text",
+	elements = {
+		{
+			type = "Changelog",
+			name = "Release history",
+			entries = {
+				{
+					version = "1.2.0",
+					date = "Live",
+					title = "Isolated container",
+					changes = { { symbol = "+", text = "Added Isolated changelog container" } },
+				},
+			},
+		},
+	},
+})
+changelogPanel:Expand(false)
+
 -- [[Release history renders as a standalone element.]]
 about:CreateChangelog({
     name = "Release history",

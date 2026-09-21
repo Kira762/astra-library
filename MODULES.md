@@ -25,7 +25,7 @@ Exported names (typed surface is `Types.luau`'s `Astra`): `CreateWindow`, `Icons
 `CreateWindow` side effects: enforces the anti-duplicate guard (persisted `antiWindowDuplicate` setting, per-window opt-out via `settings.antiWindowDuplicate`), in secure mode preloads window images (`Image.preload` → failure `Notify`) and swaps in the brand fonts via `ChangeTheme({ Font, TitleFont })` once the entrance has landed (a theme pass over every instance the window owns is not something to spend while the window is still arriving; `FONT_SETTLE_BUDGET` bounds the wait so a window that never shows still gets its font), then auto-`Show()`s the window on the next frame (a `task.defer` plus one heartbeat, so a script's first synchronous `CreateTab` calls land before the shell appears; remaining constructors stream in behind it in small budget-limited batches until the build goes quiet, and an explicit `Hide()` before that tick cancels it via `_autoShowCancelled`). The two secure-mode branches (optional-icon preload, brand-font swap) run as sibling threads under one guard.
 
 ### `example.client.luau`
-Usage example (not minified). Loads the bundle with the single-line loader — `local Astra = loadstring(game:HttpGet(url))()` — then builds one tab holding every supported element type: Section, Text, Stat, Divider, Button, Toggle, Slider, a single-select and a multi-select Dropdown, Input, an ordinary Group and a Collapsible Group of declarative children; release history renders via `tab:CreateChangelog` (see `changelog.example.luau`). It ends with an explicit `elements:Select()` so the run is deterministic.
+Usage example (not minified). Loads the bundle with the single-line loader — `local Astra = loadstring(game:HttpGet(url))()` — then builds one tab holding every supported element type: Section, Text, Stat, Divider, Button, Toggle, Slider, a single-select and a multi-select Dropdown, Input, an ordinary Group, a Collapsible Group of declarative children and an Isolated changelog container; release history renders via `tab:CreateChangelog` (see `changelog.example.luau`). It ends with an explicit `elements:Select()` so the run is deterministic.
 
 ---
 
@@ -336,6 +336,20 @@ Per-element specifics:
 - `tab.luau` — tab class: `tabPage` (ScrollingFrame), `_register(element)` pipeline into `window.controls[flag]`, selector button visuals. `CreateChangelog` builds a regular changelog element wherever declared. Locked tabs (`locked` prop / `SetLocked(bool)`): the flag gates `Select` (no-op), the row tap (short "This tab is locked" notification instead), and hover; `_applyVisual` raises the row's content transparency while locked (copy of the shared state table, never a mutation of it); `SetLocked(true)` on the open tab clears `window.selectedTab` and selects the first unlocked non-neglect tab with same-rail preference (the `Remove` fallback rule), hiding the tab's elements and marking `_elementsPending` when no fallback exists.
 - `group.luau`, `section.luau`, `tabSection.luau` — container classes with UIListLayout locals.
 - `changelog.luau` — release-history element (`__type = "Changelog"`): normalizes `ChangelogEntry`/`ChangelogChange` props, maps symbols (`+`/`-`/`~`, or words like "added"/"removed"/"changed") to green/red/amber, fades entries in, supports `Set`/`Refresh`/`Add(entry, prepend?)`/`Clear`. Renders as a regular standalone element; supports `Set`/`Refresh`/`Add`/`Clear` and move/lock API.
+- `isolated.luau` — the Isolated changelog container (`__type = "Isolated"`): a
+  CollapsibleGroup-style expandable card whose header carries a changeable left
+  icon, a title/subtitle stack and the built-in, never-changeable right chevron.
+  Strict container: child definitions must be Changelogs — anything else errors
+  at construction with
+  `Astra:CreateIsolated — only Changelog elements can be placed inside Isolated`
+  (level 0, exact message). Public `Expand`/`Collapse`/`Toggle` drive the shared
+  expansion tween beside the header tap; `SetTitle`/`SetSubtitle`/`SetIcon`
+  rewrite the changeable slots at runtime (`SetSubtitle(nil)` returns the header
+  to the single-line band, `SetIcon(nil)` releases the icon gutter; none of them
+  reach the chevron). Reuses the collapsible surface recipe: element-gradient
+  header band with state-flipping corner ownership, 1px divider, window-surface
+  body clipper. Search indexes its children, tab removal traverses them, and
+  moveable/lockable apply to the container.
 - `link.luau` — a card that carries a URL: icon, title, subtitle and a fixed
   trailing copy control. The link is a hidden value (stored on the element, never
   rendered), and the control copies it, swaps in the confirmation glyph for two
@@ -513,6 +527,7 @@ Per-element specifics:
 | `check_syntax.sh` | Compiles every published file (modular tree, `example.client.luau`, `version-1.luau`). A syntax error in a loadstring'd bundle is invisible to the user — it only shows up as `attempt to call a nil value` at line 1 of the executor's chunk — so this is the gate that catches it here. |
 | `sidebar_tab_sizing_test.sh`, `smoke_test_bundle.sh` | Rail sizing (name-driven width, cap, restore) and a bundle smoke run; also the collapsed rail: rows are icon-only (title hidden, content centred, no expanded padding) whether they were collapsed in place, rebuilt by a layout switch, or created while the rail was already icon-only, and a capped title re-constrains after that rebuild. |
 | `collapsible_group_test.sh` | Collapsible groups: every declarative element type, state/callbacks, the connected-card geometry and surface recipe, and the corner treatment (band's top arcs matching the container, body clipper's bottom arcs). |
+| `isolated_test.sh` | Isolated changelog container: two-line header recipe with repo-pack icon and built-in chevron, the Changelog-only guard (exact message), runtime `SetTitle`/`SetSubtitle`/`SetIcon` reflow, and the CollapsibleGroup-style expansion/lock/instant-motion behaviour. |
 | `instance_budget_test.sh` | Per-element instance ceilings plus a realistic-page budget — the frame-time proxy guard. |
 | `odometer_test.sh` | Odometer readout: lazy row materialisation, and the resting row still showing the value's digit through plain/wrap/roll-down transitions. |
 | `dropdown_rows_test.sh` | Dropdown option rows: none (and no search bar) while closed whatever the list length, one per option in order on open plus the bar once, the rendered selected/unselected state and corner tiers, reopening reusing the rows, edits and picks made while closed, and the search filter. |

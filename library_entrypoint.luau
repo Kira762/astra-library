@@ -33,6 +33,9 @@ export type InputProps = types.InputProps
 export type StatProps = types.StatProps
 export type TextProps = types.TextProps
 export type DividerProps = types.DividerProps
+export type AboutCardRow = types.AboutCardRow
+export type AboutCardAction = types.AboutCardAction
+export type AboutCardProps = types.AboutCardProps
 export type NotifyProps = types.NotifyProps
 export type PopupBox = types.PopupBox
 export type PopupOption = types.PopupOption
@@ -55,6 +58,7 @@ export type Section = types.Section
 export type TabSection = types.TabSection
 export type Text = types.Text
 export type Divider = types.Divider
+export type AboutCard = types.AboutCard
 export type Popup = types.Popup
 export type Astra = types.Astra
 

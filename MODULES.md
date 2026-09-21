@@ -143,7 +143,12 @@ Dedicated settings component providing UI generation and management for Astra's 
   an empty field or `none` clearing the binding, left click refused, and any
   unlisted name left to an `Enum.KeyCode`/`Enum.UserInputType` lookup. Text
   that names no key is refused with the previous binding restored.
-- `buildUI(window)` — instantiates the settings tab shells on demand.
+- `buildUI(window)` — instantiates the settings tab shells on demand. The About
+  tab's builder renders one `elements/aboutCard` (brand header, the version /
+  build / author rows and the description paragraph) from the module-local
+  `aboutVersion`, `aboutBuild` and `aboutAuthor` strings, which a release bumps;
+  the card's optional action band is left off there because the tab has no
+  changelog to open.
 - `buildContent(window, tab)` — lazily constructs controls within a given settings tab upon first selection.
 - `toggleSettingsMode(window)` — toggles between user tabs and settings tabs.
 - `setSettingsMode(window, active)` — applies visibility and layout for settings mode.
@@ -361,6 +366,34 @@ Per-element specifics:
   `images/image.luau`'s `assign` so remote icons get the same cache rewrite the
   window's `Create` applies. Full card for a tab or a column Group, compact row for
   a horizontal one.
+- `aboutCard.luau` — the About card (`__type = "AboutCard"`): one container with
+  four blocks — a header (leading icon plus a title/subtitle stack), a row of one
+  to three data tiles (each a badge icon with a label above its value), a wrapped
+  description paragraph and an optional action band (icon, label, subtitle, the
+  built-in trailing chevron and one full-band tap target). Surfaces reuse the
+  shared nesting recipe: the card is the standard element body, a tile and the
+  band are the window surface with the element corner and stroke
+  (`insetSurface`), and a badge is the content surface. The tiles are packed
+  against the card's measured width (`_availableWidth` reads the card and falls
+  back to the default window's content width before the first measure,
+  `_rowMinWidth` measures each row's own copy with the fonts it renders in, and
+  `_packRows` is a greedy fill where a line costs its widest tile times its tile
+  count plus the gaps) so a line never squeezes a tile below its copy: the tiles
+  that fit share the line evenly and the rest wrap under it (`_layoutRows`), and
+  the packing re-runs from the card's `AbsoluteSize` watcher and after `SetRow`
+  changes a row's copy. A fourth row errors at construction with
+  `Astra:CreateAboutCard — at most 3 data rows are supported, got N` because the
+  action band is the card's trailing row. A row without an icon drops its badge
+  and hands the tile to its text (`_applyRowIcon`), and a card without rows,
+  description or action leaves those blocks out of the list layout. Reveal and
+  theme passes run over one tracked part list (`parts`, each `{ instance,
+  property, rest kind }` with the rest values in `restValue`), so a hidden card
+  takes every label, glyph and stroke out together and a theme change re-reads
+  them all. Setters: `SetTitle`/`SetSubtitle` (which reopens or closes the header
+  band), `SetIcon`, `SetRow(index, row)` and `SetDescription`; moveable/lockable
+  apply, locking disables the action band. The Settings → About tab is the
+  reference instance, built from `components/settings.luau`'s `aboutVersion`,
+  `aboutBuild` and `aboutAuthor`.
 - `divider.luau`, `stat.luau`, `text.luau` — display and interaction elements.
 - `footer.luau` — the centred inline text-and-icon strip ("Built with ⚡ Astra ♡"):
   an ordered run of `{ text }` / `{ icon }` segments under one centring list

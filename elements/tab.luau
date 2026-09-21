@@ -404,6 +404,10 @@ function state:CreateLink(a40)
     return self:_register(require(script.Parent.link).new(self, a40))
 end
 
+function state:CreateAboutCard(props)
+    return self:_register(require(script.Parent.aboutCard).new(self, props))
+end
+
 function state:CreateCollapsibleGroup(props)
     return self:_register(require(script.Parent.collapsibleGroup).new(self, props))
 end

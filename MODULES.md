@@ -172,7 +172,9 @@ Tab-rail reflow:
   the window's own `dragHandleGap` place it with the same number.
 - The pill's look is four named specs — `handleHover` (64x3, 0.5), `handleGrab`
   (56x3, 0), `handleIdle` (48x3, 0.7) and `handleParked` (0x3, 1.0) — so every
-  state writes the same values. Hovering the hitbox reveals the hover look;
+  state writes the same values, all four sharing `handleThickness` (3). The
+  pill is actually round: `handleRadius` is half that thickness, so the ends
+  stay domed through every width the specs tween. Hovering the hitbox reveals the hover look;
   dragging from it shows the grab look and moves the window with the pointer
   (positions lerped per frame, `constrainPosition` clamps through
   `settings.keepOnScreen`); letting go settles the pill through
@@ -316,7 +318,7 @@ All element classes share the pattern:
 Per-element specifics:
 - `toggle.luau` — track/knob frames, accent tween locals.
 - `slider.luau` — fill frame, handle, drag math locals (`a1..a12`: range min/max, step, value normalization).
-- `dropdown.luau` — button, list frame, option rows (built on first open, `_materialiseOptions`/`_buildOptionAt`), highlight, search filter, and the multi-select action row: a checkbox in the rows' own 16px glyph slot (a drawn 12px outline when off, the rows' check glyph when on) with Select all, which toggles the visible options, and Clear with its pack bin, which removes only those. The box is re-synced by every path that can move the selection or the visible set (`_syncActions`), and only a multi-select dropdown builds any of it.
+- `dropdown.luau` — button, list frame, option rows (built on first open, `_materialiseOptions`/`_buildOptionAt`), highlight, search filter, and the multi-select action row. Row corners come from `rowTiers(window)`: the rows sit `rowInset` (6px) inside the panel that clips them and the panel wears `ElementCornerRadius`, so the outer tier *is* that radius (a row's arc then lands inside the clip instead of being cut by it) and the seam where two rows meet sits `rowSeam` (4px) below it; `_updateCorners` re-reads both on every pass. The search field rounds at `searchFieldRadius` (6px) and the checkbox at a quarter of its 12px box: a checkbox in the rows' own 16px glyph slot (a drawn 12px outline when off, the rows' check glyph when on) with Select all, which toggles the visible options, and Clear with its pack bin, which removes only those. The box is re-synced by every path that can move the selection or the visible set (`_syncActions`), and only a multi-select dropdown builds any of it.
 - `input.luau` — TextBox, placeholder/focus locals, validation callback.
 - `collapsibleGroup.luau` — optional declarative container for all tab element
   types and ordinary Groups. Validates definitions, rejects nested collapsibles,
@@ -501,6 +503,19 @@ Per-element specifics:
   `default` clone. Registered in two places: the settings-UI theme table in
   `components/window/theme.luau` and the persisted-theme whitelist in
   `utilities/persistenceSettings.luau`.
+  The corner scale is three nested tiers, each one step inside the tier above so
+  the arcs stay concentric: `CornerRoundness` (12px) is the shell — the window
+  silhouette plus the bands that mirror its corners, the bottom fade,
+  notifications and popups; `ElementCornerRadius` (8px) is everything inside it
+  (cards, field boxes, hover overlays, tab rows, dropdown panels, tooltips, the
+  search bar, popup buttons); `PillCornerRadius` (32px) is the folded states —
+  half the 64px chrome height, so the minimised bar is a full pill and the 50px
+  capsule clamps to a pill of its own. All three are pixel radii on purpose:
+  `input_field_test` pins the field box to `Scale` 0, and the tiers have to stay
+  comparable for nested surfaces to line up. Controls that are round by nature
+  ignore the tokens and take half their own height (`toggle.luau`,
+  `slider.luau`, `drag.luau`, the unread dot in `action.luau`), so no theme can
+  square them off.
   The three window sections are painted from dedicated surface tokens with a
   strict luminance hierarchy — `TopbarSurface` (darkest band),
   `SidebarSurface` (the tab rail, one step lighter) and `ElementSurface`
@@ -572,6 +587,7 @@ Per-element specifics:
 | `tab_lock_test.sh` | Locked tabs: the preserved flag + badge (always hidden during the UI pause) and auto-select skipping a locked first tab; tap → notification with no selection; hover leaves the locked row dimmed; `Navigate`/`Select` guards; `SetLocked(false)` re-enables; locking the open tab moves the selection to a same-rail fallback; search excludes locked tabs' elements; locking every remaining tab clears the selection and hides content, and unlocking restores it; retained badge geometry with no layout reserve, full title slots, and hidden badges after collapse/rebuild. |
 | `toggle_switch_test.sh` | Switch geometry: one set of metrics, mirrored resting states, equal clearance, the sheen under the knob, and the animated positions matching the built ones. |
 | `input_field_test.sh` | Field-box corners: the Input field rounds with the theme's `ElementCornerRadius` as a theme binding (pixel radius, never a capsule scale), re-stated on a theme switch, and shared with its element card. |
+| `corner_scale_test.sh` | The corner scale: the three nested tiers (12px shell, 8px elements, 32px folds) and which surface wears which, the round-by-nature controls deriving a half-height pill from their own metrics (switch track/knob/sheen, slider track/fill/handle, drag pill), the dropdown's row tiers read from the panel that clips them, a `ChangeTheme` reaching every bound surface, the corners that stay square on purpose (the elements band's top edge), and a sweep that fails if any painted surface in the tree is left with an all-zero corner. |
 | `keybind_input_test.sh` | Menu-toggle binding: the Settings menu binding is an `Input` field whose typed text commits an `EnumItem` (case/alias tolerant, `MB2`, `none`/empty clearing), refuses junk and left click without saving, keeps typing inside the field from toggling the window, and still toggles it afterwards. |
 | `slider_travel_test.sh` | Slider knob travel: the capsule's centre stays half a knob inside each track end (resting, held and after release), so it never overlaps the track end or card edge at max/min, and the fill ends at the knob's centre. |
 | `icons_test.sh` | Icon resolver: name-only lookup across the packs in priority order (and how lazily they load), qualified `pack:name`, case sensitivity, unknown-pack warnings, custom assets (one import per path, memoised misses, the `listfiles` index), cache-key separation, and `window:ResolveIcon`. |

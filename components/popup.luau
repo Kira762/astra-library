@@ -44,7 +44,6 @@ local boxIconSpacing = 8
 local boxContentPad = 10
 local footerHeight = 40
 local footerSpacing = 8
-local buttonCorner = UDim.new(0, 0)
 local buttonTextSize = 16
 
 local backdropTransparency = 0.5
@@ -533,7 +532,7 @@ function Popup:_buildButton(footerFrame, option, index)
     self:_fade(buttonFrame, "BackgroundTransparency", 0)
 
     window:Create("UIFlexItem", { FlexMode = Enum.UIFlexMode.Fill, Parent = buttonFrame })
-    window:Create("UICorner", { CornerRadius = buttonCorner, Parent = buttonFrame })
+    window:Create("UICorner", { Parent = buttonFrame }, { CornerRadius = "ElementCornerRadius" })
 
     local buttonStroke = window:Create("UIStroke", {
         Color = strokeColor,

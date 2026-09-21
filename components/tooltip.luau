@@ -87,9 +87,8 @@ function tooltip.ensure(window)
     window.elementTooltip = tip
 
     window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 0),
         Parent = tip,
-    })
+    }, { CornerRadius = "ElementCornerRadius" })
 
     local stroke = window:Create("UIStroke", {
         Transparency = 1,

@@ -153,17 +153,24 @@ eq(unselected.stroke, 0.93, "D3 ... and its stroke")
 
 -- [[The stub leaves Visible unset (the engine default is true), so the corner
 -- [[tiers are asked for the same way the open path asks for them: every row on
--- [[screen. 12px on the rounded ends, 7px where rows meet.]]
+-- [[screen. The rows sit 6px inside the panel that clips them, so the outer
+-- [[tier is that panel's own `ElementCornerRadius` -- a row's arc then lands
+-- [[inside the clip instead of being cut by it -- and the seam where two rows
+-- [[meet sits the element's 4px `rowSeam` below it. Read from the theme, so
+-- [[the assertion follows a radius change instead of pinning one number.]]
+local outerTier = window.theme.ElementCornerRadius.Offset
+local innerTier = outerTier - 4
+
 for _, row in long._optionFrames do
 	row.frame.Visible = true
 end
 long:_updateCorners()
 local firstCorner = long._optionFrames[1].corner
 local lastCorner = long._optionFrames[12].corner
-eq(firstCorner.TopLeftRadius.Offset, 12, "D3 the first row rounds its top")
-eq(firstCorner.BottomLeftRadius.Offset, 7, "D3 ... and meets the next row at the list radius")
-eq(lastCorner.BottomLeftRadius.Offset, 12, "D3 the last row rounds its bottom")
-eq(lastCorner.TopLeftRadius.Offset, 7, "D3 ... and meets the one above at the list radius")
+eq(firstCorner.TopLeftRadius.Offset, outerTier, "D3 the first row rounds its top")
+eq(firstCorner.BottomLeftRadius.Offset, innerTier, "D3 ... and meets the next row at the list radius")
+eq(lastCorner.BottomLeftRadius.Offset, outerTier, "D3 the last row rounds its bottom")
+eq(lastCorner.TopLeftRadius.Offset, innerTier, "D3 ... and meets the one above at the list radius")
 
 -- ===== D4: reopening reuses the same rows =====
 

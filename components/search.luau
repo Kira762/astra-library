@@ -253,10 +253,11 @@ function search.buildContent(window)
         Parent = window.main,
     })
 
+    -- [[The bar is a field floating over the content, so it wears the
+    -- [[element tier rather than the shell's own arc.]]
     window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 0),
         Parent = window.searchPill,
-    })
+    }, { CornerRadius = "ElementCornerRadius" })
 
     window.searchStroke = window:Create("UIStroke", {
         Color = Color3.fromRGB(255, 255, 255),

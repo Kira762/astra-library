@@ -21,10 +21,16 @@ local motion = require(utilities.motion)
 -- [[               window leaves the screen;
 -- [[  * `parked` — off the screen: the pill shrinks to nothing instead of
 -- [[               being left mid-hover for the next entrance to inherit.
-local handleHover = { Size = UDim2.fromOffset(64, 3), BackgroundTransparency = 0.5 }
-local handleGrab = { Size = UDim2.fromOffset(56, 3), BackgroundTransparency = 0 }
-local handleIdle = { Size = UDim2.fromOffset(48, 3), BackgroundTransparency = 0.7 }
-local handleParked = { Size = UDim2.fromOffset(0, 3), BackgroundTransparency = 1 }
+local handleThickness = 3
+local handleHover = { Size = UDim2.fromOffset(64, handleThickness), BackgroundTransparency = 0.5 }
+local handleGrab = { Size = UDim2.fromOffset(56, handleThickness), BackgroundTransparency = 0 }
+local handleIdle = { Size = UDim2.fromOffset(48, handleThickness), BackgroundTransparency = 0.7 }
+local handleParked = { Size = UDim2.fromOffset(0, handleThickness), BackgroundTransparency = 1 }
+
+-- [[Half the thickness, so the pill the states above describe actually reads
+-- [[as one: the width tweens 0 -> 48 -> 56 -> 64 while the height never
+-- [[moves, and a square 3px bar looks like a stray line under the window.]]
+local handleRadius = UDim.new(0, handleThickness / 2)
 
 -- [[How long the pill takes to shrink away before the hitbox that carries it
 -- [[may be switched off without cutting the fade short: the `fast` spec the
@@ -85,7 +91,7 @@ function Drag.new(window, props)
     })
 
     self.window:Create("UICorner", {
-        CornerRadius = UDim.new(0, 0),
+        CornerRadius = handleRadius,
         Parent = self.dragCosmetic,
     })
 

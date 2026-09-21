@@ -58,7 +58,7 @@ expect(buttonSpec.EasingStyle == Enum.EasingStyle.Quad, "H2 button press uses cr
 local toastSpec = motion.uiSpec("toast")
 expect(toastSpec.EasingStyle == Enum.EasingStyle.Back, "H2 toast uses lively Back spring")
 
--- ===== H3: Single UI architecture (Popup shares window.screenGui) =====
+-- ===== H3: popup architecture (the dialog owns a ScreenGui above the window) =====
 local window = Astra:CreateWindow({ name = "Single UI Test" })
 TestPump(0.6)
 window:Show()
@@ -79,18 +79,84 @@ eq(screenGuis(), 1, "H3 only one ScreenGui exists before popup")
 
 local popup = window:Popup({
 	title = "Adaptive Test",
-	content = "Verifying single UI architecture",
-	options = { { text = "OK" } },
+	content = "Verifying popup architecture",
+	options = { { text = "OK" }, { text = "Later" } },
 })
 TestPump(0.4)
 
-eq(screenGuis(), 1, "H3 only one ScreenGui exists while popup is displayed")
-expect(popup.popupContainer ~= nil, "H3 popup uses dedicated container layer inside window.screenGui")
-expect(popup.popupContainer.Parent == window.screenGui, "H3 popupContainer is parented into window.screenGui")
+-- [[The dialog is a second root rather than a layer inside the window's: the
+-- popup DisplayOrder lifts the whole card over the shell, so the card never has
+-- to climb the window's ZIndex stack -- where, under `Global` ZIndex, it
+-- outranked its own Header, copy and buttons and painted over them.]]
+eq(screenGuis(), 2, "H3 popup opens its own ScreenGui while it is displayed")
+expect(popup.screenGui ~= nil, "H3 popup owns a ScreenGui")
+expect(popup.screenGui ~= window.screenGui, "H3 popup does not nest into window.screenGui")
+expect(popup.screenGui.Parent == game:GetService("CoreGui"), "H3 popup ScreenGui is parented to the GUI container")
+expect(
+	popup.screenGui.DisplayOrder > window.screenGui.DisplayOrder,
+	"H3 popup ScreenGui draws above the window"
+)
+expect(
+	popup.screenGui.ZIndexBehavior == Enum.ZIndexBehavior.Global,
+	"H3 popup ScreenGui keeps Global ZIndex behaviour"
+)
+expect(popup.popupContainer == nil, "H3 the window-nested popupContainer layer is gone")
+
+-- The card carries the dialog's regions and its children stay visible on it.
+local card = popup.card
+expect(card ~= nil, "H3 popup exposes its card")
+local header = card:FindFirstChild("Header")
+local footer = card:FindFirstChild("Footer")
+expect(header ~= nil, "H3 card has a Header")
+expect(footer ~= nil, "H3 card has a Footer")
+expect(header.Parent == card, "H3 Header is a child of the card")
+expect(footer.Parent == card, "H3 Footer is a child of the card")
+
+local actionButtons = 0
+for _, child in footer:GetChildren() do
+	if child.Name == "Button" then
+		actionButtons += 1
+	end
+end
+eq(actionButtons, 2, "H3 footer carries one action button per option")
+
+-- [[Every painting surface of the dialog has to sit on or above the card: under
+-- `Global` ZIndex a child ranked below its own parent is drawn behind the
+-- parent's background, which is exactly how the card used to swallow its own
+-- text and buttons. The one surface allowed underneath is the glow, and it is
+-- drawn by `UIShadow` rather than by a `GuiObject` of its own.]]
+local PAINTABLE = {
+	Frame = true,
+	ScrollingFrame = true,
+	ImageLabel = true,
+	ImageButton = true,
+	TextLabel = true,
+	TextButton = true,
+	TextBox = true,
+}
+local buried = 0
+for _, descendant in card:GetDescendants() do
+	if PAINTABLE[descendant.ClassName] and descendant.ZIndex < card.ZIndex then
+		buried += 1
+		print(
+			"H3 buried: "
+				.. tostring(descendant.ClassName)
+				.. "/"
+				.. tostring(descendant.Name)
+				.. " ZIndex="
+				.. tostring(descendant.ZIndex)
+				.. " (card "
+				.. tostring(card.ZIndex)
+				.. ")"
+		)
+	end
+end
+eq(buried, 0, "H3 no part of the card is buried behind the card surface")
 
 popup:Close()
 TestPump(0.6)
-eq(screenGuis(), 1, "H3 window.screenGui survives popup close")
+eq(screenGuis(), 1, "H3 closing the popup removes its ScreenGui and leaves the window's")
+expect(popup.screenGui.__destroyed == true, "H3 the popup ScreenGui is destroyed once playback finishes")
 
 -- ===== H4: Heavy tab loading streams elements smoothly =====
 local heavyTab = window:CreateTab({ name = "Heavy Tab" })

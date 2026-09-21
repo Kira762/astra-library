@@ -3,6 +3,45 @@
 Dated entries, newest first. Each entry explains the cause and the behaviour
 change, then names the files it touched.
 
+## 2026-09-21 — Popups show their content again (dedicated `ScreenGui` restored)
+
+A dialog opened as a blank card: the rounded surface arrived, the title, the
+copy and the action buttons did not.
+
+`Popup` had been nested into `window.screenGui` behind a `PopupContainer` layer
+so that only one UI root existed. That root is `ZIndexBehavior.Global`, which
+compares a `GuiObject`'s `ZIndex` against every other `GuiObject` in the
+ScreenGui — the card's own descendants included. The card sat at
+`ZIndex = 200001` (high enough to clear the window's stack), while its Header,
+content and footer are created at the engine default of 1. A child ranked below
+its parent draws behind the parent's background, so the card painted over every
+part of itself and left the empty rectangle behind.
+
+The dialog is a root of its own again:
+
+- `Popup:_build` creates its own `ScreenGui` (`DisplayOrder = constants.displayOrder.popup`,
+  `ZIndexBehavior = Enum.ZIndexBehavior.Global`, `Parent = state.guiContainer`)
+  and the `PopupContainer` layer is gone — backdrop and card parent straight
+  into the root. `DisplayOrder` lifts the whole dialog above the window, so the
+  card no longer has to outrank anything: it keeps a plain `ZIndex = 1`, below
+  nothing and above nothing it owns.
+- `Popup:Close` destroys that root once the close tween reports
+  `Enum.PlaybackState.Completed`.
+- The window still owns the root (`window:Create` registers it), so `Unload`
+  destroys every dialog left open with it — unloading a window with a popup
+  still open leaves no `ScreenGui` behind.
+- The test harness (`scripts/sidebar_sizing_stubs.luau`) fired `Completed` with
+  no playback state, so listeners that gate their teardown on
+  `Enum.PlaybackState.Completed` — `Popup:Close` among them — never ran at all
+  and a dismissed dialog stayed parented forever. The stub now fires the state
+  the engine passes.
+
+- `components/popup.luau` — dedicated `ScreenGui`, plain ZIndex ranks, `popupContainer` removed.
+- `scripts/sidebar_sizing_stubs.luau` — `TweenService` fires `Completed` with `Enum.PlaybackState.Completed`.
+- `scripts/adaptive_hardware_test.luau` — H3 asserts the dialog's own root: two `ScreenGui`s while it is open, one after close, plus the card's `Header`, `Footer`, action buttons and ZIndex ranks.
+- `PERFORMANCE_CHANGES.md` — the single-UI note now records why popups left `window.screenGui`.
+- `version-1.luau` — regenerated bundle.
+
 ## 2026-09-21 — Hardware-adaptive performance engine, single-UI architecture, and aesthetic motion
 
 Large menus with many tabs and elements on low-end devices (or weak GPUs/CPUs)

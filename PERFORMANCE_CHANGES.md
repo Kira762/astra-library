@@ -159,9 +159,15 @@ slightly longer time-to-fully-interactive in exchange for an instant shell.
     viewport batch immediately and streams remaining elements in micro-batches
     across subsequent frames, preventing client freeze.
 * `components/popup.luau`
-  * Removed redundant top-level `ScreenGui` creation; popups now live inside
-    `window.screenGui` in a dedicated high-ZIndex `PopupContainer` layer. Only
-    one ScreenGui exists in `CoreGui`.
+  * Popups nest in the window's `ScreenGui` no longer. They were moved into a
+    high-ZIndex `PopupContainer` layer inside `window.screenGui` to leave only
+    one ScreenGui in `CoreGui`, but that root is `ZIndexBehavior.Global`, so the
+    card's ZIndex outranked its own Header, copy and buttons and painted over
+    them. Each dialog is a `ScreenGui` of its own again (popup `DisplayOrder`,
+    plain ZIndex ranks inside), still created through `window:Create`, so the
+    window owns it and `Unload` destroys any dialog left open — no orphaned
+    roots, which is what the consolidation was after. See the changelog entry
+    "Popups show their content again".
 * `utilities/motion.luau`
   * Added UI-dependent aesthetic easing specs (`modal`, `fluid`, `tabSwitch`,
     `control`, `micro`, `dropdownOpen`, `dropdownClose`, `toast`, `canvasPop`)

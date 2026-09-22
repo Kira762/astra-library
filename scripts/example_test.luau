@@ -5,7 +5,7 @@ local userTabs = {}
 for _, tab in window.tabs do
     if not tab._isSettingsTab then table.insert(userTabs, tab) end
 end
-assert(#userTabs == 3, "Demo has three purpose-based tabs")
+assert(#userTabs == 10, "Demo has ten purpose-based tabs")
 local types = {}
 local function scan(elements, informationOnlyHere)
     for _, element in elements do

@@ -1,5 +1,61 @@
 # Changelog
 
+## 2026-09-22 — The example is now a ten-tab studio where every control does something
+
+`example.client.luau` had grown into three tabs of representative props: a
+counter button, a notification button and a handful of sample controls. It showed
+what an element looks like, not what it can do, and it left most of the public
+API — persistence, themes, motion, overlays, the handle methods — unexercised.
+
+The example is now a working testbed. Ten tabs, each built around a thing you can
+actually run, with every control wired to a real effect rather than a `print`:
+
+- **Overview** keeps the information-first rule: About Card, tour Text, three
+  Links, an activity Changelog that the other nine tabs write into through
+  `Add`, the Isolated release history and a Footer.
+- **Player** writes `Humanoid.WalkSpeed` / `JumpPower` / `JumpHeight`, arms
+  infinite jump on `UserInputService.JumpRequest` through `window:Connect` (and
+  disconnects it on release), respawns on a Keybind, and re-reads the character
+  on `CharacterAdded`.
+- **Combat** rebuilds its target Dropdown from `Players:GetPlayers()` with
+  `Refresh`, `Add` and `Remove`, and a simulation button drives three Stats.
+- **Visuals** edits `Lighting` and `CurrentCamera`, and creates or destroys a
+  `ColorCorrectionEffect` and a `BlurEffect` on demand.
+- **World** teleports the `HumanoidRootPart` from three numeric Inputs, stores
+  waypoints into a Dropdown and totals the distance travelled in a Stat.
+- **Live Stats** connects one Heartbeat listener for as long as its toggle is
+  on and reports fps, frame time, Lua memory, session length and ping.
+- **Elements** drives every handle: `Set` on each control type, dropdown
+  `Add`/`Remove`/`Refresh`, `Capture`, `MoveToTop`/`MoveUp`/`MoveDown`/
+  `MoveToBottom`, `Lock`/`Unlock`/`IsLocked`, and `ShowTooltip`/`HideTooltip`.
+- **Configs** uses the persistence API directly: `Save`, `Load`, `DeleteConfig`,
+  `ListConfigs`, `GetPath` and a `Flags` dump.
+- **Window** covers `ChangeTheme` (accent presets and both corner tokens),
+  `Astra.Motion.setProfile`/`setTimeScale`/`setEnabled`, `Hide`/`ToggleHide`/
+  `ToggleMinimise`/`Navigate`, notification dedupe, a popup with boxes and all
+  three option styles, `Astra.Icons` and `Astra.Performance` reports, unlocking
+  the gated tab, and `Unload` behind a confirmation.
+- **Premium** starts `locked = true` and is unlocked from Window.
+
+Roblox services are resolved through a small nil-safe helper block at the top,
+so the same file runs in an executor, in Studio and under the headless harness;
+where a service is missing a control reports back instead of throwing.
+
+- `example.client.luau` — rewritten; 17 element constructors, ~110 controls.
+- `scripts/example_test.luau` — the tab-count assertion follows (3 → 10).
+- `README.md`, `USAGE.md`, `MODULES.md` — descriptions of the example updated
+  (they claimed three tabs and, in USAGE, a single tab).
+
+Verification: `sh scripts/check_all.sh` passes end to end (40 runtime tests).
+Beyond the shipped suite, two throwaway harnesses drove the file under the Luau
+CLI: one invoked all **114** element callbacks directly, bypassing
+`Window:_runGuarded` so a broken callback would surface as an error, and one
+exercised the paths that walk cannot reach (the About Card's action band,
+`Isolated:Expand/Collapse/Toggle`, both popups and their options). Both run
+clean; the first pass caught a real defect — `Stat:Set` was handed a
+comma-formatted string for the Lua-memory readout, which the Stat rejects —
+fixed by keeping the number in the Stat and the commas in the notification.
+
 ## 2026-09-22 — Link cards show their copy glyph again
 
 The trailing control on a Link card was an empty square: the tap target worked,

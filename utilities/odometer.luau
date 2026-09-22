@@ -110,13 +110,15 @@ function odometer:_reel(reelIndex)
         Parent = cell,
     })
 
-    -- [[Rows are created on demand (see _rows): a reel only ever shows the
-    -- [[contiguous band of rows its current transition walks over, so building
-    -- [[all `reelCells` of them upfront left up to 19 clipped, never-visible
-    -- [[TextLabels behind every digit of every readout — the single largest
-    -- [[instance cost in the library (a Stat built 42 text labels for one
-    -- [[value). Positions and glyphs are unchanged, so nothing about the roll
-    -- [[looks different.]]
+    --[[
+    Rows are created on demand (see _rows): a reel only ever shows the
+    contiguous band of rows its current transition walks over, so building
+    all `reelCells` of them upfront left up to 19 clipped, never-visible
+    TextLabels behind every digit of every readout — the single largest
+    instance cost in the library (a Stat built 42 text labels for one
+    value). Positions and glyphs are unchanged, so nothing about the roll
+    looks different.
+    ]]
     local reel = {
         cell = cell,
         strip = strip,
@@ -130,9 +132,11 @@ function odometer:_reel(reelIndex)
     return reel
 end
 
--- [[Materialises the rows a transition needs, and only those. `rowIndex` is
--- [[the strip's own row number (0-9 is the digit, 10-19 the repeated digit
--- [[the downward roll travels through), matching _reelRoll's maths.]]
+--[[
+Materialises the rows a transition needs, and only those. `rowIndex` is
+the strip's own row number (0-9 is the digit, 10-19 the repeated digit
+the downward roll travels through), matching _reelRoll's maths.
+]]
 function odometer:_row(reel, rowIndex)
     local label = reel.rows[rowIndex]
     if label then
@@ -232,9 +236,11 @@ function odometer:_reelRoll(rollReel, rollDigit, up)
     rollReel.strip.Position = UDim2.new(0.5, 0, 0, -fromRow * self.height)
     rollReel.target = rollDigit
 
-        -- [[`motion.spec` rescales the reel's TweenInfo with the active speed
-    -- profile (cached per info), so the digit roll answers the same
-    -- "Animation speed" setting as every other surface.]]
+        --[[
+        `motion.spec` rescales the reel's TweenInfo with the active speed
+    profile (cached per info), so the digit roll answers the same
+    "Animation speed" setting as every other surface.
+        ]]
     local roll = motion.spec(self.roll)
     local stripTween = coreState.tweenService:Create(rollReel.strip, roll, {
         Position = UDim2.new(0.5, 0, 0, -toRow * self.height),

@@ -1,5 +1,7 @@
--- Hold the real main-frame tween to inspect the fold BEFORE Completed. Ordinary
--- harness tweens finish synchronously and cannot catch the behind-window flash.
+--[[
+Hold the real main-frame tween to inspect the fold BEFORE Completed. Ordinary
+harness tweens finish synchronously and cannot catch the behind-window flash.
+]]
 local window = Astra:CreateWindow({ name = "Capsule visibility" })
 local tab = window:CreateTab({ name = "Home" })
 tab:CreateButton({ name = "Action" })

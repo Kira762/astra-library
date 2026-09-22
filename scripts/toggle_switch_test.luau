@@ -1,28 +1,30 @@
--- ===== switch (toggle) geometry assertions =====
--- [[Runs the real Astra bundle (loaded as global `Astra` above) against the]]
--- [[mini Roblox environment from sidebar_sizing_stubs.luau.]]
---
--- The element used to park its knob 3px from the end of a track twice as long
--- as it needed to be, leaving 22px of empty track on the other side — the
--- "gap" that reads as lopsided in both states. It also drew the track's sheen
--- overlay after the knob at the same ZIndex, so the sheen landed on top of the
--- knob and washed its lower half.
---
--- Expected behavior under test:
---   * S1 the switch is driven by one set of metrics: the track is a pill and
---   * S7 the indicator glow is built when the switch turns on (an off switch
---     carries no shadow instance), while on/off states render as before.
---        every clearance the knob shows is the same number (top/bottom and the
---        parked end),
---   * S2 the two resting states are exact mirrors of each other, and both
---        states keep the knob inside the track,
---   * S3 the knob's travel is the track minus the knob and both insets, so
---        neither state can leave an oversized empty slab beside the knob,
---   * S4 the sheen overlay sits under the knob (ZIndex order), so it tints the
---        track instead of the knob,
---   * S5 animating the switch lands on exactly the same positions the element
---        was built with — pressing it cannot drift into its own uneven spot,
---   * S6 the compact row's label budget follows the track width.
+--[[
+===== switch (toggle) geometry assertions =====
+Runs the real Astra bundle (loaded as global `Astra` above) against the
+mini Roblox environment from sidebar_sizing_stubs.luau.
+
+The element used to park its knob 3px from the end of a track twice as long
+as it needed to be, leaving 22px of empty track on the other side — the
+"gap" that reads as lopsided in both states. It also drew the track's sheen
+overlay after the knob at the same ZIndex, so the sheen landed on top of the
+knob and washed its lower half.
+
+Expected behavior under test:
+  * S1 the switch is driven by one set of metrics: the track is a pill and
+  * S7 the indicator glow is built when the switch turns on (an off switch
+    carries no shadow instance), while on/off states render as before.
+       every clearance the knob shows is the same number (top/bottom and the
+       parked end),
+  * S2 the two resting states are exact mirrors of each other, and both
+       states keep the knob inside the track,
+  * S3 the knob's travel is the track minus the knob and both insets, so
+       neither state can leave an oversized empty slab beside the knob,
+  * S4 the sheen overlay sits under the knob (ZIndex order), so it tints the
+       track instead of the knob,
+  * S5 animating the switch lands on exactly the same positions the element
+       was built with — pressing it cannot drift into its own uneven spot,
+  * S6 the compact row's label budget follows the track width.
+]]
 
 local function expect(cond, message)
 	if not cond then
@@ -51,11 +53,15 @@ local offToggle = tab:CreateToggle({ name = "Off Switch", value = false })
 local onToggle = tab:CreateToggle({ name = "On Switch", value = true })
 TestPump(0.4)
 
--- [[The switch lives inside the element frame (full) or the clickable row
--- [[(compact); find it by shape rather than by path so both layouts work.]]
+--[[
+The switch lives inside the element frame (full) or the clickable row
+(compact); find it by shape rather than by path so both layouts work.
+]]
 local function findSwitch(element)
-	-- [[The knob is the frame anchored at (0, 0.5) inside its own track: find
-	-- [[that pair, whatever element the switch is embedded in.]]
+	--[[
+	The knob is the frame anchored at (0, 0.5) inside its own track: find
+	that pair, whatever element the switch is embedded in.
+	]]
 	local found
 	local function walk(inst)
 		if found then
@@ -98,9 +104,11 @@ local function clearance(switch, stateName)
 	local knobProps = switch.knob.__props
 	local knobSize = knobProps.Size
 	local position = knobProps.Position
-	-- [[The knob is anchored (0, 0.5) inside the track, so its left edge is
-	-- [[scale * trackWidth + offset and its parked end decides which gap
-	-- [[collapses.]]
+	--[[
+	The knob is anchored (0, 0.5) inside the track, so its left edge is
+	scale * trackWidth + offset and its parked end decides which gap
+	collapses.
+	]]
 	local left = position.X.Scale * trackSize.X.Offset + position.X.Offset
 	local right = trackSize.X.Offset - (left + knobSize.X.Offset)
 	return {
@@ -154,9 +162,11 @@ local travel = off.trackWidth - off.knobWidth - off.left - on.right
 eq(travel, on.left - off.left, "S3 the knob's travel is the difference between the two resting positions")
 expect(travel >= 8, "S3 the two states are still visually distinct (got " .. tostring(travel) .. "px of travel)")
 
--- [[The old geometry left 22px of empty track beside a 25px knob (and only 3px
--- [[at the parked end). The empty side must stay a minority of the track — no
--- [[state is allowed to read as a knob floating in a mostly-empty pill again.]]
+--[[
+The old geometry left 22px of empty track beside a 25px knob (and only 3px
+at the parked end). The empty side must stay a minority of the track — no
+state is allowed to read as a knob floating in a mostly-empty pill again.
+]]
 local empty = math.max(off.left, off.right)
 expect(
 	empty < off.trackWidth * 0.5,
@@ -221,8 +231,10 @@ eq(toOff.X.Offset, off.position.X.Offset, "S5 ... and the same offset (got " .. 
 
 -- ===== S6: the compact row follows the track =====
 
--- [[The label budget is name-dependent, so the check is structural: the
--- [[minimum width has to leave room for the track the element actually draws.]]
+--[[
+The label budget is name-dependent, so the check is structural: the
+minimum width has to leave room for the track the element actually draws.
+]]
 expect(
 	offToggle:_minWidth() > off.trackWidth,
 	"S6 the minimum width leaves room for the " .. tostring(off.trackWidth) .. "px track (got " .. tostring(offToggle:_minWidth()) .. ")"
@@ -236,8 +248,10 @@ eq(compactSwitch.track.__props.Size.X.Offset, off.trackWidth,
 
 -- ===== S7: the indicator glow follows the switch ==========================
 
--- [[A shadow instance that is invisible whenever the switch is off is not
--- [[worth carrying: it is built the first time the switch turns on.]]
+--[[
+A shadow instance that is invisible whenever the switch is off is not
+worth carrying: it is built the first time the switch turns on.
+]]
 local function shadows(element)
 	local found = {}
 	local function walk(node)
@@ -271,8 +285,10 @@ TestPump(0.6)
 eq(#shadows(glowlessToggle), 1, "S7 turning it off fades the same glow instead of rebuilding one")
 eq(shadows(glowlessToggle)[1].__props.Transparency, 1, "S7 ... to invisible")
 
--- [[A switch that starts on builds it up front, exactly like the always-built
--- [[version did.]]
+--[[
+A switch that starts on builds it up front, exactly like the always-built
+version did.
+]]
 local litFromStart = tab:CreateToggle({ name = "Lit from start", value = true })
 TestPump(0.4)
 eq(#shadows(litFromStart), 1, "S7 a switch that starts on has its glow")

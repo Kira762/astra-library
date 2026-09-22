@@ -1,15 +1,19 @@
--- [[Theme resolution engine (themes/init.luau).]]
--- [[]]
--- [[Extracted verbatim from components/window.luau so the window no longer owns]]
--- [[theme logic. Responsibilities: named-theme lookup against the themes folder,]]
--- [[value coercion (Color3 -> ColorSequence for gradient keys), stroke]]
--- [[derivation for user-supplied theme tables, and brand-font fallbacks.]]
--- [[The only built-in palette is `default`; unknown names warn and fall back]]
--- [[to it. Custom theme tables overlay the default key set.]]
+--[[
+Theme resolution engine (themes/init.luau).
 
--- [[This file IS the `themes` ModuleScript (init.luau semantics): the]]
--- [[`default` theme module is a child of `script`, and other folders]]
--- [[(core, utilities) are siblings reachable through script.Parent.]]
+Extracted verbatim from components/window.luau so the window no longer owns
+theme logic. Responsibilities: named-theme lookup against the themes folder,
+value coercion (Color3 -> ColorSequence for gradient keys), stroke
+derivation for user-supplied theme tables, and brand-font fallbacks.
+The only built-in palette is `default`; unknown names warn and fall back
+to it. Custom theme tables overlay the default key set.
+]]
+
+--[[
+This file IS the `themes` ModuleScript (init.luau semantics): the
+`default` theme module is a child of `script`, and other folders
+(core, utilities) are siblings reachable through script.Parent.
+]]
 local themesFolder = script
 local variables = require(script.Parent.core.state)
 local log = require(script.Parent.utilities.log)
@@ -42,8 +46,10 @@ local function edgeShade(color, amount)
     return color:Lerp(target, amount)
 end
 
--- [[Stroke derivation for user-supplied theme tables. Exposed so ChangeTheme]]
--- [[can re-derive derived stroke colors after merging user overrides.]]
+--[[
+Stroke derivation for user-supplied theme tables. Exposed so ChangeTheme
+can re-derive derived stroke colors after merging user overrides.
+]]
 function themes.deriveStrokes(resolved, overrides)
     if overrides.ElementGradient then
         local fill = themes.firstColor(resolved.ElementGradient)
@@ -77,8 +83,10 @@ local function themeOverrides(value)
     return require(themesFolder["default"])
 end
 
--- [[Resolve a theme value (nil, built-in name, or theme table) to a full theme]]
--- [[table. Public API: window code calls themes.resolve(value).]]
+--[[
+Resolve a theme value (nil, built-in name, or theme table) to a full theme
+table. Public API: window code calls themes.resolve(value).
+]]
 function themes.resolve(value)
     local resolved = table.clone(require(themesFolder["default"]))
     local overrides = themeOverrides(value)

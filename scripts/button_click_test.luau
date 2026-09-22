@@ -14,7 +14,7 @@ local function eq(actual, wanted, message)
 	end
 end
 
--- [[Every write the tweens make to an animated property, in order.]]
+-- Every write the tweens make to an animated property, in order.
 local function record(instance, propName, read)
 	local log = {}
 	instance:GetPropertyChangedSignal(propName):Connect(function()
@@ -96,9 +96,11 @@ end)
 expect(ok2, "B4 a second click must not error (got " .. tostring(err2) .. ")")
 eq(clicks, 2, "B4 the callback ran twice")
 
--- ===== B5: the compact row's button =======================================
--- [[A row Group lays its children out as compact rows, which is the]]
--- [[element's second click handler — it has its own `motion.spec` calls.]]
+--[[
+===== B5: the compact row's button =======================================
+A row Group lays its children out as compact rows, which is the
+element's second click handler — it has its own `motion.spec` calls.
+]]
 
 local group = tab:CreateGroup({ direction = "row" })
 local compactClicks = 0
@@ -138,9 +140,11 @@ expect(
 )
 expect(type(settings.persistence.read) == "function", "B6 the persistence module exposes read")
 
--- ===== B7: optional leading icons still precede the title =================
--- The stubs do not run Roblox's layout engine. Pin its sorting input as well
--- as the sibling orders: LayoutOrder values alone do nothing under Name sort.
+--[[
+===== B7: optional leading icons still precede the title =================
+The stubs do not run Roblox's layout engine. Pin its sorting input as well
+as the sibling orders: LayoutOrder values alone do nothing under Name sort.
+]]
 local function expectLeadingIcon(element)
 	local layout
 	for _, child in ipairs(element.interact:GetChildren()) do

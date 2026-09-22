@@ -1,26 +1,28 @@
--- [[Standalone key gate: the Rayfield-style "enter your key" modal, drawn in
--- Astra's own shell language so it reads as one family with the window that
--- follows it — the 12px shell corner and WindowColor gradient card, the 8px
--- field and button corners, the SurfaceStroke hairline, the accent Continue.
---
--- Unlike the popup it gates *before* any window exists: hosts call
--- `Astra:CreateKeySystem` first and create their window inside `onSuccess`.
--- There is no window to bind theme tokens to, so the theme is resolved once
--- at creation (the same value `CreateWindow` accepts) and baked in — a
--- transient modal that is usually gone before any `ChangeTheme` could move
--- it. Saved keys live beside the other Astra files at
--- `Astra/keys/<fileName>.txt`, and a matching file skips the UI entirely
--- (Rayfield's passthrough) straight into `onSuccess`.
---
--- The header always wears the Sirius mark (`props.icon` is ignored; a user
--- file at custom_asset/sirius.png still wins inside the resolver), the note
--- is plain instruction text that never copies, and 0-3 `links` buttons under
--- it carry every copy affordance: each face shows an icon and a name, the
--- URL itself stays hidden until a press copies it and surfaces it in a
--- notification. `getKeyUrl` is legacy sugar that prepends a "Get Key"
--- button, so old hosts keep working without a code change. Copy
--- confirmations run the real notification component against
--- `_notificationHost` — a window-shaped shim, because no window exists yet.]]
+--[[
+Standalone key gate: the Rayfield-style "enter your key" modal, drawn in
+Astra's own shell language so it reads as one family with the window that
+follows it — the 12px shell corner and WindowColor gradient card, the 8px
+field and button corners, the SurfaceStroke hairline, the accent Continue.
+
+Unlike the popup it gates *before* any window exists: hosts call
+`Astra:CreateKeySystem` first and create their window inside `onSuccess`.
+There is no window to bind theme tokens to, so the theme is resolved once
+at creation (the same value `CreateWindow` accepts) and baked in — a
+transient modal that is usually gone before any `ChangeTheme` could move
+it. Saved keys live beside the other Astra files at
+`Astra/keys/<fileName>.txt`, and a matching file skips the UI entirely
+(Rayfield's passthrough) straight into `onSuccess`.
+
+The header always wears the Sirius mark (`props.icon` is ignored; a user
+file at custom_asset/sirius.png still wins inside the resolver), the note
+is plain instruction text that never copies, and 0-3 `links` buttons under
+it carry every copy affordance: each face shows an icon and a name, the
+URL itself stays hidden until a press copies it and surfaces it in a
+notification. `getKeyUrl` is legacy sugar that prepends a "Get Key"
+button, so old hosts keep working without a code change. Copy
+confirmations run the real notification component against
+`_notificationHost` — a window-shaped shim, because no window exists yet.
+]]
 
 local KeySystem = {}
 KeySystem.__index = KeySystem
@@ -41,26 +43,30 @@ local Icons = require(script.Parent.Parent.icons)
 local image = require(script.Parent.Parent.images.image)
 local Notification = require(script.Parent.notification)
 
--- [[The gate arrives on the shared vocabulary: the card glides the last few
--- pixels to centre on `modal`, grows from its 93% entrance size on
--- `emphasized` (Rayfield's 0.6s Exponential pop, re-cut as a named spec),
--- surfaces fade on `normal`, copy and controls on `snappy`, the backdrop
--- dims quickest of all so focus lands on the card. A wrong key shakes the
--- card on `micro`/`snappy` — the motion service has no Elastic curve, so the
--- wobble is three chained lateral tweens instead of one spring. Closing
--- plays everything in reverse on `dropdownClose`: a gate leaves quicker
--- than it came.]]
+--[[
+The gate arrives on the shared vocabulary: the card glides the last few
+pixels to centre on `modal`, grows from its 93% entrance size on
+`emphasized` (Rayfield's 0.6s Exponential pop, re-cut as a named spec),
+surfaces fade on `normal`, copy and controls on `snappy`, the backdrop
+dims quickest of all so focus lands on the card. A wrong key shakes the
+card on `micro`/`snappy` — the motion service has no Elastic curve, so the
+wobble is three chained lateral tweens instead of one spring. Closing
+plays everything in reverse on `dropdownClose`: a gate leaves quicker
+than it came.
+]]
 local backdropTransparency = 0.5
 local entranceScale = 0.93
 local shakeOffset = 8
 
--- [[Geometry. The 400px card is the popup's width, so a gate and a dialog
--- read as one system; the height is measured from the note text (one or two
--- lines) and a present links row, and lands around 150-165px bare / ~200px
--- with buttons — the short wide card Rayfield's 500x187 gate made familiar,
--- re-cut for Astra's 600px window. Narrow viewports clamp the width instead
--- of clipping: the Continue button keeps its fixed width and the field
--- absorbs the shrink.]]
+--[[
+Geometry. The 400px card is the popup's width, so a gate and a dialog
+read as one system; the height is measured from the note text (one or two
+lines) and a present links row, and lands around 150-165px bare / ~200px
+with buttons — the short wide card Rayfield's 500x187 gate made familiar,
+re-cut for Astra's 600px window. Narrow viewports clamp the width instead
+of clipping: the Continue button keeps its fixed width and the field
+absorbs the shrink.
+]]
 local cardWidth = 400
 local minCardWidth = 280
 local viewportMargin = 48
@@ -84,14 +90,18 @@ local noteFontSize = 13
 local linkIconSize = 14
 local linkIconGap = 6
 local noteMaxLines = 2
--- [[The links row hard-caps at three buttons — one line of equal faces, like
--- the About card's tile row. The warn fires once when a host passes more.]]
+--[[
+The links row hard-caps at three buttons — one line of equal faces, like
+the About card's tile row. The warn fires once when a host passes more.
+]]
 local maxLinks = 3
 
--- [[One gate at a time: creating a second gate (a spam-executed loader, a
--- host that re-arms) retires the first instead of stacking cards. The
--- retired gate closes silently — `onClose` belongs to the user dismissing
--- the card, not to being superseded.]]
+--[[
+One gate at a time: creating a second gate (a spam-executed loader, a
+host that re-arms) retires the first instead of stacking cards. The
+retired gate closes silently — `onClose` belongs to the user dismissing
+the card, not to being superseded.
+]]
 local activeGate = nil
 
 local clipboardGlobals = { "setclipboard", "toclipboard", "setrbxclipboard", "set_clipboard" }
@@ -109,12 +119,14 @@ local function environment()
     return (getfenv and getfenv()) or _G
 end
 
--- [[There is no clipboard in the Roblox API surface the library targets, so
--- a link button asks the host for one: every executor spells it
--- differently, and Studio/Rojo spells it differently again. The lookup runs
--- per press rather than being cached at load, so a host that installs its
--- clipboard API after Astra loads is still found. Mirrors the Link
--- element's resolver.]]
+--[[
+There is no clipboard in the Roblox API surface the library targets, so
+a link button asks the host for one: every executor spells it
+differently, and Studio/Rojo spells it differently again. The lookup runs
+per press rather than being cached at load, so a host that installs its
+clipboard API after Astra loads is still found. Mirrors the Link
+element's resolver.
+]]
 local function clipboardWriter()
     local env = environment()
     if type(env) == "table" then
@@ -127,7 +139,7 @@ local function clipboardWriter()
             end
         end
 
-        -- [[Some hosts expose a `Clipboard` object instead of a global function.]]
+        -- Some hosts expose a `Clipboard` object instead of a global function.
         local clipboard = env.Clipboard
         if typeof(clipboard) == "table" then
             for _, name in clipboardMethods do
@@ -141,7 +153,7 @@ local function clipboardWriter()
         end
     end
 
-    -- [[Studio and Rojo: the only clipboard on the non-executor path.]]
+    -- Studio and Rojo: the only clipboard on the non-executor path.
     local ok, studioService = pcall(function()
         return game:GetService("StudioService")
     end)
@@ -164,10 +176,12 @@ local function resolveGlyph(candidates)
     return nil
 end
 
--- [[An entry's icon may be a pack name, a `pack:name` or a numeric asset id;
--- anything that does not resolve to a *different* loadable value simply
--- builds no glyph (the face falls back to name-only). Numbers pass through
--- untouched so a raw asset id still reaches the Image property.]]
+--[[
+An entry's icon may be a pack name, a `pack:name` or a numeric asset id;
+anything that does not resolve to a *different* loadable value simply
+builds no glyph (the face falls back to name-only). Numbers pass through
+untouched so a raw asset id still reaches the Image property.
+]]
 local function resolveLinkIcon(icon)
     if icon == nil or icon == 0 or icon == "" then
         return nil
@@ -182,13 +196,15 @@ local function resolveLinkIcon(icon)
     return resolvedIcon
 end
 
--- [[Link buttons: 0-3 entries `{ name, icon?, link }`. A bare single entry
--- may be passed without the outer array. Entries with no usable URL are
--- skipped with a warning (a named button that copies nothing is a host bug,
--- not an empty row like a blank key); missing names default to "Link".
--- `getKeyUrl` (legacy sugar) is prepended as the "Get Key" button, and
--- anything past three buttons warns and disappears — the promoted entry
--- keeps its slot, so an old getKeyUrl host never loses to a new links list.]]
+--[[
+Link buttons: 0-3 entries `{ name, icon?, link }`. A bare single entry
+may be passed without the outer array. Entries with no usable URL are
+skipped with a warning (a named button that copies nothing is a host bug,
+not an empty row like a blank key); missing names default to "Link".
+`getKeyUrl` (legacy sugar) is prepended as the "Get Key" button, and
+anything past three buttons warns and disappears — the promoted entry
+keeps its slot, so an old getKeyUrl host never loses to a new links list.
+]]
 local function normalizeLinks(props, getKeyUrl)
     local raw = props.links or props.Links
     local collected = {}
@@ -292,10 +308,12 @@ function KeySystem.new(props)
         _linkInteracts = {},
     }, KeySystem)
 
-    -- [[Remote keys are fetched once, up front, so submitting never yields on
-    -- the network: each entry is treated as a raw URL and its trimmed body
-    -- becomes the expected key. A URL that fails to fetch warns and is
-    -- dropped — it can never match, so a dead link fails closed, not open.]]
+    --[[
+    Remote keys are fetched once, up front, so submitting never yields on
+    the network: each entry is treated as a raw URL and its trimmed body
+    becomes the expected key. A URL that fails to fetch warns and is
+    dropped — it can never match, so a dead link fails closed, not open.
+    ]]
     local grabFromSite = props.grabKeyFromSite or props.GrabKeyFromSite or false
     for _, key in keys do
         key = tostring(key)
@@ -313,9 +331,11 @@ function KeySystem.new(props)
         end
     end
 
-    -- [[No keys to check against fails open with a loud warning (Rayfield's
-    -- passthrough): a host that misconfigured the gate still gets its `onSuccess`
-    -- instead of an unopenable card, and the warning says why.]]
+    --[[
+    No keys to check against fails open with a loud warning (Rayfield's
+    passthrough): a host that misconfigured the gate still gets its `onSuccess`
+    instead of an unopenable card, and the warning says why.
+    ]]
     if #self._expected == 0 then
         log.warn("Astra: key system has no keys to check against, passing through.")
         self.passed = true
@@ -324,8 +344,10 @@ function KeySystem.new(props)
         return self
     end
 
-    -- [[The saved-key passthrough: a file whose trimmed contents equal an
-    -- expected key skips the UI entirely, straight into `onSuccess`.]]
+    --[[
+    The saved-key passthrough: a file whose trimmed contents equal an
+    expected key skips the UI entirely, straight into `onSuccess`.
+    ]]
     if self.saveKey then
         local _, file = keyFilePath(self.fileName)
         local savedOk, saved = pcall(function()
@@ -379,11 +401,13 @@ function KeySystem:_fade(instance, prop, to, spec)
     return instance
 end
 
--- [[Instance creation without a window: plain `Instance.new` plus the one
--- `Window:Create` behaviour the gate needs — locale tokens resolve to their
--- translated string immediately. There is no live rebinding (the gate has no
--- `SetLocale` and rarely outlives the second it was dismissed in), only the
--- same initial value a window-built card would show.]]
+--[[
+Instance creation without a window: plain `Instance.new` plus the one
+`Window:Create` behaviour the gate needs — locale tokens resolve to their
+translated string immediately. There is no live rebinding (the gate has no
+`SetLocale` and rarely outlives the second it was dismissed in), only the
+same initial value a window-built card would show.
+]]
 function KeySystem:_create(className, props)
     local instance = Instance.new(className)
     for key, value in props do
@@ -415,11 +439,13 @@ function KeySystem:_build()
         cardW = math.max(minCardWidth, math.floor(viewportX - viewportMargin))
     end
 
-    -- [[The gate always wears the Sirius mark. props.icon is deliberately
-    -- [[ignored (acceptance: the header is forced) — the named asset still
-    -- [[honours a user file at custom_asset/sirius.png, and the old key
-    -- [[candidates below remain only as a defensive fallback if the named
-    -- [[asset ever fails to resolve.]]
+    --[[
+    The gate always wears the Sirius mark. props.icon is deliberately
+    ignored (acceptance: the header is forced) — the named asset still
+    honours a user file at custom_asset/sirius.png, and the old key
+    candidates below remain only as a defensive fallback if the named
+    asset ever fails to resolve.
+    ]]
     local headerIcon = Icons.resolve("sirius")
     if headerIcon == "sirius" then
         headerIcon = nil
@@ -454,10 +480,12 @@ function KeySystem:_build()
     self._enterSize =
         UDim2.fromOffset(math.floor(cardW * entranceScale), math.floor(totalH * entranceScale))
 
-    -- [[The gate keeps its own ScreenGui, like the popup: a dedicated root at
-    -- the popup DisplayOrder lifts the whole card above any window the host
-    -- already built, and there is no window to own the root — `Close` tracks
-    -- every connection and destroys the tree itself.]]
+    --[[
+    The gate keeps its own ScreenGui, like the popup: a dedicated root at
+    the popup DisplayOrder lifts the whole card above any window the host
+    already built, and there is no window to own the root — `Close` tracks
+    every connection and destroys the tree itself.
+    ]]
     self._screenGui = self:_create("ScreenGui", {
         Name = state.httpService:GenerateGUID(false),
         IgnoreGuiInset = true,
@@ -468,8 +496,10 @@ function KeySystem:_build()
         Parent = state.guiContainer,
     })
 
-    -- [[The backdrop swallows clicks but never dismisses: a key gate that
-    -- closes on a misclick is a gate the user did not mean to pass.]]
+    --[[
+    The backdrop swallows clicks but never dismisses: a key gate that
+    closes on a misclick is a gate the user did not mean to pass.
+    ]]
     self._backdrop = self:_fade(self:_create("Frame", {
         Name = "Backdrop",
         BackgroundColor3 = Color3.fromRGB(0, 0, 0),
@@ -579,8 +609,10 @@ function KeySystem:_buildHeader(headerIcon, hasIcon, headerH, hasSubtitle)
     })
 
     if hasIcon then
-        -- [[The mark is sized to the full header block (title+subtitle when
-        -- [[present) so one square spans both text lines, like the mockup.]]
+        --[[
+        The mark is sized to the full header block (title+subtitle when
+        present) so one square spans both text lines, like the mockup.
+        ]]
         self._headerIcon = self:_fade(self:_create("ImageLabel", {
             Image = headerIcon,
             Size = UDim2.fromOffset(headerH, headerH),
@@ -673,10 +705,12 @@ function KeySystem:_buildHeader(headerIcon, hasIcon, headerH, hasSubtitle)
     end
 end
 
--- [[The field and its Continue ride one row, like a search bar with its
--- action attached: the fixed-width button never moves, the field absorbs
--- narrow viewports, and the whole gate keeps its short-card silhouette
--- instead of growing a footer. Enter submits from the keyboard too.]]
+--[[
+The field and its Continue ride one row, like a search bar with its
+action attached: the fixed-width button never moves, the field absorbs
+narrow viewports, and the whole gate keeps its short-card silhouette
+instead of growing a footer. Enter submits from the keyboard too.
+]]
 function KeySystem:_buildFieldRow(theme)
     local row = self:_create("Frame", {
         Name = "FieldRow",
@@ -743,8 +777,10 @@ function KeySystem:_buildFieldRow(theme)
     self:_connect(self._input.Focused, function()
         motion.tween(self._input, { TextTransparency = 0 }, "fast")
     end)
-    -- [[Enter submits; any other focus loss (tapping Continue also
-    -- defocuses) stays silent, so one press can never submit twice.]]
+    --[[
+    Enter submits; any other focus loss (tapping Continue also
+    defocuses) stays silent, so one press can never submit twice.
+    ]]
     self:_connect(self._input.FocusLost, function(enterPressed)
         motion.tween(self._input, { TextTransparency = 0.6 }, "fast")
         if enterPressed then
@@ -816,11 +852,13 @@ function KeySystem:_buildFieldRow(theme)
     end)
 end
 
--- [[The note is the gate's instruction line and nothing else: always a
--- plain TextLabel, never a tap target — every copy affordance lives on the
--- link buttons below it. Long notes truncate past two lines instead of
--- growing the shell: hosts with a paragraph to write should keep it under
--- ~110 characters.]]
+--[[
+The note is the gate's instruction line and nothing else: always a
+plain TextLabel, never a tap target — every copy affordance lives on the
+link buttons below it. Long notes truncate past two lines instead of
+growing the shell: hosts with a paragraph to write should keep it under
+~110 characters.
+]]
 function KeySystem:_buildNote(theme, noteH)
     local noteRow = self:_create("Frame", {
         Name = "Note",
@@ -852,14 +890,16 @@ function KeySystem:_setNote(text)
     end
 end
 
--- [[The links row: up to three equal-width faces under the note
--- (LayoutOrder 4), drawn in the field's language — same FieldBackground
--- fill, ElementCornerRadius corners and SurfaceStroke hairline — so a copy
--- button reads as part of the input row it sits beneath. Each face shows
--- icon + name only; the URL never renders here. Widths share the row
--- exactly: a 1/n scale minus each button's fieldGap share of the (n-1)
--- gaps the list layout inserts between them, and the icon+name group is
--- measured and centered by hand (the file never leans on automatic sizing).]]
+--[[
+The links row: up to three equal-width faces under the note
+(LayoutOrder 4), drawn in the field's language — same FieldBackground
+fill, ElementCornerRadius corners and SurfaceStroke hairline — so a copy
+button reads as part of the input row it sits beneath. Each face shows
+icon + name only; the URL never renders here. Widths share the row
+exactly: a 1/n scale minus each button's fieldGap share of the (n-1)
+gaps the list layout inserts between them, and the icon+name group is
+measured and centered by hand (the file never leans on automatic sizing).
+]]
 function KeySystem:_buildLinkRow(theme, innerW)
     local count = #self._links
     local row = self:_create("Frame", {
@@ -885,8 +925,10 @@ function KeySystem:_buildLinkRow(theme, innerW)
         if iconUri == nil and link.icon == nil then
             iconUri = resolveGlyph(linkIconCandidates)
         end
-        -- [[The notification reuses this URI (nil = no icon slot) instead of
-        -- [[re-running a resolution that already missed once.]]
+        --[[
+        The notification reuses this URI (nil = no icon slot) instead of
+        re-running a resolution that already missed once.
+        ]]
         link.iconResolved = iconUri
 
         local iconRoom = if iconUri then linkIconSize + linkIconGap else 0
@@ -958,8 +1000,10 @@ function KeySystem:_buildLinkRow(theme, innerW)
         self._linkButtons[index] = button
         self._linkInteracts[index] = interact
 
-        -- [[Press copies even while locked — the lock is exactly when a user
-        -- [[needs the real-key link — and only a finished gate stops it.]]
+        --[[
+        Press copies even while locked — the lock is exactly when a user
+        needs the real-key link — and only a finished gate stops it.
+        ]]
         self:_connect(interact.MouseEnter, function()
             if self.closed then
                 return
@@ -979,12 +1023,14 @@ function KeySystem:_buildLinkRow(theme, innerW)
     end
 end
 
--- [[A link button press: copy the hidden URL, then reveal it in a
--- [[notification — the only place the link itself becomes visible. The card
--- [[is built directly against the shim (no entrance queue): taps are
--- [[human-paced and at most three buttons exist. An exact duplicate replaces
--- [[itself first, like Window:Notify. With no clipboard API there is nothing
--- [[to confirm, so the press falls back to the warning alone.]]
+--[[
+A link button press: copy the hidden URL, then reveal it in a
+notification — the only place the link itself becomes visible. The card
+is built directly against the shim (no entrance queue): taps are
+human-paced and at most three buttons exist. An exact duplicate replaces
+itself first, like Window:Notify. With no clipboard API there is nothing
+to confirm, so the press falls back to the warning alone.
+]]
 function KeySystem:_copyLink(link)
     if self.closed then
         return
@@ -1009,17 +1055,19 @@ function KeySystem:_copyLink(link)
     Notification.new(host, props, nil)
 end
 
--- [[A window-shaped shim so components/notification.luau runs before any
--- [[window exists. Notification needs Create/ResolveIcon/CreateGlow for its
--- [[card, Connect/Disconnect/DestroySubtree for its lifetime, plus the
--- [[theme, the notifications frame and the live/count bookkeeping — all
--- [[pointed at this gate's ScreenGui, stacking in the same 300x800
--- [[bottom-right lane the window uses (cards sit at z-index.notification,
--- [[above the gate card under Global z-behaviour). Create mirrors
--- [[Window:Create without the instance graveyard or live locale rebinding:
--- [[bindings resolve against the baked theme, tokens resolve once, and
--- [[images go through the shared image pipeline. Connections route back
--- [[through the gate's own sweep so Close still retires a live card.]]
+--[[
+A window-shaped shim so components/notification.luau runs before any
+window exists. Notification needs Create/ResolveIcon/CreateGlow for its
+card, Connect/Disconnect/DestroySubtree for its lifetime, plus the
+theme, the notifications frame and the live/count bookkeeping — all
+pointed at this gate's ScreenGui, stacking in the same 300x800
+bottom-right lane the window uses (cards sit at z-index.notification,
+above the gate card under Global z-behaviour). Create mirrors
+Window:Create without the instance graveyard or live locale rebinding:
+bindings resolve against the baked theme, tokens resolve once, and
+images go through the shared image pipeline. Connections route back
+through the gate's own sweep so Close still retires a live card.
+]]
 function KeySystem:_notificationHost()
     if self._notifyHost then
         return self._notifyHost
@@ -1111,9 +1159,11 @@ function KeySystem:_notificationHost()
         if index then
             table.remove(gate._connections, index)
         end
-        -- [[A gate Close may have already swept this connection; Roblox's
-        -- [[own Disconnect is idempotent, but pcall keeps the test doubles
-        -- [[and edge hosts from surfacing a double-disconnect.]]
+        --[[
+        A gate Close may have already swept this connection; Roblox's
+        own Disconnect is idempotent, but pcall keeps the test doubles
+        and edge hosts from surfacing a double-disconnect.
+        ]]
         pcall(function()
             connection:Disconnect()
         end)
@@ -1144,10 +1194,12 @@ function KeySystem:_show()
     end
 end
 
--- [[The one submit path: the button, Enter, and the tests all arrive here.
--- Comparison is strict after trimming — keys with significant surrounding
--- whitespace do not exist, but mobile keyboards that append a space do. An
--- empty submit is ignored without costing an attempt.]]
+--[[
+The one submit path: the button, Enter, and the tests all arrive here.
+Comparison is strict after trimming — keys with significant surrounding
+whitespace do not exist, but mobile keyboards that append a space do. An
+empty submit is ignored without costing an attempt.
+]]
 function KeySystem:_submit(text)
     if self.closed or self.locked then
         return
@@ -1223,10 +1275,12 @@ function KeySystem:_shake()
     end
 end
 
--- [[The lock is permanent for the gate's life: the field stops editing, the
--- action dims, the note says why. The host decides what exceeding the budget
--- means (Rayfield kicks the player; Astra delegates through
--- `onMaxAttempts`) — the gate itself only stops accepting keys.]]
+--[[
+The lock is permanent for the gate's life: the field stops editing, the
+action dims, the note says why. The host decides what exceeding the budget
+means (Rayfield kicks the player; Astra delegates through
+`onMaxAttempts`) — the gate itself only stops accepting keys.
+]]
 function KeySystem:_lock()
     self.locked = true
     if self._input then
@@ -1272,11 +1326,13 @@ function KeySystem:Close()
         return
     end
 
-    -- [[The exit tween is built raw, like the popup's: `motion.tween` skips
-    -- work (and its completion) when motion is disabled or the values match,
-    -- but the tree must be destroyed on every path. A zero-duration tween
-    -- still completes, so the destroy runs even under the `instant`
-    -- profile.]]
+    --[[
+    The exit tween is built raw, like the popup's: `motion.tween` skips
+    work (and its completion) when motion is disabled or the values match,
+    but the tree must be destroyed on every path. A zero-duration tween
+    still completes, so the destroy runs even under the `instant`
+    profile.
+    ]]
     local card = self._card
     if card then
         local closeTween = state.tweenService:Create(card, motion.spec("dropdownClose"), {

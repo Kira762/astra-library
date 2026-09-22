@@ -1,11 +1,15 @@
--- [[Mini Roblox environment for the sidebar tab-sizing test.]]
--- [[Extends the smoke stubs with a working Instance model (properties,]]
--- [[signals, parenting, destroy semantics) and service implementations]]
--- [[with deterministic behavior, so Astra:CreateWindow can run for real]]
--- [[and row sizes can be asserted.]]
+--[[
+Mini Roblox environment for the sidebar tab-sizing test.
+Extends the smoke stubs with a working Instance model (properties,
+signals, parenting, destroy semantics) and service implementations
+with deterministic behavior, so Astra:CreateWindow can run for real
+and row sizes can be asserted.
+]]
 
--- The Luau CLI locks _G, so provide the executor's getgenv() store that the
--- entrypoint prefers for its active-window guard.
+--[[
+The Luau CLI locks _G, so provide the executor's getgenv() store that the
+entrypoint prefers for its active-window guard.
+]]
 local genvStore = {}
 getgenv = function()
 	return genvStore
@@ -19,10 +23,12 @@ end
 
 UDim = { new = function(xs, xo) return udim(xs, xo) end }
 
--- [[UDim2 answers the two members the drag paths use: `:Lerp` (the smooth
--- [[follow a dragged window rides) and the Scale/Offset reads every layout
--- [[does. UDim2 values are still plain `{ X, Y }` tables, so nothing that
--- [[reads them changes shape.
+--[[
+UDim2 answers the two members the drag paths use: `:Lerp` (the smooth
+follow a dragged window rides) and the Scale/Offset reads every layout
+does. UDim2 values are still plain `{ X, Y }` tables, so nothing that
+reads them changes shape.
+]]
 local udim2
 local udim2Meta = {}
 function udim2Meta.__index(v, key)
@@ -49,12 +55,14 @@ UDim2 = {
 	fromOffset = function(xo, yo) return udim2(0, xo, 0, yo) end,
 }
 
--- [[Vectors answer the operators the engine's do. `AbsolutePosition + offset`,
--- [[`size * anchor`, `pointer - start` and `.Magnitude` all appear in the drag
--- [[paths, which the suites drive through real input events; without the
--- [[arithmetic those paths die on "attempt to perform arithmetic" before any
--- [[assertion can see them. A plain `{ X, Y }` table is still what comes out,
--- [[so every existing reader is unaffected.
+--[[
+Vectors answer the operators the engine's do. `AbsolutePosition + offset`,
+`size * anchor`, `pointer - start` and `.Magnitude` all appear in the drag
+paths, which the suites drive through real input events; without the
+arithmetic those paths die on "attempt to perform arithmetic" before any
+assertion can see them. A plain `{ X, Y }` table is still what comes out,
+so every existing reader is unaffected.
+]]
 local vector2Meta = {}
 vector2Meta.__index = function(v, key)
 	if key == "Magnitude" then
@@ -111,7 +119,7 @@ ColorSequenceKeypoint = { new = function(time, value) return { Time = time, Valu
 ColorSequence = {
 	new = function(...)
 		local args = table.pack(...)
-		-- [[ColorSequence.new(colorA, colorB) gradient form.]]
+		-- ColorSequence.new(colorA, colorB) gradient form.
 		if args.n == 2 and type(args[1]) == "table" and args[1].R ~= nil and type(args[2]) == "table" and args[2].R ~= nil then
 			return {
 				Keypoints = {
@@ -121,12 +129,14 @@ ColorSequence = {
 			}
 		end
 		local keypoints = args.n >= 1 and args[1] or nil
-		-- [[Already a ColorSequence (the stub's sequences are plain tables,]]
-		-- [[so toColorSequence's typeof check re-wraps them; stay idempotent).]]
+		--[[
+		Already a ColorSequence (the stub's sequences are plain tables,
+		so toColorSequence's typeof check re-wraps them; stay idempotent).
+		]]
 		if type(keypoints) == "table" and type(keypoints.Keypoints) == "table" then
 			return { Keypoints = keypoints.Keypoints }
 		end
-		-- [[ColorSequence.new(color) vs ColorSequence.new(keypointArray).]]
+		-- ColorSequence.new(color) vs ColorSequence.new(keypointArray).
 		if type(keypoints) == "table" and keypoints.Time == nil and keypoints.R ~= nil then
 			return {
 				Keypoints = {
@@ -164,15 +174,17 @@ Font = {
 	end,
 }
 
--- Memoized Enum so EnumItem identity is stable (== comparisons work).
--- [[A few categories are policed, because the engine answers a name it does not
--- [[know with `<name> is not a valid member of "Enum.<Category>"` - an error,
--- [[not nil - and library code names members at module load (`pressTypes`) or in
--- [[the middle of a draw (`isPremium`), where one invented member kills the
--- [[require or the frame. A permissive stub hides that class of bug completely:
--- [[`Enum.UserInputType.Pen` and `Enum.MembershipType.Free` (neither has ever
--- [[existed) sailed through every suite here and crashed on a real client. The
--- [[values are the engine's, so anything reading `.Value` agrees too.]]
+--[[
+Memoized Enum so EnumItem identity is stable (== comparisons work).
+A few categories are policed, because the engine answers a name it does not
+know with `<name> is not a valid member of "Enum.<Category>"` - an error,
+not nil - and library code names members at module load (`pressTypes`) or in
+the middle of a draw (`isPremium`), where one invented member kills the
+require or the frame. A permissive stub hides that class of bug completely:
+`Enum.UserInputType.Pen` and `Enum.MembershipType.Free` (neither has ever
+existed) sailed through every suite here and crashed on a real client. The
+values are the engine's, so anything reading `.Value` agrees too.
+]]
 local strictEnumMembers = {
 	UserInputType = {
 		MouseButton1 = 0,
@@ -206,8 +218,10 @@ local strictEnumMembers = {
 	},
 }
 
--- [[The Enum's own methods, which every category answers and which are never
--- [[members (`utilities/enums.luau` reaches for both, inside a pcall).]]
+--[[
+The Enum's own methods, which every category answers and which are never
+members (`utilities/enums.luau` reaches for both, inside a pcall).
+]]
 local enumMethods = { FromValue = true, GetEnumItems = true }
 
 local enumCategories = {}
@@ -218,8 +232,10 @@ Enum = setmetatable({}, {
 			local known = strictEnumMembers[category]
 			cat = setmetatable({}, {
                 __tostring = function() return "Enum." .. category end,
-				-- [[An Enum category is an Enum, not a table: typeof() below reads
-				-- [[this marker so the library sees the engine's answer.]]
+				--[[
+				An Enum category is an Enum, not a table: typeof() below reads
+				this marker so the library sees the engine's answer.
+				]]
 				__type = "Enum",
 				__index = function(self, item)
                     if item == "GetEnumItems" then
@@ -260,9 +276,11 @@ Enum = setmetatable({}, {
 	end,
 })
 
--- [[The standalone Luau CLI has no Roblox datatypes, so teach typeof() about
--- [[the EnumItem marker the table above carries - the same answer the engine
--- [[gives, which is what the library's EnumItem checks expect.]]
+--[[
+The standalone Luau CLI has no Roblox datatypes, so teach typeof() about
+the EnumItem marker the table above carries - the same answer the engine
+gives, which is what the library's EnumItem checks expect.
+]]
 local rawTypeof = typeof
 function typeof(value)
 	if type(value) == "table" then
@@ -399,16 +417,18 @@ local function isA(className, target)
 	return className == target or isAncestorOf(className, target)
 end
 
--- [[Engine property defaults. A real GuiObject answers every property it has,
--- [[assigned or not: a Frame's Position reads (0, 0, 0, 0) until a layout or a
--- [[tween moves it, its ZIndex reads 1, a TextLabel's Text reads "". The
--- [[library leans on that on instances it only ever places through a layout —
--- [[the topbar pill whose Position the strip scrolls past, the element bodies
--- [[whose AnchorPoint drives a centring tween — so unassigned members read
--- [[their engine default here instead of nil, which is what used to take
--- [[whole suites down with "attempt to index nil with 'X'" before any
--- [[assertion ran. Values are built lazily: the datatype tables above are
--- [[shared and a default must never be mutated by a test.]]
+--[[
+Engine property defaults. A real GuiObject answers every property it has,
+assigned or not: a Frame's Position reads (0, 0, 0, 0) until a layout or a
+tween moves it, its ZIndex reads 1, a TextLabel's Text reads "". The
+library leans on that on instances it only ever places through a layout —
+the topbar pill whose Position the strip scrolls past, the element bodies
+whose AnchorPoint drives a centring tween — so unassigned members read
+their engine default here instead of nil, which is what used to take
+whole suites down with "attempt to index nil with 'X'" before any
+assertion ran. Values are built lazily: the datatype tables above are
+shared and a default must never be mutated by a test.
+]]
 local propertyDefaults = {
 	Instance = {
 		Archivable = true,
@@ -475,12 +495,14 @@ local propertyDefaults = {
 	},
 }
 
--- [[Members only some classes answer, in the engine's own vocabulary:
--- [[indexing them anywhere else raises "<name> is not a valid member of
--- [[<class>". Each of these reads as its own class's default (see
--- [[propertyDefaults above), so a read on the wrong class used to answer a
--- [[value here and now throws like the engine does. Values name the class
--- [[the member belongs to.
+--[[
+Members only some classes answer, in the engine's own vocabulary:
+indexing them anywhere else raises "<name> is not a valid member of
+<class>". Each of these reads as its own class's default (see
+propertyDefaults above), so a read on the wrong class used to answer a
+value here and now throws like the engine does. Values name the class
+the member belongs to.
+]]
 local classOnlyMembers = {
 	ImageLabel = "ImageLabel",
 	ImageButton = "ImageButton",
@@ -495,10 +517,12 @@ local classOnlyMembers = {
 	ElasticBehavior = "ScrollingFrame",
 }
 
--- [[Class names a GuiObject child lookup may resolve to. Roblox raises
--- [["<name> is not a valid member of <class>" for anything else, so a panel
--- [[that indexes a child that is not there cannot quietly read nil (and pass
--- [[a suite) while the engine throws on the first frame it is shown.
+--[[
+Class names a GuiObject child lookup may resolve to. Roblox raises
+"<name> is not a valid member of <class>" for anything else, so a panel
+that indexes a child that is not there cannot quietly read nil (and pass
+a suite) while the engine throws on the first frame it is shown.
+]]
 local CHILD_CLASS_NAMES = {
 	Frame = true,
 	ScrollingFrame = true,
@@ -524,9 +548,11 @@ local CHILD_CLASS_NAMES = {
 	UIShadow = true,
 }
 
--- [[EnumItem-valued defaults are read from Enum so identity comparison works;
--- [[a raw string would not equal Enum.AutomaticSize.None under typeof/marker
--- [[rules. Keep the mapping tiny and explicit.]]
+--[[
+EnumItem-valued defaults are read from Enum so identity comparison works;
+a raw string would not equal Enum.AutomaticSize.None under typeof/marker
+rules. Keep the mapping tiny and explicit.
+]]
 local enumDefaults = {
 	AutomaticSize = { "AutomaticSize", "None" },
 	ScrollingDirection = { "ScrollingDirection", "XY" },
@@ -650,16 +676,20 @@ function instanceMethods:GetPropertyChangedSignal(propName)
 	return cache[propName]
 end
 
--- [[TextBox focus is a no-op in the harness: the library only uses it to put
--- [[the caret in the search field, which has no visual state here.]]
+--[[
+TextBox focus is a no-op in the harness: the library only uses it to put
+the caret in the search field, which has no visual state here.
+]]
 function instanceMethods:CaptureFocus() end
 
 function instanceMethods:ReleaseFocus() end
 
 function instanceMethods:JumpTo(page)
-	-- [[Emulates UIPageLayout: the page must be a visible sibling of the]]
-	-- [[layout (a GuiObject child of the layout's parent). Anything else]]
-	-- [[throws, like the real layout.]]
+	--[[
+	Emulates UIPageLayout: the page must be a visible sibling of the
+	layout (a GuiObject child of the layout's parent). Anything else
+	throws, like the real layout.
+	]]
 	local parent = self.Parent
 	if parent == nil then
 		return
@@ -683,7 +713,7 @@ end
 
 local function newInstance(className)
 	local instance = {
-		-- [[Roblox defaults a new instance's Name to its class name.]]
+		-- Roblox defaults a new instance's Name to its class name.
 		__props = { ClassName = className, Name = className },
 		__children = {},
 		__signals = {},
@@ -706,12 +736,14 @@ local function newInstance(className)
 			if key == "AbsoluteSize" then
 				return absoluteSize(self)
 			end
-			-- [[ScrollingFrame-only members. The engine raises "X is not a]]
-			-- [[valid member of Frame" when anything else is indexed for]]
-			-- [[them; modelling that keeps a group body (a plain Frame) or]]
-			-- [[any other non-scroll surface from silently reading like a]]
-			-- [[scroll page in tests, which is how the dropdown's]]
-			-- [[_bringIntoView crash reached a real session unnoticed.]]
+			--[[
+			ScrollingFrame-only members. The engine raises "X is not a
+			valid member of Frame" when anything else is indexed for
+			them; modelling that keeps a group body (a plain Frame) or
+			any other non-scroll surface from silently reading like a
+			scroll page in tests, which is how the dropdown's
+			_bringIntoView crash reached a real session unnoticed.
+			]]
 			if key == "AbsoluteWindowSize" or key == "CanvasPosition" or key == "AbsoluteCanvasSize" then
 				if props.ClassName ~= "ScrollingFrame" then
 					error(key .. " is not a valid member of " .. tostring(props.ClassName), 2)
@@ -720,17 +752,21 @@ local function newInstance(className)
 					return absoluteSize(self)
 				end
 				if key == "CanvasPosition" then
-					-- [[The engine always answers a Vector2 here: a frame that
-					-- [[has never been scrolled reads (0, 0), never nil. The
-					-- [[topbar's fade logic compares against it before any
-					-- [[scroll has happened, so nil used to take every suite
-					-- [[down with "attempt to index nil with 'X'".]]
+					--[[
+					The engine always answers a Vector2 here: a frame that
+					has never been scrolled reads (0, 0), never nil. The
+					topbar's fade logic compares against it before any
+					scroll has happened, so nil used to take every suite
+					down with "attempt to index nil with 'X'".
+					]]
 					local position = props.CanvasPosition
 					return { X = position and position.X or 0, Y = position and position.Y or 0 }
 				end
-				-- [[AbsoluteCanvasSize follows CanvasSize, resolved against
-				-- [[the viewport the same way the engine resolves a UDim2.
-				-- [[CanvasSize is left untouched (the suites assert on it).]]
+				--[[
+				AbsoluteCanvasSize follows CanvasSize, resolved against
+				the viewport the same way the engine resolves a UDim2.
+				CanvasSize is left untouched (the suites assert on it).
+				]]
 				local canvas = props.CanvasSize
 				if canvas then
 					local viewport = absoluteSize(self)
@@ -751,14 +787,16 @@ local function newInstance(className)
 			end
 			return signals[key]
 		end
-		-- [[Class-only members: the engine raises for every class outside]]
-		-- [[their real hierarchy, so the same read that works on the right]]
-		-- [[element throws on a stray one instead of reading nil.]]
+		--[[
+		Class-only members: the engine raises for every class outside
+		their real hierarchy, so the same read that works on the right
+		element throws on a stray one instead of reading nil.
+		]]
 		local owner = classOnlyMembers[key]
 		if owner and not isA(props.ClassName, owner) then
 			error(key .. " is not a valid member of " .. tostring(props.ClassName), 2)
 		end
-		-- [[Roblox semantics: instance.ChildName finds a child by Name.]]
+		-- Roblox semantics: instance.ChildName finds a child by Name.
 		local children = rawget(self, "__children")
 		if children then
 			for i = 1, #children do
@@ -769,15 +807,19 @@ local function newInstance(className)
 				end
 			end
 		end
-		-- [[...and indexing a child name that is not there is an error, not]]
-		-- [[nil. Only names that a real GuiObject child can carry raise: a]]
-		-- [[mistyped property still falls through to its default, so this]]
-		-- [[models the engine instead of second-guessing the library.]]
+		--[[
+		...and indexing a child name that is not there is an error, not
+		nil. Only names that a real GuiObject child can carry raise: a
+		mistyped property still falls through to its default, so this
+		models the engine instead of second-guessing the library.
+		]]
 		if CHILD_CLASS_NAMES[key] then
 			error(key .. " is not a valid member of " .. tostring(props.ClassName), 2)
 		end
-		-- [[Nothing assigned: answer the engine's default for the member (see
-		-- [[propertyDefaults above) instead of nil.]]
+		--[[
+		Nothing assigned: answer the engine's default for the member (see
+		propertyDefaults above) instead of nil.
+		]]
 		return defaultValue(props.ClassName, key)
 	end,
 		__newindex = function(self, key, value)
@@ -849,13 +891,15 @@ services.TweenService = {
 							error(err, 0)
 						end
 					end
-					-- [[The engine hands the finished PlaybackState to every
-					-- `Completed` listener; firing nothing left listeners that
-					-- gate their teardown on `Enum.PlaybackState.Completed`
-					-- (`Popup:Close`, the notification collapse) never running
-					-- at all, so dismissed dialogs stayed parented forever.
-					-- The harness plays a tween to its end, so Completed is
-					-- the only state it ever reports.]]
+					--[[
+					The engine hands the finished PlaybackState to every
+					`Completed` listener; firing nothing left listeners that
+					gate their teardown on `Enum.PlaybackState.Completed`
+					(`Popup:Close`, the notification collapse) never running
+					at all, so dismissed dialogs stayed parented forever.
+					The harness plays a tween to its end, so Completed is
+					the only state it ever reports.
+					]]
 					completed:Fire(Enum.PlaybackState.Completed)
 			end,
 			Cancel = function()
@@ -1090,8 +1134,10 @@ services.HttpService = {
 }
 
 services.TextService = {
-	-- [[Deterministic metrics: 0.6 * size per character. The test computes]]
-	-- [[its expected widths from this same formula.]]
+	--[[
+	Deterministic metrics: 0.6 * size per character. The test computes
+	its expected widths from this same formula.
+	]]
 	GetTextBoundsAsync = function(_, params)
 		local text = tostring(params.Text or "")
 		local size = params.Size or 16
@@ -1131,17 +1177,21 @@ local localPlayer = {
 	Name = "TestUser",
 	UserId = 42,
 	DisplayName = "TestUser",
-	-- [[Membership: the profile card's premium pill reads this. Premium by
-	-- [[default so the pill's layout is testable; tests set it to None to
-	-- [[check it disappears again.]]
+	--[[
+	Membership: the profile card's premium pill reads this. Premium by
+	default so the pill's layout is testable; tests set it to None to
+	check it disappears again.
+	]]
 	MembershipType = Enum.MembershipType.Premium,
 	PlayerGui = newInstance("ScreenGui"),
 }
 
 services.Players = {
 	LocalPlayer = localPlayer,
-	-- [[Player capacity/roster: the profile card reads these for its SERVER
-	-- [[section. Tests overwrite them to exercise the "no data" placeholders.]]
+	--[[
+	Player capacity/roster: the profile card reads these for its SERVER
+	section. Tests overwrite them to exercise the "no data" placeholders.
+	]]
 	MaxPlayers = 50,
 	GetPlayers = function()
 		return { localPlayer }
@@ -1264,17 +1314,23 @@ local FRAME_DT = 0.05
 function task.wait(seconds)
 	local co = coroutine.running()
 	if co == mainThread then
-		-- [[The CLI main thread cannot yield; the test body never waits,]]
-		-- [[so treat a stray wait as a no-op pump of due work.]]
+		--[[
+		The CLI main thread cannot yield; the test body never waits,
+		so treat a stray wait as a no-op pump of due work.
+		]]
 		pumpQueue(virtualNow)
 		return FRAME_DT
 	end
-	-- [[Roblox: task.wait() with no argument yields for one frame and]]
-	-- [[returns the frame's elapsed time; task.wait(t) yields for t.]]
+	--[[
+	Roblox: task.wait() with no argument yields for one frame and
+	returns the frame's elapsed time; task.wait(t) yields for t.
+	]]
 	local wakeAt
 	if seconds == nil then
-		-- [[Tolerance: floating-point drift must not make the "next frame"]]
-		-- [[boundary collapse onto the current time (infinite requeue).]]
+		--[[
+		Tolerance: floating-point drift must not make the "next frame"
+		boundary collapse onto the current time (infinite requeue).
+		]]
 		wakeAt = (math.floor(virtualNow / FRAME_DT + 1e-9) + 1) * FRAME_DT
 	else
 		wakeAt = virtualNow + seconds
@@ -1310,10 +1366,12 @@ TestPump = function(seconds)
 	end
 end
 
--- ===== shared profile-card test helpers =====
--- The profile card builds lazily: it only exists once "Show profile" is on
--- (default off). Tests that assert card internals enable it the same way a
--- user does - through the settings toggle - so they exercise the lazy path.
+--[[
+===== shared profile-card test helpers =====
+The profile card builds lazily: it only exists once "Show profile" is on
+(default off). Tests that assert card internals enable it the same way a
+user does - through the settings toggle - so they exercise the lazy path.
+]]
 function FindSettingsElement(targetWindow, tabName, elementName)
 	targetWindow:_buildSettingsUI()
 	for _, tab in targetWindow._settingsTabs do

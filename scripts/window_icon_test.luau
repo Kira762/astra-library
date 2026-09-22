@@ -1,20 +1,22 @@
--- ===== default window icon (topbar + collapsed capsule) regression =====
--- [[Runs the real Astra bundle (loaded as global `Astra` above) against the]]
--- [[mini Roblox environment from sidebar_sizing_stubs.luau.]]
--- [[
--- [[The centralize-icons change dropped the `sirius` named asset and moved]]
--- [[assets/window-icons/sirius.png away, so the default window icon resolved]]
--- [[to the bare string "sirius": the topbar window icon and the collapsed]]
--- [[capsule (pill) icon both rendered blank. This suite pins the chain back:]]
--- [[  * W1  "sirius" (and the legacy "Sirius" spelling) resolves to the]]
--- [[         loadable assets/window-icons/sirius.png source - never the]]
--- [[         bare name, which no Image property can load,]]
--- [[  * W2  a window built with no icon carries that loadable value on]]
--- [[         both `icon` (topbar) and `showIcon` (capsule), and both]]
--- [[         labels exist,]]
--- [[  * W3  a user file at custom_asset/sirius.png wins over the named]]
--- [[         asset, and dropping it restores the named source,]]
--- [[  * W4  an explicit CreateWindow icon still resolves from the packs.]]
+--[[
+===== default window icon (topbar + collapsed capsule) regression =====
+Runs the real Astra bundle (loaded as global `Astra` above) against the
+mini Roblox environment from sidebar_sizing_stubs.luau.
+
+The centralize-icons change dropped the `sirius` named asset and moved
+assets/window-icons/sirius.png away, so the default window icon resolved
+to the bare string "sirius": the topbar window icon and the collapsed
+capsule (pill) icon both rendered blank. This suite pins the chain back:
+  * W1  "sirius" (and the legacy "Sirius" spelling) resolves to the
+         loadable assets/window-icons/sirius.png source - never the
+         bare name, which no Image property can load,
+  * W2  a window built with no icon carries that loadable value on
+         both `icon` (topbar) and `showIcon` (capsule), and both
+         labels exist,
+  * W3  a user file at custom_asset/sirius.png wins over the named
+         asset, and dropping it restores the named source,
+  * W4  an explicit CreateWindow icon still resolves from the packs.
+]]
 
 local function expect(cond, message)
 	if not cond then

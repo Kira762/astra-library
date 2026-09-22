@@ -1,14 +1,16 @@
--- ===== Default-only theme behaviour =====
--- Runs the real Astra bundle against the mini Roblox environment from
--- sidebar_sizing_stubs.luau. Colour palettes other than `default` were
--- removed, so Appearance no longer offers a theme picker. This suite
--- pins that:
---   * a fresh window is on the default palette,
---   * Appearance has no Theme group,
---   * Bar Layout and Motion & Feedback remain,
---   * ChangeTheme("default") is a no-op on the palette,
---   * an unknown built-in name falls back to default,
---   * a custom theme table still overlays keys.
+--[[
+===== Default-only theme behaviour =====
+Runs the real Astra bundle against the mini Roblox environment from
+sidebar_sizing_stubs.luau. Colour palettes other than `default` were
+removed, so Appearance no longer offers a theme picker. This suite
+pins that:
+  * a fresh window is on the default palette,
+  * Appearance has no Theme group,
+  * Bar Layout and Motion & Feedback remain,
+  * ChangeTheme("default") is a no-op on the palette,
+  * an unknown built-in name falls back to default,
+  * a custom theme table still overlays keys.
+]]
 
 local function expect(cond, message)
 	if not cond then

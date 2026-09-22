@@ -12,14 +12,18 @@ function Window:_bindKeybind()
         if self._keybindCapture then self._keybindCapture:CancelCapture() end
     end)
     self:Connect(state.userInputService.InputBegan, function(input, gameProcessed)
-        -- Route capture before the toggle so rebinding the current key cannot
-        -- hide the window. Only one element owns capture at a time.
+        --[[
+        Route capture before the toggle so rebinding the current key cannot
+        hide the window. Only one element owns capture at a time.
+        ]]
         local capture = self._keybindCapture
         if capture then
             local focused = state.userInputService:GetFocusedTextBox()
-            -- The keybind is itself an editable TextBox. Let its owner keep
-            -- receiving keyboard input while focused; other text boxes still
-            -- retain the normal protection from global shortcut capture.
+            --[[
+            The keybind is itself an editable TextBox. Let its owner keep
+            receiving keyboard input while focused; other text boxes still
+            retain the normal protection from global shortcut capture.
+            ]]
             if not gameProcessed and (not focused or focused == capture.input or focused == capture.keyButton) then
                 capture:_captureInput(input)
             end
@@ -89,8 +93,10 @@ function Window:_bindTopbarDrag()
             local mainSize = self.main.AbsoluteSize
             local screenSize = self.screenGui.AbsoluteSize
             local margin = 8
-            -- [[The frame's own size is used: mid-minimise it is shorter]]
-            -- [[than window.size.]]
+            --[[
+            The frame's own size is used: mid-minimise it is shorter
+            than window.size.
+            ]]
             local halfLeft = mainSize.X / 2
             local halfRight = halfLeft
             local halfTop = mainSize.Y / 2
@@ -104,9 +110,11 @@ function Window:_bindTopbarDrag()
     local function endDrag()
         isDragging = false
         if hasMoved then
-            -- [[The move is over: the handle drops back to its resting look
-            -- [[and stays where it is — that faint pill under the window is
-            -- [[the affordance the next drag starts from.
+            --[[
+            The move is over: the handle drops back to its resting look
+            and stays where it is — that faint pill under the window is
+            the affordance the next drag starts from.
+            ]]
             hasMoved = false
             if self.drag then
                 self.drag:setMoving(false)
@@ -128,19 +136,23 @@ function Window:_bindTopbarDrag()
             return
         end
 
-        -- [[Do not reposition the window for a simple click/tap. Wait until]]
-        -- [[the pointer has actually moved before treating the gesture as drag.]]
+        --[[
+        Do not reposition the window for a simple click/tap. Wait until
+        the pointer has actually moved before treating the gesture as drag.
+        ]]
         local pointer = inputService:GetMouseLocation()
         if (pointer - startMousePos).Magnitude < 4 then
             return
         end
 
         if not hasMoved then
-            -- [[The pointer has left the threshold, so this is a move and not
-            -- [[a click: bring the handle out for the length of it. Nothing is
-            -- [[pointing at the handle (the gesture started on the topbar), so
-            -- [[this is the one moment it has to show itself — the pill
-            -- [[brightens here and settles back when the move ends.
+            --[[
+            The pointer has left the threshold, so this is a move and not
+            a click: bring the handle out for the length of it. Nothing is
+            pointing at the handle (the gesture started on the topbar), so
+            this is the one moment it has to show itself — the pill
+            brightens here and settles back when the move ends.
+            ]]
             hasMoved = true
             tooltip.hide(self)
             if self.drag then

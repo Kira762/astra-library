@@ -1,31 +1,33 @@
--- ===== dropdown bulk-action row assertions =====
--- [[Runs the real Astra bundle (loaded as global `Astra` above) against the]]
--- [[mini Roblox environment from sidebar_sizing_stubs.luau.]]
---
--- A multi-select dropdown's Select all / Clear line used to be two bare text
--- buttons with no state of their own, sitting at the left of a 22px strip. It
--- is now a checkbox and a bin: the box answers for the options the list is
--- showing, Select all toggles that set, and Clear still removes only what the
--- filter shows.
---
--- Expected behavior under test:
---   * A1 only a multi-select dropdown carries the row, and the row holds the
---     checkbox + "Select all" at its left edge and "Clear" + its bin at the
---     right,
---   * A2 the box is on when every visible option is selected and off
---     otherwise: the drawn outline shows when it is off, the check glyph the
---     rows use when it is on,
---   * A3 Select all fills the visible set from whatever the selection was,
---   * A4 clicking it again - with everything visible already selected -
---     clears that same set instead,
---   * A5 Clear removes what is visible and leaves the options the filter
---     hides alone,
---   * A6 the box follows individual picks and a changed filter,
---   * A7 the taller row is what the open panel pays for, between the search
---     bar and the list,
---   * A8 an unchecked box keeps its hover brightness when a click empties it
---     under the pointer,
---   * A9 the bin resolves to a real pack icon.
+--[[
+===== dropdown bulk-action row assertions =====
+Runs the real Astra bundle (loaded as global `Astra` above) against the
+mini Roblox environment from sidebar_sizing_stubs.luau.
+
+A multi-select dropdown's Select all / Clear line used to be two bare text
+buttons with no state of their own, sitting at the left of a 22px strip. It
+is now a checkbox and a bin: the box answers for the options the list is
+showing, Select all toggles that set, and Clear still removes only what the
+filter shows.
+
+Expected behavior under test:
+  * A1 only a multi-select dropdown carries the row, and the row holds the
+    checkbox + "Select all" at its left edge and "Clear" + its bin at the
+    right,
+  * A2 the box is on when every visible option is selected and off
+    otherwise: the drawn outline shows when it is off, the check glyph the
+    rows use when it is on,
+  * A3 Select all fills the visible set from whatever the selection was,
+  * A4 clicking it again - with everything visible already selected -
+    clears that same set instead,
+  * A5 Clear removes what is visible and leaves the options the filter
+    hides alone,
+  * A6 the box follows individual picks and a changed filter,
+  * A7 the taller row is what the open panel pays for, between the search
+    bar and the list,
+  * A8 an unchecked box keeps its hover brightness when a click empties it
+    under the pointer,
+  * A9 the bin resolves to a real pack icon.
+]]
 
 local function expect(cond, message)
 	if not cond then
@@ -50,8 +52,10 @@ local function count(inst)
 	return n
 end
 
--- [[The checkbox's two visible halves: the glyph the rows use and the outline
--- [[the unchecked box draws. Exactly one of them is showing.]]
+--[[
+The checkbox's two visible halves: the glyph the rows use and the outline
+the unchecked box draws. Exactly one of them is showing.
+]]
 local function boxState(dropdown)
 	return {
 		glyph = dropdown.selectAllCheck.ImageTransparency,
@@ -223,8 +227,10 @@ eq(boxState(multi).glyph, 0, "A6 selecting the last missing option fills it")
 -- ===== A7: the row is what the open panel pays for =====
 
 closeDropdown(multi)
--- [[Both dropdowns are compared with their rows materialised: a never-opened
--- [[one measures as a single row, which is a different sum entirely.]]
+--[[
+Both dropdowns are compared with their rows materialised: a never-opened
+one measures as a single row, which is a different sum entirely.
+]]
 local rowsOnly = tab:CreateDropdown({ name = "Rows only", options = { "One", "Two", "Three" }, value = "One" })
 openDropdown(rowsOnly)
 closeDropdown(rowsOnly)
@@ -238,8 +244,10 @@ eq(
 
 -- ===== A8: the box keeps its hover brightness =====
 
--- [[Unchecking the box with the pointer still on it must not drop the outline
--- [[to the idle dim: the click that empties it leaves the pointer hovering.]]
+--[[
+Unchecking the box with the pointer still on it must not drop the outline
+to the idle dim: the click that empties it leaves the pointer hovering.
+]]
 local hover = tab:CreateDropdown({
 	name = "Hover",
 	options = { "One", "Two" },

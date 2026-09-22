@@ -9,8 +9,10 @@ local log = require(utilities.log)
 local haptic = require(utilities.HapticEngine)
 local motion = require(utilities.motion)
 
--- [[The unread dot is a dot: half its own size, so the 8px badge is a circle
--- [[pinned to the action's corner rather than a small red square.]]
+--[[
+The unread dot is a dot: half its own size, so the 8px badge is a circle
+pinned to the action's corner rather than a small red square.
+]]
 local badgeSize = 8
 local badgeRadius = UDim.new(0, badgeSize / 2)
 
@@ -55,9 +57,11 @@ function Action.new(window, props)
         Parent = self.action,
     })
 
-    -- [[Optional unread dot: a fixed red badge pinned to the]]
-    -- [[action's top-right corner. Created after the]]
-    -- [[interact button so it renders above it; frames sink no input.]]
+    --[[
+    Optional unread dot: a fixed red badge pinned to the
+    action's top-right corner. Created after the
+    interact button so it renders above it; frames sink no input.
+    ]]
     if props.badge or props.Badge then
         self.badge = self.window:Create("Frame", {
             Name = "Badge",

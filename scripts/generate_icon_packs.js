@@ -54,11 +54,13 @@ for (const pack of PACKS) {
   expected[pack] = urls;
 
   const lines = [];
-  lines.push(`-- [[${pack} icon pack.]]`);
-  lines.push("-- [[Compact catalog: names only. PNG URLs are derived on demand by]]");
-  lines.push("-- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]");
-  lines.push("-- [[parses as one string constant instead of thousands of table]]");
-  lines.push("-- [[constructors. Regenerate with scripts/generate_icon_packs.js.]]");
+  lines.push("--[[");
+  lines.push(`${pack} icon pack.`);
+  lines.push("Compact catalog: names only. PNG URLs are derived on demand by");
+  lines.push("icons/packBuilder (kebab/snake name to PascalCase), so this module");
+  lines.push("parses as one string constant instead of thousands of table");
+  lines.push("constructors. Regenerate with scripts/generate_icon_packs.js.");
+  lines.push("]]");
   lines.push("");
   lines.push("return require(script.Parent.packBuilder).create(");
   lines.push(`\t"${prefix}",`);

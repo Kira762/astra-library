@@ -58,9 +58,11 @@ export type TextProps = {
     name: string?,     text: string?,     icon: (string | number)?,
 }
 
--- [[One segment of a Footer's centred run: a `text` run, an `icon` run, or]]
--- [[both (the text renders, then the icon). Plain strings in `parts` are]]
--- [[shorthand for `{ text = ... }`.]]
+--[[
+One segment of a Footer's centred run: a `text` run, an `icon` run, or
+both (the text renders, then the icon). Plain strings in `parts` are
+shorthand for `{ text = ... }`.
+]]
 export type FooterPart = {
     text: string?,
     icon: (string | number)?,
@@ -78,8 +80,10 @@ export type DividerProps = {
 export type GroupProps = {
     direction: string?, }
 
--- Definitions use the corresponding element's normal properties plus `type`.
--- `elements` is allowed only for ordinary Groups; CollapsibleGroups cannot nest.
+--[[
+Definitions use the corresponding element's normal properties plus `type`.
+`elements` is allowed only for ordinary Groups; CollapsibleGroups cannot nest.
+]]
 export type CollapsibleElementProps = {
     type: "Button" | "Toggle" | "Switch" | "Slider" | "Dropdown" | "Input"
         | "Link" | "Stat" | "Section" | "Text" | "Footer" | "Changelog" | "Divider" | "Group",
@@ -93,8 +97,10 @@ export type CollapsibleGroupProps = {
     elements: { CollapsibleElementProps }?,
 }
 
--- The Isolated changelog container only accepts Changelog definitions; any
--- other child type errors at construction.
+--[[
+The Isolated changelog container only accepts Changelog definitions; any
+other child type errors at construction.
+]]
 export type IsolatedElementProps = {
     type: "Changelog",
     [string]: any,
@@ -155,8 +161,10 @@ export type DropdownProps = {
     callback: ((value: any) -> ())?,
 }
 
--- Required, editable one-letter key field. Strings are normalised to uppercase;
--- invalid edits restore the previous letter instead of leaving the control blank.
+--[[
+Required, editable one-letter key field. Strings are normalised to uppercase;
+invalid edits restore the previous letter instead of leaving the control blank.
+]]
 export type KeybindProps = {
     name: string?,
     icon: (string | number)?,
@@ -187,16 +195,20 @@ export type StatProps = {
     suffix: string?,
     value: (number | string)?,
     display: string?,     compact: boolean?,
-    -- Show the value as a single letter badge (no icon) instead of the numeric
-    -- readouts; text values use this automatically unless set to false, in
-    -- which case the whole value reads out as a text readout (no odometer, no
-    -- change readout) that Set / SetText / ResetBaseline all write to.
+    --[[
+    Show the value as a single letter badge (no icon) instead of the numeric
+    readouts; text values use this automatically unless set to false, in
+    which case the whole value reads out as a text readout (no odometer, no
+    change readout) that Set / SetText / ResetBaseline all write to.
+    ]]
     letter: boolean?,
     changeMode: string?,     changeBaseline: string?,     numberEasing: boolean?,
 }
 
--- `link` is the hidden value: stored on the element and copied by the card's
--- trailing control, never rendered as text.
+--[[
+`link` is the hidden value: stored on the element and copied by the card's
+trailing control, never rendered as text.
+]]
 export type LinkProps = {
     name: string?,
     subtitle: string?,
@@ -206,17 +218,21 @@ export type LinkProps = {
     callback: ((link: string) -> ())?,
 }
 
--- One compact data tile of an About card: a leading icon, a label and a value.
--- Up to three tiles share one line; the count drives each tile's width.
+--[[
+One compact data tile of an About card: a leading icon, a label and a value.
+Up to three tiles share one line; the count drives each tile's width.
+]]
 export type AboutCardRow = {
     icon: (string | number)?,
     label: string?,
     value: (string | number)?,
 }
 
--- The card's optional trailing band. It is the fourth block of the card — the
--- one the data rows stop at three for — and it is the card's only tappable
--- surface.
+--[[
+The card's optional trailing band. It is the fourth block of the card — the
+one the data rows stop at three for — and it is the card's only tappable
+surface.
+]]
 export type AboutCardAction = {
     icon: (string | number)?,
     name: string?,
@@ -332,7 +348,7 @@ export type Text = Moveable & {
 }
 
 export type Footer = Moveable & {
-    -- [[The normalised run: ordered `{ kind = "text" | "icon", value }` entries.]]
+    -- The normalised run: ordered `{ kind = "text" | "icon", value }` entries.
     parts: { FooterPart },
     textSize: number,
     spacing: number,
@@ -438,8 +454,10 @@ export type Window = {
         CreateSection: (self: Window, props: SectionProps) -> TabSection,
     Notify: (self: Window, props: NotifyProps) -> (),
     Popup: (self: Window, props: PopupProps) -> Popup?,
-    -- [[Open a pinned floating description over `anchor` / close whatever is
-    -- [[open. The (!) badges open theirs through the tooltip service.]] 
+    --[[
+    Open a pinned floating description over `anchor` / close whatever is
+    open. The (!) badges open theirs through the tooltip service.
+    ]]
     ShowTooltip: (self: Window, anchor: any, text: string) -> (),
     HideTooltip: (self: Window) -> (),
     Show: (self: Window) -> (),
@@ -469,8 +487,10 @@ export type IconCatalog = {
     Heroicons: IconPack,
     Feather: IconPack,
     Remix: IconPack,
-    -- [[`name` may be a bare icon name (searched in every pack, in priority]]
-    -- [[order) or a pack-qualified `"pack:name"`; `pack` addresses one pack.]]
+    --[[
+    `name` may be a bare icon name (searched in every pack, in priority
+    order) or a pack-qualified `"pack:name"`; `pack` addresses one pack.
+    ]]
     get: (name: string, pack: IconPack?) -> string?,
     getByPack: (pack: IconPack, name: string) -> string?,
     list: (pack: IconPack?) -> { string },
@@ -485,8 +505,10 @@ export type IconCatalog = {
 
 export type MotionSpec = string | TweenInfo
 
--- [[The service is a plain table of functions (dot calls, like `Icons`),
--- [[so the fields carry no `self` - `Astra.Motion.tween(frame, props)`.
+--[[
+The service is a plain table of functions (dot calls, like `Icons`),
+so the fields carry no `self` - `Astra.Motion.tween(frame, props)`.
+]]
 export type MotionService = {
     enabled: boolean,
     timeScale: number,
@@ -508,19 +530,23 @@ export type MotionService = {
     forUI: (componentType: string?, action: string?) -> TweenInfo,
 }
 
--- A key-gate link button: the face shows `name` (and `icon`); `link` stays
--- hidden on the UI and only surfaces — via copy + notification — when the
--- button is pressed. The gate accepts at most three entries.
+--[[
+A key-gate link button: the face shows `name` (and `icon`); `link` stays
+hidden on the UI and only surfaces — via copy + notification — when the
+button is pressed. The gate accepts at most three entries.
+]]
 export type KeySystemLink = {
     name: string?,
     icon: (string | number)?,
     link: string,
 }
 
--- Standalone enter-your-key card, shown before any window exists. `links`
--- carries the 0-3 copy buttons under the note; `getKeyUrl` is legacy sugar
--- that prepends a "Get Key" button. `icon` is accepted for older scripts but
--- ignored: the header always wears the Sirius mark.
+--[[
+Standalone enter-your-key card, shown before any window exists. `links`
+carries the 0-3 copy buttons under the note; `getKeyUrl` is legacy sugar
+that prepends a "Get Key" button. `icon` is accepted for older scripts but
+ignored: the header always wears the Sirius mark.
+]]
 export type KeySystemProps = {
     title: string?,
     subtitle: string?,

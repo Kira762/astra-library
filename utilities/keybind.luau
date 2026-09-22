@@ -1,4 +1,4 @@
--- [[Shared validation for required, single-letter key bindings.]]
+-- Shared validation for required, single-letter key bindings.
 local keybind = {}
 
 function keybind.letter(value)

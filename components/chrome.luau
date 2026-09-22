@@ -26,7 +26,7 @@ function chrome.buildCollapsedFace(window)
         Parent = window.main,
     }, { ImageColor3 = "TitlingColor" })
 
-    -- [[PillCornerRadius drives tab pills and the collapsed capsule icon.]]
+    -- PillCornerRadius drives tab pills and the collapsed capsule icon.
     window:Create("UICorner", {
         Parent = window.collapsedIcon,
     }, { CornerRadius = "PillCornerRadius" })
@@ -211,13 +211,17 @@ function chrome.isNewUser()
     return isNew
 end
 
--- [[The capsule's face (icon, title, subtitle) fades in with `spec` — a
--- motion-service spec name (the fold plays "settle"), so the collapse answers
--- the speed setting like everything else — or applies instantly when no spec
--- is given (the silent state-sync path).]]
+--[[
+The capsule's face (icon, title, subtitle) fades in with `spec` — a
+motion-service spec name (the fold plays "settle"), so the collapse answers
+the speed setting like everything else — or applies instantly when no spec
+is given (the silent state-sync path).
+]]
 function chrome.setCollapsedShown(window, shown, spec)
-    -- Visibility is authoritative: never paint the restore face behind an open
-    -- window or during its fold, even if an earlier fade is still running.
+    --[[
+    Visibility is authoritative: never paint the restore face behind an open
+    window or during its fold, even if an earlier fade is still running.
+    ]]
     shown = shown and window.hidden and window._collapsedShown == true
     window.collapsedIcon.Visible = shown
     window.collapsedTextFrame.Visible = shown and not window.showIconOnly

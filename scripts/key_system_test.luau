@@ -1,33 +1,35 @@
--- ===== key system assertions: the standalone key gate =======================
--- [[Runs the real Astra bundle (loaded as global `Astra` above) against the]]
--- [[mini Roblox environment from sidebar_sizing_stubs.luau, plus the]]
--- [[in-memory executor filesystem from filesystem_stubs.luau.]]
---
--- Expected behavior under test:
---   * K1 the card is the popup-width short card (400px, ~150-165px tall) and
---        wears the corner scale: CornerRoundness on the shell,
---        ElementCornerRadius on the field and the Continue button,
---   * K2 a wrong key costs an attempt, clears the field and never fires
---        onSuccess,
---   * K3 a correct key (surrounding whitespace trimmed) passes, closes the
---        gate and saves the trimmed key to Astra/keys/<fileName>.txt,
---   * K4 a matching saved key skips the UI entirely (passthrough),
---   * K5 maxAttempts locks the gate and fires onMaxAttempts; further
---        submits are ignored,
---   * K6 a theme table overlays the baked palette (Continue wears it),
---   * K7 grabKeyFromSite fetches the expected key from the URL body,
---   * K8 dismissable=false builds no close button,
---   * K9 getKeyUrl promotes to a "Get Key" link button: pressing copies its
---        hidden link into a notification (title "Link copied", content =
---        the URL, exact duplicates replace), the note stays plain text and
---        never changes,
---   * K10 no keys configured passes through with a warning,
---   * K11 a second gate retires the first (no stacking),
---   * K12 Escape closes a dismissable gate and fires onClose,
---   * K13 the links prop builds 0-3 equal buttons whose faces show name
---        (never the URL), each copies its own link, past three drops with
---        a warning, and the row grows the card,
---   * K14 props.icon is ignored: the header always wears Sirius.
+--[[
+===== key system assertions: the standalone key gate =======================
+Runs the real Astra bundle (loaded as global `Astra` above) against the
+mini Roblox environment from sidebar_sizing_stubs.luau, plus the
+in-memory executor filesystem from filesystem_stubs.luau.
+
+Expected behavior under test:
+  * K1 the card is the popup-width short card (400px, ~150-165px tall) and
+       wears the corner scale: CornerRoundness on the shell,
+       ElementCornerRadius on the field and the Continue button,
+  * K2 a wrong key costs an attempt, clears the field and never fires
+       onSuccess,
+  * K3 a correct key (surrounding whitespace trimmed) passes, closes the
+       gate and saves the trimmed key to Astra/keys/<fileName>.txt,
+  * K4 a matching saved key skips the UI entirely (passthrough),
+  * K5 maxAttempts locks the gate and fires onMaxAttempts; further
+       submits are ignored,
+  * K6 a theme table overlays the baked palette (Continue wears it),
+  * K7 grabKeyFromSite fetches the expected key from the URL body,
+  * K8 dismissable=false builds no close button,
+  * K9 getKeyUrl promotes to a "Get Key" link button: pressing copies its
+       hidden link into a notification (title "Link copied", content =
+       the URL, exact duplicates replace), the note stays plain text and
+       never changes,
+  * K10 no keys configured passes through with a warning,
+  * K11 a second gate retires the first (no stacking),
+  * K12 Escape closes a dismissable gate and fires onClose,
+  * K13 the links prop builds 0-3 equal buttons whose faces show name
+       (never the URL), each copies its own link, past three drops with
+       a warning, and the row grows the card,
+  * K14 props.icon is ignored: the header always wears Sirius.
+]]
 
 local function expect(cond, message)
 	if not cond then

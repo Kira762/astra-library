@@ -1,34 +1,36 @@
--- ===== Link (CreateLink) assertions =====
--- [[Runs the real Astra bundle (loaded as global `Astra` above) against the]]
--- [[mini Roblox environment from sidebar_sizing_stubs.luau.]]
---
--- The Link card carries a URL that is never rendered: it shows an icon, a
--- title and a subtitle, and its trailing control copies the hidden link and
--- confirms with a check mark before reverting. It is the first element whose
--- whole purpose lives outside the library's own surface — it has to reach the
--- host's clipboard — and the first whose feedback is a timed state that a
--- container can interrupt by hiding the card.
---
--- Expected behavior under test:
---   * L1 the card renders the icon, the title and the subtitle, and never the
---        URL it carries,
---   * L2 the trailing control is a real tap target carrying a resolved glyph,
---   * L3 a tap copies the hidden link through the host clipboard, swaps the
---        glyph for the confirmation, fires the callback and reverts on its own,
---   * L4 every card owns its cycle — a confirming card leaves its neighbour on
---        the copy mark,
---   * L5 the card builds in a Group and in a Collapsible Group, a card inside a
---        container copies its own link, and a card hidden while it is
---        confirming is back on the copy mark when the container reveals it,
---   * L6 the setters retitle the card, drop and restore the subtitle's height,
---        and the copy follows the link they wrote,
---   * L7 a locked card copies nothing and confirms nothing,
---   * L8 the compact row a horizontal Group asks for carries the same control
---        in the same trailing position,
---   * L9 with no clipboard API the card keeps the copy mark: the check mark
---        means the link is on the clipboard, so nothing else may show it,
---   * L10 the trailing glyph is drawn while the card is and hidden when it is
---        not — the card owns that fade, so nothing else can be relied on for it.
+--[[
+===== Link (CreateLink) assertions =====
+Runs the real Astra bundle (loaded as global `Astra` above) against the
+mini Roblox environment from sidebar_sizing_stubs.luau.
+
+The Link card carries a URL that is never rendered: it shows an icon, a
+title and a subtitle, and its trailing control copies the hidden link and
+confirms with a check mark before reverting. It is the first element whose
+whole purpose lives outside the library's own surface — it has to reach the
+host's clipboard — and the first whose feedback is a timed state that a
+container can interrupt by hiding the card.
+
+Expected behavior under test:
+  * L1 the card renders the icon, the title and the subtitle, and never the
+       URL it carries,
+  * L2 the trailing control is a real tap target carrying a resolved glyph,
+  * L3 a tap copies the hidden link through the host clipboard, swaps the
+       glyph for the confirmation, fires the callback and reverts on its own,
+  * L4 every card owns its cycle — a confirming card leaves its neighbour on
+       the copy mark,
+  * L5 the card builds in a Group and in a Collapsible Group, a card inside a
+       container copies its own link, and a card hidden while it is
+       confirming is back on the copy mark when the container reveals it,
+  * L6 the setters retitle the card, drop and restore the subtitle's height,
+       and the copy follows the link they wrote,
+  * L7 a locked card copies nothing and confirms nothing,
+  * L8 the compact row a horizontal Group asks for carries the same control
+       in the same trailing position,
+  * L9 with no clipboard API the card keeps the copy mark: the check mark
+       means the link is on the clipboard, so nothing else may show it,
+  * L10 the trailing glyph is drawn while the card is and hidden when it is
+       not — the card owns that fade, so nothing else can be relied on for it.
+]]
 
 local function expect(cond, message)
 	if not cond then
@@ -45,8 +47,10 @@ local function eq(actual, wanted, message)
 	end
 end
 
--- [[The host clipboard: the API the library looks for, recorded per call. A
--- [[plain global, exactly where an executor puts it.]]
+--[[
+The host clipboard: the API the library looks for, recorded per call. A
+plain global, exactly where an executor puts it.
+]]
 local copied = {}
 setclipboard = function(text)
 	copied[#copied + 1] = text
@@ -120,11 +124,13 @@ expect(card.copyButton.Size.X.Offset > card.tapIcon.Size.X.Offset, "L2 the tap t
 expect(card.tapIcon.Parent == card.copyButton, "L2 the glyph sits inside the tap target")
 eq(card.copyButton.Text, "", "L2 the control carries no text")
 
--- [[The glyph is built invisible like every other card part, and the card owns
--- [[its fade: `Window:_revealCommon` walks only the shared parts (stroke,
--- [[title, body, leading icon, description), so a glyph nothing reveals stays
--- [[at 1 forever and the control reads as an empty square. Both builds and
--- [[both marks — copy and check — ride the same label.]]
+--[[
+The glyph is built invisible like every other card part, and the card owns
+its fade: `Window:_revealCommon` walks only the shared parts (stroke,
+title, body, leading icon, description), so a glyph nothing reveals stays
+at 1 forever and the control reads as an empty square. Both builds and
+both marks — copy and check — ride the same label.
+]]
 expect(card.tapIcon.ImageTransparency < 1, "L2 the shown card fades its glyph in")
 eq(card.tapIcon.ImageTransparency, 0.5, "L2 ... to the resting glyph transparency")
 eq(card.iconLabel.ImageTransparency, 0, "L2 ... and draws the leading icon fully")
@@ -162,8 +168,10 @@ neighbour.copyButton.MouseButton1Click:Fire()
 TestPump(0.3)
 eq(neighbour._glyph, "check", "L4 tapping the neighbour confirms it instead")
 
--- [[The first card is still inside its own hold: a second tap must not be cut
--- [[short by the neighbour's cycle.]]
+--[[
+The first card is still inside its own hold: a second tap must not be cut
+short by the neighbour's cycle.
+]]
 card.copyButton.MouseButton1Click:Fire()
 TestPump(0.3)
 TestPump(2.4)
@@ -185,8 +193,10 @@ eq(inGroup.compact, false, "L5 ... as a full card, with its whole layout")
 expect(inGroup.copyButton ~= nil and inGroup.tapIcon ~= nil, "L5 ... and its own copy control")
 eq(inGroup.main.Size.Y.Offset, 56, "L5 ... at the two-line height")
 
--- [[The structure the design calls for: several cards alongside other
--- [[components, every card keeping its whole layout and its own cycle.]]
+--[[
+The structure the design calls for: several cards alongside other
+components, every card keeping its whole layout and its own cycle.
+]]
 group:CreateButton({ name = "Grouped button" })
 local secondInGroup = group:CreateLink({
 	name = "Support",
@@ -227,15 +237,19 @@ eq(copied[#copied], "https://discord.gg/group", "L5 a card inside the container 
 eq(firstChild._glyph, "check", "L5 ... and confirms")
 eq(secondChild._glyph, "copy", "L5 ... while its sibling keeps the copy mark")
 
--- [[Collapse over a confirming card: the hold ends with the card it belongs
--- [[to, so the container cannot carry the check mark into the next reveal.]]
+--[[
+Collapse over a confirming card: the hold ends with the card it belongs
+to, so the container cannot carry the check mark into the next reveal.
+]]
 collapsible.interact.Activated:Fire()
 TestPump(0.8)
 expect(not collapsible._expanded, "L5 the container closed")
 eq(firstChild._glyph, "copy", "L5 closing returns the confirming card to the copy mark")
--- [[Collapsing puts the body away by visibility, not by pushing `_setShown`
--- [[into the children, so the glyph keeps its resting transparency here; the
--- [[hide/show fade itself is covered by L10, which uses a path that does.]]
+--[[
+Collapsing puts the body away by visibility, not by pushing `_setShown`
+into the children, so the glyph keeps its resting transparency here; the
+hide/show fade itself is covered by L10, which uses a path that does.
+]]
 eq(firstChild.tapIcon.ImageTransparency, 0.5, "L5 ... and leaves the glyph as the body hid it")
 
 collapsible.interact.Activated:Fire()
@@ -277,8 +291,10 @@ card:SetIcon("link")
 TestPump(0.2)
 eq(card.iconLabel.Visible, true, "L6 SetIcon puts one back")
 
--- [[The slot exists on a card built without one, so a host can add an icon
--- [[later instead of the call doing nothing.]]
+--[[
+The slot exists on a card built without one, so a host can add an icon
+later instead of the call doing nothing.
+]]
 local bare = tab:CreateLink({ name = "No icon", subtitle = "Add one later", link = "https://example.com/bare" })
 TestPump(0.4)
 eq(bare.iconLabel.Visible, false, "L6 a card built without an icon hides the slot")
@@ -332,8 +348,10 @@ eq(inRow._glyph, "check", "L8 ... and confirms")
 -- ===== L9: no clipboard, no check mark =====================================
 
 setclipboard = nil
--- [[Reset the glyph first: the card under test has to be on the copy mark for
--- [[the assertion to mean anything.]]
+--[[
+Reset the glyph first: the card under test has to be on the copy mark for
+the assertion to mean anything.
+]]
 card:_resetCopyState()
 TestPump(0.2)
 
@@ -352,11 +370,13 @@ eq(copied[#copied], "https://example.com/new", "L9 the host clipboard is picked 
 
 -- ===== L10: the glyph fades out and back with the card =====================
 
--- [[A hide path that really reaches the elements (`Window:Hide` walks the
--- [[selected tab's elements with `_setShown(false)`), unlike a container
--- [[collapse, which puts its body away by visibility. The glyph has to travel
--- [[both ways with the card: built at 1, drawn when the card is drawn, and
--- [[back at 1 when it is not, so a hidden card leaves no floating mark.]]
+--[[
+A hide path that really reaches the elements (`Window:Hide` walks the
+selected tab's elements with `_setShown(false)`), unlike a container
+collapse, which puts its body away by visibility. The glyph has to travel
+both ways with the card: built at 1, drawn when the card is drawn, and
+back at 1 when it is not, so a hidden card leaves no floating mark.
+]]
 window:Hide()
 TestPump(0.8)
 eq(card.tapIcon.ImageTransparency, 1, "L10 hiding the window takes the glyph with it")

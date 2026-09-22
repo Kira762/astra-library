@@ -30,10 +30,12 @@ local function element(frame, fill, handle)
     return math.clamp(min, frame[1], frame[2])
 end
 
--- [[The slider's fill and handle always move through the shared service:
--- `normal` carries value changes, `fast` follows a drag (the handle chases
--- the pointer, so it must be quick and never fight the next frame's target),
--- `snappy` carries hover. Glow reveals trail on the delayed accent beat.]]
+--[[
+The slider's fill and handle always move through the shared service:
+`normal` carries value changes, `fast` follows a drag (the handle chases
+the pointer, so it must be quick and never fight the next frame's target),
+`snappy` carries hover. Glow reveals trail on the delayed accent beat.
+]]
 local motion = require(constants.motion)
 local max = "normal"
 local isDragging = "fast"
@@ -44,11 +46,13 @@ local a22 = 300
 local a23 = Vector2.new(35, 20)
 local a24 = Vector2.new(41, 22)
 
--- [[The track, its fill and the handle are pills: each radius is half the
--- [[surface's own height, so the fill's ends stay concentric inside the
--- [[track's arc and the handle reads as a grabber rather than as a block.
--- [[Derived from the metrics beside them, not from a theme token — a slider
--- [[that squared off with a theme would look broken, not themed.]]
+--[[
+The track, its fill and the handle are pills: each radius is half the
+surface's own height, so the fill's ends stay concentric inside the
+track's arc and the handle reads as a grabber rather than as a block.
+Derived from the metrics beside them, not from a theme token — a slider
+that squared off with a theme would look broken, not themed.
+]]
 local trackSize = Vector2.new(222, 14)
 local trackRadius = UDim.new(0, trackSize.Y / 2)
 local handleRadius = UDim.new(0, a23.Y / 2)
@@ -119,8 +123,10 @@ function state.new(ownerTab, a31)
     }, { BackgroundTransparency = "ElementTransparency" })
 
     self.stroke = self.window:StyleElementBody(self.main)
-    -- [[The card grows for a description before the label row and the track
-    -- [[are built, so both seat themselves against the grown region below.]]
+    --[[
+    The card grows for a description before the label row and the track
+    are built, so both seat themselves against the grown region below.
+    ]]
     description.attach(self)
     self._lastValue = self.value
 
@@ -380,9 +386,11 @@ function state:_buildLabel()
 end
 
 function state:_setMainHeight(a34)
-    -- [[`a34` is the base region every layout writes (65 wide, 70 narrow); the
-    -- [[description's measured extra rides along and the line is re-seated
-    -- [[against the new base.]]
+    --[[
+    `a34` is the base region every layout writes (65 wide, 70 narrow); the
+    description's measured extra rides along and the line is re-seated
+    against the new base.
+    ]]
     local height = description.height(self, a34)
     description.rebase(self, a34)
     if self._widthManaged then

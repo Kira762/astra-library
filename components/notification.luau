@@ -10,10 +10,12 @@ local constants = require(utilities.constants)
 local haptic = require(utilities.HapticEngine)
 local motion = require(utilities.motion)
 
--- [[The card's entrance rides the motion service's shared vocabulary: the
--- shell slides in on `emphasized`, surfaces fade on `normal`, copy on
--- `snappy`, and the whole card accelerates out on `exit` — quicker than the
--- entrance that made it, so the stack never feels crowded by its own past.]]
+--[[
+The card's entrance rides the motion service's shared vocabulary: the
+shell slides in on `emphasized`, surfaces fade on `normal`, copy on
+`snappy`, and the whole card accelerates out on `exit` — quicker than the
+entrance that made it, so the stack never feels crowded by its own past.
+]]
 local showTween, fadeInTween, textFadeTween = "emphasized", "normal", "snappy"
 local dismissTween = "exit"
 
@@ -28,9 +30,11 @@ local function autoDuration(content)
     return math.clamp(#content * 0.06 + 3, 3, 9)
 end
 
--- Length-prefix the title so distinct title/body pairs cannot collide, even
--- when their text contains separators. Match exact text (no trim/case folding);
--- duration and icon are presentation options, not part of message identity.
+--[[
+Length-prefix the title so distinct title/body pairs cannot collide, even
+when their text contains separators. Match exact text (no trim/case folding);
+duration and icon are presentation options, not part of message identity.
+]]
 local function messageText(value, fallback)
     if value == nil then
         return fallback
@@ -45,11 +49,13 @@ function Notification.key(props)
     return tostring(#title) .. ":" .. title .. content
 end
 
--- Remove matching cards before the queue accepts the new request. A duplicate
--- is deliberately not refreshed in place: the old card leaves through the
--- normal exit motion and the replacement gets a fresh entrance, so repeated
--- notifications are visible as a new event instead of silently extending an
--- existing card's lifetime.
+--[[
+Remove matching cards before the queue accepts the new request. A duplicate
+is deliberately not refreshed in place: the old card leaves through the
+normal exit motion and the replacement gets a fresh entrance, so repeated
+notifications are visible as a new event instead of silently extending an
+existing card's lifetime.
+]]
 function Notification.dismissMatching(window, props): number
     local key = Notification.key(props)
     local dismissed = 0
@@ -78,10 +84,12 @@ function Notification.new(window, props, release)
         _elapsed = 0,
         _hovered = false,
         _dismissed = false,
-        -- [[Handed over by the entrance queue when this card was queued: the
-        -- next overlay does not start until this one releases the slot, which
-        -- is what turns the burst a host fires at load time into a cascade. Nil
-        -- for a card built directly, which then owns its own timing.]]
+        --[[
+        Handed over by the entrance queue when this card was queued: the
+        next overlay does not start until this one releases the slot, which
+        is what turns the burst a host fires at load time into a cascade. Nil
+        for a card built directly, which then owns its own timing.
+        ]]
         _release = release,
     }, Notification)
 
@@ -259,21 +267,25 @@ function Notification:_measure()
     return math.max(textHeight, self.iconLabel and 24 or 0) + 28
 end
 
--- [[Hand the entrance slot back to the queue. Fires when the last piece of the
--- entrance has been committed, and also on any early exit: a card that is
--- dismissed before it opens (the visibility cap, a click, an unload) must not
--- leave the next one waiting for a tween that will never finish. Idempotent,
--- because the show path and the dismiss path can both reach it.]]
+--[[
+Hand the entrance slot back to the queue. Fires when the last piece of the
+entrance has been committed, and also on any early exit: a card that is
+dismissed before it opens (the visibility cap, a click, an unload) must not
+leave the next one waiting for a tween that will never finish. Idempotent,
+because the show path and the dismiss path can both reach it.
+]]
 function Notification:_entranceDone(early)
     local release = self._release
     if not release then
         return
     end
     self._release = nil
-    -- [[`early` comes from a dismissal/retirement mid-entrance: the queue uses
-    -- [[it to skip its full entrance cadence (nothing is on screen to keep
-    -- [[from overlapping). The natural end of the staggered reveal passes
-    -- [[nothing, so the next card waits behind this one's transition.]]
+    --[[
+    `early` comes from a dismissal/retirement mid-entrance: the queue uses
+    it to skip its full entrance cadence (nothing is on screen to keep
+    from overlapping). The natural end of the staggered reveal passes
+    nothing, so the next card waits behind this one's transition.
+    ]]
     release(early == true)
 end
 
@@ -292,8 +304,10 @@ function Notification:_show()
     motion.tween(self.stroke, { Transparency = 0.95 }, fadeInTween)
     motion.tween(self.shadow, { Transparency = 0.6 }, textFadeTween)
 
-    -- [[The stagger beats answer the motion profile: with animation switched
-    -- [[off they cost no time and the queue drains a card per frame.]]
+    --[[
+    The stagger beats answer the motion profile: with animation switched
+    off they cost no time and the queue drains a card per frame.
+    ]]
     local firstBeat = motion.step(0.05)
     if firstBeat > 0 then
         task.wait(firstBeat)
@@ -318,10 +332,12 @@ function Notification:_show()
         motion.tween(self.descriptionLabel, { TextTransparency = 0.35 }, textFadeTween)
     end
 
-    -- [[The card is fully on screen from here: everything that is still
-    -- running is its hold time, not its entrance, so the next one may start.
-    -- The queue itself holds the lane for the entrance cadence; a dismissal
-    -- (below) releases early, which the queue reads as "skip the cadence".]]
+    --[[
+    The card is fully on screen from here: everything that is still
+    running is its hold time, not its entrance, so the next one may start.
+    The queue itself holds the lane for the entrance cadence; a dismissal
+    (below) releases early, which the queue reads as "skip the cadence".
+    ]]
     self:_entranceDone()
 
     while self._elapsed < self.duration and not self._dismissed and self.main.Parent do
@@ -340,9 +356,11 @@ function Notification:_dismiss()
     end
     self._dismissed = true
 
-    -- [[A card retired before its entrance finished still owes the queue its
-    -- slot; `_entranceDone` is a no-op once the show path has handed it back.
-    -- Early release tells the queue to skip the full entrance cadence.]]
+    --[[
+    A card retired before its entrance finished still owes the queue its
+    slot; `_entranceDone` is a no-op once the show path has handed it back.
+    Early release tells the queue to skip the full entrance cadence.
+    ]]
     self:_entranceDone(true)
 
     local liveNotifications = self.window._liveNotifications

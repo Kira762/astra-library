@@ -1,15 +1,17 @@
--- ===== input field assertions: the field wears the element corner =====
--- [[Runs the real Astra bundle (loaded as global `Astra` above) against the]]
--- [[mini Roblox environment from sidebar_sizing_stubs.luau.]]
---
--- Expected behavior under test:
---   * F1 the input's field box rounds with the theme's ElementCornerRadius —
---        the same token the card it sits in, the Text card, the profile
---        containers and every other element surface read — instead of a
---        capsule (UDim.new(1, 0)) of its own,
---   * F2 that roundness is a theme binding, so a theme switch re-states the
---        field's corner exactly like the card's own corner,
---   * F3 the field and its card therefore always share one corner family.
+--[[
+===== input field assertions: the field wears the element corner =====
+Runs the real Astra bundle (loaded as global `Astra` above) against the
+mini Roblox environment from sidebar_sizing_stubs.luau.
+
+Expected behavior under test:
+  * F1 the input's field box rounds with the theme's ElementCornerRadius —
+       the same token the card it sits in, the Text card, the profile
+       containers and every other element surface read — instead of a
+       capsule (UDim.new(1, 0)) of its own,
+  * F2 that roundness is a theme binding, so a theme switch re-states the
+       field's corner exactly like the card's own corner,
+  * F3 the field and its card therefore always share one corner family.
+]]
 
 local function expect(cond, message)
 	if not cond then

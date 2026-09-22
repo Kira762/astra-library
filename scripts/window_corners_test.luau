@@ -1,19 +1,21 @@
--- Corner integrity: nothing in the window's tree may draw a GuiObject border.
---
--- Roblox gives every GuiObject a 1px border by default (BorderSizePixel = 1).
--- The border draws the rectangular outline of the frame -- straight lines
--- that do not follow UICorner arcs -- so on any rounded surface it reads as
--- straight lines drawn over the rounded corners. The window's own frame was
--- the last surface shipping with that default: once its background faded in,
--- a hard 1px outline crossed all four rounded corners. These assertions pin
--- the whole tree to borderless surfaces.
---
---   C1 the window's main frame explicitly opts out of the border,
---   C2 after a full exercise (first show, elements, notification, settings mode,
---      profile card, dropdown, popup, collapse and restore) no visible
---      surface anywhere in the ScreenGui carries a non-zero border,
---   C3 the window's corner radius is the theme's CornerRoundness (the
---      "original rounded corners" the border used to cross).
+--[[
+Corner integrity: nothing in the window's tree may draw a GuiObject border.
+
+Roblox gives every GuiObject a 1px border by default (BorderSizePixel = 1).
+The border draws the rectangular outline of the frame -- straight lines
+that do not follow UICorner arcs -- so on any rounded surface it reads as
+straight lines drawn over the rounded corners. The window's own frame was
+the last surface shipping with that default: once its background faded in,
+a hard 1px outline crossed all four rounded corners. These assertions pin
+the whole tree to borderless surfaces.
+
+  C1 the window's main frame explicitly opts out of the border,
+  C2 after a full exercise (first show, elements, notification, settings mode,
+     profile card, dropdown, popup, collapse and restore) no visible
+     surface anywhere in the ScreenGui carries a non-zero border,
+  C3 the window's corner radius is the theme's CornerRoundness (the
+     "original rounded corners" the border used to cross).
+]]
 
 local function expect(cond, message)
 	if not cond then

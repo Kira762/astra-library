@@ -1,6 +1,8 @@
--- [[Runtime test for the Isolated changelog container: header recipe, the
--- Changelog-only guard, runtime setters and the CollapsibleGroup-style
--- expansion tween. Runs under scripts/isolated_test.sh with the stub harness.]]
+--[[
+Runtime test for the Isolated changelog container: header recipe, the
+Changelog-only guard, runtime setters and the CollapsibleGroup-style
+expansion tween. Runs under scripts/isolated_test.sh with the stub harness.
+]]
 local window = Astra:CreateWindow({ name = "Isolated", configuration = { autoSave = false, autoLoad = false } })
 local tab = window:CreateTab({ name = "Notes" })
 

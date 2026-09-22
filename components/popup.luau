@@ -11,11 +11,13 @@ local locale = require(utilities.locale)
 local log = require(utilities.log)
 local haptic = require(utilities.HapticEngine)
 
--- [[The dialog arrives on the shared vocabulary: the card glides the last
--- few pixels to centre on `smooth` (a large surface decelerating), surfaces
--- fade on `normal`, copy on `snappy`, the backdrop dims quickest of all so
--- focus lands on the card. Closing plays the same paths in reverse on
--- `snappy` — a dialog leaves quicker than it came.]]
+--[[
+The dialog arrives on the shared vocabulary: the card glides the last
+few pixels to centre on `smooth` (a large surface decelerating), surfaces
+fade on `normal`, copy on `snappy`, the backdrop dims quickest of all so
+focus lands on the card. Closing plays the same paths in reverse on
+`snappy` — a dialog leaves quicker than it came.
+]]
 local cardShowTween, fadeInTween, textFadeTween, backdropTween = "smooth", "normal", "snappy", "fast"
 
 local cardWidth = 400
@@ -108,16 +110,18 @@ function Popup:_build()
     local window = self.window
     local hasIcon = self.icon ~= nil and self.icon ~= 0 and self.icon ~= ""
 
-    -- [[The dialog keeps its own ScreenGui. Nesting its layers in
-    -- `window.screenGui` instead put the card at the top of the window's ZIndex
-    -- stack, and under `Global` ZIndex that rank is compared against the card's
-    -- own descendants too: the surface painted over the Header, the copy and the
-    -- action buttons, leaving a blank rounded rectangle. A dedicated root at the
-    -- popup DisplayOrder lifts the whole dialog above the window, so inside it
-    -- the backdrop and the card can keep plain ranks and the card's children are
-    -- never outranked by the surface they sit on.
-    -- The window still owns the root (`window:Create` registers it), so an
-    -- unload destroys every open dialog with it.]]
+    --[[
+    The dialog keeps its own ScreenGui. Nesting its layers in
+    `window.screenGui` instead put the card at the top of the window's ZIndex
+    stack, and under `Global` ZIndex that rank is compared against the card's
+    own descendants too: the surface painted over the Header, the copy and the
+    action buttons, leaving a blank rounded rectangle. A dedicated root at the
+    popup DisplayOrder lifts the whole dialog above the window, so inside it
+    the backdrop and the card can keep plain ranks and the card's children are
+    never outranked by the surface they sit on.
+    The window still owns the root (`window:Create` registers it), so an
+    unload destroys every open dialog with it.
+    ]]
     self.screenGui = window:Create("ScreenGui", {
         Name = state.httpService:GenerateGUID(false),
         IgnoreGuiInset = true,

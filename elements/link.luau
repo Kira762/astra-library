@@ -1,18 +1,20 @@
--- [[CreateLink: a card that carries a URL and copies it.
---
--- [[The card shows a leading icon, a title and a subtitle. The `link` itself is
--- [[a hidden value: it is stored on the element, never rendered as text, and is
--- [[only ever read by the trailing copy control. Tapping that control copies
--- [[the link, swaps the copy glyph for a check mark for a few seconds, then
--- [[puts the copy glyph back. Each card owns its own cycle, so two cards can be
--- [[in different states at once and a container (a Group, or a Collapsible
--- [[Group that collapses) never carries the feedback across: a card hidden
--- [[while it is showing the check mark is back on the copy glyph when it is
--- [[revealed again.
---
--- [[The build mirrors the Button: one full card for a tab or a column Group,
--- [[and a compact row for a horizontal Group, both ending in the same control
--- [[with the same tap behaviour.]]
+--[[
+CreateLink: a card that carries a URL and copies it.
+
+The card shows a leading icon, a title and a subtitle. The `link` itself is
+a hidden value: it is stored on the element, never rendered as text, and is
+only ever read by the trailing copy control. Tapping that control copies
+the link, swaps the copy glyph for a check mark for a few seconds, then
+puts the copy glyph back. Each card owns its own cycle, so two cards can be
+in different states at once and a container (a Group, or a Collapsible
+Group that collapses) never carries the feedback across: a card hidden
+while it is showing the check mark is back on the copy glyph when it is
+revealed again.
+
+The build mirrors the Button: one full card for a tab or a column Group,
+and a compact row for a horizontal Group, both ending in the same control
+with the same tap behaviour.
+]]
 
 local state = {}
 state.__index = state
@@ -29,10 +31,12 @@ local lockable = require(utilities.lockable)
 local log = require(utilities.log)
 local moveable = require(utilities.moveable)
 
--- [[Card metrics: one card, two lines. The title is the Text element's 16px
--- [[TitlingColor heading; the subtitle is the 14px muted body line every
--- [[element description in the library uses. Without a subtitle the card
--- [[collapses to the single-line height so it sits level with a Button.]]
+--[[
+Card metrics: one card, two lines. The title is the Text element's 16px
+TitlingColor heading; the subtitle is the 14px muted body line every
+element description in the library uses. Without a subtitle the card
+collapses to the single-line height so it sits level with a Button.
+]]
 local cardHeight = 56
 local cardHeightSingle = 43
 local titleSize = 16
@@ -43,33 +47,41 @@ local lineGap = 1
 local iconSize = 16
 local iconGap = 10
 local gutter = 20
--- [[The tap target is deliberately larger than the 16px glyph it carries: the
--- [[copy control is the card's only interactive part and sits in the right
--- [[gutter, so a 26px square is the smallest target that reads as tappable
--- [[without pushing the text column off the card. `contentInset` is what the
--- [[text column reserves for it (gutter + target + breathing room).]]
+--[[
+The tap target is deliberately larger than the 16px glyph it carries: the
+copy control is the card's only interactive part and sits in the right
+gutter, so a 26px square is the smallest target that reads as tappable
+without pushing the text column off the card. `contentInset` is what the
+text column reserves for it (gutter + target + breathing room).
+]]
 local tapTarget = 26
 local contentInset = 70
 
--- [[Resting transparencies once the card has been revealed: the body line
--- [[matches every other muted 14px line in the library.]]
+--[[
+Resting transparencies once the card has been revealed: the body line
+matches every other muted 14px line in the library.
+]]
 local restingSubtitleTransparency = 0.45
 
--- [[The trailing glyph rests at the same half transparency the Button's tap
--- [[glyph used, and the Dropdown and Collapsible chevrons still do. The card
--- [[owns the fade itself: `Window:_revealCommon` only knows the shared parts
--- [[(stroke, title, body, leading icon, description), and the shared tap-glyph
--- [[reveal it used to read went out with the Button's trailing cursor — so
--- [[without this the glyph is built invisible and never appears.]]
+--[[
+The trailing glyph rests at the same half transparency the Button's tap
+glyph used, and the Dropdown and Collapsible chevrons still do. The card
+owns the fade itself: `Window:_revealCommon` only knows the shared parts
+(stroke, title, body, leading icon, description), and the shared tap-glyph
+reveal it used to read went out with the Button's trailing cursor — so
+without this the glyph is built invisible and never appears.
+]]
 local restingGlyphTransparency = 0.5
 
--- [[How long a successful copy keeps the check mark on the card.]]
+-- How long a successful copy keeps the check mark on the card.
 local confirmSeconds = 2
 
--- [[Glyph candidates, resolved through the icon catalog in order: the first
--- [[name that exists in the loaded packs wins, so a pack that is missing one
--- [[falls through to the next instead of rendering an empty square. `copy` is
--- [[the overlapping-rectangles mark; `check` is the confirmation.]]
+--[[
+Glyph candidates, resolved through the icon catalog in order: the first
+name that exists in the loaded packs wins, so a pack that is missing one
+falls through to the next instead of rendering an empty square. `copy` is
+the overlapping-rectangles mark; `check` is the confirmation.
+]]
 local copyCandidates = { "copy", "clipboard", "clipboard-copy" }
 local checkCandidates = { "check", "check-check", "clipboard-check" }
 
@@ -87,11 +99,13 @@ local function resolveGlyph(window, candidates): string?
     return nil
 end
 
--- [[There is no clipboard in the Roblox API surface the library targets, so
--- [[the copy asks the host for one: every executor spells it differently, and
--- [[Studio/Rojo spells it differently again. The lookup runs per tap rather
--- [[than being cached at load, so a host that installs its clipboard API after
--- [[Astra loads is still found.]]
+--[[
+There is no clipboard in the Roblox API surface the library targets, so
+the copy asks the host for one: every executor spells it differently, and
+Studio/Rojo spells it differently again. The lookup runs per tap rather
+than being cached at load, so a host that installs its clipboard API after
+Astra loads is still found.
+]]
 local globalNames = { "setclipboard", "toclipboard", "setrbxclipboard", "set_clipboard" }
 local objectMethods = { "set", "Set", "copy", "Copy" }
 
@@ -117,7 +131,7 @@ local function clipboardWriter(): ((string) -> ())?
         end
     end
 
-    -- [[Some hosts expose a `Clipboard` object instead of a global function.]]
+    -- Some hosts expose a `Clipboard` object instead of a global function.
     local env = environment()
     if type(env) == "table" then
         local clipboard = env.Clipboard
@@ -133,7 +147,7 @@ local function clipboardWriter(): ((string) -> ())?
         end
     end
 
-    -- [[Studio and Rojo: the only clipboard on the non-executor path.]]
+    -- Studio and Rojo: the only clipboard on the non-executor path.
     local ok, studioService = pcall(function()
         return (game :: any):GetService("StudioService")
     end)
@@ -154,15 +168,17 @@ function state.new(tab, element)
         window = tab.window,
         name = tostring(element.name or element.Name or "Link"),
         subtitle = tostring(element.subtitle or element.Subtitle or ""),
-        -- [[The hidden value: stored on the element, never shown as text.]]
+        -- The hidden value: stored on the element, never shown as text.
         link = tostring(element.link or element.Link or ""),
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
         description = element.description or element.Description,
         callback = element.callback or element.Callback,
         compact = tab.compact or false,
-        -- [[Which mark the control carries. The card also *is* in its
-        -- [[confirmation window whenever this reads "check", so the state is
-        -- [[one field, not two that can disagree.]]
+        --[[
+        Which mark the control carries. The card also *is* in its
+        confirmation window whenever this reads "check", so the state is
+        one field, not two that can disagree.
+        ]]
         _glyph = "copy",
         _copyToken = 0,
     }, state)
@@ -187,12 +203,14 @@ function state:_baseHeight(): number
     return if self.subtitle ~= "" then cardHeight else cardHeightSingle
 end
 
--- [[Every writer of the card's shape goes through here: the height rides the
--- [[description's measured extra (elements/description.luau), so a wrapped
--- [[helper line grows the card instead of running under it, and the text
--- [[column and the copy control stay centred in the base region they belong
--- [[to. The compact row has no height to own - the row layout sizes it - so
--- [[only the two centred children are re-seated there.]]
+--[[
+Every writer of the card's shape goes through here: the height rides the
+description's measured extra (elements/description.luau), so a wrapped
+helper line grows the card instead of running under it, and the text
+column and the copy control stay centred in the base region they belong
+to. The compact row has no height to own - the row layout sizes it - so
+only the two centred children are re-seated there.
+]]
 function state:_layoutContent()
     if self.compact then
         return
@@ -224,9 +242,11 @@ function state:_buildFull()
     self.stroke = window:StyleElementBody(self.main)
     self.hoverOverlay = window:CreateHoverOverlay(self.main)
 
-    -- [[A description grows the card before the rows are placed, exactly as it
-    -- [[does for the Button and the Stat, so `description.center` below
-    -- [[answers for the grown card.]]
+    --[[
+    A description grows the card before the rows are placed, exactly as it
+    does for the Button and the Stat, so `description.center` below
+    answers for the grown card.
+    ]]
     description.attach(self)
 
     local centerScale, centerOffset = description.center(self, self:_baseHeight())
@@ -241,9 +261,11 @@ function state:_buildFull()
         Parent = self.main,
     })
 
-    -- [[Icon first, text column second: the icon is centred against both
-    -- [[lines, the way a leading mark reads on a card, not against the title
-    -- [[alone.]]
+    --[[
+    Icon first, text column second: the icon is centred against both
+    lines, the way a leading mark reads on a card, not against the title
+    alone.
+    ]]
     window:Create("UIListLayout", {
         FillDirection = Enum.FillDirection.Horizontal,
         Padding = UDim.new(0, iconGap),
@@ -253,9 +275,11 @@ function state:_buildFull()
         Parent = self.container,
     })
 
-    -- [[The slot exists whether or not the card started with an icon, so
-    -- [[`SetIcon` can add one later instead of silently doing nothing. Hidden,
-    -- [[it is out of the list layout's flow; shown, it stays left of the text.]]
+    --[[
+    The slot exists whether or not the card started with an icon, so
+    `SetIcon` can add one later instead of silently doing nothing. Hidden,
+    it is out of the list layout's flow; shown, it stays left of the text.
+    ]]
     self.iconLabel = window:Create("ImageLabel", {
         Image = self.icon or "",
         Size = UDim2.fromOffset(iconSize, iconSize),
@@ -373,9 +397,11 @@ function state:_buildCompact()
         Parent = self.title,
     })
 
-    -- [[The subtitle rides the row as a muted second half of the title: one
-    -- [[line, truncated, and dropped entirely when the card has none, so a row
-    -- [[of bare links is no wider than a row of buttons.]]
+    --[[
+    The subtitle rides the row as a muted second half of the title: one
+    line, truncated, and dropped entirely when the card has none, so a row
+    of bare links is no wider than a row of buttons.
+    ]]
     self.subtitleLabel = window:Create("TextLabel", {
         Text = locale.t(self.subtitle),
         Size = UDim2.fromOffset(0, subtitleHeight),
@@ -401,17 +427,21 @@ function state:_buildCompact()
     window:_wireElementHover(self, { titleRestKey = "TitlingColor" })
 end
 
--- [[One control, both builds: a transparent TextButton carrying the glyph, so
--- [[the hit target is the whole square and tapping the icon is tapping it.
--- [[The glyph starts invisible like every other card part and `_setShown`
--- [[fades it in with the rest of the card.]]
+--[[
+One control, both builds: a transparent TextButton carrying the glyph, so
+the hit target is the whole square and tapping the icon is tapping it.
+The glyph starts invisible like every other card part and `_setShown`
+fades it in with the rest of the card.
+]]
 function state:_buildCopyControl(parent, placement)
     local window = self.window
 
-    -- [[`placement` carries where the control sits: an anchored position in the
-    -- [[card's right gutter (full card) or a layout order in the row (compact).
-    -- [[It is merged into the props, because `Create`'s third argument is the
-    -- [[theme-binding table, not more props.]]
+    --[[
+    `placement` carries where the control sits: an anchored position in the
+    card's right gutter (full card) or a layout order in the row (compact).
+    It is merged into the props, because `Create`'s third argument is the
+    theme-binding table, not more props.
+    ]]
     local props = {
         Name = "Copy",
         Text = "",
@@ -473,10 +503,12 @@ function state:_copy(): boolean
     return true
 end
 
--- [[The confirmation cycle, owned per card. The token makes a second tap
--- [[restart the hold instead of being cut short by the first one's timer, and
--- [[resetting it is what carries the rule that a card hidden mid-confirmation
--- [[comes back on the copy glyph.]]
+--[[
+The confirmation cycle, owned per card. The token makes a second tap
+restart the hold instead of being cut short by the first one's timer, and
+resetting it is what carries the rule that a card hidden mid-confirmation
+comes back on the copy glyph.
+]]
 function state:_confirm()
     if not self.tapIcon or not self.checkImage then
         return
@@ -499,11 +531,13 @@ function state:_resetCopyState()
     self:_showGlyph("copy")
 end
 
--- [[The glyph is written the way the window writes every other image
--- [[(`Window:Create` routes image props through the same call): the resolved
--- [[icon may be a remote URL the cache rewrites to a local asset before any
--- [[Image property can load it, so assigning the raw value here would leave
--- [[the control blank on exactly the hosts that need the rewrite.]]
+--[[
+The glyph is written the way the window writes every other image
+(`Window:Create` routes image props through the same call): the resolved
+icon may be a remote URL the cache rewrites to a local asset before any
+Image property can load it, so assigning the raw value here would leave
+the control blank on exactly the hosts that need the rewrite.
+]]
 function state:_showGlyph(which)
     if not self.tapIcon then
         return
@@ -518,10 +552,12 @@ function state:IsConfirming(): boolean
     return self._glyph == "check"
 end
 
--- [[A failed copy keeps the copy glyph: the check mark means the link is on
--- [[the clipboard, so nothing else may show it. The console says why once, and
--- [[the notification is the only visible answer the user gets for the tap
--- [[(exact duplicates coalesce, so repeated taps refresh one card).]]
+--[[
+A failed copy keeps the copy glyph: the check mark means the link is on
+the clipboard, so nothing else may show it. The console says why once, and
+the notification is the only visible answer the user gets for the tap
+(exact duplicates coalesce, so repeated taps refresh one card).
+]]
 function state:_reportUnavailable()
     if not self._clipboardWarned then
         self._clipboardWarned = true
@@ -587,18 +623,22 @@ function state:SetIcon(icon)
     end
 end
 
--- [[Programmatic copy: the same cycle a tap runs, including the check mark and
--- [[the callback, for hosts that drive it from a keybind or a button.]]
+--[[
+Programmatic copy: the same cycle a tap runs, including the check mark and
+the callback, for hosts that drive it from a keybind or a button.
+]]
 function state:Copy(): boolean
     return self:_copy()
 end
 
 function state:_setShown(shown, animate)
-    -- [[The trailing glyph is this card's own part, not one of the shared ones
-    -- [[`_revealCommon`/`_hideCommon` walk, so it fades with the card here —
-    -- [[the same way the Dropdown and the collapsible headers fade their own
-    -- [[chevrons. Hiding it too is what keeps a card that folds away (tab
-    -- [[switch, collapse, minimise) from leaving a floating mark behind.]]
+    --[[
+    The trailing glyph is this card's own part, not one of the shared ones
+    `_revealCommon`/`_hideCommon` walk, so it fades with the card here —
+    the same way the Dropdown and the collapsible headers fade their own
+    chevrons. Hiding it too is what keeps a card that folds away (tab
+    switch, collapse, minimise) from leaving a floating mark behind.
+    ]]
     self.window:_reveal(self.tapIcon, { ImageTransparency = if shown then restingGlyphTransparency else 1 }, animate)
 
     if shown then
@@ -607,9 +647,11 @@ function state:_setShown(shown, animate)
     else
         self.window:_hideCommon(self, animate)
         self.window:_reveal(self.subtitleLabel, { TextTransparency = 1 }, animate)
-        -- [[Hiding the card ends its confirmation: a Collapsible Group that
-        -- [[closed over a check mark reopens on the copy glyph, and each card
-        -- [[keeps its own cycle regardless of the container.]]
+        --[[
+        Hiding the card ends its confirmation: a Collapsible Group that
+        closed over a check mark reopens on the copy glyph, and each card
+        keeps its own cycle regardless of the container.
+        ]]
         self:_resetCopyState()
     end
 end

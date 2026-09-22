@@ -1,29 +1,31 @@
--- ===== dropdown lazy-row assertions =====
--- [[Runs the real Astra bundle (loaded as global `Astra` above) against the]]
--- [[mini Roblox environment from sidebar_sizing_stubs.luau.]]
---
--- A dropdown used to build its search bar and every option row (frame, corner,
--- stroke, click button, icon+title container, layout, icon and title = eight
--- instances each) while it was being constructed, even though a closed
--- dropdown shows only its header and the rows and the bar live behind a panel
--- with the same colour as the background. Both are now materialised on the
--- first open, which is the first moment either can be seen.
---
--- Expected behavior under test:
---   * D1 a closed dropdown has no rows and no search bar, whatever its option
---     list - two options and twelve options cost the same,
---   * D2 opening it builds exactly one row per option, in option order, plus
---     the search bar once,
---   * D3 those rows are in the state the always-built version left them in
---     (selected/unselected transparencies, first/last corner tiers),
---   * D4 closing and reopening reuses them - nothing is rebuilt or duplicated,
---   * D5 Add/Remove/Refresh while closed are reflected the next time it opens,
---   * D6 picking a row still updates the value, the header and the list state,
---   * D7 the search bar still filters the rows, and collapsing it brings them
---     all back,
---   * D8 a dropdown inside a Collapsible Group opens cleanly: its open-time
---     scroll resolves the owner chain up to the tab's ScrollingFrame instead
---     of reading scroll members off the group's plain body frame.
+--[[
+===== dropdown lazy-row assertions =====
+Runs the real Astra bundle (loaded as global `Astra` above) against the
+mini Roblox environment from sidebar_sizing_stubs.luau.
+
+A dropdown used to build its search bar and every option row (frame, corner,
+stroke, click button, icon+title container, layout, icon and title = eight
+instances each) while it was being constructed, even though a closed
+dropdown shows only its header and the rows and the bar live behind a panel
+with the same colour as the background. Both are now materialised on the
+first open, which is the first moment either can be seen.
+
+Expected behavior under test:
+  * D1 a closed dropdown has no rows and no search bar, whatever its option
+    list - two options and twelve options cost the same,
+  * D2 opening it builds exactly one row per option, in option order, plus
+    the search bar once,
+  * D3 those rows are in the state the always-built version left them in
+    (selected/unselected transparencies, first/last corner tiers),
+  * D4 closing and reopening reuses them - nothing is rebuilt or duplicated,
+  * D5 Add/Remove/Refresh while closed are reflected the next time it opens,
+  * D6 picking a row still updates the value, the header and the list state,
+  * D7 the search bar still filters the rows, and collapsing it brings them
+    all back,
+  * D8 a dropdown inside a Collapsible Group opens cleanly: its open-time
+    scroll resolves the owner chain up to the tab's ScrollingFrame instead
+    of reading scroll members off the group's plain body frame.
+]]
 
 local function expect(cond, message)
 	if not cond then
@@ -151,13 +153,15 @@ eq(unselected.title, 0.3, "D3 ... its title")
 eq(unselected.icon, 0.7, "D3 ... and its check icon")
 eq(unselected.stroke, 0.93, "D3 ... and its stroke")
 
--- [[The stub leaves Visible unset (the engine default is true), so the corner
--- [[tiers are asked for the same way the open path asks for them: every row on
--- [[screen. The rows sit 6px inside the panel that clips them, so the outer
--- [[tier is that panel's own `ElementCornerRadius` -- a row's arc then lands
--- [[inside the clip instead of being cut by it -- and the seam where two rows
--- [[meet sits the element's 4px `rowSeam` below it. Read from the theme, so
--- [[the assertion follows a radius change instead of pinning one number.]]
+--[[
+The stub leaves Visible unset (the engine default is true), so the corner
+tiers are asked for the same way the open path asks for them: every row on
+screen. The rows sit 6px inside the panel that clips them, so the outer
+tier is that panel's own `ElementCornerRadius` -- a row's arc then lands
+inside the clip instead of being cut by it -- and the seam where two rows
+meet sits the element's 4px `rowSeam` below it. Read from the theme, so
+the assertion follows a radius change instead of pinning one number.
+]]
 local outerTier = window.theme.ElementCornerRadius.Offset
 local innerTier = outerTier - 4
 
@@ -207,9 +211,11 @@ eq(edited.value[1], "A", "D5 a selection the new list still has survives")
 eq(rowState(edited._optionFrames[1]).frame, 0.9, "D5 ... and its row opens highlighted")
 closeDropdown(edited)
 
--- [[A refreshed list that no longer holds the selection clears it and the
--- [[header falls back to the placeholder - the behaviour the always-built
--- [[version had, now reached without a single row existing first.]]
+--[[
+A refreshed list that no longer holds the selection clears it and the
+header falls back to the placeholder - the behaviour the always-built
+version had, now reached without a single row existing first.
+]]
 local cleared = tab:CreateDropdown({ name = "Cleared", options = { "A" }, value = "A" })
 TestPump(0.2)
 cleared:Refresh({ "Q" })
@@ -255,13 +261,15 @@ TestPump(0.3)
 eq(search._searchOpen, false, "D7 collapsing the search clears the filter")
 eq(search._optionFrames[1].frame.Visible, true, "D7 every row is back")
 
--- ===== D8: a dropdown inside a Collapsible Group scrolls the tab page =====
--- [[Grouped controls receive the group as their `tab` (that is what parents]]
--- [[them into the group body), and the group body is a plain Frame. The]]
--- [[open-time scroll used to read ScrollingFrame-only members off whatever]]
--- [[`tabPage` it found, which the engine rejects ("AbsoluteWindowSize is not]]
--- [[a valid member of Frame") the first time a grouped dropdown opens; the]]
--- [[stub models that strictness, so this pin fails on the old code path.]]
+--[[
+===== D8: a dropdown inside a Collapsible Group scrolls the tab page =====
+Grouped controls receive the group as their `tab` (that is what parents
+them into the group body), and the group body is a plain Frame. The
+open-time scroll used to read ScrollingFrame-only members off whatever
+`tabPage` it found, which the engine rejects ("AbsoluteWindowSize is not
+a valid member of Frame") the first time a grouped dropdown opens; the
+stub models that strictness, so this pin fails on the old code path.
+]]
 
 local groupedTab = window:CreateTab({ name = "Grouped" })
 local group = groupedTab:CreateCollapsibleGroup({

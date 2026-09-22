@@ -1,19 +1,23 @@
 local default = require(script.Parent.Parent.core.state)
 
--- [[Astra's default palette. The shared keys below are the historical set
--- [[a theme table may overlay; the Astra-only semantic keys (Background,
--- [[WindowSurface, text tiers, Success/Warning, etc.) are derived from the
--- [[same greyscale + teal accent so the capsule and settings surfaces stay
--- [[coherent with the rest of the theme.]]
+--[[
+Astra's default palette. The shared keys below are the historical set
+a theme table may overlay; the Astra-only semantic keys (Background,
+WindowSurface, text tiers, Success/Warning, etc.) are derived from the
+same greyscale + teal accent so the capsule and settings surfaces stay
+coherent with the rest of the theme.
+]]
 return {
-    -- [[Semantic palette (derived from the base greys + teal accent)]]
+    -- Semantic palette (derived from the base greys + teal accent)
     Background = Color3.fromRGB(10, 10, 10),
     WindowSurface = Color3.fromRGB(25, 25, 25),
-    -- [[Surface hierarchy the window's three sections are painted with: the
-    -- [[topbar is the darkest, the tab rail one step lighter, the elements
-    -- [[area the lightest, so the bands read distinctly from chrome to
-    -- [[content instead of blending into one flat gradient. The selected
-    -- [[tab row uses ElementSurface too, connecting it to the page it opens.]]
+    --[[
+    Surface hierarchy the window's three sections are painted with: the
+    topbar is the darkest, the tab rail one step lighter, the elements
+    area the lightest, so the bands read distinctly from chrome to
+    content instead of blending into one flat gradient. The selected
+    tab row uses ElementSurface too, connecting it to the page it opens.
+    ]]
     TopbarSurface = Color3.fromRGB(18, 18, 18),
     SidebarSurface = Color3.fromRGB(25, 25, 25),
     TabSurface = Color3.fromRGB(35, 35, 35),
@@ -39,26 +43,28 @@ return {
     PopupSurface = Color3.fromRGB(25, 25, 25),
     InputSurface = Color3.fromRGB(18, 18, 18),
 
-    -- [[Shared keys — the set a theme table may overlay]]
-    -- [[Corner scale. Three tiers, each nested inside the one above so the
-    -- [[arcs stay concentric instead of fighting:
-    -- [[  12px `CornerRoundness` — the shell: the window silhouette and the
-    -- [[     three bands that mirror its corners (topbar top pair, rail
-    -- [[     bottom-left, elements bottom-right), plus the surfaces that
-    -- [[     float over it (notification, popup).
-    -- [[   8px `ElementCornerRadius` — everything that sits *inside* the
-    -- [[     shell with padding around it: element cards, field boxes,
-    -- [[     hover overlays, tab rows, panels and small chrome.
-    -- [[  32px `PillCornerRadius` — the folded states. Half the 64px chrome
-    -- [[     height, so the minimised bar reads as a full pill; the 50px
-    -- [[     capsule clamps to its own half-height and comes out a pill
-    -- [[     too (a circle in the icon-only size). Roblox clamps a corner
-    -- [[     to half the smaller side, which is what makes one value serve
-    -- [[     both shapes.
-    -- [[Controls whose shape is inherently round — the switch, the slider
-    -- [[track and handle, the drag grabber, the unread dot — derive a
-    -- [[half-height pill from their own metrics rather than reading a token,
-    -- [[so they stay round whatever the theme says.]]
+    --[[
+    Shared keys — the set a theme table may overlay
+    Corner scale. Three tiers, each nested inside the one above so the
+    arcs stay concentric instead of fighting:
+      12px `CornerRoundness` — the shell: the window silhouette and the
+         three bands that mirror its corners (topbar top pair, rail
+         bottom-left, elements bottom-right), plus the surfaces that
+         float over it (notification, popup).
+       8px `ElementCornerRadius` — everything that sits *inside* the
+         shell with padding around it: element cards, field boxes,
+         hover overlays, tab rows, panels and small chrome.
+      32px `PillCornerRadius` — the folded states. Half the 64px chrome
+         height, so the minimised bar reads as a full pill; the 50px
+         capsule clamps to its own half-height and comes out a pill
+         too (a circle in the icon-only size). Roblox clamps a corner
+         to half the smaller side, which is what makes one value serve
+         both shapes.
+    Controls whose shape is inherently round — the switch, the slider
+    track and handle, the drag grabber, the unread dot — derive a
+    half-height pill from their own metrics rather than reading a token,
+    so they stay round whatever the theme says.
+    ]]
     CornerRoundness = UDim.new(0, 12),
     WindowColor = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(10, 10, 10)),
@@ -92,9 +98,11 @@ return {
     LiveAnimation = false,
     DarkToggleOverlay = true,
     ElementTransparency = 0,
-    -- [[Grouped children render as defined cards — a surface a shade under the
-    -- [[header band and a visible stroke — the crisp rows the design
-    -- [[reference shows, not 75%-faded ghosts without strokes.
+    --[[
+    Grouped children render as defined cards — a surface a shade under the
+    header band and a visible stroke — the crisp rows the design
+    reference shows, not 75%-faded ghosts without strokes.
+    ]]
     CollapsibleChildElementTransparency = 0.35,
     ElementStrokeTransparency = 0,
     CollapsibleChildElementStrokeTransparency = 0,

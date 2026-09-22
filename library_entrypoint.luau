@@ -7,10 +7,12 @@ local Icons = require(script.Parent.icons)
 local Motion = require(script.Parent.utilities.motion)
 local Settings = require(script.Parent.settings)
 local HardwarePerformance = require(script.Parent.utilities.hardwarePerformance)
--- [[Binds the `types` name used by every `types.X` annotation below. Types.luau
--- [[is a sibling of the entrypoint in both mounts (`script.Parent.Types` in the
--- [[Rojo/wax tree and in the generated bundle), and it returns an empty table,
--- [[so this require exists only to give the type checker a name to resolve.]]
+--[[
+Binds the `types` name used by every `types.X` annotation below. Types.luau
+is a sibling of the entrypoint in both mounts (`script.Parent.Types` in the
+Rojo/wax tree and in the generated bundle), and it returns an empty table,
+so this require exists only to give the type checker a name to resolve.
+]]
 local types = require(script.Parent.Types)
 
 export type Theme = types.Theme
@@ -72,14 +74,16 @@ local ACTIVE_WINDOW_KEY = "__ASTRA_ACTIVE_WINDOW_V1"
 local LIVE_WINDOWS_KEY = "__ASTRA_LIVE_WINDOWS_V1"
 local GENERATION_KEY = "__ASTRA_WINDOW_GENERATION_V1"
 
--- [[How long a font download waits for the entrance before it triggers its own
--- full theme pass. It is a cooldown between *parts* of startup, not extra
--- work: a font swap walks every instance the window owns, so running it while
--- the window is still arriving would put that pass on the frames the entrance
--- needs. Bounded, because a host that never shows the window must still end
--- up with its font. There is deliberately no reveal gate beside it: the
--- window shows on the next frame and the remaining constructors stream in
--- behind it in small budget-limited batches.]]
+--[[
+How long a font download waits for the entrance before it triggers its own
+full theme pass. It is a cooldown between *parts* of startup, not extra
+work: a font swap walks every instance the window owns, so running it while
+the window is still arriving would put that pass on the frames the entrance
+needs. Bounded, because a host that never shows the window must still end
+up with its font. There is deliberately no reveal gate beside it: the
+window shows on the next frame and the remaining constructors stream in
+behind it in small budget-limited batches.
+]]
 local FONT_SETTLE_BUDGET = 3
 
 local function getGlobalStore(): { [string]: any }
@@ -187,9 +191,11 @@ end
 
 Astra.Icons = Icons
 
--- [[The motion service is public: hosts can animate with the library's own
--- specs (`Astra.Motion.tween(frame, props, "snappy")`) and steer the whole
--- interface's timing (`setProfile`, `setTimeScale`, `setEnabled`).]]
+--[[
+The motion service is public: hosts can animate with the library's own
+specs (`Astra.Motion.tween(frame, props, "snappy")`) and steer the whole
+interface's timing (`setProfile`, `setTimeScale`, `setEnabled`).
+]]
 Astra.Motion = Motion
 
 Astra.Core = Core
@@ -197,12 +203,14 @@ Astra.Settings = Settings
 Astra.Performance = HardwarePerformance
 
 function Astra:CreateWindow(props: types.WindowProps): types.Window
-	-- [[Anti-duplicate has to claim the slot *before* `Window.new` can yield.
-	-- Construction checkpoints with `task.wait`, so a second `loadstring` can
-	-- start while the first window is still being built. Storing only the
-	-- finished window (and only one of them) is what left orphans behind when
-	-- the script was spam-executed: the later call saw an empty store, built
-	-- another shell, and the earlier one was never unloaded.]]
+	--[[
+	Anti-duplicate has to claim the slot *before* `Window.new` can yield.
+	Construction checkpoints with `task.wait`, so a second `loadstring` can
+	start while the first window is still being built. Storing only the
+	finished window (and only one of them) is what left orphans behind when
+	the script was spam-executed: the later call saw an empty store, built
+	another shell, and the earlier one was never unloaded.
+	]]
 	local antiDuplicateEnabled = Settings.readPersisted("antiWindowDuplicate", true)
 	local claimedGeneration: number? = nil
 	if antiDuplicateEnabled then
@@ -227,16 +235,18 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 	local window = result :: types.Window
 	if antiDuplicateEnabled then
 		if globalStore[GENERATION_KEY] ~= claimedGeneration then
-			-- [[A later CreateWindow claimed the slot while this one was
-			-- [[still constructing. Do not unload here: the host that called
-			-- [[us keeps running and is about to add tabs and elements to
-			-- [[the window we return, so destroying it now would interrupt
-			-- [[that construction (the "Window unloaded during
-			-- [[construction" crash). Mark it superseded instead — the
-			-- [[reveal thread below never shows it and unloads it as soon
-			-- [[as its construction has gone quiet, and the checkpoints
-			-- [[plus `Window:Create` keep any tail that outlives even that
-			-- [[moment detached instead of crashed.]]
+			--[[
+			A later CreateWindow claimed the slot while this one was
+			still constructing. Do not unload here: the host that called
+			us keeps running and is about to add tabs and elements to
+			the window we return, so destroying it now would interrupt
+			that construction (the "Window unloaded during
+			construction" crash). Mark it superseded instead — the
+			reveal thread below never shows it and unloads it as soon
+			as its construction has gone quiet, and the checkpoints
+			plus `Window:Create` keep any tail that outlives even that
+			moment detached instead of crashed.
+			]]
 			(window :: any)._superseded = true
 		else
 			unloadReplaceableWindows(window)
@@ -247,9 +257,11 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 	else
 		rememberWindow(window)
 	end
-	-- [[One secure-mode branch: the optional-icon preload and the brand-font
-	-- swap are independent, so they run as sibling threads rather than in two
-	-- separately-guarded blocks.]]
+	--[[
+	One secure-mode branch: the optional-icon preload and the brand-font
+	swap are independent, so they run as sibling threads rather than in two
+	separately-guarded blocks.
+	]]
 	if State.secureMode then
 		task.defer(function()
 			Image.preload(function(failedCount, failedRoles)
@@ -275,11 +287,13 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 				and mediumFont ~= State.fallbackFont
 			and semiBoldFont ~= State.fallbackFont
 		then
-			-- [[A font swap is a theme pass over every instance the window
-			-- owns, so running it while the window is still arriving puts that
-			-- pass on the frames the entrance needs. It waits for the window to
-			-- land instead — bounded, because a host that never shows the
-			-- window must still end up with its font.]]
+			--[[
+			A font swap is a theme pass over every instance the window
+			owns, so running it while the window is still arriving puts that
+			pass on the frames the entrance needs. It waits for the window to
+			land instead — bounded, because a host that never shows the
+			window must still end up with its font.
+			]]
 			local waited = 0
 			while
 				waited < FONT_SETTLE_BUDGET
@@ -296,30 +310,36 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 	end
 
 	if not window.unloaded then
-		-- Reveal on the next frame instead of on a fixed one-second deadline.
-		-- The old gate waited out the interval even for an empty window, which
-		-- is the 1s of the reported startup lag that every script paid. The
-		-- checkpoints below keep pacing the remaining constructors in small
-		-- budget-limited batches until the build goes quiet, so the opening
-		-- tween keeps receiving frames while late controls stream in behind
-		-- the already-visible shell.
+		--[[
+		Reveal on the next frame instead of on a fixed one-second deadline.
+		The old gate waited out the interval even for an empty window, which
+		is the 1s of the reported startup lag that every script paid. The
+		checkpoints below keep pacing the remaining constructors in small
+		budget-limited batches until the build goes quiet, so the opening
+		tween keeps receiving frames while late controls stream in behind
+		the already-visible shell.
+		]]
 		task.defer(function()
-			-- Still yield once so the caller can add its first tab before the
-			-- shell appears.
+			--[[
+			Still yield once so the caller can add its first tab before the
+			shell appears.
+			]]
 			task.wait()
 
 			if window.unloaded then
 				return
 			end
 			if (window :: any)._superseded then
-				-- [[A later CreateWindow overtook this one mid-construction.
-				-- [[The host already received the window and keeps adding
-				-- [[controls to it, so wait for that construction to go
-				-- [[quiet (the same two-stable-frames signal used below)
-				-- [[before unloading — never show it. Unloading any earlier
-				-- [[could land between two of the host's constructors; the
-				-- [[checkpoint and `Window:Create` detach paths keep even
-				-- [[that tail harmless.]]
+				--[[
+				A later CreateWindow overtook this one mid-construction.
+				The host already received the window and keeps adding
+				controls to it, so wait for that construction to go
+				quiet (the same two-stable-frames signal used below)
+				before unloading — never show it. Unloading any earlier
+				could land between two of the host's constructors; the
+				checkpoint and `Window:Create` detach paths keep even
+				that tail harmless.
+				]]
 				local stableFrames = 0
 				while not window.unloaded and stableFrames < 2 do
 					local revision = window._constructionRevision
@@ -343,8 +363,10 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 				window:Show()
 			end
 
-			-- Keep pacing post-reveal constructors until two consecutive frames
-			-- observe no construction activity.
+			--[[
+			Keep pacing post-reveal constructors until two consecutive frames
+			observe no construction activity.
+			]]
 			local stableFrames = 0
 			while not window.unloaded and not window._autoShowCancelled and stableFrames < 2 do
 				local revision = window._constructionRevision
@@ -361,13 +383,15 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 			end
 			window:Show()
 
-			-- [[Auto-load persisted control state once the host's constructors
-			-- [[have gone quiet: that quiet point is the de-facto "startup
-			-- [[finished" signal (the constructor itself returns before the
-			-- [[host has added any tab). The load applies over the controls in
-			-- [[small checkpoints, and controls registered even later are
-			-- [[still covered by Window:_restoreLate. Runs once per window; a
-			-- [[missing file or autoLoad turned off simply skips it.]]
+			--[[
+			Auto-load persisted control state once the host's constructors
+			have gone quiet: that quiet point is the de-facto "startup
+			finished" signal (the constructor itself returns before the
+			host has added any tab). The load applies over the controls in
+			small checkpoints, and controls registered even later are
+			still covered by Window:_restoreLate. Runs once per window; a
+			missing file or autoLoad turned off simply skips it.
+			]]
 			if window.configuration and window.configuration.autoLoad and not window._autoLoadDone then
 				window._autoLoadDone = true
 				window:Load()
@@ -378,10 +402,12 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 	return window
 end
 
--- [[Standalone key gate. The module is required lazily, like the window, so
--- hosts that never gate pay nothing at startup; the constructor either shows
--- the card or passes straight through to `onSuccess` (no keys configured, or
--- a saved key already matches).]]
+--[[
+Standalone key gate. The module is required lazily, like the window, so
+hosts that never gate pay nothing at startup; the constructor either shows
+the card or passes straight through to `onSuccess` (no keys configured, or
+a saved key already matches).
+]]
 function Astra:CreateKeySystem(props: types.KeySystemProps): types.KeySystem
 	local ok, result = pcall(function()
 		return (require(script.Parent.components.keySystem) :: any).new(props)

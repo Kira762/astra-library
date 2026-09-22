@@ -61,11 +61,13 @@ local runService = setmetatable({}, {
 })
 servicesByName["RunService"] = runService
 
--- [[`UserInputType` and `MembershipType` answer the way the engine does: a
--- [[member they do not know is an error, not a proxy. Modules name their members
--- [[while they load, so one invented member kills the require and every window
--- [[built after it - the `Pen` and `Free` members that shipped here have never
--- [[existed, and a permissive stub turned both crashes into a green test run.]]
+--[[
+`UserInputType` and `MembershipType` answer the way the engine does: a
+member they do not know is an error, not a proxy. Modules name their members
+while they load, so one invented member kills the require and every window
+built after it - the `Pen` and `Free` members that shipped here have never
+existed, and a permissive stub turned both crashes into a green test run.
+]]
 local strictEnumMembers = {
 	UserInputType = {
 		MouseButton1 = true, MouseButton2 = true, MouseButton3 = true, MouseWheel = true,

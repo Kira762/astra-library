@@ -23,8 +23,10 @@ assert(field.value == "K" and window.settings.toggleKeybind == Enum.KeyCode.K, "
 local saves = 0
 window.SaveSettings = function() saves += 1 end
 
--- Focusing the field clears only the editing buffer; typing a letter commits
--- it, normalises it, and releases capture without toggling the window.
+--[[
+Focusing the field clears only the editing buffer; typing a letter commits
+it, normalises it, and releases capture without toggling the window.
+]]
 field.input.Focused:Fire()
 assert(field.capturing and field.input.Text == "", "focus enters one-letter editing")
 field.input.Text = "p"
@@ -33,8 +35,10 @@ assert(field.value == "P" and not field.capturing and saves == 1, "typed letter 
 assert(field.input.Text == "P", "committed letter remains visible")
 assert(not window.hidden, "editing does not hide the window")
 
--- A pasted string is reduced to one letter; invalid text is rejected without
--- clearing the required current value.
+--[[
+A pasted string is reduced to one letter; invalid text is rejected without
+clearing the required current value.
+]]
 field.input.Focused:Fire()
 field.input.Text = "AB"
 TestPump(0.05)
@@ -46,8 +50,10 @@ assert(field.capturing and field.value == beforeInvalid, "invalid input keeps ca
 field.input.FocusLost:Fire()
 assert(not field.capturing and field.input.Text == beforeInvalid, "invalid edit restores the previous letter")
 
--- Public capture still supports keyboard input for hosts and for the menu
--- setting. The focused keybind is allowed through the global input guard.
+--[[
+Public capture still supports keyboard input for hosts and for the menu
+setting. The focused keybind is allowed through the global input guard.
+]]
 field:Capture()
 local inputService = Astra.Core.state.userInputService
 inputService.InputBegan:Fire({ UserInputType = Enum.UserInputType.Keyboard, KeyCode = Enum.KeyCode.P }, false)

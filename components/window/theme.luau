@@ -44,13 +44,17 @@ function Window:_syncLiveAnimation()
     local generation = self._liveGeneration
     task.spawn(function()
         local forward = true
-        -- [[Shared spec from the motion service: the ambient drift is long
-        -- enough that re-creating its TweenInfo per cycle was pure waste.]]
+        --[[
+        Shared spec from the motion service: the ambient drift is long
+        enough that re-creating its TweenInfo per cycle was pure waste.
+        ]]
         local liveTweenInfo = motion.spec("drift")
 
         while self._liveGeneration == generation and self._liveAnimating and not self.unloaded do
-            -- [[A list so the drift can be applied to more than one gradient
-            -- [[surface; the window's own is currently the only one.]]
+            --[[
+            A list so the drift can be applied to more than one gradient
+            surface; the window's own is currently the only one.
+            ]]
             local liveTargets = { self.windowGradient }
 
             local tweens = {}
@@ -83,15 +87,17 @@ function Window:ChangeTheme(themeInput)
         deriveStrokes(self.theme, themeTable)
     end
 
-    -- [[Before the first show the window is invisible, so routing every
-    -- Color3/number through a 0.5s tween only buys dozens of tween allocations
-    -- on the startup path — nothing can be seen animating. Assign the end
-    -- state directly; the values are identical to what the tweens would have
-    -- settled on, and everything from the first entrance on still tweens.
-    -- When the theme *can* be seen changing, the per-instance properties are
-    -- batched into one motion-service tween each (instead of one TweenService
-    -- tween per property), so a theme switch both animates as one gesture and
-    -- hands ownership of every animated property to the service.]]
+    --[[
+    Before the first show the window is invisible, so routing every
+    Color3/number through a 0.5s tween only buys dozens of tween allocations
+    on the startup path — nothing can be seen animating. Assign the end
+    state directly; the values are identical to what the tweens would have
+    settled on, and everything from the first entrance on still tweens.
+    When the theme *can* be seen changing, the per-instance properties are
+    batched into one motion-service tween each (instead of one TweenService
+    tween per property), so a theme switch both animates as one gesture and
+    hands ownership of every animated property to the service.
+    ]]
     local instantApply = self.hidden and not self.hasShownOnce
     local pendingThemeTweens: { [Instance]: { [string]: any } } = {}
     for instance, properties in self.themeProperties do
@@ -126,18 +132,22 @@ function Window:ChangeTheme(themeInput)
     end
 
     self:_syncLiveAnimation()
-    -- [[A theme can change the row title font, hence the rail width.]]
+    -- A theme can change the row title font, hence the rail width.
     self:_applyContentRailWidth()
 
-    -- [[Capsule / minimised bar: keep the live corner on the theme's pill
-    -- [[radius so ChangeTheme restyles the bar without needing a re-collapse.]]
+    --[[
+    Capsule / minimised bar: keep the live corner on the theme's pill
+    radius so ChangeTheme restyles the bar without needing a re-collapse.
+    ]]
     if self.windowCorner and (self._collapsedShown or self.minimised) and not self.animating then
         local pill = self.theme.PillCornerRadius or UDim.new(0, 0)
         if self.windowCorner.CornerRadius ~= pill then
             motion.tween(self.windowCorner, { CornerRadius = pill }, "smooth")
         end
-        -- [[The topbar band's corners follow the pill too (no-op while the
-        -- [[radii already match).]]
+        --[[
+        The topbar band's corners follow the pill too (no-op while the
+        radii already match).
+        ]]
         self:_syncTopbarCorners(pill, "smooth")
     end
 end
@@ -162,8 +172,10 @@ function Window:StyleWindowSurface(frame): UIGradient
     }, { Color = { "WindowColor", functions.toColorSequence } })
 end
 
--- [[The window's own opacity once it is on screen. Kept beside the surface
--- [[style so callers state the same value without guessing.]]
+--[[
+The window's own opacity once it is on screen. Kept beside the surface
+style so callers state the same value without guessing.
+]]
 
 function Window:WindowSurfaceTransparency(): number
     return windowSurfaceTransparency
@@ -294,17 +306,19 @@ function Window:_roundCorners(frame, corners, token)
     return self:Create("UICorner", props, themeMap)
 end
 
--- [[Companion to `_roundCorners` for a corner set an element flips with its own
--- [[state instead of once at construction: `corners` (default: all four, as in
--- [[`_roundCorners`) ride the `token` radius and every other corner of the frame
--- [[goes back to square, so a caller can move which of an inner surface's edges
--- [[match the container's arcs — a collapsible header is the card's bottom edge
--- [[only while it is closed. No theme binding is recorded here (`themeProperties`
--- [[still owns whatever `_roundCorners` bound), so a later `ChangeTheme` re-reads
--- [[`token` through this same call from the element instead of fighting it. There
--- [[is nothing to move on an engine without per-corner radii, where
--- [[`_roundCorners` already gave the frame one radius on all four corners, so the
--- [[call is a no-op there.]]
+--[[
+Companion to `_roundCorners` for a corner set an element flips with its own
+state instead of once at construction: `corners` (default: all four, as in
+`_roundCorners`) ride the `token` radius and every other corner of the frame
+goes back to square, so a caller can move which of an inner surface's edges
+match the container's arcs — a collapsible header is the card's bottom edge
+only while it is closed. No theme binding is recorded here (`themeProperties`
+still owns whatever `_roundCorners` bound), so a later `ChangeTheme` re-reads
+`token` through this same call from the element instead of fighting it. There
+is nothing to move on an engine without per-corner radii, where
+`_roundCorners` already gave the frame one radius on all four corners, so the
+call is a no-op there.
+]]
 
 function Window:_setRoundedCorners(corner, corners, token)
     if not corner or not hasPerCornerRadius then
@@ -325,15 +339,17 @@ function Window:Create(className, props, themeBindings)
     assert(typeof(className) == "string", "Invalid argument #1 (string expected)")
     local instance = Instance.new(className)
 
-    -- [[The anti-duplicate guard may unload this window while its superseded
-    -- [[script's constructors are still running: they yield between batches,
-    -- [[and the replacement executes during one of those yields. Those
-    -- [[constructors simply finish what they were building — but the live
-    -- [[tree is already destroyed, so they cannot parent into it (the engine
-    -- [[rejects any write to a destroyed instance). One detached throwaway
-    -- [[container per dead window collects the strays instead: nothing
-    -- [[under it is ever shown, `Unload` destroys it, and once the
-    -- [[superseded host drops its window reference the rest is collected.]]
+    --[[
+    The anti-duplicate guard may unload this window while its superseded
+    script's constructors are still running: they yield between batches,
+    and the replacement executes during one of those yields. Those
+    constructors simply finish what they were building — but the live
+    tree is already destroyed, so they cannot parent into it (the engine
+    rejects any write to a destroyed instance). One detached throwaway
+    container per dead window collects the strays instead: nothing
+    under it is ever shown, `Unload` destroys it, and once the
+    superseded host drops its window reference the rest is collected.
+    ]]
     local graveyard
     if self.unloaded then
         graveyard = self._constructionGraveyard
@@ -390,7 +406,7 @@ function Window:SetLocale(localeId)
             instance[prop] = locale.resolve(token)
         end
     end
-    -- [[Translated row titles may measure differently.]]
+    -- Translated row titles may measure differently.
     self:_applyContentRailWidth()
 end
 
@@ -403,9 +419,11 @@ function Window:RegisterTranslations(translations)
     self:SetLocale(locale.current)
 end
 
--- [[The window's own background, applied to any frame: the base colour the
--- [[WindowColor gradient is laid over, and the gradient itself (same theme
--- [[token, rotation and offset as the frame the window is built from). The
--- [[definition is shared rather than copied, so surfaces cannot drift into
--- [[near-miss shades of each other. Returns the gradient so callers can keep
--- [[it in step with the window's own (see _syncLiveAnimation).]]
+--[[
+The window's own background, applied to any frame: the base colour the
+WindowColor gradient is laid over, and the gradient itself (same theme
+token, rotation and offset as the frame the window is built from). The
+definition is shared rather than copied, so surfaces cannot drift into
+near-miss shades of each other. Returns the gradient so callers can keep
+it in step with the window's own (see _syncLiveAnimation).
+]]

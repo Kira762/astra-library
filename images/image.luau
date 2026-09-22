@@ -51,8 +51,10 @@ end
 function image.avatar(userId: number, onReady: AvatarCallback?): string
     local uri = `rbxthumb://type=AvatarHeadShot&id={userId}&w=48&h=48`
     if not variables.secureMode then
-        -- [[The URI is immediately usable; still deliver the callback so]]
-        -- [[callers that only render on it do not stay blank.]]
+        --[[
+        The URI is immediately usable; still deliver the callback so
+        callers that only render on it do not stay blank.
+        ]]
         if onReady then
             task.defer(onReady, uri)
         end

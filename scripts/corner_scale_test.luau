@@ -1,32 +1,34 @@
--- ===== corner scale assertions: three nested tiers, plus the derived pills =====
--- [[Runs the real Astra bundle (loaded as global `Astra` above) against the]]
--- [[mini Roblox environment from sidebar_sizing_stubs.luau.]]
---
--- Astra shipped with every radius at zero: the three theme tokens were
--- `UDim.new(0, 0)` and eleven more surfaces baked a zero of their own, so 34 of
--- the tree's 35 corners drew a hard edge. The scale that replaced them is three
--- tiers nested one step inside each other — 12px shell, 8px elements, 32px
--- folds — with the controls that are round by nature (the switch, the slider,
--- the drag pill, the unread dot) taking half their own height instead of
--- reading a token. These assertions pin both halves of that, so the square
--- corners cannot creep back one baked literal at a time.
---
--- Expected behavior under test:
---   * K1 the shell tier is a non-zero pixel radius and the window frame wears
---        it,
---   * K2 every element card, the input's field box and the rail's rows round at
---        the element tier,
---   * K3 the round-by-nature controls are pills of their own metrics — the
---        switch track/knob/sheen, the slider track/fill/handle, the drag pill —
---        and none of them reads a theme token,
---   * K4 the dropdown's row tiers follow the panel that clips them: the outer
---        tier is the panel's own radius, the seam 4px below it, and its search
---        field rounds a tier under the rows,
---   * K5 a `ChangeTheme` reaches every bound surface, so nothing is baked, and
---        switching back restores the scale,
---   * K6 the corners that are square on purpose stay square (the elements
---        band's top edge, flush against the topbar),
---   * K7 no painted surface anywhere in the tree carries an all-zero corner.
+--[[
+===== corner scale assertions: three nested tiers, plus the derived pills =====
+Runs the real Astra bundle (loaded as global `Astra` above) against the
+mini Roblox environment from sidebar_sizing_stubs.luau.
+
+Astra shipped with every radius at zero: the three theme tokens were
+`UDim.new(0, 0)` and eleven more surfaces baked a zero of their own, so 34 of
+the tree's 35 corners drew a hard edge. The scale that replaced them is three
+tiers nested one step inside each other — 12px shell, 8px elements, 32px
+folds — with the controls that are round by nature (the switch, the slider,
+the drag pill, the unread dot) taking half their own height instead of
+reading a token. These assertions pin both halves of that, so the square
+corners cannot creep back one baked literal at a time.
+
+Expected behavior under test:
+  * K1 the shell tier is a non-zero pixel radius and the window frame wears
+       it,
+  * K2 every element card, the input's field box and the rail's rows round at
+       the element tier,
+  * K3 the round-by-nature controls are pills of their own metrics — the
+       switch track/knob/sheen, the slider track/fill/handle, the drag pill —
+       and none of them reads a theme token,
+  * K4 the dropdown's row tiers follow the panel that clips them: the outer
+       tier is the panel's own radius, the seam 4px below it, and its search
+       field rounds a tier under the rows,
+  * K5 a `ChangeTheme` reaches every bound surface, so nothing is baked, and
+       switching back restores the scale,
+  * K6 the corners that are square on purpose stay square (the elements
+       band's top edge, flush against the topbar),
+  * K7 no painted surface anywhere in the tree carries an all-zero corner.
+]]
 
 local function expect(cond, message)
 	if not cond then
@@ -57,9 +59,11 @@ local function cornerOf(inst)
 	return nil
 end
 
--- [[A corner rounds if its own radius is non-zero or any explicitly written
--- [[per-corner radius is. Read from `__props` so an engine that never wrote a
--- [[per-corner value does not read as a square corner through a stub default.]]
+--[[
+A corner rounds if its own radius is non-zero or any explicitly written
+per-corner radius is. Read from `__props` so an engine that never wrote a
+per-corner value does not read as a square corner through a stub default.
+]]
 local function rounds(corner)
 	local main = corner.CornerRadius
 	if main and (main.Scale ~= 0 or main.Offset ~= 0) then
@@ -106,9 +110,11 @@ expect(
 	"K2 the element tier sits inside the shell's (" .. tostring(element.Offset) .. " < " .. tostring(shell.Offset) .. ")"
 )
 
--- [[The dropdown's card is its `top` frame (the closed button row); its `main`
--- [[is the wrapper that also holds the open panel, so it carries no corner of
--- [[its own.]]
+--[[
+The dropdown's card is its `top` frame (the closed button row); its `main`
+is the wrapper that also holds the open panel, so it carries no corner of
+its own.
+]]
 local function cardCorner(card)
 	local surface = if card.__type == "Dropdown" then card.top else card.main
 	expect(surface ~= nil, "K2 the " .. tostring(card.__type) .. " has a card surface")
@@ -180,8 +186,10 @@ eq(
 	"K3 the drag pill's ends are domed at half its thickness"
 )
 
--- [[None of the four reads a token: a theme that squares the cards off must
--- [[leave the switch, the slider and the drag pill round.]]
+--[[
+None of the four reads a token: a theme that squares the cards off must
+leave the switch, the slider and the drag pill round.
+]]
 
 -- ===== K4: the dropdown's row tiers ==========================================
 
@@ -213,8 +221,10 @@ expect(
 
 -- ===== K5: a theme change reaches every bound surface ========================
 
--- [[The search bar is built the first time search opens, so open it through the
--- [[toolbar action the window owns instead of assuming the frame exists.]]
+--[[
+The search bar is built the first time search opens, so open it through the
+toolbar action the window owns instead of assuming the frame exists.
+]]
 if not window.searchPill and window.searchAction and window.searchAction.callback then
 	window.searchAction.callback()
 	TestPump(0.8)
@@ -233,8 +243,10 @@ eq(
 	"K5 ... while the switch stays a pill of its own height"
 )
 
--- [[Search filters and hides elements while it is open; close it before the
--- [[sweep below audits the tree.]]
+--[[
+Search filters and hides elements while it is open; close it before the
+sweep below audits the tree.
+]]
 if window._searching and window.searchAction and window.searchAction.callback then
 	window.searchAction.callback()
 	TestPump(0.8)

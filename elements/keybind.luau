@@ -1,7 +1,9 @@
--- [[A compact, editable single-letter key control. The TextBox gives the
--- control a real caret and lets a user replace the letter in place, while the
--- shared capture path keeps programmatic Capture/CancelCapture and the window
--- shortcut guard working the same way. Values are always uppercase A–Z.]]
+--[[
+A compact, editable single-letter key control. The TextBox gives the
+control a real caret and lets a user replace the letter in place, while the
+shared capture path keeps programmatic Capture/CancelCapture and the window
+shortcut guard working the same way. Values are always uppercase A–Z.
+]]
 local utilities = script.Parent.Parent.utilities
 local baseCard = require(script.Parent.baseCard)
 local locale = require(utilities.locale)
@@ -21,9 +23,11 @@ function Keybind.new(tab, props)
         window = tab.window,
         name = props.name or props.Name or "Keybind",
         icon = tab.window:ResolveIcon(props.icon or props.Icon or "keyboard"),
-        -- [[Keybinds intentionally have no description row. The field is a
-        -- [[small one-letter affordance, so extra copy only pushes the control
-        -- [[away from the rest of the compact settings surface.]]
+        --[[
+        Keybinds intentionally have no description row. The field is a
+        small one-letter affordance, so extra copy only pushes the control
+        away from the rest of the compact settings surface.
+        ]]
         value = keys.letter(props.value or props.Value) or "K",
         callback = props.callback or props.Callback or function() end,
         forgetState = props.forgetState or props.ForgetState or tab.forgetState,
@@ -34,10 +38,12 @@ function Keybind.new(tab, props)
     self.flag = props.flag or props.Flag or (not self.forgetState and tab.deriveFlagFromName(self.name) or nil)
     self.window:_registerControl(self)
 
-    -- [[The field is deliberately only wide enough for one glyph. A TextBox,
-    -- [[rather than a TextButton, lets the user click into the value, delete
-    -- [[it while editing and type a replacement. The value is restored if the
-    -- [[edit is cancelled or focus is lost without a valid letter.]]
+    --[[
+    The field is deliberately only wide enough for one glyph. A TextBox,
+    rather than a TextButton, lets the user click into the value, delete
+    it while editing and type a replacement. The value is restored if the
+    edit is cancelled or focus is lost without a valid letter.
+    ]]
     baseCard.buildFull(self, { height = 43, rightPadding = 64, titleText = locale.t(self.name) })
     self.keyButton = self.window:Create("TextBox", {
         Name = "Keycap",
@@ -58,8 +64,10 @@ function Keybind.new(tab, props)
         AnchorPoint = Vector2.new(1, 0.5),
         Parent = self.main,
     }, { BackgroundColor3 = "FieldBackground", TextColor3 = "ContentColor", FontFace = "Font", PlaceholderColor3 = "PlaceholderColor" })
-    -- [[Keep the intuitive `input` handle for hosts that want to inspect or
-    -- [[focus the editable field; `keyButton` remains the compatibility name.]]
+    --[[
+    Keep the intuitive `input` handle for hosts that want to inspect or
+    focus the editable field; `keyButton` remains the compatibility name.
+    ]]
     self.input = self.keyButton
     self.window:Create("UICorner", { Parent = self.keyButton }, { CornerRadius = "ElementCornerRadius" })
 
@@ -73,9 +81,11 @@ function Keybind.new(tab, props)
             self:Capture()
         end
         self._editing = true
-        -- [[Clear only after focus is granted. This makes the next typed or
-        -- [[pasted character replace the old binding instead of appending to
-        -- [[it, while an empty edit can still be cancelled safely.]]
+        --[[
+        Clear only after focus is granted. This makes the next typed or
+        pasted character replace the old binding instead of appending to
+        it, while an empty edit can still be cancelled safely.
+        ]]
         self:_writeText("")
     end)
 
@@ -164,9 +174,11 @@ function Keybind:CancelCapture()
     self._editing = false
     self:_writeText(self.value)
     if self.keyButton and self.keyButton.Parent then
-        -- [[ReleaseFocus is safe when Capture was called from the public API
-        -- [[without the TextBox ever being focused; pcall also keeps the
-        -- [[library compatible with lightweight host stubs.]]
+        --[[
+        ReleaseFocus is safe when Capture was called from the public API
+        without the TextBox ever being focused; pcall also keeps the
+        library compatible with lightweight host stubs.
+        ]]
         pcall(function()
             self.keyButton:ReleaseFocus()
         end)

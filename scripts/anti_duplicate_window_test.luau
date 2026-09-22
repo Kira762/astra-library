@@ -1,9 +1,11 @@
--- Regression: Anti Duplicate Window must leave exactly one live window even
--- when CreateWindow is re-entered while a previous construction is still
--- yielding at its startup checkpoints (the spam-execute race). Replacing a
--- window whose constructors are still suspended at a checkpoint must not
--- crash those threads: the window is marked unloaded and vanishes at once,
--- but its tree is only destroyed once that construction has gone quiet.
+--[[
+Regression: Anti Duplicate Window must leave exactly one live window even
+when CreateWindow is re-entered while a previous construction is still
+yielding at its startup checkpoints (the spam-execute race). Replacing a
+window whose constructors are still suspended at a checkpoint must not
+crash those threads: the window is marked unloaded and vanishes at once,
+but its tree is only destroyed once that construction has gone quiet.
+]]
 
 local function expect(condition, message)
 	if not condition then
@@ -55,8 +57,10 @@ kept:Unload()
 extra:Unload()
 TestPump(0.2)
 
--- Overlapping constructions: several CreateWindow calls start before any
--- of them has registered in the global store. Only the latest claim survives.
+--[[
+Overlapping constructions: several CreateWindow calls start before any
+of them has registered in the global store. Only the latest claim survives.
+]]
 local overlapping = {}
 local entered = 0
 local finished = 0
@@ -85,9 +89,11 @@ end
 expect(finished == 8, "every overlapping CreateWindow returns")
 expect(sawOverlap, "CreateWindow was re-entered while a previous construction was still yielding")
 
--- A window overtaken mid-construction unloads once its construction goes
--- quiet, so the final state settles a few frames after the last call
--- returns. Pump until it has.
+--[[
+A window overtaken mid-construction unloads once its construction goes
+quiet, so the final state settles a few frames after the last call
+returns. Pump until it has.
+]]
 for _ = 1, 200 do
 	if countAlive(overlapping) == 1 and screenGuis() == 1 then
 		break
@@ -124,12 +130,14 @@ followup:Unload()
 TestPump(0.2)
 expect(screenGuis() == 0, "unloading the last window removes its ScreenGui")
 
--- The reported crash: re-executing while the previous script's host thread
--- is suspended at a construction checkpoint (mid-CreateCollapsibleGroup).
--- The replacement must mark the window unloaded and take the screen at once
--- without pulling the tree out from under the suspended constructors; the
--- superseded host thread resumes, finishes its build harmlessly, and the
--- tree is destroyed once that construction has gone quiet.
+--[[
+The reported crash: re-executing while the previous script's host thread
+is suspended at a construction checkpoint (mid-CreateCollapsibleGroup).
+The replacement must mark the window unloaded and take the screen at once
+without pulling the tree out from under the suspended constructors; the
+superseded host thread resumes, finishes its build harmlessly, and the
+tree is destroyed once that construction has gone quiet.
+]]
 local busy = Astra:CreateWindow({ name = "Busy", configuration = { autoSave = false, autoLoad = false } })
 local busyTab = busy:CreateTab({ name = "Busy tab" })
 local busyHostDone = false
@@ -168,18 +176,22 @@ expect(busyHostDone, "the superseded host thread finished its construction witho
 expect(#busy.instances == 0, "the superseded tree was destroyed once construction went quiet")
 expect(alive(replacer), "the replacement survives the superseded teardown")
 
--- A selection call the superseded script still owed (builds that end with a
--- Select, like the published examples) lands after the tree is gone; it must
--- be a no-op, not a write into destroyed chrome.
+--[[
+A selection call the superseded script still owed (builds that end with a
+Select, like the published examples) lands after the tree is gone; it must
+be a no-op, not a write into destroyed chrome.
+]]
 local lateSelectOk = pcall(function()
 	busyTab:Select()
 end)
 expect(lateSelectOk, "Select on an unloaded window is a harmless no-op")
 
--- A CreateTab owed after the tree is gone — a key-system onSuccess build
--- starts with exactly one — must build detached instead of asserting the
--- window alive. That assert surfaced as "Astra: key system callback errored:
--- ... Cannot create a tab on an unloaded window."
+--[[
+A CreateTab owed after the tree is gone — a key-system onSuccess build
+starts with exactly one — must build detached instead of asserting the
+window alive. That assert surfaced as "Astra: key system callback errored:
+... Cannot create a tab on an unloaded window."
+]]
 local lateTabOk, lateTab = pcall(function()
 	return busy:CreateTab({ name = "Late tab" })
 end)
@@ -200,9 +212,11 @@ replacer:Unload()
 TestPump(0.2)
 expect(screenGuis() == 0, "unloading the replacer clears the screen")
 
--- Overtaken while still inside Window.new: the overtaken CreateWindow must
--- hand its host a window that keeps accepting constructors; that window is
--- never shown and is torn down once the host's construction goes quiet.
+--[[
+Overtaken while still inside Window.new: the overtaken CreateWindow must
+hand its host a window that keeps accepting constructors; that window is
+never shown and is torn down once the host's construction goes quiet.
+]]
 local overtaken
 local overtakenHostDone = false
 task.spawn(function()
@@ -213,8 +227,10 @@ task.spawn(function()
 		table.insert(elements, { type = "Toggle", name = "Overtaken " .. index })
 	end
 	tab:CreateCollapsibleGroup({ name = "Overtaken group", elements = elements })
-	-- The published examples end their build with a selection; a superseded
-	-- script's must survive the same way.
+	--[[
+	The published examples end their build with a selection; a superseded
+	script's must survive the same way.
+	]]
 	tab:Select()
 	overtakenHostDone = true
 end)

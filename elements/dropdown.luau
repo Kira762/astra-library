@@ -20,15 +20,17 @@ local callback = name.icons.check
 local element = name.icons.dot
 local frame = name.icons.search
 
--- [[Open-list corner tiers: the first visible row rounds its top ends and the
--- [[last rounds its bottom at the outer tier, rows meet each other at the inner
--- [[tier, so the open list reads as one rounded card made of rows. Read from
--- [[the theme rather than baked, because the panel that clips the rows wears
--- [[`ElementCornerRadius` and the rows sit `rowInset` inside it: the outer tier
--- [[IS that radius, so a row's arc lands inside the panel's clip instead of
--- [[being cut by it, and a theme that squares the panel squares the list too.
--- [[The inner tier sits `rowSeam` below the outer, which keeps the seam between
--- [[two options readable without sharpening it back to a corner.]]
+--[[
+Open-list corner tiers: the first visible row rounds its top ends and the
+last rounds its bottom at the outer tier, rows meet each other at the inner
+tier, so the open list reads as one rounded card made of rows. Read from
+the theme rather than baked, because the panel that clips the rows wears
+`ElementCornerRadius` and the rows sit `rowInset` inside it: the outer tier
+IS that radius, so a row's arc lands inside the panel's clip instead of
+being cut by it, and a theme that squares the panel squares the list too.
+The inner tier sits `rowSeam` below the outer, which keeps the seam between
+two options readable without sharpening it back to a corner.
+]]
 local rowInset = 6
 local rowSeam = 4
 
@@ -52,19 +54,25 @@ local a26 = a24 + a25
 
 local a27 = 4
 
--- [[The bulk-action row is one line of controls, taller than the bare text
--- [[buttons it replaced so the checkbox it now carries sits in the same 16px
--- [[slot an option row gives its glyph. The drawn outline is the 12px square
--- [[inside that slot - the exact width of the row glyphs - so the two states
--- [[of the box are never a size apart.]]
+--[[
+The bulk-action row is one line of controls, taller than the bare text
+buttons it replaced so the checkbox it now carries sits in the same 16px
+slot an option row gives its glyph. The drawn outline is the 12px square
+inside that slot - the exact width of the row glyphs - so the two states
+of the box are never a size apart.
+]]
 local a28 = 32
 local actionBox = 12
--- [[A quarter of the box: enough to take the sharpness off a 12px checkbox
--- [[without turning it into a dot (the glyph it swaps to is round already).]]
+--[[
+A quarter of the box: enough to take the sharpness off a 12px checkbox
+without turning it into a dot (the glyph it swaps to is round already).
+]]
 local actionBoxRadius = UDim.new(0, actionBox / 4)
--- [[The dropdown's own search field is 30px tall and sits inside the panel's
--- [[`rowInset` padding. It rounds a tier below the rows so it reads as a field
--- [[you type into, not as another option.]]
+--[[
+The dropdown's own search field is 30px tall and sits inside the panel's
+`rowInset` padding. It rounds a tier below the rows so it reads as a field
+you type into, not as another option.
+]]
 local searchFieldRadius = UDim.new(0, 6)
 local actionStrokeIdle = 0.45
 local actionStrokeHover = 0.2
@@ -72,9 +80,11 @@ local actionStrokeChecked = 1
 local actionTextIdle = 0.45
 local actionTextHover = 0.15
 
--- [[The dropdown's motion vocabulary, resolved through the shared service:
--- rows snap, panels fade on the normal reveal curve, the list opens on the
--- smooth surface curve and the chevron spins.]]
+--[[
+The dropdown's motion vocabulary, resolved through the shared service:
+rows snap, panels fade on the normal reveal curve, the list opens on the
+smooth surface curve and the chevron spins.
+]]
 local a29, a30, a31 = "fast", "snappy", "normal"
 local a32, a33, a35 = "smooth", "spin", "normal"
 
@@ -182,10 +192,12 @@ function state.new(tab, a49)
         Parent = self.tab.tabPage,
     })
 
-    -- [[The card grows for a description before anything is built inside it:
-    -- [[the visible top card, the title row and the value column all seat
-    -- [[themselves against the base region of the taller card, and the option
-    -- [[panel keeps its 41px card plus the gap above it.]]
+    --[[
+    The card grows for a description before anything is built inside it:
+    the visible top card, the title row and the value column all seat
+    themselves against the base region of the taller card, and the option
+    panel keeps its 41px card plus the gap above it.
+    ]]
     description.attach(self)
 
         self.top = self.window:Create("Frame", {
@@ -328,8 +340,10 @@ function state.new(tab, a49)
         Parent = self.panel,
     })
 
-    -- [[The search bar is built with the rows, on the first open: until then
-    -- [[it is behind a closed panel and cannot be reached.]]
+    --[[
+    The search bar is built with the rows, on the first open: until then
+    it is behind a closed panel and cannot be reached.
+    ]]
     self:_buildActions()
 
     self.list = self.window:Create("ScrollingFrame", {
@@ -605,10 +619,12 @@ function state.new(tab, a49)
 
     self._buildOption = a64
 
-    -- [[Rows are built on the first open, not here: a closed dropdown shows
-    -- [[only its header, so its options cost nothing until the user looks at
-    -- [[them. self.options stays the source of truth, so anything that changes
-    -- [[the list while closed is simply reflected the next time it opens.]]
+    --[[
+    Rows are built on the first open, not here: a closed dropdown shows
+    only its header, so its options cost nothing until the user looks at
+    them. self.options stays the source of truth, so anything that changes
+    the list while closed is simply reflected the next time it opens.
+    ]]
 
     a63()
     self:_updateCorners()
@@ -717,9 +733,11 @@ function state:_buildSearch()
         Size = UDim2.fromOffset(20, 20),
         Position = UDim2.new(0, 24, 0.5, 0),         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundTransparency = 1,
-        -- [[A GuiObject border draws the square outline of the frame's
-        -- bounds (it never follows a UICorner), so every surface in the
-        -- window opts out of it.]]
+        --[[
+        A GuiObject border draws the square outline of the frame's
+        bounds (it never follows a UICorner), so every surface in the
+        window opts out of it.
+        ]]
         BorderSizePixel = 0,
         ScaleType = Enum.ScaleType.Fit,
         AutoButtonColor = false,
@@ -832,12 +850,14 @@ function state:_visibleOptions(): { string }
     return a85
 end
 
--- [[The Select all / Clear row. It is the one two-ended line in the panel: the
--- [[checkbox and its label sit at the left edge, Clear and its bin at the
--- [[right. Both controls act on the options the list is showing, so a search
--- [[that narrows the list narrows what they touch - and the checkbox answers
--- [[for exactly that set (on when every visible option is selected, off when
--- [[any of them is not, and off when the filter matches nothing).]]
+--[[
+The Select all / Clear row. It is the one two-ended line in the panel: the
+checkbox and its label sit at the left edge, Clear and its bin at the
+right. Both controls act on the options the list is showing, so a search
+that narrows the list narrows what they touch - and the checkbox answers
+for exactly that set (on when every visible option is selected, off when
+any of them is not, and off when the filter matches nothing).
+]]
 function state:_buildActions()
     if not self.multiSelect then
         return
@@ -852,9 +872,11 @@ function state:_buildActions()
         Parent = self.panel,
     })
 
-    -- [[Select all: the glyph slot a row uses, then the label. Clicking it
-    -- [[toggles the visible options - everything visible already selected
-    -- [[clears them, anything else selects what is missing.]]
+    --[[
+    Select all: the glyph slot a row uses, then the label. Clicking it
+    toggles the visible options - everything visible already selected
+    clears them, anything else selects what is missing.
+    ]]
     self.selectAll = self.window:Create("TextButton", {
         Name = "SelectAll",
         AutomaticSize = Enum.AutomaticSize.X,
@@ -886,8 +908,10 @@ function state:_buildActions()
         Parent = self.selectAll,
     })
 
-    -- [[Unchecked is the drawn outline and nothing else; checked hides it and
-    -- [[shows the same pack glyph a selected row shows.]]
+    --[[
+    Unchecked is the drawn outline and nothing else; checked hides it and
+    shows the same pack glyph a selected row shows.
+    ]]
     self.selectAllBox = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
@@ -931,8 +955,10 @@ function state:_buildActions()
         Parent = self.selectAll,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-    -- [[Clear: the label, then the bin. The bin is an ordinary pack icon, so it
-    -- [[resolves (and caches) exactly like the icons everywhere else.]]
+    --[[
+    Clear: the label, then the bin. The bin is an ordinary pack icon, so it
+    resolves (and caches) exactly like the icons everywhere else.
+    ]]
     self.clear = self.window:Create("TextButton", {
         Name = "Clear",
         AutomaticSize = Enum.AutomaticSize.X,
@@ -1023,9 +1049,11 @@ function state:_buildActions()
     self:_syncActions()
 end
 
--- [[The options a bulk action applies to: what the list shows right now. Rows
--- [[are materialised on the first open, and until then no filter can be on
--- [[(the bar does not exist yet), so the whole option list is what is shown.]]
+--[[
+The options a bulk action applies to: what the list shows right now. Rows
+are materialised on the first open, and until then no filter can be on
+(the bar does not exist yet), so the whole option list is what is shown.
+]]
 function state:_actionOptions(): { string }
     if #self._optionFrames == 0 then
         return self.options
@@ -1033,8 +1061,10 @@ function state:_actionOptions(): { string }
     return self:_visibleOptions()
 end
 
--- [[On when every visible option is selected. A filter that matches nothing
--- [[leaves the box off: there is nothing there to select.]]
+--[[
+On when every visible option is selected. A filter that matches nothing
+leaves the box off: there is nothing there to select.
+]]
 function state:_visibleSelection(): boolean
     local names = self:_actionOptions()
     if #names == 0 then
@@ -1069,14 +1099,16 @@ function state:_clearVisibleSelection()
     end
 end
 
--- [[Put the checkbox in step with the list. Everything that can move the
--- [[selection or the visible set calls this, so the box never lags the rows -
--- [[and one of those callers is the search filter, which runs on every
--- [[keystroke: a sync that would not change either half is left alone rather
--- [[than replaying the same two tweens per character.
--- [[]]
--- [[An unchecked box keeps its hover brightness: a click that empties it while
--- [[the pointer is still on it must not drop it to the idle dim.]]
+--[[
+Put the checkbox in step with the list. Everything that can move the
+selection or the visible set calls this, so the box never lags the rows -
+and one of those callers is the search filter, which runs on every
+keystroke: a sync that would not change either half is left alone rather
+than replaying the same two tweens per character.
+
+An unchecked box keeps its hover brightness: a click that empties it while
+the pointer is still on it must not drop it to the idle dim.
+]]
 function state:_syncActions()
     if not self.selectAllCheck then
         return
@@ -1174,9 +1206,11 @@ function state:_openHeight()
     return math.min(a109 + a102(a111), a110) + (self._descriptionExtra or 0)
 end
 
--- [[Materialise one row, by option index. Idempotent: the row keeps whatever
--- [[state it already carries, so this can be called from any path that needs
--- [[the row to exist.]]
+--[[
+Materialise one row, by option index. Idempotent: the row keeps whatever
+state it already carries, so this can be called from any path that needs
+the row to exist.
+]]
 function state:_buildOptionAt(a: number)
     local built = self._optionFrames[a]
     if built then
@@ -1189,18 +1223,22 @@ function state:_buildOptionAt(a: number)
     return optionFrame
 end
 
--- [[Build every row the current option list implies. Called when the list is
--- [[first looked at (opening), which is also the first moment the rows can be
--- [[seen, measured or hovered.]]
+--[[
+Build every row the current option list implies. Called when the list is
+first looked at (opening), which is also the first moment the rows can be
+seen, measured or hovered.
+]]
 function state:_materialiseOptions()
     if self._optionsBuilt then
         return
     end
     self._optionsBuilt = true
 
-    -- [[The bar goes in first, exactly where construction used to put it, so
-    -- [[the panel's child order is what it always was. It is a sibling of the
-    -- [[list (LayoutOrder 1 against the list's 3), not of the rows.]]
+    --[[
+    The bar goes in first, exactly where construction used to put it, so
+    the panel's child order is what it always was. It is a sibling of the
+    list (LayoutOrder 1 against the list's 3), not of the rows.
+    ]]
     if not self.searchbar then
         self:_buildSearch()
     end
@@ -1266,12 +1304,14 @@ function state:_open()
 end
 
 function state:_bringIntoView()
-    -- [[Controls built inside a Collapsible Group receive the group as their]]
-    -- [[`tab` (that is what parents them into the group body), and an ordinary]]
-    -- [[Group nests one link deeper still. Only the real Tab's tabPage is a]]
-    -- [[ScrollingFrame: the group's body is a plain Frame, so reading]]
-    -- [[AbsoluteWindowSize/CanvasPosition off it throws on the engine. Walk]]
-    -- [[the owner chain up to the Tab before touching scroll members.]]
+    --[[
+    Controls built inside a Collapsible Group receive the group as their
+    `tab` (that is what parents them into the group body), and an ordinary
+    Group nests one link deeper still. Only the real Tab's tabPage is a
+    ScrollingFrame: the group's body is a plain Frame, so reading
+    AbsoluteWindowSize/CanvasPosition off it throws on the engine. Walk
+    the owner chain up to the Tab before touching scroll members.
+    ]]
     local host = self.tab
     while host and host.__type ~= "Tab" do
         host = host.tab
@@ -1383,8 +1423,10 @@ function state:Refresh(a140)
 
     local a141 = self:_deriveSelection()
 
-    -- [[A dropdown that was never opened has no rows to rebind: the new list
-    -- [[is what the rows are built from the first time it is opened.]]
+    --[[
+    A dropdown that was never opened has no rows to rebind: the new list
+    is what the rows are built from the first time it is opened.
+    ]]
     if self._optionsBuilt then
                         local a142 = #self._optionFrames
         local a143 = #self.options
@@ -1426,8 +1468,10 @@ function state:Add(a148)
     end
 
     table.insert(self.options, a148)
-    -- [[While the rows are still unbuilt the option list is the only record;
-    -- [[the new row appears with the rest the first time this dropdown opens.]]
+    --[[
+    While the rows are still unbuilt the option list is the only record;
+    the new row appears with the rest the first time this dropdown opens.
+    ]]
     local a149 = if self._optionsBuilt then self:_buildOptionAt(#self.options) else nil
 
         local a150 = self:_deriveSelection()

@@ -8,10 +8,12 @@ local keybind = require(script.Parent.keybind)
 
 local persistenceSettings = {}
 
--- [[Settings files written before profile visibility was explicitly kept off
--- [[did not carry a schema marker. Treat those files as legacy once, clear the
--- [[profile visibility pair, and write the marker back so a user can still turn
--- [[the profile on intentionally afterward.]]
+--[[
+Settings files written before profile visibility was explicitly kept off
+did not carry a schema marker. Treat those files as legacy once, clear the
+profile visibility pair, and write the marker back so a user can still turn
+the profile on intentionally afterward.
+]]
 local SETTINGS_VERSION = 2
 
 type SettingsWindow = {
@@ -152,9 +154,11 @@ function persistenceSettings.loadSettings(window: SettingsWindow): (boolean, boo
 
     if type(decodedSettings.theme) == "string" then
         local theme = string.lower(decodedSettings.theme)
-        -- [[The only built-in palette is `default`. A saved name from a
-        -- [[removed colour theme is ignored so the window stays on default
-        -- [[instead of warning on every load.]]
+        --[[
+        The only built-in palette is `default`. A saved name from a
+        removed colour theme is ignored so the window stays on default
+        instead of warning on every load.
+        ]]
         if theme == "default" then
             window.settings.theme = theme
         end
@@ -184,9 +188,11 @@ function persistenceSettings.loadSettings(window: SettingsWindow): (boolean, boo
         window.settings.layoutMode = decodedSettings.layoutMode
     end
 
-    -- [[Motion profiles are validated by the motion service, the same way the
-    -- live setting is, so a hand-edited settings file cannot put the library
-    -- on a profile that does not exist.]]
+    --[[
+    Motion profiles are validated by the motion service, the same way the
+    live setting is, so a hand-edited settings file cannot put the library
+    on a profile that does not exist.
+    ]]
     if type(decodedSettings.motionSpeed) == "string" then
         local motion = require(script.Parent.motion)
         if motion.profiles[decodedSettings.motionSpeed] then

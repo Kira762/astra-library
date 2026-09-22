@@ -12,40 +12,46 @@ local flag = require(constants.locale)
 local value = require(constants.HapticEngine)
 local baseCard = require(script.Parent.baseCard)
 local description = require(script.Parent.description)
--- [[The switch rides the shared motion vocabulary. The knob is the one
--- genuinely mechanical surface in the library, so it gets the short Back
--- overshoot (`settle`) — it reads as a physical slide with a landing rather
--- than a glide. The accent glow trails the knob by a beat (accentTween's
--- delay, rescaled with the speed profile through the service).]]
+--[[
+The switch rides the shared motion vocabulary. The knob is the one
+genuinely mechanical surface in the library, so it gets the short Back
+overshoot (`settle`) — it reads as a physical slide with a landing rather
+than a glide. The accent glow trails the knob by a beat (accentTween's
+delay, rescaled with the speed profile through the service).
+]]
 local motion = require(constants.motion)
 local callback = "snappy"
 local knobSlide = "settle"
 
--- [[Switch metrics, in one place. The track and the knob are both pills and
--- [[the knob keeps the same clearance on every side it can see (`switchInset`
--- [[at the parked end, the same above and below), so the two resting states
--- [[are exact mirrors of each other.
---
--- [[The track is also deliberately only as wide as the knob plus its travel.
--- [[With the old 50px track around a 25px knob, "on" parked the knob 3px from
--- [[the right edge and left 22px of empty track on the left: a ratio of
--- [[roughly 7:1 at the same moment the knob looked like it floated. Dropping
--- [[the track to 44px keeps the knob's travel readable while the empty side
--- [[drops to 14px, so neither state reads as lopsided.
---
--- [[Positions are expressed from the track's right edge (scale 1), which is
--- [[how the knob's AnchorPoint (0, 0.5) resolves against its parent.]]
+--[[
+Switch metrics, in one place. The track and the knob are both pills and
+the knob keeps the same clearance on every side it can see (`switchInset`
+at the parked end, the same above and below), so the two resting states
+are exact mirrors of each other.
+
+The track is also deliberately only as wide as the knob plus its travel.
+With the old 50px track around a 25px knob, "on" parked the knob 3px from
+the right edge and left 22px of empty track on the left: a ratio of
+roughly 7:1 at the same moment the knob looked like it floated. Dropping
+the track to 44px keeps the knob's travel readable while the empty side
+drops to 14px, so neither state reads as lopsided.
+
+Positions are expressed from the track's right edge (scale 1), which is
+how the knob's AnchorPoint (0, 0.5) resolves against its parent.
+]]
 local switchTrackWidth = 44
 local switchTrackHeight = 22
 local switchKnobWidth = 26
 local switchKnobHeight = 18
 local switchInset = 2
 
--- [[The pills the metrics above describe: each radius is half its own
--- [[surface's height, so the track's arc and the knob's arc are concentric
--- [[(the knob's 2px clearance reads the same all the way round) and neither
--- [[depends on a theme token that could square the switch off. The sheen
--- [[overlay covers the track exactly, so it wears the track's radius too.]]
+--[[
+The pills the metrics above describe: each radius is half its own
+surface's height, so the track's arc and the knob's arc are concentric
+(the knob's 2px clearance reads the same all the way round) and neither
+depends on a theme token that could square the switch off. The sheen
+overlay covers the track exactly, so it wears the track's radius too.
+]]
 local switchTrackRadius = UDim.new(0, switchTrackHeight / 2)
 local switchKnobRadius = UDim.new(0, switchKnobHeight / 2)
 
@@ -196,8 +202,10 @@ function state:_buildFull()
     })
 
     self:_buildSwitch(self.main)
-    -- [[The switch centres in the base region too, so a described card grows
-    -- [[under the toggle instead of pushing it down onto the line.]]
+    --[[
+    The switch centres in the base region too, so a described card grows
+    under the toggle instead of pushing it down onto the line.
+    ]]
     self.functionContainer.Position = UDim2.new(1, -15, description.center(self, 41))
     self.functionContainer.AnchorPoint = Vector2.new(1, 0.5)
 

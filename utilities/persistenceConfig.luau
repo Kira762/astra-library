@@ -163,9 +163,11 @@ function persistenceConfig.load(window: ConfigWindow, loadName: unknown?): boole
     local applyOk, applyErr = pcall(function()
         local appliedCount = 0
         for loadedFlag, loadedControl in window.controls do
-            -- [[An anti-duplicate replacement can unload the window while a
-            -- [[large load is pacing across frames; its controls are already
-            -- [[destroyed, so stop applying instead of writing into them.]]
+            --[[
+            An anti-duplicate replacement can unload the window while a
+            large load is pacing across frames; its controls are already
+            destroyed, so stop applying instead of writing into them.
+            ]]
             if window.unloaded then
                 break
             end

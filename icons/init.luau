@@ -1,37 +1,43 @@
--- [[Icon resolver service.]]
--- [[]]
--- [[Public API is compatible with the previous single-module catalog:]]
--- [[local Icons = require(path.to.icons)]]
--- [[Icons.get("arrow-down")            -- searches every pack in priority order]]
--- [[Icons.get("arrow-down", "lucide")  -- one pack only]]
--- [[Icons.get("material:home")         -- pack-qualified: that pack, exactly]]
--- [[Icons.getByPack("material", "add")]]
--- [[Icons.resolve(value, pack)]]
--- [[Icons.list(pack) / Icons.packs() / Icons.count(pack) / Icons.isPack(pack)]]
--- [[Icons.priority() / Icons.loaded() / Icons.refreshCustom()]]
--- [[Icons.Lucide == "lucide" (and the other pack name constants)]]
--- [[]]
--- [[Packs are lazy: each pack's data table lives in its own module and is]]
--- [[required on first lookup for that pack only, then kept cached. No HTTP]]
--- [[requests happen between internal modules; pack data is static.]]
--- [[]]
--- [[Lookups are exact. Icon names and pack names are case-sensitive: nothing]]
--- [[is lowercased, corrected or fuzzy-matched, so a miss is a miss. A name]]
--- [[that exists in several packs resolves to the first pack listed by]]
--- [[`Icons.priority()` (lucide, material, tabler, phosphor, heroicons, feather,]]
--- [[remix); an explicit pack - `get(name, pack)` or the `"pack:name"` form -]]
--- [[is never overridden by that order, and an unknown or mis-cased pack name]]
--- [[resolves to nothing rather than to some other pack.]]
+--[[
+Icon resolver service.
+
+Public API is compatible with the previous single-module catalog:
+local Icons = require(path.to.icons)
+Icons.get("arrow-down")            -- searches every pack in priority order
+Icons.get("arrow-down", "lucide")  -- one pack only
+Icons.get("material:home")         -- pack-qualified: that pack, exactly
+Icons.getByPack("material", "add")
+Icons.resolve(value, pack)
+Icons.list(pack) / Icons.packs() / Icons.count(pack) / Icons.isPack(pack)
+Icons.priority() / Icons.loaded() / Icons.refreshCustom()
+Icons.Lucide == "lucide" (and the other pack name constants)
+
+Packs are lazy: each pack's data table lives in its own module and is
+required on first lookup for that pack only, then kept cached. No HTTP
+requests happen between internal modules; pack data is static.
+
+Lookups are exact. Icon names and pack names are case-sensitive: nothing
+is lowercased, corrected or fuzzy-matched, so a miss is a miss. A name
+that exists in several packs resolves to the first pack listed by
+`Icons.priority()` (lucide, material, tabler, phosphor, heroicons, feather,
+remix); an explicit pack - `get(name, pack)` or the `"pack:name"` form -
+is never overridden by that order, and an unknown or mis-cased pack name
+resolves to nothing rather than to some other pack.
+]]
 
 local icons = {}
 
--- [[Pack priority for a bare name. Deterministic, and also the order packs]]
--- [[load in: the search stops at the first pack that has the name, so a lucide]]
--- [[icon never pulls in the other six tables.]]
+--[[
+Pack priority for a bare name. Deterministic, and also the order packs
+load in: the search stops at the first pack that has the name, so a lucide
+icon never pulls in the other six tables.
+]]
 local PACK_ORDER = { "lucide", "material", "tabler", "phosphor", "heroicons", "feather", "remix" }
 
--- [[Pack registry: pack name -> lazy loader. Each loader requires the pack]]
--- [[module on demand; require() itself caches the module table afterwards.]]
+--[[
+Pack registry: pack name -> lazy loader. Each loader requires the pack
+module on demand; require() itself caches the module table afterwards.
+]]
 local packLoaders = {
     lucide = function()
         return require(script.lucide)
@@ -58,7 +64,7 @@ local packLoaders = {
 
 local loadedPacks: { [string]: { [string]: string } } = {}
 
--- [[Pack name constants (legacy surface: Icons.Lucide, Icons.Material, ...)]]
+-- Pack name constants (legacy surface: Icons.Lucide, Icons.Material, ...)
 icons.Lucide = "lucide"
 icons.Material = "material"
 icons.Tabler = "tabler"
@@ -67,7 +73,7 @@ icons.Heroicons = "heroicons"
 icons.Feather = "feather"
 icons.Remix = "remix"
 
--- [[Lazily exposed pack tables (Icons.lucide, Icons.material, ...).]]
+-- Lazily exposed pack tables (Icons.lucide, Icons.material, ...).
 setmetatable(icons, {
     __index = function(self, pack: string)
         local loader = packLoaders[pack]
@@ -76,7 +82,7 @@ setmetatable(icons, {
         end
         local data = loader()
         loadedPacks[pack] = data
-        -- [[Cache the table so future reads skip the metatable entirely.]]
+        -- Cache the table so future reads skip the metatable entirely.
         rawset(self, pack, data)
         return data
     end,
@@ -105,7 +111,7 @@ function icons.isPack(pack: string?): boolean
     return pack ~= nil and type(pack) == "string" and packLoaders[pack] ~= nil
 end
 
--- [[The order a bare name is searched in (a copy: callers cannot reorder it).]]
+-- The order a bare name is searched in (a copy: callers cannot reorder it).
 function icons.priority(): { string }
     local order = table.create(#PACK_ORDER)
     for index, pack in ipairs(PACK_ORDER) do
@@ -114,9 +120,11 @@ function icons.priority(): { string }
     return order
 end
 
--- [[Which packs have been loaded so far. Laziness is part of the contract]]
--- [[(startup must not read 13.7k lines of tables to show one icon), so it is]]
--- [[observable: a suite asserts that one lucide name loads one pack.]]
+--[[
+Which packs have been loaded so far. Laziness is part of the contract
+(startup must not read 13.7k lines of tables to show one icon), so it is
+observable: a suite asserts that one lucide name loads one pack.
+]]
 function icons.loaded(): { string }
     local names = {}
     for pack in loadedPacks do
@@ -127,12 +135,14 @@ function icons.loaded(): { string }
 end
 
 local namedAssets = {
-    -- Brand icon for the window topbar and the collapsed capsule (pill).
-    -- The file lives under assets/window-icons/ so the secure-mode preload
-    -- manifest (windowIcons.files.window) fetches the same source; a user
-    -- file at custom_asset/sirius.png still wins, because custom assets are
-    -- checked before named assets. "Sirius" is kept for scripts written
-    -- before icon names went lowercase.
+    --[[
+    Brand icon for the window topbar and the collapsed capsule (pill).
+    The file lives under assets/window-icons/ so the secure-mode preload
+    manifest (windowIcons.files.window) fetches the same source; a user
+    file at custom_asset/sirius.png still wins, because custom assets are
+    checked before named assets. "Sirius" is kept for scripts written
+    before icon names went lowercase.
+    ]]
     sirius = "assets/window-icons/sirius.png",
     Sirius = "assets/window-icons/sirius.png",
 }
@@ -141,8 +151,10 @@ local function environment(): any
     return (getfenv and getfenv()) or _G
 end
 
--- [[Warnings are once per unknown pack name: a typo in a hot path must not]]
--- [[spam the console every frame, but the first occurrence has to be findable.]]
+--[[
+Warnings are once per unknown pack name: a typo in a hot path must not
+spam the console every frame, but the first occurrence has to be findable.
+]]
 local warnedPacks: { [string]: boolean } = {}
 
 local function report(message: string)
@@ -160,9 +172,11 @@ local function warnUnknownPack(pack: string, request: string)
     report(`[Icons] Unknown icon pack "{pack}" in "{request}": pack names are case-sensitive ({table.concat(PACK_ORDER, ", ")})`)
 end
 
--- [[`"pack:name"` -> pack, name. Split on the first colon only, so an icon]]
--- [[name that itself contains a colon is still addressable. No pack prefix]]
--- [[means "search every pack".]]
+--[[
+`"pack:name"` -> pack, name. Split on the first colon only, so an icon
+name that itself contains a colon is still addressable. No pack prefix
+means "search every pack".
+]]
 local function splitRequest(value: string): (string?, string)
     local colon = string.find(value, ":", 1, true)
     if not colon then
@@ -188,21 +202,23 @@ local function prefixed(resolved: string?): string?
     return resolved
 end
 
--- =========================================================================
--- Custom assets
--- =========================================================================
--- [[User files under `custom_asset/` win over every pack. The folder is]]
--- [[indexed once with the executor's `listfiles` instead of being probed per]]
--- [[lookup: a name that has no file there costs nothing after the first]]
--- [[search (a 16-element page used to spend 195 getcustomasset calls on]]
--- [[misses alone), and a file that is used is imported once per path.]]
--- [[]]
--- [[Executors without `listfiles` keep the historic per-name probe, now]]
--- [[memoised - including the misses, which is what repeats do not re-run.]]
--- [[]]
--- [[Files may live in subfolders (`custom_asset/brand/house.png` is looked up]]
--- [[as `"brand/house"`). Extensions keep the historic set and preference]]
--- [[order: png, jpg, jpeg, webp, then a bare filename with no extension.]]
+--[[
+=========================================================================
+Custom assets
+=========================================================================
+User files under `custom_asset/` win over every pack. The folder is
+indexed once with the executor's `listfiles` instead of being probed per
+lookup: a name that has no file there costs nothing after the first
+search (a 16-element page used to spend 195 getcustomasset calls on
+misses alone), and a file that is used is imported once per path.
+
+Executors without `listfiles` keep the historic per-name probe, now
+memoised - including the misses, which is what repeats do not re-run.
+
+Files may live in subfolders (`custom_asset/brand/house.png` is looked up
+as `"brand/house"`). Extensions keep the historic set and preference
+order: png, jpg, jpeg, webp, then a bare filename with no extension.
+]]
 
 local customAssetFolder = "custom_asset"
 local customExtensions = { ".png", ".jpg", ".jpeg", ".webp" }
@@ -213,9 +229,11 @@ local customProbed: { [string]: string? } = {}
 local customUris: { [string]: string? } = {}
 local resolved: { [string]: string? } = {}
 
--- [[A custom file's lookup key (its path inside the folder, without the]]
--- [[extension) and the rank of that extension. Files with an unknown]]
--- [[extension are not indexed; a bare filename ranks last, as it always did.]]
+--[[
+A custom file's lookup key (its path inside the folder, without the
+extension) and the rank of that extension. Files with an unknown
+extension are not indexed; a bare filename ranks last, as it always did.
+]]
 local function customKey(path: string): (string?, number?)
     local lower = string.lower(path)
     for rank, ext in ipairs(customExtensions) do
@@ -237,8 +255,10 @@ local function buildCustomIndex(): { [string]: string }?
     end
     local ok, entries = pcall(env.listfiles, customAssetFolder)
     if not ok or type(entries) ~= "table" then
-        -- [[No folder (or no listing support right now): an empty index, so]]
-        -- [[every later lookup is a table miss instead of a filesystem probe.]]
+        --[[
+        No folder (or no listing support right now): an empty index, so
+        every later lookup is a table miss instead of a filesystem probe.
+        ]]
         return {}
     end
     local index: { [string]: string } = {}
@@ -289,7 +309,7 @@ local function customFile(value: string): string?
             return path
         end
     end
-    -- [[A file with no extension is the last accepted form (historic).]]
+    -- A file with no extension is the last accepted form (historic).
     local bare = customAssetFolder .. "/" .. value
     local ok, uri = pcall(env.getcustomasset, bare)
     if ok and type(uri) == "string" and uri ~= "" then
@@ -320,10 +340,12 @@ local function customUri(value: string): string?
     return nil
 end
 
--- [[Re-read the custom asset folder and drop every memo that depended on it]]
--- [[(including resolved icons). Call it after adding or replacing files at]]
--- [[runtime. Returns how many files the listing found; 0 means the executor]]
--- [[has no listfiles and lookups fall back to the per-name probe.]]
+--[[
+Re-read the custom asset folder and drop every memo that depended on it
+(including resolved icons). Call it after adding or replacing files at
+runtime. Returns how many files the listing found; 0 means the executor
+has no listfiles and lookups fall back to the per-name probe.
+]]
 function icons.refreshCustom(): number
     customIndex = buildCustomIndex()
     customIndexBuilt = true
@@ -337,12 +359,16 @@ function icons.refreshCustom(): number
     return count
 end
 
--- =========================================================================
--- Lookup
--- =========================================================================
+--[[
+=========================================================================
+Lookup
+=========================================================================
+]]
 
--- [[Get icon path by name. Without a pack, every pack is searched in]]
--- [[`icons.priority()` order and the first match wins.]]
+--[[
+Get icon path by name. Without a pack, every pack is searched in
+`icons.priority()` order and the first match wins.
+]]
 function icons.get(name: string, pack: string?): string?
     if type(name) ~= "string" or name == "" then
         return nil
@@ -377,12 +403,12 @@ function icons.get(name: string, pack: string?): string?
     return nil
 end
 
--- [[Get icon URL by pack and name (a pack-qualified `get`).]]
+-- Get icon URL by pack and name (a pack-qualified `get`).
 function icons.getByPack(pack: string, name: string): string?
     return icons.get(name, pack)
 end
 
--- [[The loadable form of one request, or nil when nothing matched.]]
+-- The loadable form of one request, or nil when nothing matched.
 local function lookup(value: string, pack: string?): string?
     if namedAssets[value] then
         return prefixed(namedAssets[value])
@@ -399,12 +425,14 @@ local function lookup(value: string, pack: string?): string?
         return prefixed(findInPack(qualifiedPack, qualifiedName))
     end
     if pack ~= nil then
-        -- [[An explicit pack is exactly that: `resolve(name, "material")` and
-        -- [[`window:ResolveIcon` (which passes the window's pack) answer from
-        -- [[that pack or not at all. Falling back here would quietly overrule
-        -- [[the pack a host picked. A caller walking a list of candidate
-        -- [[names also relies on it: a name the active pack does not have has
-        -- [[to come back unresolved so the next candidate is tried.]]
+        --[[
+        An explicit pack is exactly that: `resolve(name, "material")` and
+        `window:ResolveIcon` (which passes the window's pack) answer from
+        that pack or not at all. Falling back here would quietly overrule
+        the pack a host picked. A caller walking a list of candidate
+        names also relies on it: a name the active pack does not have has
+        to come back unresolved so the next candidate is tried.
+        ]]
         if type(pack) ~= "string" or not packLoaders[pack] then
             warnUnknownPack(tostring(pack), value)
             return nil
@@ -427,20 +455,22 @@ local function isLoadable(value: string): boolean
         or string.match(value, "^https?://") ~= nil
 end
 
--- [[Resolve a component icon.]]
--- [[]]
--- [[  1. values that are already loadable pass through untouched,]]
--- [[  2. a file in the custom asset folder wins over every pack,]]
--- [[  3. `"pack:name"` is exact - that pack or nothing,]]
--- [[  4. with no pack, a bare name is looked up in `icons.priority()` order]]
--- [[     and the first pack that has it wins; with a pack, that pack answers]]
--- [[     or the request stays unresolved (explicit packs are never overruled),]]
--- [[  5. nothing matches: the value comes back unchanged, which is the]]
--- [[     fallback the UI has always used.]]
--- [[]]
--- [[Results are memoised per (request, pack): repeated resolves of the same]]
--- [[icon - and every element that asks for it - reuse one answer, and a]]
--- [[custom file's imported URI is taken from the executor once.]]
+--[[
+Resolve a component icon.
+
+  1. values that are already loadable pass through untouched,
+  2. a file in the custom asset folder wins over every pack,
+  3. `"pack:name"` is exact - that pack or nothing,
+  4. with no pack, a bare name is looked up in `icons.priority()` order
+     and the first pack that has it wins; with a pack, that pack answers
+     or the request stays unresolved (explicit packs are never overruled),
+  5. nothing matches: the value comes back unchanged, which is the
+     fallback the UI has always used.
+
+Results are memoised per (request, pack): repeated resolves of the same
+icon - and every element that asks for it - reuse one answer, and a
+custom file's imported URI is taken from the executor once.
+]]
 function icons.resolve(value: (string | number)?, pack: string?): (string | number)?
     if value == nil or value == 0 or value == "" then
         return value
@@ -461,7 +491,7 @@ function icons.resolve(value: (string | number)?, pack: string?): (string | numb
     return hit or value
 end
 
--- [[List all available icon names in a pack]]
+-- List all available icon names in a pack
 function icons.list(pack: string?): { string }
     pack = pack or "lucide"
     local data = packTable(pack)
@@ -476,7 +506,7 @@ function icons.list(pack: string?): { string }
     return result
 end
 
--- [[List all available packs]]
+-- List all available packs
 function icons.packs(): { string }
     local names = table.create(#PACK_ORDER)
     for index, pack in ipairs(PACK_ORDER) do
@@ -485,7 +515,7 @@ function icons.packs(): { string }
     return names
 end
 
--- [[Count icons in a pack (loads that pack on demand)]]
+-- Count icons in a pack (loads that pack on demand)
 function icons.count(pack: string?): number
     pack = pack or "lucide"
     local data = packTable(pack)

@@ -14,9 +14,11 @@ windowIcons.ids = {
     config = 125823673784681,
 }
 
--- Human-readable filenames for the fallback PNGs in assets/window-icons/.
--- Numeric rbxassetids stay in `ids` for Roblox loading; these names are what
--- `cache/imageCache` fetches from GitHub when secureMode rewrites assets.
+--[[
+Human-readable filenames for the fallback PNGs in assets/window-icons/.
+Numeric rbxassetids stay in `ids` for Roblox loading; these names are what
+`cache/imageCache` fetches from GitHub when secureMode rewrites assets.
+]]
 windowIcons.files = {
     window = "sirius.png",
     close = "close.png",
@@ -42,9 +44,11 @@ windowIcons.roles = {
     config = "config",
 }
 
--- [[The id/role tables are module constants, so the reverse manifest and the
--- [[sorted role list are built once on first use instead of on every call -
--- [[roleForId used to rebuild the whole manifest per failed icon.]]
+--[[
+The id/role tables are module constants, so the reverse manifest and the
+sorted role list are built once on first use instead of on every call -
+roleForId used to rebuild the whole manifest per failed icon.
+]]
 local cachedManifest: { [number]: { roles: { string } } }? = nil
 local cachedRoleList: { string }? = nil
 

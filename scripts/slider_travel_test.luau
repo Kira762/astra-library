@@ -1,21 +1,23 @@
--- ===== slider travel assertions: the knob stays inside its track ==========
--- [[Runs the real Astra bundle (loaded as global `Astra` above) against the]]
--- [[mini Roblox environment from sidebar_sizing_stubs.luau.]]
---
--- The knob's centre is placed in track-local pixels (handle.Position.X's
--- offset, anchor half), so every measurement below is anchor-independent and
--- reads the same under the stubs and under Roblox.
---
--- Expected behavior under test:
---   * S1 at the top of the range the knob's capsule sits wholly inside the
---        track: its centre travels only within [halfWidth, travel -
---        halfWidth], so it can no longer overlap the track's end — and with
---        it the card's right edge and stroke — at max,
---   * S2 the same clamp holds at the bottom of the range,
---   * S3 the fill's right edge is the knob's centre at any value, so the bar
---        never peeks out from under the capsule,
---   * S4 holding the knob (the wider held size) keeps the clamp, because the
---        travel follows the held width.
+--[[
+===== slider travel assertions: the knob stays inside its track ==========
+Runs the real Astra bundle (loaded as global `Astra` above) against the
+mini Roblox environment from sidebar_sizing_stubs.luau.
+
+The knob's centre is placed in track-local pixels (handle.Position.X's
+offset, anchor half), so every measurement below is anchor-independent and
+reads the same under the stubs and under Roblox.
+
+Expected behavior under test:
+  * S1 at the top of the range the knob's capsule sits wholly inside the
+       track: its centre travels only within [halfWidth, travel -
+       halfWidth], so it can no longer overlap the track's end — and with
+       it the card's right edge and stroke — at max,
+  * S2 the same clamp holds at the bottom of the range,
+  * S3 the fill's right edge is the knob's centre at any value, so the bar
+       never peeks out from under the capsule,
+  * S4 holding the knob (the wider held size) keeps the clamp, because the
+       travel follows the held width.
+]]
 
 local function expect(cond, message)
 	if not cond then

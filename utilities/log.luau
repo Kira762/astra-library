@@ -34,8 +34,10 @@ function log.warn(...)
     if shouldSuppress() then
         return
     end
-    -- [[`warn` is a Roblox global; plain Luau runtimes (the CLI suites) do]]
-    -- [[not provide it. Logging must never crash the library.]]
+    --[[
+    `warn` is a Roblox global; plain Luau runtimes (the CLI suites) do
+    not provide it. Logging must never crash the library.
+    ]]
     if typeof(warn) == "function" then
         warn(...)
     end

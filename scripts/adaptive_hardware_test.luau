@@ -1,6 +1,8 @@
--- ===== adaptive hardware & UI-dependent animation assertions =====
--- [[Verifies the hardware performance monitor, dynamic element streaming,
--- single-UI popup architecture, and UI-dependent aesthetic motion specs.]]
+--[[
+===== adaptive hardware & UI-dependent animation assertions =====
+Verifies the hardware performance monitor, dynamic element streaming,
+single-UI popup architecture, and UI-dependent aesthetic motion specs.
+]]
 
 local function expect(cond, message)
 	if not cond then
@@ -84,10 +86,12 @@ local popup = window:Popup({
 })
 TestPump(0.4)
 
--- [[The dialog is a second root rather than a layer inside the window's: the
--- popup DisplayOrder lifts the whole card over the shell, so the card never has
--- to climb the window's ZIndex stack -- where, under `Global` ZIndex, it
--- outranked its own Header, copy and buttons and painted over them.]]
+--[[
+The dialog is a second root rather than a layer inside the window's: the
+popup DisplayOrder lifts the whole card over the shell, so the card never has
+to climb the window's ZIndex stack -- where, under `Global` ZIndex, it
+outranked its own Header, copy and buttons and painted over them.
+]]
 eq(screenGuis(), 2, "H3 popup opens its own ScreenGui while it is displayed")
 expect(popup.screenGui ~= nil, "H3 popup owns a ScreenGui")
 expect(popup.screenGui ~= window.screenGui, "H3 popup does not nest into window.screenGui")
@@ -120,11 +124,13 @@ for _, child in footer:GetChildren() do
 end
 eq(actionButtons, 2, "H3 footer carries one action button per option")
 
--- [[Every painting surface of the dialog has to sit on or above the card: under
--- `Global` ZIndex a child ranked below its own parent is drawn behind the
--- parent's background, which is exactly how the card used to swallow its own
--- text and buttons. The one surface allowed underneath is the glow, and it is
--- drawn by `UIShadow` rather than by a `GuiObject` of its own.]]
+--[[
+Every painting surface of the dialog has to sit on or above the card: under
+`Global` ZIndex a child ranked below its own parent is drawn behind the
+parent's background, which is exactly how the card used to swallow its own
+text and buttons. The one surface allowed underneath is the glow, and it is
+drawn by `UIShadow` rather than by a `GuiObject` of its own.
+]]
 local PAINTABLE = {
 	Frame = true,
 	ScrollingFrame = true,

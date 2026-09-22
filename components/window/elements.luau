@@ -78,8 +78,10 @@ function Window:_setElementLocked(element, locked, message)
         self:_buildLockScrim(element)
     end
 
-    -- [[The lock scrim arrives on the shared hover spec; the unlock delay
-    -- tracks its duration so the scrim never hides after it has faded.]]
+    --[[
+    The lock scrim arrives on the shared hover spec; the unlock delay
+    tracks its duration so the scrim never hides after it has faded.
+    ]]
     local lockSpec = "snappy"
 
     if locked then
@@ -143,8 +145,10 @@ function Window:_flashResult(element, ok)
     local boxStroke = element.boxStroke
     local flashColor = ok and constants.accent.on or self.theme.ErrorColor
     local flashStroke = ok and constants.accent.onStroke or self.theme.ErrorStrokeColor
-    -- [[Hoisted out of the function: these two are fixed, and the flash runs
-    -- on every element callback that reports a result.]]
+    --[[
+    Hoisted out of the function: these two are fixed, and the flash runs
+    on every element callback that reports a result.
+    ]]
     local flashTween = "fast"
     local restoreTween = "normal"
 
@@ -174,20 +178,24 @@ end
 
 function Window:_wireElementHover(element, options)
     local theme = self.theme
-    -- [[Containers may scope the hover to a sub-frame (the collapsible
-    -- header) instead of the whole element, and rest their title on a
-    -- different theme token. Keys, not values, so a runtime theme change
-    -- still flows through: the closures below read the theme live.]]
+    --[[
+    Containers may scope the hover to a sub-frame (the collapsible
+    header) instead of the whole element, and rest their title on a
+    different theme token. Keys, not values, so a runtime theme change
+    still flows through: the closures below read the theme live.
+    ]]
     options = if typeof(options) == "table" then options else {}
     local hoverTarget = options.target or element.main
     local titleRestKey = options.titleRestKey or "ContentColor"
     local titleHoverKey = options.titleHoverKey or "ElementTextHoverColor"
 
-    -- [[Hover feedback is the single most-repeated animation in the library
-    -- (every element, every pointer move across a grid), so it goes through
-    -- the motion service: the spec is shared instead of allocated per event,
-    -- and an enter/leave pair on the same element can no longer leave two
-    -- tweens interpolating the same stroke — the second cancels the first.]]
+    --[[
+    Hover feedback is the single most-repeated animation in the library
+    (every element, every pointer move across a grid), so it goes through
+    the motion service: the spec is shared instead of allocated per event,
+    and an enter/leave pair on the same element can no longer leave two
+    tweens interpolating the same stroke — the second cancels the first.
+    ]]
     self:ConnectFor(element, hoverTarget.MouseEnter, function()
         if not self:_interactive() then
             return         end
@@ -266,9 +274,11 @@ function Window:_reveal(instance, targets, animate, tweenInfo)
     if not instance then
         return
     end
-    -- [[Skip work when the target state is already applied: the cascade (and
-    -- a window that is shown, hidden and shown again) asks the same elements
-    -- to reveal repeatedly.]]
+    --[[
+    Skip work when the target state is already applied: the cascade (and
+    a window that is shown, hidden and shown again) asks the same elements
+    to reveal repeatedly.
+    ]]
     local needsUpdate = false
     for prop, value in targets do
         if instance[prop] ~= value then
@@ -281,10 +291,12 @@ function Window:_reveal(instance, targets, animate, tweenInfo)
     end
 
     if animate then
-        -- [[The tween goes through the motion service, which shares the spec
-        -- and cancels an in-flight tween on the same property — the cascade
-        -- asks every element on the page to show on one frame, and a
-        -- hidden/reshown window used to stack a second reveal on the first.]]
+        --[[
+        The tween goes through the motion service, which shares the spec
+        and cancels an in-flight tween on the same property — the cascade
+        asks every element on the page to show on one frame, and a
+        hidden/reshown window used to stack a second reveal on the first.
+        ]]
         motion.tween(instance, targets, tweenInfo or "normal")
     else
         for prop, value in targets do
@@ -315,9 +327,11 @@ function Window:_hideCommon(element, animate)
     if element.descriptionLabel then
         self:_reveal(element.descriptionLabel, { TextTransparency = 1 }, animate)
     end
-    -- [[The floating description is placed in screen space, so an element
-    -- [[that stops being drawn (the window hid, the tab changed, the page
-    -- [[scrolled away) has to take its own description with it. Every hide
-    -- [[path in the library funnels through here.]] 
+    --[[
+    The floating description is placed in screen space, so an element
+    that stops being drawn (the window hid, the tab changed, the page
+    scrolled away) has to take its own description with it. Every hide
+    path in the library funnels through here.
+    ]]
     tooltip.hideFor(self, element)
 end

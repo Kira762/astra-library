@@ -1,18 +1,20 @@
--- ===== responsive sidebar sizing assertions =====
--- [[Runs the real Astra bundle (loaded as global `Astra` above) against the]]
--- [[mini Roblox environment from sidebar_sizing_stubs.luau. The stub]]
--- [[TextService measures text at 0.6 * size per character, so expected]]
--- [[widths are computed here from that same deterministic formula.]]
---
--- Expected behavior under test:
---   * the rail hugs the widest visible tab row (names drive its width,
---     no hardcoded rail width),
---   * rows stay full-rail (the pre-existing look), so every tab matches
---     the longest one and nothing floats mid-air,
---   * the window's available space caps the rail, so the elements area
---     always keeps at least half the window and takes back freed space,
---   * capped long names wrap in place instead of overflowing,
---   * collapsedSidebar layout is untouched.
+--[[
+===== responsive sidebar sizing assertions =====
+Runs the real Astra bundle (loaded as global `Astra` above) against the
+mini Roblox environment from sidebar_sizing_stubs.luau. The stub
+TextService measures text at 0.6 * size per character, so expected
+widths are computed here from that same deterministic formula.
+
+Expected behavior under test:
+  * the rail hugs the widest visible tab row (names drive its width,
+    no hardcoded rail width),
+  * rows stay full-rail (the pre-existing look), so every tab matches
+    the longest one and nothing floats mid-air,
+  * the window's available space caps the rail, so the elements area
+    always keeps at least half the window and takes back freed space,
+  * capped long names wrap in place instead of overflowing,
+  * collapsedSidebar layout is untouched.
+]]
 
 local function expect(cond, message)
 	if not cond then
@@ -38,7 +40,7 @@ local function eqVector2(actual, x, y, message)
 	end
 end
 
--- [[The stub's UDim2s are plain tables, so compare component-wise.]]
+-- The stub's UDim2s are plain tables, so compare component-wise.
 local function eqUDim2(actual, sx, so, sy, yo, message)
 	if actual.X.Scale ~= sx or actual.X.Offset ~= so or actual.Y.Scale ~= sy or actual.Y.Offset ~= yo then
 		error(
@@ -115,7 +117,7 @@ local function assertRailWidth(width, message)
 	local sidebar = window.sidebar
 	expect(sidebar ~= nil, message .. " (no sidebar rail)")
 	eq(sidebar.Size.X.Offset, width, message .. " rail width")
-	-- [[The elements area must take back whatever the rail frees up.]]
+	-- The elements area must take back whatever the rail frees up.
 	eq(window.elements.Size.X.Offset, -width, message .. " elements take the freed space")
 end
 
@@ -135,9 +137,11 @@ local function assertGroupSized(wantedRail, message)
 	assertRowsTrackRail(message)
 end
 
--- [[Icon-only rows are square tiles the height of the row (a 34x38 full-rail
--- [[row left the icon 7px from its sides but 9px from its top and bottom), and
--- [[the row's content is centred with no expanded padding.]]
+--[[
+Icon-only rows are square tiles the height of the row (a 34x38 full-rail
+row left the icon 7px from its sides but 9px from its top and bottom), and
+the row's content is centred with no expanded padding.
+]]
 local function assertRowsCollapsed(message)
 	local tabs = groupTabs()
 	expect(#tabs > 0, message .. " (no rows in the current rail group)")
@@ -236,9 +240,11 @@ do
 	end
 end
 
--- T9b: the Persistence tab must build its content on first open even when
--- the window was created without a `configuration` prop (no saved configs
--- anywhere) - and it must build it exactly once.
+--[[
+T9b: the Persistence tab must build its content on first open even when
+the window was created without a `configuration` prop (no saved configs
+anywhere) - and it must build it exactly once.
+]]
 local persistenceTab
 for _, tab in window._settingsTabs do
 	if tab.name == "Persistence" then
@@ -268,9 +274,11 @@ local settingsRail = math.max(
 )
 assertGroupSized(settingsRail, "T9 settings-mode rail group uses its own longest name")
 
--- T9c: opening settings via the gear path lands on the FIRST settings tab
--- (Overview), the page the content area shows is Overview's page, and the
--- lazy content for Overview is built on that first open.
+--[[
+T9c: opening settings via the gear path lands on the FIRST settings tab
+(Overview), the page the content area shows is Overview's page, and the
+lazy content for Overview is built on that first open.
+]]
 window.selectedTab = t1
 window._previousTab = t1
 window._settingsMode = false
@@ -291,7 +299,7 @@ expect(
 local expectedSettingsContent = {
     Overview = 6,
     Controls = 5,
-    -- [[Appearance has no Theme picker: Layout section, Bar Layout, Motion & Feedback.]]
+    -- Appearance has no Theme picker: Layout section, Bar Layout, Motion & Feedback.
     Appearance = 3,
     Persistence = 2,
 }
@@ -342,8 +350,10 @@ window:RegisterTranslations({ ["en"] = { ["AAA"] = "AAA" } })
 TestPump(0.2)
 assertGroupSized(shortRail, "T12 restoring the locale restores the original rail")
 
--- T13: the separate collapsedSidebar layout keeps its icon-only rail
--- (name-driven sizing must not leak into it).
+--[[
+T13: the separate collapsedSidebar layout keeps its icon-only rail
+(name-driven sizing must not leak into it).
+]]
 switched = window:_setLayoutMode("collapsedSidebar")
 expect(switched == true, "T13 layout switch to the collapsed sidebar")
 TestPump(1.0)
@@ -355,11 +365,13 @@ for i, tab in groupTabs() do
 	expect(tab.topbarItemIcon ~= nil or tab.topbarItemInitial ~= nil, "T13 row " .. i .. " keeps an icon or initial")
 end
 
--- T13b: rows are rebuilt by a layout switch (and by CreateTab) after the rail
--- has already been sized, so a row has to be born in the rail's current state.
--- Built as an expanded row, it kept its title and its 10px content padding, and
--- a 64px rail rendered "El…" of the tab name beside the icon instead of an
--- icon-only row centred in its tile.
+--[[
+T13b: rows are rebuilt by a layout switch (and by CreateTab) after the rail
+has already been sized, so a row has to be born in the rail's current state.
+Built as an expanded row, it kept its title and its 10px content padding, and
+a 64px rail rendered "El…" of the tab name beside the icon instead of an
+icon-only row centred in its tile.
+]]
 local collapsedExtra = window:CreateTab({ name = "CollapsedExtra", icon = "gauge" })
 TestPump(0.3)
 assertRowsCollapsed("T13b a row created while collapsed is born icon-only")
@@ -373,9 +385,11 @@ expect(switched == true, "T14 layout switch back to the responsive sidebar")
 TestPump(1.0)
 assertGroupSized(shortRail, "T14 responsive sidebar rail is name-sized again")
 
--- T14b: the same rebuild path has to re-apply the rail's title wrapping. A
--- capped long name had its width constraint reset by the rebuild, so the row
--- came back at its natural width and overflowed the rail it was capped for.
+--[[
+T14b: the same rebuild path has to re-apply the rail's title wrapping. A
+capped long name had its width constraint reset by the rebuild, so the row
+came back at its natural width and overflowed the rail it was capped for.
+]]
 local longAgain = window:CreateTab({ name = "ThisTabNameIsReallyQuiteLong", icon = "sliders-horizontal" })
 TestPump(0.3)
 window:_setLayoutMode("collapsedSidebar")

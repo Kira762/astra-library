@@ -13,9 +13,11 @@ local description = require(script.Parent.description)
 local numeric = require(constants.constants)
 local clearOnFocus = require(constants.HapticEngine)
 
--- [[Field feedback rides the shared motion service: the box follows typing
--- on the hover spec (quick, but never jumpy), focus fades the caret text on
--- the press spec, and theme refreshes cross-fade on the surface spec.]]
+--[[
+Field feedback rides the shared motion service: the box follows typing
+on the hover spec (quick, but never jumpy), focus fades the caret text on
+the press spec, and theme refreshes cross-fade on the surface spec.
+]]
 local motion = require(constants.motion)
 local callback = "snappy"
 local element = "fast"
@@ -69,9 +71,11 @@ function state.new(tab, placeholderLabel)
     self.stroke = self.window:StyleElementBody(self.main)
     self.hoverOverlay = self.window:CreateHoverOverlay(self.main)
 
-    -- [[The card grows for a description before the title row and the field
-    -- [[box are built, so both centre in the base region instead of riding
-    -- [[down onto the line.]]
+    --[[
+    The card grows for a description before the title row and the field
+    box are built, so both centre in the base region instead of riding
+    down onto the line.
+    ]]
     description.attach(self)
 
     self.container = self.window:Create("Frame", {

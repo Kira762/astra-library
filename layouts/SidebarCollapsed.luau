@@ -33,9 +33,11 @@ local function buildRail(window, layout)
 end
 
 function SidebarCollapsed.Build(window, layout)
-    -- [[Icon-only rail: same surface contract as the expanded rail
-    -- [[(layouts/Sidebar.luau) — the middle band of the window's three
-    -- [[section shades, solid and flush.]]
+    --[[
+    Icon-only rail: same surface contract as the expanded rail
+    (layouts/Sidebar.luau) — the middle band of the window's three
+    section shades, solid and flush.
+    ]]
     window.sidebar = window:Create("Frame", {
         Name = "CollapsedSidebar",
         AnchorPoint = Vector2.new(0, 1),

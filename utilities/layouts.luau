@@ -48,9 +48,11 @@ layouts.sidebar = {
     railCollapseBelow = 520,
 
     rowHeight = 38,
-    -- [[The rail's rows are inset `rowInset` from the rail's edges, so they
-    -- [[read as chips rather than as full-bleed bands — and a chip wants the
-    -- [[element-card radius, the tier one step inside the shell's own arc.]]
+    --[[
+    The rail's rows are inset `rowInset` from the rail's edges, so they
+    read as chips rather than as full-bleed bands — and a chip wants the
+    element-card radius, the tier one step inside the shell's own arc.
+    ]]
     rowCornerRadius = 8,
     rowSpacing = 4,
     railPadding = 17,
@@ -61,12 +63,14 @@ layouts.sidebar = {
 
     pageDirection = Enum.FillDirection.Vertical,
 
-    -- [[The elements area is a solid band, not a floating card: it is fully
-    -- [[opaque (cardTransparency 0) and its top-left corner is square, so the
-    -- [[content sits flush against the topbar and the tab rail. Only the
-    -- [[window's own bottom-right silhouette corner stays rounded, and the
-    -- [[nearly-invisible card stroke is the sole separator between the
-    -- [[sections instead of an empty gap.]]
+    --[[
+    The elements area is a solid band, not a floating card: it is fully
+    opaque (cardTransparency 0) and its top-left corner is square, so the
+    content sits flush against the topbar and the tab rail. Only the
+    window's own bottom-right silhouette corner stays rounded, and the
+    nearly-invisible card stroke is the sole separator between the
+    sections instead of an empty gap.
+    ]]
     cardTransparency = 0,
     cardStrokeRotation = 55,
     cardCorners = { "BottomRightRadius" },

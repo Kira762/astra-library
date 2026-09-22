@@ -15,7 +15,7 @@ scripts load).
 | `components/` | `window`, `sidebar`, `chrome`, `drag`, `notification`, `overlayQueue`, `popup`, `search`, `settings`, `tabSelector`, `action`. |
 | `elements/` | One module per element plus `tab`, `group`, `section`, `tabSection`, `baseCard`, `description`. |
 | `settings/` | `defaults`, `manager`, `registry`, `appearance`, `behavior`, `performance`, `persistence`. |
-| `themes/` | `init` resolver + one module per built-in theme. |
+| `themes/` | `init` resolver + the `default` palette. |
 | `utilities/` | Motion, haptics, persistence pieces, icon/asset resolution, text metrics, layouts, locale, locks/ordering. |
 | `icons/` | Seven icon packs, `packBuilder`, custom-asset resolution. |
 | `scripts/` | Build, syntax gate, static checkers and runtime tests. |
@@ -34,6 +34,8 @@ node scripts/generate_bundle.js     # rebuild version-1.luau from the modular tr
 sh scripts/check_syntax.sh          # compile every published .luau file
 python3 scripts/check_requires.py   # require paths exist, no dependency cycles
 python3 scripts/check_instance_fields.py   # no custom Lua fields written on Instances
+python3 scripts/check_dangling_refs.py     # .luau/.md files name only real repo paths
+sh scripts/check_all.sh             # everything above + bundle freshness + runtime tests, in one gate
 sh scripts/smoke_test_bundle.sh     # runtime smoke test of the generated bundle
 sh scripts/<feature>_test.sh        # the per-feature runtime tests
 ```
@@ -44,6 +46,13 @@ sh scripts/<feature>_test.sh        # the per-feature runtime tests
 - `check_syntax.sh` resolves `luau-compile` (preferred) or `luau --compile` from
   `PATH`, `/tmp`, `/usr/local/bin`; with neither present it exits **2 — "not checked",
   never a silent pass**. The same toolchain lookup is used by the runtime tests.
+- `check_dangling_refs.py` only judges slash-anchored paths under top-level source
+  directories, skips URLs, tree diagrams and historical records (CHANGELOG, ANALYSIS,
+  PERFORMANCE_CHANGES), and allows lines marked deleted/removed history. Bare names
+  like `file.luau` are ignored on purpose — too ambiguous to judge.
+- `check_all.sh` runs all of the above plus the full runtime suite in fixed order
+  (`1/6` requires through `6/6` runtime tests) and is the single command to run
+  before publishing.
 - Runtime tests assemble mini Roblox stubs + the bundle (wrapped in a function so the
   bundle's own error-line mapping survives) + assertions, then run them under the
   Luau CLI. `ASTRA_BUNDLE=/path/to/bundle` points a test at another build.

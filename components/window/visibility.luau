@@ -202,7 +202,7 @@ function Window:ToggleMinimise()
                     tab:_applyVisual(if self.selectedTab == tab then "selected" else "unselected", surfaceTween)
                 end
             end
-            -- [[Restore the settings/normal rail split; the loop above shows all tabs.]]
+            -- [[Restore the settings rail / normal rail split; the loop above shows all tabs.]]
             self:_applySettingsLayout(self._settingsMode)
             self:_setTabSectionsVisible(true)
             self:_setTabSectionsShown(true, surfaceTween)
@@ -587,7 +587,7 @@ function Window:_quickRestore()
             self:_markTabElementsPending(tab)
         end
     end
-    -- [[Restore the settings/normal rail split. The loop above leaves the
+    -- [[Restore the settings rail / normal rail split. The loop above leaves the
     -- [[selected tab marked: the staged reveal at the end of this function
     -- [[walks it one card per beat, the same way opening a tab does.]]
     self:_applySettingsLayout(self._settingsMode)
@@ -699,7 +699,7 @@ function Window:_firstShow()
             self:_markTabElementsPending(tab)
         end
     end
-    -- [[Restore the settings/normal rail split. The loop above leaves the
+    -- [[Restore the settings rail / normal rail split. The loop above leaves the
     -- [[selected tab marked and every other tab either shown or still marked
     -- [[for when it is opened; the staged reveal below walks the page that is
     -- [[actually on screen, one control per beat.]]

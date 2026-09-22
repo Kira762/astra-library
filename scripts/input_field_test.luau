@@ -54,13 +54,14 @@ eq(
 
 -- ===== F2: the corner is a theme binding, not a baked number ===============
 
-window:ChangeTheme("frost")
+window:ChangeTheme({ ElementCornerRadius = UDim.new(0, 4) })
 TestPump(0.3)
 eq(
 	tostring(corner.CornerRadius.Offset),
 	tostring(window.theme.ElementCornerRadius.Offset),
 	"F2 a theme switch re-states the field corner"
 )
+eq(corner.CornerRadius.Offset, 4, "F2 ... to the overlay's element radius")
 window:ChangeTheme("default")
 TestPump(0.3)
 eq(

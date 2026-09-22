@@ -1,7 +1,7 @@
 #!/bin/sh
 # Runtime test for the window's surface hierarchy and flush spacing:
 # the topbar, tab rail and elements area each carry their own theme surface
-# (darkest → lightest from chrome to content, in every built-in theme), sit
+# (darkest → lightest from chrome to content, on the default palette), sit
 # flush against each other, the selected tab row is painted with the
 # elements-area colour, the capsule state folds the topbar surface away and
 # the minimised bar keeps it, and the bottom fade blends into the elements

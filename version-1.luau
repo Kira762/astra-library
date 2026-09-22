@@ -3690,173 +3690,9 @@ function settingsComponent.buildUI(window)
     general._settingsContentBuilder = buildGeneral
 
     local function buildAppearance()
-        local themeOrder = { "default", "amethyst", "cobalt", "crimson", "ember", "emerald", "frost", "gold", "onyx", "rose" }
-        local themes = {
-            default = "Default",
-            amethyst = "Amethyst",
-            cobalt = "Cobalt",
-            crimson = "Crimson",
-            ember = "Ember",
-            emerald = "Emerald",
-            frost = "Frost",
-            gold = "Gold",
-            onyx = "Onyx",
-            rose = "Rose",
-        }
-        local themeOptions = {}
-        for _, key in ipairs(themeOrder) do
-            table.insert(themeOptions, themes[key])
-        end
-
-        local function themeLabel(key)
-            return themes[key] or themes.default
-        end
-        local function themeKey(label)
-            for key, candidate in themes do
-                if candidate == label then
-                    return key
-                end
-            end
-            return nil
-        end
-
-        -- [[The theme row follows a staged apply: the dropdown only *selects*
-        -- a candidate (currentTheme stays untouched until the Apply button is
-        -- confirmed), while the stat above shows the theme in effect — the
-        -- full theme name, no icon, via the stat's text readout. Reset to
-        -- Default is always on the row; only the Apply half is staged, and it
-        -- appears beside Reset while a candidate differs from the active
-        -- theme, then goes back to being absent once that candidate is
-        -- applied (or dropped by picking the active theme again).]]
-        local currentTheme = if themes[window.settings.theme] then window.settings.theme else "default"
-        local pendingTheme
-
-        -- Forward-declared so the element callbacks below can capture them;
-        -- their bodies are assigned after the group is built.
-        local themeStat, themeDropdown, themeButtonGroup, themeApplyButton
-        local setPendingThemeButtons, syncThemeControls, confirmThemeReset
-
-        local themeGroup = appearance:CreateCollapsibleGroup({
-            name = "Theme",
-            icon = "palette",
-            elements = {
-                {
-                    type = "Stat",
-                    name = "Current theme",
-                    -- Reads the whole theme name out; letter = false opts this
-                    -- text value out of the stat's single-letter badge.
-                    value = themeLabel(currentTheme),
-                    letter = false,
-                },
-                {
-                    type = "Dropdown",
-                    name = "Theme",
-                    options = themeOptions,
-                    value = themeLabel(currentTheme),
-                    callback = function(value)
-                        local candidate = themeKey(value)
-                        if not candidate or candidate == currentTheme then
-                            pendingTheme = nil
-                            setPendingThemeButtons(false)
-                            return
-                        end
-                        pendingTheme = candidate
-                        setPendingThemeButtons(true)
-                    end,
-                },
-                {
-                    type = "Group",
-                    elements = {
-                        {
-                            type = "Button",
-                            name = "Reset to Default",
-                            icon = "rotate-ccw",
-                            callback = function()
-                                window:Popup({
-                                    title = "Reset theme?",
-                                    content = "Set this window back to the " .. themeLabel("default") .. " theme?",
-                                    options = {
-                                        { text = "Cancel" },
-                                        {
-                                            text = "Reset",
-                                            style = "primary",
-                                            callback = confirmThemeReset,
-                                        },
-                                    },
-                                })
-                            end,
-                        },
-                        {
-                            type = "Button",
-                            name = "Apply Theme",
-                            icon = "check",
-                            callback = function()
-                                if not pendingTheme then
-                                    return
-                                end
-                                window:Popup({
-                                    title = "Apply theme?",
-                                    content = "Apply the " .. themeLabel(pendingTheme) .. " theme to this window?",
-                                    options = {
-                                        { text = "Cancel" },
-                                        {
-                                            text = "Apply",
-                                            style = "primary",
-                                            callback = function()
-                                                currentTheme = pendingTheme
-                                                pendingTheme = nil
-                                                window.settings.theme = currentTheme
-                                                window:ChangeTheme(currentTheme)
-                                                window:SaveSettings()
-                                                syncThemeControls()
-                                                window:Notify({ title = "Theme applied", subtitle = themeLabel(currentTheme) })
-                                            end,
-                                        },
-                                    },
-                                })
-                            end,
-                        },
-                    },
-                },
-            },
-        })
-
-        themeStat = themeGroup.elements[1]
-        themeDropdown = themeGroup.elements[2]
-        themeButtonGroup = themeGroup.elements[3]
-        themeApplyButton = themeButtonGroup and themeButtonGroup.elements[2]
-        function setPendingThemeButtons(show)
-            if not themeApplyButton or not themeApplyButton.main then
-                return
-            end
-            -- [[Only the Apply half of the row is staged: Reset to Default is
-            -- permanent, so the row is never hidden and Reset never appears
-            -- and disappears. Apply is absent until a candidate differs from
-            -- the active theme, and returns to absent the moment that
-            -- candidate is applied or dropped again.]]
-            themeApplyButton.main.Visible = show == true
-        end
-        function syncThemeControls()
-            if themeDropdown then
-                themeDropdown:Set(themeLabel(currentTheme), true)
-            end
-            if themeStat then
-                themeStat:SetText(themeLabel(currentTheme))
-            end
-            setPendingThemeButtons(pendingTheme ~= nil and pendingTheme ~= currentTheme)
-        end
-        function confirmThemeReset()
-            pendingTheme = nil
-            currentTheme = "default"
-            window.settings.theme = "default"
-            window:ChangeTheme("default")
-            window:SaveSettings()
-            syncThemeControls()
-            window:Notify({ title = "Theme reset", subtitle = themeLabel("default") })
-        end
-
-        setPendingThemeButtons(false)
-
+        -- [[The only built-in palette is `default`; hosts overlay keys through
+        -- [[`window:ChangeTheme({ ... })`. Appearance therefore has nothing to
+        -- [[pick — layout and motion stay here.]]
         local layoutMap = { sidebar = "Sidebar (Responsive)", collapsedSidebar = "Collapsed Sidebar" }
         local layoutDropdown
         local currentLayout = window.settings.layoutMode or window.layout.mode
@@ -6330,7 +6166,10 @@ function Window.new(props)
 
             self.settings = {
         toggleKeybind = Enum.KeyCode.K,
-        theme = if type(props.theme or props.Theme) == "string" then string.lower(props.theme or props.Theme) else "default",
+        -- [[Named themes other than `default` were removed; a custom table
+        -- [[still paints through `resolveTheme` above. Persist only the
+        -- [[built-in name so a saved colour-theme string cannot come back.]]
+        theme = "default",
         mouseOverride = false,         keepOnScreen = true,         haptics = false,
         dragMinimisedBar = false,
         antiWindowDuplicate = true,
@@ -7933,7 +7772,7 @@ function Window:ToggleMinimise()
                     tab:_applyVisual(if self.selectedTab == tab then "selected" else "unselected", surfaceTween)
                 end
             end
-            -- [[Restore the settings/normal rail split; the loop above shows all tabs.]]
+            -- [[Restore the settings rail / normal rail split; the loop above shows all tabs.]]
             self:_applySettingsLayout(self._settingsMode)
             self:_setTabSectionsVisible(true)
             self:_setTabSectionsShown(true, surfaceTween)
@@ -8318,7 +8157,7 @@ function Window:_quickRestore()
             self:_markTabElementsPending(tab)
         end
     end
-    -- [[Restore the settings/normal rail split. The loop above leaves the
+    -- [[Restore the settings rail / normal rail split. The loop above leaves the
     -- [[selected tab marked: the staged reveal at the end of this function
     -- [[walks it one card per beat, the same way opening a tab does.]]
     self:_applySettingsLayout(self._settingsMode)
@@ -8430,7 +8269,7 @@ function Window:_firstShow()
             self:_markTabElementsPending(tab)
         end
     end
-    -- [[Restore the settings/normal rail split. The loop above leaves the
+    -- [[Restore the settings rail / normal rail split. The loop above leaves the
     -- [[selected tab marked and every other tab either shown or still marked
     -- [[for when it is opened; the staged reveal below walks the page that is
     -- [[actually on screen, one control per beat.]]
@@ -20653,18 +20492,18 @@ zoom-out-area zoom-out zoom-pan zoom-question zoom-replace zoom-reset zoom-scan 
 )
 
 end)() end,
-    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
+    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
 -- [[Theme resolution engine (themes/init.luau).]]
 -- [[]]
 -- [[Extracted verbatim from components/window.luau so the window no longer owns]]
 -- [[theme logic. Responsibilities: named-theme lookup against the themes folder,]]
 -- [[value coercion (Color3 -> ColorSequence for gradient keys), stroke]]
 -- [[derivation for user-supplied theme tables, and brand-font fallbacks.]]
--- [[Only the default theme module is required eagerly; named themes load on]]
--- [[demand when selected.]]
+-- [[The only built-in palette is `default`; unknown names warn and fall back]]
+-- [[to it. Custom theme tables overlay the default key set.]]
 
--- [[This file IS the `themes` ModuleScript (init.luau semantics): the theme]]
--- [[modules (default, frost, ...) are children of `script`, and other folders]]
+-- [[This file IS the `themes` ModuleScript (init.luau semantics): the]]
+-- [[`default` theme module is a child of `script`, and other folders]]
 -- [[(core, utilities) are siblings reachable through script.Parent.]]
 local themesFolder = script
 local variables = require(script.Parent.core.state)
@@ -20760,286 +20599,10 @@ return themes
 
 end)() end,
     [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
-local amethyst = require(script.Parent.Parent.core.state)
-
--- [[Amethyst: the default theme's greyscale ladder with a violet tint. The
--- [[file keeps the default's key order, so diffing the two shows the hue.
--- [[Surfaces stay neutral-leaning: each band takes one deliberate step away
--- [[from its parent, never a saturated wash.]]
-return {
-    -- [[Semantic palette (derived from the greyscale base + amethyst accent)]]
-    Background = Color3.fromRGB(16, 13, 24),
-    WindowSurface = Color3.fromRGB(26, 21, 36),
-    TopbarSurface = Color3.fromRGB(22, 18, 31),
-    SidebarSurface = Color3.fromRGB(27, 22, 37),
-    TabSurface = Color3.fromRGB(39, 31, 53),
-    TabSelected = Color3.fromRGB(75, 54, 91),
-    ElementSurface = Color3.fromRGB(33, 27, 44),
-    ElementHover = Color3.fromRGB(44, 35, 58),
-    ElementPressed = Color3.fromRGB(28, 22, 38),
-    SecondaryElement = Color3.fromRGB(29, 23, 40),
-    Stroke = Color3.fromRGB(70, 56, 87),
-    SecondaryStroke = Color3.fromRGB(54, 43, 69),
-    PrimaryText = Color3.fromRGB(237, 231, 242),
-    SecondaryText = Color3.fromRGB(190, 181, 198),
-    MutedText = Color3.fromRGB(139, 128, 151),
-    DisabledText = Color3.fromRGB(100, 91, 111),
-    Accent = Color3.fromRGB(177, 126, 230),
-    AccentHover = Color3.fromRGB(197, 151, 244),
-    AccentPressed = Color3.fromRGB(137, 89, 189),
-    AccentStrokeSemantic = Color3.fromRGB(215, 177, 250),
-    Success = Color3.fromRGB(0, 170, 127),
-    Warning = Color3.fromRGB(224, 166, 74),
-    Error = Color3.fromRGB(185, 50, 50),
-    NotificationSurface = Color3.fromRGB(30, 24, 40),
-    PopupSurface = Color3.fromRGB(26, 21, 36),
-    InputSurface = Color3.fromRGB(22, 18, 31),
-
-    -- [[Shared legacy keys — same order and role as the default theme.]]
-    CornerRoundness = UDim.new(0, 12),
-    WindowColor = ColorSequence.new(Color3.fromRGB(23, 18, 33), Color3.fromRGB(34, 27, 47)),
-    ShadowColor = Color3.fromRGB(8, 5, 14),
-    ElementStroke = Color3.fromRGB(63, 50, 79),
-    CardSurface = Color3.fromRGB(33, 27, 44),
-    ElementGradient = ColorSequence.new(Color3.fromRGB(34, 27, 46), Color3.fromRGB(39, 31, 52)),
-    ElementStrokeGradient = ColorSequence.new(Color3.fromRGB(58, 46, 74), Color3.fromRGB(76, 60, 95)),
-    TabColor = Color3.fromRGB(224, 215, 231),
-    TabBackground = ColorSequence.new(Color3.fromRGB(47, 37, 62), Color3.fromRGB(35, 28, 47)),
-    TabStroke = ColorSequence.new(Color3.fromRGB(82, 64, 101), Color3.fromRGB(58, 45, 74)),
-    SliderBackground = Color3.fromRGB(44, 35, 58),
-    SliderBackgroundHover = Color3.fromRGB(57, 45, 74),
-    SliderProgress = ColorSequence.new(Color3.fromRGB(184, 132, 235), Color3.fromRGB(143, 91, 197)),
-    SliderStroke = Color3.fromRGB(118, 98, 135),
-    ActionColor = Color3.fromRGB(235, 228, 239),
-    TitleFont = amethyst.brandFont(Enum.FontWeight.SemiBold),
-    Font = amethyst.brandFont(Enum.FontWeight.Medium),
-    ContentColor = Color3.fromRGB(221, 214, 226),
-    LiveAnimation = false,
-    DarkToggleOverlay = true,
-    ElementTransparency = 0,
-    CollapsibleChildElementTransparency = 0.35,
-    ElementStrokeTransparency = 0,
-    CollapsibleChildElementStrokeTransparency = 0,
-    ElementStrokeHoverTransparency = 0,
-    CollapsibleChildElementStrokeHoverTransparency = 0,
-    ElementStrokeHover = Color3.fromRGB(93, 70, 112),
-    ElementCornerRadius = UDim.new(0, 8),
-    ElementTextHoverColor = Color3.fromRGB(248, 242, 250),
-    TitlingColor = Color3.fromRGB(242, 236, 246),
-    DropdownHighlight = Color3.fromRGB(197, 151, 244),
-    AccentColor = Color3.fromRGB(177, 126, 230),
-    AccentStroke = Color3.fromRGB(215, 177, 250),
-    AccentGlow = 0.3,
-    StatBackground = Color3.fromRGB(27, 21, 36),
-    SliderHandle = Color3.fromRGB(232, 225, 241),
-    PillCornerRadius = UDim.new(0, 32),
-    ToggleTrack = Color3.fromRGB(10, 8, 14),
-    ToggleTrackTransparency = 0.82,
-    ToggleKnobOff = Color3.fromRGB(216, 206, 225),
-    -- [[Solid off-knob: do not inherit the default theme's translucent white knob.]]
-    ToggleKnobOffTransparency = 0.08,
-    FieldBackground = Color3.fromRGB(20, 16, 28),
-    FieldTransparency = 0,
-    FieldGlow = Color3.fromRGB(177, 126, 230),
-    PlaceholderColor = Color3.fromRGB(139, 128, 151),
-    SurfaceStroke = Color3.fromRGB(58, 46, 72),
-    NeutralButton = Color3.fromRGB(43, 34, 57),
-    NeutralButtonHover = Color3.fromRGB(57, 45, 74),
-    NeutralButtonStroke = Color3.fromRGB(105, 84, 124),
-    ErrorColor = Color3.fromRGB(205, 80, 100),
-    ErrorStrokeColor = Color3.fromRGB(237, 125, 145),
-}
-
-end)() end,
-    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
-local cobalt = require(script.Parent.Parent.core.state)
-
--- [[Cobalt: the default theme's greyscale ladder with a deep blue tint. The
--- [[file keeps the default's key order, so diffing the two shows the hue.
--- [[Surfaces stay neutral-leaning: each band takes one deliberate step away
--- [[from its parent, never a saturated wash.]]
-return {
-    -- [[Semantic palette (derived from the greyscale base + cobalt accent)]]
-    Background = Color3.fromRGB(11, 16, 25),
-    WindowSurface = Color3.fromRGB(18, 25, 37),
-    TopbarSurface = Color3.fromRGB(15, 21, 32),
-    SidebarSurface = Color3.fromRGB(19, 27, 41),
-    TabSurface = Color3.fromRGB(29, 40, 58),
-    TabSelected = Color3.fromRGB(37, 66, 91),
-    ElementSurface = Color3.fromRGB(24, 34, 50),
-    ElementHover = Color3.fromRGB(33, 45, 63),
-    ElementPressed = Color3.fromRGB(19, 27, 40),
-    SecondaryElement = Color3.fromRGB(21, 29, 43),
-    Stroke = Color3.fromRGB(52, 68, 90),
-    SecondaryStroke = Color3.fromRGB(39, 53, 72),
-    PrimaryText = Color3.fromRGB(230, 237, 245),
-    SecondaryText = Color3.fromRGB(176, 190, 207),
-    MutedText = Color3.fromRGB(121, 139, 160),
-    DisabledText = Color3.fromRGB(84, 100, 119),
-    Accent = Color3.fromRGB(78, 157, 235),
-    AccentHover = Color3.fromRGB(105, 181, 248),
-    AccentPressed = Color3.fromRGB(48, 119, 195),
-    AccentStrokeSemantic = Color3.fromRGB(137, 203, 255),
-    Success = Color3.fromRGB(0, 170, 127),
-    Warning = Color3.fromRGB(224, 166, 74),
-    Error = Color3.fromRGB(185, 50, 50),
-    NotificationSurface = Color3.fromRGB(21, 30, 44),
-    PopupSurface = Color3.fromRGB(18, 25, 37),
-    InputSurface = Color3.fromRGB(15, 21, 32),
-
-    -- [[Shared legacy keys — same order and role as the default theme.]]
-    CornerRoundness = UDim.new(0, 12),
-    WindowColor = ColorSequence.new(Color3.fromRGB(15, 21, 32), Color3.fromRGB(24, 33, 48)),
-    ShadowColor = Color3.fromRGB(4, 8, 15),
-    ElementStroke = Color3.fromRGB(44, 59, 79),
-    CardSurface = Color3.fromRGB(24, 34, 50),
-    ElementGradient = ColorSequence.new(Color3.fromRGB(25, 34, 49), Color3.fromRGB(30, 41, 57)),
-    ElementStrokeGradient = ColorSequence.new(Color3.fromRGB(43, 57, 77), Color3.fromRGB(60, 77, 101)),
-    TabColor = Color3.fromRGB(211, 224, 238),
-    TabBackground = ColorSequence.new(Color3.fromRGB(37, 51, 72), Color3.fromRGB(26, 36, 52)),
-    TabStroke = ColorSequence.new(Color3.fromRGB(64, 84, 111), Color3.fromRGB(45, 60, 82)),
-    SliderBackground = Color3.fromRGB(35, 48, 68),
-    SliderBackgroundHover = Color3.fromRGB(47, 64, 88),
-    SliderProgress = ColorSequence.new(Color3.fromRGB(82, 164, 239), Color3.fromRGB(49, 124, 202)),
-    SliderStroke = Color3.fromRGB(91, 112, 139),
-    ActionColor = Color3.fromRGB(226, 237, 246),
-    TitleFont = cobalt.brandFont(Enum.FontWeight.SemiBold),
-    Font = cobalt.brandFont(Enum.FontWeight.Medium),
-    ContentColor = Color3.fromRGB(214, 225, 237),
-    LiveAnimation = false,
-    DarkToggleOverlay = true,
-    ElementTransparency = 0,
-    CollapsibleChildElementTransparency = 0.35,
-    ElementStrokeTransparency = 0,
-    CollapsibleChildElementStrokeTransparency = 0,
-    ElementStrokeHoverTransparency = 0,
-    CollapsibleChildElementStrokeHoverTransparency = 0,
-    ElementStrokeHover = Color3.fromRGB(70, 91, 117),
-    ElementCornerRadius = UDim.new(0, 8),
-    ElementTextHoverColor = Color3.fromRGB(245, 250, 255),
-    TitlingColor = Color3.fromRGB(237, 244, 250),
-    DropdownHighlight = Color3.fromRGB(105, 181, 248),
-    AccentColor = Color3.fromRGB(78, 157, 235),
-    AccentStroke = Color3.fromRGB(137, 203, 255),
-    AccentGlow = 0.3,
-    StatBackground = Color3.fromRGB(19, 26, 39),
-    SliderHandle = Color3.fromRGB(228, 240, 250),
-    PillCornerRadius = UDim.new(0, 32),
-    ToggleTrack = Color3.fromRGB(8, 12, 18),
-    ToggleTrackTransparency = 0.82,
-    ToggleKnobOff = Color3.fromRGB(196, 210, 226),
-    -- [[Solid off-knob: do not inherit the default theme's translucent white knob.]]
-    ToggleKnobOffTransparency = 0.08,
-    FieldBackground = Color3.fromRGB(14, 20, 30),
-    FieldTransparency = 0,
-    FieldGlow = Color3.fromRGB(78, 157, 235),
-    PlaceholderColor = Color3.fromRGB(121, 139, 160),
-    SurfaceStroke = Color3.fromRGB(44, 59, 79),
-    NeutralButton = Color3.fromRGB(34, 46, 65),
-    NeutralButtonHover = Color3.fromRGB(47, 63, 86),
-    NeutralButtonStroke = Color3.fromRGB(91, 113, 143),
-    ErrorColor = Color3.fromRGB(201, 76, 82),
-    ErrorStrokeColor = Color3.fromRGB(232, 116, 120),
-}
-
-end)() end,
-    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
-local crimson = require(script.Parent.Parent.core.state)
-
--- [[Crimson: the default theme's greyscale ladder with a dark red tint. The
--- [[file keeps the default's key order, so diffing the two shows the hue.
--- [[Surfaces stay neutral-leaning: each band takes one deliberate step away
--- [[from its parent, never a saturated wash.]]
-return {
-    -- [[Semantic palette (derived from the greyscale base + crimson accent)]]
-    Background = Color3.fromRGB(19, 12, 13),
-    WindowSurface = Color3.fromRGB(25, 17, 18),
-    TopbarSurface = Color3.fromRGB(22, 15, 16),
-    SidebarSurface = Color3.fromRGB(27, 19, 20),
-    TabSurface = Color3.fromRGB(40, 27, 29),
-    TabSelected = Color3.fromRGB(84, 38, 42),
-    ElementSurface = Color3.fromRGB(33, 24, 25),
-    ElementHover = Color3.fromRGB(39, 28, 29),
-    ElementPressed = Color3.fromRGB(26, 19, 20),
-    SecondaryElement = Color3.fromRGB(28, 20, 21),
-    Stroke = Color3.fromRGB(64, 47, 50),
-    SecondaryStroke = Color3.fromRGB(49, 37, 39),
-    PrimaryText = Color3.fromRGB(240, 233, 233),
-    SecondaryText = Color3.fromRGB(198, 183, 184),
-    MutedText = Color3.fromRGB(150, 132, 134),
-    DisabledText = Color3.fromRGB(108, 94, 96),
-    Accent = Color3.fromRGB(224, 78, 84),
-    AccentHover = Color3.fromRGB(236, 100, 105),
-    AccentPressed = Color3.fromRGB(181, 50, 56),
-    AccentStrokeSemantic = Color3.fromRGB(238, 112, 117),
-    Success = Color3.fromRGB(0, 170, 127),
-    Warning = Color3.fromRGB(224, 166, 74),
-    Error = Color3.fromRGB(185, 50, 50),
-    NotificationSurface = Color3.fromRGB(29, 21, 22),
-    PopupSurface = Color3.fromRGB(25, 17, 18),
-    InputSurface = Color3.fromRGB(22, 15, 16),
-
-    -- [[Shared legacy keys — same order and role as the default theme.]]
-    CornerRoundness = UDim.new(0, 12),
-    WindowColor = ColorSequence.new(Color3.fromRGB(23, 15, 16), Color3.fromRGB(33, 22, 24)),
-    ShadowColor = Color3.fromRGB(7, 4, 4),
-    ElementStroke = Color3.fromRGB(59, 44, 47),
-    CardSurface = Color3.fromRGB(33, 24, 25),
-    ElementGradient = ColorSequence.new(Color3.fromRGB(31, 22, 23), Color3.fromRGB(35, 26, 27)),
-    ElementStrokeGradient = ColorSequence.new(Color3.fromRGB(52, 39, 42), Color3.fromRGB(68, 51, 55)),
-    TabColor = Color3.fromRGB(226, 214, 215),
-    TabBackground = ColorSequence.new(Color3.fromRGB(38, 25, 27), Color3.fromRGB(29, 19, 21)),
-    TabStroke = ColorSequence.new(Color3.fromRGB(96, 44, 49), Color3.fromRGB(68, 30, 35)),
-    SliderBackground = Color3.fromRGB(49, 34, 36),
-    SliderBackgroundHover = Color3.fromRGB(62, 44, 46),
-    SliderProgress = ColorSequence.new(Color3.fromRGB(228, 86, 92), Color3.fromRGB(186, 52, 58)),
-    SliderStroke = Color3.fromRGB(114, 88, 91),
-    ActionColor = Color3.fromRGB(234, 227, 228),
-    TitleFont = crimson.brandFont(Enum.FontWeight.SemiBold),
-    Font = crimson.brandFont(Enum.FontWeight.Medium),
-    ContentColor = Color3.fromRGB(222, 212, 213),
-    LiveAnimation = false,
-    DarkToggleOverlay = true,
-    ElementTransparency = 0,
-    CollapsibleChildElementTransparency = 0.35,
-    ElementStrokeTransparency = 0,
-    CollapsibleChildElementStrokeTransparency = 0,
-    ElementStrokeHoverTransparency = 0,
-    CollapsibleChildElementStrokeHoverTransparency = 0,
-    ElementStrokeHover = Color3.fromRGB(224, 78, 84),
-    ElementCornerRadius = UDim.new(0, 8),
-    ElementTextHoverColor = Color3.fromRGB(247, 242, 243),
-    TitlingColor = Color3.fromRGB(243, 238, 238),
-    DropdownHighlight = Color3.fromRGB(236, 100, 105),
-    AccentColor = Color3.fromRGB(224, 78, 84),
-    AccentStroke = Color3.fromRGB(238, 112, 117),
-    AccentGlow = 0.3,
-    StatBackground = Color3.fromRGB(26, 19, 20),
-    SliderHandle = Color3.fromRGB(238, 222, 223),
-    PillCornerRadius = UDim.new(0, 32),
-    ToggleTrack = Color3.fromRGB(10, 6, 7),
-    ToggleTrackTransparency = 0.82,
-    ToggleKnobOff = Color3.fromRGB(196, 184, 185),
-    -- [[Solid off-knob: do not inherit the default theme's translucent white knob.]]
-    ToggleKnobOffTransparency = 0.08,
-    FieldBackground = Color3.fromRGB(19, 13, 14),
-    FieldTransparency = 0,
-    FieldGlow = Color3.fromRGB(201, 62, 68),
-    PlaceholderColor = Color3.fromRGB(150, 132, 134),
-    SurfaceStroke = Color3.fromRGB(55, 42, 45),
-    NeutralButton = Color3.fromRGB(35, 25, 27),
-    NeutralButtonHover = Color3.fromRGB(46, 33, 35),
-    NeutralButtonStroke = Color3.fromRGB(84, 62, 66),
-    ErrorColor = Color3.fromRGB(211, 86, 88),
-    ErrorStrokeColor = Color3.fromRGB(239, 118, 119),
-}
-
-end)() end,
-    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
 local default = require(script.Parent.Parent.core.state)
 
 -- [[Astra's default palette. The shared keys below are the historical set
--- [[every theme module provides; the Astra-only semantic keys (Background,
+-- [[a theme table may overlay; the Astra-only semantic keys (Background,
 -- [[WindowSurface, text tiers, Success/Warning, etc.) are derived from the
 -- [[same greyscale + teal accent so the capsule and settings surfaces stay
 -- [[coherent with the rest of the theme.]]
@@ -21077,7 +20640,7 @@ return {
     PopupSurface = Color3.fromRGB(25, 25, 25),
     InputSurface = Color3.fromRGB(18, 18, 18),
 
-    -- [[Shared keys — the set every theme module must provide]]
+    -- [[Shared keys — the set a theme table may overlay]]
     -- [[Corner scale. Three tiers, each nested inside the one above so the
     -- [[arcs stay concentric instead of fighting:
     -- [[  12px `CornerRoundness` — the shell: the window silhouette and the
@@ -21166,560 +20729,7 @@ return {
 }
 
 end)() end,
-    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
-local ember = require(script.Parent.Parent.core.state)
-
--- [[Ember: the default theme's greyscale ladder with a warm orange tint.
--- [[The file keeps the default's key order, so diffing the two shows the
--- [[hue. Surfaces stay neutral-leaning: each band takes one deliberate step
--- [[away from its parent, never a saturated wash.]]
-return {
-    -- [[Semantic palette (derived from the greyscale base + ember accent)]]
-    Background = Color3.fromRGB(22, 18, 16),
-    WindowSurface = Color3.fromRGB(31, 26, 23),
-    TopbarSurface = Color3.fromRGB(26, 22, 20),
-    SidebarSurface = Color3.fromRGB(32, 27, 24),
-    TabSurface = Color3.fromRGB(47, 39, 33),
-    TabSelected = Color3.fromRGB(83, 59, 38),
-    ElementSurface = Color3.fromRGB(39, 33, 29),
-    ElementHover = Color3.fromRGB(49, 40, 34),
-    ElementPressed = Color3.fromRGB(29, 24, 21),
-    SecondaryElement = Color3.fromRGB(32, 27, 24),
-    Stroke = Color3.fromRGB(74, 61, 51),
-    SecondaryStroke = Color3.fromRGB(57, 47, 40),
-    PrimaryText = Color3.fromRGB(243, 236, 229),
-    SecondaryText = Color3.fromRGB(198, 186, 173),
-    MutedText = Color3.fromRGB(145, 131, 117),
-    DisabledText = Color3.fromRGB(104, 93, 82),
-    Accent = Color3.fromRGB(226, 145, 58),
-    AccentHover = Color3.fromRGB(243, 169, 78),
-    AccentPressed = Color3.fromRGB(181, 105, 31),
-    AccentStrokeSemantic = Color3.fromRGB(255, 193, 112),
-    Success = Color3.fromRGB(0, 170, 127),
-    Warning = Color3.fromRGB(224, 166, 74),
-    Error = Color3.fromRGB(185, 50, 50),
-    NotificationSurface = Color3.fromRGB(35, 30, 26),
-    PopupSurface = Color3.fromRGB(31, 26, 23),
-    InputSurface = Color3.fromRGB(26, 22, 20),
-
-    -- [[Shared legacy keys — same order and role as the default theme.]]
-    CornerRoundness = UDim.new(0, 12),
-    WindowColor = ColorSequence.new(Color3.fromRGB(27, 22, 19), Color3.fromRGB(40, 33, 28)),
-    ShadowColor = Color3.fromRGB(11, 7, 5),
-    ElementStroke = Color3.fromRGB(65, 53, 44),
-    CardSurface = Color3.fromRGB(39, 33, 29),
-    ElementGradient = ColorSequence.new(Color3.fromRGB(38, 31, 27), Color3.fromRGB(44, 36, 31)),
-    ElementStrokeGradient = ColorSequence.new(Color3.fromRGB(61, 50, 42), Color3.fromRGB(80, 66, 54)),
-    TabColor = Color3.fromRGB(233, 222, 209),
-    TabBackground = ColorSequence.new(Color3.fromRGB(52, 43, 36), Color3.fromRGB(39, 32, 27)),
-    TabStroke = ColorSequence.new(Color3.fromRGB(86, 70, 57), Color3.fromRGB(60, 49, 41)),
-    SliderBackground = Color3.fromRGB(51, 42, 35),
-    SliderBackgroundHover = Color3.fromRGB(65, 53, 44),
-    SliderProgress = ColorSequence.new(Color3.fromRGB(232, 151, 60), Color3.fromRGB(190, 108, 29)),
-    SliderStroke = Color3.fromRGB(122, 102, 83),
-    ActionColor = Color3.fromRGB(237, 227, 216),
-    TitleFont = ember.brandFont(Enum.FontWeight.SemiBold),
-    Font = ember.brandFont(Enum.FontWeight.Medium),
-    ContentColor = Color3.fromRGB(225, 215, 204),
-    LiveAnimation = false,
-    DarkToggleOverlay = true,
-    ElementTransparency = 0,
-    CollapsibleChildElementTransparency = 0.35,
-    ElementStrokeTransparency = 0,
-    CollapsibleChildElementStrokeTransparency = 0,
-    ElementStrokeHoverTransparency = 0,
-    CollapsibleChildElementStrokeHoverTransparency = 0,
-    ElementStrokeHover = Color3.fromRGB(94, 76, 61),
-    ElementCornerRadius = UDim.new(0, 8),
-    ElementTextHoverColor = Color3.fromRGB(252, 245, 236),
-    TitlingColor = Color3.fromRGB(245, 238, 230),
-    DropdownHighlight = Color3.fromRGB(243, 169, 78),
-    AccentColor = Color3.fromRGB(226, 145, 58),
-    AccentStroke = Color3.fromRGB(255, 193, 112),
-    AccentGlow = 0.28,
-    StatBackground = Color3.fromRGB(30, 24, 21),
-    SliderHandle = Color3.fromRGB(245, 233, 214),
-    PillCornerRadius = UDim.new(0, 32),
-    ToggleTrack = Color3.fromRGB(12, 9, 7),
-    ToggleTrackTransparency = 0.82,
-    ToggleKnobOff = Color3.fromRGB(226, 215, 202),
-    -- [[Solid off-knob: do not inherit the default theme's translucent white knob.]]
-    ToggleKnobOffTransparency = 0.08,
-    FieldBackground = Color3.fromRGB(22, 18, 16),
-    FieldTransparency = 0,
-    FieldGlow = Color3.fromRGB(226, 145, 58),
-    PlaceholderColor = Color3.fromRGB(145, 131, 117),
-    SurfaceStroke = Color3.fromRGB(65, 53, 44),
-    NeutralButton = Color3.fromRGB(47, 38, 32),
-    NeutralButtonHover = Color3.fromRGB(63, 51, 42),
-    NeutralButtonStroke = Color3.fromRGB(123, 101, 80),
-    ErrorColor = Color3.fromRGB(202, 77, 69),
-    ErrorStrokeColor = Color3.fromRGB(235, 117, 103),
-}
-
-end)() end,
-    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
-local emerald = require(script.Parent.Parent.core.state)
-
--- [[Emerald: the default theme's greyscale ladder with a green tint. The
--- [[file keeps the default's key order, so diffing the two shows the hue.
--- [[Surfaces stay neutral-leaning: each band takes one deliberate step away
--- [[from its parent, never a saturated wash.]]
-return {
-    -- [[Semantic palette (derived from the greyscale base + emerald accent)]]
-    Background = Color3.fromRGB(12, 17, 13),
-    WindowSurface = Color3.fromRGB(17, 23, 19),
-    TopbarSurface = Color3.fromRGB(15, 20, 16),
-    SidebarSurface = Color3.fromRGB(19, 26, 21),
-    TabSurface = Color3.fromRGB(28, 38, 31),
-    TabSelected = Color3.fromRGB(34, 71, 48),
-    ElementSurface = Color3.fromRGB(24, 33, 27),
-    ElementHover = Color3.fromRGB(30, 40, 33),
-    ElementPressed = Color3.fromRGB(19, 25, 21),
-    SecondaryElement = Color3.fromRGB(20, 27, 22),
-    Stroke = Color3.fromRGB(51, 66, 56),
-    SecondaryStroke = Color3.fromRGB(39, 52, 43),
-    PrimaryText = Color3.fromRGB(230, 240, 233),
-    SecondaryText = Color3.fromRGB(172, 190, 178),
-    MutedText = Color3.fromRGB(118, 136, 124),
-    DisabledText = Color3.fromRGB(85, 99, 89),
-    Accent = Color3.fromRGB(72, 199, 116),
-    AccentHover = Color3.fromRGB(96, 218, 138),
-    AccentPressed = Color3.fromRGB(45, 155, 88),
-    AccentStrokeSemantic = Color3.fromRGB(112, 220, 146),
-    Success = Color3.fromRGB(0, 170, 127),
-    Warning = Color3.fromRGB(224, 166, 74),
-    Error = Color3.fromRGB(185, 50, 50),
-    NotificationSurface = Color3.fromRGB(21, 28, 23),
-    PopupSurface = Color3.fromRGB(17, 23, 19),
-    InputSurface = Color3.fromRGB(15, 20, 16),
-
-    -- [[Shared legacy keys — same order and role as the default theme.]]
-    CornerRoundness = UDim.new(0, 12),
-    WindowColor = ColorSequence.new(Color3.fromRGB(15, 20, 17), Color3.fromRGB(22, 30, 25)),
-    ShadowColor = Color3.fromRGB(4, 7, 5),
-    ElementStroke = Color3.fromRGB(48, 62, 53),
-    CardSurface = Color3.fromRGB(24, 33, 27),
-    ElementGradient = ColorSequence.new(Color3.fromRGB(23, 31, 26), Color3.fromRGB(27, 36, 30)),
-    ElementStrokeGradient = ColorSequence.new(Color3.fromRGB(42, 56, 47), Color3.fromRGB(56, 74, 62)),
-    TabColor = Color3.fromRGB(206, 222, 212),
-    TabBackground = ColorSequence.new(Color3.fromRGB(26, 36, 29), Color3.fromRGB(20, 27, 22)),
-    TabStroke = ColorSequence.new(Color3.fromRGB(50, 102, 72), Color3.fromRGB(34, 74, 52)),
-    SliderBackground = Color3.fromRGB(33, 45, 38),
-    SliderBackgroundHover = Color3.fromRGB(44, 58, 49),
-    SliderProgress = ColorSequence.new(Color3.fromRGB(82, 210, 128), Color3.fromRGB(49, 163, 96)),
-    SliderStroke = Color3.fromRGB(90, 110, 97),
-    ActionColor = Color3.fromRGB(222, 233, 226),
-    TitleFont = emerald.brandFont(Enum.FontWeight.SemiBold),
-    Font = emerald.brandFont(Enum.FontWeight.Medium),
-    ContentColor = Color3.fromRGB(209, 222, 213),
-    LiveAnimation = false,
-    DarkToggleOverlay = true,
-    ElementTransparency = 0,
-    CollapsibleChildElementTransparency = 0.35,
-    ElementStrokeTransparency = 0,
-    CollapsibleChildElementStrokeTransparency = 0,
-    ElementStrokeHoverTransparency = 0,
-    CollapsibleChildElementStrokeHoverTransparency = 0,
-    ElementStrokeHover = Color3.fromRGB(72, 199, 116),
-    ElementCornerRadius = UDim.new(0, 8),
-    ElementTextHoverColor = Color3.fromRGB(238, 248, 241),
-    TitlingColor = Color3.fromRGB(234, 242, 237),
-    DropdownHighlight = Color3.fromRGB(96, 218, 138),
-    AccentColor = Color3.fromRGB(72, 199, 116),
-    AccentStroke = Color3.fromRGB(112, 220, 146),
-    AccentGlow = 0.3,
-    StatBackground = Color3.fromRGB(19, 25, 21),
-    SliderHandle = Color3.fromRGB(216, 236, 222),
-    PillCornerRadius = UDim.new(0, 32),
-    ToggleTrack = Color3.fromRGB(7, 11, 8),
-    ToggleTrackTransparency = 0.82,
-    ToggleKnobOff = Color3.fromRGB(183, 196, 186),
-    -- [[Solid off-knob: do not inherit the default theme's translucent white knob.]]
-    ToggleKnobOffTransparency = 0.08,
-    FieldBackground = Color3.fromRGB(13, 18, 15),
-    FieldTransparency = 0,
-    FieldGlow = Color3.fromRGB(64, 185, 105),
-    PlaceholderColor = Color3.fromRGB(118, 136, 124),
-    SurfaceStroke = Color3.fromRGB(45, 58, 49),
-    NeutralButton = Color3.fromRGB(27, 36, 30),
-    NeutralButtonHover = Color3.fromRGB(37, 49, 41),
-    NeutralButtonStroke = Color3.fromRGB(62, 80, 67),
-    ErrorColor = Color3.fromRGB(211, 86, 88),
-    ErrorStrokeColor = Color3.fromRGB(239, 118, 119),
-}
-
-end)() end,
-    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
-local frost = require(script.Parent.Parent.core.state)
-
--- [[Frost: the default theme's greyscale ladder with an icy blue tint.
--- [[The file keeps the default's key order, so diffing the two shows the
--- [[hue. Surfaces stay neutral-leaning: each band takes one deliberate step
--- [[away from its parent, never a saturated wash.]]
-return {
-    -- [[Semantic palette (derived from the greyscale base + frost accent)]]
-    Background = Color3.fromRGB(10, 14, 19),
-    WindowSurface = Color3.fromRGB(16, 21, 28),
-    TopbarSurface = Color3.fromRGB(14, 19, 25),
-    SidebarSurface = Color3.fromRGB(18, 24, 32),
-    TabSurface = Color3.fromRGB(27, 35, 45),
-    TabSelected = Color3.fromRGB(26, 56, 68),
-    ElementSurface = Color3.fromRGB(23, 30, 39),
-    ElementHover = Color3.fromRGB(29, 38, 48),
-    ElementPressed = Color3.fromRGB(18, 24, 31),
-    SecondaryElement = Color3.fromRGB(19, 26, 34),
-    Stroke = Color3.fromRGB(52, 66, 79),
-    SecondaryStroke = Color3.fromRGB(40, 52, 63),
-    PrimaryText = Color3.fromRGB(232, 240, 245),
-    SecondaryText = Color3.fromRGB(172, 188, 199),
-    MutedText = Color3.fromRGB(118, 134, 146),
-    DisabledText = Color3.fromRGB(86, 98, 108),
-    Accent = Color3.fromRGB(86, 197, 235),
-    AccentHover = Color3.fromRGB(116, 214, 245),
-    AccentPressed = Color3.fromRGB(52, 158, 196),
-    AccentStrokeSemantic = Color3.fromRGB(133, 216, 242),
-    Success = Color3.fromRGB(0, 170, 127),
-    Warning = Color3.fromRGB(224, 166, 74),
-    Error = Color3.fromRGB(185, 50, 50),
-    NotificationSurface = Color3.fromRGB(20, 26, 34),
-    PopupSurface = Color3.fromRGB(16, 21, 28),
-    InputSurface = Color3.fromRGB(14, 19, 25),
-
-    -- [[Shared legacy keys — same order and role as the default theme.]]
-    CornerRoundness = UDim.new(0, 12),
-    WindowColor = ColorSequence.new(Color3.fromRGB(14, 19, 26), Color3.fromRGB(22, 30, 39)),
-    ShadowColor = Color3.fromRGB(4, 7, 10),
-    ElementStroke = Color3.fromRGB(49, 63, 76),
-    CardSurface = Color3.fromRGB(23, 30, 39),
-    ElementGradient = ColorSequence.new(Color3.fromRGB(22, 29, 37), Color3.fromRGB(26, 34, 43)),
-    ElementStrokeGradient = ColorSequence.new(Color3.fromRGB(44, 57, 69), Color3.fromRGB(58, 74, 87)),
-    TabColor = Color3.fromRGB(208, 224, 232),
-    TabBackground = ColorSequence.new(Color3.fromRGB(25, 34, 44), Color3.fromRGB(19, 26, 34)),
-    TabStroke = ColorSequence.new(Color3.fromRGB(56, 118, 138), Color3.fromRGB(38, 84, 100)),
-    SliderBackground = Color3.fromRGB(34, 44, 55),
-    SliderBackgroundHover = Color3.fromRGB(45, 58, 71),
-    SliderProgress = ColorSequence.new(Color3.fromRGB(96, 204, 238), Color3.fromRGB(56, 160, 200)),
-    SliderStroke = Color3.fromRGB(94, 112, 126),
-    ActionColor = Color3.fromRGB(224, 233, 239),
-    TitleFont = frost.brandFont(Enum.FontWeight.SemiBold),
-    Font = frost.brandFont(Enum.FontWeight.Medium),
-    ContentColor = Color3.fromRGB(212, 223, 231),
-    LiveAnimation = false,
-    DarkToggleOverlay = true,
-    ElementTransparency = 0,
-    CollapsibleChildElementTransparency = 0.35,
-    ElementStrokeTransparency = 0,
-    CollapsibleChildElementStrokeTransparency = 0,
-    ElementStrokeHoverTransparency = 0,
-    CollapsibleChildElementStrokeHoverTransparency = 0,
-    ElementStrokeHover = Color3.fromRGB(86, 197, 235),
-    ElementCornerRadius = UDim.new(0, 8),
-    ElementTextHoverColor = Color3.fromRGB(240, 248, 251),
-    TitlingColor = Color3.fromRGB(236, 243, 247),
-    DropdownHighlight = Color3.fromRGB(116, 214, 245),
-    AccentColor = Color3.fromRGB(86, 197, 235),
-    AccentStroke = Color3.fromRGB(133, 216, 242),
-    AccentGlow = 0.35,
-    StatBackground = Color3.fromRGB(18, 24, 31),
-    SliderHandle = Color3.fromRGB(224, 240, 247),
-    PillCornerRadius = UDim.new(0, 32),
-    ToggleTrack = Color3.fromRGB(8, 12, 16),
-    ToggleTrackTransparency = 0.82,
-    ToggleKnobOff = Color3.fromRGB(184, 196, 204),
-    -- [[Solid off-knob: do not inherit the default theme's translucent white knob.]]
-    ToggleKnobOffTransparency = 0.08,
-    FieldBackground = Color3.fromRGB(13, 18, 24),
-    FieldTransparency = 0,
-    FieldGlow = Color3.fromRGB(74, 180, 216),
-    PlaceholderColor = Color3.fromRGB(118, 134, 146),
-    SurfaceStroke = Color3.fromRGB(46, 59, 71),
-    NeutralButton = Color3.fromRGB(28, 36, 45),
-    NeutralButtonHover = Color3.fromRGB(38, 49, 60),
-    NeutralButtonStroke = Color3.fromRGB(66, 82, 96),
-    ErrorColor = Color3.fromRGB(211, 86, 88),
-    ErrorStrokeColor = Color3.fromRGB(239, 118, 119),
-}
-
-end)() end,
-    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
-local gold = require(script.Parent.Parent.core.state)
-
--- [[Gold: the default theme's greyscale ladder with a warm gold tint. The
--- [[file keeps the default's key order, so diffing the two shows the hue.
--- [[Surfaces stay neutral-leaning: each band takes one deliberate step away
--- [[from its parent, never a saturated wash.]]
-return {
-    -- [[Semantic palette (derived from the greyscale base + gold accent)]]
-    Background = Color3.fromRGB(19, 16, 10),
-    WindowSurface = Color3.fromRGB(25, 21, 14),
-    TopbarSurface = Color3.fromRGB(22, 19, 12),
-    SidebarSurface = Color3.fromRGB(27, 23, 16),
-    TabSurface = Color3.fromRGB(38, 32, 22),
-    TabSelected = Color3.fromRGB(74, 61, 30),
-    ElementSurface = Color3.fromRGB(33, 28, 19),
-    ElementHover = Color3.fromRGB(39, 33, 23),
-    ElementPressed = Color3.fromRGB(26, 22, 15),
-    SecondaryElement = Color3.fromRGB(28, 24, 16),
-    Stroke = Color3.fromRGB(66, 57, 38),
-    SecondaryStroke = Color3.fromRGB(50, 44, 30),
-    PrimaryText = Color3.fromRGB(240, 236, 226),
-    SecondaryText = Color3.fromRGB(196, 188, 170),
-    MutedText = Color3.fromRGB(148, 139, 118),
-    DisabledText = Color3.fromRGB(106, 99, 84),
-    Accent = Color3.fromRGB(233, 196, 74),
-    AccentHover = Color3.fromRGB(244, 210, 96),
-    AccentPressed = Color3.fromRGB(193, 158, 45),
-    AccentStrokeSemantic = Color3.fromRGB(240, 214, 110),
-    Success = Color3.fromRGB(0, 170, 127),
-    Warning = Color3.fromRGB(224, 166, 74),
-    Error = Color3.fromRGB(185, 50, 50),
-    NotificationSurface = Color3.fromRGB(29, 25, 17),
-    PopupSurface = Color3.fromRGB(25, 21, 14),
-    InputSurface = Color3.fromRGB(22, 19, 12),
-
-    -- [[Shared legacy keys — same order and role as the default theme.]]
-    CornerRoundness = UDim.new(0, 12),
-    WindowColor = ColorSequence.new(Color3.fromRGB(23, 19, 13), Color3.fromRGB(32, 27, 18)),
-    ShadowColor = Color3.fromRGB(8, 7, 4),
-    ElementStroke = Color3.fromRGB(61, 53, 35),
-    CardSurface = Color3.fromRGB(33, 28, 19),
-    ElementGradient = ColorSequence.new(Color3.fromRGB(31, 26, 18), Color3.fromRGB(35, 30, 21)),
-    ElementStrokeGradient = ColorSequence.new(Color3.fromRGB(53, 46, 31), Color3.fromRGB(70, 60, 40)),
-    TabColor = Color3.fromRGB(226, 218, 198),
-    TabBackground = ColorSequence.new(Color3.fromRGB(36, 30, 20), Color3.fromRGB(28, 23, 15)),
-    TabStroke = ColorSequence.new(Color3.fromRGB(94, 79, 42), Color3.fromRGB(66, 56, 30)),
-    SliderBackground = Color3.fromRGB(48, 41, 28),
-    SliderBackgroundHover = Color3.fromRGB(61, 52, 35),
-    SliderProgress = ColorSequence.new(Color3.fromRGB(238, 202, 84), Color3.fromRGB(198, 158, 47)),
-    SliderStroke = Color3.fromRGB(116, 103, 72),
-    ActionColor = Color3.fromRGB(234, 229, 214),
-    TitleFont = gold.brandFont(Enum.FontWeight.SemiBold),
-    Font = gold.brandFont(Enum.FontWeight.Medium),
-    ContentColor = Color3.fromRGB(222, 215, 197),
-    LiveAnimation = false,
-    DarkToggleOverlay = true,
-    ElementTransparency = 0,
-    CollapsibleChildElementTransparency = 0.35,
-    ElementStrokeTransparency = 0,
-    CollapsibleChildElementStrokeTransparency = 0,
-    ElementStrokeHoverTransparency = 0,
-    CollapsibleChildElementStrokeHoverTransparency = 0,
-    ElementStrokeHover = Color3.fromRGB(233, 196, 74),
-    ElementCornerRadius = UDim.new(0, 8),
-    ElementTextHoverColor = Color3.fromRGB(247, 244, 235),
-    TitlingColor = Color3.fromRGB(243, 239, 229),
-    DropdownHighlight = Color3.fromRGB(244, 210, 96),
-    AccentColor = Color3.fromRGB(233, 196, 74),
-    AccentStroke = Color3.fromRGB(240, 214, 110),
-    AccentGlow = 0.32,
-    StatBackground = Color3.fromRGB(26, 22, 15),
-    SliderHandle = Color3.fromRGB(238, 230, 206),
-    PillCornerRadius = UDim.new(0, 32),
-    ToggleTrack = Color3.fromRGB(10, 9, 5),
-    ToggleTrackTransparency = 0.82,
-    ToggleKnobOff = Color3.fromRGB(194, 188, 170),
-    -- [[Solid off-knob: do not inherit the default theme's translucent white knob.]]
-    ToggleKnobOffTransparency = 0.08,
-    FieldBackground = Color3.fromRGB(18, 15, 10),
-    FieldTransparency = 0,
-    FieldGlow = Color3.fromRGB(201, 168, 60),
-    PlaceholderColor = Color3.fromRGB(148, 139, 118),
-    SurfaceStroke = Color3.fromRGB(58, 51, 34),
-    NeutralButton = Color3.fromRGB(35, 30, 21),
-    NeutralButtonHover = Color3.fromRGB(46, 39, 27),
-    NeutralButtonStroke = Color3.fromRGB(82, 71, 47),
-    ErrorColor = Color3.fromRGB(211, 86, 88),
-    ErrorStrokeColor = Color3.fromRGB(239, 118, 119),
-}
-
-end)() end,
-    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
-local onyx = require(script.Parent.Parent.core.state)
-
--- [[Onyx: the default theme's greyscale ladder deepened — the blackest
--- [[surface ladder in the set, with a cool silver accent instead of teal.
--- [[The file keeps the default's key order, so diffing the two shows the
--- [[hue. Surfaces stay neutral: each band takes one deliberate step away
--- [[from its parent, never a tinted wash.]]
-return {
-    -- [[Semantic palette (derived from the greyscale base + onyx accent)]]
-    Background = Color3.fromRGB(8, 8, 9),
-    WindowSurface = Color3.fromRGB(13, 13, 15),
-    TopbarSurface = Color3.fromRGB(11, 11, 13),
-    SidebarSurface = Color3.fromRGB(16, 16, 19),
-    TabSurface = Color3.fromRGB(24, 24, 27),
-    TabSelected = Color3.fromRGB(48, 48, 53),
-    ElementSurface = Color3.fromRGB(22, 22, 25),
-    ElementHover = Color3.fromRGB(25, 25, 29),
-    ElementPressed = Color3.fromRGB(15, 15, 18),
-    SecondaryElement = Color3.fromRGB(17, 17, 20),
-    Stroke = Color3.fromRGB(48, 48, 54),
-    SecondaryStroke = Color3.fromRGB(37, 37, 42),
-    PrimaryText = Color3.fromRGB(238, 238, 240),
-    SecondaryText = Color3.fromRGB(176, 178, 184),
-    MutedText = Color3.fromRGB(122, 124, 131),
-    DisabledText = Color3.fromRGB(87, 89, 96),
-    Accent = Color3.fromRGB(205, 210, 220),
-    AccentHover = Color3.fromRGB(222, 226, 233),
-    AccentPressed = Color3.fromRGB(165, 170, 181),
-    AccentStrokeSemantic = Color3.fromRGB(216, 220, 229),
-    Success = Color3.fromRGB(0, 170, 127),
-    Warning = Color3.fromRGB(224, 166, 74),
-    Error = Color3.fromRGB(185, 50, 50),
-    NotificationSurface = Color3.fromRGB(18, 18, 20),
-    PopupSurface = Color3.fromRGB(13, 13, 15),
-    InputSurface = Color3.fromRGB(11, 11, 13),
-
-    -- [[Shared legacy keys — same order and role as the default theme.]]
-    CornerRoundness = UDim.new(0, 12),
-    WindowColor = ColorSequence.new(Color3.fromRGB(12, 12, 14), Color3.fromRGB(18, 18, 21)),
-    ShadowColor = Color3.fromRGB(0, 0, 0),
-    ElementStroke = Color3.fromRGB(45, 45, 51),
-    CardSurface = Color3.fromRGB(22, 22, 25),
-    ElementGradient = ColorSequence.new(Color3.fromRGB(19, 19, 22), Color3.fromRGB(23, 23, 27)),
-    ElementStrokeGradient = ColorSequence.new(Color3.fromRGB(40, 40, 46), Color3.fromRGB(54, 54, 61)),
-    TabColor = Color3.fromRGB(214, 216, 221),
-    TabBackground = ColorSequence.new(Color3.fromRGB(22, 22, 25), Color3.fromRGB(16, 16, 19)),
-    TabStroke = ColorSequence.new(Color3.fromRGB(64, 64, 72), Color3.fromRGB(46, 46, 53)),
-    SliderBackground = Color3.fromRGB(32, 32, 37),
-    SliderBackgroundHover = Color3.fromRGB(42, 42, 48),
-    SliderProgress = ColorSequence.new(Color3.fromRGB(212, 216, 225), Color3.fromRGB(168, 173, 184)),
-    SliderStroke = Color3.fromRGB(92, 94, 102),
-    ActionColor = Color3.fromRGB(228, 230, 234),
-    TitleFont = onyx.brandFont(Enum.FontWeight.SemiBold),
-    Font = onyx.brandFont(Enum.FontWeight.Medium),
-    ContentColor = Color3.fromRGB(212, 214, 219),
-    LiveAnimation = false,
-    DarkToggleOverlay = true,
-    ElementTransparency = 0,
-    CollapsibleChildElementTransparency = 0.35,
-    ElementStrokeTransparency = 0,
-    CollapsibleChildElementStrokeTransparency = 0,
-    ElementStrokeHoverTransparency = 0,
-    CollapsibleChildElementStrokeHoverTransparency = 0,
-    ElementStrokeHover = Color3.fromRGB(205, 210, 220),
-    ElementCornerRadius = UDim.new(0, 8),
-    ElementTextHoverColor = Color3.fromRGB(246, 246, 248),
-    TitlingColor = Color3.fromRGB(240, 240, 243),
-    DropdownHighlight = Color3.fromRGB(222, 226, 233),
-    AccentColor = Color3.fromRGB(205, 210, 220),
-    AccentStroke = Color3.fromRGB(216, 220, 229),
-    AccentGlow = 0.22,
-    StatBackground = Color3.fromRGB(15, 15, 18),
-    SliderHandle = Color3.fromRGB(230, 232, 237),
-    PillCornerRadius = UDim.new(0, 32),
-    ToggleTrack = Color3.fromRGB(5, 5, 6),
-    ToggleTrackTransparency = 0.82,
-    ToggleKnobOff = Color3.fromRGB(178, 181, 189),
-    -- [[Solid off-knob: do not inherit the default theme's translucent white knob.]]
-    ToggleKnobOffTransparency = 0.08,
-    FieldBackground = Color3.fromRGB(10, 10, 12),
-    FieldTransparency = 0,
-    FieldGlow = Color3.fromRGB(188, 193, 203),
-    PlaceholderColor = Color3.fromRGB(122, 124, 131),
-    SurfaceStroke = Color3.fromRGB(42, 42, 48),
-    NeutralButton = Color3.fromRGB(23, 23, 27),
-    NeutralButtonHover = Color3.fromRGB(31, 31, 36),
-    NeutralButtonStroke = Color3.fromRGB(66, 66, 74),
-    ErrorColor = Color3.fromRGB(211, 86, 88),
-    ErrorStrokeColor = Color3.fromRGB(239, 118, 119),
-}
-
-end)() end,
-    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
-local rose = require(script.Parent.Parent.core.state)
-
--- [[Rose: the default theme's greyscale ladder with a pink tint. The file
--- [[keeps the default's key order, so diffing the two shows the hue.
--- [[Surfaces stay neutral-leaning: each band takes one deliberate step away
--- [[from its parent, never a saturated wash.]]
-return {
-    -- [[Semantic palette (derived from the greyscale base + rose accent)]]
-    Background = Color3.fromRGB(23, 15, 19),
-    WindowSurface = Color3.fromRGB(32, 22, 27),
-    TopbarSurface = Color3.fromRGB(27, 19, 23),
-    SidebarSurface = Color3.fromRGB(33, 23, 29),
-    TabSurface = Color3.fromRGB(47, 32, 39),
-    TabSelected = Color3.fromRGB(88, 51, 65),
-    ElementSurface = Color3.fromRGB(40, 28, 35),
-    ElementHover = Color3.fromRGB(51, 35, 42),
-    ElementPressed = Color3.fromRGB(30, 21, 26),
-    SecondaryElement = Color3.fromRGB(33, 23, 28),
-    Stroke = Color3.fromRGB(78, 54, 63),
-    SecondaryStroke = Color3.fromRGB(60, 42, 49),
-    PrimaryText = Color3.fromRGB(244, 234, 238),
-    SecondaryText = Color3.fromRGB(201, 183, 190),
-    MutedText = Color3.fromRGB(149, 128, 137),
-    DisabledText = Color3.fromRGB(108, 91, 99),
-    Accent = Color3.fromRGB(218, 105, 145),
-    AccentHover = Color3.fromRGB(237, 132, 168),
-    AccentPressed = Color3.fromRGB(174, 70, 109),
-    AccentStrokeSemantic = Color3.fromRGB(250, 169, 197),
-    Success = Color3.fromRGB(0, 170, 127),
-    Warning = Color3.fromRGB(224, 166, 74),
-    Error = Color3.fromRGB(185, 50, 50),
-    NotificationSurface = Color3.fromRGB(36, 25, 31),
-    PopupSurface = Color3.fromRGB(32, 22, 27),
-    InputSurface = Color3.fromRGB(27, 19, 23),
-
-    -- [[Shared legacy keys — same order and role as the default theme.]]
-    CornerRoundness = UDim.new(0, 12),
-    WindowColor = ColorSequence.new(Color3.fromRGB(29, 19, 24), Color3.fromRGB(43, 29, 36)),
-    ShadowColor = Color3.fromRGB(12, 6, 9),
-    ElementStroke = Color3.fromRGB(69, 47, 56),
-    CardSurface = Color3.fromRGB(40, 28, 35),
-    ElementGradient = ColorSequence.new(Color3.fromRGB(39, 27, 32), Color3.fromRGB(46, 32, 38)),
-    ElementStrokeGradient = ColorSequence.new(Color3.fromRGB(65, 45, 53), Color3.fromRGB(84, 58, 68)),
-    TabColor = Color3.fromRGB(237, 221, 227),
-    TabBackground = ColorSequence.new(Color3.fromRGB(55, 38, 46), Color3.fromRGB(41, 28, 34)),
-    TabStroke = ColorSequence.new(Color3.fromRGB(91, 63, 74), Color3.fromRGB(65, 45, 54)),
-    SliderBackground = Color3.fromRGB(53, 36, 44),
-    SliderBackgroundHover = Color3.fromRGB(68, 46, 56),
-    SliderProgress = ColorSequence.new(Color3.fromRGB(224, 112, 151), Color3.fromRGB(185, 70, 112)),
-    SliderStroke = Color3.fromRGB(125, 92, 105),
-    ActionColor = Color3.fromRGB(239, 226, 232),
-    TitleFont = rose.brandFont(Enum.FontWeight.SemiBold),
-    Font = rose.brandFont(Enum.FontWeight.Medium),
-    ContentColor = Color3.fromRGB(228, 213, 219),
-    LiveAnimation = false,
-    DarkToggleOverlay = true,
-    ElementTransparency = 0,
-    CollapsibleChildElementTransparency = 0.35,
-    ElementStrokeTransparency = 0,
-    CollapsibleChildElementStrokeTransparency = 0,
-    ElementStrokeHoverTransparency = 0,
-    CollapsibleChildElementStrokeHoverTransparency = 0,
-    ElementStrokeHover = Color3.fromRGB(99, 68, 81),
-    ElementCornerRadius = UDim.new(0, 8),
-    ElementTextHoverColor = Color3.fromRGB(253, 245, 248),
-    TitlingColor = Color3.fromRGB(247, 238, 242),
-    DropdownHighlight = Color3.fromRGB(237, 132, 168),
-    AccentColor = Color3.fromRGB(218, 105, 145),
-    AccentStroke = Color3.fromRGB(250, 169, 197),
-    AccentGlow = 0.3,
-    StatBackground = Color3.fromRGB(31, 21, 26),
-    SliderHandle = Color3.fromRGB(246, 230, 238),
-    PillCornerRadius = UDim.new(0, 32),
-    ToggleTrack = Color3.fromRGB(12, 8, 10),
-    ToggleTrackTransparency = 0.82,
-    ToggleKnobOff = Color3.fromRGB(228, 209, 217),
-    -- [[Solid off-knob: do not inherit the default theme's translucent white knob.]]
-    ToggleKnobOffTransparency = 0.08,
-    FieldBackground = Color3.fromRGB(24, 16, 20),
-    FieldTransparency = 0,
-    FieldGlow = Color3.fromRGB(218, 105, 145),
-    PlaceholderColor = Color3.fromRGB(149, 128, 137),
-    SurfaceStroke = Color3.fromRGB(69, 47, 56),
-    NeutralButton = Color3.fromRGB(51, 35, 42),
-    NeutralButtonHover = Color3.fromRGB(68, 46, 56),
-    NeutralButtonStroke = Color3.fromRGB(131, 94, 108),
-    ErrorColor = Color3.fromRGB(205, 76, 91),
-    ErrorStrokeColor = Color3.fromRGB(237, 121, 139),
-}
-
-end)() end,
-    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
+    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 
 local hapticService = {}
@@ -21817,7 +20827,7 @@ end
 return hapticService
 
 end)() end,
-    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
+    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
 local networkUtil = require(script.Parent.network)
 local logger = require(script.Parent.log)
 
@@ -21995,7 +21005,7 @@ end
 return assetResolver
 
 end)() end,
-    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
+    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
 local iconRegistry = require(script.Parent.Parent.images.windowIcons)
 local uiIcons = require(script.Parent.Parent.images.uiIcons)
 local constants = {}
@@ -22045,7 +21055,7 @@ constants.displayOrder = {
 return constants
 
 end)() end,
-    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
+    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
 local enums = {}
 
 function enums.itemFromValue(enumType, value)
@@ -22075,7 +21085,7 @@ end
 return enums
 
 end)() end,
-    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
+    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
 local serviceProvider = require(script.Parent.services)
 local filesystem = {}
 
@@ -22326,7 +21336,7 @@ end
 return filesystem
 
 end)() end,
-    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
+    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 local pathUtil = require(script.Parent.path)
 
@@ -22375,7 +21385,7 @@ end
 return filesystemManager
 
 end)() end,
-    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
+    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
 local fontManager = require(script.Parent.services)
 local a2 = fontManager.getService("HttpService")
 local a3 = fontManager.getService("RunService")
@@ -22828,7 +21838,7 @@ end
 return a16
 
 end)() end,
-    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
+    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
 
 local functions = {}
 
@@ -22846,7 +21856,7 @@ functions.contrastText = textMetrics.contrastText
 return functions
 
 end)() end,
-    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
+    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
 -- [[Astra Hardware Performance Engine.
 --
 -- Automatically detects GPU, CPU, frame timing, and device capabilities to
@@ -23047,7 +22057,7 @@ end
 return hardwarePerformance
 
 end)() end,
-    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
+    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
 -- [[Shared validation for required, single-letter key bindings.]]
 local keybind = {}
 
@@ -23067,7 +22077,7 @@ end
 return keybind
 
 end)() end,
-    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
+    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
 local layouts = {}
 
 local sidebarLayout = require(script.Parent.Parent.layouts.Sidebar)
@@ -23191,7 +22201,7 @@ end
 return layouts
 
 end)() end,
-    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
+    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local logger = require(script.Parent.log)
 
@@ -23290,7 +22300,7 @@ end
 return locale
 
 end)() end,
-    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
+    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
 local function lockable<T>(element: T): T
     local target = element :: any
 
@@ -23312,7 +22322,7 @@ end
 return lockable
 
 end)() end,
-    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
+    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
 local log = {}
 
 type SuppressPredicate = () -> boolean
@@ -23366,7 +22376,7 @@ end
 return log
 
 end)() end,
-    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
+    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
 -- [[Astra motion service.
 --
 -- Every animation in the library used to build its own TweenInfo and call
@@ -23793,7 +22803,7 @@ end
 return motion
 
 end)() end,
-    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
+    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
 local function moveable<T>(dragState: T): T
     local target = dragState :: any
 
@@ -23829,7 +22839,7 @@ end
 return moveable
 
 end)() end,
-    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
+    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
 local network = {}
 network.__index = network
 
@@ -23847,7 +22857,7 @@ end
 return network
 
 end)() end,
-    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
+    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local motion = require(script.Parent.motion)
 local textService = coreState.textService
@@ -24201,7 +23211,7 @@ end
 return odometer
 
 end)() end,
-    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
+    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
 type OrderedElement = {
     main: GuiObject,
 }
@@ -24213,7 +23223,7 @@ end
 return ordering
 
 end)() end,
-    [117] = function()local wax,script,require=ImportGlobals(117)local ImportGlobals return (function(...)
+    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
 local path = {}
 
 function path.join(base: string, suffix: string?): string
@@ -24264,7 +23274,7 @@ end
 return path
 
 end)() end,
-    [118] = function()local wax,script,require=ImportGlobals(118)local ImportGlobals return (function(...)
+    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
 local persistence = {}
 
 local configPersistence = require(script.Parent.persistenceConfig)
@@ -24283,7 +23293,7 @@ persistence.loadSettings = settingsPersistence.loadSettings
 return persistence
 
 end)() end,
-    [119] = function()local wax,script,require=ImportGlobals(119)local ImportGlobals return (function(...)
+    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local logger = require(script.Parent.log)
@@ -24540,7 +23550,7 @@ end
 return persistenceConfig
 
 end)() end,
-    [120] = function()local wax,script,require=ImportGlobals(120)local ImportGlobals return (function(...)
+    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local pathUtil = require(script.Parent.path)
 
@@ -24584,7 +23594,7 @@ end
 return persistencePaths
 
 end)() end,
-    [121] = function()local wax,script,require=ImportGlobals(121)local ImportGlobals return (function(...)
+    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local paths = require(script.Parent.persistencePaths)
@@ -24739,11 +23749,10 @@ function persistenceSettings.loadSettings(window: SettingsWindow): (boolean, boo
 
     if type(decodedSettings.theme) == "string" then
         local theme = string.lower(decodedSettings.theme)
-        if theme == "default" or theme == "amethyst" or theme == "cobalt"
-            or theme == "crimson" or theme == "ember" or theme == "emerald"
-            or theme == "frost" or theme == "gold" or theme == "onyx"
-            or theme == "rose"
-        then
+        -- [[The only built-in palette is `default`. A saved name from a
+        -- [[removed colour theme is ignored so the window stays on default
+        -- [[instead of warning on every load.]]
+        if theme == "default" then
             window.settings.theme = theme
         end
     end
@@ -24788,7 +23797,7 @@ end
 return persistenceSettings
 
 end)() end,
-    [122] = function()local wax,script,require=ImportGlobals(122)local ImportGlobals return (function(...)
+    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 
 local persistenceWrite = {}
@@ -24816,7 +23825,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [123] = function()local wax,script,require=ImportGlobals(123)local ImportGlobals return (function(...)
+    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
 local services = {}
 
 function services.getService(serviceName)
@@ -24827,7 +23836,7 @@ end
 return services
 
 end)() end,
-    [124] = function()local wax,script,require=ImportGlobals(124)local ImportGlobals return (function(...)
+    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
 local layoutMetrics = require(script.Parent.layouts)
 local coreState = require(script.Parent.Parent.core.state)
 
@@ -25009,113 +24018,104 @@ local LineOffsets = {
     [12] = 2481,
     [13] = 3216,
     [14] = 3546,
-    [15] = 4206,
-    [16] = 4267,
-    [17] = 4699,
-    [18] = 5023,
-    [19] = 5035,
-    [20] = 5092,
-    [21] = 5209,
-    [22] = 5535,
-    [23] = 5762,
-    [24] = 6066,
-    [25] = 6158,
-    [26] = 6207,
-    [27] = 6813,
-    [28] = 7000,
-    [29] = 7318,
-    [30] = 7732,
-    [31] = 4999,
-    [33] = 8582,
-    [34] = 9407,
-    [35] = 9502,
-    [36] = 9723,
-    [37] = 10144,
-    [38] = 10556,
-    [39] = 10726,
-    [40] = 10871,
-    [41] = 12421,
-    [42] = 12649,
-    [43] = 12880,
-    [44] = 13161,
-    [45] = 13568,
-    [46] = 13800,
-    [47] = 14423,
-    [48] = 14509,
-    [49] = 15110,
-    [50] = 15959,
-    [51] = 16466,
-    [52] = 16596,
-    [53] = 16748,
-    [55] = 17257,
-    [56] = 17277,
-    [57] = 17296,
-    [58] = 17328,
-    [59] = 17450,
-    [60] = 17474,
-    [61] = 17523,
-    [62] = 17232,
-    [63] = 17620,
-    [64] = 17925,
-    [65] = 17956,
-    [66] = 17609,
-    [67] = 17999,
-    [68] = 18019,
-    [69] = 18051,
-    [70] = 17981,
-    [71] = 18158,
-    [72] = 18224,
-    [74] = 18304,
-    [75] = 18469,
-    [76] = 18486,
-    [77] = 18289,
-    [78] = 19083,
-    [79] = 19127,
-    [80] = 19207,
-    [81] = 19400,
-    [82] = 19529,
-    [83] = 19624,
-    [84] = 19791,
-    [85] = 20129,
-    [86] = 18578,
-    [87] = 20763,
-    [88] = 20855,
-    [89] = 20947,
-    [90] = 21039,
-    [91] = 21170,
-    [92] = 21262,
-    [93] = 21354,
-    [94] = 21446,
-    [95] = 21538,
-    [96] = 21631,
-    [97] = 20657,
-    [98] = 21723,
-    [99] = 21821,
-    [100] = 21999,
-    [101] = 22049,
-    [102] = 22079,
-    [103] = 22330,
-    [104] = 22379,
-    [105] = 22832,
-    [106] = 22850,
-    [107] = 23051,
-    [108] = 23071,
-    [109] = 23195,
-    [110] = 23294,
-    [111] = 23316,
-    [112] = 23370,
-    [113] = 23797,
-    [114] = 23833,
-    [115] = 23851,
-    [116] = 24205,
-    [117] = 24217,
-    [118] = 24268,
-    [119] = 24287,
-    [120] = 24544,
-    [121] = 24588,
-    [122] = 24792,
-    [123] = 24820,
-    [124] = 24831,
+    [15] = 4042,
+    [16] = 4103,
+    [17] = 4535,
+    [18] = 4859,
+    [19] = 4871,
+    [20] = 4928,
+    [21] = 5045,
+    [22] = 5371,
+    [23] = 5598,
+    [24] = 5902,
+    [25] = 5994,
+    [26] = 6043,
+    [27] = 6652,
+    [28] = 6839,
+    [29] = 7157,
+    [30] = 7571,
+    [31] = 4835,
+    [33] = 8421,
+    [34] = 9246,
+    [35] = 9341,
+    [36] = 9562,
+    [37] = 9983,
+    [38] = 10395,
+    [39] = 10565,
+    [40] = 10710,
+    [41] = 12260,
+    [42] = 12488,
+    [43] = 12719,
+    [44] = 13000,
+    [45] = 13407,
+    [46] = 13639,
+    [47] = 14262,
+    [48] = 14348,
+    [49] = 14949,
+    [50] = 15798,
+    [51] = 16305,
+    [52] = 16435,
+    [53] = 16587,
+    [55] = 17096,
+    [56] = 17116,
+    [57] = 17135,
+    [58] = 17167,
+    [59] = 17289,
+    [60] = 17313,
+    [61] = 17362,
+    [62] = 17071,
+    [63] = 17459,
+    [64] = 17764,
+    [65] = 17795,
+    [66] = 17448,
+    [67] = 17838,
+    [68] = 17858,
+    [69] = 17890,
+    [70] = 17820,
+    [71] = 17997,
+    [72] = 18063,
+    [74] = 18143,
+    [75] = 18308,
+    [76] = 18325,
+    [77] = 18128,
+    [78] = 18922,
+    [79] = 18966,
+    [80] = 19046,
+    [81] = 19239,
+    [82] = 19368,
+    [83] = 19463,
+    [84] = 19630,
+    [85] = 19968,
+    [86] = 18417,
+    [87] = 20602,
+    [88] = 20496,
+    [89] = 20733,
+    [90] = 20831,
+    [91] = 21009,
+    [92] = 21059,
+    [93] = 21089,
+    [94] = 21340,
+    [95] = 21389,
+    [96] = 21842,
+    [97] = 21860,
+    [98] = 22061,
+    [99] = 22081,
+    [100] = 22205,
+    [101] = 22304,
+    [102] = 22326,
+    [103] = 22380,
+    [104] = 22807,
+    [105] = 22843,
+    [106] = 22861,
+    [107] = 23215,
+    [108] = 23227,
+    [109] = 23278,
+    [110] = 23297,
+    [111] = 23554,
+    [112] = 23598,
+    [113] = 23801,
+    [114] = 23829,
+    [115] = 23840,
 }
 
 -- [[Misc AOT variable imports]]
@@ -25747,7 +24747,7 @@ local ObjectTree = {
                 },
             },
             {
-                97,
+                88,
                 2,
                 {
                     "themes",
@@ -25757,265 +24757,202 @@ local ObjectTree = {
                         87,
                         2,
                         {
-                            "amethyst",
-                        },
-                    },
-                    {
-                        88,
-                        2,
-                        {
-                            "cobalt",
-                        },
-                    },
-                    {
-                        89,
-                        2,
-                        {
-                            "crimson",
-                        },
-                    },
-                    {
-                        90,
-                        2,
-                        {
                             "default",
-                        },
-                    },
-                    {
-                        91,
-                        2,
-                        {
-                            "ember",
-                        },
-                    },
-                    {
-                        92,
-                        2,
-                        {
-                            "emerald",
-                        },
-                    },
-                    {
-                        93,
-                        2,
-                        {
-                            "frost",
-                        },
-                    },
-                    {
-                        94,
-                        2,
-                        {
-                            "gold",
-                        },
-                    },
-                    {
-                        95,
-                        2,
-                        {
-                            "onyx",
-                        },
-                    },
-                    {
-                        96,
-                        2,
-                        {
-                            "rose",
                         },
                     },
                 },
             },
             {
-                125,
+                116,
                 1,
                 {
                     "utilities",
                 },
                 {
                     {
-                        98,
+                        89,
                         2,
                         {
                             "HapticEngine",
                         },
                     },
                     {
-                        99,
+                        90,
                         2,
                         {
                             "assetResolver",
                         },
                     },
                     {
-                        100,
+                        91,
                         2,
                         {
                             "constants",
                         },
                     },
                     {
-                        101,
+                        92,
                         2,
                         {
                             "enums",
                         },
                     },
                     {
-                        102,
+                        93,
                         2,
                         {
                             "filesystem",
                         },
                     },
                     {
-                        103,
+                        94,
                         2,
                         {
                             "filesystemManager",
                         },
                     },
                     {
-                        104,
+                        95,
                         2,
                         {
                             "fontManager",
                         },
                     },
                     {
-                        105,
+                        96,
                         2,
                         {
                             "functions",
                         },
                     },
                     {
-                        106,
+                        97,
                         2,
                         {
                             "hardwarePerformance",
                         },
                     },
                     {
-                        107,
+                        98,
                         2,
                         {
                             "keybind",
                         },
                     },
                     {
-                        108,
+                        99,
                         2,
                         {
                             "layouts",
                         },
                     },
                     {
-                        109,
+                        100,
                         2,
                         {
                             "locale",
                         },
                     },
                     {
-                        110,
+                        101,
                         2,
                         {
                             "lockable",
                         },
                     },
                     {
-                        111,
+                        102,
                         2,
                         {
                             "log",
                         },
                     },
                     {
-                        112,
+                        103,
                         2,
                         {
                             "motion",
                         },
                     },
                     {
-                        113,
+                        104,
                         2,
                         {
                             "moveable",
                         },
                     },
                     {
-                        114,
+                        105,
                         2,
                         {
                             "network",
                         },
                     },
                     {
-                        115,
+                        106,
                         2,
                         {
                             "odometer",
                         },
                     },
                     {
-                        116,
+                        107,
                         2,
                         {
                             "ordering",
                         },
                     },
                     {
-                        117,
+                        108,
                         2,
                         {
                             "path",
                         },
                     },
                     {
-                        118,
+                        109,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        119,
+                        110,
                         2,
                         {
                             "persistenceConfig",
                         },
                     },
                     {
-                        120,
+                        111,
                         2,
                         {
                             "persistencePaths",
                         },
                     },
                     {
-                        121,
+                        112,
                         2,
                         {
                             "persistenceSettings",
                         },
                     },
                     {
-                        122,
+                        113,
                         2,
                         {
                             "persistenceWrite",
                         },
                     },
                     {
-                        123,
+                        114,
                         2,
                         {
                             "services",
                         },
                     },
                     {
-                        124,
+                        115,
                         2,
                         {
                             "windowSizing",

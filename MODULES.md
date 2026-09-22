@@ -84,7 +84,7 @@ Method map (names preserved through minification). Settings-related:
   (1004), all `isSettingsTab` and `forgetState`. The gear opens the first row.
   Each stores a `_settingsContentBuilder`; `_buildSettingsContent(tab)` runs it
   on first selection after construction. Controls owns keyboard, cursor and
-  window behavior. Appearance owns theme/layout and Motion & Feedback.
+  window behavior. Appearance owns layout and Motion & Feedback.
   Persistence always hosts saved-config Save/Load/Delete (independent of
   the `configuration` prop), plus default-on Auto Save Config and Auto Load
   Config toggles. Storage defaults are internal; the named-preset dropdown
@@ -135,7 +135,7 @@ its anchored resting spot, and by `ToggleMinimise`'s expand),
 Dedicated settings component providing lazy UI generation for Overview, Controls, Appearance and Persistence, in that order:
 - `buildUI(window)` — reuses `rfSettings` as the first Overview shell and adds the other three. Overview renders the About Card, copyable resource Links and Footer.
 - Controls uses `elements/keybind` for the menu letter (callback converts the uppercase string to a KeyCode), an unlock-cursor Toggle and Window Behavior. There is no typed-key parser or mouse/unbound menu option.
-- Appearance owns theme Stat/Dropdown/actions, the standalone layout Dropdown, and a related Motion & Feedback group. Persistence owns configuration toggles and save/load/delete controls. No built-in Collapsible Group contains only one element.
+- Appearance owns the standalone layout Dropdown and a related Motion & Feedback group. Persistence owns configuration toggles and save/load/delete controls. No built-in Collapsible Group contains only one element.
 - `buildContent(window, tab)` — lazily constructs controls within a given settings tab upon first selection.
 - `toggleSettingsMode(window)` — toggles between user tabs and settings tabs.
 - `setSettingsMode(window, active)` — applies visibility and layout for settings mode.
@@ -492,12 +492,10 @@ Per-element specifics:
   whitelist, `coerceValue`, `firstColor`, `deriveStrokes`
   (luminance-based stroke deriver), `resolve` (clones `default`, overlays
   chosen theme, so custom tables inherit missing keys).
-- `default.luau` + 9 themes (`amethyst`, `cobalt`, `crimson`, `ember`,
-  `emerald`, `frost`, `gold`, `onyx`, `rose`) — theme tables of ~65 keys
+- `default.luau` — the only built-in palette, a table of ~65 keys
   (surfaces, strokes, text colors, gradients, fonts, corner radii,
-  slider/toggle/picker styling). Keys a theme omits are inherited from the
-  `default` clone. Registered in two places: the settings-UI theme table in
-  `components/window/theme.luau` and the persisted-theme whitelist in
+  slider/toggle/picker styling). Keys a custom table omits are inherited from
+  this clone. A saved theme name other than `default` is ignored by
   `utilities/persistenceSettings.luau`.
   The corner scale is three nested tiers, each one step inside the tier above so
   the arcs stay concentric: `CornerRoundness` (12px) is the shell — the window
@@ -515,7 +513,7 @@ Per-element specifics:
   The three window sections are painted from dedicated surface tokens with a
   strict luminance hierarchy — `TopbarSurface` (darkest band),
   `SidebarSurface` (the tab rail, one step lighter) and `ElementSurface`
-  (the elements area, lightest) — and every built-in theme keeps that order
+  (the elements area, lightest) — and the default palette keeps that order
   (`surface_hierarchy_test` pins it, including a minimum visible step
   between the shades). `ElementSurface` also paints the selected tab row,
   so the active tab reads as a continuation of the content it opens;
@@ -570,7 +568,8 @@ Per-element specifics:
 |---|---|
 | `generate_bundle.js` | Rebuilds `version-1.luau` from the modular tree. |
 | `check_requires.py` | Static require graph: every module resolves, no cycles. |
-| `check_instance_fields.py` | Fails on custom-field writes on instances (the crash class that came from writing bookkeeping fields onto Instances). |
+| `check_instance_fields.py` | Fails on custom-field writes on instances (the crash class that came from writing bookkeeping fields onto Instances). Scans the modular tree only — skips the generated bundle and hidden/vendored dirs, where flat scanning would collide same-name locals across module scopes. |
+| `check_dangling_refs.py` | Fails when a `.luau`/`.md` file names a slash-anchored repo path that does not exist (stale comments/docs after a delete or move). Skips URLs, tree diagrams, historical records and deleted/removed history lines; resolves relative links and extensionless module references. |
 | `check_syntax.sh` | Compiles every published file (modular tree, `example.client.luau`, `version-1.luau`). A syntax error in a loadstring'd bundle is invisible to the user — it only shows up as `attempt to call a nil value` at line 1 of the executor's chunk — so this is the gate that catches it here. |
 | `sidebar_tab_sizing_test.sh`, `smoke_test_bundle.sh` | Rail sizing (name-driven width, cap, restore) and a bundle smoke run; also the collapsed rail: rows are icon-only (title hidden, content centred, no expanded padding) whether they were collapsed in place, rebuilt by a layout switch, or created while the rail was already icon-only, and a capped title re-constrains after that rebuild. |
 | `collapsible_group_test.sh` | Collapsible groups: every declarative element type, state/callbacks, the connected-card geometry and surface recipe, and the corner treatment (band's top arcs matching the container, body clipper's bottom arcs). |
@@ -608,6 +607,8 @@ All of them assemble `scripts/sidebar_sizing_stubs.luau` + `version-1.luau`
 
 When touching a minified file, re-minify only that file, then
 `luau-compile` it and run `scripts/check_requires.py`,
-`scripts/check_instance_fields.py`, and `node scripts/generate_bundle.js`.
+`scripts/check_instance_fields.py`, `scripts/check_dangling_refs.py`, and
+`node scripts/generate_bundle.js` — or just `sh scripts/check_all.sh`, which
+runs every gate including the runtime tests.
 (Validate against the full tree with `scripts/smoke_test_bundle.sh`.)
 h`.)

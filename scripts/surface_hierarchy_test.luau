@@ -6,7 +6,7 @@
 -- [[connects to the page it opens.
 --
 --   S1 the three frames are painted with their theme tokens
---   S2 the hierarchy holds in every built-in theme: topbar < rail < elements,
+--   S2 the hierarchy holds on the default palette: topbar < rail < elements,
 --      with steps large enough to read (not near-miss shades)
 --   S3 the sections are opaque while shown and geometrically flush
 --      (the old floating-card notch at the elements' top-left is gone)
@@ -115,18 +115,28 @@ tabB:Select()
 TestPump(0.3)
 expect(findChild(rowB, "UIGradient") == nil, "no background gradient tints the row off the content colour")
 
--- ===== S5: the theme switch keeps every section and the row in step =====
-local builtinThemes = { "default", "amethyst", "cobalt", "crimson", "ember", "emerald", "frost", "gold", "onyx", "rose" }
-for _, name in builtinThemes do
-	window:ChangeTheme(name)
+-- ===== S5: the default palette and a custom overlay keep every section in step =====
+local themePasses = {
+	{ label = "default", value = "default" },
+	{
+		label = "custom overlay",
+		value = {
+			TopbarSurface = Color3.fromRGB(12, 12, 18),
+			SidebarSurface = Color3.fromRGB(22, 22, 30),
+			ElementSurface = Color3.fromRGB(36, 36, 46),
+		},
+	},
+}
+for _, pass in themePasses do
+	window:ChangeTheme(pass.value)
 	TestPump(0.6)
-	expect(window.topbar.BackgroundColor3 == window.theme.TopbarSurface, name .. ": the topbar follows the theme")
-	expect(window.sidebar.BackgroundColor3 == window.theme.SidebarSurface, name .. ": the rail follows the theme")
-	expect(window.elements.BackgroundColor3 == window.theme.ElementSurface, name .. ": the elements follow the theme")
-	expect(rowB.BackgroundColor3 == window.theme.ElementSurface, name .. ": the selected row follows the theme")
+	expect(window.topbar.BackgroundColor3 == window.theme.TopbarSurface, pass.label .. ": the topbar follows the theme")
+	expect(window.sidebar.BackgroundColor3 == window.theme.SidebarSurface, pass.label .. ": the rail follows the theme")
+	expect(window.elements.BackgroundColor3 == window.theme.ElementSurface, pass.label .. ": the elements follow the theme")
+	expect(rowB.BackgroundColor3 == window.theme.ElementSurface, pass.label .. ": the selected row follows the theme")
 	local th, rs, el = lum(window.theme.TopbarSurface), lum(window.theme.SidebarSurface), lum(window.theme.ElementSurface)
-	expect(th < rs and rs < el, name .. ": the hierarchy holds (topbar < rail < elements)")
-	expect(rs - th > 3 and el - rs > 3, name .. ": the steps are visible, not near-miss shades")
+	expect(th < rs and rs < el, pass.label .. ": the hierarchy holds (topbar < rail < elements)")
+	expect(rs - th > 3 and el - rs > 3, pass.label .. ": the steps are visible, not near-miss shades")
 end
 
 -- ===== S6: capsule folds the topbar surface away; the minimised bar keeps it =====

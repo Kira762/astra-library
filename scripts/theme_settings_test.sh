@@ -1,9 +1,7 @@
 #!/bin/sh
-# Runtime test for the settings Theme group: the active-theme stat reads the
-# whole theme name, Reset to Default is always on the row while Apply appears
-# beside it only while a different theme is pending, Reset swaps back to the
-# built-in Default, and Apply commits the chosen theme and hides again — both
-# behind confirmation popups.
+# Runtime test for default-only theming: Appearance has no Theme picker,
+# a fresh window is on the default palette, unknown built-in names fall
+# back to it, and a custom theme table still overlays keys.
 #
 # Assembles: mini Roblox stubs + bundle (wrapped in a function to keep
 # `local` scoping) + assertions, writes it to a temp file, and runs it under

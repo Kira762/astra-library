@@ -15,6 +15,16 @@ is a crash. Instances in Astra are created via `window:Create(...)` /
    an instance holder, unless the field is a real Roblox member (allowlist:
    common property names starting uppercase, plus known children holders).
 
+Scope: the modular tree only.
+
+- Hidden/vendored directories (.git, .tools, .agents, ...) are skipped.
+- `version-1.luau` is skipped on purpose: the bundle inlines every module
+  into one file, so a per-file holder set leaks across module scopes and
+  false-flags unrelated same-name locals (e.g. footer's `local image = ...
+  :Create("ImageLabel")` colliding with the `image` module table's
+  `image.rewrites = ...` writes). The bundle is generated from this tree
+  and bundle freshness is gated separately in check_all.sh.
+
 Exit 0 = clean, 1 = violations found (prints file:line).
 """
 import re
@@ -22,6 +32,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+SKIP_NAMES = {"version-1.luau"}
 
 CREATE_RE = re.compile(
     r"([A-Za-z_][\w.]*)\s*=\s*(?:(?:window|self\.window)[%s]?\s*:%sCreate|Instance\.new)"
@@ -39,7 +50,13 @@ SAFE_FIELD = re.compile(r"^[A-Z]")
 
 
 def luau_files():
-    yield from sorted(ROOT.rglob("*.luau"))
+    for path in sorted(ROOT.rglob("*.luau")):
+        rel = path.relative_to(ROOT)
+        if any(part.startswith(".") or part == "node_modules" for part in rel.parts):
+            continue
+        if rel.name in SKIP_NAMES:
+            continue
+        yield path
 
 
 def main():

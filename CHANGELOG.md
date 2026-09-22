@@ -1,34 +1,64 @@
 # Changelog
 
-Dated entries, newest first. Each entry explains the cause and the behaviour
-change, then names the files it touched.
+## 2026-09-22 — Static gates: instance-field checker wired in, dangling-reference checker added
 
-## 2026-09-22 — Default theme reverted to the neutral palette; the other nine rebuilt on it
+`scripts/check_instance_fields.py` existed but was never part of `check_all.sh`, and it
+false-flagged the generated bundle: `version-1.luau` inlines every module into one file
+scope, so a per-file holder like footer's `local image = …:Create("ImageLabel")` collided
+with the `image` module table's own `image.rewrites = …` writes. The checker now scans the
+modular tree only (skips `version-1.luau` and hidden/vendored directories) and reports
+0 violations; a new second gate closes the class of bug where a deleted or moved file is
+still named by source comments and docs.
 
-The 2026-09-21 "theme contrast" revamp re-tinted the default's surfaces toward
-a blue-slate cast and pushed the colour themes into heavily saturated washes
-(emerald reading as flat green, crimson as a red vignette). The neutral base
-the library is designed around — greyscale ladder + teal accent, the same
-family as `utilities/constants.luau` — is back, and every other built-in theme
-is re-derived from it.
+- `scripts/check_instance_fields.py` — excludes the bundle and hidden dirs; docstring
+  records why flat-scanning the bundle cannot work; wired into `check_all.sh` as `2/6`.
+- `scripts/check_dangling_refs.py` (new) — flags slash-anchored repo paths under
+  top-level source directories that do not resolve from `.luau`/`.md` files; skips URLs,
+  tree diagrams, historical records (`CHANGELOG.md`, `ANALYSIS.md`,
+  `PERFORMANCE_CHANGES.md`) and deleted/removed history lines; resolves relative links
+  and extensionless module references (`cache/imageCache` → `cache/imageCache.luau`,
+  `components/window.luau` → `components/window/init.luau`); wired in as `3/6`.
+- `scripts/check_all.sh` — now six sections (`1/6` requires → `6/6` runtime tests);
+  header comment lists every gate it runs.
+- `components/window/visibility.luau` — reworded three comments that said
+  `settings/normal` (reads as a path; means the settings rail vs. the normal rail).
+- Docs updated: `README.md` dev commands, `MODULES.md` scripts table,
+  `skills/astra/references/repo-workflow.md` build-and-verify list.
 
-- `themes/default.luau` — full revert to the pre-revamp palette: neutral
-  greyscale surface ladder (Background 10 → Topbar 18 → Window/Sidebar 25 →
-  Element/Tab 33–35), teal accent `(23, 153, 110)`, ghost-white controls and
-  the 0.35 collapsible-child transparency. Same key set as before.
-- `themes/amethyst.luau`, `cobalt.luau`, `crimson.luau`, `ember.luau`,
-  `emerald.luau`, `frost.luau`, `gold.luau`, `onyx.luau`, `rose.luau` —
-  rebuilt on the default theme: each keeps the default's key order (diffing a
-  theme against `default.luau` now shows only the hue) and its pre-revamp
-  surfaces — a restrained tint of the greyscale ladder with the visible
-  topbar < rail < elements steps, plus its original accent family. Upgraded to
-  the full self-contained key set: the shared corner scale (12px shell / 8px
-  elements / 32px pill), the shared Success/Warning/Error trio, and
-  Notification/Popup/Input surfaces derived from each theme's own ladder
-  (Notification midway between Window and Element, Popup = Window, Input =
-  Topbar).
-- `USAGE.md` — the built-ins list now names all ten themes.
-- `version-1.luau` — regenerated bundle.
+`luau-analyze` is still not wired in: without a Roblox-globals allowlist it floods
+`Unknown global 'script'/'Enum'/'Color3'` on every file, so it would fail the gate on
+noise rather than findings.
+
+
+
+## 2026-09-22 — Static gates: instance-field checker wired in, dangling-reference checker added
+
+`scripts/check_instance_fields.py` existed but was never part of `check_all.sh`, and it
+false-flagged the generated bundle: `version-1.luau` inlines every module into one file
+scope, so a per-file holder like footer's `local image = …:Create("ImageLabel")` collided
+with the `image` module table's own `image.rewrites = …` writes. The checker now scans the
+modular tree only (skips `version-1.luau` and hidden/vendored directories) and reports
+0 violations; a new second gate closes the class of bug where a deleted or moved file is
+still named by source comments and docs.
+
+- `scripts/check_instance_fields.py` — excludes the bundle and hidden dirs; docstring
+  records why flat-scanning the bundle cannot work; wired into `check_all.sh` as `2/6`.
+- `scripts/check_dangling_refs.py` (new) — flags slash-anchored repo paths under
+  top-level source directories that do not resolve from `.luau`/`.md` files; skips URLs,
+  tree diagrams, historical records (`CHANGELOG.md`, `ANALYSIS.md`,
+  `PERFORMANCE_CHANGES.md`) and deleted/removed history lines; resolves relative links
+  and extensionless module references (`cache/imageCache` → `cache/imageCache.luau`,
+  `components/window.luau` → `components/window/init.luau`); wired in as `3/6`.
+- `scripts/check_all.sh` — now six sections (`1/6` requires → `6/6` runtime tests);
+  header comment lists every gate it runs.
+- `components/window/visibility.luau` — reworded three comments that said
+  `settings/normal` (reads as a path; means the settings rail vs. the normal rail).
+- Docs updated: `README.md` dev commands, `MODULES.md` scripts table,
+  `skills/astra/references/repo-workflow.md` build-and-verify list.
+
+`luau-analyze` is still not wired in: without a Roblox-globals allowlist it floods
+`Unknown global 'script'/'Enum'/'Color3'` on every file, so it would fail the gate on
+noise rather than findings.
 
 ## 2026-09-21 — Clean buttons, letter-only key capture and information-first tabs
 

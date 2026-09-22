@@ -255,7 +255,7 @@ card that never reports back nor a gate nobody opens can park the pump),
 accumulated from `task.wait()` deltas and the gaps go through `motion.step`,
 so the queue answers the "Animation speed" setting instead of the wall clock.
 
-### `components/notification.luau`, `popup.luau`, `tooltip.luau`
+### `components/notification.luau`, `popup.luau`, `tooltip.luau`, `keySystem.luau`
 Overlay queues: `a1..a4` — container frame, TweenInfo presets, queue table, active-instance guard.
 `Notification.new(window, props, release)` takes the entrance slot from `components/overlayQueue.luau` and hands it
 back from `_entranceDone` when its staged fades are committed (icon, then
@@ -274,6 +274,23 @@ cards do not block future requests.
 one locale-aware floating panel per window, positioned over the supplied anchor.
 The functional `(!)` badges and their hover/tap/hold wiring have been deleted.
 Window transitions and teardown still close programmatic descriptions.
+
+`keySystem.luau` is the standalone key gate behind `Astra:CreateKeySystem` —
+meaningful locals throughout (popup-style, nothing minified). It owns no
+window: `_create` is plain `Instance.new` plus immediate locale-token
+resolution (no live rebinding — the gate has no `SetLocale`), the theme is
+`themes.resolve` baked once at creation, and `Close` tracks every connection
+itself. `new` normalises `keys` (string or list, blanks dropped), optionally
+fetches remote keys up front (`grabKeyFromSite`, dead links fail closed),
+passes through on an empty key list (with a warning) or a matching
+`Astra/keys/<fileName>.txt` file, and otherwise builds the 400px card
+(viewport-clamped, never under 280px) with header, field-plus-Continue row
+and note line. `_submit` is the one submit path (button, Enter, tests);
+`_shake` chains three lateral tweens plus the field-stroke error flash;
+`_lock` freezes the gate at `maxAttempts`; module-level `activeGate` retires
+a previous gate instead of stacking. Handle fields: `passed`, `closed`,
+`attempts`, `Close()`; underscore fields (`_card`, `_input`, `_expected`,
+…) are construction internals the runtime suite drives.
 
 ### `components/search.luau`
 Fuzzy search overlay: locals for candidate list, scoring weights, debounce connection.

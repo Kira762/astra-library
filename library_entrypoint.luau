@@ -61,6 +61,7 @@ export type Text = types.Text
 export type Divider = types.Divider
 export type AboutCard = types.AboutCard
 export type Popup = types.Popup
+export type KeySystem = types.KeySystem
 export type Astra = types.Astra
 
 type WindowModule = { new: (types.WindowProps) -> types.Window }
@@ -375,6 +376,20 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 	end
 
 	return window
+end
+
+-- [[Standalone key gate. The module is required lazily, like the window, so
+-- hosts that never gate pay nothing at startup; the constructor either shows
+-- the card or passes straight through to `onSuccess` (no keys configured, or
+-- a saved key already matches).]]
+function Astra:CreateKeySystem(props: types.KeySystemProps): types.KeySystem
+	local ok, result = pcall(function()
+		return (require(script.Parent.components.keySystem) :: any).new(props)
+	end)
+	if not ok then
+		error(result, 0)
+	end
+	return result
 end
 
 return Astra

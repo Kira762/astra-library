@@ -4,6 +4,19 @@ Goal: remove the 1–3 s startup freeze. The shell must spawn **instantly with z
 frame drops**; the rest of the UI is allowed to finish streaming in behind it.
 All public features, buttons, logic and responsive behaviour are preserved.
 
+## 2026-09-22 — Standalone key gate ships lazy
+
+The new `Astra:CreateKeySystem` module is required lazily from the entrypoint,
+like the window itself, so hosts that never gate pay nothing at startup:
+
+- `startup_test.sh` and `instance_budget_test.sh` still pass (full gate green,
+  41/41 runtime suites).
+- Generated bundle: **111 modules**, **1,053,448 bytes** (baseline 1,017,797 bytes,
+  +35,651 for the gate, its types and its entrypoint wiring).
+- The gate builds **31 instances** (33 with the get-key copy mark) on a 1920px
+  viewport, all under its own ScreenGui, and destroys the tree on pass or
+  close — nothing lingers past dismissal.
+
 ## 2026-09-21 — Button/keybind and tab refresh
 
 Measured with Luau CLI 0.640 and the repository's virtual-time runtime harness

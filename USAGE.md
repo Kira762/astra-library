@@ -627,6 +627,57 @@ extension probe. Either way a file is imported at most once per runtime, misses 
 remembered, and `Astra.Icons.refreshCustom()` re-reads the folder after you add or
 remove files. Qualified names are never shadowed by the folder.
 
+### Key System (key gate)
+
+`Astra:CreateKeySystem` shows a Rayfield-style "enter your key" card *before*
+any window exists — a 400px card in the window's own shell language (12px
+shell corner, 8px field and button corners, accent Continue). Build your
+window inside `onSuccess`:
+
+```lua
+local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"))()
+
+Astra:CreateKeySystem({
+    title = "Example Hub",
+    subtitle = "Key System",
+    note = "Get your key at example.com, then paste it below.",
+    keys = { "KEY-1", "KEY-2" },
+    saveKey = true,
+    fileName = "ExampleHub",
+    onSuccess = function(key)
+        local window = Astra:CreateWindow({ name = "Example Hub" })
+        local tab = window:CreateTab({ name = "Home" })
+        tab:Select()
+    end,
+})
+```
+
+| Prop | Default | Meaning |
+|---|---|---|
+| `keys` | (none) | One key or a list. Blank entries are dropped; with no keys left the gate warns and passes through so a misconfigured loader never bricks. |
+| `grabKeyFromSite` | `false` | Treat each entry as a raw URL and fetch the expected key from its trimmed body, once, up front. A URL that fails to fetch warns and can never match. |
+| `saveKey` | `true` | Persist a passing key to `Astra/keys/<fileName>.txt`. |
+| `fileName` | `title` | Key file name (sanitised, `.txt` appended). |
+| `note` | `"Enter your key to continue."` | Instruction line, up to two lines — longer notes truncate instead of growing the card, so keep it under ~110 characters. |
+| `placeholder` | `"Enter key"` | Field placeholder. |
+| `getKeyUrl` | (none) | Shows a copy mark on the note and makes it tappable: one tap copies the URL, the note confirms, then restores itself. |
+| `maxAttempts` | (none) | Wrong-submit budget. Exhausting it locks the gate permanently and fires `onMaxAttempts` — the host decides what that means (Rayfield kicks the player; Astra delegates). |
+| `dismissable` | `true` | Show the close button and answer Escape. The backdrop never dismisses. `false` builds neither. |
+| `theme` | default palette | The same value `CreateWindow` accepts (name or table), resolved once and baked in. |
+| `icon` | key mark | Header icon (name, `pack:name` or asset id); `0`/`nil` hides it. |
+| `onSuccess(key)` | (none) | Fires with the passing key. A matching saved key skips the UI entirely and fires it straight away (passthrough). |
+| `onClose()` | (none) | The user dismissed the card (close button or Escape). |
+| `onMaxAttempts()` | (none) | The attempt budget ran out. |
+
+Submit from the Continue button or the Enter key — any other focus loss stays
+silent, so one press can never submit twice. Comparison is strict after
+trimming surrounding whitespace (mobile keyboards append spaces; keys with
+significant whitespace do not exist). A wrong key shakes the card, flashes
+the field stroke red and clears the field without closing. One gate at a
+time: creating a second retires the first.
+
+The handle carries `passed`, `closed`, `attempts` and `Close()`.
+
 ### Motion (animation)
 
 Astra's window transitions — hover, element reveal, the window entrance, the

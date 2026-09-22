@@ -7,9 +7,24 @@ local compactRowHeight = shared.compactRowHeight
 
 local Window = require(script.Parent.class)
 
+-- [[An unloaded window still accepts construction. The anti-duplicate guard
+-- [[can replace this window while a superseded script's build is still adding
+-- [[tabs — a key-system `onSuccess` interleaved with a re-execution is the
+-- [[common case — and that thread must finish harmlessly, the same contract
+-- [[`Window:Create` honours with its construction graveyard, not die to an
+-- [[assert inside the caller's callback ("Astra: key system callback errored:
+-- [[Cannot create a tab on an unloaded window"). `Tab.new` routes every
+-- [[instance through `Window:Create`, which parents into the graveyard once
+-- [[`unloaded` is set, so the returned tab is real and the host's remaining
+-- [[element constructors keep working detached. Only the live-tree
+-- [[bookkeeping is skipped: a dead window has no rail to insert into, select
+-- [[on, or re-apply settings chrome to.]]
 function Window:CreateTab(props)
-    assert(not self.unloaded, "Cannot create a tab on an unloaded window.")
     local tab = require(script.Parent.Parent.Parent.elements.tab).new(self, props)
+
+    if self.unloaded then
+        return tab
+    end
 
     table.insert(self.tabs, tab)
 
@@ -48,9 +63,16 @@ function Window:CreateTab(props)
     return tab
 end
 
+-- [[The same contract as CreateTab: a section owed to an unloaded window is
+-- [[built detached (its instances land in the construction graveyard through
+-- [[`Window:Create`) instead of asserting, and only the live visibility pass
+-- [[is skipped.]]
 function Window:CreateSection(props)
-    assert(not self.unloaded, "Cannot create a section on an unloaded window.")
     local section = require(script.Parent.Parent.Parent.elements.tabSection).new(self, props)
+    if self.unloaded then
+        return section
+    end
+
     table.insert(self.tabSections, section)
 
             if not section.inert and not self.hidden and not self.minimised then

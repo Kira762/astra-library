@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-09-22 — A replaced window no longer breaks the key-gate build ("key system callback errored")
+
+Re-executing a hub while its key-system `onSuccess` was still building — or running two gated hubs in one session — printed `Astra: key system callback errored: … Cannot create a tab on an unloaded window.` and the host's whole build stopped. The anti-duplicate guard's contract is that a superseded build finishes harmlessly: `Window:Create` detaches strays into the construction graveyard, construction checkpoints no-op and `Tab:Select` bails out. `Window:CreateTab`/`CreateSection` were the two constructors still hard-asserting the window alive, and since every gated build starts with exactly one `CreateTab`, the first tab after a replacement landed inside the key system's pcall and read as a broken callback.
+
+- **`components/window/tabs.luau`** — `CreateTab` and `CreateSection` on an
+  unloaded window now build detached instead of asserting: the tab/section
+  (and every element the host chains onto it) routes through `Window:Create`
+  into the graveyard, and only the live-tree bookkeeping is skipped (rail
+  insert, first-tab selection, chrome visibility, the settings-chrome
+  reflow). The constructor still returns a real `Tab`/`TabSection`, so a
+  superseded `onSuccess` runs to completion cleanly.
+- **`scripts/anti_duplicate_window_test.luau`** — regression: after a
+  replacement destroys the tree, a late `CreateTab`, an element chained onto
+  it and a late `CreateSection` all succeed, build detached, and never
+  resurrect the destroyed window's live instance list.
+- **`MODULES.md`** — the window's public-surface entry documents the detached
+  behaviour beside `Create`'s.
+- **`version-1.luau`** — regenerated.
+
 ## 2026-09-22 — The example studio now opens behind the key gate
 
 The key gate shipped with its own docs snippet but every consumer's reference

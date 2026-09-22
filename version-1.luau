@@ -7684,9 +7684,24 @@ local compactRowHeight = shared.compactRowHeight
 
 local Window = require(script.Parent.class)
 
+-- [[An unloaded window still accepts construction. The anti-duplicate guard
+-- [[can replace this window while a superseded script's build is still adding
+-- [[tabs — a key-system `onSuccess` interleaved with a re-execution is the
+-- [[common case — and that thread must finish harmlessly, the same contract
+-- [[`Window:Create` honours with its construction graveyard, not die to an
+-- [[assert inside the caller's callback ("Astra: key system callback errored:
+-- [[Cannot create a tab on an unloaded window"). `Tab.new` routes every
+-- [[instance through `Window:Create`, which parents into the graveyard once
+-- [[`unloaded` is set, so the returned tab is real and the host's remaining
+-- [[element constructors keep working detached. Only the live-tree
+-- [[bookkeeping is skipped: a dead window has no rail to insert into, select
+-- [[on, or re-apply settings chrome to.]]
 function Window:CreateTab(props)
-    assert(not self.unloaded, "Cannot create a tab on an unloaded window.")
     local tab = require(script.Parent.Parent.Parent.elements.tab).new(self, props)
+
+    if self.unloaded then
+        return tab
+    end
 
     table.insert(self.tabs, tab)
 
@@ -7725,9 +7740,16 @@ function Window:CreateTab(props)
     return tab
 end
 
+-- [[The same contract as CreateTab: a section owed to an unloaded window is
+-- [[built detached (its instances land in the construction graveyard through
+-- [[`Window:Create`) instead of asserting, and only the live visibility pass
+-- [[is skipped.]]
 function Window:CreateSection(props)
-    assert(not self.unloaded, "Cannot create a section on an unloaded window.")
     local section = require(script.Parent.Parent.Parent.elements.tabSection).new(self, props)
+    if self.unloaded then
+        return section
+    end
+
     table.insert(self.tabSections, section)
 
             if not section.inert and not self.hidden and not self.minimised then
@@ -25072,91 +25094,91 @@ local LineOffsets = {
     [26] = 7020,
     [27] = 7069,
     [28] = 7678,
-    [29] = 7865,
-    [30] = 8183,
-    [31] = 8597,
+    [29] = 7887,
+    [30] = 8205,
+    [31] = 8619,
     [32] = 5861,
-    [34] = 9447,
-    [35] = 10272,
-    [36] = 10367,
-    [37] = 10588,
-    [38] = 11009,
-    [39] = 11421,
-    [40] = 11591,
-    [41] = 11736,
-    [42] = 13286,
-    [43] = 13514,
-    [44] = 13745,
-    [45] = 14026,
-    [46] = 14433,
-    [47] = 14665,
-    [48] = 15302,
-    [49] = 15388,
-    [50] = 15989,
-    [51] = 16838,
-    [52] = 17345,
-    [53] = 17475,
-    [54] = 17627,
-    [56] = 18136,
-    [57] = 18156,
-    [58] = 18175,
-    [59] = 18207,
-    [60] = 18329,
-    [61] = 18353,
-    [62] = 18402,
-    [63] = 18111,
-    [64] = 18499,
-    [65] = 18804,
-    [66] = 18835,
-    [67] = 18488,
-    [68] = 18878,
-    [69] = 18898,
-    [70] = 18930,
-    [71] = 18860,
-    [72] = 19037,
-    [73] = 19103,
-    [75] = 19183,
-    [76] = 19348,
-    [77] = 19365,
-    [78] = 19168,
-    [79] = 19962,
-    [80] = 20006,
-    [81] = 20086,
-    [82] = 20279,
-    [83] = 20408,
-    [84] = 20503,
-    [85] = 20670,
-    [86] = 21008,
-    [87] = 19457,
-    [88] = 21642,
-    [89] = 21536,
-    [90] = 21773,
-    [91] = 21871,
-    [92] = 22049,
-    [93] = 22099,
-    [94] = 22129,
-    [95] = 22380,
-    [96] = 22429,
-    [97] = 22882,
-    [98] = 22900,
-    [99] = 23101,
-    [100] = 23121,
-    [101] = 23245,
-    [102] = 23344,
-    [103] = 23366,
-    [104] = 23420,
-    [105] = 23847,
-    [106] = 23883,
-    [107] = 23901,
-    [108] = 24255,
-    [109] = 24267,
-    [110] = 24318,
-    [111] = 24337,
-    [112] = 24594,
-    [113] = 24638,
-    [114] = 24841,
-    [115] = 24869,
-    [116] = 24880,
+    [34] = 9469,
+    [35] = 10294,
+    [36] = 10389,
+    [37] = 10610,
+    [38] = 11031,
+    [39] = 11443,
+    [40] = 11613,
+    [41] = 11758,
+    [42] = 13308,
+    [43] = 13536,
+    [44] = 13767,
+    [45] = 14048,
+    [46] = 14455,
+    [47] = 14687,
+    [48] = 15324,
+    [49] = 15410,
+    [50] = 16011,
+    [51] = 16860,
+    [52] = 17367,
+    [53] = 17497,
+    [54] = 17649,
+    [56] = 18158,
+    [57] = 18178,
+    [58] = 18197,
+    [59] = 18229,
+    [60] = 18351,
+    [61] = 18375,
+    [62] = 18424,
+    [63] = 18133,
+    [64] = 18521,
+    [65] = 18826,
+    [66] = 18857,
+    [67] = 18510,
+    [68] = 18900,
+    [69] = 18920,
+    [70] = 18952,
+    [71] = 18882,
+    [72] = 19059,
+    [73] = 19125,
+    [75] = 19205,
+    [76] = 19370,
+    [77] = 19387,
+    [78] = 19190,
+    [79] = 19984,
+    [80] = 20028,
+    [81] = 20108,
+    [82] = 20301,
+    [83] = 20430,
+    [84] = 20525,
+    [85] = 20692,
+    [86] = 21030,
+    [87] = 19479,
+    [88] = 21664,
+    [89] = 21558,
+    [90] = 21795,
+    [91] = 21893,
+    [92] = 22071,
+    [93] = 22121,
+    [94] = 22151,
+    [95] = 22402,
+    [96] = 22451,
+    [97] = 22904,
+    [98] = 22922,
+    [99] = 23123,
+    [100] = 23143,
+    [101] = 23267,
+    [102] = 23366,
+    [103] = 23388,
+    [104] = 23442,
+    [105] = 23869,
+    [106] = 23905,
+    [107] = 23923,
+    [108] = 24277,
+    [109] = 24289,
+    [110] = 24340,
+    [111] = 24359,
+    [112] = 24616,
+    [113] = 24660,
+    [114] = 24863,
+    [115] = 24891,
+    [116] = 24902,
 }
 
 -- [[Misc AOT variable imports]]

@@ -678,6 +678,13 @@ time: creating a second retires the first.
 
 The handle carries `passed`, `closed`, `attempts` and `Close()`.
 
+Callbacks run on their own thread. If the anti-duplicate guard replaces the
+window while `onSuccess` is still building (a re-execution, or a second gated
+hub), the interrupted build finishes detached instead of erroring: a late
+`CreateTab`/`CreateSection` on the replaced window returns a detached
+tab/section, and everything chained onto it lands in a throwaway container —
+never the destroyed tree.
+
 ### Motion (animation)
 
 Astra's window transitions — hover, element reveal, the window entrance, the

@@ -167,7 +167,10 @@ auto save/load. They are window-scoped — user code does not build them.
 
 **Key gate.** `Astra:CreateKeySystem({ keys, onSuccess })` shows the standalone
 enter-your-key card *before* any window exists — build the window inside
-`onSuccess`. Full props in `references/window.md` (Key gate).
+`onSuccess`. The header is always the Sirius mark (`icon` is ignored), the
+note is plain text, and optional `links = { { name, icon, link } … }` (0–3)
+plus `getKeyUrl` sugar add copy buttons that reveal the URL in a
+notification. Full props in `references/window.md` (Key gate).
 
 ## References
 

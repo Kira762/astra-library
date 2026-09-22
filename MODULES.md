@@ -288,13 +288,23 @@ itself. `new` normalises `keys` (string or list, blanks dropped), optionally
 fetches remote keys up front (`grabKeyFromSite`, dead links fail closed),
 passes through on an empty key list (with a warning) or a matching
 `Astra/keys/<fileName>.txt` file, and otherwise builds the 400px card
-(viewport-clamped, never under 280px) with header, field-plus-Continue row
-and note line. `_submit` is the one submit path (button, Enter, tests);
+(viewport-clamped, never under 280px) with the forced Sirius header
+(`props.icon` is ignored; `custom_asset/sirius.png` still wins as the
+source), field-plus-Continue row, plain note line and — from `links` plus
+the promoted `getKeyUrl` — a row of up to three copy buttons (`_buildLinkRow`,
+LayoutOrder 4): each face shows icon + name only, and `_copyLink` copies the
+hidden URL then reveals it through a real `Notification` built against
+`_notificationHost`, a window-shaped shim (Create/ResolveIcon/CreateGlow +
+Connect/Disconnect/DestroySubtree + the baked theme and a notifications lane
+in the gate's own ScreenGui) so the notification component runs before any
+window exists; connections route back through the gate's sweep so `Close`
+still retires a live card. `_submit` is the one submit path (button, Enter, tests);
 `_shake` chains three lateral tweens plus the field-stroke error flash;
 `_lock` freezes the gate at `maxAttempts`; module-level `activeGate` retires
 a previous gate instead of stacking. Handle fields: `passed`, `closed`,
 `attempts`, `Close()`; underscore fields (`_card`, `_input`, `_expected`,
-…) are construction internals the runtime suite drives.
+`_links`, `_linkButtons`, `_linkInteracts`, `_notifyHost`, …) are
+construction internals the runtime suite drives.
 
 ### `components/search.luau`
 Fuzzy search overlay: locals for candidate list, scoring weights, debounce connection.

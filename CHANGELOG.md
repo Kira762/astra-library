@@ -3,6 +3,33 @@
 Dated entries, newest first. Each entry explains the cause and the behaviour
 change, then names the files it touched.
 
+## 2026-09-22 — Default theme reverted to the neutral palette; the other nine rebuilt on it
+
+The 2026-09-21 "theme contrast" revamp re-tinted the default's surfaces toward
+a blue-slate cast and pushed the colour themes into heavily saturated washes
+(emerald reading as flat green, crimson as a red vignette). The neutral base
+the library is designed around — greyscale ladder + teal accent, the same
+family as `utilities/constants.luau` — is back, and every other built-in theme
+is re-derived from it.
+
+- `themes/default.luau` — full revert to the pre-revamp palette: neutral
+  greyscale surface ladder (Background 10 → Topbar 18 → Window/Sidebar 25 →
+  Element/Tab 33–35), teal accent `(23, 153, 110)`, ghost-white controls and
+  the 0.35 collapsible-child transparency. Same key set as before.
+- `themes/amethyst.luau`, `cobalt.luau`, `crimson.luau`, `ember.luau`,
+  `emerald.luau`, `frost.luau`, `gold.luau`, `onyx.luau`, `rose.luau` —
+  rebuilt on the default theme: each keeps the default's key order (diffing a
+  theme against `default.luau` now shows only the hue) and its pre-revamp
+  surfaces — a restrained tint of the greyscale ladder with the visible
+  topbar < rail < elements steps, plus its original accent family. Upgraded to
+  the full self-contained key set: the shared corner scale (12px shell / 8px
+  elements / 32px pill), the shared Success/Warning/Error trio, and
+  Notification/Popup/Input surfaces derived from each theme's own ladder
+  (Notification midway between Window and Element, Popup = Window, Input =
+  Topbar).
+- `USAGE.md` — the built-ins list now names all ten themes.
+- `version-1.luau` — regenerated bundle.
+
 ## 2026-09-21 — Clean buttons, letter-only key capture and information-first tabs
 
 Buttons no longer carry the semi-transparent trailing cursor, and settings no

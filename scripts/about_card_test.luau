@@ -323,16 +323,17 @@ eq(card.rows[1].valueLabel.TextTransparency, 0, "A7 ... and the values")
 eq(card.rows[1].labelLabel.TextTransparency, 0.45, "A7 ... and the muted lines")
 eq(card.actionChevron.ImageTransparency, 0.4, "A7 ... and the chevron")
 
-window:ChangeTheme("frost")
+local overrideSurface = Color3.fromRGB(48, 48, 62)
+window:ChangeTheme({ ElementSurface = overrideSurface })
 TestPump(0.4)
-local frost = window.theme
-eq(card.main.BackgroundTransparency, frost.ElementTransparency, "A7 a theme change re-reads the card surface")
-eq(card.rows[1].stroke.Transparency, frost.ElementStrokeTransparency, "A7 ... and the tile stroke")
-eq(card.rows[1].main.BackgroundColor3, frost.ElementSurface, "A7 ... including the lighter tile fill")
-eq(card.actionBand.BackgroundColor3, frost.ElementSurface, "A7 ... and the matching action fill")
+local themed = window.theme
+eq(card.main.BackgroundTransparency, themed.ElementTransparency, "A7 a theme change re-reads the card surface")
+eq(card.rows[1].stroke.Transparency, themed.ElementStrokeTransparency, "A7 ... and the tile stroke")
+eq(card.rows[1].main.BackgroundColor3, overrideSurface, "A7 ... including the lighter tile fill")
+eq(card.actionBand.BackgroundColor3, overrideSurface, "A7 ... and the matching action fill")
 eq(card.rows[1].labelLabel.TextTransparency, 0.45, "A7 ... keeping the muted lines muted")
 eq(card.rows[1].valueLabel.TextTransparency, 0, "A7 ... and the values solid")
-eq(card.rows[1].badge.BackgroundColor3, frost.ElementSurface, "A7 the badge follows the content surface token")
+eq(card.rows[1].badge.BackgroundColor3, overrideSurface, "A7 the badge follows the content surface token")
 
 -- ===== A8: the lock =========================================================
 

@@ -162,7 +162,7 @@ Elements support `:MoveTo(index)`, `:MoveUp()`, `:MoveDown()`, `:MoveToTop()`,
 `ResolveIcon(value, pack?)`, `GetPath()`, `Unload()`.
 
 Built-in Settings live behind the gear action (Overview, Controls, Appearance,
-Persistence) and hold menu keybind, window behaviour, motion, themes, bar layout and
+Persistence) and hold menu keybind, window behaviour, motion, bar layout and
 auto save/load. They are window-scoped — user code does not build them.
 
 ## References

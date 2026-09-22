@@ -344,7 +344,7 @@ A stat's `value` may be a string. Text values render as a single-letter badge by
 
 ```lua
 local theme = tab:CreateStat({ name = "Current theme", value = "Default", letter = false })
-theme:SetText("Emerald")  -- the card reads "Emerald", not "E"
+theme:SetText("Studio")  -- the card reads "Studio", not "S"
 ```
 
 ### Link
@@ -511,7 +511,7 @@ The settings tabs are:
 |---|---|
 | **Overview** | First tab: library About Card, copyable repository and guide Links, and a Footer. |
 | **Controls** | Required A–Z menu Keybind, unlock-cursor toggle, and Window Behavior (duplicate protection, keep on screen, draggable capsule, reset positions). |
-| **Appearance** | Current-theme Stat, theme Dropdown + Apply/Reset actions; standalone Bar Layout Dropdown; Motion & Feedback (haptics, animation speed). |
+| **Appearance** | Standalone Bar Layout Dropdown; Motion & Feedback (haptics, animation speed). |
 | **Persistence** | Auto Save / Auto Load toggles; saved-configurations Dropdown + name Input + Save/Load/Delete actions. |
 
 The menu binding cannot be cleared. Saved legacy non-letter bindings (including
@@ -535,11 +535,12 @@ There is no sub-tab API: these tabs are built by the window itself
 
 ### Themes
 
-Built-ins: `"default"`, `"amethyst"`, `"cobalt"`, `"crimson"`, `"ember"`,
-`"emerald"`, `"frost"`, `"gold"`, `"onyx"`, `"rose"`.
+The built-in palette is `"default"`. Pass a partial table to `ChangeTheme` (or
+to `CreateWindow`'s `theme` prop) to overlay keys on that palette. An unknown
+name warns and falls back to default.
 
 ```lua
-window:ChangeTheme("amethyst")
+window:ChangeTheme("default")
 window:ChangeTheme({
     ElementGradient = ColorSequence.new(Color3.fromRGB(20,20,30), Color3.fromRGB(30,30,45)),
     AccentColor = Color3.fromRGB(120, 90, 220),
@@ -690,7 +691,7 @@ local window = Astra:CreateWindow({
     name = "My UI",              -- title (left side of topbar)
     subtitle = "v1.0",           -- small text next to title
     icon = "house",              -- topbar icon (pack name or asset id)
-    theme = "default",           -- built-in name (10 built-ins, see Themes below) or custom table
+    theme = "default",           -- built-in name (`"default"`) or a custom table
     showName = "Astra",          -- name shown when the window is minimised to the capsule (default "Astra")
     showIconOnly = false,        -- capsule shows only the icon, no name
     fallbackFont = Enum.Font.Gotham,  -- font used when the brand font cannot load

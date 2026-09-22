@@ -1,7 +1,8 @@
 #!/bin/sh
-# One gate that runs everything: static require graph, syntax/compile of every
-# published file, then the whole runtime test suite. This is the command to run
-# before publishing a change to version-1.luau.
+# One gate that runs everything: static require graph, instance-field safety,
+# dangling path references, syntax/compile of every published file, then the
+# whole runtime test suite. This is the command to run before publishing a
+# change to version-1.luau.
 #
 # Needs the Luau toolchain on PATH. If it is missing:
 #   sh scripts/install_luau.sh && export PATH="$PWD/.tools/bin:$PATH"
@@ -24,7 +25,7 @@ section() {
 	echo "=============================================================="
 }
 
-section "1/4  static require graph"
+section "1/6  static require graph"
 if python3 scripts/check_requires.py; then
 	echo "requires OK"
 else
@@ -32,7 +33,23 @@ else
 	failures=$((failures + 1))
 fi
 
-section "2/4  bundle is up to date with the source tree"
+section "2/6  no custom fields written on Instances"
+if python3 scripts/check_instance_fields.py; then
+	:
+else
+	echo "INSTANCE-FIELD CHECK FAILED" >&2
+	failures=$((failures + 1))
+fi
+
+section "3/6  no dangling repo path references"
+if python3 scripts/check_dangling_refs.py; then
+	:
+else
+	echo "DANGLING-REFERENCE CHECK FAILED" >&2
+	failures=$((failures + 1))
+fi
+
+section "4/6  bundle is up to date with the source tree"
 if command -v node >/dev/null 2>&1; then
 	cp version-1.luau "${TMPDIR:-/tmp}/astra_bundle_check.$$" 2>/dev/null
 	node scripts/generate_bundle.js >/dev/null 2>&1
@@ -48,7 +65,7 @@ else
 	echo "node not found; skipping bundle freshness check" >&2
 fi
 
-section "3/4  syntax / compile gate"
+section "5/6  syntax / compile gate"
 if sh scripts/check_syntax.sh; then
 	:
 else
@@ -61,7 +78,7 @@ else
 	failures=$((failures + 1))
 fi
 
-section "4/4  runtime tests"
+section "6/6  runtime tests"
 pass=0
 fail=0
 for test in scripts/*_test.sh; do

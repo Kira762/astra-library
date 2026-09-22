@@ -16,7 +16,7 @@
 | `window:ListConfigs()` / `DeleteConfig(name)` | Saved-config bookkeeping. |
 | `window:Get(flag)` / `window:Set(flag, value)` | Read/write a registered flag. |
 | `window.Flags` | Table of every registered flag's current value. |
-| `window:ChangeTheme(theme)` | Built-in name or a partial theme table. |
+| `window:ChangeTheme(theme)` | `"default"` or a partial theme table overlaid on it. |
 | `window:SetLocale(id)` / `SetTranslator(fn)` / `RegisterTranslations(t)` | Localisation. |
 | `window:ResolveIcon(value, pack?)` | Icon name → asset URL/id. |
 | `window:GetPath()` | `(folder, file)` of the persistence path. |
@@ -102,7 +102,7 @@ previous tab. User code does not build these tabs.
 |---|---|
 | **Overview** | First tab: About Card, resource Links and Footer. |
 | **Controls** | Required single-letter A–Z Keybind, unlock cursor, Window Behavior and reset positions. |
-| **Appearance** | Current-theme Stat, theme choice + Apply/Reset, standalone Bar Layout, Motion & Feedback. |
+| **Appearance** | Standalone Bar Layout, Motion & Feedback. |
 | **Persistence** | Auto Save / Auto Load, configurations Dropdown, name Input and Save/Load/Delete. |
 
 Old non-letter menu bindings migrate to K. Capsule content only appears after
@@ -112,11 +112,11 @@ multiple related controls.
 
 ## Themes
 
-Built-ins: `default`, `amethyst`, `cobalt`, `crimson`, `ember`, `emerald`, `frost`,
-`gold`, `onyx`, `rose` (theme modules resolve by lowercased name, so pass `"frost"`).
+The built-in palette is `default`. Pass a partial table to overlay keys on it;
+an unknown name warns and falls back to default.
 
 ```lua
-window:ChangeTheme("amethyst")
+window:ChangeTheme("default")
 window:ChangeTheme({
     ElementGradient = ColorSequence.new(Color3.fromRGB(20, 20, 30), Color3.fromRGB(30, 30, 45)),
     AccentColor = Color3.fromRGB(120, 90, 220),

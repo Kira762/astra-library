@@ -4,11 +4,11 @@
 -- [[theme logic. Responsibilities: named-theme lookup against the themes folder,]]
 -- [[value coercion (Color3 -> ColorSequence for gradient keys), stroke]]
 -- [[derivation for user-supplied theme tables, and brand-font fallbacks.]]
--- [[Only the default theme module is required eagerly; named themes load on]]
--- [[demand when selected.]]
+-- [[The only built-in palette is `default`; unknown names warn and fall back]]
+-- [[to it. Custom theme tables overlay the default key set.]]
 
--- [[This file IS the `themes` ModuleScript (init.luau semantics): the theme]]
--- [[modules (default, frost, ...) are children of `script`, and other folders]]
+-- [[This file IS the `themes` ModuleScript (init.luau semantics): the]]
+-- [[`default` theme module is a child of `script`, and other folders]]
 -- [[(core, utilities) are siblings reachable through script.Parent.]]
 local themesFolder = script
 local variables = require(script.Parent.core.state)

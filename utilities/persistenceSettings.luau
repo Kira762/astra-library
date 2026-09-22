@@ -152,11 +152,10 @@ function persistenceSettings.loadSettings(window: SettingsWindow): (boolean, boo
 
     if type(decodedSettings.theme) == "string" then
         local theme = string.lower(decodedSettings.theme)
-        if theme == "default" or theme == "amethyst" or theme == "cobalt"
-            or theme == "crimson" or theme == "ember" or theme == "emerald"
-            or theme == "frost" or theme == "gold" or theme == "onyx"
-            or theme == "rose"
-        then
+        -- [[The only built-in palette is `default`. A saved name from a
+        -- [[removed colour theme is ignored so the window stays on default
+        -- [[instead of warning on every load.]]
+        if theme == "default" then
             window.settings.theme = theme
         end
     end

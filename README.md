@@ -38,7 +38,7 @@ source, not a runtime entry point.
 | Window | Sidebar / collapsed-sidebar layouts, minimise-to-capsule, draggable, notifications, modal popups, search, per-window settings. |
 | Elements | Section, Text, Footer (centred text + inline icons), Button, Toggle (and `Switch` alias), Slider, Dropdown (single + multi-select, searchable), Input, Keybind (editable required A–Z field), Stat, Link (hidden URL with a copy control), About Card (brand header, up to three data rows, description and an optional action band), Divider, Group, Collapsible Group, Changelog, Isolated (changelog-only collapsible container). |
 | State | Flags with built-in auto save/load, named configs, `forgetState` opt-out, writable-storage persistence. |
-| Look | 10 built-in themes plus custom theme tables, seven icon packs (lucide, material, tabler, phosphor, heroicons, feather, remix), a `custom_asset/` folder override and a three-tier corner scale — 12px shell, 8px elements, pill folds — with round-by-nature controls (switch, slider, drag pill) deriving their own half-height radii. |
+| Look | The default palette plus custom theme tables, seven icon packs (lucide, material, tabler, phosphor, heroicons, feather, remix), a `custom_asset/` folder override and a three-tier corner scale — 12px shell, 8px elements, pill folds — with round-by-nature controls (switch, slider, drag pill) deriving their own half-height radii. |
 | Motion | One motion service behind every transition, driven by the user's animation-speed setting. |
 
 ## Install the agent skill
@@ -86,7 +86,7 @@ library_entrypoint.luau   public API singleton
 Types.luau                typed public surface
 core/ components/         runtime, window shell, overlays, settings UI
 elements/                 one module per element plus tab/group/section
-settings/ themes/ icons/  settings registry, theme modules, icon packs
+settings/ themes/ icons/  settings registry, the default palette, icon packs
 utilities/                motion, persistence, icons, locale, layouts, diagnostics
 scripts/                  bundle generator, static checkers, runtime tests
 skills/astra/             the published Agent Skill
@@ -97,10 +97,11 @@ skills/astra/             the published Agent Skill
 ```sh
 node scripts/generate_bundle.js             # regenerate version-1.luau from the tree
 sh scripts/install_luau.sh                 # build the Luau toolchain into .tools/bin (once)
-sh scripts/check_all.sh                    # requires + bundle freshness + syntax + runtime tests
+sh scripts/check_all.sh                    # requires + field refs + dangling refs + bundle + syntax + tests
 sh scripts/check_syntax.sh                  # compile every published .luau file
 python3 scripts/check_requires.py           # require paths and cycles
 python3 scripts/check_instance_fields.py    # no custom fields written on Instances
+python3 scripts/check_dangling_refs.py      # .luau/.md paths must exist in the repo
 sh scripts/smoke_test_bundle.sh             # runtime smoke test of the bundle
 sh scripts/<feature>_test.sh                # per-feature runtime tests
 ```

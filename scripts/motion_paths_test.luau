@@ -65,9 +65,16 @@ expect(window.minimised == false, "P4 expand clears the bar state")
 expect(window.main.Size == window.size, "P4 the window is back at full size")
 
 -- P5
-window:ChangeTheme("cobalt")
+local accent = Color3.fromRGB(200, 80, 80)
+window:ChangeTheme({ Accent = accent })
 TestPump(0.8)
-expect(window.theme.Accent == Astra.Themes and true or true, "P5 theme applied")
+expect(
+	window.theme.Accent ~= nil
+		and window.theme.Accent.R == accent.R
+		and window.theme.Accent.G == accent.G
+		and window.theme.Accent.B == accent.B,
+	"P5 a custom theme table applies with animation on"
+)
 
 -- P6
 window:_setLayoutMode("collapsedSidebar")

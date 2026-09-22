@@ -1,7 +1,7 @@
 local default = require(script.Parent.Parent.core.state)
 
 -- [[Astra's default palette. The shared keys below are the historical set
--- [[every theme module provides; the Astra-only semantic keys (Background,
+-- [[a theme table may overlay; the Astra-only semantic keys (Background,
 -- [[WindowSurface, text tiers, Success/Warning, etc.) are derived from the
 -- [[same greyscale + teal accent so the capsule and settings surfaces stay
 -- [[coherent with the rest of the theme.]]
@@ -39,7 +39,7 @@ return {
     PopupSurface = Color3.fromRGB(25, 25, 25),
     InputSurface = Color3.fromRGB(18, 18, 18),
 
-    -- [[Shared keys — the set every theme module must provide]]
+    -- [[Shared keys — the set a theme table may overlay]]
     -- [[Corner scale. Three tiers, each nested inside the one above so the
     -- [[arcs stay concentric instead of fighting:
     -- [[  12px `CornerRoundness` — the shell: the window silhouette and the

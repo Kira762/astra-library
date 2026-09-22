@@ -124,7 +124,10 @@ function Window.new(props)
 
             self.settings = {
         toggleKeybind = Enum.KeyCode.K,
-        theme = if type(props.theme or props.Theme) == "string" then string.lower(props.theme or props.Theme) else "default",
+        -- [[Named themes other than `default` were removed; a custom table
+        -- [[still paints through `resolveTheme` above. Persist only the
+        -- [[built-in name so a saved colour-theme string cannot come back.]]
+        theme = "default",
         mouseOverride = false,         keepOnScreen = true,         haptics = false,
         dragMinimisedBar = false,
         antiWindowDuplicate = true,

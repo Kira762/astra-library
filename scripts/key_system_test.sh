@@ -1,7 +1,8 @@
 #!/bin/sh
 # Runtime test for the standalone key gate: geometry and corner scale, wrong /
 # right submits, saved-key passthrough, the attempt budget, theme overlays,
-# remote keys, the get-key copy note and dismissal.
+# remote keys, the getKeyUrl / links copy buttons with notification feedback,
+# the forced Sirius header and dismissal.
 #
 # Assembles: mini Roblox stubs + in-memory executor filesystem + bundle
 # (wrapped in a function to keep `local` scoping) + assertions, writes it to

@@ -17,10 +17,17 @@
 --   * K6 a theme table overlays the baked palette (Continue wears it),
 --   * K7 grabKeyFromSite fetches the expected key from the URL body,
 --   * K8 dismissable=false builds no close button,
---   * K9 tapping the note with getKeyUrl copies the link and confirms,
+--   * K9 getKeyUrl promotes to a "Get Key" link button: pressing copies its
+--        hidden link into a notification (title "Link copied", content =
+--        the URL, exact duplicates replace), the note stays plain text and
+--        never changes,
 --   * K10 no keys configured passes through with a warning,
 --   * K11 a second gate retires the first (no stacking),
---   * K12 Escape closes a dismissable gate and fires onClose.
+--   * K12 Escape closes a dismissable gate and fires onClose,
+--   * K13 the links prop builds 0-3 equal buttons whose faces show name
+--        (never the URL), each copies its own link, past three drops with
+--        a warning, and the row grows the card,
+--   * K14 props.icon is ignored: the header always wears Sirius.
 
 local function expect(cond, message)
 	if not cond then
@@ -206,7 +213,7 @@ local pinnedGate = Astra:CreateKeySystem({
 TestPump(0.4)
 eq(pinnedGate._closeButton, nil, "K8 dismissable=false builds no close button")
 
--- ===== K9: the get-key note copies its link ==================================
+-- ===== K9: getKeyUrl promotes to a link button; the note stays plain =======
 
 local copied = nil
 setclipboard = function(text)
@@ -215,26 +222,45 @@ end
 local linkGate = Astra:CreateKeySystem({
 	keys = { "SECRET" },
 	saveKey = false,
-	note = "No key yet? Tap here to copy the link.",
+	note = "No key yet? The button below copies the link.",
 	getKeyUrl = "https://keys.example.com/get",
 	onSuccess = function() end,
 })
 TestPump(0.4)
-eq(linkGate._noteLabel.ClassName, "TextButton", "K9 the note is a tap target with getKeyUrl")
-linkGate._noteLabel.MouseButton1Click:Fire()
+eq(linkGate._noteLabel.ClassName, "TextLabel", "K9 the note is plain text even with getKeyUrl")
+eq(#linkGate._links, 1, "K9 getKeyUrl promotes to one entry")
+eq(#linkGate._linkButtons, 1, "K9 getKeyUrl builds one link button")
+eq(linkGate._links[1].name, "Get Key", "K9 the promoted entry is named Get Key")
+eq(linkGate._links[1].link, "https://keys.example.com/get", "K9 the promoted entry carries the URL")
+local getKeyFace = nil
+for _, child in linkGate._linkButtons[1]:GetChildren() do
+	if child.ClassName == "TextLabel" then
+		getKeyFace = child
+	end
+end
+expect(getKeyFace ~= nil, "K9 the button face carries a label")
+eq(getKeyFace.Text, "Get Key", "K9 the face shows the name")
+local noteBefore = linkGate._noteLabel.Text
+
+linkGate._linkInteracts[1].MouseButton1Click:Fire()
 TestPump(0.2)
-eq(copied, "https://keys.example.com/get", "K9 tapping the note copies the get-key link")
+eq(copied, "https://keys.example.com/get", "K9 pressing the button copies the hidden link")
+eq(linkGate._noteLabel.Text, noteBefore, "K9 the note never changes")
+local host = linkGate._notifyHost
+expect(host ~= nil, "K9 the copy builds a notification host")
+expect(host.notifications.Parent == linkGate._screenGui, "K9 the notification lane lives in the gate's root")
+eq(#host._liveNotifications, 1, "K9 a notification goes live")
+eq(host._liveNotifications[1].title, "Link copied", "K9 the notification title says so")
 eq(
-	linkGate._noteLabel.Text,
-	"Link copied — paste it in your browser to get a key.",
-	"K9 the note confirms the copy"
+	host._liveNotifications[1].content,
+	"https://keys.example.com/get",
+	"K9 the notification reveals the copied link"
 )
-TestPump(2.2)
-eq(
-	linkGate._noteLabel.Text,
-	"No key yet? Tap here to copy the link.",
-	"K9 the note restores itself"
-)
+
+-- An exact duplicate replaces its card instead of stacking.
+linkGate._linkInteracts[1].MouseButton1Click:Fire()
+TestPump(0.1)
+eq(#linkGate._notifyHost._liveNotifications, 1, "K9 an exact duplicate replaces its card")
 setclipboard = nil
 
 -- ===== K10: no keys passes through ===========================================
@@ -280,5 +306,96 @@ TestPump(0.4)
 eq(secondGate.closed, true, "K12 Escape closes the gate")
 eq(closedByUser, true, "K12 closing fires onClose")
 eq(secondGate._screenGui, nil, "K12 the closed gate drops its root")
+
+-- ===== K13: 0-3 link buttons, each copying its own hidden link ==============
+
+setclipboard = function(text)
+	copied = text
+end
+copied = nil
+local manyGate = Astra:CreateKeySystem({
+	keys = { "SECRET" },
+	saveKey = false,
+	links = {
+		{ name = "Docs", icon = "book-open", link = "https://example.com/docs" },
+		{ name = "Repo", icon = "external-link", link = "https://example.com/repo" },
+		{ name = "Support", link = "https://example.com/support" },
+		{ name = "Overflow", link = "https://example.com/overflow" },
+	},
+	onSuccess = function() end,
+})
+TestPump(0.4)
+eq(#manyGate._links, 3, "K13 at most three entries survive the cap")
+eq(#manyGate._linkButtons, 3, "K13 three buttons are built")
+eq(#manyGate._linkInteracts, 3, "K13 every button gets its hit target")
+local manyHeight = manyGate._card.Size.Y.Offset
+expect(manyHeight > 176, "K13 the links row grows the card (got " .. tostring(manyHeight) .. "px)")
+
+local function faceOf(button)
+	for _, child in button:GetChildren() do
+		if child.ClassName == "TextLabel" then
+			return child
+		end
+	end
+	return nil
+end
+
+local faceDocs = faceOf(manyGate._linkButtons[1])
+expect(faceDocs ~= nil, "K13 the first face carries a label")
+eq(faceDocs.Text, "Docs", "K13 the face shows the name")
+expect(string.find(faceDocs.Text, "https://", 1, true) == nil, "K13 the face never shows the URL")
+local faceIcon = nil
+for _, child in manyGate._linkButtons[1]:GetChildren() do
+	if child.ClassName == "ImageLabel" then
+		faceIcon = child
+	end
+end
+expect(faceIcon ~= nil, "K13 an entry icon builds a glyph")
+expect(
+	type(faceIcon.Image) == "string" and #faceIcon.Image > 0 and faceIcon.Image ~= "book-open",
+	"K13 the glyph resolves to a loadable source, not the bare name"
+)
+
+manyGate._linkInteracts[2].MouseButton1Click:Fire()
+TestPump(0.1)
+eq(copied, "https://example.com/repo", "K13 each button copies its own link")
+expect(manyGate._notifyHost ~= nil, "K13 the press builds a notification host")
+eq(
+	manyGate._notifyHost._liveNotifications[1].content,
+	"https://example.com/repo",
+	"K13 the notification carries that link"
+)
+setclipboard = nil
+
+-- A gate with no links builds no row and never touches the notification lane.
+local bareGate = Astra:CreateKeySystem({
+	keys = { "SECRET" },
+	saveKey = false,
+	onSuccess = function() end,
+})
+TestPump(0.4)
+eq(manyGate.closed, true, "K13 the bare gate retires the previous one")
+eq(#bareGate._links, 0, "K13 no links means no entries")
+eq(#bareGate._linkButtons, 0, "K13 no links means no buttons")
+eq(bareGate._notifyHost, nil, "K13 nothing built a notification host")
+local bareHeight = bareGate._card.Size.Y.Offset
+expect(
+	bareHeight >= 140 and bareHeight <= 176,
+	"K13 a bare gate keeps the short-card height (got " .. tostring(bareHeight) .. "px)"
+)
+
+-- ===== K14: the header icon is forced to Sirius ==============================
+
+local Icons = Astra.Icons
+local iconGate = Astra:CreateKeySystem({
+	keys = { "SECRET" },
+	saveKey = false,
+	icon = "house", -- older scripts pass this; it must be ignored
+	onSuccess = function() end,
+})
+TestPump(0.4)
+expect(iconGate._headerIcon ~= nil, "K14 the header always carries its mark")
+eq(iconGate._headerIcon.Image, Icons.resolve("sirius"), "K14 props.icon is ignored — the header wears Sirius")
+eq(iconGate._headerIcon.Size.X.Offset, iconGate._headerIcon.Size.Y.Offset, "K14 the mark is square")
 
 print("KEY SYSTEM: all assertions passed")

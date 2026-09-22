@@ -82,7 +82,11 @@ Astra:CreateKeySystem({
     grabKeyFromSite = false,     -- entries are raw URLs whose body is the key
     saveKey = true,              -- a matching Astra/keys/<fileName>.txt skips the UI
     fileName = "MyHub",          -- defaults to title
-    getKeyUrl = "https://...",  -- makes the note tappable: copies the link
+    getKeyUrl = "https://...",  -- legacy sugar: prepends a "Get Key" copy button
+    links = {                    -- 0-3 buttons under the note; face = icon + name,
+        { name = "Docs", icon = "book-open", link = "https://..." },
+        { name = "Discord", icon = "message-circle", link = "https://..." },
+    },                           -- press copies the URL and reveals it in a notification
     maxAttempts = 3,             -- locks the gate, fires onMaxAttempts (no forced kick)
     dismissable = true,
     theme = "default",           -- resolved once, baked in
@@ -94,7 +98,9 @@ Astra:CreateKeySystem({
 })
 ```
 
-Standalone — call it *before* `CreateWindow`, never on a window. Submit is
+Standalone — call it *before* `CreateWindow`, never on a window. The header
+always wears the Sirius mark (`icon` is ignored); the note is plain text and
+never copies — `links`/`getKeyUrl` own every copy affordance. Submit is
 Continue or Enter; comparison is strict after trimming whitespace. Handle:
 `passed`, `closed`, `attempts`, `Close()`. One gate at a time: a new call
 retires the old card.

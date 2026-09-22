@@ -508,6 +508,50 @@ export type MotionService = {
     forUI: (componentType: string?, action: string?) -> TweenInfo,
 }
 
+-- A key-gate link button: the face shows `name` (and `icon`); `link` stays
+-- hidden on the UI and only surfaces — via copy + notification — when the
+-- button is pressed. The gate accepts at most three entries.
+export type KeySystemLink = {
+    name: string?,
+    icon: (string | number)?,
+    link: string,
+}
+
+-- Standalone enter-your-key card, shown before any window exists. `links`
+-- carries the 0-3 copy buttons under the note; `getKeyUrl` is legacy sugar
+-- that prepends a "Get Key" button. `icon` is accepted for older scripts but
+-- ignored: the header always wears the Sirius mark.
+export type KeySystemProps = {
+    title: string?,
+    subtitle: string?,
+    note: string?,
+    placeholder: string?,
+    keys: (string | { string })?,
+    getKeyUrl: string?,
+    grabKeyFromSite: boolean?,
+    links: { KeySystemLink }?,
+    saveKey: boolean?,
+    fileName: string?,
+    maxAttempts: number?,
+    dismissable: boolean?,
+    theme: Theme?,
+    icon: (string | number)?,
+    onSuccess: ((key: string) -> ())?,
+    onClose: (() -> ())?,
+    onMaxAttempts: (() -> ())?,
+}
+
+export type KeySystem = {
+    title: string,
+    subtitle: string,
+    note: string,
+    passed: boolean,
+    closed: boolean,
+    locked: boolean,
+    attempts: number,
+    Close: (self: KeySystem) -> (),
+}
+
 export type Astra = {
     CreateWindow: (self: Astra, props: WindowProps) -> Window,
     CreateKeySystem: (self: Astra, props: KeySystemProps) -> KeySystem,

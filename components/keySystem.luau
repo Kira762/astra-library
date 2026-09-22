@@ -10,7 +10,17 @@
 -- transient modal that is usually gone before any `ChangeTheme` could move
 -- it. Saved keys live beside the other Astra files at
 -- `Astra/keys/<fileName>.txt`, and a matching file skips the UI entirely
--- (Rayfield's passthrough) straight into `onSuccess`.]]
+-- (Rayfield's passthrough) straight into `onSuccess`.
+--
+-- The header always wears the Sirius mark (`props.icon` is ignored; a user
+-- file at custom_asset/sirius.png still wins inside the resolver), the note
+-- is plain instruction text that never copies, and 0-3 `links` buttons under
+-- it carry every copy affordance: each face shows an icon and a name, the
+-- URL itself stays hidden until a press copies it and surfaces it in a
+-- notification. `getKeyUrl` is legacy sugar that prepends a "Get Key"
+-- button, so old hosts keep working without a code change. Copy
+-- confirmations run the real notification component against
+-- `_notificationHost` — a window-shaped shim, because no window exists yet.]]
 
 local KeySystem = {}
 KeySystem.__index = KeySystem
@@ -28,6 +38,8 @@ local filesystem = require(utilities.filesystem)
 local pathUtil = require(utilities.path)
 local themes = require(script.Parent.Parent.themes)
 local Icons = require(script.Parent.Parent.icons)
+local image = require(script.Parent.Parent.images.image)
+local Notification = require(script.Parent.notification)
 
 -- [[The gate arrives on the shared vocabulary: the card glides the last few
 -- pixels to centre on `modal`, grows from its 93% entrance size on
@@ -44,10 +56,11 @@ local shakeOffset = 8
 
 -- [[Geometry. The 400px card is the popup's width, so a gate and a dialog
 -- read as one system; the height is measured from the note text (one or two
--- lines) and lands around 150-165px — the short wide card Rayfield's 500x187
--- gate made familiar, re-cut for Astra's 600px window. Narrow viewports
--- clamp the width instead of clipping: the Continue button keeps its fixed
--- width and the field absorbs the shrink.]]
+-- lines) and a present links row, and lands around 150-165px bare / ~200px
+-- with buttons — the short wide card Rayfield's 500x187 gate made familiar,
+-- re-cut for Astra's 600px window. Narrow viewports clamp the width instead
+-- of clipping: the Continue button keeps its fixed width and the field
+-- absorbs the shrink.]]
 local cardWidth = 400
 local minCardWidth = 280
 local viewportMargin = 48
@@ -61,7 +74,6 @@ local titleHeight = 22
 local titleSubGap = 3
 local subtitleFontSize = 14
 local subtitleHeight = 17
-local iconSize = 16
 local closeSize = 16
 local fieldHeight = 36
 local fieldPadX = 12
@@ -69,9 +81,12 @@ local continueWidth = 104
 local fieldGap = 8
 local fieldFontSize = 15
 local noteFontSize = 13
-local noteIconSize = 14
-local noteIconGap = 6
+local linkIconSize = 14
+local linkIconGap = 6
 local noteMaxLines = 2
+-- [[The links row hard-caps at three buttons — one line of equal faces, like
+-- the About card's tile row. The warn fires once when a host passes more.]]
+local maxLinks = 3
 
 -- [[One gate at a time: creating a second gate (a spam-executed loader, a
 -- host that re-arms) retires the first instead of stacking cards. The
@@ -83,7 +98,7 @@ local clipboardGlobals = { "setclipboard", "toclipboard", "setrbxclipboard", "se
 local clipboardMethods = { "set", "Set", "copy", "Copy" }
 
 local headerIconCandidates = { "key-round", "key-square", "key", "lock" }
-local copyIconCandidates = { "copy", "clipboard", "clipboard-copy" }
+local linkIconCandidates = { "link", "external-link" }
 local closeIconCandidates = { "x" }
 
 local function trim(value)
@@ -95,9 +110,9 @@ local function environment()
 end
 
 -- [[There is no clipboard in the Roblox API surface the library targets, so
--- the get-key link asks the host for one: every executor spells it
+-- a link button asks the host for one: every executor spells it
 -- differently, and Studio/Rojo spells it differently again. The lookup runs
--- per tap rather than being cached at load, so a host that installs its
+-- per press rather than being cached at load, so a host that installs its
 -- clipboard API after Astra loads is still found. Mirrors the Link
 -- element's resolver.]]
 local function clipboardWriter()
@@ -149,6 +164,73 @@ local function resolveGlyph(candidates)
     return nil
 end
 
+-- [[An entry's icon may be a pack name, a `pack:name` or a numeric asset id;
+-- anything that does not resolve to a *different* loadable value simply
+-- builds no glyph (the face falls back to name-only). Numbers pass through
+-- untouched so a raw asset id still reaches the Image property.]]
+local function resolveLinkIcon(icon)
+    if icon == nil or icon == 0 or icon == "" then
+        return nil
+    end
+    local resolvedIcon = Icons.resolve(icon)
+    if resolvedIcon == nil or resolvedIcon == "" then
+        return nil
+    end
+    if type(icon) ~= "number" and resolvedIcon == icon then
+        return nil
+    end
+    return resolvedIcon
+end
+
+-- [[Link buttons: 0-3 entries `{ name, icon?, link }`. A bare single entry
+-- may be passed without the outer array. Entries with no usable URL are
+-- skipped with a warning (a named button that copies nothing is a host bug,
+-- not an empty row like a blank key); missing names default to "Link".
+-- `getKeyUrl` (legacy sugar) is prepended as the "Get Key" button, and
+-- anything past three buttons warns and disappears — the promoted entry
+-- keeps its slot, so an old getKeyUrl host never loses to a new links list.]]
+local function normalizeLinks(props, getKeyUrl)
+    local raw = props.links or props.Links
+    local collected = {}
+
+    if typeof(raw) == "table" then
+        if raw.name or raw.Name or raw.link or raw.Link or raw.url or raw.Url then
+            raw = { raw }
+        end
+        for _, entry in raw do
+            if typeof(entry) == "table" then
+                local link = entry.link or entry.Link or entry.url or entry.Url
+                if type(link) ~= "string" or trim(link) == "" then
+                    log.warn("Astra: a key system link button was skipped — it has no `link` URL.")
+                else
+                    local name = entry.name or entry.Name
+                    if type(name) ~= "string" or trim(name) == "" then
+                        name = "Link"
+                    end
+                    table.insert(collected, {
+                        name = trim(name),
+                        icon = entry.icon or entry.Icon,
+                        link = trim(link),
+                    })
+                end
+            end
+        end
+    end
+
+    if getKeyUrl ~= nil then
+        table.insert(collected, 1, { name = "Get Key", icon = "copy", link = getKeyUrl })
+    end
+
+    if #collected > maxLinks then
+        log.warn("Astra: key system shows at most " .. maxLinks .. " link buttons — extra entries were dropped.")
+        while #collected > maxLinks do
+            table.remove(collected)
+        end
+    end
+
+    return collected
+end
+
 local function keyFilePath(fileName)
     local folder = state.fileSystemManager:getPath("keys")
     local base = pathUtil.sanitizeFile(fileName)
@@ -173,15 +255,17 @@ function KeySystem.new(props)
     local getKeyUrl = props.getKeyUrl or props.GetKeyUrl or props.getKey or props.GetKey
     if getKeyUrl ~= nil then
         getKeyUrl = tostring(getKeyUrl)
+        if getKeyUrl == "" then
+            getKeyUrl = nil
+        end
     end
+    local links = normalizeLinks(props, getKeyUrl)
 
     local self = setmetatable({
         title = title,
         subtitle = tostring(props.subtitle or props.Subtitle or "Key System"),
-        icon = props.icon or props.Icon,
         note = tostring(props.note or props.Note or "Enter your key to continue."),
         placeholder = tostring(props.placeholder or props.Placeholder or "Enter key"),
-        getKeyUrl = if getKeyUrl == "" then nil else getKeyUrl,
         maxAttempts = tonumber(props.maxAttempts or props.MaxAttempts),
         saveKey = if props.saveKey ~= nil
             then props.saveKey
@@ -203,7 +287,9 @@ function KeySystem.new(props)
         _expected = {},
         _connections = {},
         _reveal = {},
-        _copyToken = 0,
+        _links = links,
+        _linkButtons = {},
+        _linkInteracts = {},
     }, KeySystem)
 
     -- [[Remote keys are fetched once, up front, so submitting never yields on
@@ -329,32 +415,39 @@ function KeySystem:_build()
         cardW = math.max(minCardWidth, math.floor(viewportX - viewportMargin))
     end
 
-    local hasIcon = self.icon ~= nil and self.icon ~= 0 and self.icon ~= ""
-    local headerIcon = if hasIcon then Icons.resolve(self.icon) else resolveGlyph(headerIconCandidates)
-    if headerIcon == "" then
+    -- [[The gate always wears the Sirius mark. props.icon is deliberately
+    -- [[ignored (acceptance: the header is forced) — the named asset still
+    -- [[honours a user file at custom_asset/sirius.png, and the old key
+    -- [[candidates below remain only as a defensive fallback if the named
+    -- [[asset ever fails to resolve.]]
+    local headerIcon = Icons.resolve("sirius")
+    if headerIcon == "sirius" then
         headerIcon = nil
     end
-    hasIcon = headerIcon ~= nil
+    if headerIcon == nil or headerIcon == "" then
+        headerIcon = resolveGlyph(headerIconCandidates)
+    end
+    local hasIcon = headerIcon ~= nil and headerIcon ~= ""
 
     local innerW = cardW - cardPadX * 2
     local hasSubtitle = self.subtitle ~= ""
     local headerH = titleHeight + (if hasSubtitle then titleSubGap + subtitleHeight else 0)
 
-    local noteTextW = innerW - (if self.getKeyUrl then noteIconSize + noteIconGap else 0)
     local noteH = 0
     if self.note ~= "" then
-        local lineH = functions.textHeight(theme.Font, noteFontSize, "Ag", noteTextW)
         noteH = math.min(
-            functions.textHeight(theme.Font, noteFontSize, locale.resolve(self.note), noteTextW),
-            lineH * noteMaxLines
+            functions.textHeight(theme.Font, noteFontSize, locale.resolve(self.note), innerW),
+            functions.textHeight(theme.Font, noteFontSize, "Ag", innerW) * noteMaxLines
         )
     end
 
+    local linksH = if #self._links > 0 then fieldHeight else 0
     local totalH = cardPadTop
         + headerH
         + sectionGap
         + fieldHeight
         + (if noteH > 0 then sectionGap + noteH else 0)
+        + (if linksH > 0 then sectionGap + linksH else 0)
         + cardPadBottom
 
     self._restSize = UDim2.fromOffset(cardW, totalH)
@@ -452,6 +545,9 @@ function KeySystem:_build()
     if noteH > 0 then
         self:_buildNote(theme, noteH)
     end
+    if linksH > 0 then
+        self:_buildLinkRow(theme, innerW)
+    end
 
     if self.dismissable then
         self:_connect(state.userInputService.InputBegan, function(input, gameProcessed)
@@ -483,9 +579,11 @@ function KeySystem:_buildHeader(headerIcon, hasIcon, headerH, hasSubtitle)
     })
 
     if hasIcon then
-        self:_fade(self:_create("ImageLabel", {
+        -- [[The mark is sized to the full header block (title+subtitle when
+        -- [[present) so one square spans both text lines, like the mockup.]]
+        self._headerIcon = self:_fade(self:_create("ImageLabel", {
             Image = headerIcon,
-            Size = UDim2.fromOffset(iconSize, iconSize),
+            Size = UDim2.fromOffset(headerH, headerH),
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
             LayoutOrder = 1,
@@ -495,7 +593,7 @@ function KeySystem:_buildHeader(headerIcon, hasIcon, headerH, hasSubtitle)
         }), "ImageTransparency", 0)
     end
 
-    local reserved = (if hasIcon then iconSize + headerGap else 0)
+    local reserved = (if hasIcon then headerH + headerGap else 0)
         + (if self.dismissable then closeSize + headerGap else 0)
     local textFrame = self:_create("Frame", {
         Name = "Text",
@@ -718,12 +816,11 @@ function KeySystem:_buildFieldRow(theme)
     end)
 end
 
--- [[The note is the gate's instruction line — and, when the host passes
--- `getKeyUrl`, its get-key affordance for free: a copy mark plus a tap
--- target, with "copied" confirmation that restores itself. No extra row, no
--- taller card. Long notes truncate past two lines instead of growing the
--- shell: hosts with a paragraph to write should keep it under ~110
--- characters.]]
+-- [[The note is the gate's instruction line and nothing else: always a
+-- plain TextLabel, never a tap target — every copy affordance lives on the
+-- link buttons below it. Long notes truncate past two lines instead of
+-- growing the shell: hosts with a paragraph to write should keep it under
+-- ~110 characters.]]
 function KeySystem:_buildNote(theme, noteH)
     local noteRow = self:_create("Frame", {
         Name = "Note",
@@ -733,69 +830,20 @@ function KeySystem:_buildNote(theme, noteH)
         Parent = self._card,
     })
 
-    local textSize = UDim2.new(1, 0, 0, noteH)
-    if self.getKeyUrl then
-        self:_create("UIListLayout", {
-            FillDirection = Enum.FillDirection.Horizontal,
-            VerticalAlignment = Enum.VerticalAlignment.Top,
-            HorizontalAlignment = Enum.HorizontalAlignment.Left,
-            SortOrder = Enum.SortOrder.LayoutOrder,
-            Padding = UDim.new(0, noteIconGap),
-            Parent = noteRow,
-        })
-
-        self:_fade(self:_create("ImageLabel", {
-            Image = resolveGlyph(copyIconCandidates),
-            Size = UDim2.fromOffset(noteIconSize, noteIconSize),
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            LayoutOrder = 1,
-            ImageTransparency = 1,
-            ImageColor3 = theme.ContentColor,
-            Parent = noteRow,
-        }), "ImageTransparency", 0.5)
-
-        textSize = UDim2.new(1, -(noteIconSize + noteIconGap), 0, noteH)
-        self._noteLabel = self:_fade(self:_create("TextButton", {
-            Text = locale.t(self.note),
-            Size = textSize,
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            AutoButtonColor = false,
-            TextSize = noteFontSize,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            TextYAlignment = Enum.TextYAlignment.Top,
-            TextWrapped = true,
-            TextTruncate = Enum.TextTruncate.AtEnd,
-            LayoutOrder = 2,
-            TextTransparency = 1,
-            TextColor3 = theme.ContentColor,
-            FontFace = theme.Font,
-            Parent = noteRow,
-        }), "TextTransparency", 0.5)
-
-        self:_connect(self._noteLabel.MouseButton1Click, function()
-            if self.closed or self.locked then
-                return
-            end
-            self:_copyGetKeyLink()
-        end)
-    else
-        self._noteLabel = self:_fade(self:_create("TextLabel", {
-            Text = locale.t(self.note),
-            Size = textSize,
-            BackgroundTransparency = 1,
-            TextSize = noteFontSize,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            TextYAlignment = Enum.TextYAlignment.Top,
-            TextWrapped = true,
-            TextTruncate = Enum.TextTruncate.AtEnd,
-            TextTransparency = 1,
-            TextColor3 = theme.ContentColor,
-            FontFace = theme.Font,
-            Parent = noteRow,
-        }), "TextTransparency", 0.5)
-    end
+    self._noteLabel = self:_fade(self:_create("TextLabel", {
+        Text = locale.t(self.note),
+        Size = UDim2.new(1, 0, 0, noteH),
+        BackgroundTransparency = 1,
+        TextSize = noteFontSize,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        TextWrapped = true,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        TextTransparency = 1,
+        TextColor3 = theme.ContentColor,
+        FontFace = theme.Font,
+        Parent = noteRow,
+    }), "TextTransparency", 0.5)
 end
 
 function KeySystem:_setNote(text)
@@ -804,32 +852,281 @@ function KeySystem:_setNote(text)
     end
 end
 
-function KeySystem:_copyGetKeyLink()
-    if self.closed or not self.getKeyUrl then
+-- [[The links row: up to three equal-width faces under the note
+-- (LayoutOrder 4), drawn in the field's language — same FieldBackground
+-- fill, ElementCornerRadius corners and SurfaceStroke hairline — so a copy
+-- button reads as part of the input row it sits beneath. Each face shows
+-- icon + name only; the URL never renders here. Widths share the row
+-- exactly: a 1/n scale minus each button's fieldGap share of the (n-1)
+-- gaps the list layout inserts between them, and the icon+name group is
+-- measured and centered by hand (the file never leans on automatic sizing).]]
+function KeySystem:_buildLinkRow(theme, innerW)
+    local count = #self._links
+    local row = self:_create("Frame", {
+        Name = "Links",
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, fieldHeight),
+        LayoutOrder = 4,
+        Parent = self._card,
+    })
+
+    self:_create("UIListLayout", {
+        FillDirection = Enum.FillDirection.Horizontal,
+        VerticalAlignment = Enum.VerticalAlignment.Center,
+        HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, fieldGap),
+        Parent = row,
+    })
+
+    local buttonW = (innerW - fieldGap * (count - 1)) / count
+    for index, link in self._links do
+        local iconUri = resolveLinkIcon(link.icon)
+        if iconUri == nil and link.icon == nil then
+            iconUri = resolveGlyph(linkIconCandidates)
+        end
+        -- [[The notification reuses this URI (nil = no icon slot) instead of
+        -- [[re-running a resolution that already missed once.]]
+        link.iconResolved = iconUri
+
+        local iconRoom = if iconUri then linkIconSize + linkIconGap else 0
+        local maxTextW = buttonW - fieldPadX * 2 - iconRoom
+        local labelW = math.min(
+            math.ceil(functions.textWidth(theme.Font, fieldFontSize, link.name)) + 4,
+            math.max(maxTextW, 8)
+        )
+        local groupW = labelW + iconRoom
+        local startX = math.floor((buttonW - groupW) / 2)
+
+        local button = self:_fade(self:_create("Frame", {
+            Name = "Link",
+            BackgroundColor3 = theme.FieldBackground,
+            BorderSizePixel = 0,
+            Size = UDim2.new(1 / count, -fieldGap * (count - 1) / count, 0, fieldHeight),
+            LayoutOrder = index,
+            BackgroundTransparency = 1,
+            Parent = row,
+        }), "BackgroundTransparency", theme.FieldTransparency)
+
+        self:_create("UICorner", {
+            CornerRadius = theme.ElementCornerRadius,
+            Parent = button,
+        })
+
+        local stroke = self:_fade(self:_create("UIStroke", {
+            Color = theme.SurfaceStroke,
+            Transparency = 1,
+            Parent = button,
+        }), "Transparency", 0.85)
+
+        if iconUri then
+            self:_fade(self:_create("ImageLabel", {
+                Image = iconUri,
+                Size = UDim2.fromOffset(linkIconSize, linkIconSize),
+                Position = UDim2.fromOffset(startX, math.floor((fieldHeight - linkIconSize) / 2)),
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                ImageTransparency = 1,
+                ImageColor3 = theme.ContentColor,
+                Parent = button,
+            }), "ImageTransparency", 0)
+        end
+
+        self:_fade(self:_create("TextLabel", {
+            Text = locale.t(link.name),
+            Size = UDim2.fromOffset(labelW, fieldHeight),
+            Position = UDim2.fromOffset(startX + iconRoom, 0),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            TextSize = fieldFontSize,
+            TextXAlignment = Enum.TextXAlignment.Center,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            TextTransparency = 1,
+            TextColor3 = theme.ContentColor,
+            FontFace = theme.Font,
+            Parent = button,
+        }), "TextTransparency", 0)
+
+        local interact = self:_create("TextButton", {
+            Text = "",
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            BorderSizePixel = 0,
+            AutoButtonColor = false,
+            Parent = button,
+        })
+        self._linkButtons[index] = button
+        self._linkInteracts[index] = interact
+
+        -- [[Press copies even while locked — the lock is exactly when a user
+        -- [[needs the real-key link — and only a finished gate stops it.]]
+        self:_connect(interact.MouseEnter, function()
+            if self.closed then
+                return
+            end
+            motion.tween(stroke, { Color = theme.AccentStroke, Transparency = 0.5 }, "snappy")
+        end)
+        self:_connect(interact.MouseLeave, function()
+            motion.tween(stroke, { Color = theme.SurfaceStroke, Transparency = 0.85 }, "snappy")
+        end)
+        self:_connect(interact.MouseButton1Click, function()
+            if self.closed then
+                return
+            end
+            haptic.click()
+            self:_copyLink(link)
+        end)
+    end
+end
+
+-- [[A link button press: copy the hidden URL, then reveal it in a
+-- [[notification — the only place the link itself becomes visible. The card
+-- [[is built directly against the shim (no entrance queue): taps are
+-- [[human-paced and at most three buttons exist. An exact duplicate replaces
+-- [[itself first, like Window:Notify. With no clipboard API there is nothing
+-- [[to confirm, so the press falls back to the warning alone.]]
+function KeySystem:_copyLink(link)
+    if self.closed then
         return
     end
     local writer = clipboardWriter()
     if not writer then
-        log.warn("Astra: no clipboard API was found in this environment, so the key gate cannot copy its get-key link.")
+        log.warn("Astra: no clipboard API was found in this environment, so the key gate cannot copy its link.")
         return
     end
-    local ok = pcall(writer, self.getKeyUrl)
+    local ok = pcall(writer, link.link)
     if not ok then
         return
     end
-    haptic.click()
 
-    -- [[The token retires stale restores: a second tap restarts the window
-    -- instead of letting the first tap's timer wipe the fresh confirmation.]]
-    self._copyToken += 1
-    local token = self._copyToken
-    self:_setNote("Link copied — paste it in your browser to get a key.")
-    task.delay(2, function()
-        if self.closed or token ~= self._copyToken then
+    local host = self:_notificationHost()
+    local props = {
+        title = locale.resolve("Link copied"),
+        content = link.link,
+        icon = link.iconResolved,
+    }
+    Notification.dismissMatching(host, props)
+    Notification.new(host, props, nil)
+end
+
+-- [[A window-shaped shim so components/notification.luau runs before any
+-- [[window exists. Notification needs Create/ResolveIcon/CreateGlow for its
+-- [[card, Connect/Disconnect/DestroySubtree for its lifetime, plus the
+-- [[theme, the notifications frame and the live/count bookkeeping — all
+-- [[pointed at this gate's ScreenGui, stacking in the same 300x800
+-- [[bottom-right lane the window uses (cards sit at z-index.notification,
+-- [[above the gate card under Global z-behaviour). Create mirrors
+-- [[Window:Create without the instance graveyard or live locale rebinding:
+-- [[bindings resolve against the baked theme, tokens resolve once, and
+-- [[images go through the shared image pipeline. Connections route back
+-- [[through the gate's own sweep so Close still retires a live card.]]
+function KeySystem:_notificationHost()
+    if self._notifyHost then
+        return self._notifyHost
+    end
+
+    local gate = self
+    local host = {
+        theme = self.theme,
+        _notificationCount = 0,
+        _liveNotifications = {},
+    }
+
+    host.notifications = self:_create("Frame", {
+        Name = "Notifications",
+        Size = UDim2.new(0, 300, 0, 800),
+        Position = UDim2.new(1, -20, 1, -20),
+        AnchorPoint = Vector2.new(1, 1),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Parent = self._screenGui,
+    })
+    self:_create("UIListLayout", {
+        FillDirection = Enum.FillDirection.Vertical,
+        VerticalAlignment = Enum.VerticalAlignment.Bottom,
+        HorizontalAlignment = Enum.HorizontalAlignment.Center,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 0),
+        Parent = host.notifications,
+    })
+
+    function host:Create(className, props, themeBindings)
+        local instance = Instance.new(className)
+        if themeBindings then
+            for prop, binding in themeBindings do
+                instance[prop] = if typeof(binding) == "table"
+                    then binding[2](host.theme[binding[1]])
+                    else host.theme[binding]
+            end
+        end
+        if props then
+            for prop, value in props do
+                if prop ~= "Parent" then
+                    if locale.isToken(value) then
+                        instance[prop] = locale.resolve(locale.sourceOf(value))
+                    else
+                        image.assign(instance, prop, value)
+                    end
+                end
+            end
+            instance.Parent = props.Parent
+        end
+        return instance
+    end
+
+    function host:ResolveIcon(value, pack)
+        return Icons.resolve(value, pack)
+    end
+
+    function host:CreateGlow(parent, color, blurRadius, transparency)
+        local props = {
+            BlurRadius = UDim.new(0, blurRadius),
+            Transparency = transparency,
+            ZIndex = -1,
+            Parent = parent,
+        }
+        if typeof(color) == "string" then
+            return host:Create("UIShadow", props, {
+                Color = { color, function(value)
+                    if typeof(value) == "ColorSequence" then
+                        return value.Keypoints[1].Value
+                    end
+                    return value
+                end },
+            })
+        end
+        props.Color = color
+        return host:Create("UIShadow", props)
+    end
+
+    function host:Connect(signal, callback)
+        return gate:_connect(signal, callback)
+    end
+
+    function host:Disconnect(connection)
+        if not connection then
             return
         end
-        self:_setNote(self.note)
-    end)
+        local index = table.find(gate._connections, connection)
+        if index then
+            table.remove(gate._connections, index)
+        end
+        -- [[A gate Close may have already swept this connection; Roblox's
+        -- [[own Disconnect is idempotent, but pcall keeps the test doubles
+        -- [[and edge hosts from surfacing a double-disconnect.]]
+        pcall(function()
+            connection:Disconnect()
+        end)
+    end
+
+    function host:DestroySubtree(node)
+        if node then
+            node:Destroy()
+        end
+    end
+
+    self._notifyHost = host
+    return host
 end
 
 function KeySystem:_show()
@@ -932,7 +1229,6 @@ end
 -- `onMaxAttempts`) — the gate itself only stops accepting keys.]]
 function KeySystem:_lock()
     self.locked = true
-    self._copyToken += 1
     if self._input then
         self._input.TextEditable = false
         self._input.Active = false

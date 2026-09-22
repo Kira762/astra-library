@@ -1741,10 +1741,13 @@ end
 keyGate = Astra:CreateKeySystem({
     title = "Astra Element Studio",
     subtitle = "Key System",
-    icon = "sirius",
-    note = "Demo key: ASTRA-STUDIO-2026 — paste it below, or tap this line to copy the source link.",
+    note = "Demo key: ASTRA-STUDIO-2026 — paste it below.",
     keys = { "ASTRA-STUDIO-2026" },
     getKeyUrl = "https://github.com/Kira762/astra-version-1/blob/main/example.client.luau",
+    links = {
+        { name = "Repository", icon = "external-link", link = "https://github.com/Kira762/astra-version-1" },
+        { name = "Changelog", icon = "scroll", link = "https://github.com/Kira762/astra-version-1/blob/main/CHANGELOG.md" },
+    },
     saveKey = true,
     fileName = "Astra-Example",
     maxAttempts = 5,

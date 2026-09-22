@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-09-22 — Link cards show their copy glyph again
+
+The trailing control on a Link card was an empty square: the tap target worked,
+the copy landed, the confirmation state changed — but the glyph inside it was
+never drawn, so a card showed no copy mark and no check mark.
+
+The glyph is built at `ImageTransparency = 1` like every other card part and was
+left there. Its own comment said `tapIcon` is "the shared name the window's
+reveal path reads", which was true while buttons carried a trailing tap cursor;
+the 2026-09-21 cleanup removed that cursor *and its reveal paths*, and
+`Window:_revealCommon` has walked only the shared parts ever since — stroke,
+title, body, leading icon, description. Nothing owned the Link's glyph, so it
+stayed invisible for the life of the card.
+
+The card owns the fade now, the way the Dropdown and the collapsible headers own
+their chevrons:
+
+- `elements/link.luau` — `_setShown` reveals `tapIcon` to the new
+  `restingGlyphTransparency` (0.5, the value the Button's tap glyph rested at
+  and the Dropdown chevron still does) and puts it back to 1 on hide, so a card
+  that folds away leaves no floating mark. The stale "the window's reveal path
+  reads this" comments are replaced with what the code now does.
+- `scripts/link_element_test.luau` — L2 pins the drawn glyph and the leading
+  icon on a shown card, L5 records that a container collapse puts its body away
+  by visibility rather than pushing `_setShown` into children, L8 covers the
+  compact row, and a new L10 walks a real hide/show path (`Window:Hide` →
+  `Window:Show`) in both directions. Against the pre-fix bundle L2 fails with
+  `got 1, want 0.5` and, with L2 removed, L10 fails the same way — the old suite
+  passed because its only glyph assertion was `tapIcon ~= nil`, which the
+  invisible label satisfies.
+
+No public API changed; the fix is visibility only.
+
 ## 2026-09-22 — Static gates: instance-field checker wired in, dangling-reference checker added
 
 `scripts/check_instance_fields.py` existed but was never part of `check_all.sh`, and it

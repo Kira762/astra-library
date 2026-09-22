@@ -52,9 +52,16 @@ local tapTarget = 26
 local contentInset = 70
 
 -- [[Resting transparencies once the card has been revealed: the body line
--- [[matches every other muted 14px line in the library, and the trailing
--- [[glyph matches the Button's tap glyph (Window:_revealCommon owns it).]]
+-- [[matches every other muted 14px line in the library.]]
 local restingSubtitleTransparency = 0.45
+
+-- [[The trailing glyph rests at the same half transparency the Button's tap
+-- [[glyph used, and the Dropdown and Collapsible chevrons still do. The card
+-- [[owns the fade itself: `Window:_revealCommon` only knows the shared parts
+-- [[(stroke, title, body, leading icon, description), and the shared tap-glyph
+-- [[reveal it used to read went out with the Button's trailing cursor — so
+-- [[without this the glyph is built invisible and never appears.]]
+local restingGlyphTransparency = 0.5
 
 -- [[How long a successful copy keeps the check mark on the card.]]
 local confirmSeconds = 2
@@ -396,8 +403,8 @@ end
 
 -- [[One control, both builds: a transparent TextButton carrying the glyph, so
 -- [[the hit target is the whole square and tapping the icon is tapping it.
--- [[`tapIcon` is the shared name the window's reveal path reads, so the glyph
--- [[fades in at the same 50% as the Button's tap glyph.]]
+-- [[The glyph starts invisible like every other card part and `_setShown`
+-- [[fades it in with the rest of the card.]]
 function state:_buildCopyControl(parent, placement)
     local window = self.window
 
@@ -587,6 +594,13 @@ function state:Copy(): boolean
 end
 
 function state:_setShown(shown, animate)
+    -- [[The trailing glyph is this card's own part, not one of the shared ones
+    -- [[`_revealCommon`/`_hideCommon` walk, so it fades with the card here —
+    -- [[the same way the Dropdown and the collapsible headers fade their own
+    -- [[chevrons. Hiding it too is what keeps a card that folds away (tab
+    -- [[switch, collapse, minimise) from leaving a floating mark behind.]]
+    self.window:_reveal(self.tapIcon, { ImageTransparency = if shown then restingGlyphTransparency else 1 }, animate)
+
     if shown then
         self.window:_revealCommon(self, animate)
         self.window:_reveal(self.subtitleLabel, { TextTransparency = restingSubtitleTransparency }, animate)

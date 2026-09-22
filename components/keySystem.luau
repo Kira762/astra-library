@@ -407,15 +407,23 @@ Instance creation without a window: plain `Instance.new` plus the one
 translated string immediately. There is no live rebinding (the gate has no
 `SetLocale` and rarely outlives the second it was dismissed in), only the
 same initial value a window-built card would show.
+
+Every other prop — including the header, close and link-button `Image`
+values, which are raw https catalog URLs — routes through the shared image
+pipeline (`image.assign`), exactly like `Window:Create` and the gate's own
+notification shim: the executor cache downloads the PNG once and rewrites
+the property to a loadable `getcustomasset` URI. Assigning the https URL
+directly renders nothing, which is why the gate's icons used to be blank.
 ]]
 function KeySystem:_create(className, props)
     local instance = Instance.new(className)
     for key, value in props do
         if key ~= "Parent" then
             if locale.isToken(value) then
-                value = locale.resolve(locale.sourceOf(value))
+                instance[key] = locale.resolve(locale.sourceOf(value))
+            else
+                image.assign(instance, key, value)
             end
-            instance[key] = value
         end
     end
     instance.Parent = props.Parent

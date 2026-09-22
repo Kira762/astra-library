@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-09-23 — Key gate icons render: the card routes images through the shared pipeline
+
+The key gate's icons — the Sirius header mark, the close button, and every
+`links` button glyph — assigned their resolved catalog URLs straight to the
+`Image` property. Those URLs are raw https, which no `ImageLabel` can load,
+so the whole card rendered text-only: a bare title and three icon-less
+buttons. Every other surface (`Window:Create`, the gate's own notification
+shim) routes image props through `image.assign`, which downloads each PNG
+once into the executor cache and rewrites the property to a loadable
+`getcustomasset` URI; the gate's `_create` now does the same, so the usage
+example's link icons (`copy`, `external-link`, `scroll`, …) show up as drawn
+and stay fully restyleable per entry.
+
+- **`components/keySystem.luau`** — `_create` routes every non-locale prop
+  through `image.assign` (identical assignment for non-image props, the
+  executor image cache for `Image`/`HoverImage`/`PressedImage`), matching
+  `Window:Create`; the header comment now says why direct assignment
+  renders blank.
+- **`scripts/key_system_test.luau`** — K13/K14 rewritten for the pipeline:
+  mocked `request` (PNG bytes) + `getcustomasset` (per-path `rbxasset://`
+  URIs) prove end to end that a link glyph and the Sirius mark land on
+  rewritten URIs after a pump, `iconResolved` still resolves to a loadable
+  catalog source, and a second gate with no `icon` prop wears the identical
+  header mark (props.icon ignored at render level).
+- **Docs** — `USAGE.md` (`links` row: the `icon` accepts anything the icon
+  catalog accepts and renders through the same pipeline as window icons),
+  `MODULES.md` (keySystem `_create` paragraph).
+- **`version-1.luau`** — regenerated.
+
 ## 2026-09-22 — Key gate: forced Sirius header, plain note, 0–3 link-copy buttons with notification feedback
 
 The gate's mockup pass replaces two affordances with one system. The header

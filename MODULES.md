@@ -282,9 +282,11 @@ Window transitions and teardown still close programmatic descriptions.
 `keySystem.luau` is the standalone key gate behind `Astra:CreateKeySystem` —
 meaningful locals throughout (popup-style, nothing minified). It owns no
 window: `_create` is plain `Instance.new` plus immediate locale-token
-resolution (no live rebinding — the gate has no `SetLocale`), the theme is
-`themes.resolve` baked once at creation, and `Close` tracks every connection
-itself. `new` normalises `keys` (string or list, blanks dropped), optionally
+resolution (no live rebinding — the gate has no `SetLocale`), with every
+other prop routed through the shared image pipeline (`image.assign`, like
+`Window:Create`) so the header, close and link-button glyphs render, the
+theme is `themes.resolve` baked once at creation, and `Close` tracks every
+connection itself. `new` normalises `keys` (string or list, blanks dropped), optionally
 fetches remote keys up front (`grabKeyFromSite`, dead links fail closed),
 passes through on an empty key list (with a warning) or a matching
 `Astra/keys/<fileName>.txt` file, and otherwise builds the 400px card

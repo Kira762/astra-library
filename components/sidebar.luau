@@ -43,9 +43,11 @@ end
 
 function sidebar.applyRailRows(window, width, layout)
     search.railWidth(window, width)
-    -- [[The rail is collapsed only when it is at the icon-only width. The]]
-    -- [[responsive rail otherwise hugs the widest tab name, which is often]]
-    -- [[narrower than the fixed 219px rail the layout used to have.]]
+    --[[
+    The rail is collapsed only when it is at the icon-only width. The
+    responsive rail otherwise hugs the widest tab name, which is often
+    narrower than the fixed 219px rail the layout used to have.
+    ]]
     local isCollapsed = width <= (layout.railCollapsedWidth :: number)
     for _, tab in window.tabs do
         if not tab.neglectSelector then

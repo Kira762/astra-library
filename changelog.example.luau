@@ -1,9 +1,11 @@
--- [[Astra changelog data file (host-side example).]]
--- [[Keep your release history in its own file like this one, require it, and]]
--- [[hand it to a Changelog element:]]
--- [[  local tab = window:CreateTab({ name = "Changelog" })]]
--- [[  tab:CreateChangelog(require(path.to["changelog-data"]))]]
--- [[Entries are newest-first. Update at runtime with changelog:Add(entry) / Set / Clear.]]
+--[[
+Astra changelog data file (host-side example).
+Keep your release history in its own file like this one, require it, and
+hand it to a Changelog element:
+  local tab = window:CreateTab({ name = "Changelog" })
+  tab:CreateChangelog(require(path.to["changelog-data"]))
+Entries are newest-first. Update at runtime with changelog:Add(entry) / Set / Clear.
+]]
 
 return {
     name = "Release history",

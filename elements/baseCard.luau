@@ -1,6 +1,8 @@
--- [[Shared base card layout and styling for Astra UI elements.]]
--- [[Handles standard background frame, theme strokes, hover overlay,]]
--- [[content container, icon, and title label.]]
+--[[
+Shared base card layout and styling for Astra UI elements.
+Handles standard background frame, theme strokes, hover overlay,
+content container, icon, and title label.
+]]
 
 local baseCard = {}
 
@@ -30,9 +32,11 @@ function baseCard.buildFull(element: any, opts: BaseCardOpts?): any
     element.stroke = window:StyleElementBody(element.main)
     element.hoverOverlay = window:CreateHoverOverlay(element.main)
 
-    -- [[A description grows the card here, before the title row is built, so
-    -- [[the row centres in the base region instead of drifting down into the
-    -- [[line (see elements/description.luau).]]
+    --[[
+    A description grows the card here, before the title row is built, so
+    the row centres in the base region instead of drifting down into the
+    line (see elements/description.luau).
+    ]]
     description.attach(element)
     local centerScale, centerOffset = description.center(element, height)
 

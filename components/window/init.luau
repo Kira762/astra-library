@@ -1,8 +1,10 @@
--- [[The window, split by responsibility. Every module below attaches its
--- methods to the shared class table in `class.luau`, so `self` behaves exactly
--- as it did when all 111 methods lived in one 3,098-line file. The requires
--- are for their side effects and the order does not matter: nothing here runs
--- window code, it only defines methods.]]
+--[[
+The window, split by responsibility. Every module below attaches its
+methods to the shared class table in `class.luau`, so `self` behaves exactly
+as it did when all 111 methods lived in one 3,098-line file. The requires
+are for their side effects and the order does not matter: nothing here runs
+window code, it only defines methods.
+]]
 
 local Window = require(script.class)
 

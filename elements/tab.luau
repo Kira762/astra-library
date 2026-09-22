@@ -40,8 +40,10 @@ local function customOrder(window, forgetState)
     end
 end
 
--- [[Tab state changes ride the motion service's shared specs: `normal` for
--- the pill's selected/rest states, `snappy` for the page hand-off.]]
+--[[
+Tab state changes ride the motion service's shared specs: `normal` for
+the pill's selected/rest states, `snappy` for the page hand-off.
+]]
 local element, page = "normal", "snappy"
 
 local function selector(elements)
@@ -60,8 +62,10 @@ end
 
 function state.new(window, a17)
     a17 = if typeof(a17) == "table" then a17 else {}
-    -- [[Validate the dependency before resolving the tab icon so malformed tab]]
-    -- [[construction reports the actual missing Window argument.]]
+    --[[
+    Validate the dependency before resolving the tab icon so malformed tab
+    construction reports the actual missing Window argument.
+    ]]
     window = assert(window, "Missing argument #1 (Window expected)")
 
     local self = setmetatable({
@@ -129,8 +133,10 @@ function state:_bindSelector()
     table.insert(self.connections, self.window:Connect(self.topbarItemInteract.MouseButton1Click, function()
         props.click()
         if self.locked then
-            -- [[Locked rows are visible but untouchable: the tap is answered
-            -- [[with a short notification instead of a selection.]]
+            --[[
+            Locked rows are visible but untouchable: the tap is answered
+            with a short notification instead of a selection.
+            ]]
             self.window:Notify({
                 title = locale.resolve("Locked"),
                 content = locale.resolve("This tab is locked."),
@@ -183,10 +189,12 @@ function state:_applyVisual(a19, a20)
     end
 
     if self.locked then
-        -- [[A locked row never selects and never hovers: dim the pill further
-        -- [[than the unselected state so it reads as disabled, not merely
-        -- [[unpicked. The badge rides along at the same transparency. The
-        -- [[copy keeps the shared state table intact.]]
+        --[[
+        A locked row never selects and never hovers: dim the pill further
+        than the unselected state so it reads as disabled, not merely
+        unpicked. The badge rides along at the same transparency. The
+        copy keeps the shared state table intact.
+        ]]
         a21 = {
             background = a21.background,
             stroke = a21.stroke,
@@ -203,9 +211,11 @@ function state:_spinGradients()
         return
     end
 
-    -- [[Only the stroke gradient still rides the row: its fill is now the
-    -- [[solid ElementSurface token (see components/tabSelector), so the hover
-    -- [[spin effect lives on the stroke alone.]]
+    --[[
+    Only the stroke gradient still rides the row: its fill is now the
+    solid ElementSurface token (see components/tabSelector), so the hover
+    spin effect lives on the stroke alone.
+    ]]
     for _, a23 in { self.topbarItemStrokeGradient } do
         a23.Rotation = 90 - 360         Tab.tweenService:Create(a23, motion.spec("spin"), { Rotation = 90 }):Play()
     end
@@ -213,16 +223,20 @@ end
 
 function state:Select(a24)
     if self.window.unloaded then
-        -- [[A superseded script's build can end with a selection call after
-        -- [[the anti-duplicate guard has unloaded its window; the chrome the
-        -- [[selection writes into is gone, so bail out like the other
-        -- [[runtime APIs instead of writing into destroyed instances.]]
+        --[[
+        A superseded script's build can end with a selection call after
+        the anti-duplicate guard has unloaded its window; the chrome the
+        selection writes into is gone, so bail out like the other
+        runtime APIs instead of writing into destroyed instances.
+        ]]
         return
     end
     if self.locked then
-        -- [[Locked tabs are unreachable by selection: the row tap answers
-        -- [[with a notification instead, Navigate bails out, and Remove and
-        -- [[SetLocked skip them when choosing a fallback.]]
+        --[[
+        Locked tabs are unreachable by selection: the row tap answers
+        with a notification instead, Navigate bails out, and Remove and
+        SetLocked skip them when choosing a fallback.
+        ]]
         return
     end
     if self.window._searching then
@@ -238,17 +252,21 @@ function state:Select(a24)
     elseif self.window._applySettingsLayout then
         self.window:_applySettingsLayout(self == self.window.rfSettings)
     end
-    -- [[Settings tab content is created lazily (after construction):]]
-    -- [[make sure it exists before the page is shown.]]
+    --[[
+    Settings tab content is created lazily (after construction):
+    make sure it exists before the page is shown.
+    ]]
     if self._isSettingsTab and self.window._constructed and self.window._buildSettingsContent ~= nil then
         self.window:_buildSettingsContent(self)
     end
     self.window:_jumpTo(self.tabPage)
 
-    -- [[A tab nobody has opened yet still has its elements hidden: its page is
-    -- [[not the current page of window.elements until the line above, so this
-    -- [[is the first frame any of them can be seen. Showing them here is the
-    -- [[same instant show the window's reveal used to run for every tab.]]
+    --[[
+    A tab nobody has opened yet still has its elements hidden: its page is
+    not the current page of window.elements until the line above, so this
+    is the first frame any of them can be seen. Showing them here is the
+    same instant show the window's reveal used to run for every tab.
+    ]]
     if self._elementsPending and not self.window.hidden and not self.window.minimised then
         self.window:_showTabElements(self)
     end
@@ -281,10 +299,12 @@ function state:Deselect(a26)
     end
 end
 
--- [[Lock a tab from host code: the user has no control that changes it.
--- [[Locking the tab that is open moves the selection to another unlocked
--- [[tab (same-rail preference, the way Remove chooses its fallback);
--- [[unlocking only re-enables the row — the host decides when it opens.]]
+--[[
+Lock a tab from host code: the user has no control that changes it.
+Locking the tab that is open moves the selection to another unlocked
+tab (same-rail preference, the way Remove chooses its fallback);
+unlocking only re-enables the row — the host decides when it opens.
+]]
 function state:SetLocked(locked)
     locked = locked == true
     if self.locked == locked then
@@ -302,9 +322,11 @@ function state:SetLocked(locked)
         self.topbarItemLock.Visible = icon.lockUIEnabled and locked
     end
 
-    -- [[The badge is part of the row's measured width: re-derive the rail so
-    -- [[locking the widest tab grows it and unlocking shrinks it back (the
-    -- [[same call Remove makes when the longest row leaves).]]
+    --[[
+    The badge is part of the row's measured width: re-derive the rail so
+    locking the widest tab grows it and unlocking shrinks it back (the
+    same call Remove makes when the longest row leaves).
+    ]]
     win:_applyContentRailWidth()
 
     if not locked then
@@ -313,14 +335,18 @@ function state:SetLocked(locked)
     end
 
     if win.selectedTab ~= self then
-        -- [[Not the open tab: its page was never the current page, so dimming
-        -- [[the row is the whole job — nothing of its content is on screen.]]
+        --[[
+        Not the open tab: its page was never the current page, so dimming
+        the row is the whole job — nothing of its content is on screen.
+        ]]
         self:_applyVisual("unselected", element)
         return
     end
 
-    -- [[Locking the open tab: the window is sitting on its content, so the
-    -- [[selection must move.]]
+    --[[
+    Locking the open tab: the window is sitting on its content, so the
+    selection must move.
+    ]]
     win.selectedTab = nil
     local fallback
     for _, tab in ipairs(win.tabs) do
@@ -335,9 +361,11 @@ function state:SetLocked(locked)
     if fallback then
         fallback:Select()
     else
-        -- [[Pathological: every other tab is locked or neglected. Clear the
-        -- [[selection and hide this tab's content so a later Show cannot land
-        -- [[on it; the pending mark puts it back when it is opened.]]
+        --[[
+        Pathological: every other tab is locked or neglected. Clear the
+        selection and hide this tab's content so a later Show cannot land
+        on it; the pending mark puts it back when it is opened.
+        ]]
         self._elementsPending = true
         for _, el in ipairs(self.elements) do
             el:_setShown(false, false)
@@ -352,14 +380,18 @@ function state:_register(element)
     self.window:_restoreLate(element)
 
     if not self.window.hidden and not self.window.minimised and self.window.selectedTab == self then
-        -- Controls added after the startup shell is visible should join it
-        -- with their normal reveal animation instead of popping in instantly.
-        -- Window:_constructionCheckpoint paces these registrations in small
-        -- budget-limited batches while the initial host build is still active.
+        --[[
+        Controls added after the startup shell is visible should join it
+        with their normal reveal animation instead of popping in instantly.
+        Window:_constructionCheckpoint paces these registrations in small
+        budget-limited batches while the initial host build is still active.
+        ]]
         element:_setShown(true, true)
     else
-        -- [[The element stayed hidden with the window: remember that this tab
-        -- [[has something to show when it is next opened.]]
+        --[[
+        The element stayed hidden with the window: remember that this tab
+        has something to show when it is next opened.
+        ]]
         self._elementsPending = true
     end
 
@@ -463,8 +495,10 @@ function state:Remove()
 
         if window.selectedTab == self then
         window.selectedTab = nil
-        -- [[Prefer a fallback from the same rail so removing the selected tab]]
-        -- [[cannot yank the user out of settings mode (or into it).]]
+        --[[
+        Prefer a fallback from the same rail so removing the selected tab
+        cannot yank the user out of settings mode (or into it).
+        ]]
         local fallback
         for _, tab in ipairs(window.tabs) do
             if not tab.neglectSelector and not tab.locked then
@@ -493,8 +527,10 @@ function state:Remove()
     if self.tabPage then
         window:DestroySubtree(self.tabPage)
     end
-    -- [[The removed row may have been the widest: re-derive the]]
-    -- [[responsive rail's width from the rows that remain (no-op elsewhere).]]
+    --[[
+    The removed row may have been the widest: re-derive the
+    responsive rail's width from the rows that remain (no-op elsewhere).
+    ]]
     window:_applyContentRailWidth()
     self.topbarItem = nil
     self.tabPage = nil

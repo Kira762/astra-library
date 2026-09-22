@@ -1,8 +1,10 @@
--- [[phosphor icon pack.]]
--- [[Compact catalog: names only. PNG URLs are derived on demand by]]
--- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]
--- [[parses as one string constant instead of thousands of table]]
--- [[constructors. Regenerate with scripts/generate_icon_packs.js.]]
+--[[
+phosphor icon pack.
+Compact catalog: names only. PNG URLs are derived on demand by
+icons/packBuilder (kebab/snake name to PascalCase), so this module
+parses as one string constant instead of thousands of table
+constructors. Regenerate with scripts/generate_icon_packs.js.
+]]
 
 return require(script.Parent.packBuilder).create(
 	"assets/icons/phosphor-pack/",

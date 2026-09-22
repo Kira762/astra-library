@@ -10,8 +10,10 @@ local Collapsible = {}
 Collapsible.__index = Collapsible
 Collapsible.__type = "CollapsibleGroup"
 
--- This is a declarative adapter over the real controls, not a second set of
--- implementations. Keep the list in sync with Tab's supported element types.
+--[[
+This is a declarative adapter over the real controls, not a second set of
+implementations. Keep the list in sync with Tab's supported element types.
+]]
 local constructors = {
     Button = function(parent, props) return require(script.Parent.button).new(parent, props) end,
     Toggle = function(parent, props) return require(script.Parent.toggle).new(parent, props) end,
@@ -31,11 +33,13 @@ local constructors = {
 }
 local compactTypes = { Button = true, Toggle = true, Switch = true, Slider = true, Stat = true, Group = true, Link = true }
 
--- [[Which corners of the header band carry the container's arcs. Open, the band
--- [[is only the top of the card: its bottom edge is the straight divider, so the
--- [[bottom corners must stay square or they would notch into the revealed body.
--- [[Closed, the band *is* the whole card, so its bottom corners have to carry the
--- [[container's bottom arcs exactly like its top ones carry the top.]]
+--[[
+Which corners of the header band carry the container's arcs. Open, the band
+is only the top of the card: its bottom edge is the straight divider, so the
+bottom corners must stay square or they would notch into the revealed body.
+Closed, the band *is* the whole card, so its bottom corners have to carry the
+container's bottom arcs exactly like its top ones carry the top.
+]]
 local bandCorners = {
     expanded = { "TopLeftRadius", "TopRightRadius" },
     collapsed = { "TopLeftRadius", "TopRightRadius", "BottomLeftRadius", "BottomRightRadius" },
@@ -69,8 +73,10 @@ end
 
 local function groupProps(spec)
     local props = table.clone(spec)
-    -- Ordinary row Groups support compact controls only. A declarative Group
-    -- containing other control types becomes a column so no element is dropped.
+    --[[
+    Ordinary row Groups support compact controls only. A declarative Group
+    containing other control types becomes a column so no element is dropped.
+    ]]
     for _, child in ipairs(spec.elements or {}) do
         if not compactTypes[child.type or child.Type] then
             props.direction = "column"
@@ -125,15 +131,19 @@ function Collapsible.new(tab, props)
         _expanded = false, _shown = false,
     }, Collapsible)
     local w = self.window
-    -- [[One muted 14px line under the title band, the element-description
-    -- [[recipe: the header grows by the line's 20px band (41 -> 61) instead of
-    -- [[letting the line run into the title row or the first child.]]
+    --[[
+    One muted 14px line under the title band, the element-description
+    recipe: the header grows by the line's 20px band (41 -> 61) instead of
+    letting the line run into the title row or the first child.
+    ]]
     self.headerHeight = if self.description then 61 else 41
-    -- [[One connected card, two surfaces: the header band rides the standard
-    -- [[element gradient, the revealed body sits on the darker window surface
-    -- [[and a 1px stroke-colored divider separates them — the unified
-    -- [[container the design reference shows, instead of a header card and a
-    -- [[detached panel floating a gap apart.
+    --[[
+    One connected card, two surfaces: the header band rides the standard
+    element gradient, the revealed body sits on the darker window surface
+    and a 1px stroke-colored divider separates them — the unified
+    container the design reference shows, instead of a header card and a
+    detached panel floating a gap apart.
+    ]]
     self.bodyPad = 10
     self.main = w:Create("Frame", {
         Name = self.name, Size = UDim2.new(1, -20, 0, self.headerHeight),
@@ -141,20 +151,24 @@ function Collapsible.new(tab, props)
         BackgroundTransparency = 1, BorderSizePixel = 0,
         ClipsDescendants = true, Parent = tab.tabPage,
     }, { BackgroundTransparency = "ElementTransparency" })
-    -- [[The container's own surface is the element surface (the white base
-    -- [[under the ElementGradient recipe every element uses), so the card's
-    -- [[silhouette — its rounded top corners included — reads as the header
-    -- [[band. Roblox rounds a GuiObject's own surface but never clips its
-    -- [[descendants to the arcs, so the band below carries the same radius on
-    -- [[its top corners and the body clipper paints the darker window surface
-    -- [[the revealed body sits on.
+    --[[
+    The container's own surface is the element surface (the white base
+    under the ElementGradient recipe every element uses), so the card's
+    silhouette — its rounded top corners included — reads as the header
+    band. Roblox rounds a GuiObject's own surface but never clips its
+    descendants to the arcs, so the band below carries the same radius on
+    its top corners and the body clipper paints the darker window surface
+    the revealed body sits on.
+    ]]
     w:Create("UIGradient", { Rotation = 270, Parent = self.main }, { Color = "ElementGradient" })
     w:Create("UICorner", { Parent = self.main }, { CornerRadius = "ElementCornerRadius" })
-    -- [[The container masks its own descendants to its bounds; the rounded
-    -- [[silhouette comes from the container's corner plus the band's matching
-    -- [[top-corner radius.]]
-    -- [[UIStroke supports Border/Contextual modes, not Interior; Border keeps
-    -- [[the outline on the container without reading an invalid enum member.]]
+    --[[
+    The container masks its own descendants to its bounds; the rounded
+    silhouette comes from the container's corner plus the band's matching
+    top-corner radius.
+    UIStroke supports Border/Contextual modes, not Interior; Border keeps
+    the outline on the container without reading an invalid enum member.
+    ]]
     self.stroke = w:Create("UIStroke", {
         ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Transparency = 1, Parent = self.main,
     }, { Color = "ElementStroke", Transparency = "ElementStrokeTransparency" })
@@ -163,15 +177,19 @@ function Collapsible.new(tab, props)
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
     }, { BackgroundTransparency = "ElementTransparency" })
-    -- [[The plain white base under the ElementGradient is the standard element
-    -- [[surface recipe; a themed base would multiply the gradient near-black.
+    --[[
+    The plain white base under the ElementGradient is the standard element
+    surface recipe; a themed base would multiply the gradient near-black.
+    ]]
     w:Create("UIGradient", { Rotation = 270, Parent = self.headerSurface }, { Color = "ElementGradient" })
-    -- [[The band is a child of the container, and Roblox only rounds a
-    -- [[GuiObject's own surface — descendants paint over the arcs. Left
-    -- [[square, the band filled the card's top-left and top-right corners and
-    -- [[squared off the silhouette the stroke draws. Rounding the band's top
-    -- [[corners with the container's own radius makes the two arcs one, and
-    -- [[_fitHeaderCorners adds the bottom pair while the group is closed.
+    --[[
+    The band is a child of the container, and Roblox only rounds a
+    GuiObject's own surface — descendants paint over the arcs. Left
+    square, the band filled the card's top-left and top-right corners and
+    squared off the silhouette the stroke draws. Rounding the band's top
+    corners with the container's own radius makes the two arcs one, and
+    _fitHeaderCorners adds the bottom pair while the group is closed.
+    ]]
     self.headerCorner = w:_roundCorners(self.headerSurface, { "TopLeftRadius", "TopRightRadius" }, "ElementCornerRadius")
     self:_fitHeaderCorners()
     self.divider = w:Create("Frame", {
@@ -184,8 +202,10 @@ function Collapsible.new(tab, props)
         BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
     })
     self.hoverOverlay = w:CreateHoverOverlay(self.header)
-    -- Header metrics mirror the Text element: 20px gutters, a 6px icon gap,
-    -- a 16px TitlingColor title and a 14px body line at 0.45 transparency.
+    --[[
+    Header metrics mirror the Text element: 20px gutters, a 6px icon gap,
+    a 16px TitlingColor title and a 14px body line at 0.45 transparency.
+    ]]
     local textX = if self.icon then 42 else 20
     if self.icon then
         self.iconLabel = w:Create("ImageLabel", {
@@ -217,12 +237,14 @@ function Collapsible.new(tab, props)
         Text = "", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
         AutoButtonColor = false, ZIndex = 6, Parent = self.header,
     })
-    -- [[The reveal mask spans the container edge to edge and rides its bottom
-    -- [[edge, so the mask's floor always matches the container's own corner
-    -- [[arcs. Children keep their normal width recipes — a card at
-    -- [[UDim2.new(1, -20) of this full-width body lands exactly one gutter
-    -- [[inside the container on each side, the inset the reference shows,
-    -- [[instead of running edge to edge against the container stroke.
+    --[[
+    The reveal mask spans the container edge to edge and rides its bottom
+    edge, so the mask's floor always matches the container's own corner
+    arcs. Children keep their normal width recipes — a card at
+    UDim2.new(1, -20) of this full-width body lands exactly one gutter
+    inside the container on each side, the inset the reference shows,
+    instead of running edge to edge against the container stroke.
+    ]]
     self.bodyClip = w:Create("Frame", {
         Name = "ContentsClip",
         Position = UDim2.fromOffset(0, self.headerHeight + 1),
@@ -231,14 +253,18 @@ function Collapsible.new(tab, props)
         BackgroundTransparency = 1, BorderSizePixel = 0,
         ClipsDescendants = true, Visible = false, Parent = self.main,
     }, { BackgroundTransparency = "ElementTransparency" })
-    -- [[The revealed body sits on the darker window surface, and the clipper
-    -- [[is flush with the container's bottom edge, so it paints that surface
-    -- [[for the whole body region and keeps the container's bottom arcs (its
-    -- [[top corners stay square — the divider above is a straight line).
+    --[[
+    The revealed body sits on the darker window surface, and the clipper
+    is flush with the container's bottom edge, so it paints that surface
+    for the whole body region and keeps the container's bottom arcs (its
+    top corners stay square — the divider above is a straight line).
+    ]]
     w:Create("UIGradient", { Rotation = 270, Parent = self.bodyClip }, { Color = "WindowColor" })
     w:_roundCorners(self.bodyClip, { "BottomLeftRadius", "BottomRightRadius" }, "ElementCornerRadius")
-    -- [[body lives inside the clipper, which already starts under the divider,
-    -- [[so only the top pad offsets it here.
+    --[[
+    body lives inside the clipper, which already starts under the divider,
+    so only the top pad offsets it here.
+    ]]
     self.body = w:Create("Frame", {
         Name = "Contents", Position = UDim2.fromOffset(0, self.bodyPad),
         Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
@@ -263,16 +289,18 @@ function Collapsible.new(tab, props)
     return self
 end
 
--- [[Collapsed, the band is the whole card — there is no body under it — so it
--- [[has to carry the container's bottom arcs too, or its square bottom corners
--- [[paint over the silhouette the stroke draws and the card reads as rounded at
--- [[the top and uneven at the bottom. Expanded, the clipper below takes the
--- [[bottom edge (it is flush with the container's floor and keeps the same
--- [[radius token), so the band squares off against the straight divider. One
--- [[token for both states means the corner never changes radius, only which
--- [[surface owns it, and the clipper keeps the arcs for every frame in between:
--- [[the collapse rounds the band as it settles, and the opening squares it
--- [[before the body is revealed underneath.]]
+--[[
+Collapsed, the band is the whole card — there is no body under it — so it
+has to carry the container's bottom arcs too, or its square bottom corners
+paint over the silhouette the stroke draws and the card reads as rounded at
+the top and uneven at the bottom. Expanded, the clipper below takes the
+bottom edge (it is flush with the container's floor and keeps the same
+radius token), so the band squares off against the straight divider. One
+token for both states means the corner never changes radius, only which
+surface owns it, and the clipper keeps the arcs for every frame in between:
+the collapse rounds the band as it settles, and the opening squares it
+before the body is revealed underneath.
+]]
 function Collapsible:_fitHeaderCorners()
     self.window:_setRoundedCorners(
         self.headerCorner,
@@ -282,15 +310,19 @@ function Collapsible:_fitHeaderCorners()
 end
 
 function Collapsible:_resize(animate)
-    -- (The engine always reports an AbsoluteContentSize; the test harness
-    -- only stubs it once content is driven, so an unmeasured layout reads 0.)
+    --[[
+    (The engine always reports an AbsoluteContentSize; the test harness
+    only stubs it once content is driven, so an unmeasured layout reads 0.)
+    ]]
     local measured = self.contentLayout.AbsoluteContentSize
     local contentHeight = if measured then measured.Y else 0
     local height = self.headerHeight
     if self._expanded then
-        -- divider + top pad + content + bottom pad: the container ends one
-        -- gutter under the last child card, the same inset its sides keep,
-        -- with no dead slack.
+        --[[
+        divider + top pad + content + bottom pad: the container ends one
+        gutter under the last child card, the same inset its sides keep,
+        with no dead slack.
+        ]]
         height += 1 + self.bodyPad + contentHeight + self.bodyPad
     end
     local size = UDim2.new(1, -20, 0, height)
@@ -305,18 +337,22 @@ function Collapsible:_resize(animate)
             self.bodyClip.Visible = false
             self.divider.Visible = false
         end
-        -- [[Runs on every settle, in both states: the corner set follows the
-        -- [[height the container has actually reached, so a reversal mid-tween
-        -- [[(a stale revision returns above) can never leave the band's bottom
-        -- [[arcs on a card that is about to show its body, or off a card that
-        -- [[has just released it.]]
+        --[[
+        Runs on every settle, in both states: the corner set follows the
+        height the container has actually reached, so a reversal mid-tween
+        (a stale revision returns above) can never leave the band's bottom
+        arcs on a card that is about to show its body, or off a card that
+        has just released it.
+        ]]
         self:_fitHeaderCorners()
     end
     if animate and self._shown then
-        -- The reveal mask derives its bounds from the container, so a single
-        -- tween grows both in lockstep; the mask's edge never leads or trails
-        -- the frame. A nil tween means the size is already applied (instant
-        -- profile, or already at target), so the settle path runs directly.
+        --[[
+        The reveal mask derives its bounds from the container, so a single
+        tween grows both in lockstep; the mask's edge never leads or trails
+        the frame. A nil tween means the size is already applied (instant
+        profile, or already at target), so the settle path runs directly.
+        ]]
         local mainTween = motion.tween(self.main, { Size = size }, "snappy", finish)
         if not mainTween then finish() end
     else
@@ -330,9 +366,11 @@ function Collapsible:_setExpanded(expanded, animate)
     if self._expanded == expanded then return end
     self._expanded = expanded
     if expanded then
-        -- [[Square the band off against the divider before the body surfaces
-        -- [[under it, so the first revealed frame already shows a straight
-        -- [[header/body seam instead of two notches at the band's floor.
+        --[[
+        Square the band off against the divider before the body surfaces
+        under it, so the first revealed frame already shows a straight
+        header/body seam instead of two notches at the band's floor.
+        ]]
         self:_fitHeaderCorners()
         self.body.Visible = true
         self.bodyClip.Visible = true
@@ -344,16 +382,20 @@ function Collapsible:_setExpanded(expanded, animate)
             if child.__type == "Dropdown" and child._isOpen then child:_close() end
             if child.recording then child:_stopRecording() end
             if child.CancelCapture then child:CancelCapture() end
-            -- [[Same rule as the open dropdown: a transient state that belongs
-            -- [[to a visible card cannot survive the body being put away, so a
-            -- [[Link that was confirming its copy comes back on the copy mark
-            -- [[instead of greeting the next open with a stale check.]]
+            --[[
+            Same rule as the open dropdown: a transient state that belongs
+            to a visible card cannot survive the body being put away, so a
+            Link that was confirming its copy comes back on the copy mark
+            instead of greeting the next open with a stale check.
+            ]]
             if child.__type == "Link" then child:_resetCopyState() end
             if child.__type == "Input" then
                 local ok, focused = pcall(function() return child.input:IsFocused() end)
                 if ok and focused then
-                    -- Cancel the uncommitted edit, so hiding a container cannot
-                    -- silently commit input or trigger its value callback.
+                    --[[
+                    Cancel the uncommitted edit, so hiding a container cannot
+                    silently commit input or trigger its value callback.
+                    ]]
                     child.input.Text = child.value
                     child.input:ReleaseFocus()
                 end

@@ -1,26 +1,30 @@
--- [[Astra Element Studio — a working testbed for every part of the public API.
---
--- [[The studio opens through the key gate: Astra:CreateKeySystem shows its
--- [[card first and the whole build runs in `onSuccess` (demo key
--- [[ASTRA-STUDIO-2026; a saved key skips the card on the next join).
--- [[
--- [[Ten tabs, built around things you can actually run: character and lighting
--- [[edits, a live performance sampler, the persistence API, the theme/motion
--- [[controls, and a lab that drives every element handle. Nothing here is a
--- [[dead `print`; each control either changes the game, changes the window, or
--- [[reports something real back through a Stat, a Text or a notification.
---
--- [[Roblox access is resolved through the small helper block below and is
--- [[nil-safe, so the same script runs in an executor, in Studio, and under the
--- [[repository's headless test harness (`scripts/example_test.luau`). Where a
--- [[service is missing the control says so instead of throwing.
---
--- [[Executor entry point. In Studio/Rojo, require ReplicatedStorage.Astra instead.]]
+--[[
+Astra Element Studio — a working testbed for every part of the public API.
+
+The studio opens through the key gate: Astra:CreateKeySystem shows its
+card first and the whole build runs in `onSuccess` (demo key
+ASTRA-STUDIO-2026; a saved key skips the card on the next join).
+
+Ten tabs, built around things you can actually run: character and lighting
+edits, a live performance sampler, the persistence API, the theme/motion
+controls, and a lab that drives every element handle. Nothing here is a
+dead `print`; each control either changes the game, changes the window, or
+reports something real back through a Stat, a Text or a notification.
+
+Roblox access is resolved through the small helper block below and is
+nil-safe, so the same script runs in an executor, in Studio, and under the
+repository's headless test harness (`scripts/example_test.luau`). Where a
+service is missing the control says so instead of throwing.
+
+Executor entry point. In Studio/Rojo, require ReplicatedStorage.Astra instead.
+]]
 local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"))()
 
--- ===========================================================================
--- Environment
--- ===========================================================================
+--[[
+===========================================================================
+Environment
+===========================================================================
+]]
 
 local function service(name)
     local ok, result = pcall(function()
@@ -104,19 +108,23 @@ local function commas(value)
     return formatted
 end
 
--- ===========================================================================
--- Key gate
--- ===========================================================================
+--[[
+===========================================================================
+Key gate
+===========================================================================
+]]
 
--- [[The whole studio sits behind Astra's standalone key gate: CreateKeySystem
--- [[draws its card *before* any window exists and everything below builds only
--- [[inside `onSuccess`, the way a hub that ships keys is wired. `window` and
--- [[`overview` are file-scope so the headless harness can drive the gate and
--- [[then assert on the studio; `saveKey` remembers a passing key at
--- [[Astra/keys/Astra-Example.txt, so a second join skips the card entirely.
--- [[`studioReady` is the harness seam: buildStudio's last act flips it, and
--- [[scripts/example_test.luau waits on it before touching the studio. The demo
--- [[key is ASTRA-STUDIO-2026.]]
+--[[
+The whole studio sits behind Astra's standalone key gate: CreateKeySystem
+draws its card *before* any window exists and everything below builds only
+inside `onSuccess`, the way a hub that ships keys is wired. `window` and
+`overview` are file-scope so the headless harness can drive the gate and
+then assert on the studio; `saveKey` remembers a passing key at
+Astra/keys/Astra-Example.txt, so a second join skips the card entirely.
+`studioReady` is the harness seam: buildStudio's last act flips it, and
+scripts/example_test.luau waits on it before touching the studio. The demo
+key is ASTRA-STUDIO-2026.
+]]
 local keyGate
 local window
 local overview
@@ -124,9 +132,11 @@ local studioReady
 
 local function buildStudio(unlockedKey)
 
-    -- ===========================================================================
-    -- Window
-    -- ===========================================================================
+    --[[
+    ===========================================================================
+    Window
+    ===========================================================================
+    ]]
 
     window = Astra:CreateWindow({
         name = "Astra Element Studio",
@@ -144,9 +154,11 @@ local function buildStudio(unlockedKey)
         window:Notify({ title = title, content = content, icon = icon or "info", duration = duration or 4 })
     end
 
-    -- ===========================================================================
-    -- 1. Overview — information first
-    -- ===========================================================================
+    --[[
+    ===========================================================================
+    1. Overview — information first
+    ===========================================================================
+    ]]
 
     overview = window:CreateTab({ name = "Overview", icon = "house" })
     local releaseHistory
@@ -200,8 +212,10 @@ local function buildStudio(unlockedKey)
 
     overview:CreateDivider({ text = "Session log" })
 
-    -- [[Every other tab writes into this element, so the changelog doubles as a
-    -- [[live activity log rather than a static block of release notes.]]
+    --[[
+    Every other tab writes into this element, so the changelog doubles as a
+    live activity log rather than a static block of release notes.
+    ]]
     local eventLog = overview:CreateChangelog({
         name = "Activity",
         emptyText = "Nothing has run yet — try a control on any tab.",
@@ -286,9 +300,11 @@ local function buildStudio(unlockedKey)
         parts = { { text = "Built with" }, { icon = "zap" }, { text = "Astra" }, { icon = "heart" } },
     })
 
-    -- ===========================================================================
-    -- 2. Player — real character edits
-    -- ===========================================================================
+    --[[
+    ===========================================================================
+    2. Player — real character edits
+    ===========================================================================
+    ]]
 
     local player = window:CreateTab({ name = "Player", icon = "user-round" })
 
@@ -312,8 +328,10 @@ local function buildStudio(unlockedKey)
 
     local walkDefault, jumpDefault = 16, 50
     local frozenSpeed
-    -- [[Forward declarations: the callbacks below close over these, and a Lua]]
-    -- [[closure only captures a local that is already in scope.]]
+    --[[
+    Forward declarations: the callbacks below close over these, and a Lua
+    closure only captures a local that is already in scope.
+    ]]
     local identityText
 
     local function readCharacter()
@@ -500,9 +518,11 @@ local function buildStudio(unlockedKey)
         },
     })
 
-    -- ===========================================================================
-    -- 3. Combat — target list and live counters
-    -- ===========================================================================
+    --[[
+    ===========================================================================
+    3. Combat — target list and live counters
+    ===========================================================================
+    ]]
 
     local combat = window:CreateTab({ name = "Combat", icon = "sword" })
 
@@ -644,9 +664,11 @@ local function buildStudio(unlockedKey)
         },
     })
 
-    -- ===========================================================================
-    -- 4. Visuals — real Lighting and Camera edits
-    -- ===========================================================================
+    --[[
+    ===========================================================================
+    4. Visuals — real Lighting and Camera edits
+    ===========================================================================
+    ]]
 
     local visuals = window:CreateTab({ name = "Visuals", icon = "eye" })
 
@@ -853,9 +875,11 @@ local function buildStudio(unlockedKey)
         end,
     })
 
-    -- ===========================================================================
-    -- 5. World — coordinates, waypoints and teleporting
-    -- ===========================================================================
+    --[[
+    ===========================================================================
+    5. World — coordinates, waypoints and teleporting
+    ===========================================================================
+    ]]
 
     local world = window:CreateTab({ name = "World", icon = "map" })
 
@@ -1008,9 +1032,11 @@ local function buildStudio(unlockedKey)
         logEvent("Waypoint list cleared.", "-", "World")
     end
 
-    -- ===========================================================================
-    -- 6. Live Stats — a real sampler on the frame loop
-    -- ===========================================================================
+    --[[
+    ===========================================================================
+    6. Live Stats — a real sampler on the frame loop
+    ===========================================================================
+    ]]
 
     local stats = window:CreateTab({ name = "Live Stats", icon = "activity" })
 
@@ -1139,15 +1165,17 @@ local function buildStudio(unlockedKey)
         ))
     end
 
-    -- ===========================================================================
-    -- 7. Elements — every handle, driven
-    -- ===========================================================================
+    --[[
+    ===========================================================================
+    7. Elements — every handle, driven
+    ===========================================================================
+    ]]
 
     local lab = window:CreateTab({ name = "Elements", icon = "flask-conical" })
 
     lab:CreateSection({ name = "Handles", icon = "sliders-horizontal" })
 
-    -- [[Declared first: every handle callback below writes into this readout.]]
+    -- Declared first: every handle callback below writes into this readout.
     local demoText
     local demoToggle = lab:CreateToggle({
         name = "Sample toggle",
@@ -1311,9 +1339,11 @@ local function buildStudio(unlockedKey)
         },
     })
 
-    -- ===========================================================================
-    -- 8. Configs — the persistence API
-    -- ===========================================================================
+    --[[
+    ===========================================================================
+    8. Configs — the persistence API
+    ===========================================================================
+    ]]
 
     local configs = window:CreateTab({ name = "Configs", icon = "save" })
 
@@ -1455,11 +1485,13 @@ local function buildStudio(unlockedKey)
 
     refreshSlots()
 
-    -- ===========================================================================
-    -- 9. Window — theme, motion, visibility, overlays, diagnostics
-    -- ===========================================================================
+    --[[
+    ===========================================================================
+    9. Window — theme, motion, visibility, overlays, diagnostics
+    ===========================================================================
+    ]]
 
-    -- [[Built after this tab, but its unlock button closes over it.]]
+    -- Built after this tab, but its unlock button closes over it.
     local premium
 
     local windowTab = window:CreateTab({ name = "Window", icon = "app-window" })
@@ -1687,9 +1719,11 @@ local function buildStudio(unlockedKey)
         end,
     })
 
-    -- ===========================================================================
-    -- 10. Premium — starts locked, unlocked from the Window tab
-    -- ===========================================================================
+    --[[
+    ===========================================================================
+    10. Premium — starts locked, unlocked from the Window tab
+    ===========================================================================
+    ]]
 
     premium = window:CreateTab({ name = "Premium", icon = "star", locked = true })
 
@@ -1717,11 +1751,13 @@ local function buildStudio(unlockedKey)
         end,
     })
 
-    -- ===========================================================================
-    -- Wiring that needs every tab to exist
-    -- ===========================================================================
+    --[[
+    ===========================================================================
+    Wiring that needs every tab to exist
+    ===========================================================================
+    ]]
 
-    -- [[Keep the walk-speed stat honest when the character respawns mid-session.]]
+    -- Keep the walk-speed stat honest when the character respawns mid-session.
     if localPlayer and member(localPlayer, "CharacterAdded") then
         window:Connect(localPlayer.CharacterAdded, function()
             task.wait(0.5)
@@ -1734,9 +1770,11 @@ local function buildStudio(unlockedKey)
     studioReady = true
 end
 
--- ===========================================================================
--- Open the gate
--- ===========================================================================
+--[[
+===========================================================================
+Open the gate
+===========================================================================
+]]
 
 keyGate = Astra:CreateKeySystem({
     title = "Astra Element Studio",

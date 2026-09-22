@@ -1,35 +1,37 @@
--- ===== motion service assertions: shared specs, time scale, profiles, =====
--- ===== tween ownership, and the window's Animation speed setting      =====
--- [[Runs the real Astra bundle (loaded as global `Astra` above) against the]]
--- [[mini Roblox environment from sidebar_sizing_stubs.luau.]]
---
--- Expected behavior under test:
---   * M1 the service is public (Astra.Motion) and its vocabulary covers the
---        specs the window actually asks for,
---   * M2 named specs are shared values, not rebuilt per call,
---   * M3 the time scale rescales every spec and is dropped from the cache
---        when it changes, so the next lookup returns the new duration,
---   * M4 profiles drive the library's speed, unknown profile names are
---        rejected instead of half-applying, and "instant" switches animation
---        off,
---   * M5 two tweens that would fight over the same property never both run:
---        the newer call cancels the older one, while tweens on unrelated
---        properties are left alone,
---   * M6 a property already at its target is never animated, and a call whose
---        properties are all satisfied creates no tween at all,
---   * M7 with animation off the targets are applied immediately and no tween
---        is created,
---   * M8 the window's "Animation speed" setting reaches the service (both
---        when it is applied and when a bad value has to fall back),
---   * M9 element hover is wired through the service: a hover animates, a
---        rapid leave cancels the enter tween on the same property, and with
---        animation off a hover creates nothing,
---   * M10 the cascade step scales with the profile and collapses to zero
---        when animation is off,
---   * M11 with animation off the window's show/hide/restore/close still settle
---        their state machines: no tween is created, so `animating`/`hidden`
---        must be resolved on the spot instead of waiting for a completion
---        that will never fire.
+--[[
+===== motion service assertions: shared specs, time scale, profiles, =====
+===== tween ownership, and the window's Animation speed setting      =====
+Runs the real Astra bundle (loaded as global `Astra` above) against the
+mini Roblox environment from sidebar_sizing_stubs.luau.
+
+Expected behavior under test:
+  * M1 the service is public (Astra.Motion) and its vocabulary covers the
+       specs the window actually asks for,
+  * M2 named specs are shared values, not rebuilt per call,
+  * M3 the time scale rescales every spec and is dropped from the cache
+       when it changes, so the next lookup returns the new duration,
+  * M4 profiles drive the library's speed, unknown profile names are
+       rejected instead of half-applying, and "instant" switches animation
+       off,
+  * M5 two tweens that would fight over the same property never both run:
+       the newer call cancels the older one, while tweens on unrelated
+       properties are left alone,
+  * M6 a property already at its target is never animated, and a call whose
+       properties are all satisfied creates no tween at all,
+  * M7 with animation off the targets are applied immediately and no tween
+       is created,
+  * M8 the window's "Animation speed" setting reaches the service (both
+       when it is applied and when a bad value has to fall back),
+  * M9 element hover is wired through the service: a hover animates, a
+       rapid leave cancels the enter tween on the same property, and with
+       animation off a hover creates nothing,
+  * M10 the cascade step scales with the profile and collapses to zero
+       when animation is off,
+  * M11 with animation off the window's show/hide/restore/close still settle
+       their state machines: no tween is created, so `animating`/`hidden`
+       must be resolved on the spot instead of waiting for a completion
+       that will never fire.
+]]
 
 local function expect(cond, message)
 	if not cond then
@@ -71,8 +73,10 @@ for _, name in motion.specNames do
 end
 for _, name in { "instant", "fast", "snappy", "normal", "smooth", "emphasized", "pop", "glide", "exit", "spring", "settle", "spin", "drift" } do
 	expect(specNames[name] == true, "M1 spec '" .. name .. "' is registered")
-	-- [[Checked structurally: the test stubs model TweenInfo as a plain table,
-	-- so `typeof(...) == "TweenInfo"` would only hold in a real client.]]
+	--[[
+	Checked structurally: the test stubs model TweenInfo as a plain table,
+	so `typeof(...) == "TweenInfo"` would only hold in a real client.
+	]]
 	local resolved = motion.spec(name)
 	expect(type(resolved) == "table" and type(resolved.Time) == "number", "M1 spec '" .. name .. "' resolves to a TweenInfo")
 	expect(resolved.EasingStyle ~= nil and resolved.EasingDirection ~= nil, "M1 spec '" .. name .. "' carries easing")
@@ -129,11 +133,13 @@ near(motion.step(0.035), 0.04725, "M10 the cascade step stretches with a relaxed
 motion.setProfile("snappy")
 near(motion.step(0.035), 0.0245, "M10 the cascade step shortens with a snappy profile")
 
--- ===== tween accounting =====
---
--- The stub TweenService applies its properties on Play, so every assertion
--- below can read the target instance directly; the wrapper counts what the
--- service asked for and how many tweens were cancelled.
+--[[
+===== tween accounting =====
+
+The stub TweenService applies its properties on Play, so every assertion
+below can read the target instance directly; the wrapper counts what the
+service asked for and how many tweens were cancelled.
+]]
 
 local tweenService = state.tweenService
 local created = 0
@@ -172,7 +178,7 @@ eq(cancelled, 1, "M5 ... and it cancels the tween it would fight with")
 motion.tween(frame, { Position = UDim2.fromOffset(40, 40) }, "normal")
 eq(cancelled, 1, "M5 a tween on an unrelated property leaves the first one alone")
 
--- [[Half-satisfied calls still animate the properties that need it.]]
+-- Half-satisfied calls still animate the properties that need it.
 local sizeFrame = Instance.new("Frame")
 sizeFrame.BackgroundTransparency = 0.5
 local beforePartial = created
@@ -180,7 +186,7 @@ motion.tween(sizeFrame, { BackgroundTransparency = 0.5, Rotation = 15 }, "normal
 eq(created, beforePartial + 1, "M6 a partially-satisfied call still animates the pending property")
 eq(sizeFrame.Rotation, 15, "M6 ... and applies only that property's target")
 
--- [[motion.cancel stops the tracked tween and forgets it.]]
+-- motion.cancel stops the tracked tween and forgets it.
 eq(motion.cancel(frame), true, "M5motion.cancel stops the tracked tween")
 eq(motion.cancel(frame), false, "M5 ... and the slot is cleared")
 

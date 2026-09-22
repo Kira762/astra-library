@@ -31,9 +31,11 @@ assert(not group.elements[13].compact, "Noncompact elements in ordinary Groups b
 assert(not group._expanded and not group.body.Visible, "Starts collapsed without a usage option")
 assert(window:Get("active") == true and window:Get("speed") == 50, "Collapsed controls register their values")
 
--- The header must use the standard element surface recipe: a white base under
--- StyleElementBody's ElementGradient, exactly like every other element. A
--- themed base color would be multiplied by the gradient and draw nearly black.
+--[[
+The header must use the standard element surface recipe: a white base under
+StyleElementBody's ElementGradient, exactly like every other element. A
+themed base color would be multiplied by the gradient and draw nearly black.
+]]
 local toggle = group.elements[2]
 local base = group.headerSurface.BackgroundColor3
 assert(base.R == 1 and base.G == 1 and base.B == 1, "Header keeps the plain white gradient base")
@@ -45,12 +47,14 @@ local function gradientOf(frame)
 end
 assert(gradientOf(group.headerSurface) and gradientOf(group.headerSurface).Color == gradientOf(toggle.main).Color, "Header gradient matches element surfaces")
 
--- One connected card: the container clips its surfaces to the rounded
--- silhouette with a border stroke, the header band rides the element
--- gradient over the darker body surface, and a 1px divider separates them.
--- The reveal mask spans the container and rides its bottom edge; children at
--- UDim2.new(1, -20) of the full-width body land one gutter inside on each
--- side instead of running edge to edge against the container stroke.
+--[[
+One connected card: the container clips its surfaces to the rounded
+silhouette with a border stroke, the header band rides the element
+gradient over the darker body surface, and a 1px divider separates them.
+The reveal mask spans the container and rides its bottom edge; children at
+UDim2.new(1, -20) of the full-width body land one gutter inside on each
+side instead of running edge to edge against the container stroke.
+]]
 assert(group.main.ClipsDescendants, "Container clips its surfaces to the rounded silhouette")
 assert(group.stroke.ApplyStrokeMode == Enum.ApplyStrokeMode.Border, "Outer stroke uses a supported border mode")
 assert(group.bodyClip.ClipsDescendants, "Only the body clipper masks content")
@@ -66,12 +70,14 @@ for _, child in group.main:GetChildren() do
     if child.ClassName == "UIGradient" then containerGradient = child end
 end
 assert(containerCorner and containerCorner.CornerRadius == window.theme.ElementCornerRadius, "Container keeps the element corner radius")
--- Roblox rounds a GuiObject's own surface but never clips its descendants to
--- the arcs, so the band (a child, spanning the full width) used to fill the
--- card's top-left and top-right corners and square off the silhouette the
--- stroke draws. The band now carries the container's own top-corner radius,
--- and the container's surface is the element surface the band paints, so the
--- corner arcs resolve to the band's colour instead of the body's.
+--[[
+Roblox rounds a GuiObject's own surface but never clips its descendants to
+the arcs, so the band (a child, spanning the full width) used to fill the
+card's top-left and top-right corners and square off the silhouette the
+stroke draws. The band now carries the container's own top-corner radius,
+and the container's surface is the element surface the band paints, so the
+corner arcs resolve to the band's colour instead of the body's.
+]]
 assert(containerGradient and containerGradient.Color == window.theme.ElementGradient, "Container surface matches the header band")
 local bandCorner
 for _, child in group.headerSurface:GetChildren() do
@@ -80,14 +86,18 @@ end
 assert(bandCorner, "Header band rounds its own corners")
 assert(bandCorner.TopLeftRadius == window.theme.ElementCornerRadius, "Band's top-left corner matches the container arc")
 assert(bandCorner.TopRightRadius == window.theme.ElementCornerRadius, "Band's top-right corner matches the container arc")
--- Collapsed, the band is the whole card, so its bottom edge is the card's bottom
--- edge: it carries the container's bottom arcs too, or its square corners paint
--- past the stroke and the card reads rounded on top and uneven below.
+--[[
+Collapsed, the band is the whole card, so its bottom edge is the card's bottom
+edge: it carries the container's bottom arcs too, or its square corners paint
+past the stroke and the card reads rounded on top and uneven below.
+]]
 assert(bandCorner.BottomLeftRadius == window.theme.ElementCornerRadius, "Closed band carries the container's bottom-left arc")
 assert(bandCorner.BottomRightRadius == window.theme.ElementCornerRadius, "Closed band carries the container's bottom-right arc")
 assert(group.headerCorner == bandCorner, "The band keeps one corner for both states")
--- The revealed body's darker window surface is painted by the clipper, which
--- is flush with the container's bottom edge and keeps its arcs.
+--[[
+The revealed body's darker window surface is painted by the clipper, which
+is flush with the container's bottom edge and keeps its arcs.
+]]
 local bodyCorner
 local bodyGradient
 for _, child in group.bodyClip:GetChildren() do
@@ -100,15 +110,19 @@ assert(bodyCorner.BottomLeftRadius == window.theme.ElementCornerRadius, "Body ke
 assert(bodyCorner.BottomRightRadius == window.theme.ElementCornerRadius, "Body keeps the container's bottom-right arc")
 assert(bodyCorner.TopLeftRadius.Scale == 0 and bodyCorner.TopLeftRadius.Offset == 0, "Body's top-left corner stays square under the divider")
 assert(bodyCorner.TopRightRadius.Scale == 0 and bodyCorner.TopRightRadius.Offset == 0, "Body's top-right corner stays square under the divider")
--- Grouped children render as defined cards: a visible stroke and a surface a
--- shade under the header band, like the design reference.
+--[[
+Grouped children render as defined cards: a visible stroke and a surface a
+shade under the header band, like the design reference.
+]]
 assert(window.theme.CollapsibleChildElementStrokeTransparency == 0, "Grouped child cards keep a visible stroke")
 -- Header metrics mirror the Text element.
 assert(group.title.TextColor3 == window.theme.TitlingColor, "Title uses the Text title color")
 assert(group.title.Position.X.Offset == 42, "Icon-to-text gap matches the Text element")
 assert(group.chevron.Position.X.Offset == -36, "Chevron keeps the 20px Text gutter")
--- Children keep their normal recipes; the clipper compensates, so inner
--- content resolves to exactly the header's width (no second inset).
+--[[
+Children keep their normal recipes; the clipper compensates, so inner
+content resolves to exactly the header's width (no second inset).
+]]
 assert(group.elements[9].main.Size.X.Offset == -20, "Text child keeps its normal width recipe")
 assert(group.elements[8].main.Size.X.Offset == -40, "Section child keeps its normal width recipe")
 
@@ -118,8 +132,10 @@ group.interact.Activated:Fire()
 TestPump(0.4)
 assert(group._expanded and group.body.Visible and group.bodyClip.Visible and group.main.Size.Y.Offset == group.headerHeight + 921, "Expand to divider + padded content height")
 assert(group.divider.Visible, "Divider reveals with the body")
--- Open, the band stops at the straight divider and the clipper below takes the
--- card's bottom edge, so the bottom pair squares off again on the same corner.
+--[[
+Open, the band stops at the straight divider and the clipper below takes the
+card's bottom edge, so the bottom pair squares off again on the same corner.
+]]
 assert(bandCorner.TopLeftRadius == window.theme.ElementCornerRadius, "Open band keeps the container's top arcs")
 assert(bandCorner.BottomLeftRadius.Scale == 0 and bandCorner.BottomLeftRadius.Offset == 0, "Open band squares its bottom-left against the divider")
 assert(bandCorner.BottomRightRadius.Scale == 0 and bandCorner.BottomRightRadius.Offset == 0, "Open band squares its bottom-right against the divider")
@@ -184,9 +200,11 @@ assert(not group.body.Visible and not group.bodyClip.Visible, "Instant collapse 
 assert(bandCorner.BottomLeftRadius == window.theme.ElementCornerRadius, "Instant collapse rounds the band in the same step")
 Astra.Motion.setProfile("normal")
 
--- The corner set is re-read from the theme, so a radius change follows the
--- band's bottom arcs as well as the container's own (ChangeTheme binds the
--- band's top corners directly; the element's refresh owns the bottom pair).
+--[[
+The corner set is re-read from the theme, so a radius change follows the
+band's bottom arcs as well as the container's own (ChangeTheme binds the
+band's top corners directly; the element's refresh owns the bottom pair).
+]]
 local elementRadius = window.theme.ElementCornerRadius
 window:ChangeTheme({ ElementCornerRadius = UDim.new(0, 5) })
 TestPump(0.2)

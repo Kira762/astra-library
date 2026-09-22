@@ -1,30 +1,32 @@
--- ===== icon resolver assertions: name-only lookup, qualified names, caching =====
--- [[Runs the real Astra bundle (loaded as global `Astra` above) against the]]
--- [[mini Roblox environment from sidebar_sizing_stubs.luau.]]
--- [[
--- [[The resolver used to answer a bare name from one pack (lucide) and to]]
--- [[probe the custom asset folder with up to five `getcustomasset` calls on]]
--- [[every lookup, misses included. This suite pins the replacement contract:
--- [[  * I1  every pack is still reachable through the old API,
--- [[  * I2  nothing is loaded until a lookup needs it, and a lucide name
--- [[        loads lucide alone,
--- [[  * I3  a bare name searches the packs in priority order and stops at the
--- [[        first match - duplicates are resolved by priority, never randomly,
--- [[  * I4  every pack reports a full, properly sized catalog,
--- [[  * I5  `pack:name` and `get(name, pack)` address one pack exactly - an
--- [[        explicit pack is answered or refused, never overruled by the
--- [[        order (the profile card's alias chain relies on that),
--- [[  * I6  names and pack names are case-sensitive (never corrected),
--- [[  * I7  an unknown pack warns once and does not resolve to another pack,
--- [[  * I8  loadable values pass through and misses keep the old fallback,
--- [[  * I9  custom files resolve, are imported once per path, and misses are
--- [[        cached (no repeated probing),
--- [[  * I10 the folder index (listfiles) resolves subfolders and extension
--- [[        preference, and costs nothing for names it does not contain,
--- [[  * I11 one icon's cached answer never stands in for another's,
--- [[  * I12 window:ResolveIcon still resolves inside the window's own pack
--- [[        (or an explicit one), keeping the old fallback for a name that
--- [[        pack does not have.]]
+--[[
+===== icon resolver assertions: name-only lookup, qualified names, caching =====
+Runs the real Astra bundle (loaded as global `Astra` above) against the
+mini Roblox environment from sidebar_sizing_stubs.luau.
+
+The resolver used to answer a bare name from one pack (lucide) and to
+probe the custom asset folder with up to five `getcustomasset` calls on
+every lookup, misses included. This suite pins the replacement contract:
+  * I1  every pack is still reachable through the old API,
+  * I2  nothing is loaded until a lookup needs it, and a lucide name
+        loads lucide alone,
+  * I3  a bare name searches the packs in priority order and stops at the
+        first match - duplicates are resolved by priority, never randomly,
+  * I4  every pack reports a full, properly sized catalog,
+  * I5  `pack:name` and `get(name, pack)` address one pack exactly - an
+        explicit pack is answered or refused, never overruled by the
+        order (the profile card's alias chain relies on that),
+  * I6  names and pack names are case-sensitive (never corrected),
+  * I7  an unknown pack warns once and does not resolve to another pack,
+  * I8  loadable values pass through and misses keep the old fallback,
+  * I9  custom files resolve, are imported once per path, and misses are
+        cached (no repeated probing),
+  * I10 the folder index (listfiles) resolves subfolders and extension
+        preference, and costs nothing for names it does not contain,
+  * I11 one icon's cached answer never stands in for another's,
+  * I12 window:ResolveIcon still resolves inside the window's own pack
+        (or an explicit one), keeping the old fallback for a name that
+        pack does not have.
+]]
 
 local function expect(cond, message)
 	if not cond then

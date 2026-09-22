@@ -1,36 +1,38 @@
--- Drag handle: the detached pill under the window (`components/drag.luau`).
---
--- The handle is created `Visible = false` and the window owns the moment it
--- becomes reachable. Before this suite's fix the window only ever turned it
--- *on* in one place (the minimise settle, 0.5s after folding), so in the
--- normal expanded state the hitbox was invisible, MouseEnter/MouseLeave could
--- never fire and the pill never showed — not on a hover, not when the window
--- was moved. The assertions below pin the states that were missing:
---
---   H1 the first show's settle makes the handle reachable, pill unseen,
---   H2 hovering the handle reveals it (and leaving returns it to the idle hint),
---   H3 moving the window by its topbar brings the pill out for the move and
---      leaves it resting at the idle look when the move ends,
---   H4 the resting pill stays centred, 22px below the window's bottom edge,
---   H5 a press that never crosses the drag threshold is a click: no pill,
---   H6 the handle can itself drag the window (grab look, window follows),
---   H7 hide parks the handle and the next show hands it back unseen,
---   H8 minimise and expand both leave the handle reachable,
---   H9 close takes it off the screen for good.
---
--- The stub's input services are driven directly: `InputBegan`/`InputEnded`
--- are fired on the frames the window listens to, and `GetMouseLocation` is
--- patched so the pointer can actually travel (the stub answers the viewport
--- centre otherwise, and a drag that never leaves its 4px threshold is never
--- a drag). The stub cannot model "an invisible GUI receives no input", so
--- the reachability assertions read `Visible` — that is the flag the engine
--- gates the input on, and the flag that used to be false for the life of an
--- expanded window.
---
--- The stub's inert layout engine does not handle AnchorPoint, so the drag
--- offset the window computes is not the engine's; the assertions therefore
--- check that the window travelled *by the pointer's delta* and that the pill
--- stayed 22px under it, both of which hold whatever the offset is.
+--[[
+Drag handle: the detached pill under the window (`components/drag.luau`).
+
+The handle is created `Visible = false` and the window owns the moment it
+becomes reachable. Before this suite's fix the window only ever turned it
+*on* in one place (the minimise settle, 0.5s after folding), so in the
+normal expanded state the hitbox was invisible, MouseEnter/MouseLeave could
+never fire and the pill never showed — not on a hover, not when the window
+was moved. The assertions below pin the states that were missing:
+
+  H1 the first show's settle makes the handle reachable, pill unseen,
+  H2 hovering the handle reveals it (and leaving returns it to the idle hint),
+  H3 moving the window by its topbar brings the pill out for the move and
+     leaves it resting at the idle look when the move ends,
+  H4 the resting pill stays centred, 22px below the window's bottom edge,
+  H5 a press that never crosses the drag threshold is a click: no pill,
+  H6 the handle can itself drag the window (grab look, window follows),
+  H7 hide parks the handle and the next show hands it back unseen,
+  H8 minimise and expand both leave the handle reachable,
+  H9 close takes it off the screen for good.
+
+The stub's input services are driven directly: `InputBegan`/`InputEnded`
+are fired on the frames the window listens to, and `GetMouseLocation` is
+patched so the pointer can actually travel (the stub answers the viewport
+centre otherwise, and a drag that never leaves its 4px threshold is never
+a drag). The stub cannot model "an invisible GUI receives no input", so
+the reachability assertions read `Visible` — that is the flag the engine
+gates the input on, and the flag that used to be false for the life of an
+expanded window.
+
+The stub's inert layout engine does not handle AnchorPoint, so the drag
+offset the window computes is not the engine's; the assertions therefore
+check that the window travelled *by the pointer's delta* and that the pill
+stayed 22px under it, both of which hold whatever the offset is.
+]]
 
 local function expect(cond, message)
 	if not cond then
@@ -79,17 +81,21 @@ TestPump(1.2)
 local handle = window.drag.drag
 local pill = window.drag.dragCosmetic
 
--- [[The stub's services are read through the library's own state so the test
--- [[drives exactly the instances the window bound to. `services` is a local
--- [[in the stubs, so the public handle is `Astra.Core.state`.]]
+--[[
+The stub's services are read through the library's own state so the test
+drives exactly the instances the window bound to. `services` is a local
+in the stubs, so the public handle is `Astra.Core.state`.
+]]
 local state = Astra.Core.state
 local inputService = state.userInputService
 local realGetMouseLocation = inputService.GetMouseLocation
 local pointer = Vector2.new(960, 540)
--- [[A fresh vector per read, the way the engine answers: handing out one
--- [[shared table would make the window's `startMousePos` and its current
--- [[pointer the same table, so the gesture's travel would read as zero and
--- [[no press would ever cross the drag threshold.
+--[[
+A fresh vector per read, the way the engine answers: handing out one
+shared table would make the window's `startMousePos` and its current
+pointer the same table, so the gesture's travel would read as zero and
+no press would ever cross the drag threshold.
+]]
 inputService.GetMouseLocation = function()
 	return Vector2.new(pointer.X, pointer.Y)
 end
@@ -115,12 +121,14 @@ TestPump(0.3)
 eq(pill.BackgroundTransparency, 0.7, "H2 leaving returns the pill to its idle hint")
 eq(pill.Size.X.Offset, 48, "H2 the idle pill rests at 48px")
 
--- H3: a topbar move brings the pill out for the length of the move.
---
--- [[The window's target is the pointer plus the offset the press grabbed it
--- [[by, read from the public geometry (the grip formula the topbar drag
--- [[documents). Reaching it exactly is what proves the move ran to its
--- [[settled position rather than the pill merely twitching.
+--[[
+H3: a topbar move brings the pill out for the length of the move.
+
+The window's target is the pointer plus the offset the press grabbed it
+by, read from the public geometry (the grip formula the topbar drag
+documents). Reaching it exactly is what proves the move ran to its
+settled position rather than the pill merely twitching.
+]]
 local function grabOffset(mouseX, mouseY)
 	return Vector2.new(
 		window.main.AbsolutePosition.X + window.main.AbsoluteSize.X * window.main.AnchorPoint.X - mouseX,
@@ -183,9 +191,11 @@ window.drag.dragInteract.InputBegan:Fire(mouseButton(), false)
 TestPump(0.2)
 eq(pill.BackgroundTransparency, 0, "H6 grabbing the handle shows the grab look")
 eq(pill.Size.X.Offset, 56, "H6 the grabbed pill is the 56px grab size")
--- [[A hand-placed target well inside the window's clamp range: the point is
--- [[to see the handle drive the window, not to test "Keep window on screen"
--- [[(that clamping has its own coverage elsewhere).]]
+--[[
+A hand-placed target well inside the window's clamp range: the point is
+to see the handle drive the window, not to test "Keep window on screen"
+(that clamping has its own coverage elsewhere).
+]]
 movePointer(500, 300)
 TestPump(1.2)
 near(window.main.Position.X.Offset, 500 + handleGrab.X, 2, "H6 the window follows the handle's drag")

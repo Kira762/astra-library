@@ -5,7 +5,7 @@ state.__type = "Text"
 local constants = require(script.Parent.Parent.utilities.moveable)
 local Text = require(script.Parent.Parent.utilities.locale)
 
--- [[Resting transparency of body text shown by this control.]]
+-- Resting transparency of body text shown by this control.
 local restingTextTransparency = 0.45
 
 function state.new(tab, element)

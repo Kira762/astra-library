@@ -12,7 +12,7 @@ local icon = require(constants.locale)
 local callback = require(constants.HapticEngine)
 local baseCard = require(script.Parent.baseCard)
 local description = require(script.Parent.description)
--- [[The card and stroke provide press feedback without a trailing glyph.]]
+-- The card and stroke provide press feedback without a trailing glyph.
 local motion = require(constants.motion)
 local element = "snappy"
 local tapRelease = "settle"

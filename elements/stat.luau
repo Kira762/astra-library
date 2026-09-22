@@ -23,15 +23,19 @@ local frame = NumberSequence.new({
 
 local valueLabel = 38
 
--- [[The stat's accent gradient drifts to its new angle on the shared hero
--- spec — the same surface language as the window's own gradient.]]
+--[[
+The stat's accent gradient drifts to its new angle on the shared hero
+spec — the same surface language as the window's own gradient.
+]]
 local baseline = "emphasized"
 
--- [[Letter presentation: a stat whose value is not a number drops its numeric
--- readouts and carries the value's first letter as a glyph badge instead. The
--- glyph answer order is the value itself, then the stat's name, then "A", so
--- a badge always has exactly one letter — never an icon, digit or symbol.
--- Byte iteration keeps this free of any utf8 dependency.]]
+--[[
+Letter presentation: a stat whose value is not a number drops its numeric
+readouts and carries the value's first letter as a glyph badge instead. The
+glyph answer order is the value itself, then the stat's name, then "A", so
+a badge always has exactly one letter — never an icon, digit or symbol.
+Byte iteration keeps this free of any utf8 dependency.
+]]
 local function firstGlyphChar(candidate)
     if candidate == nil then
         return nil
@@ -91,12 +95,14 @@ end
 function state.new(tab, a25)
     a25 = if typeof(a25) == "table" then a25 else {}
 
-    -- [[Non-numeric values switch the card to letter mode: the numeric
-    -- readouts are skipped and the first letter of the value (or of the stat's
-    -- own name) renders as a glyph badge instead. String values adopted the
-    -- same passthrough the description already has, so "Default" reads as the
-    -- letter D rather than a number roll. `letter = false` opts a text value
-    -- out of the badge: the whole value then renders as a text readout.]]
+    --[[
+    Non-numeric values switch the card to letter mode: the numeric
+    readouts are skipped and the first letter of the value (or of the stat's
+    own name) renders as a glyph badge instead. String values adopted the
+    same passthrough the description already has, so "Default" reads as the
+    letter D rather than a number roll. `letter = false` opts a text value
+    out of the badge: the whole value then renders as a text readout.
+    ]]
     local desiredValue = if (a25.value or a25.Value) ~= nil then (a25.value or a25.Value) else 0
     local numeric = type(desiredValue) == "number"
     local letterMode = if (a25.letter ~= nil or a25.Letter ~= nil)
@@ -127,14 +133,18 @@ function state.new(tab, a25)
 
                         compact = a25.compact or a25.Compact or tab.compact or false,
         display = (a25.display or a25.Display or "value"),
-        -- [[The glyph badge replaces the numeric readouts for text values and
-        -- whenever the caller asks for a letter explicitly. A provided icon
-        -- keeps the normal leading icon.]]
+        --[[
+        The glyph badge replaces the numeric readouts for text values and
+        whenever the caller asks for a letter explicitly. A provided icon
+        keeps the normal leading icon.
+        ]]
         letter = letterMode,
-        -- [[A text value that opts out of the badge (`letter = false`) reads
-        -- as a plain text readout: one label carrying the whole value. The
-        -- odometer stays out of it — it is a digit machine, so a word would
-        -- cost it a label per character.]]
+        --[[
+        A text value that opts out of the badge (`letter = false`) reads
+        as a plain text readout: one label carrying the whole value. The
+        odometer stays out of it — it is a digit machine, so a word would
+        cost it a label per character.
+        ]]
         textValue = not numeric and not letterMode,
         _initialValue = if (a25.value or a25.Value) ~= nil
             then (a25.value or a25.Value)
@@ -186,9 +196,11 @@ function state:_buildFull()
         Parent = self.stroke,
     })
 
-    -- [[A description grows the card before the readouts are built, so the
-    -- [[bottom-anchored value and change hosts ride up above the line while
-    -- [[the title keeps its own top-left corner.]]
+    --[[
+    A description grows the card before the readouts are built, so the
+    bottom-anchored value and change hosts ride up above the line while
+    the title keeps its own top-left corner.
+    ]]
     description.attach(self)
 
     self.titleContainer = window:Create("Frame", {
@@ -267,10 +279,12 @@ function state:_buildFull()
         Parent = self.titleContainer,
     })
 
-    -- [[Letter mode: a single glyph badge replaces the bottom-anchored value
-    -- and change readouts, so a text-named value still reads as one character
-    -- (never an icon, digit or symbol — just the letter the value starts
-    -- with). Everything above the line keeps the normal stat recipe.]]
+    --[[
+    Letter mode: a single glyph badge replaces the bottom-anchored value
+    and change readouts, so a text-named value still reads as one character
+    (never an icon, digit or symbol — just the letter the value starts
+    with). Everything above the line keeps the normal stat recipe.
+    ]]
     if self.letter then
         self.letterHost = window:Create("Frame", {
             AnchorPoint = Vector2.new(0, 1),
@@ -300,10 +314,12 @@ function state:_buildFull()
         return
     end
 
-    -- [[Text readout: the same slot as the badge, but carrying the whole
-    -- value. No change readout rides along — a percentage delta has no
-    -- meaning for a word — and no odometer is built, so a text stat is
-    -- cheaper than either of the numeric paths.]]
+    --[[
+    Text readout: the same slot as the badge, but carrying the whole
+    value. No change readout rides along — a percentage delta has no
+    meaning for a word — and no odometer is built, so a text stat is
+    cheaper than either of the numeric paths.
+    ]]
     if self.textValue then
         self.textLabel = window:Create("TextLabel", {
             Text = self:_formatValue(self.value),
@@ -517,10 +533,12 @@ function state:_buildCompact()
     })
 
     if self.textValue then
-        -- [[Text readout in the compact card: the whole value in one label.
-        -- It joins the card's own flex row directly rather than sitting in
-        -- the odometer's host frame — an AutomaticSize host with no layout
-        -- inside it measures zero and would clip the word away.]]
+        --[[
+        Text readout in the compact card: the whole value in one label.
+        It joins the card's own flex row directly rather than sitting in
+        the odometer's host frame — an AutomaticSize host with no layout
+        inside it measures zero and would clip the word away.
+        ]]
         self.textLabel = window:Create("TextLabel", {
             Text = self:_formatValue(self.value),
             Size = UDim2.fromOffset(0, 15),
@@ -630,8 +648,10 @@ function state:_updateCompactReadout(a45, a46, a47, a48, a49, a50)
 end
 
 function state:Set(a51)
-    -- [[Letter mode never builds the numeric readouts, so a Set() there keeps
-    -- the glyph badge in step instead of driving odometers that do not exist.]]
+    --[[
+    Letter mode never builds the numeric readouts, so a Set() there keeps
+    the glyph badge in step instead of driving odometers that do not exist.
+    ]]
     if self.letter then
         self.value = a51
         self._hasValue = a51 ~= nil
@@ -641,8 +661,10 @@ function state:Set(a51)
         return
     end
 
-    -- [[A text stat has no odometers or baselines either: Set() writes the
-    -- value straight into the whole-value label.]]
+    --[[
+    A text stat has no odometers or baselines either: Set() writes the
+    value straight into the whole-value label.
+    ]]
     if self.textValue then
         self.value = a51
         self._hasValue = a51 ~= nil
@@ -695,8 +717,10 @@ function state:Set(a51)
 end
 
 function state:ResetBaseline(a62)
-    -- [[Letter mode has no numeric readouts or baselines; clearing the badge
-    -- is the closest equivalent.]]
+    --[[
+    Letter mode has no numeric readouts or baselines; clearing the badge
+    is the closest equivalent.
+    ]]
     if self.letter then
         self._initialValue = a62
         self.value = a62
@@ -707,8 +731,10 @@ function state:ResetBaseline(a62)
         return
     end
 
-    -- [[Same for the text readout: the value is rewritten, there is no
-    -- baseline to clear.]]
+    --[[
+    Same for the text readout: the value is rewritten, there is no
+    baseline to clear.
+    ]]
     if self.textValue then
         self._initialValue = a62
         self.value = a62
@@ -739,17 +765,21 @@ function state:ResetBaseline(a62)
     self:_setAccent("neutral", 0)
 end
 
--- [[Text readout update: rewrites the whole-value label. Text stats only —
--- the numeric paths drive their odometers and the badge path its glyph.]]
+--[[
+Text readout update: rewrites the whole-value label. Text stats only —
+the numeric paths drive their odometers and the badge path its glyph.
+]]
 function state:_writeTextReadout()
     if self.textLabel then
         self.textLabel.Text = self:_formatValue(self.value)
     end
 end
 
--- [[Text readout update: swaps the value's own text. Only meaningful on a
--- stat built in text mode (a text value with letter = false); letter stats
--- keep their badge and numeric stats keep their own Set() path.]]
+--[[
+Text readout update: swaps the value's own text. Only meaningful on a
+stat built in text mode (a text value with letter = false); letter stats
+keep their badge and numeric stats keep their own Set() path.
+]]
 function state:SetText(text)
     if type(text) == "number" then
         self:Set(text)

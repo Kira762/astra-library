@@ -1,5 +1,7 @@
--- Functional info badges were permanently removed. Legacy props and SetInfo
--- remain safe to pass/call, but must never allocate a badge or input bindings.
+--[[
+Functional info badges were permanently removed. Legacy props and SetInfo
+remain safe to pass/call, but must never allocate a badge or input bindings.
+]]
 local function expect(condition, message)
     if not condition then
         error("INFO REMOVAL FAIL: " .. message, 0)

@@ -1,22 +1,24 @@
--- ===== About card (CreateAboutCard) assertions =====
--- [[Runs the real Astra bundle (loaded as global `Astra` above) against the]]
--- [[mini Roblox environment from sidebar_sizing_stubs.luau.]]
---
--- The About card is one container with four blocks: a brand header, a row of
--- at most three data tiles, a description paragraph and an optional trailing
--- action band. Expected behavior under test:
---   * A1 the header renders the leading icon, the title and the subtitle, and
---        the band is as tall as the copy it carries,
---   * A2 one, two or three compact tiles always share a single row evenly and
---        each carries its badge icon and its own label and value,
---   * A3 the description is one wrapped paragraph,
---   * A4 the action band is the card's tap target: it renders its copy, its
---        trailing chevron and fires its callback,
---   * A5 a fourth data row is refused with an exact message,
---   * A6 the setters rewrite the header, one row and the paragraph in place,
---   * A7 the card rests revealed, disappears with the window and comes back,
---        and a theme change re-reads every resting value,
---   * A8 a locked card fires nothing.
+--[[
+===== About card (CreateAboutCard) assertions =====
+Runs the real Astra bundle (loaded as global `Astra` above) against the
+mini Roblox environment from sidebar_sizing_stubs.luau.
+
+The About card is one container with four blocks: a brand header, a row of
+at most three data tiles, a description paragraph and an optional trailing
+action band. Expected behavior under test:
+  * A1 the header renders the leading icon, the title and the subtitle, and
+       the band is as tall as the copy it carries,
+  * A2 one, two or three compact tiles always share a single row evenly and
+       each carries its badge icon and its own label and value,
+  * A3 the description is one wrapped paragraph,
+  * A4 the action band is the card's tap target: it renders its copy, its
+       trailing chevron and fires its callback,
+  * A5 a fourth data row is refused with an exact message,
+  * A6 the setters rewrite the header, one row and the paragraph in place,
+  * A7 the card rests revealed, disappears with the window and comes back,
+       and a theme change re-reads every resting value,
+  * A8 a locked card fires nothing.
+]]
 
 local function expect(cond, message)
 	if not cond then
@@ -146,7 +148,7 @@ end
 expect(card.rows[1].icon ~= card.rows[2].icon, "A2 the rows carry their own icons")
 close(card.main.Size.X.Offset, -20, "A2 the card keeps the element gutter")
 
--- [[One row fills the band on its own; two split it between them.]]
+-- One row fills the band on its own; two split it between them.
 local single = tab:CreateAboutCard({ name = "One", rows = { { icon = "code", label = "Only", value = "1" } } })
 TestPump(0.3)
 eq(#single._rowLines, 1, "A2 a single row is its own line")
@@ -212,7 +214,7 @@ card.actionButton.MouseButton1Click:Fire()
 TestPump(0.3)
 eq(taps, 1, "A4 the band tap fired the callback")
 
--- [[A card built without an action keeps its header, rows and paragraph.]]
+-- A card built without an action keeps its header, rows and paragraph.
 local quiet = tab:CreateAboutCard({ name = "Quiet", rows = { { label = "Only", value = "1" } } })
 TestPump(0.3)
 eq(quiet.actionButton, nil, "A4 a card without an action has nothing to tap")
@@ -284,8 +286,10 @@ card:SetDescription(nil)
 TestPump(0.2)
 eq(card.descriptionLabel.Visible, false, "A6 SetDescription(nil) takes it out of the layout")
 
--- [[The rendered copy is host copy: every string the props carried is on the
--- [[card, and nothing else was invented.]]
+--[[
+The rendered copy is host copy: every string the props carried is on the
+card, and nothing else was invented.
+]]
 local rendered = texts(card.main)
 for _, wanted in ipairs({ "Release", "Back again", "Version", "1.5.0", "Build", "2026.09.12", "Author", "Astra Team" }) do
 	expect(contains(rendered, wanted), "A6 the card renders '" .. wanted .. "'")
@@ -351,8 +355,10 @@ card.actionButton.MouseButton1Click:Fire()
 TestPump(0.2)
 eq(taps, before, "A8 a locked card fires nothing")
 
--- [[While it is locked the card's paragraph is the shared lock message; the
--- [[description it had comes back on unlock.
+--[[
+While it is locked the card's paragraph is the shared lock message; the
+description it had comes back on unlock.
+]]
 eq(card.descriptionLabel.Text, "This element is locked.", "A8 the paragraph carries the lock message")
 
 card:Unlock()

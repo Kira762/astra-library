@@ -1,11 +1,13 @@
--- A minimal in-memory stand-in for the executor filesystem API that Astra's
--- persistence layer talks to (writefile / readfile / isfile / listfiles /
--- delfile). Config and settings suites need it; without it `isfile` is nil and
--- the first autosave assertion dies with "attempt to call a nil value".
---
--- `listfiles` reports everything `writefile` created, so config listing can be
--- exercised: a fake filesystem where `isfile` says yes but the listing comes
--- back empty cannot test the saved-configurations dropdown at all.
+--[[
+A minimal in-memory stand-in for the executor filesystem API that Astra's
+persistence layer talks to (writefile / readfile / isfile / listfiles /
+delfile). Config and settings suites need it; without it `isfile` is nil and
+the first autosave assertion dies with "attempt to call a nil value".
+
+`listfiles` reports everything `writefile` created, so config listing can be
+exercised: a fake filesystem where `isfile` says yes but the listing comes
+back empty cannot test the saved-configurations dropdown at all.
+]]
 local files = {}
 writefile = function(path, content) files[path] = content end
 readfile = function(path) return files[path] or "" end

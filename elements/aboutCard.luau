@@ -1,24 +1,26 @@
--- [[CreateAboutCard: one card that carries an About page — a brand header, a
--- [[row of data tiles, a description paragraph and an optional trailing
--- [[action band.
---
--- [[The recipe is fixed and every string in it is host copy:
---
--- [[  * header — a leading icon plus a title/subtitle stack,
--- [[  * rows — one to three compact data tiles, each a leading icon with a
--- [[    label above its value. Every tile shares one line evenly: the three-row
--- [[    About recipe stays three-across instead of leaving its last tile alone
--- [[    on a second line,
--- [[  * description — one wrapped paragraph under the tiles,
--- [[  * action (optional) — a tappable band carrying an icon, a label, a
--- [[    subtitle and the card's trailing chevron. It is the card's trailing
--- [[    row, which is why the data rows stop at three: a fourth would be the
--- [[    action itself.
---
--- [[Every surface stays inside the shared theme tokens — the card is the
--- [[standard element body, each tile and the action band use ElementSurface,
--- [[and the nested badge uses that same control family — so the card themes
--- [[itself like every other element instead of hard-coding a dark inset.
+--[[
+CreateAboutCard: one card that carries an About page — a brand header, a
+row of data tiles, a description paragraph and an optional trailing
+action band.
+
+The recipe is fixed and every string in it is host copy:
+
+  * header — a leading icon plus a title/subtitle stack,
+  * rows — one to three compact data tiles, each a leading icon with a
+    label above its value. Every tile shares one line evenly: the three-row
+    About recipe stays three-across instead of leaving its last tile alone
+    on a second line,
+  * description — one wrapped paragraph under the tiles,
+  * action (optional) — a tappable band carrying an icon, a label, a
+    subtitle and the card's trailing chevron. It is the card's trailing
+    row, which is why the data rows stop at three: a fourth would be the
+    action itself.
+
+Every surface stays inside the shared theme tokens — the card is the
+standard element body, each tile and the action band use ElementSurface,
+and the nested badge uses that same control family — so the card themes
+itself like every other element instead of hard-coding a dark inset.
+]]
 
 local state = {}
 state.__index = state
@@ -33,14 +35,18 @@ local lockable = require(utilities.lockable)
 local motion = require(utilities.motion)
 local moveable = require(utilities.moveable)
 
--- [[The rows section is capped at three tiles so the compact status band keeps
--- [[useful room for every label and value; the action remains its trailing row.]]
+--[[
+The rows section is capped at three tiles so the compact status band keeps
+useful room for every label and value; the action remains its trailing row.
+]]
 local maxRows = 3
 
--- [[Card metrics. The card keeps the library's 20px gutter. Data tiles are a
--- [[deliberately compact 48px band: the smaller inset and badge leave enough
--- [[copy room for three equal tiles on the normal card width without making the
--- [[third row wrap below the first two.
+--[[
+Card metrics. The card keeps the library's 20px gutter. Data tiles are a
+deliberately compact 48px band: the smaller inset and badge leave enough
+copy room for three equal tiles on the normal card width without making the
+third row wrap below the first two.
+]]
 local gutter = 20
 local sectionGap = 14
 local headerIconSize = 38
@@ -75,18 +81,22 @@ local actionSubtitleHeight = 16
 local actionChevronSize = 16
 local actionChevronInset = 16
 
--- [[Resting transparencies once the card has been revealed: the muted body
--- [[lines match every other 14px line in the library, the trailing chevron
--- [[matches the Isolated header's, and both step up while the pointer is over
--- [[the action band.]]
+--[[
+Resting transparencies once the card has been revealed: the muted body
+lines match every other 14px line in the library, the trailing chevron
+matches the Isolated header's, and both step up while the pointer is over
+the action band.
+]]
 local restingMutedTransparency = 0.45
 local restingChevronTransparency = 0.4
 local hoveredChevronTransparency = 0.15
 
--- [[What a tracked part rests at while the card is shown. Every tracked
--- [[property is a transparency, so "hidden" is always 1 and only the shown
--- [[value needs a rule. `background`, `stroke` and `muted` read the theme and
--- [[the rest are literals.
+--[[
+What a tracked part rests at while the card is shown. Every tracked
+property is a transparency, so "hidden" is always 1 and only the shown
+value needs a rule. `background`, `stroke` and `muted` read the theme and
+the rest are literals.
+]]
 local restValue = {
     background = function(self)
         return self.window:_elementBackgroundTransparency(self)
@@ -116,9 +126,11 @@ local function read(properties, lower, upper)
     return value
 end
 
--- [[Text slots normalise through here: numbers are legal values (a version or
--- [[a build number), and an empty string is treated as "no copy" so the slot
--- [[that owns it can drop out of the layout instead of rendering a blank band.
+--[[
+Text slots normalise through here: numbers are legal values (a version or
+a build number), and an empty string is treated as "no copy" so the slot
+that owns it can drop out of the layout instead of rendering a blank band.
+]]
 local function textOf(value)
     if value == nil then
         return nil
@@ -134,10 +146,12 @@ local function textOrNil(value)
     return text
 end
 
--- [[A nested surface uses the theme's element fill, not the much darker window
--- [[gradient. The surrounding stroke still separates each tile and action band
--- [[from the card, while their colour stays in the same hierarchy as the rest
--- [[of Astra's controls.
+--[[
+A nested surface uses the theme's element fill, not the much darker window
+gradient. The surrounding stroke still separates each tile and action band
+from the card, while their colour stays in the same hierarchy as the rest
+of Astra's controls.
+]]
 local function insetSurface(window, frame)
     window:Create("UICorner", { Parent = frame }, { CornerRadius = "ElementCornerRadius" })
     return window:Create("UIStroke", { Transparency = 1, Parent = frame }, {
@@ -168,9 +182,11 @@ function state.new(tab, props)
         icon = window:ResolveIcon(read(props, "icon", "Icon")),
         description = textOrNil(read(props, "description", "Description")),
         rows = {},
-        -- [[Every painted part of the card in one list (see `restValue`), so a
-        -- [[reveal is one loop and a part cannot be forgotten in only one of
-        -- [[the show and hide paths.
+        --[[
+        Every painted part of the card in one list (see `restValue`), so a
+        reveal is one loop and a part cannot be forgotten in only one of
+        the show and hide paths.
+        ]]
         parts = {},
         deriveFlagFromName = tab.deriveFlagFromName,
         forgetState = props.forgetState or tab.forgetState,
@@ -182,7 +198,7 @@ function state.new(tab, props)
     return self
 end
 
--- [[Track one painted part: `{ instance, property, rest kind }`.
+-- Track one painted part: `{ instance, property, rest kind }`.
 function state:_track(instance, property, kind)
     table.insert(self.parts, { instance, property, kind })
 end
@@ -259,9 +275,11 @@ function state:_buildHeader()
         Parent = self.header,
     })
 
-    -- [[The leading slot exists whether or not the card started with an icon,
-    -- [[so `SetIcon` can add one later instead of silently doing nothing.
-    -- [[Hidden, it is out of the list layout's flow.
+    --[[
+    The leading slot exists whether or not the card started with an icon,
+    so `SetIcon` can add one later instead of silently doing nothing.
+    Hidden, it is out of the list layout's flow.
+    ]]
     self.iconLabel = window:Create("ImageLabel", {
         Name = "Icon",
         Image = self.icon or "",
@@ -329,8 +347,10 @@ function state:_headerHeight()
     return if self.subtitle then headerTitleHeight + headerLineGap + headerSubtitleHeight else headerTitleHeight
 end
 
--- [[The header re-derives from the subtitle slot: adding or releasing the
--- [[second line reflows the band and the text column from one place.
+--[[
+The header re-derives from the subtitle slot: adding or releasing the
+second line reflows the band and the text column from one place.
+]]
 function state:_applyHeaderMetrics()
     local height = self:_headerHeight()
     self.header.Size = UDim2.new(1, 0, 0, height)
@@ -341,8 +361,10 @@ end
 function state:_buildRows(rows)
     local window = self.window
 
-    -- [[The tiles are placed by `_layoutRows`, not by a list layout, so one to
-    -- [[three equal slices can account for their gaps without wrapping.
+    --[[
+    The tiles are placed by `_layoutRows`, not by a list layout, so one to
+    three equal slices can account for their gaps without wrapping.
+    ]]
     self.rowsHost = window:Create("Frame", {
         Name = "Rows",
         Size = UDim2.new(1, 0, 0, tileHeight),
@@ -357,8 +379,10 @@ function state:_buildRows(rows)
         self.rows[index] = self:_buildRow(index, row)
     end
     self:_layoutRows()
-    -- [[Scale-based slices follow resizes themselves; refreshing here also
-    -- [[keeps `_rowLines` and any runtime metric changes in sync.
+    --[[
+    Scale-based slices follow resizes themselves; refreshing here also
+    keeps `_rowLines` and any runtime metric changes in sync.
+    ]]
     window:ConnectFor(self, self.main:GetPropertyChangedSignal("AbsoluteSize"), function()
         self:_layoutRows()
     end)
@@ -404,9 +428,11 @@ function state:_buildRow(index, row)
         Parent = entry.main,
     })
 
-    -- [[The badge is the small square the row's icon sits in. It carries the
-    -- [[content surface and the element stroke, so the mark reads as a chip on
-    -- [[the tile rather than as a floating glyph.
+    --[[
+    The badge is the small square the row's icon sits in. It carries the
+    content surface and the element stroke, so the mark reads as a chip on
+    the tile rather than as a floating glyph.
+    ]]
     entry.badge = window:Create("Frame", {
         Name = "Badge",
         Size = UDim2.fromOffset(badgeSize, badgeSize),
@@ -492,8 +518,10 @@ function state:_buildRow(index, row)
     return entry
 end
 
--- [[The tile's text column reserves exactly the badge plus its gap, so a row
--- [[without an icon hands the whole tile to its label and value.
+--[[
+The tile's text column reserves exactly the badge plus its gap, so a row
+without an icon hands the whole tile to its label and value.
+]]
 function state:_applyRowIcon(entry)
     local hasIcon = entry.icon ~= nil
     entry.badge.Visible = hasIcon
@@ -501,12 +529,14 @@ function state:_applyRowIcon(entry)
     entry.textColumn.Size = UDim2.new(1, if hasIcon then -(badgeSize + badgeGap) else 0, 0, tileTextHeight)
 end
 
--- [[The tiles always occupy one compact line. Their equal slices make the
--- [[Version / Build / Author recipe read as one three-part status row instead
--- [[of a two-column grid with an oversized orphan below it. The first layout
--- [[can run before Roblox has measured the card; scale-based width keeps that
--- [[pass correct and automatically follows later window resizing without a
--- [[minimum-width packing threshold.
+--[[
+The tiles always occupy one compact line. Their equal slices make the
+Version / Build / Author recipe read as one three-part status row instead
+of a two-column grid with an oversized orphan below it. The first layout
+can run before Roblox has measured the card; scale-based width keeps that
+pass correct and automatically follows later window resizing without a
+minimum-width packing threshold.
+]]
 function state:_layoutRows()
     local count = #self.rows
     if count == 0 then
@@ -523,11 +553,13 @@ function state:_layoutRows()
     end
 end
 
--- [[The paragraph is the card's `descriptionLabel`: its resting transparency,
--- [[its reveal and hide, and the lock message the window swaps in while the
--- [[card is locked are the shared ones every element's helper line uses
--- [[(components/window/elements.luau), so the card joins that recipe instead of
--- [[carrying a second, private one.
+--[[
+The paragraph is the card's `descriptionLabel`: its resting transparency,
+its reveal and hide, and the lock message the window swaps in while the
+card is locked are the shared ones every element's helper line uses
+(components/window/elements.luau), so the card joins that recipe instead of
+carrying a second, private one.
+]]
 function state:_buildDescription()
     local window = self.window
 
@@ -644,9 +676,11 @@ function state:_buildAction(action)
         window:_bindLocale(self.actionSubtitle, "Text", self.action.subtitle)
     end
 
-    -- [[The trailing chevron is part of the band, never changeable and never
-    -- [[removable, so no setter reaches it (the same rule the Isolated header
-    -- [[follows).
+    --[[
+    The trailing chevron is part of the band, never changeable and never
+    removable, so no setter reaches it (the same rule the Isolated header
+    follows).
+    ]]
     self.actionChevron = window:Create("ImageLabel", {
         Name = "Chevron",
         Image = window:ResolveIcon("chevron-right") or "",
@@ -659,8 +693,10 @@ function state:_buildAction(action)
         Parent = self.actionBand,
     }, { ImageColor3 = "ContentColor" })
 
-    -- [[The tap target is the whole band, so tapping anywhere on it — not only
-    -- [[on the chevron — fires the action.
+    --[[
+    The tap target is the whole band, so tapping anywhere on it — not only
+    on the chevron — fires the action.
+    ]]
     self.actionButton = window:Create("TextButton", {
         Name = "Tap",
         Text = "",
@@ -695,10 +731,12 @@ function state:_activate()
     end
 end
 
--- [[The band is the card's interactive surface, so it carries the library's
--- [[own hover language (Window:_wireElementHover's recipe) scoped to itself:
--- [[the card stays still, the band's stroke, label and chevron answer. The
--- [[theme keys are read live, so a runtime theme change still flows through.
+--[[
+The band is the card's interactive surface, so it carries the library's
+own hover language (Window:_wireElementHover's recipe) scoped to itself:
+the card stays still, the band's stroke, label and chevron answer. The
+theme keys are read live, so a runtime theme change still flows through.
+]]
 function state:_wireActionHover()
     local window = self.window
     local theme = window.theme
@@ -735,15 +773,19 @@ function state:_setShown(shown, animate)
     self:_paint(shown, animate)
 end
 
--- [[A theme change re-reads every resting value the card paints with, exactly
--- [[as a reveal does.
+--[[
+A theme change re-reads every resting value the card paints with, exactly
+as a reveal does.
+]]
 function state:_refreshTheme()
     self:_setShown(self._shown, false)
 end
 
--- [[Public setters. The header's three slots and the paragraph mirror the
--- [[Isolated container's; the row setter rewrites one tile in place instead of
--- [[rebuilding the row, so a live status card never re-measures its layout.
+--[[
+Public setters. The header's three slots and the paragraph mirror the
+Isolated container's; the row setter rewrites one tile in place instead of
+rebuilding the row, so a live status card never re-measures its layout.
+]]
 function state:SetTitle(title)
     self.name = textOf(title) or ""
     self.window:_bindLocale(self.title, "Text", self.name)
@@ -764,8 +806,10 @@ function state:SetIcon(icon)
     image.assign(self.iconLabel, "Image", self.icon or "")
     self.iconLabel.Visible = self.icon ~= nil
     self:_applyHeaderMetrics()
-    -- [[The icon slot is tracked, so it lands at its resting transparency for
-    -- [[whichever state the card is in right now.
+    --[[
+    The icon slot is tracked, so it lands at its resting transparency for
+    whichever state the card is in right now.
+    ]]
     self:_setShown(self._shown, false)
 end
 
@@ -797,9 +841,11 @@ function state:SetRow(index, row)
         changed = true
     end
 
-    -- [[Refresh the equal-slice row after an icon changes the text reservation;
-    -- [[copy is truncated inside its own compact tile rather than wrapping the
-    -- [[last tile onto another line.
+    --[[
+    Refresh the equal-slice row after an icon changes the text reservation;
+    copy is truncated inside its own compact tile rather than wrapping the
+    last tile onto another line.
+    ]]
     if changed then
         self:_layoutRows()
         self:_setShown(self._shown, false)

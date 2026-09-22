@@ -1,16 +1,18 @@
--- Motion paths: the window's full choreography runs with animation ON under
--- the stub's synchronous tweens. The stub plays every tween on the spot and
--- fires Completed synchronously, so any path that touches an instance after
--- its own settle callback destroyed it (or that leaves the state machine
--- half-settled) fails here. Assertions:
---
---   P1 the first show settles: visible, not animating, surface faded in,
---   P2 hide folds to the capsule: hidden, collapsed shown, corner on the pill,
---   P3 show restores: size back, corner back to CornerRoundness,
---   P4 minimise/expand keeps the bar at the topbar height and restores,
---   P5 a theme change with animation on does not error and reaches strokes,
---   P6 a layout switch (sidebar -> collapsedSidebar -> sidebar) settles back,
---   P7 close tears the window down (the destroy-sensitive ordering path).
+--[[
+Motion paths: the window's full choreography runs with animation ON under
+the stub's synchronous tweens. The stub plays every tween on the spot and
+fires Completed synchronously, so any path that touches an instance after
+its own settle callback destroyed it (or that leaves the state machine
+half-settled) fails here. Assertions:
+
+  P1 the first show settles: visible, not animating, surface faded in,
+  P2 hide folds to the capsule: hidden, collapsed shown, corner on the pill,
+  P3 show restores: size back, corner back to CornerRoundness,
+  P4 minimise/expand keeps the bar at the topbar height and restores,
+  P5 a theme change with animation on does not error and reaches strokes,
+  P6 a layout switch (sidebar -> collapsedSidebar -> sidebar) settles back,
+  P7 close tears the window down (the destroy-sensitive ordering path).
+]]
 
 local function expect(cond, message)
 	if not cond then

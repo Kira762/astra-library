@@ -22,22 +22,28 @@ function Window:_applyWindowSize()
     if self.unloaded then
         return
     end
-    -- [[Desktop/PC: newSize tracks the viewport (responsive, min/max protected).]]
-    -- [[Mobile: windowSizing.fit returns the fixed mobile profile on every call, so]]
-    -- [[viewport changes (rotation, keyboard, inset) never resize the window here.]]
+    --[[
+    Desktop/PC: newSize tracks the viewport (responsive, min/max protected).
+    Mobile: windowSizing.fit returns the fixed mobile profile on every call, so
+    viewport changes (rotation, keyboard, inset) never resize the window here.
+    ]]
     local newSize = computeSize(self.layout.mode)
     local sizeChanged = newSize ~= self.size
     self.size = newSize
-    -- [[Nothing moved: no rail write, no layout invalidation. This is the
-    -- [[window's steady state - the viewport poll below calls this every
-    -- [[couple of seconds for the whole session, and the rail write used to
-    -- [[happen before the check.]]
+    --[[
+    Nothing moved: no rail write, no layout invalidation. This is the
+    window's steady state - the viewport poll below calls this every
+    couple of seconds for the whole session, and the rail write used to
+    happen before the check.
+    ]]
     if not sizeChanged and not self._pendingResize then
         return
     end
-    -- [[The rail follows the window's size, its layout and its tabs, all of
-    -- [[which are in step by the time this runs: it only has to be written
-    -- [[when one of them moved, which is what this function is for.]]
+    --[[
+    The rail follows the window's size, its layout and its tabs, all of
+    which are in step by the time this runs: it only has to be written
+    when one of them moved, which is what this function is for.
+    ]]
     self:_applyRailWidth()
     if self.hidden or self.minimised or self.animating or self._revealing then
         self._pendingResize = true
@@ -48,16 +54,20 @@ function Window:_applyWindowSize()
     self:_clampToScreen()
     self:_syncDragBar()
     if self.main.Position.X.Scale == 0.5 and self.main.Position.Y.Scale == 0.5 then
-        -- [[Still anchored at the screen centre (the user has not dragged]]
-        -- [[it): re-apply the resting centre for the new size.]]
+        --[[
+        Still anchored at the screen centre (the user has not dragged
+        it): re-apply the resting centre for the new size.
+        ]]
         self:_recenterWindow(false)
     end
 end
 
--- [[Effective rail width. Non-sidebar and collapsed rails keep the existing]]
--- [[fixed behavior; the expanded responsive rail instead hugs the widest]]
--- [[visible tab row (railContentWidth), capped by the window's available]]
--- [[space so the elements area always keeps at least half the window.]]
+--[[
+Effective rail width. Non-sidebar and collapsed rails keep the existing
+fixed behavior; the expanded responsive rail instead hugs the widest
+visible tab row (railContentWidth), capped by the window's available
+space so the elements area always keeps at least half the window.
+]]
 
 function Window:_railWidth()
     local base = layouts.railWidthFor(self.layout, self.size.X.Offset)
@@ -201,11 +211,13 @@ function Window:_setLayoutMode(modeName)
             tab:_applyVisual(if self.selectedTab == tab then "selected" else "unselected")
         end
     end
-    -- [[The rows above are brand-new instances, and the rail's width was
-    -- [[applied before they existed. Re-applying it now lands the row state on
-    -- [[the rows that actually live in the rail — icon-only rows in a
-    -- [[collapsed rail (a rail that came back showing tab names), titles held
-    -- [[inside a capped one (a rail that came back overflowing).
+    --[[
+    The rows above are brand-new instances, and the rail's width was
+    applied before they existed. Re-applying it now lands the row state on
+    the rows that actually live in the rail — icon-only rows in a
+    collapsed rail (a rail that came back showing tab names), titles held
+    inside a capped one (a rail that came back overflowing).
+    ]]
     self:_applyRailWidth()
     self:_applySettingsLayout(self._settingsMode)
     if self.selectedTab then
@@ -227,9 +239,11 @@ function Window:_applySettingsLayout(isSettings)
     settingsComponent.applySettingsLayout(self, isSettings)
 end
 
--- [[Rail groups: the rail shows exactly one group at a time - main tabs]]
--- [[or settings tabs. Every rail filter reads these helpers so the two]]
--- [[of them cannot drift apart.]]
+--[[
+Rail groups: the rail shows exactly one group at a time - main tabs
+or settings tabs. Every rail filter reads these helpers so the two
+of them cannot drift apart.
+]]
 
 function Window:_clampedPosition(position: UDim2): UDim2
     if not self.settings or not self.settings.keepOnScreen then
@@ -256,7 +270,7 @@ function Window:_clampToScreen()
     self.main.Position = self:_clampedPosition(self.main.Position)
 end
 
--- [[The window's canonical resting position: dead centre of the screen.]]
+-- The window's canonical resting position: dead centre of the screen.
 
 function Window:_restingCenterPosition(): UDim2
     return UDim2.new(0.5, 0, 0.5, 0)
@@ -265,8 +279,10 @@ end
 function Window:_recenterWindow(animate)
     local target = self:_restingCenterPosition()
     if self.hidden or self.minimised then
-        -- [[Nothing is on screen to move; park the remembered position so]]
-        -- [[the next restore lands centred.]]
+        --[[
+        Nothing is on screen to move; park the remembered position so
+        the next restore lands centred.
+        ]]
         self._restorePosition = target
         return
     end
@@ -274,8 +290,10 @@ function Window:_recenterWindow(animate)
         return
     end
     if animate and not self.animating then
-        -- [[A recenter slides the window sideways between resting places:
-        -- the symmetric `glide` ease reads as deliberate, not reactive.]]
+        --[[
+        A recenter slides the window sideways between resting places:
+        the symmetric `glide` ease reads as deliberate, not reactive.
+        ]]
         motion.tween(self.main, { Position = target }, "glide")
         motion.tween(self.drag.drag, {
             Position = UDim2.new(target.X.Scale, target.X.Offset, target.Y.Scale, target.Y.Offset + self.size.Y.Offset / 2 + dragHandleGap),

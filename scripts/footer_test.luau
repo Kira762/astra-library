@@ -1,35 +1,37 @@
--- ===== Footer (CreateFooter) assertions =====
--- [[Runs the real Astra bundle (loaded as global `Astra` above) against the]]
--- [[mini Roblox environment from sidebar_sizing_stubs.luau.]]
---
--- The Footer is the centred inline text-and-icon strip — the
--- "Built with ⚡ Astra ♡" credit line. Its whole contract is order and
--- centring: the run renders exactly in the order it was given, every
--- segment auto-sizes, the icons scale to the text size, and the row
--- re-centres itself as one unit whenever the content changes.
---
--- Expected behavior under test:
---   * F1 the run renders in order — text, icon, text, icon — as one
---        TextLabel / ImageLabel per segment under a centring layout,
---   * F2 the labels auto-size on X, the icons ride at textSize + 3, and the
---        container auto-heights and centres on both axes,
---   * F3 a footer on the selected tab is revealed to the muted resting
---        transparency; a footer built on an unselected tab stays hidden until
---        its tab is selected,
---   * F4 Set() replaces the whole run: old segments are destroyed, the new
---        order renders, unresolved pack names drop instead of leaving gaps,
---        and explicit asset references survive,
---   * F5 the shorthand forms work — plain strings and mixed
---        `{ text = ..., icon = ... }` entries,
---   * F6 the footer builds inside an ordinary Group and declaratively inside
---        a Collapsible Group (`type = "Footer"`),
---   * F7 an empty run renders nothing (the row hides instead of showing a
---        blank band),
---   * F8 the move API works like on every other element,
---   * F9 neither a theme pass nor a bar-layout switch ever paints the
---        container: the transparent host stays transparent and the run keeps
---        its muted resting transparency (the "white bar" regression),
---   * F10 teardown.
+--[[
+===== Footer (CreateFooter) assertions =====
+Runs the real Astra bundle (loaded as global `Astra` above) against the
+mini Roblox environment from sidebar_sizing_stubs.luau.
+
+The Footer is the centred inline text-and-icon strip — the
+"Built with ⚡ Astra ♡" credit line. Its whole contract is order and
+centring: the run renders exactly in the order it was given, every
+segment auto-sizes, the icons scale to the text size, and the row
+re-centres itself as one unit whenever the content changes.
+
+Expected behavior under test:
+  * F1 the run renders in order — text, icon, text, icon — as one
+       TextLabel / ImageLabel per segment under a centring layout,
+  * F2 the labels auto-size on X, the icons ride at textSize + 3, and the
+       container auto-heights and centres on both axes,
+  * F3 a footer on the selected tab is revealed to the muted resting
+       transparency; a footer built on an unselected tab stays hidden until
+       its tab is selected,
+  * F4 Set() replaces the whole run: old segments are destroyed, the new
+       order renders, unresolved pack names drop instead of leaving gaps,
+       and explicit asset references survive,
+  * F5 the shorthand forms work — plain strings and mixed
+       `{ text = ..., icon = ... }` entries,
+  * F6 the footer builds inside an ordinary Group and declaratively inside
+       a Collapsible Group (`type = "Footer"`),
+  * F7 an empty run renders nothing (the row hides instead of showing a
+       blank band),
+  * F8 the move API works like on every other element,
+  * F9 neither a theme pass nor a bar-layout switch ever paints the
+       container: the transparent host stays transparent and the run keeps
+       its muted resting transparency (the "white bar" regression),
+  * F10 teardown.
+]]
 
 local function expect(cond, message)
 	if not cond then
@@ -46,9 +48,11 @@ local function eq(actual, wanted, message)
 	end
 end
 
--- [[Collect an element's runs in layout order: every direct child of the
--- [[footer body that carries a LayoutOrder is a run. Sorted densely — a
--- [[dropped segment leaves a hole in the order, not in this list.]]
+--[[
+Collect an element's runs in layout order: every direct child of the
+footer body that carries a LayoutOrder is a run. Sorted densely — a
+dropped segment leaves a hole in the order, not in this list.
+]]
 local function runsOf(footer)
 	local runs = {}
 	for _, child in footer.main:GetChildren() do
@@ -104,9 +108,11 @@ eq(runs[3].text, "Astra", "F1 ... carrying the second text")
 eq(runs[4].className, "ImageLabel", "F1 segment 4 is an icon")
 expect(runs[4].image ~= nil and runs[4].image ~= "heart", "F1 ... resolved through the icon catalog")
 
--- [[Remote glyph URLs go through the shared image cache and read as a pending
--- [[placeholder until the download lands, so distinctness is asserted at the
--- [[resolver: two different pack names resolve to two different glyphs.]]
+--[[
+Remote glyph URLs go through the shared image cache and read as a pending
+placeholder until the download lands, so distinctness is asserted at the
+resolver: two different pack names resolve to two different glyphs.
+]]
 expect(
 	footer.window:ResolveIcon("zap") ~= footer.window:ResolveIcon("heart"),
 	"F1 the two glyphs are different icons"
@@ -138,8 +144,10 @@ eq(runs[2].instance.__props.Size.Y.Offset, iconSize, "F2 ... square, at the same
 
 -- ===== F3: reveal follows the tab ==========================================
 
--- The footer was built on the selected tab, so it is already revealed to the
--- muted resting transparency.
+--[[
+The footer was built on the selected tab, so it is already revealed to the
+muted resting transparency.
+]]
 eq(firstLabel.__props.TextTransparency, 0.5, "F3 revealed text rests muted")
 eq(runs[2].instance.__props.ImageTransparency, 0.5, "F3 revealed icons rest muted")
 
@@ -155,7 +163,7 @@ hiddenTab:Select()
 TestPump(0.6)
 eq(hiddenRuns[1].instance.__props.TextTransparency, 0.5, "F3 selecting the tab reveals the line")
 
--- [[Back to the home tab so the rest of the run registers on a live page.]]
+-- Back to the home tab so the rest of the run registers on a live page.
 tab:Select()
 TestPump(0.6)
 
@@ -174,8 +182,10 @@ eq(replaced[2].className, "ImageLabel", "F4 ... then the new icon")
 expect(replaced[1].instance ~= firstLabel, "F4 the old label is gone")
 expect(replaced[1].instance.__props.TextTransparency == 0.5, "F4 the rebuilt line is revealed again")
 
--- Unresolved pack names drop instead of leaving a dead gap; explicit asset
--- references survive untouched.
+--[[
+Unresolved pack names drop instead of leaving a dead gap; explicit asset
+references survive untouched.
+]]
 footer:Set({
 	{ text = "keep" },
 	{ icon = "definitely-not-a-real-icon-name" },
@@ -227,8 +237,10 @@ end
 expect(declarative ~= nil, "F6 a Collapsible Group builds a declarative footer")
 eq(declarative.parts[1].value, "declarative footer", "F6 ... carrying its run")
 
--- [[The stub does not simulate UIListLayout measurement; drive its engine
--- [[signal, then tap the header to expand like the collapsible test does.]]
+--[[
+The stub does not simulate UIListLayout measurement; drive its engine
+signal, then tap the header to expand like the collapsible test does.
+]]
 collapsible.contentLayout.AbsoluteContentSize = Vector2.new(400, 120)
 collapsible.interact.Activated:Fire()
 TestPump(0.6)
@@ -256,12 +268,14 @@ TestPump(0.2)
 
 -- ===== F9: theme pass and layout switches never paint the container =========
 
--- [[Regression: the container used to register BackgroundTransparency against
--- the theme's ElementTransparency. Element cards can afford that binding —
--- their StyleElementBody/StyleElementPanel gradient tints the white base —
--- but the footer's host is never tinted, so the next theme pass tweened it
--- to opaque and the strip read as a solid white bar. The container carries
--- no binding any more; these assertions lock that in.]]
+--[[
+Regression: the container used to register BackgroundTransparency against
+the theme's ElementTransparency. Element cards can afford that binding —
+their StyleElementBody/StyleElementPanel gradient tints the white base —
+but the footer's host is never tinted, so the next theme pass tweened it
+to opaque and the strip read as a solid white bar. The container carries
+no binding any more; these assertions lock that in.
+]]
 eq(footer.main.BackgroundTransparency, 1, "F9 the container starts transparent")
 
 window:ChangeTheme("default")
@@ -283,8 +297,10 @@ TestPump(0.8)
 eq(footer.main.BackgroundTransparency, 1, "F9 ... and back again, still transparent")
 eq(liveRuns[1].instance.__props.TextTransparency, 0.5, "F9 ... with the run still revealed")
 
--- A theme pass after the round trip as well: the container must stay
--- transparent however the two gestures are interleaved.
+--[[
+A theme pass after the round trip as well: the container must stay
+transparent however the two gestures are interleaved.
+]]
 window:ChangeTheme({ Accent = Color3.fromRGB(255, 0, 0) })
 TestPump(0.6)
 eq(footer.main.BackgroundTransparency, 1, "F9 a later theme edit still never paints the container")

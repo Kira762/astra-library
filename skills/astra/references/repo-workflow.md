@@ -74,9 +74,10 @@ A behaviour change is not finished until the docs that describe it are updated:
 | Typed surface | `Types.luau`, kept in step with `library_entrypoint.luau` and the constructors. |
 | New per-feature test | `scripts/<feature>_test.luau` + `scripts/<feature>_test.sh` wrapper following the existing pairs. |
 
-Style in the tree: header comments in the `-- [[…]]` bracket form, 4-space
-indentation, tabs in shell scripts, one module per file mirroring its Roblox name
-(`init.luau` = the folder ModuleScript).
+Style in the tree: bundled comments (two or more consecutive comment lines)
+in one `--[[ … ]]` block — never `-- [[…]]` markers per line — single lines
+stay plain `-- …`, 4-space indentation, tabs in shell scripts, one module per
+file mirroring its Roblox name (`init.luau` = the folder ModuleScript).
 
 ## Publisher-facing notes
 

@@ -1,25 +1,27 @@
--- ===== tab element assertions: tabs nobody opened cost nothing =====
--- [[Runs the real Astra bundle (loaded as global `Astra` above) against the]]
--- [[mini Roblox environment from sidebar_sizing_stubs.luau.]]
---
--- Opening a window (and every show/minimise/layout switch after it) used to
--- walk every element of every tab to keep the tabs nobody had opened in step:
--- a 4-tab x 5-element window wrote 20 element visibility sets per show, 15 of
--- them onto pages UIPageLayout is not rendering. Tabs are now marked instead,
--- and their elements are shown when the player opens the tab (or when the
--- search lays them out on its own page). This suite pins both halves: the
--- saving, and a tab opened later looking exactly like the tab that was
--- revealed at show time.
---
--- Expected behavior under test:
---   * E1 the first show walks the selected tab and marks the rest,
---   * E2 opening a tab shows its elements in the same frame, in the state the
---     reveal left the selected tab in,
---   * E3 a hide/show round trip shows the selected tab again without walking
---     the others,
---   * E4 opening the search shows every tab's elements (it renders them all),
---   * E5 an element created in a tab nobody has opened is visible when it is,
---   * E6 reopening an already-shown tab costs nothing.
+--[[
+===== tab element assertions: tabs nobody opened cost nothing =====
+Runs the real Astra bundle (loaded as global `Astra` above) against the
+mini Roblox environment from sidebar_sizing_stubs.luau.
+
+Opening a window (and every show/minimise/layout switch after it) used to
+walk every element of every tab to keep the tabs nobody had opened in step:
+a 4-tab x 5-element window wrote 20 element visibility sets per show, 15 of
+them onto pages UIPageLayout is not rendering. Tabs are now marked instead,
+and their elements are shown when the player opens the tab (or when the
+search lays them out on its own page). This suite pins both halves: the
+saving, and a tab opened later looking exactly like the tab that was
+revealed at show time.
+
+Expected behavior under test:
+  * E1 the first show walks the selected tab and marks the rest,
+  * E2 opening a tab shows its elements in the same frame, in the state the
+    reveal left the selected tab in,
+  * E3 a hide/show round trip shows the selected tab again without walking
+    the others,
+  * E4 opening the search shows every tab's elements (it renders them all),
+  * E5 an element created in a tab nobody has opened is visible when it is,
+  * E6 reopening an already-shown tab costs nothing.
+]]
 
 local function expect(cond, message)
 	if not cond then
@@ -35,7 +37,7 @@ end
 
 local window = Astra:CreateWindow({ name = "Tabs Test" })
 
--- [[Count every element visibility set the library performs, per step.]]
+-- Count every element visibility set the library performs, per step.
 local shownCalls = 0
 local function instrument()
 	for _, tab in pairs(window.tabs) do
@@ -52,15 +54,19 @@ local function instrument()
 	end
 end
 
--- [[Every Transparency property the element's frame tree carries plus its
--- [[Visible flags: the element's visible state, independent of where the
--- [[element is currently parented (the search re-parents elements).]]
+--[[
+Every Transparency property the element's frame tree carries plus its
+Visible flags: the element's visible state, independent of where the
+element is currently parented (the search re-parents elements).
+]]
 local function fingerprint(element)
 	local out = {}
 	local function walk(node, path)
 		local props = node.__props or {}
-		-- [[Visible defaults to true: a row the harness never touched and one
-		-- [[it set to true are the same frame, so normalise the default away.]]
+		--[[
+		Visible defaults to true: a row the harness never touched and one
+		it set to true are the same frame, so normalise the default away.
+		]]
 		local keys = { "Visible=" .. tostring(props.Visible ~= false) }
 		for key, value in props do
 			local name = tostring(key)

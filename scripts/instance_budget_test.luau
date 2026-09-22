@@ -1,25 +1,27 @@
--- ===== instance budget assertions =====
--- [[Runs the real Astra bundle (loaded as global `Astra` above) against the]]
--- [[mini Roblox environment from sidebar_sizing_stubs.luau.]]
---
--- Instance count is the library's main frame-time lever: Roblox renders and
--- sorts every GUI instance it holds, so a page's element count is a direct
--- proxy for what the menu costs while it is open. This suite pins a ceiling per
--- element type and for a realistic 15-element page, so a change that quietly
--- re-adds invisible decoration (or stops materialising readout rows lazily)
--- fails here instead of in game.
---
--- Ceilings are deliberately a few instances above today's numbers: they catch
--- creep, not legitimate layout changes. Raise one only with a before/after
--- count in the changelog.
---
--- Expected behavior under test:
---   * B1 every element stays under its ceiling,
---   * B2 the realistic page stays under its budget,
---   * B3 the odometer readouts are a small part of it (the lazy-row rule),
---   * B4 a closed dropdown costs the same whatever its option list (rows and
---     the search bar are materialised on the first open, so the list length
---     stops mattering).
+--[[
+===== instance budget assertions =====
+Runs the real Astra bundle (loaded as global `Astra` above) against the
+mini Roblox environment from sidebar_sizing_stubs.luau.
+
+Instance count is the library's main frame-time lever: Roblox renders and
+sorts every GUI instance it holds, so a page's element count is a direct
+proxy for what the menu costs while it is open. This suite pins a ceiling per
+element type and for a realistic 15-element page, so a change that quietly
+re-adds invisible decoration (or stops materialising readout rows lazily)
+fails here instead of in game.
+
+Ceilings are deliberately a few instances above today's numbers: they catch
+creep, not legitimate layout changes. Raise one only with a before/after
+count in the changelog.
+
+Expected behavior under test:
+  * B1 every element stays under its ceiling,
+  * B2 the realistic page stays under its budget,
+  * B3 the odometer readouts are a small part of it (the lazy-row rule),
+  * B4 a closed dropdown costs the same whatever its option list (rows and
+    the search bar are materialised on the first open, so the list length
+    stops mattering).
+]]
 
 local function expect(cond, message)
 	if not cond then

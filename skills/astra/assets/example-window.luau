@@ -1,4 +1,4 @@
--- [[Executor entry point. In Studio/Rojo, require ReplicatedStorage.Astra instead.]]
+-- Executor entry point. In Studio/Rojo, require ReplicatedStorage.Astra instead.
 local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"))()
 
 local window = Astra:CreateWindow({
@@ -13,8 +13,10 @@ local window = Astra:CreateWindow({
     },
 })
 
--- [[Information comes first. The remaining tabs group controls by what they do,
--- not by constructor name. Every supported element has a useful place here.]]
+--[[
+Information comes first. The remaining tabs group controls by what they do,
+not by constructor name. Every supported element has a useful place here.
+]]
 local overview = window:CreateTab({ name = "Overview", icon = "house" })
 local actions = window:CreateTab({ name = "Actions", icon = "play" })
 local preferences = window:CreateTab({ name = "Preferences", icon = "sliders-horizontal" })
@@ -87,8 +89,10 @@ releaseHistory = overview:CreateIsolated({
 overview:CreateDivider()
 overview:CreateFooter({ parts = { { text = "Built with" }, { icon = "zap" }, { text = "Astra" }, { icon = "heart" } } })
 
--- [[Actions: an immediate result, a compact action pair and a related advanced
--- group. No collapsible wrapper is used for a lone control.]]
+--[[
+Actions: an immediate result, a compact action pair and a related advanced
+group. No collapsible wrapper is used for a lone control.
+]]
 actions:CreateSection({ name = "Activity" })
 local runs = actions:CreateStat({ name = "Completed runs", value = 0, suffix = " runs", changeMode = "delta", changeBaseline = "initial" })
 actions:CreateButton({
@@ -121,7 +125,7 @@ actions:CreateCollapsibleGroup({
     },
 })
 
--- [[Preferences: text stays an Input; shortcuts get their own Keybind.]]
+-- Preferences: text stays an Input; shortcuts get their own Keybind.
 preferences:CreateSection({ name = "Sample profile" })
 preferences:CreateInput({ name = "Profile name", placeholder = "e.g. Evening session", clearOnFocus = false, flag = "demo.profileName" })
 preferences:CreateToggle({ name = "Enable profile", value = true, flag = "demo.enabled" })

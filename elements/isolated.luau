@@ -11,26 +11,30 @@ local Isolated = {}
 Isolated.__index = Isolated
 Isolated.__type = "Isolated"
 
--- [[The Isolated container is the Changelog's own home: a collapsed header
--- [[card — icon, title/subtitle stack and the built-in expansion chevron —
--- [[that reveals a body of release-history entries exactly the way a
--- [[CollapsibleGroup reveals its controls. It is a strict container: the
--- [[only accepted child definition is a Changelog, everything else errors
--- [[at construction instead of rendering a control the container cannot
--- [[lay out. The right-hand chevron is part of the container itself: it is
--- [[always drawn, never changeable and never removable, so no setter for
--- [[it exists on purpose.]]
+--[[
+The Isolated container is the Changelog's own home: a collapsed header
+card — icon, title/subtitle stack and the built-in expansion chevron —
+that reveals a body of release-history entries exactly the way a
+CollapsibleGroup reveals its controls. It is a strict container: the
+only accepted child definition is a Changelog, everything else errors
+at construction instead of rendering a control the container cannot
+lay out. The right-hand chevron is part of the container itself: it is
+always drawn, never changeable and never removable, so no setter for
+it exists on purpose.
+]]
 local GUARD_MESSAGE = "Astra:CreateIsolated — only Changelog elements can be placed inside Isolated"
 
 local function changelogConstructor(parent, props)
     return require(script.Parent.changelog).new(parent, props)
 end
 
--- [[Which corners of the header band carry the container's arcs. Open, the band
--- [[is only the top of the card: its bottom edge is the straight divider, so the
--- [[bottom corners must stay square or they would notch into the revealed body.
--- [[Closed, the band *is* the whole card, so its bottom corners have to carry the
--- [[container's bottom arcs exactly like its top ones carry the top.]]
+--[[
+Which corners of the header band carry the container's arcs. Open, the band
+is only the top of the card: its bottom edge is the straight divider, so the
+bottom corners must stay square or they would notch into the revealed body.
+Closed, the band *is* the whole card, so its bottom corners have to carry the
+container's bottom arcs exactly like its top ones carry the top.
+]]
 local bandCorners = {
     expanded = { "TopLeftRadius", "TopRightRadius" },
     collapsed = { "TopLeftRadius", "TopRightRadius", "BottomLeftRadius", "BottomRightRadius" },
@@ -46,10 +50,12 @@ local function validate(definitions, path)
     for index = 1, count do
         local spec = definitions[index]
         local kind = if type(spec) == "table" then spec.type or spec.Type else nil
-        -- [[One rule, one message: whatever is not a Changelog definition —
-        -- [[another control type, a nested container, a built element or a
-        -- [[non-table value — is rejected here, before any instance exists.
-        -- [[Level 0 keeps the message exact so hosts can match on it.]]
+        --[[
+        One rule, one message: whatever is not a Changelog definition —
+        another control type, a nested container, a built element or a
+        non-table value — is rejected here, before any instance exists.
+        Level 0 keeps the message exact so hosts can match on it.
+        ]]
         if kind ~= "Changelog" or (type(spec) == "table" and spec.elements ~= nil) then
             error(GUARD_MESSAGE, 0)
         end
@@ -99,15 +105,19 @@ function Isolated.new(tab, props)
         then tostring(self.subtitle)
         else nil
     local w = self.window
-    -- [[Two-line header recipe, shared with the CollapsibleGroup's title plus
-    -- [[description band: the title keeps its 41px band and the muted 14px
-    -- [[subtitle rides the 20px band under it (41 -> 61). Without a subtitle
-    -- [[the header is the plain 41px band.]]
+    --[[
+    Two-line header recipe, shared with the CollapsibleGroup's title plus
+    description band: the title keeps its 41px band and the muted 14px
+    subtitle rides the 20px band under it (41 -> 61). Without a subtitle
+    the header is the plain 41px band.
+    ]]
     self.headerHeight = if self.subtitle then 61 else 41
     local iconY = math.floor((self.headerHeight - 16) / 2)
-    -- [[One connected card, two surfaces: the header band rides the standard
-    -- [[element gradient, the revealed body sits on the darker window surface
-    -- [[and a 1px stroke-colored divider separates them.]]
+    --[[
+    One connected card, two surfaces: the header band rides the standard
+    element gradient, the revealed body sits on the darker window surface
+    and a 1px stroke-colored divider separates them.
+    ]]
     self.bodyPad = 10
     self.main = w:Create("Frame", {
         Name = self.name, Size = UDim2.new(1, -20, 0, self.headerHeight),
@@ -138,11 +148,13 @@ function Isolated.new(tab, props)
         BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
     })
     self.hoverOverlay = w:CreateHoverOverlay(self.header)
-    -- [[Header metrics mirror the CollapsibleGroup header: 20px gutters, a 6px
-    -- [[icon gap, a 16px TitlingColor title and a 14px muted line under it.
-    -- [[The icon and the chevron sit vertically centred on whichever band the
-    -- [[header currently is, so the collapsed card reads as the reference:
-    -- [[icon, two-line stack, chevron.]]
+    --[[
+    Header metrics mirror the CollapsibleGroup header: 20px gutters, a 6px
+    icon gap, a 16px TitlingColor title and a 14px muted line under it.
+    The icon and the chevron sit vertically centred on whichever band the
+    header currently is, so the collapsed card reads as the reference:
+    icon, two-line stack, chevron.
+    ]]
     local textX = if self.icon then 42 else 20
     if self.icon then
         self.iconLabel = w:Create("ImageLabel", {
@@ -157,9 +169,11 @@ function Isolated.new(tab, props)
         TextTransparency = 1, Parent = self.header,
     }, { TextColor3 = "TitlingColor", FontFace = "Font" })
     w:_bindLocale(self.title, "Text", self.name)
-    -- [[The subtitle label always exists so SetSubtitle can fill it at
-    -- [[runtime; without a subtitle it carries empty text and the header
-    -- [[stays on the single-line band.]]
+    --[[
+    The subtitle label always exists so SetSubtitle can fill it at
+    runtime; without a subtitle it carries empty text and the header
+    stays on the single-line band.
+    ]]
     self.subtitleLabel = w:Create("TextLabel", {
         Name = "Subtitle",
         Text = locale.t(self.subtitle or ""), Position = UDim2.fromOffset(textX, 37),
@@ -170,8 +184,10 @@ function Isolated.new(tab, props)
     if self.subtitle then
         w:_bindLocale(self.subtitleLabel, "Text", self.subtitle)
     end
-    -- [[Built-in expansion affordance: always rendered, never changeable and
-    -- [[never removable. There is deliberately no setter that reaches it.]]
+    --[[
+    Built-in expansion affordance: always rendered, never changeable and
+    never removable. There is deliberately no setter that reaches it.
+    ]]
     self.chevron = w:Create("ImageLabel", {
         Image = w:ResolveIcon("chevron-right"), Position = UDim2.new(1, -36, 0, iconY),
         Size = UDim2.fromOffset(16, 16), BackgroundTransparency = 1,
@@ -205,11 +221,13 @@ function Isolated.new(tab, props)
     w:ConnectFor(self, self.contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
         self:_resize(true)
     end)
-    -- [[Use the same primary-click signal as Astra's other full-row controls.
-    -- [[Some executor input bridges do not forward GuiButton.Activated, which
-    -- [[left an otherwise visible Isolated header unable to open. Roblox maps
-    -- [[touch taps to MouseButton1Click too, so the whole header stays usable on
-    -- [[both pointer and touch input without wiring two signals and double-firing.
+    --[[
+    Use the same primary-click signal as Astra's other full-row controls.
+    Some executor input bridges do not forward GuiButton.Activated, which
+    left an otherwise visible Isolated header unable to open. Roblox maps
+    touch taps to MouseButton1Click too, so the whole header stays usable on
+    both pointer and touch input without wiring two signals and double-firing.
+    ]]
     w:ConnectFor(self, self.interact.MouseButton1Click, function()
         if self.locked or not w:_interactive() then return end
         haptic.click()
@@ -220,12 +238,14 @@ function Isolated.new(tab, props)
     return self
 end
 
--- [[Collapsed, the band is the whole card — there is no body under it — so it
--- [[has to carry the container's bottom arcs too, or its square bottom corners
--- [[paint over the silhouette the stroke draws and the card reads as rounded at
--- [[the top and uneven at the bottom. Expanded, the clipper below takes the
--- [[bottom edge (it is flush with the container's floor and keeps the same
--- [[radius token), so the band squares off against the straight divider.]]
+--[[
+Collapsed, the band is the whole card — there is no body under it — so it
+has to carry the container's bottom arcs too, or its square bottom corners
+paint over the silhouette the stroke draws and the card reads as rounded at
+the top and uneven at the bottom. Expanded, the clipper below takes the
+bottom edge (it is flush with the container's floor and keeps the same
+radius token), so the band squares off against the straight divider.
+]]
 function Isolated:_fitHeaderCorners()
     self.window:_setRoundedCorners(
         self.headerCorner,
@@ -234,10 +254,12 @@ function Isolated:_fitHeaderCorners()
     )
 end
 
--- [[Every frame that derives its metrics from the header band — the band
--- [[itself, the divider seam, the reveal mask, the centred icon/chevron row
--- [[and the text stack — is re-derived here, so a runtime SetSubtitle that
--- [[adds or releases the second line reflows the whole card from one place.]]
+--[[
+Every frame that derives its metrics from the header band — the band
+itself, the divider seam, the reveal mask, the centred icon/chevron row
+and the text stack — is re-derived here, so a runtime SetSubtitle that
+adds or releases the second line reflows the whole card from one place.
+]]
 function Isolated:_applyHeaderMetrics()
     self.headerHeight = if self.subtitle then 61 else 41
     local iconY = math.floor((self.headerHeight - 16) / 2)
@@ -258,15 +280,19 @@ function Isolated:_applyHeaderMetrics()
 end
 
 function Isolated:_resize(animate)
-    -- (The engine always reports an AbsoluteContentSize; the test harness
-    -- only stubs it once content is driven, so an unmeasured layout reads 0.)
+    --[[
+    (The engine always reports an AbsoluteContentSize; the test harness
+    only stubs it once content is driven, so an unmeasured layout reads 0.)
+    ]]
     local measured = self.contentLayout.AbsoluteContentSize
     local contentHeight = if measured then measured.Y else 0
     local height = self.headerHeight
     if self._expanded then
-        -- divider + top pad + content + bottom pad: the container ends one
-        -- gutter under the last child card, the same inset its sides keep,
-        -- with no dead slack.
+        --[[
+        divider + top pad + content + bottom pad: the container ends one
+        gutter under the last child card, the same inset its sides keep,
+        with no dead slack.
+        ]]
         height += 1 + self.bodyPad + contentHeight + self.bodyPad
     end
     local size = UDim2.new(1, -20, 0, height)
@@ -345,8 +371,10 @@ function Isolated:_moveElement(element, index)
     for i, child in ipairs(self.elements) do ordering(child, i * 10) end
 end
 
--- [[Public expansion API: the same CollapsibleGroup-style tween, addressable
--- [[from the host instead of only from a header tap.]]
+--[[
+Public expansion API: the same CollapsibleGroup-style tween, addressable
+from the host instead of only from a header tap.
+]]
 function Isolated:Expand(animate)
     self:_setExpanded(true, animate ~= false)
 end
@@ -359,8 +387,10 @@ function Isolated:Toggle(animate)
     self:_setExpanded(not self._expanded, animate ~= false)
 end
 
--- [[The changeable header slots. The chevron is not among them: it is built
--- [[into the container and no setter reaches it.]]
+--[[
+The changeable header slots. The chevron is not among them: it is built
+into the container and no setter reaches it.
+]]
 function Isolated:SetTitle(title)
     self.name = tostring(title)
     self.window:_bindLocale(self.title, "Text", self.name)

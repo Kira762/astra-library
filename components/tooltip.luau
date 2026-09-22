@@ -1,6 +1,8 @@
--- Programmatic floating descriptions (Window:ShowTooltip / HideTooltip).
--- Functional-element info badges and their gesture bindings were removed.
--- State remains window-local and text is resolved before measurement.
+--[[
+Programmatic floating descriptions (Window:ShowTooltip / HideTooltip).
+Functional-element info badges and their gesture bindings were removed.
+State remains window-local and text is resolved before measurement.
+]]
 
 local tooltip = {}
 
@@ -20,14 +22,16 @@ local gap = 6
 local edge = 8
 local zIndex = 500
 
--- [[RichText hosts: measure the words, not the markup.]] 
+-- RichText hosts: measure the words, not the markup.
 local function plain(text: string): string
     return (text:gsub("<[^>]+>", ""))
 end
 
--- [[Resolve a locale token or a plain string into the text to draw. Anything
--- [[else is drawn by its string form, so an element that stored `info` as a
--- [[number still gets a description instead of silence.]] 
+--[[
+Resolve a locale token or a plain string into the text to draw. Anything
+else is drawn by its string form, so an element that stored `info` as a
+number still gets a description instead of silence.
+]]
 local function resolve(text: unknown): string?
     if locale.isToken(text) then
         return locale.resolve(locale.sourceOf(text))
@@ -41,9 +45,11 @@ local function resolve(text: unknown): string?
     return locale.resolve(text)
 end
 
--- [[The viewport the panel positions itself in, with the screen GUI as the
--- [[fallback for hosts that have no camera (the test harnesses run without
--- [[one) and a desktop-sized guess as the last resort.]] 
+--[[
+The viewport the panel positions itself in, with the screen GUI as the
+fallback for hosts that have no camera (the test harnesses run without
+one) and a desktop-sized guess as the last resort.
+]]
 local function viewport(window): (number, number)
     local camera = coreState.workspace and coreState.workspace.CurrentCamera
     local size = camera and camera.ViewportSize
@@ -57,9 +63,11 @@ local function viewport(window): (number, number)
     return 1920, 1080
 end
 
--- [[The panel's parent is the screen GUI; when that GUI does not ignore the
--- [[top inset its own origin sits below the viewport's, so the screen-space
--- [[position has to drop that inset back out.]] 
+--[[
+The panel's parent is the screen GUI; when that GUI does not ignore the
+top inset its own origin sits below the viewport's, so the screen-space
+position has to drop that inset back out.
+]]
 local function insetY(window): number
     local gui = window.screenGui
     if gui and gui.IgnoreGuiInset == false then
@@ -124,7 +132,7 @@ function tooltip.ensure(window)
     return tip
 end
 
--- [[Whether the panel is on screen, optionally narrowed to one anchor.]] 
+-- Whether the panel is on screen, optionally narrowed to one anchor.
 function tooltip.isOpen(window, anchor: any?): boolean
     local tip = window.elementTooltip
     if not tip or tip.Visible ~= true then
@@ -133,7 +141,7 @@ function tooltip.isOpen(window, anchor: any?): boolean
     return anchor == nil or window._tooltipAnchor == anchor
 end
 
--- [[The badge whose description is open, or nil.]] 
+-- The badge whose description is open, or nil.
 function tooltip.anchorOf(window): any
     return window._tooltipAnchor
 end
@@ -155,8 +163,10 @@ function tooltip.show(window, anchor: any, text: unknown, pinned: boolean?, owne
         return
     end
 
-    -- [[The guard above may have switched this panel to another anchor; a
-    -- [[stale hide token would otherwise close the newer description.]] 
+    --[[
+    The guard above may have switched this panel to another anchor; a
+    stale hide token would otherwise close the newer description.
+    ]]
     window._tooltipHideToken = (window._tooltipHideToken or 0) + 1
     window._tooltipAnchor = anchor
     window._tooltipPinned = pinned == true
@@ -187,7 +197,7 @@ function tooltip.show(window, anchor: any, text: unknown, pinned: boolean?, owne
     local idealX = anchorPos.X + anchorSize.X / 2 - totalWidth / 2
     local idealY = anchorPos.Y - totalHeight - gap
     if idealY < edge then
-        -- [[No room above: the description flips under the badge.]] 
+        -- No room above: the description flips under the badge.
         idealY = anchorPos.Y + anchorSize.Y + gap
     end
 
@@ -207,12 +217,14 @@ end
 function tooltip.hide(window)
     local tip = window.elementTooltip
 
-    -- [[State first: a hide that arrives while the panel is still fading must
-    -- [[still release the anchor, or the next tap would "close" a description
-    -- [[it thinks is open. The close token is bumped even when nothing was on
-    -- [[screen: a press that was waiting out its hold is cancelled by any
-    -- [[close, so a window hiding (or a tab switching) mid-press cannot leave
-    -- [[a description appearing behind its back.]] 
+    --[[
+    State first: a hide that arrives while the panel is still fading must
+    still release the anchor, or the next tap would "close" a description
+    it thinks is open. The close token is bumped even when nothing was on
+    screen: a press that was waiting out its hold is cancelled by any
+    close, so a window hiding (or a tab switching) mid-press cannot leave
+    a description appearing behind its back.
+    ]]
     window._tooltipCloseToken = (window._tooltipCloseToken or 0) + 1
     window._tooltipAnchor = nil
     window._tooltipPinned = nil
@@ -222,11 +234,13 @@ function tooltip.hide(window)
         return
     end
 
-    -- [[An unload is already destroying the screen GUI this panel lives in, so
-    -- [[there is no fade to run: the panel stops being drawn now, while it can
-    -- [[still be touched. A fade started here would either be interrupted and
-    -- [[leave `Visible` true on a dead GUI, or reach a panel that no longer
-    -- [[exists.]] 
+    --[[
+    An unload is already destroying the screen GUI this panel lives in, so
+    there is no fade to run: the panel stops being drawn now, while it can
+    still be touched. A fade started here would either be interrupted and
+    leave `Visible` true on a dead GUI, or reach a panel that no longer
+    exists.
+    ]]
     if window.unloaded then
         window._tooltipHideToken = (window._tooltipHideToken or 0) + 1
         tip.Visible = false
@@ -256,10 +270,12 @@ function tooltip.hide(window)
         motion.tween(label, { TextTransparency = 1 }, hoverTween)
     end
 
-    -- [[The fade owns the last word: the panel only stops being drawn once it
-    -- [[is fully transparent, and only if nothing has re-opened it since. An
-    -- [[unload during the fade is the one path that does not come back here -
-    -- [[it has already hidden the panel outright.]] 
+    --[[
+    The fade owns the last word: the panel only stops being drawn once it
+    is fully transparent, and only if nothing has re-opened it since. An
+    unload during the fade is the one path that does not come back here -
+    it has already hidden the panel outright.
+    ]]
     task.delay(0.2, function()
         if window.unloaded then
             return
@@ -270,8 +286,10 @@ function tooltip.hide(window)
     end)
 end
 
--- [[Close the description when it belongs to one element (the element was
--- [[hidden, the tab changed, the text was cleared).]] 
+--[[
+Close the description when it belongs to one element (the element was
+hidden, the tab changed, the text was cleared).
+]]
 function tooltip.hideFor(window, owner: any)
     if owner ~= nil and window._tooltipOwner ~= owner then
         return
@@ -279,12 +297,14 @@ function tooltip.hideFor(window, owner: any)
     tooltip.hide(window)
 end
 
--- [[Tap semantics, in the order a player experiences them:
--- [[  * nothing open (touch, or the first desktop tap) -> open, pinned,
--- [[  * a hover preview open on this badge -> pin it, so the tap the player
--- [[    just made does not throw away what they were reading,
--- [[  * a pinned description open on this badge -> close it.
--- [[Returns whether a description is open afterwards.]] 
+--[[
+Tap semantics, in the order a player experiences them:
+  * nothing open (touch, or the first desktop tap) -> open, pinned,
+  * a hover preview open on this badge -> pin it, so the tap the player
+    just made does not throw away what they were reading,
+  * a pinned description open on this badge -> close it.
+Returns whether a description is open afterwards.
+]]
 function tooltip.toggle(window, anchor: any, text: unknown, owner: any?)
     if tooltip.isOpen(window, anchor) and window._tooltipPinned then
         tooltip.hide(window)

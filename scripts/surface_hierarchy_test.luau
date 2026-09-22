@@ -1,21 +1,23 @@
--- [[Surface hierarchy & flush spacing: the three sections of the window
--- [[(topbar, tab rail, elements area) must each carry their own theme
--- [[surface, ordered darkest → lightest from chrome to content, sit flush
--- [[against each other (no card notch, no gaps), and the selected tab row
--- [[must be painted with the same token as the elements area so it visually
--- [[connects to the page it opens.
---
---   S1 the three frames are painted with their theme tokens
---   S2 the hierarchy holds on the default palette: topbar < rail < elements,
---      with steps large enough to read (not near-miss shades)
---   S3 the sections are opaque while shown and geometrically flush
---      (the old floating-card notch at the elements' top-left is gone)
---   S4 the selected row is the elements-area colour, opaque; the unselected
---      row falls back to the rail's own shade; no gradient tints the row
---   S5 the capsule state folds the topbar surface away (the 64px band would
---      overshoot the 50px capsule) and restore brings it back; the minimised
---      bar keeps it (the bar IS the topbar)
---   S6 the bottom fade blends into the elements surface, not the window base
+--[[
+Surface hierarchy & flush spacing: the three sections of the window
+(topbar, tab rail, elements area) must each carry their own theme
+surface, ordered darkest → lightest from chrome to content, sit flush
+against each other (no card notch, no gaps), and the selected tab row
+must be painted with the same token as the elements area so it visually
+connects to the page it opens.
+
+  S1 the three frames are painted with their theme tokens
+  S2 the hierarchy holds on the default palette: topbar < rail < elements,
+     with steps large enough to read (not near-miss shades)
+  S3 the sections are opaque while shown and geometrically flush
+     (the old floating-card notch at the elements' top-left is gone)
+  S4 the selected row is the elements-area colour, opaque; the unselected
+     row falls back to the rail's own shade; no gradient tints the row
+  S5 the capsule state folds the topbar surface away (the 64px band would
+     overshoot the 50px capsule) and restore brings it back; the minimised
+     bar keeps it (the bar IS the topbar)
+  S6 the bottom fade blends into the elements surface, not the window base
+]]
 
 local function expect(cond, message)
 	if not cond then
@@ -23,7 +25,7 @@ local function expect(cond, message)
 	end
 end
 
--- [[0-255 luminance (Color3 components are normalised floats).]]
+-- 0-255 luminance (Color3 components are normalised floats).
 local function lum(color)
 	return (0.299 * color.R + 0.587 * color.G + 0.114 * color.B) * 255
 end
@@ -63,8 +65,10 @@ expect(window.topbar.BackgroundTransparency == 0, "the topbar band is opaque whi
 expect(window.sidebar.BackgroundTransparency == 0, "the tab rail is opaque while shown")
 expect(window.elements.BackgroundTransparency == 0, "the elements area is opaque while shown")
 
--- no vertical gap between the topbar and the two lower bands (both offsets
--- are relative to the window's height, so they must sum to zero)
+--[[
+no vertical gap between the topbar and the two lower bands (both offsets
+are relative to the window's height, so they must sum to zero)
+]]
 expect(window.elements.Size.Y.Offset + window.topbar.Size.Y.Offset == 0, "the elements band starts exactly where the topbar ends")
 -- no horizontal gap between the rail and the elements band
 expect(window.sidebar.Size.X.Offset + window.elements.Size.X.Offset == 0, "the elements band starts exactly where the rail ends")

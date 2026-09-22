@@ -1,7 +1,9 @@
--- Appended to the real example, using the locally built bundle instead of HTTP.
--- The studio is gated: the key card comes up first and nothing exists until a
--- key passes, so this harness drives the gate through the same `_submit` path
--- the Continue button and Enter key take before it can assert on the studio.
+--[[
+Appended to the real example, using the locally built bundle instead of HTTP.
+The studio is gated: the key card comes up first and nothing exists until a
+key passes, so this harness drives the gate through the same `_submit` path
+the Continue button and Enter key take before it can assert on the studio.
+]]
 TestPump(2)
 assert(keyGate ~= nil and not keyGate.passed and not keyGate.closed, "Demo opens on the key gate")
 assert(window == nil and overview == nil, "No studio is built before the key passes")
@@ -12,10 +14,12 @@ keyGate:_submit("  ASTRA-STUDIO-2026  ")
 TestPump(2)
 assert(keyGate.passed and keyGate.closed, "The demo key passes the gate (trimmed)")
 assert(window ~= nil and overview ~= nil, "The studio is built inside onSuccess")
--- [[BuildStudio runs on the thread the gate spawns for `onSuccess`, so the
--- [[window's budget-paced construction yields real frames here (the main
--- [[thread's stray-wait no-op cannot save it): pump until the build has
--- [[streamed to completion, which is what the studioReady seam marks.]]
+--[[
+BuildStudio runs on the thread the gate spawns for `onSuccess`, so the
+window's budget-paced construction yields real frames here (the main
+thread's stray-wait no-op cannot save it): pump until the build has
+streamed to completion, which is what the studioReady seam marks.
+]]
 for _ = 1, 120 do
     if studioReady then
         break

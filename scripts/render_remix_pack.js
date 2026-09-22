@@ -97,11 +97,13 @@ for (const file of files) {
 // Compact catalog, same shape scripts/generate_icon_packs.js writes.
 keys.sort();
 const lines = [];
-lines.push("-- [[remix icon pack.]]");
-lines.push("-- [[Compact catalog: names only. PNG URLs are derived on demand by]]");
-lines.push("-- [[icons/packBuilder (kebab/snake name to PascalCase), so this module]]");
-lines.push("-- [[parses as one string constant instead of thousands of table]]");
-lines.push("-- [[constructors. Render with scripts/render_remix_pack.js.]]");
+lines.push("--[[");
+lines.push("remix icon pack.");
+lines.push("Compact catalog: names only. PNG URLs are derived on demand by");
+lines.push("icons/packBuilder (kebab/snake name to PascalCase), so this module");
+lines.push("parses as one string constant instead of thousands of table");
+lines.push("constructors. Render with scripts/render_remix_pack.js.");
+lines.push("]]");
 lines.push("");
 lines.push("return require(script.Parent.packBuilder).create(");
 lines.push('\t"assets/icons/remix-pack/",');

@@ -1,23 +1,25 @@
--- ===== odometer assertions: lazy rows, identical readout =====
--- [[Runs the real Astra bundle (loaded as global `Astra` above) against the]]
--- [[mini Roblox environment from sidebar_sizing_stubs.luau.]]
---
--- The roll builds a strip of rows and slides it inside a clipping cell. It
--- used to create all 20 rows (2 x 0-9) for every digit of every readout, so a
--- Stat built 42 TextLabels for a single value while at most two rows can ever
--- be on screen. Rows are now materialised per transition; this suite pins both
--- halves of that: the instance saving, and the readout being pixel-identical
--- (the row the strip rests on must carry the value's digit).
---
--- Expected behavior under test:
---   * O1 a fresh element builds only the rows it shows, not the whole strip,
---   * O2 the resting row is the digit of the value (what the user reads),
---   * O3 a plain change materialises exactly the band it walks and lands on
---     the target row,
---   * O4 a wrap (9 -> 1) travels through the repeated rows and still lands on
---     the right glyph,
---   * O5 a roll down (1 -> 9) uses the second decade of rows and lands too,
---   * O6 static glyphs (the decimal point, the suffix) are unaffected.
+--[[
+===== odometer assertions: lazy rows, identical readout =====
+Runs the real Astra bundle (loaded as global `Astra` above) against the
+mini Roblox environment from sidebar_sizing_stubs.luau.
+
+The roll builds a strip of rows and slides it inside a clipping cell. It
+used to create all 20 rows (2 x 0-9) for every digit of every readout, so a
+Stat built 42 TextLabels for a single value while at most two rows can ever
+be on screen. Rows are now materialised per transition; this suite pins both
+halves of that: the instance saving, and the readout being pixel-identical
+(the row the strip rests on must carry the value's digit).
+
+Expected behavior under test:
+  * O1 a fresh element builds only the rows it shows, not the whole strip,
+  * O2 the resting row is the digit of the value (what the user reads),
+  * O3 a plain change materialises exactly the band it walks and lands on
+    the target row,
+  * O4 a wrap (9 -> 1) travels through the repeated rows and still lands on
+    the right glyph,
+  * O5 a roll down (1 -> 9) uses the second decade of rows and lands too,
+  * O6 static glyphs (the decimal point, the suffix) are unaffected.
+]]
 
 local function expect(cond, message)
 	if not cond then
@@ -57,8 +59,10 @@ local function textLabels(inst)
 	return found
 end
 
--- [[A reel is a clipping cell holding a strip of rows. The row the readout
--- [[shows is the one whose offset the strip currently rests on.]]
+--[[
+A reel is a clipping cell holding a strip of rows. The row the readout
+shows is the one whose offset the strip currently rests on.
+]]
 local function findReels(element)
 	local reels = {}
 	local function walk(node)
@@ -125,12 +129,14 @@ expect(totalRows <= 4, "O1 a single-digit readout materialises a handful of rows
 local row, height = visibleRow(reels[1])
 eq(rowTextAt(reels[1], row), "7", "O2 the resting row shows the value's digit")
 
--- ===== O6: static glyphs are still built =====
---
--- [[The odometer splits a readout into digit rows and static glyphs (the
--- [[suffix, the decimal point). Only the digits were touched by the lazy-row
--- [[change, so both kinds are checked here: a Stat's suffix, and a Slider's
--- [[decimal point (a Slider derives its precision from `increment`).]]
+--[[
+===== O6: static glyphs are still built =====
+
+The odometer splits a readout into digit rows and static glyphs (the
+suffix, the decimal point). Only the digits were touched by the lazy-row
+change, so both kinds are checked here: a Stat's suffix, and a Slider's
+decimal point (a Slider derives its precision from `increment`).
+]]
 
 local withSuffix = tab:CreateStat({ name = "Suffix", value = 7, suffix = "x" })
 local fractional = tab:CreateSlider({
@@ -142,8 +148,10 @@ local fractional = tab:CreateSlider({
 })
 TestPump(0.5)
 
--- [[LayoutOrder places the glyphs visually, not in creation order, so these
--- [[are membership checks on the set of rendered glyphs.]]
+--[[
+LayoutOrder places the glyphs visually, not in creation order, so these
+are membership checks on the set of rendered glyphs.
+]]
 local function glyphsOf(element)
 	local seen = {}
 	for _, label in textLabels(element.main) do

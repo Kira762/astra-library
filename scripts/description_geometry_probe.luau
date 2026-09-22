@@ -1,11 +1,13 @@
--- ===== geometry dump for the description diagram =====
--- [[Not a suite: prints one `ELEMENT|`/`PART|` record per described element —
--- [[the card, the in-card description line and every control rect inside it,
--- [[all in card-local coordinates with the anchor math the engine applies.
--- [[`scripts/render_description_preview.py` runs this through the stubs and
--- [[draws the records (PNG and HTML) so the layout can be inspected without
--- [[the engine; `scripts/inline_description_test.sh` is the assertion suite
--- [[that pins the same geometry.]]
+--[[
+===== geometry dump for the description diagram =====
+Not a suite: prints one `ELEMENT|`/`PART|` record per described element —
+the card, the in-card description line and every control rect inside it,
+all in card-local coordinates with the anchor math the engine applies.
+`scripts/render_description_preview.py` runs this through the stubs and
+draws the records (PNG and HTML) so the layout can be inspected without
+the engine; `scripts/inline_description_test.sh` is the assertion suite
+that pins the same geometry.
+]]
 
 local function rectIn(instance, ancestor)
 	local x, y = 0, 0

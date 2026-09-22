@@ -1,14 +1,16 @@
--- ===== Stat text-readout assertions =====
--- Runs the real Astra bundle against the mini Roblox environment from
--- sidebar_sizing_stubs.luau and pins the Stat's third presentation:
---   * a string value that opts out of the letter badge (letter = false) reads
---     the whole value out in one TextLabel — no odometer, no change readout,
---     in the full card and in the compact row card,
---   * the label reveals and hides with the card,
---   * Set / SetText / ResetBaseline all write to it, prefix and suffix still
---     wrap the value,
---   * numeric stats keep their odometers and text values still default to the
---     single-letter badge, so nothing that existed before changes.
+--[[
+===== Stat text-readout assertions =====
+Runs the real Astra bundle against the mini Roblox environment from
+sidebar_sizing_stubs.luau and pins the Stat's third presentation:
+  * a string value that opts out of the letter badge (letter = false) reads
+    the whole value out in one TextLabel — no odometer, no change readout,
+    in the full card and in the compact row card,
+  * the label reveals and hides with the card,
+  * Set / SetText / ResetBaseline all write to it, prefix and suffix still
+    wrap the value,
+  * numeric stats keep their odometers and text values still default to the
+    single-letter badge, so nothing that existed before changes.
+]]
 
 local function expect(cond, message)
 	if not cond then

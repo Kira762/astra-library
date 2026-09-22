@@ -1,26 +1,28 @@
--- Locked tabs: `CreateTab({ locked = true })` marks a tab visible-but-gated.
--- The lock badge is temporarily hidden with no reserved rail width; the row
--- dims like a disabled control, never selects (row tap, `tab:Select`,
--- `window:Navigate` all bail), and keeps its elements out of the search
--- index. Only host code unlocks it, through `tab:SetLocked(false)`; locking
--- a tab that is currently open moves the selection to another unlocked tab.
---
--- The assertions below pin the states a regression would break:
---
---   L1 the flag, the badge (always hidden during the UI pause) and the
---      auto-select skipping a locked first tab,
---   L2 a row tap on a locked tab: no selection, one notification,
---   L3 hover leaves a locked row dimmed (an unlocked row still hovers),
---   L4 `window:Navigate` (name and object) does not open a locked tab,
---   L5 a direct `tab:Select` does not open a locked tab,
---   L6 `SetLocked(false)` re-enables the row and it can be selected,
---   L7 `SetLocked(true)` on the open tab moves the selection off it,
---   L8 the search index excludes locked tabs' elements but keeps the
---      unlocked ones,
---   L9 locking every remaining tab clears the selection and hides the
---      content; unlocking and opening it again restores it,
---   L10 the hidden badge retains its geometry for re-enabling, but takes no
---      layout space and stays hidden after lock flips, collapse and rebuild.
+--[[
+Locked tabs: `CreateTab({ locked = true })` marks a tab visible-but-gated.
+The lock badge is temporarily hidden with no reserved rail width; the row
+dims like a disabled control, never selects (row tap, `tab:Select`,
+`window:Navigate` all bail), and keeps its elements out of the search
+index. Only host code unlocks it, through `tab:SetLocked(false)`; locking
+a tab that is currently open moves the selection to another unlocked tab.
+
+The assertions below pin the states a regression would break:
+
+  L1 the flag, the badge (always hidden during the UI pause) and the
+     auto-select skipping a locked first tab,
+  L2 a row tap on a locked tab: no selection, one notification,
+  L3 hover leaves a locked row dimmed (an unlocked row still hovers),
+  L4 `window:Navigate` (name and object) does not open a locked tab,
+  L5 a direct `tab:Select` does not open a locked tab,
+  L6 `SetLocked(false)` re-enables the row and it can be selected,
+  L7 `SetLocked(true)` on the open tab moves the selection off it,
+  L8 the search index excludes locked tabs' elements but keeps the
+     unlocked ones,
+  L9 locking every remaining tab clears the selection and hides the
+     content; unlocking and opening it again restores it,
+  L10 the hidden badge retains its geometry for re-enabling, but takes no
+     layout space and stays hidden after lock flips, collapse and rebuild.
+]]
 
 local function expect(cond, message)
 	if not cond then
@@ -55,8 +57,10 @@ local function findNotificationCard(window)
 	return nil
 end
 
--- The card nests its labels two levels down (main -> body -> container), so
--- the scan is recursive over whatever the stub models as children.
+--[[
+The card nests its labels two levels down (main -> body -> container), so
+the scan is recursive over whatever the stub models as children.
+]]
 local function cardContainsText(instance, text)
 	for _, child in instance:GetChildren() do
 		if child:IsA("TextLabel") then
@@ -219,9 +223,11 @@ local betaTab = w3:CreateTab({ name = "Beta", icon = "gauge" })
 local premiumTab = w3:CreateTab({ name = "Premium", icon = "star", locked = true })
 TestPump(0.3)
 
--- Stub text metrics: ceil(#text * 16 * 0.6), so "Premium" is 68px wide and
--- the row measures 20 (padding) + 26 (icon + gap) + 68 = 114,
--- i.e. a 144px rail with the row insets. Hidden badges reserve nothing.
+--[[
+Stub text metrics: ceil(#text * 16 * 0.6), so "Premium" is 68px wide and
+the row measures 20 (padding) + 26 (icon + gap) + 68 = 114,
+i.e. a 144px rail with the row insets. Hidden badges reserve nothing.
+]]
 local badge = premiumTab.topbarItemLock
 expect(badge, "L10 locked tab builds a lock badge")
 eq(badge.Visible, false, "L10 badge stays hidden while locked")
@@ -247,8 +253,10 @@ TestPump(0.3)
 eq(w3.sidebar.Size.X.Offset, 144, "L10 locking keeps the same rail width")
 near(premiumTab.topbarItemTitle.TextTransparency, 0.7, 0.05, "L10 the re-locked row keeps the gated floor")
 
--- A long locked name wraps clear of the badge: at the 300px cap the slot is
--- 270 - 20 - 26 - 19 = 224, while the short rows stay unconstrained.
+--[[
+A long locked name wraps clear of the badge: at the 300px cap the slot is
+270 - 20 - 26 - 19 = 224, while the short rows stay unconstrained.
+]]
 local longLocked = w3:CreateTab({ name = "ThisLockedNameIsLongEnoughToCapTheRail", icon = "star", locked = true })
 TestPump(0.3)
 eq(w3.sidebar.Size.X.Offset, 300, "L10 very long locked name caps the rail")

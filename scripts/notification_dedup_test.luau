@@ -1,6 +1,8 @@
--- Regression test for duplicate notification replacement. An exact duplicate
--- must retire the old live card and build a new card through the normal
--- entrance path; only requests that have not been built yet may coalesce.
+--[[
+Regression test for duplicate notification replacement. An exact duplicate
+must retire the old live card and build a new card through the normal
+entrance path; only requests that have not been built yet may coalesce.
+]]
 local tweens = game:GetService("TweenService")
 local createTween = tweens.Create
 tweens.Create = function(self, ...)
@@ -67,8 +69,10 @@ expect(built(window) == before + 1, "replacement takes a new build turn")
 expect(oldMain.Parent == nil, "old duplicate is removed from the notification layer")
 expect(countInstances(window) == 2, "replacement does not leave an overlapping duplicate")
 
--- Repeating while the replacement is visible always creates a new generation;
--- the queued part of the burst is still bounded to one pending snapshot.
+--[[
+Repeating while the replacement is visible always creates a new generation;
+the queued part of the burst is still bounded to one pending snapshot.
+]]
 local generations = { replacement }
 for _ = 1, 4 do
     window:Notify({ title = "Same", content = "Value", duration = 4 })
@@ -130,8 +134,10 @@ advance(1)
 expect(built(other) == beforeUnload, "unload prevents queued construction")
 expect(#other._overlayQueue.pending == 0, "unload clears queued identity entries")
 
--- A request parked behind a cancelled entrance still coalesces by snapshot and
--- then builds one fresh card when the gate opens.
+--[[
+A request parked behind a cancelled entrance still coalesces by snapshot and
+then builds one fresh card when the gate opens.
+]]
 local gated = Astra:CreateWindow({ name = "Gated replacement" })
 gated:CreateTab({ name = "Home" })
 gated:Hide()

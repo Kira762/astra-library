@@ -1,37 +1,39 @@
--- ===== in-card description assertions: the line never covers the element ====
--- [[Runs the real Astra bundle (loaded as global `Astra` above) against the]]
--- [[mini Roblox environment from sidebar_sizing_stubs.luau.]]
---
--- An element created with a `description` renders it inside its own card: a
--- muted 14px line under the title band (the Collapsible Group header recipe,
--- one line: 41 -> 61). The card grows by the measured wrapped-line height and
--- the element's own UI keeps the space it always had, so the line can never
--- cover the title row, the control or the card's edge — the overlap this
--- suite exists to pin.
---
--- Expected behavior under test:
---   * D1 the label is a child of the element's own card and the tab page
---        holds nothing but element cards (no standalone row under the card),
---   * D2 the one-line recipe: a 41px card grows to 61px with a 14px, wrapped
---        label at (20, 37), 17px tall,
---   * D3 the title row keeps centring in the base region (20.5, not 30.5),
---   * D4 a wrapped description grows the card line by line (lines*17 + 3),
---   * D5 no described element's line intersects its own title row, control
---        surface or any bottom-anchored track/readout, and every line stays
---        inside its card,
---   * D6 the slider re-seats the line for each layout mode (wide, narrow,
---        minimal) and keeps its track centred in the base region,
---   * D7 the dropdown's closed and open heights both carry the extra, so its
---        option panel opens below the line,
---   * D8 the line reveals with its element at 0.45 transparency,
---   * D9 locking swaps the line for the lock message, unlocking restores the
---        original description,
---   * D10 the stat readouts ride up above the line,
---   * D11 an element without a description keeps its card height and carries
---        no label,
---   * D12 the Collapsible Group header grows to 61px with its own line,
---   * D13 and that header's body starts below that line, so the group's own
---        children never sit on top of the copy.
+--[[
+===== in-card description assertions: the line never covers the element ====
+Runs the real Astra bundle (loaded as global `Astra` above) against the
+mini Roblox environment from sidebar_sizing_stubs.luau.
+
+An element created with a `description` renders it inside its own card: a
+muted 14px line under the title band (the Collapsible Group header recipe,
+one line: 41 -> 61). The card grows by the measured wrapped-line height and
+the element's own UI keeps the space it always had, so the line can never
+cover the title row, the control or the card's edge — the overlap this
+suite exists to pin.
+
+Expected behavior under test:
+  * D1 the label is a child of the element's own card and the tab page
+       holds nothing but element cards (no standalone row under the card),
+  * D2 the one-line recipe: a 41px card grows to 61px with a 14px, wrapped
+       label at (20, 37), 17px tall,
+  * D3 the title row keeps centring in the base region (20.5, not 30.5),
+  * D4 a wrapped description grows the card line by line (lines*17 + 3),
+  * D5 no described element's line intersects its own title row, control
+       surface or any bottom-anchored track/readout, and every line stays
+       inside its card,
+  * D6 the slider re-seats the line for each layout mode (wide, narrow,
+       minimal) and keeps its track centred in the base region,
+  * D7 the dropdown's closed and open heights both carry the extra, so its
+       option panel opens below the line,
+  * D8 the line reveals with its element at 0.45 transparency,
+  * D9 locking swaps the line for the lock message, unlocking restores the
+       original description,
+  * D10 the stat readouts ride up above the line,
+  * D11 an element without a description keeps its card height and carries
+       no label,
+  * D12 the Collapsible Group header grows to 61px with its own line,
+  * D13 and that header's body starts below that line, so the group's own
+       children never sit on top of the copy.
+]]
 
 local function expect(cond, message)
 	if not cond then
@@ -55,11 +57,13 @@ local function eq(actual, wanted, message)
 	end
 end
 
--- [[Rects in the element card's own coordinates, computed the way the engine
--- [[lays them out: every hop resolves Position against the parent's size and
--- [[subtracts the child's anchor. The stub reports AbsoluteSize (scale chains
--- [[resolved) but places anchored children at their raw offset, so the rects
--- [[are walked here rather than read from AbsolutePosition.]]
+--[[
+Rects in the element card's own coordinates, computed the way the engine
+lays them out: every hop resolves Position against the parent's size and
+subtracts the child's anchor. The stub reports AbsoluteSize (scale chains
+resolved) but places anchored children at their raw offset, so the rects
+are walked here rather than read from AbsolutePosition.
+]]
 local function rectIn(instance, ancestor)
 	local x, y = 0, 0
 	local width, height = 0, 0
@@ -109,11 +113,13 @@ local function describe(text): string
 	)
 end
 
--- [[The line must clear the element's own UI: the title row, whatever control
--- [[surface the element draws, and the parts that anchor to the card's bottom
--- [[(a slider track, a progress bar, a stat readout). Frames that only paint
--- [[the card behind the text (backgrounds, hover overlays, click targets) are
--- [[not content and are deliberately not listed.]]
+--[[
+The line must clear the element's own UI: the title row, whatever control
+surface the element draws, and the parts that anchor to the card's bottom
+(a slider track, a progress bar, a stat readout). Frames that only paint
+the card behind the text (backgrounds, hover overlays, click targets) are
+not content and are deliberately not listed.
+]]
 local function assertClearOfContent(element, line, parts)
 	for _, part in parts do
 		if part then
@@ -319,9 +325,11 @@ TestPump(0.3)
 near(plainGroup.headerHeight, 41, "D13 an undescribed group header stays 41px")
 near(rectIn(plainGroup.bodyClip, plainGroup.main).y, 42, "D13 an undescribed group's body starts under the divider at 41px")
 
--- [[A described control inside a group carries the same line: the declarative
--- [[child receives the prop and grows its own card, so the group's measured
--- [[content includes the extra.]]
+--[[
+A described control inside a group carries the same line: the declarative
+child receives the prop and grows its own card, so the group's measured
+content includes the extra.
+]]
 local groupedGroup = more:CreateCollapsibleGroup({
 	name = "Grouped children",
 	elements = {

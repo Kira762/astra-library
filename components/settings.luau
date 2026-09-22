@@ -6,9 +6,11 @@ local layouts = require(utilities.layouts)
 
 local settingsComponent = {}
 
--- [[The About card's copy. The card itself is a reusable element — these three
--- [[are simply the values this build stamps into the Settings tab's card, so a
--- [[release updates them here and nowhere else.
+--[[
+The About card's copy. The card itself is a reusable element — these three
+are simply the values this build stamps into the Settings tab's card, so a
+release updates them here and nowhere else.
+]]
 local aboutVersion = "1.4.0"
 local aboutBuild = "2026.09.21"
 local aboutAuthor = "Astra Team"
@@ -34,19 +36,23 @@ function settingsComponent.buildUI(window)
         table.insert(window._settingsTabs, tab)
     end
 
-    -- [[The settings shells are created on first settings access.]]
-    -- [[Each tab's elements are created the first time that tab is opened]]
-    -- [[(see _buildSettingsContent), so opening the window stays fast. The]]
-    -- [[builders run at most once, in the original creation order.]]
+    --[[
+    The settings shells are created on first settings access.
+    Each tab's elements are created the first time that tab is opened
+    (see _buildSettingsContent), so opening the window stays fast. The
+    builders run at most once, in the original creation order.
+    ]]
     window._settingsContentBuilt = window._settingsContentBuilt or {}
 
     local function buildAbout()
-        -- [[The About page is one About card: the brand header, the three data
-        -- [[rows and the description paragraph. The card's optional action band
-        -- [[is left off here because the Settings tab has no changelog to open;
-        -- [[a host that keeps release notes passes `action` with its own
-        -- [[callback. The version, build and author strings live at the top of
-        -- [[this module — bump them with a release.]]
+        --[[
+        The About page is one About card: the brand header, the three data
+        rows and the description paragraph. The card's optional action band
+        is left off here because the Settings tab has no changelog to open;
+        a host that keeps release notes passes `action` with its own
+        callback. The version, build and author strings live at the top of
+        this module — bump them with a release.
+        ]]
         about:CreateAboutCard({
             name = "Astra",
             subtitle = "UI Library for a better experience.",
@@ -145,9 +151,11 @@ function settingsComponent.buildUI(window)
     general._settingsContentBuilder = buildGeneral
 
     local function buildAppearance()
-        -- [[The only built-in palette is `default`; hosts overlay keys through
-        -- [[`window:ChangeTheme({ ... })`. Appearance therefore has nothing to
-        -- [[pick — layout and motion stay here.]]
+        --[[
+        The only built-in palette is `default`; hosts overlay keys through
+        `window:ChangeTheme({ ... })`. Appearance therefore has nothing to
+        pick — layout and motion stay here.
+        ]]
         local layoutMap = { sidebar = "Sidebar (Responsive)", collapsedSidebar = "Collapsed Sidebar" }
         local layoutDropdown
         local currentLayout = window.settings.layoutMode or window.layout.mode
@@ -412,9 +420,11 @@ end
 
 function settingsComponent.buildContent(window, tab)
     settingsComponent.buildUI(window)
-    -- [[Lazy settings content: a tab's elements are created the first]]
-    -- [[time it is opened, keeping window construction fast. The pcall]]
-    -- [[keeps one bad element from taking the whole window down.]]
+    --[[
+    Lazy settings content: a tab's elements are created the first
+    time it is opened, keeping window construction fast. The pcall
+    keeps one bad element from taking the whole window down.
+    ]]
     if window._settingsContentBuilt[tab] or not tab._settingsContentBuilder then
         return
     end
@@ -426,8 +436,10 @@ function settingsComponent.buildContent(window, tab)
 end
 
 function settingsComponent.applySettingsLayout(window, isSettings)
-    -- [[isSettings is retained for callers; the flags derive from the live]]
-    -- [[rail so settings modes share one layout switch.]]
+    --[[
+    isSettings is retained for callers; the flags derive from the live
+    rail so settings modes share one layout switch.
+    ]]
     local rail = window:_activeRail()
     window._settingsLayoutActive = rail == "settings"
     if window.tabList then
@@ -446,8 +458,10 @@ function settingsComponent.applySettingsLayout(window, isSettings)
         window.selectedTab.tabPage.Size = UDim2.new(1, -35, 1, 0)
         window.selectedTab.tabPage.Position = UDim2.new(0, 35, 0, 0)
     end
-    -- [[The visible rail group changed: re-derive the responsive rail's]]
-    -- [[width from the tabs now shown (no-op for the other layouts).]]
+    --[[
+    The visible rail group changed: re-derive the responsive rail's
+    width from the tabs now shown (no-op for the other layouts).
+    ]]
     window:_applyContentRailWidth()
 end
 

@@ -28,10 +28,12 @@ local domains = {
 }
 
 function SettingsManager.new(overrides: { [string]: any }?): SettingsManager
-    -- [[`values` and `listeners` were never created here, so every method that
-    -- touches them (:get, :set, :save, :load, :onChange) raised "attempt to
-    -- index nil" the first time a host used a manager directly. The window
-    -- keeps its own plain settings table, which is why this went unnoticed.]]
+    --[[
+    `values` and `listeners` were never created here, so every method that
+    touches them (:get, :set, :save, :load, :onChange) raised "attempt to
+    index nil" the first time a host used a manager directly. The window
+    keeps its own plain settings table, which is why this went unnoticed.
+    ]]
     local self = setmetatable({
         defaults = defaults.clone(overrides),
         values = defaults.clone(overrides),
@@ -102,9 +104,11 @@ function SettingsManager:load(): boolean
         return ok
     end
 
-    -- [[Notify listeners only for values that actually changed, matching the]]
-    -- [[(key, newValue, oldValue) contract of :set(). Persisted values are]]
-    -- [[written into self.values first; callbacks fire afterwards.]]
+    --[[
+    Notify listeners only for values that actually changed, matching the
+    (key, newValue, oldValue) contract of :set(). Persisted values are
+    written into self.values first; callbacks fire afterwards.
+    ]]
     for _, key in registry.keys() do
         local newValue = self.values[key]
         if snapshot[key] ~= newValue then

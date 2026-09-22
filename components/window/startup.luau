@@ -40,7 +40,7 @@ function Window.new(props)
         state.setFallbackFont(fallbackFont)
     end
 
-        local layout = layouts.sidebar -- [[layout is controlled via Settings (Astra Settings → Bar Layout); CreateWindow no longer takes sidebarLayout]]
+        local layout = layouts.sidebar -- layout is controlled via Settings (Astra Settings → Bar Layout); CreateWindow no longer takes sidebarLayout
     local providedIcon = props.icon or props.Icon
 
     local self = setmetatable({
@@ -51,15 +51,19 @@ function Window.new(props)
         instances = {},
         connections = {},
 
-        -- Cleared by the entrypoint after the caller's initial construction
-        -- has been quiet for two frames. Checkpoints continue after the window
-        -- appears so the remaining controls cannot freeze its entrance.
+        --[[
+        Cleared by the entrypoint after the caller's initial construction
+        has been quiet for two frames. Checkpoints continue after the window
+        appears so the remaining controls cannot freeze its entrance.
+        ]]
         _startupComplete = false,
-        -- [[Placeholder for the entrance queue: the queue's own shape (pending
-        -- list, gate flags) is completed by `queueFor` in
-        -- `components/overlayQueue.luau` on first use, so what lives here is
-        -- only "the window has somewhere to put its overlays", which is what
-        -- lets `Unload` clear it unconditionally.]]
+        --[[
+        Placeholder for the entrance queue: the queue's own shape (pending
+        list, gate flags) is completed by `queueFor` in
+        `components/overlayQueue.luau` on first use, so what lives here is
+        only "the window has somewhere to put its overlays", which is what
+        lets `Unload` clear it unconditionally.
+        ]]
         _overlayQueue = {},
         _overlayQueueRunning = false,
 
@@ -124,9 +128,11 @@ function Window.new(props)
 
             self.settings = {
         toggleKeybind = Enum.KeyCode.K,
-        -- [[Named themes other than `default` were removed; a custom table
-        -- [[still paints through `resolveTheme` above. Persist only the
-        -- [[built-in name so a saved colour-theme string cannot come back.]]
+        --[[
+        Named themes other than `default` were removed; a custom table
+        still paints through `resolveTheme` above. Persist only the
+        built-in name so a saved colour-theme string cannot come back.
+        ]]
         theme = "default",
         mouseOverride = false,         keepOnScreen = true,         haptics = false,
         dragMinimisedBar = false,
@@ -155,20 +161,24 @@ function Window.new(props)
         Position = UDim2.new(0.5, 0, 0.5, 0),
                 Size = self.size,
         BackgroundTransparency = 1,
-        -- [[Roblox gives every GuiObject a 1px border by default. The border
-        -- draws the frame's rectangular outline — straight lines that ignore
-        -- the UICorner arcs — so on the rounded window it painted a hard
-        -- square edge across all four corners once the surface faded in.
-        -- The window's silhouette is the UICorner's job alone.]]
+        --[[
+        Roblox gives every GuiObject a 1px border by default. The border
+        draws the frame's rectangular outline — straight lines that ignore
+        the UICorner arcs — so on the rounded window it painted a hard
+        square edge across all four corners once the surface faded in.
+        The window's silhouette is the UICorner's job alone.
+        ]]
         BorderSizePixel = 0,
         Visible = false,
         Parent = self.screenGui,
     })
 
-    -- Scale is used only for the first entrance. Animating the Frame's Size
-    -- forces every descendant layout to recompute on every tween step; UIScale
-    -- gives the same soft pop without turning a large window into a layout
-    -- hotspot while it opens.
+    --[[
+    Scale is used only for the first entrance. Animating the Frame's Size
+    forces every descendant layout to recompute on every tween step; UIScale
+    gives the same soft pop without turning a large window into a layout
+    hotspot while it opens.
+    ]]
     self.windowScale = self:Create("UIScale", {
         Scale = 1,
         Parent = self.main,
@@ -202,9 +212,11 @@ function Window.new(props)
 
     self.bottomFadeCorner = self:_roundCorners(self.bottomFade, self.layout.fadeCorners)
 
-    -- [[The bottom fade blends scrolling content into the elements area's own
-    -- [[surface (its lightest band of the three sections), not the window's
-    -- [[base gradient, which the opaque sections no longer show through.]]
+    --[[
+    The bottom fade blends scrolling content into the elements area's own
+    surface (its lightest band of the three sections), not the window's
+    base gradient, which the opaque sections no longer show through.
+    ]]
     self.bottomFadeGradient = self:Create("UIGradient", {
         Rotation = 270,
         Offset = Vector2.new(0, 0.2),
@@ -220,15 +232,17 @@ function Window.new(props)
         },
     })
 
-        -- [[Topbar band: the darkest of the window's three sections. Its own
-        -- [[surface sits under the title, controls, search and icons; the
-        -- [[top corners mirror the window's silhouette for themes that round
-        -- [[it. The surface is faded out only in the collapsed-capsule state
-        -- [[(see visibility.luau), where the 64px band would overshoot the
-        -- [[50px capsule and the capsule reads on the window's own gradient.]]
-        -- [[No white BaseColor3 prop here: `Window:Create` applies the theme
-        -- [[binding first and the props second, so a prop copy of the colour
-        -- [[would land on top of the bound token.]]
+        --[[
+        Topbar band: the darkest of the window's three sections. Its own
+        surface sits under the title, controls, search and icons; the
+        top corners mirror the window's silhouette for themes that round
+        it. The surface is faded out only in the collapsed-capsule state
+        (see visibility.luau), where the 64px band would overshoot the
+        50px capsule and the capsule reads on the window's own gradient.
+        No white BaseColor3 prop here: `Window:Create` applies the theme
+        binding first and the props second, so a prop copy of the colour
+        would land on top of the bound token.
+        ]]
         self.topbar = self:Create("Frame", {
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
@@ -238,10 +252,12 @@ function Window.new(props)
         Parent = self.main,
     }, { BackgroundColor3 = "TopbarSurface" })
 
-        -- [[Kept by reference: the capsule / minimised bar states animate
-        -- [[the window's own corner to PillCornerRadius, and the opaque
-        -- [[band's top corners must follow or they would poke past the
-        -- [[silhouette (see Window:_syncTopbarCorners).]]
+        --[[
+        Kept by reference: the capsule / minimised bar states animate
+        the window's own corner to PillCornerRadius, and the opaque
+        band's top corners must follow or they would poke past the
+        silhouette (see Window:_syncTopbarCorners).
+        ]]
         self.topbarCorner = self:_roundCorners(self.topbar, { "TopLeftRadius", "TopRightRadius" })
 
     self.topContainer = self:Create("Frame", {
@@ -331,11 +347,13 @@ function Window.new(props)
 
                 self.windowShadow = self:CreateGlow(self.main, "ShadowColor", 20, 1)
 
-                -- [[Elements band: the lightest of the window's three
-                -- [[sections, solid (its shown-state transparency is the
-                -- [[layout's cardTransparency, now 0) and flush against the
-                -- [[topbar and the tab rail — see the layout's cardCorners
-                -- [[for the square top-left edge.]]
+                --[[
+                Elements band: the lightest of the window's three
+                sections, solid (its shown-state transparency is the
+                layout's cardTransparency, now 0) and flush against the
+                topbar and the tab rail — see the layout's cardCorners
+                for the square top-left edge.
+                ]]
                 self.elements = self:Create("Frame", {
         Size = UDim2.new(1, 0, 1, -self.layout.chromeHeight),
         Position = UDim2.fromScale(1, 1),
@@ -418,8 +436,10 @@ function Window.new(props)
     })
     self.rfSettings._isSettingsTab = true
     self._settingsTabs = { self.rfSettings }
-    -- [[Settings tab shell landed; hand the frame back before the action
-    -- [[buttons and search chrome are added.]]
+    --[[
+    Settings tab shell landed; hand the frame back before the action
+    buttons and search chrome are added.
+    ]]
     self:_constructionCheckpoint(true)
 
     require(script.Parent.Parent.action).new(self, {
@@ -468,8 +488,10 @@ function Window.new(props)
 
     search.build(self)
         self:_applyRailWidth()
-    -- [[Toolbar complete; another frame before persisted settings are read
-    -- [[and applied (a disk read, the theme pass and possibly a layout swap).]]
+    --[[
+    Toolbar complete; another frame before persisted settings are read
+    and applied (a disk read, the theme pass and possibly a layout swap).
+    ]]
     self:_constructionCheckpoint(true)
 
     self.unloaded = false
@@ -501,34 +523,40 @@ function Window.new(props)
     self:_applyMotionSetting()
     self:_syncLiveAnimation()
 
-    -- [[Construction is complete: settings tab content may now be built]]
-    -- [[lazily on first open (it is skipped while the window is still]]
-    -- [[being constructed, e.g. by the first-tab auto-select).]]
+    --[[
+    Construction is complete: settings tab content may now be built
+    lazily on first open (it is skipped while the window is still
+    being constructed, e.g. by the first-tab auto-select).
+    ]]
     self._constructed = true
 
-    -- [[Overlays wait for the window's own entrance before any of them starts]]
-    -- [[building: the gate opens when that entrance lands (in `_firstShow`,]]
-    -- [[after its settle and the reveal cascade that follows it). A host that]]
-    -- [[fires a notification between CreateWindow and the first show still gets it —]]
-    -- [[just behind the window instead of on top of it.]]
+    --[[
+    Overlays wait for the window's own entrance before any of them starts
+    building: the gate opens when that entrance lands (in `_firstShow`,
+    after its settle and the reveal cascade that follows it). A host that
+    fires a notification between CreateWindow and the first show still gets it —
+    just behind the window instead of on top of it.
+    ]]
     overlayQueue.pause(self)
 
     return self
 end
 
--- Yield at a completed construction boundary when the current frame has
--- spent its budget. Batches are limited by both CPU time and instance count,
--- and the check is unconditional: components that build lazily after startup
--- (late settings panels) use this directly so a deferred build can never
--- monopolise a frame either. Yields land on the
--- next Heartbeat (not another deferred task in the same frame).
---
--- An unloaded window never paces: the anti-duplicate guard may unload this
--- window while its superseded script's constructors are still running (they
--- yield here between batches). Those threads must finish harmlessly, not
--- crash, so construction resumes detached — `Window:Create` builds into a
--- throwaway container once `unloaded` is set — and the checkpoint stays a
--- no-op instead of asserting.
+--[[
+Yield at a completed construction boundary when the current frame has
+spent its budget. Batches are limited by both CPU time and instance count,
+and the check is unconditional: components that build lazily after startup
+(late settings panels) use this directly so a deferred build can never
+monopolise a frame either. Yields land on the
+next Heartbeat (not another deferred task in the same frame).
+
+An unloaded window never paces: the anti-duplicate guard may unload this
+window while its superseded script's constructors are still running (they
+yield here between batches). Those threads must finish harmlessly, not
+crash, so construction resumes detached — `Window:Create` builds into a
+throwaway container once `unloaded` is set — and the checkpoint stays a
+no-op instead of asserting.
+]]
 
 function Window:_paceBudget(force)
     if self.unloaded then
@@ -556,21 +584,25 @@ function Window:_paceBudget(force)
     task.wait()
     self._constructionBusy -= 1
     if self.unloaded then
-        -- [[Replaced mid-construction (anti-duplicate): the remaining
-        -- [[constructors run on, detached, so the host thread that owns them
-        -- [[ends cleanly instead of erroring on the next checkpoint.]]
+        --[[
+        Replaced mid-construction (anti-duplicate): the remaining
+        constructors run on, detached, so the host thread that owns them
+        ends cleanly instead of erroring on the next checkpoint.
+        ]]
         return
     end
     self._constructionClock = os.clock()
     self._constructionInstances = #self.instances
 end
 
--- Startup-only checkpoint: element constructors stream in between the shell's
--- first reveal and the build going quiet, so yielding is gated to that window.
--- `force` marks an explicit shell phase boundary inside Window.new (where
--- `_constructed` is still false). Every boundary yields whole, completed
--- objects, never half a control, so each constructor resumes with a fully
--- usable object.
+--[[
+Startup-only checkpoint: element constructors stream in between the shell's
+first reveal and the build going quiet, so yielding is gated to that window.
+`force` marks an explicit shell phase boundary inside Window.new (where
+`_constructed` is still false). Every boundary yields whole, completed
+objects, never half a control, so each constructor resumes with a fully
+usable object.
+]]
 
 function Window:_constructionCheckpoint(force)
     if self._startupComplete or (not force and not self._constructed) then
@@ -579,15 +611,19 @@ function Window:_constructionCheckpoint(force)
     self:_paceBudget(force)
 end
 
--- Configuration restoration can execute host callbacks. Apply a small group,
--- then return a frame to rendering so a large saved configuration cannot make
--- the freshly-opened window hitch. This is called only by persistenceConfig.
+--[[
+Configuration restoration can execute host callbacks. Apply a small group,
+then return a frame to rendering so a large saved configuration cannot make
+the freshly-opened window hitch. This is called only by persistenceConfig.
+]]
 
 function Window:_loadCheckpoint(appliedCount)
     if self.unloaded then
-        -- [[The controls a configuration load writes into are gone once the
-        -- [[window is unloaded; persistenceConfig stops the loop on the same
-        -- [[condition, so this checkpoint just never paces a dead window.]]
+        --[[
+        The controls a configuration load writes into are gone once the
+        window is unloaded; persistenceConfig stops the loop on the same
+        condition, so this checkpoint just never paces a dead window.
+        ]]
         return
     end
     local step = hardwarePerformance.getLoadCheckpointStep()
@@ -599,8 +635,10 @@ function Window:_loadCheckpoint(appliedCount)
     end
 end
 
--- [[The "Animation speed" setting owns the motion service's time scale. It is
--- applied from the window (not only from the settings control) so a window
--- built from persisted settings, a configuration load and a live change all
--- reach the same state; an unknown persisted value falls back to `normal`
--- instead of leaving the library on whatever the last window used.]]
+--[[
+The "Animation speed" setting owns the motion service's time scale. It is
+applied from the window (not only from the settings control) so a window
+built from persisted settings, a configuration load and a live change all
+reach the same state; an unknown persisted value falls back to `normal`
+instead of leaving the library on whatever the last window used.
+]]

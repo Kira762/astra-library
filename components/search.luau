@@ -7,9 +7,11 @@ local actionComponent = require(script.Parent.action)
 
 local search = {}
 
--- [[The search overlay shares the library's hover spec for its fades; the
--- two task.delay beats below read the spec's duration so the pill never
--- hides while its fade is still running.]]
+--[[
+The search overlay shares the library's hover spec for its fades; the
+two task.delay beats below read the spec's duration so the pill never
+hides while its fade is still running.
+]]
 local HOVER_SPEC = "snappy"
 local HOVER_SPEC_TIME = 0.25
 
@@ -37,8 +39,10 @@ end
 local function getAllElements(window)
     local elements = {}
     for _, tab in window.tabs do
-        -- [[Locked tabs keep their contents private: their elements never
-        -- [[reach the search index, so a search cannot leak a name.]]
+        --[[
+        Locked tabs keep their contents private: their elements never
+        reach the search index, so a search cannot leak a name.
+        ]]
         if tab.neglectSelector or tab.locked then
             continue
         end
@@ -80,10 +84,12 @@ local function collectElements(window)
     window._searchUnits = {}
     local order = 0
 
-    -- [[Elements of tabs the player has not opened yet are still hidden (see
-    -- [[`Window:_markTabElementsPending`). The search lays every element out on
-    -- [[its own page, so bring them all in first - exactly the state the old
-    -- [[reveal left them in.]]
+    --[[
+    Elements of tabs the player has not opened yet are still hidden (see
+    `Window:_markTabElementsPending`). The search lays every element out on
+    its own page, so bring them all in first - exactly the state the old
+    reveal left them in.
+    ]]
     for _, tab in pairs(window.tabs) do
         if tab._elementsPending then
             window:_showTabElements(tab)
@@ -253,8 +259,10 @@ function search.buildContent(window)
         Parent = window.main,
     })
 
-    -- [[The bar is a field floating over the content, so it wears the
-    -- [[element tier rather than the shell's own arc.]]
+    --[[
+    The bar is a field floating over the content, so it wears the
+    element tier rather than the shell's own arc.
+    ]]
     window:Create("UICorner", {
         Parent = window.searchPill,
     }, { CornerRadius = "ElementCornerRadius" })

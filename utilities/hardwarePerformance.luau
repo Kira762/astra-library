@@ -1,15 +1,16 @@
--- [[Astra Hardware Performance Engine.
---
--- Automatically detects GPU, CPU, frame timing, and device capabilities to
--- dynamically tune UI construction pacing, instance budgets, element loading,
--- and animation profiles.
---
--- On low-end mobile devices, weak GPUs, or under high frame jitter / load,
--- this module automatically reduces per-frame instance allocations and frame time
--- budgets, preventing Roblox client lag spikes, frame drops, and out-of-memory
--- or engine crashes. On high-end devices, it expands budgets for instant,
--- silky-smooth delivery.
---]]
+--[[
+Astra Hardware Performance Engine.
+
+Automatically detects GPU, CPU, frame timing, and device capabilities to
+dynamically tune UI construction pacing, instance budgets, element loading,
+and animation profiles.
+
+On low-end mobile devices, weak GPUs, or under high frame jitter / load,
+this module automatically reduces per-frame instance allocations and frame time
+budgets, preventing Roblox client lag spikes, frame drops, and out-of-memory
+or engine crashes. On high-end devices, it expands budgets for instant,
+silky-smooth delivery.
+]]
 
 local state = require(script.Parent.Parent.core.state)
 
@@ -94,8 +95,10 @@ if state.runService and state.runService.Heartbeat then
 			if count > 0 then
 				averageDt = sampleSum / count
 				frameJitter = math.abs(clampedDt - averageDt)
-				-- If current frame took > 33ms (~30 FPS) or moving average is < 40 FPS,
-				-- or jitter is very high, the GPU/CPU is struggling.
+				--[[
+				If current frame took > 33ms (~30 FPS) or moving average is < 40 FPS,
+				or jitter is very high, the GPU/CPU is struggling.
+				]]
 				struggling = clampedDt > 0.033 or averageDt > 0.025 or frameJitter > 0.018
 			end
 		end)
@@ -123,8 +126,10 @@ function hardwarePerformance.getAverageFps(): number
 	return math.clamp(1 / averageDt, 1, 240)
 end
 
--- [[Computes adaptive (frameBudgetSeconds, instanceBudget) based on GPU/CPU
--- and current menu size (total elements & tabs).]]
+--[[
+Computes adaptive (frameBudgetSeconds, instanceBudget) based on GPU/CPU
+and current menu size (total elements & tabs).
+]]
 function hardwarePerformance.getBudgets(totalElements: number?, tabCount: number?): (number, number)
 	if isMock then
 		-- Keep stable pinned baseline for virtual-time test suites
@@ -148,8 +153,10 @@ function hardwarePerformance.getBudgets(totalElements: number?, tabCount: number
 		baseInstanceBudget = 48
 	end
 
-	-- Automatically adjust when there are many elements and tabs:
-	-- Spread heavy menus across more cheap frames so the device never hitches.
+	--[[
+	Automatically adjust when there are many elements and tabs:
+	Spread heavy menus across more cheap frames so the device never hitches.
+	]]
 	local elems = totalElements or 0
 	if elems > 30 then
 		local factor = math.clamp(1 - (elems - 30) * 0.008, 0.5, 1.0)
@@ -171,7 +178,7 @@ function hardwarePerformance.getBudgets(totalElements: number?, tabCount: number
 	return baseFrameBudget, baseInstanceBudget
 end
 
--- [[Step size for config persistence checkpoint (fewer items between yields on weak devices)]]
+-- Step size for config persistence checkpoint (fewer items between yields on weak devices)
 function hardwarePerformance.getLoadCheckpointStep(): number
 	if isMock then
 		return 6
@@ -184,7 +191,7 @@ function hardwarePerformance.getLoadCheckpointStep(): number
 	return 6
 end
 
--- [[Micro-batch size for streaming elements on heavy tabs]]
+-- Micro-batch size for streaming elements on heavy tabs
 function hardwarePerformance.getElementBatchSize(): number
 	if isMock then
 		return 24

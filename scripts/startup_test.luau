@@ -50,9 +50,11 @@ assert(not window.searchPage and not window.searchInput, "Search content must st
 assert(#window._settingsTabs == 1, "Unused settings tab shells must stay lazy")
 assert(not window._settingsUIBuilt, "Startup must not build the settings panels")
 
--- Notifications share one rate-limited entrance queue. A burst
--- allocates only the first overlay, then starts each following transition once
--- the previous 0.6s entrance has finished.
+--[[
+Notifications share one rate-limited entrance queue. A burst
+allocates only the first overlay, then starts each following transition once
+the previous 0.6s entrance has finished.
+]]
 local function launchedOverlays()
     return #(window._liveNotifications or {})
 end
@@ -135,9 +137,11 @@ for _ = 1, 120 do
     TestPump(0.05)
     if done and #building.instances == 0 then break end
 end
--- An unload must never interrupt an in-flight builder: the suspended
--- constructor resumes, finishes detached (the tree is whole until the
--- build goes quiet), and the window's instances are destroyed after it.
+--[[
+An unload must never interrupt an in-flight builder: the suspended
+constructor resumes, finishes detached (the tree is whole until the
+build goes quiet), and the window's instances are destroyed after it.
+]]
 assert(done and buildOk == true, "Unloading must not crash the in-flight builder")
 assert(not building.hasShownOnce, "Canceled window cannot reappear")
 assert(#building.instances == 0, "Canceled window keeps no instances once construction settles")

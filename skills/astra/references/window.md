@@ -71,6 +71,34 @@ Queued duplicates coalesce using the latest props because an unbuilt request has
 no card to remove. Different case, whitespace, title or content remain
 distinct; matching is per window.
 
+### Key gate
+
+```lua
+Astra:CreateKeySystem({
+    title = "My Hub",
+    subtitle = "Key System",
+    note = "Get your key at example.com, then paste it below.",
+    keys = { "KEY-1" },          -- string or list; no keys warns + passes through
+    grabKeyFromSite = false,     -- entries are raw URLs whose body is the key
+    saveKey = true,              -- a matching Astra/keys/<fileName>.txt skips the UI
+    fileName = "MyHub",          -- defaults to title
+    getKeyUrl = "https://...",  -- makes the note tappable: copies the link
+    maxAttempts = 3,             -- locks the gate, fires onMaxAttempts (no forced kick)
+    dismissable = true,
+    theme = "default",           -- resolved once, baked in
+    onSuccess = function(key)    -- build the window here
+        local window = Astra:CreateWindow({ name = "My Hub" })
+    end,
+    onClose = function() end,
+    onMaxAttempts = function() end,
+})
+```
+
+Standalone — call it *before* `CreateWindow`, never on a window. Submit is
+Continue or Enter; comparison is strict after trimming whitespace. Handle:
+`passed`, `closed`, `attempts`, `Close()`. One gate at a time: a new call
+retires the old card.
+
 ## Locked tabs
 
 `window:CreateTab({ name = "Premium", icon = "star", locked = true })` builds a

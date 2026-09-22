@@ -165,14 +165,18 @@ Built-in Settings live behind the gear action (Overview, Controls, Appearance,
 Persistence) and hold menu keybind, window behaviour, motion, bar layout and
 auto save/load. They are window-scoped — user code does not build them.
 
+**Key gate.** `Astra:CreateKeySystem({ keys, onSuccess })` shows the standalone
+enter-your-key card *before* any window exists — build the window inside
+`onSuccess`. Full props in `references/window.md` (Key gate).
+
 ## References
 
 Read only what the task needs:
 
 - `references/elements.md` — full props and handle methods for every element, plus
   tab/group rules and the Collapsible Group declarative schema.
-- `references/window.md` — window methods, popups/notifications, themes,
-  icon packs, motion service, localisation, persistence, startup pacing.
+- `references/window.md` — window methods, popups/notifications, key gate,
+  themes, icon packs, motion service, localisation, persistence, startup pacing.
 - `references/repo-workflow.md` — working inside this repository: bundle generation,
   syntax and checker scripts, runtime tests, docs/changelog conventions.
 - `assets/example-window.luau` — a single-file, copy-pasteable hub covering every

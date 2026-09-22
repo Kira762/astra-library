@@ -510,6 +510,7 @@ export type MotionService = {
 
 export type Astra = {
     CreateWindow: (self: Astra, props: WindowProps) -> Window,
+    CreateKeySystem: (self: Astra, props: KeySystemProps) -> KeySystem,
     Icons: IconCatalog,
     Motion: MotionService,
     Performance: any?,

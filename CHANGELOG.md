@@ -1,5 +1,44 @@
 # Changelog
 
+## 2026-09-22 — New standalone key gate: `Astra:CreateKeySystem`
+
+Hosts coming from Rayfield asked for its key-system card: a short modal that
+demands a key before the hub appears. Astra had no equivalent — the popup
+needs a window, and the window is exactly what a key is supposed to protect.
+Rayfield's own card (500×187px, nearly the width of its host window) was also
+cut for a narrower window than Astra's 600px default, so porting its size
+verbatim would have read less like a modal and more like a squished window.
+
+`Astra:CreateKeySystem(props)` is that gate, re-cut for this library: a 400px
+card (the popup's width, ~150–165px tall from the measured note text) in the
+window's own shell language, shown before any window exists, with the window
+built inside `onSuccess`. Saved keys live at `Astra/keys/<fileName>.txt` and a
+matching file skips the UI entirely.
+
+- **`components/keySystem.luau` (new)** — standalone gate: header (key mark,
+  title, subtitle, close button), a field row with the entry box and an
+  attached accent Continue, and a note line that doubles as the get-key copy
+  target when `getKeyUrl` is set. Enter submits; any other focus loss stays
+  silent so one press never submits twice. Wrong keys shake the card on
+  chained `micro`/`snappy` tweens, flash the field stroke red and clear the
+  field; `maxAttempts` locks the gate and fires `onMaxAttempts` (the host
+  decides what exceeding the budget means — no forced kick). The theme is the
+  same value `CreateWindow` accepts, resolved once and baked in, and locale
+  tokens resolve through the same translation tables.
+- **`library_entrypoint.luau`** — new `Astra:CreateKeySystem`, required lazily
+  like the window so hosts that never gate pay nothing at startup; plus the
+  `KeySystemProps` / `KeySystem` type exports.
+- **`Types.luau`** — new `KeySystemProps` and `KeySystem` types, and
+  `CreateKeySystem` on the `Astra` type.
+- **`scripts/key_system_test.luau` + `scripts/key_system_test.sh` (new)** —
+  twelve assertions (K1–K12) covering geometry and the corner scale, wrong /
+  right submits, the saved-key passthrough, the attempt budget, theme
+  overlays, remote keys, the get-key copy note, dismissal and gate
+  replacement. Full gate green: 41/41 runtime suites pass.
+- **`USAGE.md`, `MODULES.md`, `PERFORMANCE_CHANGES.md`, the Agent Skill** —
+  the Key System section, the module reference, the measured bundle delta and
+  the skill's cheat-sheet entries.
+
 ## 2026-09-22 — The example is now a ten-tab studio where every control does something
 
 `example.client.luau` had grown into three tabs of representative props: a

@@ -26,9 +26,12 @@ Expected behavior under test:
   * K11 a second gate retires the first (no stacking),
   * K12 Escape closes a dismissable gate and fires onClose,
   * K13 the links prop builds 0-3 equal buttons whose faces show name
-       (never the URL), each copies its own link, past three drops with
+       (never the URL) plus a glyph rendered through the executor image
+       pipeline, each copies its own link, past three drops with
        a warning, and the row grows the card,
-  * K14 props.icon is ignored: the header always wears Sirius.
+  * K14 props.icon is ignored: the header always wears Sirius, rendered
+       through the same pipeline (a second gate with no icon prop shows
+       the identical mark).
 ]]
 
 local function expect(cond, message)
@@ -315,6 +318,20 @@ setclipboard = function(text)
 	copied = text
 end
 copied = nil
+
+--[[
+The executor image pipeline the gate's glyphs render through: catalog URLs
+are https, so `image.assign` downloads each PNG via `request` and rewrites
+the Image property to a `getcustomasset` URI. Without these two globals the
+labels stay blank — the regression this block pins.
+]]
+request = function(_payload)
+	return { Body = "\137PNG\r\n\26\nfake-icon-bytes", StatusCode = 200 }
+end
+getcustomasset = function(path)
+	return "rbxasset://mock/" .. tostring(path):gsub("[^%w]+", "_")
+end
+
 local manyGate = Astra:CreateKeySystem({
 	keys = { "SECRET" },
 	saveKey = false,
@@ -354,8 +371,13 @@ for _, child in manyGate._linkButtons[1]:GetChildren() do
 end
 expect(faceIcon ~= nil, "K13 an entry icon builds a glyph")
 expect(
-	type(faceIcon.Image) == "string" and #faceIcon.Image > 0 and faceIcon.Image ~= "book-open",
-	"K13 the glyph resolves to a loadable source, not the bare name"
+	type(manyGate._links[1].iconResolved) == "string"
+		and manyGate._links[1].iconResolved:find("^https?://") ~= nil,
+	"K13 the entry icon resolves to a loadable catalog source"
+)
+expect(
+	type(faceIcon.Image) == "string" and faceIcon.Image:find("^rbxasset://mock/") ~= nil,
+	"K13 the glyph renders through the image pipeline, not the bare name"
 )
 
 manyGate._linkInteracts[2].MouseButton1Click:Fire()
@@ -389,6 +411,10 @@ expect(
 -- ===== K14: the header icon is forced to Sirius ==============================
 
 local Icons = Astra.Icons
+expect(
+	type(Icons.resolve("sirius")) == "string" and Icons.resolve("sirius"):find("^https?://") ~= nil,
+	"K14 sirius resolves to a loadable source"
+)
 local iconGate = Astra:CreateKeySystem({
 	keys = { "SECRET" },
 	saveKey = false,
@@ -397,7 +423,24 @@ local iconGate = Astra:CreateKeySystem({
 })
 TestPump(0.4)
 expect(iconGate._headerIcon ~= nil, "K14 the header always carries its mark")
-eq(iconGate._headerIcon.Image, Icons.resolve("sirius"), "K14 props.icon is ignored — the header wears Sirius")
+expect(
+	type(iconGate._headerIcon.Image) == "string"
+		and iconGate._headerIcon.Image:find("^rbxasset://mock/") ~= nil,
+	"K14 the header mark renders through the image pipeline"
+)
 eq(iconGate._headerIcon.Size.X.Offset, iconGate._headerIcon.Size.Y.Offset, "K14 the mark is square")
+
+-- A gate with no icon prop wears the identical mark: props.icon is ignored.
+local plainGate = Astra:CreateKeySystem({
+	keys = { "SECRET" },
+	saveKey = false,
+	onSuccess = function() end,
+})
+TestPump(0.4)
+expect(plainGate._headerIcon ~= nil, "K14 the plain gate carries the mark too")
+eq(plainGate._headerIcon.Image, iconGate._headerIcon.Image, "K14 props.icon is ignored — both headers wear Sirius")
+
+request = nil
+getcustomasset = nil
 
 print("KEY SYSTEM: all assertions passed")

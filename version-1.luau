@@ -13690,9 +13690,16 @@ local tapTarget = 26
 local contentInset = 70
 
 -- [[Resting transparencies once the card has been revealed: the body line
--- [[matches every other muted 14px line in the library, and the trailing
--- [[glyph matches the Button's tap glyph (Window:_revealCommon owns it).]]
+-- [[matches every other muted 14px line in the library.]]
 local restingSubtitleTransparency = 0.45
+
+-- [[The trailing glyph rests at the same half transparency the Button's tap
+-- [[glyph used, and the Dropdown and Collapsible chevrons still do. The card
+-- [[owns the fade itself: `Window:_revealCommon` only knows the shared parts
+-- [[(stroke, title, body, leading icon, description), and the shared tap-glyph
+-- [[reveal it used to read went out with the Button's trailing cursor — so
+-- [[without this the glyph is built invisible and never appears.]]
+local restingGlyphTransparency = 0.5
 
 -- [[How long a successful copy keeps the check mark on the card.]]
 local confirmSeconds = 2
@@ -14034,8 +14041,8 @@ end
 
 -- [[One control, both builds: a transparent TextButton carrying the glyph, so
 -- [[the hit target is the whole square and tapping the icon is tapping it.
--- [[`tapIcon` is the shared name the window's reveal path reads, so the glyph
--- [[fades in at the same 50% as the Button's tap glyph.]]
+-- [[The glyph starts invisible like every other card part and `_setShown`
+-- [[fades it in with the rest of the card.]]
 function state:_buildCopyControl(parent, placement)
     local window = self.window
 
@@ -14225,6 +14232,13 @@ function state:Copy(): boolean
 end
 
 function state:_setShown(shown, animate)
+    -- [[The trailing glyph is this card's own part, not one of the shared ones
+    -- [[`_revealCommon`/`_hideCommon` walk, so it fades with the card here —
+    -- [[the same way the Dropdown and the collapsible headers fade their own
+    -- [[chevrons. Hiding it too is what keeps a card that folds away (tab
+    -- [[switch, collapse, minimise) from leaving a floating mark behind.]]
+    self.window:_reveal(self.tapIcon, { ImageTransparency = if shown then restingGlyphTransparency else 1 }, animate)
+
     if shown then
         self.window:_revealCommon(self, animate)
         self.window:_reveal(self.subtitleLabel, { TextTransparency = restingSubtitleTransparency }, animate)
@@ -24049,73 +24063,73 @@ local LineOffsets = {
     [44] = 13000,
     [45] = 13407,
     [46] = 13639,
-    [47] = 14262,
-    [48] = 14348,
-    [49] = 14949,
-    [50] = 15798,
-    [51] = 16305,
-    [52] = 16435,
-    [53] = 16587,
-    [55] = 17096,
-    [56] = 17116,
-    [57] = 17135,
-    [58] = 17167,
-    [59] = 17289,
-    [60] = 17313,
-    [61] = 17362,
-    [62] = 17071,
-    [63] = 17459,
-    [64] = 17764,
-    [65] = 17795,
-    [66] = 17448,
-    [67] = 17838,
-    [68] = 17858,
-    [69] = 17890,
-    [70] = 17820,
-    [71] = 17997,
-    [72] = 18063,
-    [74] = 18143,
-    [75] = 18308,
-    [76] = 18325,
-    [77] = 18128,
-    [78] = 18922,
-    [79] = 18966,
-    [80] = 19046,
-    [81] = 19239,
-    [82] = 19368,
-    [83] = 19463,
-    [84] = 19630,
-    [85] = 19968,
-    [86] = 18417,
-    [87] = 20602,
-    [88] = 20496,
-    [89] = 20733,
-    [90] = 20831,
-    [91] = 21009,
-    [92] = 21059,
-    [93] = 21089,
-    [94] = 21340,
-    [95] = 21389,
-    [96] = 21842,
-    [97] = 21860,
-    [98] = 22061,
-    [99] = 22081,
-    [100] = 22205,
-    [101] = 22304,
-    [102] = 22326,
-    [103] = 22380,
-    [104] = 22807,
-    [105] = 22843,
-    [106] = 22861,
-    [107] = 23215,
-    [108] = 23227,
-    [109] = 23278,
-    [110] = 23297,
-    [111] = 23554,
-    [112] = 23598,
-    [113] = 23801,
-    [114] = 23829,
-    [115] = 23840,
+    [47] = 14276,
+    [48] = 14362,
+    [49] = 14963,
+    [50] = 15812,
+    [51] = 16319,
+    [52] = 16449,
+    [53] = 16601,
+    [55] = 17110,
+    [56] = 17130,
+    [57] = 17149,
+    [58] = 17181,
+    [59] = 17303,
+    [60] = 17327,
+    [61] = 17376,
+    [62] = 17085,
+    [63] = 17473,
+    [64] = 17778,
+    [65] = 17809,
+    [66] = 17462,
+    [67] = 17852,
+    [68] = 17872,
+    [69] = 17904,
+    [70] = 17834,
+    [71] = 18011,
+    [72] = 18077,
+    [74] = 18157,
+    [75] = 18322,
+    [76] = 18339,
+    [77] = 18142,
+    [78] = 18936,
+    [79] = 18980,
+    [80] = 19060,
+    [81] = 19253,
+    [82] = 19382,
+    [83] = 19477,
+    [84] = 19644,
+    [85] = 19982,
+    [86] = 18431,
+    [87] = 20616,
+    [88] = 20510,
+    [89] = 20747,
+    [90] = 20845,
+    [91] = 21023,
+    [92] = 21073,
+    [93] = 21103,
+    [94] = 21354,
+    [95] = 21403,
+    [96] = 21856,
+    [97] = 21874,
+    [98] = 22075,
+    [99] = 22095,
+    [100] = 22219,
+    [101] = 22318,
+    [102] = 22340,
+    [103] = 22394,
+    [104] = 22821,
+    [105] = 22857,
+    [106] = 22875,
+    [107] = 23229,
+    [108] = 23241,
+    [109] = 23292,
+    [110] = 23311,
+    [111] = 23568,
+    [112] = 23612,
+    [113] = 23815,
+    [114] = 23843,
+    [115] = 23854,
 }
 
 -- [[Misc AOT variable imports]]

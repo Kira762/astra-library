@@ -26,7 +26,9 @@
 --   * L8 the compact row a horizontal Group asks for carries the same control
 --        in the same trailing position,
 --   * L9 with no clipboard API the card keeps the copy mark: the check mark
---        means the link is on the clipboard, so nothing else may show it.
+--        means the link is on the clipboard, so nothing else may show it,
+--   * L10 the trailing glyph is drawn while the card is and hidden when it is
+--        not — the card owns that fade, so nothing else can be relied on for it.
 
 local function expect(cond, message)
 	if not cond then
@@ -117,6 +119,15 @@ eq(card:IsConfirming(), false, "L2 ... and the card is not mid-confirmation")
 expect(card.copyButton.Size.X.Offset > card.tapIcon.Size.X.Offset, "L2 the tap target is bigger than the glyph")
 expect(card.tapIcon.Parent == card.copyButton, "L2 the glyph sits inside the tap target")
 eq(card.copyButton.Text, "", "L2 the control carries no text")
+
+-- [[The glyph is built invisible like every other card part, and the card owns
+-- [[its fade: `Window:_revealCommon` walks only the shared parts (stroke,
+-- [[title, body, leading icon, description), so a glyph nothing reveals stays
+-- [[at 1 forever and the control reads as an empty square. Both builds and
+-- [[both marks — copy and check — ride the same label.]]
+expect(card.tapIcon.ImageTransparency < 1, "L2 the shown card fades its glyph in")
+eq(card.tapIcon.ImageTransparency, 0.5, "L2 ... to the resting glyph transparency")
+eq(card.iconLabel.ImageTransparency, 0, "L2 ... and draws the leading icon fully")
 
 -- ===== L3: tap, copy, confirm, revert ======================================
 
@@ -222,6 +233,10 @@ collapsible.interact.Activated:Fire()
 TestPump(0.8)
 expect(not collapsible._expanded, "L5 the container closed")
 eq(firstChild._glyph, "copy", "L5 closing returns the confirming card to the copy mark")
+-- [[Collapsing puts the body away by visibility, not by pushing `_setShown`
+-- [[into the children, so the glyph keeps its resting transparency here; the
+-- [[hide/show fade itself is covered by L10, which uses a path that does.]]
+eq(firstChild.tapIcon.ImageTransparency, 0.5, "L5 ... and leaves the glyph as the body hid it")
 
 collapsible.interact.Activated:Fire()
 TestPump(0.8)
@@ -306,6 +321,7 @@ expect(
 )
 expect(inRow.title.LayoutOrder < inRow.copyButton.LayoutOrder, "L8 ... trailing the title")
 eq(inRow.subtitleLabel.Text, "In a row", "L8 the subtitle rides the row")
+eq(inRow.tapIcon.ImageTransparency, 0.5, "L8 the compact row fades its glyph in too")
 expect(inRow:_minWidth() > 40, "L8 the row card declares a minimum width for the layout")
 
 inRow.copyButton.MouseButton1Click:Fire()
@@ -333,6 +349,24 @@ end
 card.copyButton.MouseButton1Click:Fire()
 TestPump(0.3)
 eq(copied[#copied], "https://example.com/new", "L9 the host clipboard is picked up per tap, not cached")
+
+-- ===== L10: the glyph fades out and back with the card =====================
+
+-- [[A hide path that really reaches the elements (`Window:Hide` walks the
+-- [[selected tab's elements with `_setShown(false)`), unlike a container
+-- [[collapse, which puts its body away by visibility. The glyph has to travel
+-- [[both ways with the card: built at 1, drawn when the card is drawn, and
+-- [[back at 1 when it is not, so a hidden card leaves no floating mark.]]
+window:Hide()
+TestPump(0.8)
+eq(card.tapIcon.ImageTransparency, 1, "L10 hiding the window takes the glyph with it")
+eq(card.iconLabel.ImageTransparency, 1, "L10 ... as it takes the leading icon")
+
+window:Show()
+TestPump(0.8)
+eq(card.tapIcon.ImageTransparency, 0.5, "L10 showing it draws the glyph again")
+eq(card.iconLabel.ImageTransparency, 0, "L10 ... and the leading icon")
+eq(inRow.tapIcon.ImageTransparency, 0.5, "L10 the compact row's glyph comes back too")
 
 window:Unload()
 TestPump(0.1)

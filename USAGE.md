@@ -731,7 +731,7 @@ window:SetTranslator(function(source, localeId) return ... end)
 
 ### Full example
 
-See `example.client.luau` — a ten-tab studio that loads the bundle with the one-line loader above and builds every element type (including ordinary and Collapsible Groups, Isolated and Changelog) end to end, with each control wired to something real: character and lighting edits, teleporting, a Heartbeat-driven performance sampler, the persistence API, and the theme/motion/window methods.
+See `example.client.luau` — a ten-tab studio that loads the bundle with the one-line loader above, opens behind `Astra:CreateKeySystem` (the demo key `ASTRA-STUDIO-2026` shows the full gate → `onSuccess` flow, saved and replayed on the next join), and builds every element type (including ordinary and Collapsible Groups, Isolated and Changelog) end to end, with each control wired to something real: character and lighting edits, teleporting, a Heartbeat-driven performance sampler, the persistence API, and the theme/motion/window methods.
 
 ---
 

@@ -75,7 +75,7 @@ skills/astra/
 | [CHANGELOG.md](CHANGELOG.md) | Dated entries explaining each behaviour change. |
 | [PERFORMANCE_CHANGES.md](PERFORMANCE_CHANGES.md) | Startup and instance-budget work with measured numbers. |
 | [assets/icons/README.md](assets/icons/README.md) | Visual icon catalog with copyable names across all seven packs. |
-| [example.client.luau](example.client.luau) | Ten-tab working studio: every element plus live character, lighting, teleport, sampler, persistence, theme and window controls. |
+| [example.client.luau](example.client.luau) | Key-gated ten-tab working studio: every element plus live character, lighting, teleport, sampler, persistence, theme and window controls, built inside `CreateKeySystem`'s `onSuccess` (demo key `ASTRA-STUDIO-2026`). |
 | [changelog.example.luau](changelog.example.luau) | Host-side changelog data file consumed by the Changelog element. |
 
 ## Repository layout

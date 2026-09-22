@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-09-22 — The example studio now opens behind the key gate
+
+The key gate shipped with its own docs snippet but every consumer's reference
+loader still built its window ungated. The example is the loadstring-and-run
+entry for this library, so it is where the gate should be exercised: the card
+draws first, and nothing — no window, no tabs, no listeners — exists until a
+key passes.
+
+- **`example.client.luau`** — the studio build from the Window section down is
+  now `buildStudio(unlockedKey)`, wired as `CreateKeySystem`'s `onSuccess`.
+  The gate carries the demo key `ASTRA-STUDIO-2026` (`keys` list, `saveKey`
+  to `Astra/keys/Astra-Example.txt`, `getKeyUrl` pointing at the example's own
+  source so the note line copies where the key lives, and a five-key
+  `maxAttempts` budget with `onClose`/`onMaxAttempts` prints). `keyGate`,
+  `window`, `overview` and a `studioReady` seam move to file scope so the
+  harness can drive the gate and know when the streamed build has gone quiet;
+  the opening changelog entry now also logs the key that passed.
+- **`scripts/example_test.luau`** — the harness asserts the gated order of
+  events before anything else: card up, no window, a wrong submit costs an
+  attempt and builds nothing, then a padded correct submit passes the gate,
+  and the harness pumps until `studioReady` because the window's
+  budget-paced construction yields real frames on the thread the gate
+  spawns for `onSuccess` (on the old synchronous path the harness main
+  thread's stray-wait no-op hid those yields entirely).
+- **`README.md`, `MODULES.md`, `USAGE.md`** — the example's key-gated shape
+  and the demo key.
+
 ## 2026-09-22 — New standalone key gate: `Astra:CreateKeySystem`
 
 Hosts coming from Rayfield asked for its key-system card: a short modal that

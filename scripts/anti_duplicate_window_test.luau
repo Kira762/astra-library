@@ -176,6 +176,26 @@ local lateSelectOk = pcall(function()
 end)
 expect(lateSelectOk, "Select on an unloaded window is a harmless no-op")
 
+-- A CreateTab owed after the tree is gone — a key-system onSuccess build
+-- starts with exactly one — must build detached instead of asserting the
+-- window alive. That assert surfaced as "Astra: key system callback errored:
+-- ... Cannot create a tab on an unloaded window."
+local lateTabOk, lateTab = pcall(function()
+	return busy:CreateTab({ name = "Late tab" })
+end)
+expect(lateTabOk, "CreateTab on an unloaded window is harmless")
+expect(lateTab ~= nil and lateTab.tabPage ~= nil, "the late tab is built detached")
+local lateButtonOk = pcall(function()
+	lateTab:CreateButton({ name = "Late button", callback = function() end })
+end)
+expect(lateButtonOk, "element construction on a late tab is harmless")
+local lateSectionOk, lateSection = pcall(function()
+	return busy:CreateSection({ name = "Late section" })
+end)
+expect(lateSectionOk, "CreateSection on an unloaded window is harmless")
+expect(lateSection ~= nil and lateSection.main ~= nil, "the late section is built detached")
+expect(#busy.instances == 0, "late construction never resurrects the live tree")
+
 replacer:Unload()
 TestPump(0.2)
 expect(screenGuis() == 0, "unloading the replacer clears the screen")

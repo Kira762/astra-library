@@ -106,7 +106,11 @@ Public surface:
   superseded script's constructors finish harmlessly; `Unload` destroys the
   container.
   `_railGroup(tab)` / `_activeRail()` — the main/settings rail filters every visibility site shares.
-- `ChangeTheme`, `CreateTab`/`CreateSection`, `Notify`
+- `ChangeTheme`, `CreateTab`/`CreateSection` (on an already-unloaded window
+  they build detached like `Create` above instead of asserting — the tab or
+  section is real and usable, and only the live-tree bookkeeping is skipped:
+  rail insert, first-tab selection, chrome visibility, the settings reflow),
+  `Notify`
   (constructs its card on the entrance queue's turn, see
   `components/overlayQueue.luau`)/`Popup`, `Show`/`Hide`/`ToggleHide`/`ToggleMinimise`, `Close` (animated
   close → `Unload`), `Save`/`Load`/`ListConfigs`/`DeleteConfig`/`GetPath`,

@@ -535,7 +535,8 @@ There is no sub-tab API: these tabs are built by the window itself
 
 ### Themes
 
-Built-ins: `"default"`, `"amethyst"`, `"cobalt"`, `"ember"`, `"frost"`, `"rose"`.
+Built-ins: `"default"`, `"amethyst"`, `"cobalt"`, `"crimson"`, `"ember"`,
+`"emerald"`, `"frost"`, `"gold"`, `"onyx"`, `"rose"`.
 
 ```lua
 window:ChangeTheme("amethyst")

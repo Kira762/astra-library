@@ -181,6 +181,8 @@ function state.new(tab, element)
         ]]
         _glyph = "copy",
         _copyToken = 0,
+        -- Snapshot of the tab page's canvas while the copy control is held.
+        _pressCanvas = nil,
     }, state)
 
     self.copyImage = resolveGlyph(self.window, copyCandidates)
@@ -446,6 +448,15 @@ function state:_buildCopyControl(parent, placement)
         Name = "Copy",
         Text = "",
         AutoButtonColor = false,
+        --[[
+        Not selectable: a selectable control inside the tab page's
+        ScrollingFrame invites the engine and executor input paths to
+        scroll the page to bring it into view on press — part of the copy
+        icon "bouncing" the page. Nothing on the card needs keyboard
+        navigation (the title carries that role), so the selection path is
+        simply closed.
+        ]]
+        Selectable = false,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Size = UDim2.fromOffset(tapTarget, tapTarget),
@@ -472,6 +483,67 @@ function state:_buildCopyControl(parent, placement)
 
     window:ConnectFor(self, self.copyButton.MouseButton1Click, function()
         self:_copy()
+    end)
+
+    self:_pinPressToCanvas()
+end
+
+--[[
+The press itself must not move the page. The tab page is an
+AutomaticCanvasSize ScrollingFrame, and the input paths this library cannot
+police — engine selection-into-view, an executor bridge that does not mark
+a press on a control inside a scroll surface as game-processed and lets the
+page take it as a pan — move `CanvasPosition` while the card is held. That
+is the copy tap that scrolls the page down and springs it back on release.
+
+So the gesture is pinned: the canvas position is snapshotted when the press
+begins (MouseButton1 or Touch) and written back when it ends, so release
+puts the page back exactly where the press found it. No movement writes
+nothing, and a click that arrives without a press has no snapshot to
+restore, so it cannot corrupt a scroll the user made in between.
+]]
+function state:_pinPressToCanvas()
+    local window = self.window
+    local page = self.tab.tabPage
+    if not page or not self.copyButton then
+        return
+    end
+
+    local function isPress(input)
+        local kind = if input ~= nil then input.UserInputType else nil
+        return kind == Enum.UserInputType.MouseButton1 or kind == Enum.UserInputType.Touch
+    end
+
+    --[[ Ends the gesture: restore the snapshot, but only if the page moved. ]]
+    local function settle()
+        local held = self._pressCanvas
+        if not held then
+            return
+        end
+        self._pressCanvas = nil
+        local now = page.CanvasPosition
+        if now.X ~= held.X or now.Y ~= held.Y then
+            page.CanvasPosition = held
+        end
+    end
+
+    window:ConnectFor(self, self.copyButton.InputBegan, function(input)
+        if not isPress(input) then
+            return
+        end
+        self._pressCanvas = page.CanvasPosition
+    end)
+
+    window:ConnectFor(self, self.copyButton.InputEnded, function(input)
+        if not isPress(input) then
+            return
+        end
+        settle()
+    end)
+
+    --[[ A click whose release never reached us still ends the gesture. ]]
+    window:ConnectFor(self, self.copyButton.MouseButton1Click, function()
+        settle()
     end)
 end
 

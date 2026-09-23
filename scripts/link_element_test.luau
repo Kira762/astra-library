@@ -388,6 +388,70 @@ eq(card.tapIcon.ImageTransparency, 0.5, "L10 showing it draws the glyph again")
 eq(card.iconLabel.ImageTransparency, 0, "L10 ... and the leading icon")
 eq(inRow.tapIcon.ImageTransparency, 0.5, "L10 the compact row's glyph comes back too")
 
+-- ===== L11: the press pins the page canvas =================================
+
+--[[
+The tab page is an AutomaticCanvasSize ScrollingFrame, and the input paths
+the library cannot police — selection-into-view, an executor bridge that
+reads a press inside a scroll surface as the start of a pan — move
+CanvasPosition while the copy control is held. That is the copy icon
+"scrolling the page down and back up". The gesture is pinned: press
+snapshots the canvas, release puts it back, and anything less than a press
+is inert. The Changed counter makes "writes nothing" literal — a restore
+must be exactly one write, and a quiet gesture must be zero.
+]]
+local pin = tab:CreateLink({ name = "Pinned", subtitle = "Stays put", link = "https://example.com/pin" })
+TestPump(0.4)
+local page = tab.tabPage
+eq(page.CanvasPosition.Y, 0, "L11 the tab page starts unscrolled")
+
+local canvasWrites = 0
+local canvasWatcher = page.Changed:Connect(function(key)
+	if key == "CanvasPosition" then
+		canvasWrites += 1
+	end
+end)
+
+-- A mouse press taken as a mid-press pan: release puts the page back.
+pin.copyButton.InputBegan:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
+page.CanvasPosition = Vector2.new(0, 120)
+eq(page.CanvasPosition.Y, 120, "L11 the mid-press pan moved the page (fixture sanity)")
+canvasWrites = 0
+pin.copyButton.InputEnded:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
+TestPump(0.1)
+eq(canvasWrites, 1, "L11 the restore is exactly one write")
+eq(page.CanvasPosition.Y, 0, "L11 release restores the page the press found")
+
+-- A press that never moves writes nothing: a scrolled page stays put.
+page.CanvasPosition = Vector2.new(0, 55)
+canvasWrites = 0
+pin.copyButton.InputBegan:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
+TestPump(0.1)
+pin.copyButton.InputEnded:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
+TestPump(0.1)
+eq(canvasWrites, 0, "L11 a press that never moved writes nothing")
+eq(page.CanvasPosition.Y, 55, "L11 ... and leaves the scroll alone")
+
+-- A press-less click has no snapshot: it can never corrupt a real scroll.
+pin.copyButton.MouseButton1Click:Fire()
+TestPump(0.2)
+eq(canvasWrites, 0, "L11 a press-less click never writes the canvas")
+eq(page.CanvasPosition.Y, 55, "L11 ... and the user's scroll survives it")
+
+-- Touch pins the same way, back to where the touch found the page.
+pin.copyButton.InputBegan:Fire({ UserInputType = Enum.UserInputType.Touch })
+page.CanvasPosition = Vector2.new(0, 175)
+canvasWrites = 0
+pin.copyButton.InputEnded:Fire({ UserInputType = Enum.UserInputType.Touch })
+TestPump(0.1)
+eq(canvasWrites, 1, "L11 the touch restore is exactly one write")
+eq(page.CanvasPosition.Y, 55, "L11 a touch press pins the canvas the same way")
+
+canvasWatcher:Disconnect()
+
+-- And the control can never be pulled into selection-into-view.
+eq(pin.copyButton.Selectable, false, "L11 the copy control is not selectable")
+
 window:Unload()
 TestPump(0.1)
 

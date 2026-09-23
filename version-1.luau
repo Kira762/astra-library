@@ -16026,6 +16026,8 @@ function state.new(tab, element)
         ]]
         _glyph = "copy",
         _copyToken = 0,
+        -- Snapshot of the tab page's canvas while the copy control is held.
+        _pressCanvas = nil,
     }, state)
 
     self.copyImage = resolveGlyph(self.window, copyCandidates)
@@ -16291,6 +16293,15 @@ function state:_buildCopyControl(parent, placement)
         Name = "Copy",
         Text = "",
         AutoButtonColor = false,
+        --[[
+        Not selectable: a selectable control inside the tab page's
+        ScrollingFrame invites the engine and executor input paths to
+        scroll the page to bring it into view on press — part of the copy
+        icon "bouncing" the page. Nothing on the card needs keyboard
+        navigation (the title carries that role), so the selection path is
+        simply closed.
+        ]]
+        Selectable = false,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Size = UDim2.fromOffset(tapTarget, tapTarget),
@@ -16317,6 +16328,67 @@ function state:_buildCopyControl(parent, placement)
 
     window:ConnectFor(self, self.copyButton.MouseButton1Click, function()
         self:_copy()
+    end)
+
+    self:_pinPressToCanvas()
+end
+
+--[[
+The press itself must not move the page. The tab page is an
+AutomaticCanvasSize ScrollingFrame, and the input paths this library cannot
+police — engine selection-into-view, an executor bridge that does not mark
+a press on a control inside a scroll surface as game-processed and lets the
+page take it as a pan — move `CanvasPosition` while the card is held. That
+is the copy tap that scrolls the page down and springs it back on release.
+
+So the gesture is pinned: the canvas position is snapshotted when the press
+begins (MouseButton1 or Touch) and written back when it ends, so release
+puts the page back exactly where the press found it. No movement writes
+nothing, and a click that arrives without a press has no snapshot to
+restore, so it cannot corrupt a scroll the user made in between.
+]]
+function state:_pinPressToCanvas()
+    local window = self.window
+    local page = self.tab.tabPage
+    if not page or not self.copyButton then
+        return
+    end
+
+    local function isPress(input)
+        local kind = if input ~= nil then input.UserInputType else nil
+        return kind == Enum.UserInputType.MouseButton1 or kind == Enum.UserInputType.Touch
+    end
+
+    --[[ Ends the gesture: restore the snapshot, but only if the page moved. ]]
+    local function settle()
+        local held = self._pressCanvas
+        if not held then
+            return
+        end
+        self._pressCanvas = nil
+        local now = page.CanvasPosition
+        if now.X ~= held.X or now.Y ~= held.Y then
+            page.CanvasPosition = held
+        end
+    end
+
+    window:ConnectFor(self, self.copyButton.InputBegan, function(input)
+        if not isPress(input) then
+            return
+        end
+        self._pressCanvas = page.CanvasPosition
+    end)
+
+    window:ConnectFor(self, self.copyButton.InputEnded, function(input)
+        if not isPress(input) then
+            return
+        end
+        settle()
+    end)
+
+    --[[ A click whose release never reached us still ends the gesture. ]]
+    window:ConnectFor(self, self.copyButton.MouseButton1Click, function()
+        settle()
     end)
 end
 
@@ -26561,73 +26633,73 @@ local LineOffsets = {
     [45] = 15165,
     [46] = 15602,
     [47] = 15846,
-    [48] = 16525,
-    [49] = 16611,
-    [50] = 17220,
-    [51] = 18099,
-    [52] = 18642,
-    [53] = 18772,
-    [54] = 18924,
-    [56] = 19441,
-    [57] = 19461,
-    [58] = 19480,
-    [59] = 19512,
-    [60] = 19638,
-    [61] = 19664,
-    [62] = 19713,
-    [63] = 19416,
-    [64] = 19812,
-    [65] = 20117,
-    [66] = 20148,
-    [67] = 19801,
-    [68] = 20191,
-    [69] = 20211,
-    [70] = 20243,
-    [71] = 20173,
-    [72] = 20350,
-    [73] = 20418,
-    [75] = 20500,
-    [76] = 20667,
-    [77] = 20686,
-    [78] = 20485,
-    [79] = 21317,
-    [80] = 21363,
-    [81] = 21445,
-    [82] = 21640,
-    [83] = 21771,
-    [84] = 21874,
-    [85] = 22043,
-    [86] = 22383,
-    [87] = 20782,
-    [88] = 23027,
-    [89] = 22913,
-    [90] = 23166,
-    [91] = 23264,
-    [92] = 23442,
-    [93] = 23492,
-    [94] = 23522,
-    [95] = 23773,
-    [96] = 23822,
-    [97] = 24275,
-    [98] = 24293,
-    [99] = 24500,
-    [100] = 24520,
-    [101] = 24648,
-    [102] = 24747,
-    [103] = 24769,
-    [104] = 24825,
-    [105] = 25290,
-    [106] = 25326,
-    [107] = 25344,
-    [108] = 25704,
-    [109] = 25716,
-    [110] = 25767,
-    [111] = 25786,
-    [112] = 26045,
-    [113] = 26089,
-    [114] = 26298,
-    [115] = 26326,
-    [116] = 26337,
+    [48] = 16597,
+    [49] = 16683,
+    [50] = 17292,
+    [51] = 18171,
+    [52] = 18714,
+    [53] = 18844,
+    [54] = 18996,
+    [56] = 19513,
+    [57] = 19533,
+    [58] = 19552,
+    [59] = 19584,
+    [60] = 19710,
+    [61] = 19736,
+    [62] = 19785,
+    [63] = 19488,
+    [64] = 19884,
+    [65] = 20189,
+    [66] = 20220,
+    [67] = 19873,
+    [68] = 20263,
+    [69] = 20283,
+    [70] = 20315,
+    [71] = 20245,
+    [72] = 20422,
+    [73] = 20490,
+    [75] = 20572,
+    [76] = 20739,
+    [77] = 20758,
+    [78] = 20557,
+    [79] = 21389,
+    [80] = 21435,
+    [81] = 21517,
+    [82] = 21712,
+    [83] = 21843,
+    [84] = 21946,
+    [85] = 22115,
+    [86] = 22455,
+    [87] = 20854,
+    [88] = 23099,
+    [89] = 22985,
+    [90] = 23238,
+    [91] = 23336,
+    [92] = 23514,
+    [93] = 23564,
+    [94] = 23594,
+    [95] = 23845,
+    [96] = 23894,
+    [97] = 24347,
+    [98] = 24365,
+    [99] = 24572,
+    [100] = 24592,
+    [101] = 24720,
+    [102] = 24819,
+    [103] = 24841,
+    [104] = 24897,
+    [105] = 25362,
+    [106] = 25398,
+    [107] = 25416,
+    [108] = 25776,
+    [109] = 25788,
+    [110] = 25839,
+    [111] = 25858,
+    [112] = 26117,
+    [113] = 26161,
+    [114] = 26370,
+    [115] = 26398,
+    [116] = 26409,
 }
 
 -- Misc AOT variable imports

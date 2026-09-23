@@ -38,7 +38,7 @@ local knobWidth = 26
 local knobHeight = 18
 local knobRadius = UDim.new(0, knobHeight / 2)
 local dotSize = 4
-local stopInset = 13 -- knob half width, so end stops never overhang the track
+local stopInset = knobWidth / 2 -- end stops keep the knob inside the track
 local sidePad = 14
 
 local titleY = 19
@@ -98,7 +98,7 @@ function state.new(tab, element)
 	local modes = normalizeModes(rawModes)
 
 	local minModes = math.clamp(tonumber(element.min_modes or element.MinModes or MIN_MODES) or MIN_MODES, MIN_MODES, MAX_MODES)
-	local maxModes = math.clamp(tonumber(element.max_modes or element.MaxModes or MAX_MODES) or MIN_MODES, MIN_MODES, MAX_MODES)
+	local maxModes = math.clamp(tonumber(element.max_modes or element.MaxModes or MAX_MODES) or MAX_MODES, MIN_MODES, MAX_MODES)
 	if maxModes < minModes then
 		maxModes = minModes
 	end
@@ -124,9 +124,9 @@ function state.new(tab, element)
 		left_icon = tab.window:ResolveIcon(element.left_icon or element.LeftIcon or "zap"),
 		right_icon = tab.window:ResolveIcon(element.right_icon or element.RightIcon or "rotate-ccw"),
 		left_icon_color = colorFromTable(element.left_icon_color or element.LeftIconColor, Color3.fromRGB(255, 255, 255)),
-		title_color_same_as_left_icon = (element.title_color_same_as_left_icon ~= false),
-		reset_on_right_icon_press = (element.reset_on_right_icon_press ~= false),
-		allow_mode_add_remove = (element.allow_mode_add_remove ~= false),
+		title_color_same_as_left_icon = (element.title_color_same_as_left_icon ~= false and element.TitleColorSameAsLeftIcon ~= false),
+		reset_on_right_icon_press = (element.reset_on_right_icon_press ~= false and element.ResetOnRightIconPress ~= false),
+		allow_mode_add_remove = (element.allow_mode_add_remove ~= false and element.AllowModeAddRemove ~= false),
 		accent = element.accent or element.Accent or "theme",
 
 		minModes = minModes,
@@ -283,6 +283,7 @@ function state:_buildTrack()
 		ZIndex = 2,
 		Parent = self.main,
 	}, { BackgroundColor3 = "SliderBackground" })
+	self.track.BackgroundColor3 = window.theme.SliderBackground
 	window:Create("UICorner", { CornerRadius = trackRadius, Parent = self.track })
 
 	self.fill = window:Create("Frame", {
@@ -298,11 +299,14 @@ function state:_buildTrack()
 		Parent = self.fill,
 	})
 
-	self.fillGlow = window:CreateGlow(self.fill, "AccentColor", 20, 1)
+	-- Create applies explicit properties after theme bindings; paint the initial fill
+	-- explicitly so the first frame does not flash white.
+	self.fill.BackgroundColor3 = self:_accentColor()
+	self.fillGlow = window:CreateGlow(self.fill, self:_accentColor(), 20, 1)
 
 	self.knob = window:Create("Frame", {
 		Size = UDim2.fromOffset(knobWidth, knobHeight),
-		AnchorPoint = Vector2.new(0, 0.5),
+		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(0, stopInset, 0.5, 0),
 		BorderSizePixel = 0,
 		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
@@ -476,6 +480,9 @@ function state:_updateFromMouse()
 		return
 	end
 	local usable = width - stopInset * 2
+	if usable <= 0 then
+		return
+	end
 	local fraction = math.clamp((mouse.X - track.X - stopInset) / usable, 0, 1)
 	local nearest = math.round(fraction * (#self.modes - 1)) + 1
 	if nearest ~= self.mode then
@@ -552,6 +559,7 @@ function state:_applyColors(instant)
 		end
 		if self.accent == "left_icon" then
 			self.fill.BackgroundColor3 = icon
+			self.fillGlow.Color = icon
 		end
 	end
 end
@@ -562,7 +570,7 @@ onEnable plus the picker-level callback, and persist. `silent` skips
 callbacks for restore paths.
 ]]
 function state:Set(index, silent)
-	index = math.clamp(tonumber(index) or self.mode, 1, #self.modes)
+	index = math.clamp(math.round(tonumber(index) or self.mode), 1, #self.modes)
 	local changed = index ~= self.mode
 	self.mode = index
 	self:_applyMode(index, false)
@@ -712,6 +720,10 @@ function state:_refreshTheme()
 	self:_paintDots()
 	if self.accent ~= "left_icon" then
 		self.fill.BackgroundColor3 = t.AccentColor
+		self.fillGlow.Color = t.AccentColor
+	else
+		self.fill.BackgroundColor3 = self:_iconColor()
+		self.fillGlow.Color = self:_iconColor()
 	end
 	if not self.title_color_same_as_left_icon then
 		self.title.TextColor3 = t.ContentColor

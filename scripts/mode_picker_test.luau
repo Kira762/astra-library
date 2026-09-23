@@ -160,6 +160,9 @@ local function dotCount(element)
 	return count
 end
 eq(dotCount(picker), 5, "M4 five dots for five modes")
+-- The knob must be centred on each dot, not start at its centre.
+eq(picker.knob.AnchorPoint.X, 0.5, "M5 knob is centred on the stop")
+
 
 -- M9: icon RGB drives the title; subtitle keeps the default color.
 eqColor(picker.title.TextColor3, 77, 163, 255, "M9 title wears the icon RGB")

@@ -1,5 +1,64 @@
 # Changelog
 
+## Unreleased — Mode Picker: the title keeps its colour, the knob fits the track
+
+Two artifacts on the Mode Picker card, both read off a live session.
+
+**The title lost its colour on the first hover.** `title_color_same_as_left_icon`
+paints the title with the left icon's RGB, and a mode's own `icon_color`
+retints it — but the card is wired to the library's shared hover language,
+which settles a title back onto a theme token when the pointer leaves. One pass
+of the mouse (or one drag of the knob, which is a press inside the card)
+repainted the title with `ContentColor`, and the configured colour did not come
+back until the next mode change. `Window:_wireElementHover` now asks the element
+for its own rest colour and keeps an element-owned colour out of the hover flash
+entirely: the stroke and the hover overlay carry the feedback while the title
+stays the colour the config asked for.
+
+**The knob did not fit the track, and the accent did not fill it.** The knob
+parked flush against the track's silhouette at both end stops — 0px of clearance
+left and right against 2px above and below — and the fill was a full-height 22px
+pill wearing the track's 11px radius and ending at the knob's centre: a bigger
+arc than the knob's own 18px/9px pill, so accent bled above, below and around
+the knob's rounded corners, and at the last stop 13px of track behind the knob
+stayed unpainted. The picker now keeps the toggle's clearance all the way round.
+Stops inset by the knob's half width *plus* that clearance, which makes the
+track's cap and the knob's cap concentric at both ends, and the fill wears the
+knob's own pill — same height, same radius, same inset — running from the first
+stop to the knob's trailing edge. Every arc in the track is concentric, no
+accent escapes the knob, and the final mode fills the track end to end.
+
+- **`components/window/elements.luau`** — `_wireElementHover` reads an
+  element-owned title rest colour (`element:_titleRestColor()`) live on every
+  enter and leave, so a mode, icon or theme change flows through without
+  re-wiring; while an element owns the colour the enter path leaves the title
+  alone instead of flashing `ElementTextHoverColor` over it. An element that
+  answers nil — or implements no such method — keeps the theme language exactly
+  as before, so no other element changes behaviour.
+- **`elements/modePicker.luau`** — `knobGap` (the toggle's `switchInset`) joins
+  the metrics and `stopInset` grows by it, so the knob, the dots and the fill
+  all keep 2px of track on every side; the fill is built as the knob's pill
+  (`knobHeight`, `knobRadius`, inset by `knobGap`) and the new `_fillSize`
+  runs it to the knob's trailing edge on the same scale/offset pair the dots
+  use, still with no resize handler. `_titleBinding()` binds `TextColor3` to
+  `ContentColor` only while the icon link is off (so the window's theme pass
+  cannot paint over a mode's colour), and `_titleRestColor()` answers the hover
+  wiring with the icon's RGB.
+- **`scripts/mode_picker_test.luau`** — M9 grows a hover cycle (the title keeps
+  the configured icon RGB, keeps a mode's own `icon_color`, and returns to the
+  configured colour afterwards) and M10 asserts the track geometry: knob
+  clearance at both end stops and above/below, the fill's height, radius and
+  inset matching the knob's, the fill reaching the knob's trailing edge, the
+  last stop leaving no unpainted tail, and the end dots still sitting at the
+  knob's centres.
+- **`version-1.luau`** — regenerated from the source tree, so the published
+  artifact carries both fixes. It is still **unsigned**: `version-1.luau.sig`
+  predates the bundle (the previous bundle-affecting change left it for the
+  release maintainer), so `sign_bundle.js --verify` and the loader integrity
+  suite's valid-bundle case stay red until it is re-signed with the
+  `SIGNING_KEY` secret. Deliberately not signed with a throwaway dev key here —
+  that would repin `loader.luau`'s `PUBLIC_KEY` to a key nobody else holds.
+
 ## Unreleased — Mode Picker element
 
 A new `ModePicker` element: a multi-stop slider card inspired by modern

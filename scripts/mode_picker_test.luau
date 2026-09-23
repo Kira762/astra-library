@@ -20,7 +20,11 @@ Expected behavior under test:
   * M8 with no picker-level description the line follows the selected
        mode's description,
   * M9 the title wears the left icon's RGB while the subtitle keeps the
-       default content color.
+       default content color — and keeps wearing it through a hover cycle
+       and a per-mode icon color,
+  * M10 the knob sits inside the track's pill with the toggle's clearance
+       on every side, and the fill wears the knob's own pill and runs to
+       its trailing edge, so the last stop fills the track end to end.
 ]]
 
 local function expect(cond, message)
@@ -119,6 +123,7 @@ local picker = tab:CreateModePicker({
 			type = "dot",
 			optional = true,
 			description = "Fifth and maximum mode.",
+			icon_color = { r = 236, g = 72, b = 153 },
 			onEnable = function(index, label)
 				table.insert(enabled, { index, label })
 			end,
@@ -170,6 +175,36 @@ eqColor(picker.iconLabel.ImageColor3, 77, 163, 255, "M9 icon wears its configure
 local sr, sg, sb = rgb(picker.subtitleLabel.TextColor3)
 expect(not (sr == 77 and sg == 163 and sb == 255), "M9 subtitle keeps default color")
 
+--[[
+M9: the card's own hover must not take the colour off the title. The shared
+hover wiring settles the title back onto a theme token on leave, which used
+to leave the title white for the rest of the session — the colour only came
+back with the next mode change.
+]]
+picker.main.MouseEnter:Fire()
+TestPump(0.4)
+picker.main.MouseLeave:Fire()
+TestPump(0.4)
+eqColor(picker.title.TextColor3, 77, 163, 255, "M9 title keeps the icon RGB through a hover cycle")
+
+--[[
+M9: a mode's own icon color retints icon and title, and hover still
+restores it. Silent, so the callback-order assertions below still count
+from a clean slate.
+]]
+picker:Set(5, true)
+TestPump(1.2)
+eqColor(picker.iconLabel.ImageColor3, 236, 72, 153, "M9 icon wears the mode's own color")
+eqColor(picker.title.TextColor3, 236, 72, 153, "M9 title wears the mode's own color")
+picker.main.MouseEnter:Fire()
+TestPump(0.4)
+picker.main.MouseLeave:Fire()
+TestPump(0.4)
+eqColor(picker.title.TextColor3, 236, 72, 153, "M9 title keeps the mode's color through a hover cycle")
+picker:Set(1, true)
+TestPump(1.2)
+eqColor(picker.title.TextColor3, 77, 163, 255, "M9 title returns to the configured icon color")
+
 -- M8: the description line follows the selected mode.
 eq(picker.descriptionLabel.Text, "Default mode.", "M8 initial description is mode 1's line")
 
@@ -198,6 +233,82 @@ picker:Set(5, true)
 TestPump(0.2)
 knobScale = picker.knob.__props.Position.X.Scale
 eq(knobScale, 1, "M5 knob at the last dot's scale on the final mode")
+picker:Set(1, true)
+TestPump(0.2)
+
+--[[
+M10: the knob and the fill inside the track. The knob must keep the
+toggle's clearance on every side it can see (which is what makes the two
+pills concentric at the end stops), and the fill must wear the knob's own
+pill — same height, same radius, same clearance — and run to the knob's
+trailing edge. A full-height fill that stopped at the knob's centre bled
+accent around the knob's rounded corners and left an unpainted tail behind
+it at the last stop, which is the "knob is not fully seated" artifact.
+]]
+local function cornerRadiusOf(frame)
+	for _, child in ipairs(frame:GetChildren()) do
+		if child.__props.ClassName == "UICorner" then
+			return child.__props.CornerRadius.Offset
+		end
+	end
+	return nil
+end
+
+local function trackGeometry(element, mode)
+	element:Set(mode, true)
+	TestPump(0.2)
+	local trackWidth = element.track.AbsoluteSize.X
+	local trackHeight = element.track.AbsoluteSize.Y
+	local knob = element.knob
+	local fill = element.fill
+	local knobCentre = knob.Position.X.Scale * trackWidth + knob.Position.X.Offset
+	local fillLeft = fill.Position.X.Scale * trackWidth + fill.Position.X.Offset
+	return {
+		trackWidth = trackWidth,
+		trackHeight = trackHeight,
+		trackRadius = cornerRadiusOf(element.track),
+		knobWidth = knob.Size.X.Offset,
+		knobHeight = knob.Size.Y.Offset,
+		knobRadius = cornerRadiusOf(knob),
+		knobLeft = knobCentre - knob.Size.X.Offset / 2,
+		knobRight = knobCentre + knob.Size.X.Offset / 2,
+		knobTop = (trackHeight - knob.Size.Y.Offset) / 2,
+		fillLeft = fillLeft,
+		fillRight = fillLeft + fill.Size.X.Scale * trackWidth + fill.Size.X.Offset,
+		fillHeight = fill.Size.Y.Offset,
+		fillRadius = cornerRadiusOf(fill),
+		dotFirst = element.dots[1],
+		dotLast = element.dots[#element.dots],
+	}
+end
+
+local clearance = 2 -- the toggle's switchInset, which the picker's metrics promise
+local first = trackGeometry(picker, 1)
+local last = trackGeometry(picker, 5)
+
+eq(first.knobLeft, clearance, "M10 knob keeps the track's clearance at the first stop")
+eq(first.trackWidth - last.knobRight, clearance, "M10 knob keeps the track's clearance at the last stop")
+eq(first.knobTop, clearance, "M10 knob keeps the same clearance above and below")
+eq(first.knobHeight + clearance * 2, first.trackHeight, "M10 knob fits inside the track's height")
+eq(first.knobRadius, first.knobHeight / 2, "M10 knob stays a pill")
+eq(first.trackRadius, first.trackHeight / 2, "M10 track stays a pill")
+
+-- The fill is the knob's pill, not the track's: no accent bleeding around the knob.
+eq(first.fillHeight, first.knobHeight, "M10 fill wears the knob's height")
+eq(first.fillRadius, first.knobRadius, "M10 fill wears the knob's radius")
+eq(first.fillLeft, clearance, "M10 fill starts at the first stop's clearance")
+eq(first.fillRight, first.knobRight, "M10 fill reaches the knob's trailing edge at the first stop")
+eq(last.fillRight, last.knobRight, "M10 fill reaches the knob's trailing edge at the last stop")
+eq(last.trackWidth - last.fillRight, clearance, "M10 the last stop fills the track, no unpainted tail")
+expect(last.fillRight > last.knobLeft, "M10 the accent runs under the whole knob at the last stop")
+
+-- The dots still sit at the knob's centres, so the fill, the knob and the dots agree.
+local function centreOf(dot, trackWidth)
+	return dot.Position.X.Scale * trackWidth + dot.Position.X.Offset
+end
+eq(centreOf(first.dotFirst, first.trackWidth), (first.knobLeft + first.knobRight) / 2, "M10 first dot sits at the first stop")
+eq(centreOf(last.dotLast, last.trackWidth), (last.knobLeft + last.knobRight) / 2, "M10 last dot sits at the last stop")
+
 picker:Set(1, true)
 TestPump(0.2)
 

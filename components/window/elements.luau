@@ -190,6 +190,27 @@ function Window:_wireElementHover(element, options)
     local titleHoverKey = options.titleHoverKey or "ElementTextHoverColor"
 
     --[[
+    A title that wears a colour of its own cannot rest on a theme key. The
+    Mode Picker's title follows the left icon's RGB (and the selected mode
+    can override it), and the leave path below used to settle it back onto
+    `titleRestKey` — so one pass of the pointer took the colour off the
+    title for good, and only the next mode change brought it back. An
+    element that owns its title colour answers `_titleRestColor()`; the
+    answer is read live on every event, so a mode, icon or theme change
+    flows through without re-wiring. Nil (or no method) keeps the element
+    on the theme language exactly as before. While an element owns the
+    colour the enter path leaves the title alone instead of flashing the
+    theme's hover white over it: the stroke and the hover overlay carry
+    the feedback, and the title stays the colour the config asked for.
+    ]]
+    local function ownedTitleColor()
+        if element._titleRestColor then
+            return element:_titleRestColor()
+        end
+        return nil
+    end
+
+    --[[
     Hover feedback is the single most-repeated animation in the library
     (every element, every pointer move across a grid), so it goes through
     the motion service: the spec is shared instead of allocated per event,
@@ -204,7 +225,9 @@ function Window:_wireElementHover(element, options)
             { Transparency = self:_elementStrokeTransparency(element, true), Color = theme.ElementStrokeHover },
             "snappy"
         )
-        motion.tween(element.title, { TextColor3 = theme[titleHoverKey] }, "snappy")
+        if not ownedTitleColor() then
+            motion.tween(element.title, { TextColor3 = theme[titleHoverKey] }, "snappy")
+        end
         if element.hoverOverlay then
             motion.tween(element.hoverOverlay, { BackgroundTransparency = 0.97 }, "snappy")
         end
@@ -216,7 +239,7 @@ function Window:_wireElementHover(element, options)
             { Transparency = self:_elementStrokeTransparency(element, false), Color = theme.ElementStroke },
             "snappy"
         )
-        motion.tween(element.title, { TextColor3 = theme[titleRestKey] }, "snappy")
+        motion.tween(element.title, { TextColor3 = ownedTitleColor() or theme[titleRestKey] }, "snappy")
         if element.hoverOverlay then
             motion.tween(element.hoverOverlay, { BackgroundTransparency = 1 }, "snappy")
         end

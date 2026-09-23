@@ -29,8 +29,12 @@ One set of metrics, in one place. The track borrows the toggle's switch
 height and the knob is the toggle's own knob (26x18 pill, radius half its
 height), stretched onto a multi-stop track: the picker must read as the
 library's switch with more resting places, not as a foreign control.
-Dots sit on the track's centre line, inset by the knob's half width so
-the first and last stops park the knob exactly over them.
+The knob keeps the toggle's clearance too — `knobGap` of track on every
+side it can see — which is what makes the two pills concentric at the end
+stops (the track's 11px cap and the knob's 9px cap share a centre) instead
+of the knob jamming flush against the track's silhouette. Dots sit on the
+track's centre line at the knob's centres, so the first and last stops park
+the knob exactly over them.
 ]]
 local trackHeight = 22
 local trackRadius = UDim.new(0, trackHeight / 2)
@@ -38,7 +42,8 @@ local knobWidth = 26
 local knobHeight = 18
 local knobRadius = UDim.new(0, knobHeight / 2)
 local dotSize = 4
-local stopInset = knobWidth / 2 -- end stops keep the knob inside the track
+local knobGap = 2 -- the toggle's switchInset: clearance all the way round
+local stopInset = knobWidth / 2 + knobGap -- end stops keep the knob inside the track
 local sidePad = 14
 
 local titleY = 19
@@ -201,7 +206,7 @@ function state:_build()
 		TextTransparency = 1,
 		ZIndex = 2,
 		Parent = self.main,
-	}, { FontFace = "Font" })
+	}, self:_titleBinding())
 	self.title.TextColor3 = self:_titleColor()
 
 	self.subtitleLabel = window:Create("TextLabel", {
@@ -286,14 +291,23 @@ function state:_buildTrack()
 	self.track.BackgroundColor3 = window.theme.SliderBackground
 	window:Create("UICorner", { CornerRadius = trackRadius, Parent = self.track })
 
+	--[[
+	The fill wears the knob's own pill: the same height, the same radius and
+	the same clearance inside the track. A full-height fill under a shorter
+	knob used to bleed accent above and below it and around its rounded
+	corners (the fill's 11px cap is a bigger arc than the knob's 9px), so
+	the knob read as half-painted at every stop.
+	]]
 	self.fill = window:Create("Frame", {
-		Size = UDim2.new(0, 0, 1, 0),
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, knobGap, 0.5, 0),
+		Size = UDim2.new(0, 0, 0, knobHeight),
 		BorderSizePixel = 0,
 		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 		ZIndex = 3,
 		Parent = self.track,
 	}, self:_fillBinding())
-	window:Create("UICorner", { CornerRadius = trackRadius, Parent = self.fill })
+	window:Create("UICorner", { CornerRadius = knobRadius, Parent = self.fill })
 	window:Create("UIGradient", {
 		Color = ColorSequence.new(Color3.new(0.72, 0.72, 0.72), Color3.new(1, 1, 1)),
 		Parent = self.fill,
@@ -441,6 +455,34 @@ function state:_titleColor()
 	return self.window.theme.ContentColor
 end
 
+--[[
+While the title wears the icon's colour it carries no TextColor3 theme
+binding — the window's own theme pass would paint a theme token over the
+mode's colour. With the icon link off the title rests on ContentColor like
+every other control title, so it binds to the token and a theme change
+flows through the window's pass as well as `_refreshTheme`.
+]]
+function state:_titleBinding()
+	if self.title_color_same_as_left_icon then
+		return { FontFace = "Font" }
+	end
+	return { TextColor3 = "ContentColor", FontFace = "Font" }
+end
+
+--[[
+`Window:_wireElementHover` reads this on every pointer event: the title's
+rest colour belongs to the element (the icon's RGB, which the selected mode
+can override), so the hover wiring must not settle it back onto a theme
+token — that is what took the colour off the title after the first hover.
+Nil hands the title back to the theme language when the icon link is off.
+]]
+function state:_titleRestColor()
+	if self.title_color_same_as_left_icon then
+		return self:_titleColor()
+	end
+	return nil
+end
+
 function state:_paintDots()
 	local theme = self.window.theme
 	for index, dot in ipairs(self.dots) do
@@ -526,13 +568,18 @@ function state:_applyMode(index, instant)
 end
 
 --[[
-The fill's right edge rides the knob's centre: the same scale/offset pair
-the dots and the knob use, so all three agree at every stop and at every
-track width without a resize handler.
+The fill runs from the first stop's clearance to the knob's *trailing*
+edge, on the same scale/offset pair the dots and the knob use — so all
+four agree at every stop and at every track width without a resize
+handler, and the last stop fills the track end to end instead of leaving
+an unpainted tail behind the knob.
 ]]
+function state:_fillSize(fraction)
+	return UDim2.new(fraction, stopInset - fraction * stopInset * 2 + knobWidth / 2 - knobGap, 0, knobHeight)
+end
+
 function state:_renderFill(instant)
-	local fraction = self:_stopFraction(self.mode)
-	local target = UDim2.new(fraction, stopInset - fraction * stopInset * 2, 1, 0)
+	local target = self:_fillSize(self:_stopFraction(self.mode))
 	if instant then
 		self.fill.Size = target
 		return

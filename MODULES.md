@@ -427,12 +427,21 @@ Per-element specifics:
   a reset button. Modes normalize from a map or array into a dot_position-sorted
   list of 3..5 (`min_modes`/`max_modes` clamp to that window; construction
   outside it errors `Astra:CreateModePicker — modes must be between N and M,
-  got K`). The track borrows the toggle's switch height and the toggle's knob
-  (26x18 pill), snapped to one 4px dot per stop; the fill's right edge rides the
-  knob centre through the same scale/offset pair the dots use, so no resize
-  handler is needed. `left_icon_color` (Color3 or `{r,g,b,a}`) paints the icon
-  and, with `title_color_same_as_left_icon`, the title; per-mode `icon_color`
-  overrides drift in on the delayed accent beat when a mode enables.
+  got K`). The track borrows the toggle's switch height, the toggle's knob
+  (26x18 pill) and the toggle's 2px clearance: stops inset by the knob's half
+  width plus that gap, so the track's 11px cap and the knob's 9px cap are
+  concentric at both ends and the knob never jams flush against the track's
+  silhouette, with one 4px dot per stop at the knob's centre. The fill wears the
+  knob's own pill (same height, same radius, same inset) and runs from the first
+  stop to the knob's *trailing* edge through the same scale/offset pair the dots
+  use, so no resize handler is needed, no accent bleeds around the knob's corners
+  and the last stop fills the track end to end. `left_icon_color` (Color3 or
+  `{r,g,b,a}`) paints the icon and, with `title_color_same_as_left_icon`, the
+  title; per-mode `icon_color` overrides drift in on the delayed accent beat when
+  a mode enables. While that link holds the title carries no `TextColor3` theme
+  binding and answers `_titleRestColor()` for `Window:_wireElementHover`, so
+  neither a theme pass nor a hover cycle settles it back onto a theme token; with
+  the link off it binds to `ContentColor` like every other control title.
   `accent = "left_icon"` also retints fill and fill glow, otherwise both stay
   theme-bound like every other element. Drag and tap snap live through
   `HapticEngine.click()` per crossed stop; each mode's `onEnable` and the
@@ -644,6 +653,7 @@ Per-element specifics:
 | `tab_elements_test.sh` | Tab elements: only the selected tab is walked on a show/hide, a tab opened later shows its elements in the same frame and state, the search shows every tab it renders, and a late element shows with its tab. |
 | `tab_lock_test.sh` | Locked tabs: the preserved flag + badge (always hidden during the UI pause) and auto-select skipping a locked first tab; tap → notification with no selection; hover leaves the locked row dimmed; `Navigate`/`Select` guards; `SetLocked(false)` re-enables; locking the open tab moves the selection to a same-rail fallback; search excludes locked tabs' elements; locking every remaining tab clears the selection and hides content, and unlocking restores it; retained badge geometry with no layout reserve, full title slots, and hidden badges after collapse/rebuild. |
 | `toggle_switch_test.sh` | Switch geometry: one set of metrics, mirrored resting states, equal clearance, the sheen under the knob, and the animated positions matching the built ones. |
+| `mode_picker_test.sh` | Mode Picker: the 3..5 mode window, snap/Set/callback order and clamping, dot rebuilds on add/remove, the knob's stop scales, reset semantics, the description following the selected mode, the title wearing the icon's RGB — and keeping it through a hover cycle and a per-mode `icon_color` — plus the track geometry: the knob's clearance inside the track's pill at both end stops, the fill wearing the knob's own pill and reaching its trailing edge, the last stop leaving no unpainted tail, and the end dots still at the knob's centres. |
 | `input_field_test.sh` | Field-box corners: the Input field rounds with the theme's `ElementCornerRadius` as a theme binding (pixel radius, never a capsule scale), re-stated on a theme switch, and shared with its element card. |
 | `corner_scale_test.sh` | The corner scale: the three nested tiers (12px shell, 8px elements, 32px folds) and which surface wears which, the round-by-nature controls deriving a half-height pill from their own metrics (switch track/knob/sheen, slider track/fill/handle, drag pill), the dropdown's row tiers read from the panel that clips them, a `ChangeTheme` reaching every bound surface, the corners that stay square on purpose (the elements band's top edge), and a sweep that fails if any painted surface in the tree is left with an all-zero corner. |
 | `keybind_input_test.sh` | Dedicated A–Z capture: required value, validation, focus handling, cancellation, current-key suppression, groups, flags, lock/removal/unload and settings validation. |

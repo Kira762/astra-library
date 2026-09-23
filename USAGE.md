@@ -380,8 +380,14 @@ the copy always follows the link currently stored. The card asks its host for a
 clipboard (`setclipboard`, `toclipboard`, `setrbxclipboard`, a `Clipboard` object,
 or Studio's `StudioService:CopyToClipboard`); where none exists the control keeps
 the copy mark and logs the reason, because the check mark means the link is on the
-clipboard and nothing else may show it. The element supports the move and lock API
-like the other interactive elements.
+clipboard and nothing else may show it. A card built without a `link` behaves the
+same way: it copies nothing, keeps the copy mark, and says why. The element
+supports the move and lock API like the other interactive elements.
+
+Holding the copy control never scrolls the page: a press on it is pinned to the
+tab page's canvas for as long as it is held, so the card stays exactly where it
+is instead of dragging down and springing back. The page scrolls normally
+everywhere else, and a scroll made between taps is left alone.
 
 ### About card
 ```lua

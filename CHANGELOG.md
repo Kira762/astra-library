@@ -1,5 +1,38 @@
 # Changelog
 
+## Unreleased — The icon option is gone from Text, Stat and About Card
+
+The three display-only elements no longer take icons. `CreateText` and
+`CreateStat` drop their `icon` prop; `CreateAboutCard` drops the header mark,
+the row badge icons and the action band's leading icon, and `SetIcon` goes
+with them. Any `icon` prop passed to these three is ignored. The action
+band's trailing chevron is unchanged (it is fixed chrome, not an option),
+and Section, Footer, Link, Isolated and the interactive controls keep their
+icons.
+
+- **`elements/text.luau`** — the title row no longer builds the leading icon
+  slot; the title takes the full row width and the row shows whenever the
+  name is set.
+- **`elements/stat.luau`** — the full and compact builds drop their icon
+  labels (the letter badge is unchanged); the title takes the full width and
+  `_minWidth` no longer reserves icon room.
+- **`elements/aboutCard.luau`** — the header is a plain title/subtitle stack,
+  rows are label/value tiles with no badge chip, and the action band is copy
+  plus the trailing chevron. The badge helpers and `_applyRowIcon` are gone;
+  the action text keeps its 12px gap before the chevron (`actionTextGap`).
+- **`Types.luau`** — `TextProps`, `StatProps`, `AboutCardRow`,
+  `AboutCardAction` and `AboutCardProps` lose their icon fields; the
+  `AboutCard` handle loses `SetIcon`.
+- **`components/settings.luau`**, **`example.client.luau`**,
+  **`skills/astra/assets/example-window.luau`** — the reference cards drop
+  their icon props.
+- **`scripts/about_card_test.luau`** — A1/A2/A4/A6/A7 now assert the icon
+  props are ignored (no icon slot, no badge, no `SetIcon`) while still
+  passing them.
+- **`USAGE.md`**, **`MODULES.md`**, **`skills/astra/references/elements.md`**,
+  **`skills/astra/SKILL.md`** — the element docs follow.
+- **`version-1.luau`** — regenerated.
+
 ## Unreleased — Link: the copy tap can no longer walk the page away
 
 Reported live: pressing the Link's copy control scrolled the elements area

@@ -8,9 +8,42 @@ Do not edit by hand; source files remain the source of truth.
 -- Will be used later for getting flattened globals
 local ImportGlobals
 
+-- Integrity canaries (generated; covered by the release signature).
+-- __recFP snapshots the environment when the MainModule closure starts,
+-- __checkFP re-snapshots after every module has loaded; a mismatch means
+-- something was replaced mid-load. Silent: failure returns a no-op stub.
+local ExpectedClosureCount = 111;
+local __fp
+local function __snap()
+    return table.concat({
+        "game=" .. type(game), "task=" .. type(task), "loadstring=" .. type(loadstring),
+        "HttpGet=" .. type(HttpGet), "print=" .. type(print), "warn=" .. type(warn),
+        "typeof=" .. type(typeof), "pcall=" .. type(pcall), "setmetatable=" .. type(setmetatable),
+        "bit32=" .. type(bit32), "string=" .. type(string), "table=" .. type(table),
+    }, ";")
+end
+local function __recFP()
+    if not __fp then __fp = __snap() end
+end
+local function __checkFP()
+    return __fp ~= nil and __snap() == __fp
+end
+local function __quietStub()
+    -- Self-returning stub (matches loader.luau's quietStub): every index
+    -- and call resolves to the stub table itself, so chains like
+    -- Astra.Settings.readPersisted stay silent instead of indexing a
+    -- function value. type(CreateWindow) == "table" marks a stub.
+    local stub = {}
+    return setmetatable(stub, {
+        __index = function() return stub end,
+        __call = function() return stub end,
+        __newindex = function(t, k, v) rawset(t, k, v) end,
+    })
+end
+
 -- Holds direct closure data (defining this before the DOM tree for line debugging etc)
 local ClosureBindings = {
-    [2] = function()local wax,script,require=ImportGlobals(2)local ImportGlobals return (function(...)
+    [2] = function()local wax,script,require=ImportGlobals(2)local ImportGlobals __recFP() return (function(...)
 local Core = require(script.Parent.core)
 local State = require(script.Parent.core.state)
 local Image = require(script.Parent.images.image)
@@ -26484,117 +26517,117 @@ end)() end,
 
 
 local LineOffsets = {
-    [2] = 14,
-    [3] = 438,
-    [5] = 1047,
-    [6] = 1030,
-    [7] = 1164,
-    [8] = 1306,
-    [9] = 1557,
-    [10] = 1939,
-    [11] = 3309,
-    [12] = 3718,
-    [13] = 4067,
-    [14] = 4806,
-    [15] = 5144,
-    [16] = 5654,
-    [17] = 5717,
-    [18] = 6191,
-    [19] = 6537,
-    [20] = 6551,
-    [21] = 6608,
-    [22] = 6739,
-    [23] = 7079,
-    [24] = 7318,
-    [25] = 7640,
-    [26] = 7740,
-    [27] = 7793,
-    [28] = 8440,
-    [29] = 8663,
-    [30] = 9009,
-    [31] = 9441,
-    [32] = 6511,
-    [34] = 10375,
-    [35] = 11246,
-    [36] = 11345,
-    [37] = 11566,
-    [38] = 11987,
-    [39] = 12441,
-    [40] = 12629,
-    [41] = 12774,
-    [42] = 14368,
-    [43] = 14616,
-    [44] = 14847,
-    [45] = 15132,
-    [46] = 15569,
-    [47] = 15813,
-    [48] = 16492,
-    [49] = 16578,
-    [50] = 17187,
-    [51] = 18066,
-    [52] = 18609,
-    [53] = 18739,
-    [54] = 18891,
-    [56] = 19408,
-    [57] = 19428,
-    [58] = 19447,
-    [59] = 19479,
-    [60] = 19605,
-    [61] = 19631,
-    [62] = 19680,
-    [63] = 19383,
-    [64] = 19779,
-    [65] = 20084,
-    [66] = 20115,
-    [67] = 19768,
-    [68] = 20158,
-    [69] = 20178,
-    [70] = 20210,
-    [71] = 20140,
-    [72] = 20317,
-    [73] = 20385,
-    [75] = 20467,
-    [76] = 20634,
-    [77] = 20653,
-    [78] = 20452,
-    [79] = 21284,
-    [80] = 21330,
-    [81] = 21412,
-    [82] = 21607,
-    [83] = 21738,
-    [84] = 21841,
-    [85] = 22010,
-    [86] = 22350,
-    [87] = 20749,
-    [88] = 22994,
-    [89] = 22880,
-    [90] = 23133,
-    [91] = 23231,
-    [92] = 23409,
-    [93] = 23459,
-    [94] = 23489,
-    [95] = 23740,
-    [96] = 23789,
-    [97] = 24242,
-    [98] = 24260,
-    [99] = 24467,
-    [100] = 24487,
-    [101] = 24615,
-    [102] = 24714,
-    [103] = 24736,
-    [104] = 24792,
-    [105] = 25257,
-    [106] = 25293,
-    [107] = 25311,
-    [108] = 25671,
-    [109] = 25683,
-    [110] = 25734,
-    [111] = 25753,
-    [112] = 26012,
-    [113] = 26056,
-    [114] = 26265,
-    [115] = 26293,
-    [116] = 26304,
+    [2] = 47,
+    [3] = 471,
+    [5] = 1080,
+    [6] = 1063,
+    [7] = 1197,
+    [8] = 1339,
+    [9] = 1590,
+    [10] = 1972,
+    [11] = 3342,
+    [12] = 3751,
+    [13] = 4100,
+    [14] = 4839,
+    [15] = 5177,
+    [16] = 5687,
+    [17] = 5750,
+    [18] = 6224,
+    [19] = 6570,
+    [20] = 6584,
+    [21] = 6641,
+    [22] = 6772,
+    [23] = 7112,
+    [24] = 7351,
+    [25] = 7673,
+    [26] = 7773,
+    [27] = 7826,
+    [28] = 8473,
+    [29] = 8696,
+    [30] = 9042,
+    [31] = 9474,
+    [32] = 6544,
+    [34] = 10408,
+    [35] = 11279,
+    [36] = 11378,
+    [37] = 11599,
+    [38] = 12020,
+    [39] = 12474,
+    [40] = 12662,
+    [41] = 12807,
+    [42] = 14401,
+    [43] = 14649,
+    [44] = 14880,
+    [45] = 15165,
+    [46] = 15602,
+    [47] = 15846,
+    [48] = 16525,
+    [49] = 16611,
+    [50] = 17220,
+    [51] = 18099,
+    [52] = 18642,
+    [53] = 18772,
+    [54] = 18924,
+    [56] = 19441,
+    [57] = 19461,
+    [58] = 19480,
+    [59] = 19512,
+    [60] = 19638,
+    [61] = 19664,
+    [62] = 19713,
+    [63] = 19416,
+    [64] = 19812,
+    [65] = 20117,
+    [66] = 20148,
+    [67] = 19801,
+    [68] = 20191,
+    [69] = 20211,
+    [70] = 20243,
+    [71] = 20173,
+    [72] = 20350,
+    [73] = 20418,
+    [75] = 20500,
+    [76] = 20667,
+    [77] = 20686,
+    [78] = 20485,
+    [79] = 21317,
+    [80] = 21363,
+    [81] = 21445,
+    [82] = 21640,
+    [83] = 21771,
+    [84] = 21874,
+    [85] = 22043,
+    [86] = 22383,
+    [87] = 20782,
+    [88] = 23027,
+    [89] = 22913,
+    [90] = 23166,
+    [91] = 23264,
+    [92] = 23442,
+    [93] = 23492,
+    [94] = 23522,
+    [95] = 23773,
+    [96] = 23822,
+    [97] = 24275,
+    [98] = 24293,
+    [99] = 24500,
+    [100] = 24520,
+    [101] = 24648,
+    [102] = 24747,
+    [103] = 24769,
+    [104] = 24825,
+    [105] = 25290,
+    [106] = 25326,
+    [107] = 25344,
+    [108] = 25704,
+    [109] = 25716,
+    [110] = 25767,
+    [111] = 25786,
+    [112] = 26045,
+    [113] = 26089,
+    [114] = 26298,
+    [115] = 26326,
+    [116] = 26337,
 }
 
 -- Misc AOT variable imports
@@ -27451,6 +27484,17 @@ local ObjectTree = {
 }
 
 
+-- Canary: closure count must match what the generator saw. Catches a bundle
+-- whose ClosureBindings table was edited after generation (the release
+-- signature is the strong check; this is the second layer for raw-path loads).
+do
+    local counted = 0
+    for _ in next, ClosureBindings do counted = counted + 1 end
+    if counted ~= ExpectedClosureCount then
+        return __quietStub()
+    end
+end
+
 local task_defer = task and task.defer
 
     -- If we're not running on the Roblox engine, we won't have a `task` global
@@ -27476,6 +27520,16 @@ local ScriptsToRun = {}
 
     -- wax.shared __index/__newindex
 local SharedEnvironment = {}
+
+-- Canary decoy: an attractive nuisance parked in shared state. Any read,
+-- write, or length probe through its metatable silently flags the session;
+-- the bootstrap refuses to hand back the API if it was touched during load.
+local __decoyTouched = false
+SharedEnvironment["__persisted_cache"] = setmetatable({}, {
+    __index = function() __decoyTouched = true; return nil end,
+    __newindex = function() __decoyTouched = true end,
+    __len = function() __decoyTouched = true; return 0 end,
+})
 
     -- We're creating 'fake' instance refs soley for traversal of the DOM for require() compatibility
 
@@ -27866,9 +27920,18 @@ for _, ScriptRef in next, ScriptsToRun do
 end
 
 -- Standalone loader contract: return the public MainModule API to loadstring callers.
+-- The canaries run after MainModule (and everything it requires) has loaded:
+-- environment fingerprint unchanged, decoy untouched. Any trip → quiet stub.
 local AstraRoot = RealObjectRoot:FindFirstChild("Astra")
 local MainModule = if AstraRoot then AstraRoot:FindFirstChild("MainModule") else nil
 if MainModule then
-    return LoadScript(MainModule)
+    local __api = LoadScript(MainModule)
+    if not __checkFP() then
+        return __quietStub()
+    end
+    if __decoyTouched then
+        return __quietStub()
+    end
+    return __api
 end
 error("Astra bundle is missing its MainModule", 0)

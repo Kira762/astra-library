@@ -1,0 +1,122 @@
+# Signs version-1.luau when a bundle-affecting file lands on main.
+#
+# Key handling (build spec #4): the Ed25519 private key exists only as the
+# SIGNING_KEY repository secret. Contributors never need it — without the
+# secret this workflow only *verifies* the committed signature, so local dev
+# and PR checks run on throwaway/dev keys (scripts/sign_bundle.js creates a
+# gitignored dev key on first use).
+#
+# Obfuscation (build spec #5) happens outside CI: everything here runs on the
+# pre-obfuscation loader.luau artifact, which is the same file contributors
+# test.
+name: Sign bundle
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "version-1.luau"
+      - "version-1.luau.sig"
+      - "loader.luau"
+      - "ASTRA_VERSION"
+      - "scripts/sign_bundle.js"
+      - "scripts/loader_integrity_test.sh"
+      - "scripts/loader_crypto_test.sh"
+      - "scripts/check_syntax.sh"
+  pull_request:
+    paths:
+      - "version-1.luau"
+      - "version-1.luau.sig"
+      - "loader.luau"
+      - "ASTRA_VERSION"
+      - "scripts/sign_bundle.js"
+      - "scripts/loader_integrity_test.sh"
+      - "scripts/loader_crypto_test.sh"
+      - "scripts/check_syntax.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Always runs: digest consistency, syntax gate, crypto vectors, and the
+  # end-to-end integrity matrix (tamper / missing / wrong key / stale version /
+  # fetch failure / canary trip → silent stub; valid → real API).
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Luau CLI (same family the local gates use)
+        run: |
+          set -eu
+          curl -fsSL -o "$RUNNER_TEMP/luau.zip" \
+            https://github.com/luau-lang/luau/releases/latest/download/luau-ubuntu.zip
+          unzip -q "$RUNNER_TEMP/luau.zip" -d "$RUNNER_TEMP/luau-bin"
+          sudo install -m 755 "$RUNNER_TEMP/luau-bin/luau" /usr/local/bin/luau
+          if [ -f "$RUNNER_TEMP/luau-bin/luau-compile" ]; then
+            sudo install -m 755 "$RUNNER_TEMP/luau-bin/luau-compile" /usr/local/bin/luau-compile
+          fi
+
+      - name: Signature digest check
+        run: node scripts/sign_bundle.js --verify
+
+      - name: Syntax gate
+        run: sh scripts/check_syntax.sh
+
+      - name: Loader crypto vectors
+        run: sh scripts/loader_crypto_test.sh
+
+      - name: Loader integrity matrix
+        run: sh scripts/loader_integrity_test.sh
+
+  # Runs only for pushes to main, and only signs when the SIGNING_KEY secret
+  # exists. No secret → verify and stop; the workflow never fails a repo that
+  # has not onboarded the production key.
+  sign:
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Re-sign with the CI secret when present (no-op otherwise)
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+        run: |
+          set -eu
+          if [ -z "${SIGNING_KEY:-}" ]; then
+            echo "SIGNING_KEY secret is not set — repository keeps its current"
+            echo "committed signature (dev/local key path). CI does not fail."
+            node scripts/sign_bundle.js --verify
+            exit 0
+          fi
+          node scripts/sign_bundle.js
+          node scripts/sign_bundle.js --verify
+          if git diff --quiet -- version-1.luau.sig loader.luau; then
+            echo "signature and loader already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add version-1.luau.sig loader.luau
+          git commit -m "chore: sign version-1.luau [skip ci]"
+          git push

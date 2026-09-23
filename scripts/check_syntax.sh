@@ -68,7 +68,7 @@ for dir in core components elements settings cache functions layouts images icon
 		FILES="$FILES $(find "$dir" -name '*.luau' | sort)"
 	fi
 done
-FILES="$FILES library_entrypoint.luau Types.luau example.client.luau changelog.example.luau version-1.luau"
+FILES="$FILES library_entrypoint.luau Types.luau example.client.luau changelog.example.luau version-1.luau loader.luau"
 
 checked=0
 failed=0

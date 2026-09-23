@@ -146,6 +146,16 @@ function buildNode(entry) {
 const rootRefId = makeNode("Astra", CLASS_FOLDER);
 const children = TREE.map(buildNode);
 const allModules = children.flatMap((c) => [c, ...(c.closures || [])]).filter((c) => c.closure);
+// TREE[0] is the MainModule entry; its wrapper records the environment
+// fingerprint that the bootstrap re-checks before handing back the API.
+const mainRefId = children[0].refId;
+
+// Wrapper builder — shared by emission and the LineOffsets scan so the two
+// can never drift apart (the scan does an exact string match).
+function wrapperLine(mod) {
+  const inject = mod.refId === mainRefId ? " __recFP()" : "";
+  return `    [${mod.refId}] = function()local wax,script,require=ImportGlobals(${mod.refId})local ImportGlobals${inject} return (function(...)`;
+}
 
 // ObjectTree must be an ARRAY OF ROOT OBJECTS (the wax runtime iterates it
 // with `for _, Object in next, ObjectTree` and calls CreateRefFromObject on
@@ -168,11 +178,44 @@ lines.push("");
 lines.push("-- Will be used later for getting flattened globals");
 lines.push("local ImportGlobals");
 lines.push("");
+lines.push("-- Integrity canaries (generated; covered by the release signature).");
+lines.push("-- __recFP snapshots the environment when the MainModule closure starts,");
+lines.push("-- __checkFP re-snapshots after every module has loaded; a mismatch means");
+lines.push("-- something was replaced mid-load. Silent: failure returns a no-op stub.");
+lines.push(`local ExpectedClosureCount = ${allModules.length};`);
+lines.push("local __fp");
+lines.push("local function __snap()");
+lines.push('    return table.concat({');
+lines.push('        "game=" .. type(game), "task=" .. type(task), "loadstring=" .. type(loadstring),');
+lines.push('        "HttpGet=" .. type(HttpGet), "print=" .. type(print), "warn=" .. type(warn),');
+lines.push('        "typeof=" .. type(typeof), "pcall=" .. type(pcall), "setmetatable=" .. type(setmetatable),');
+lines.push('        "bit32=" .. type(bit32), "string=" .. type(string), "table=" .. type(table),');
+lines.push('    }, ";")');
+lines.push("end");
+lines.push("local function __recFP()");
+lines.push("    if not __fp then __fp = __snap() end");
+lines.push("end");
+lines.push("local function __checkFP()");
+lines.push("    return __fp ~= nil and __snap() == __fp");
+lines.push("end");
+lines.push("local function __quietStub()");
+lines.push("    -- Self-returning stub (matches loader.luau's quietStub): every index");
+lines.push("    -- and call resolves to the stub table itself, so chains like");
+lines.push("    -- Astra.Settings.readPersisted stay silent instead of indexing a");
+lines.push("    -- function value. type(CreateWindow) == \"table\" marks a stub.");
+lines.push("    local stub = {}");
+lines.push("    return setmetatable(stub, {");
+lines.push("        __index = function() return stub end,");
+lines.push("        __call = function() return stub end,");
+lines.push("        __newindex = function(t, k, v) rawset(t, k, v) end,");
+lines.push("    })");
+lines.push("end");
+lines.push("");
 lines.push("-- Holds direct closure data (defining this before the DOM tree for line debugging etc)");
 lines.push("local ClosureBindings = {");
 for (const mod of allModules) {
   const wrapped = mod.closure.replace(/\n/g, "\n");
-  lines.push(`    [${mod.refId}] = function()local wax,script,require=ImportGlobals(${mod.refId})local ImportGlobals return (function(...)`);
+  lines.push(wrapperLine(mod));
   lines.push(wrapped);
   lines.push("end)() end,");
 }
@@ -193,6 +236,17 @@ const out1 = lines.length; // informational only
 // LineOffsets, then the runtime. Keep that order.
 
 const runtime = `
+
+-- Canary: closure count must match what the generator saw. Catches a bundle
+-- whose ClosureBindings table was edited after generation (the release
+-- signature is the strong check; this is the second layer for raw-path loads).
+do
+    local counted = 0
+    for _ in next, ClosureBindings do counted = counted + 1 end
+    if counted ~= ExpectedClosureCount then
+        return __quietStub()
+    end
+end
 
 local task_defer = task and task.defer
 
@@ -219,6 +273,16 @@ local ScriptsToRun = {}
 
     -- wax.shared __index/__newindex
 local SharedEnvironment = {}
+
+-- Canary decoy: an attractive nuisance parked in shared state. Any read,
+-- write, or length probe through its metatable silently flags the session;
+-- the bootstrap refuses to hand back the API if it was touched during load.
+local __decoyTouched = false
+SharedEnvironment["__persisted_cache"] = setmetatable({}, {
+    __index = function() __decoyTouched = true; return nil end,
+    __newindex = function() __decoyTouched = true end,
+    __len = function() __decoyTouched = true; return 0 end,
+})
 
     -- We're creating 'fake' instance refs soley for traversal of the DOM for require() compatibility
 
@@ -609,10 +673,19 @@ for _, ScriptRef in next, ScriptsToRun do
 end
 
 -- Standalone loader contract: return the public MainModule API to loadstring callers.
+-- The canaries run after MainModule (and everything it requires) has loaded:
+-- environment fingerprint unchanged, decoy untouched. Any trip → quiet stub.
 local AstraRoot = RealObjectRoot:FindFirstChild("Astra")
 local MainModule = if AstraRoot then AstraRoot:FindFirstChild("MainModule") else nil
 if MainModule then
-    return LoadScript(MainModule)
+    local __api = LoadScript(MainModule)
+    if not __checkFP() then
+        return __quietStub()
+    end
+    if __decoyTouched then
+        return __quietStub()
+    end
+    return __api
 end
 error("Astra bundle is missing its MainModule", 0)
 `;
@@ -659,9 +732,8 @@ let fullText =
 const textLines = fullText.split("\n");
 const offsets = {};
 for (const mod of allModules) {
-  const marker = `local ImportGlobals return (function(...)`;
-  // Find the wrapper line for this refId
-  const wrapper = `    [${mod.refId}] = function()local wax,script,require=ImportGlobals(${mod.refId})local ImportGlobals return (function(...)`;
+  // Find the wrapper line for this refId (same builder emission used)
+  const wrapper = wrapperLine(mod);
   const idx = textLines.indexOf(wrapper);
   if (idx === -1) {
     throw new Error("Closure wrapper not found for ref " + mod.refId);

@@ -6,3 +6,7 @@ node_modules/
 
 # Locally built Luau toolchain (scripts/install_luau.sh)
 .tools/
+
+# Throwaway local signing key (auto-created by scripts/sign_bundle.js).
+# The production key only ever exists as the SIGNING_KEY Actions secret.
+scripts/dev_signing_key.pem

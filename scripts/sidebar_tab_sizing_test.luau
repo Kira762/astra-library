@@ -291,18 +291,18 @@ expect(
 	"T9c the content area shows Overview's page when settings opens"
 )
 expect(
-	#window.rfSettings.elements >= 3,
+	#window.rfSettings.elements >= 2,
 	"T9c opening settings builds Overview's lazy content (got " .. tostring(#window.rfSettings.elements) .. " elements)"
 )
 
 -- T9d: every settings tab opens with its full content on its own page.
 local expectedSettingsContent = {
-    Overview = 6,
-    Controls = 5,
-    -- Appearance has no Theme picker: Layout section, Bar Layout,
-    -- Motion & Feedback, plus the Typography section and Font dropdown
-    -- added by the font-selection change.
-    Appearance = 5,
+    -- Kept deliberately lean: About card + Repository link.
+    Overview = 2,
+    -- Toggle Keybind, Unlock cursor, Window Behavior group.
+    Controls = 3,
+    -- Font, Bar Layout, Motion & Feedback (no section headers).
+    Appearance = 3,
     Persistence = 2,
 }
 for name, wanted in expectedSettingsContent do

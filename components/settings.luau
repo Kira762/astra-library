@@ -7,12 +7,11 @@ local layouts = require(utilities.layouts)
 local settingsComponent = {}
 
 --[[
-The About card's copy. The card itself is a reusable element — these three
-are simply the values this build stamps into the Settings tab's card, so a
+The About card's copy. The card itself is a reusable element — these are
+simply the values this build stamps into the Settings tab's card, so a
 release updates them here and nowhere else.
 ]]
 local aboutVersion = "1.4.0"
-local aboutBuild = "2026.09.21"
 local aboutAuthor = "Astra Team"
 
 local function layoutKey(layout)
@@ -46,12 +45,10 @@ function settingsComponent.buildUI(window)
 
     local function buildAbout()
         --[[
-        The About page is one About card: the brand header, the three data
-        rows and the description paragraph. The card's optional action band
-        is left off here because the Settings tab has no changelog to open;
-        a host that keeps release notes passes `action` with its own
-        callback. The version, build and author strings live at the top of
-        this module — bump them with a release.
+        The About page is kept deliberately short: one compact About card
+        (brand header plus two data tiles) and a single repository link —
+        the usage guide, releases and issues all live behind that link.
+        The version and author strings live at the top of this module.
         ]]
         about:CreateAboutCard({
             name = "Astra",
@@ -59,30 +56,19 @@ function settingsComponent.buildUI(window)
             icon = constants.icons.dot,
             rows = {
                 { icon = "code", label = "Version", value = aboutVersion },
-                { icon = "package", label = "Build", value = aboutBuild },
                 { icon = "user", label = "Author", value = aboutAuthor },
             },
-            description = "Astra is a modern and flexible UI library designed to make your experience smoother, cleaner, and more customizable. Built for developers, by developers.",
         })
-        about:CreateSection({ name = "Resources" })
         about:CreateLink({
-            name = "Repository", subtitle = "Source, releases and issue reports", icon = "code",
+            name = "Repository", subtitle = "Docs, releases and issues", icon = "code",
             link = "https://github.com/Kira762/astra-version-1",
         })
-        about:CreateLink({
-            name = "Usage guide", subtitle = "Learn the elements and public API", icon = "book-open",
-            link = "https://github.com/Kira762/astra-version-1/blob/main/USAGE.md",
-        })
-        about:CreateDivider()
-        about:CreateFooter({ parts = { { text = "Built with" }, { icon = "heart" }, { text = "Astra" } } })
     end
     about._settingsContentBuilder = buildAbout
 
     local function buildGeneral()
-        general:CreateSection({ name = "Keyboard & cursor" })
         general:CreateKeybind({
             name = "Toggle Keybind",
-            description = "Click the key, then press one letter (A–Z). Escape cancels. A letter is required.",
             value = window.settings.toggleKeybind,
             callback = function(letter)
                 window.settings.toggleKeybind = Enum.KeyCode[letter]
@@ -97,8 +83,6 @@ function settingsComponent.buildUI(window)
                 window:SaveSettings()
             end,
         })
-        general:CreateDivider({ text = "Window & capsule" })
-
         general:CreateCollapsibleGroup({
             name = "Window Behavior",
             icon = "layout",
@@ -146,7 +130,6 @@ function settingsComponent.buildUI(window)
                 },
             },
         })
-
     end
     general._settingsContentBuilder = buildGeneral
 
@@ -160,7 +143,6 @@ function settingsComponent.buildUI(window)
         local fontOptions = { "Default", "Astra" }
         local fontChoices = { Default = "default", Astra = "brand" }
 
-        appearance:CreateSection({ name = "Typography" })
         appearance:CreateDropdown({
             name = "Font",
             options = fontOptions,
@@ -184,7 +166,6 @@ function settingsComponent.buildUI(window)
         local layoutDropdown
         local currentLayout = window.settings.layoutMode or window.layout.mode
 
-        appearance:CreateSection({ name = "Layout" })
         layoutDropdown = appearance:CreateDropdown({
             name = "Bar Layout",
             options = { layoutMap.sidebar, layoutMap.collapsedSidebar },
@@ -278,7 +259,6 @@ function settingsComponent.buildUI(window)
                 },
             },
         })
-
     end
     appearance._settingsContentBuilder = buildAppearance
 

@@ -5272,12 +5272,11 @@ local layouts = require(utilities.layouts)
 local settingsComponent = {}
 
 --[[
-The About card's copy. The card itself is a reusable element — these three
-are simply the values this build stamps into the Settings tab's card, so a
+The About card's copy. The card itself is a reusable element — these are
+simply the values this build stamps into the Settings tab's card, so a
 release updates them here and nowhere else.
 ]]
 local aboutVersion = "1.4.0"
-local aboutBuild = "2026.09.21"
 local aboutAuthor = "Astra Team"
 
 local function layoutKey(layout)
@@ -5311,12 +5310,10 @@ function settingsComponent.buildUI(window)
 
     local function buildAbout()
         --[[
-        The About page is one About card: the brand header, the three data
-        rows and the description paragraph. The card's optional action band
-        is left off here because the Settings tab has no changelog to open;
-        a host that keeps release notes passes `action` with its own
-        callback. The version, build and author strings live at the top of
-        this module — bump them with a release.
+        The About page is kept deliberately short: one compact About card
+        (brand header plus two data tiles) and a single repository link —
+        the usage guide, releases and issues all live behind that link.
+        The version and author strings live at the top of this module.
         ]]
         about:CreateAboutCard({
             name = "Astra",
@@ -5324,30 +5321,19 @@ function settingsComponent.buildUI(window)
             icon = constants.icons.dot,
             rows = {
                 { icon = "code", label = "Version", value = aboutVersion },
-                { icon = "package", label = "Build", value = aboutBuild },
                 { icon = "user", label = "Author", value = aboutAuthor },
             },
-            description = "Astra is a modern and flexible UI library designed to make your experience smoother, cleaner, and more customizable. Built for developers, by developers.",
         })
-        about:CreateSection({ name = "Resources" })
         about:CreateLink({
-            name = "Repository", subtitle = "Source, releases and issue reports", icon = "code",
+            name = "Repository", subtitle = "Docs, releases and issues", icon = "code",
             link = "https://github.com/Kira762/astra-version-1",
         })
-        about:CreateLink({
-            name = "Usage guide", subtitle = "Learn the elements and public API", icon = "book-open",
-            link = "https://github.com/Kira762/astra-version-1/blob/main/USAGE.md",
-        })
-        about:CreateDivider()
-        about:CreateFooter({ parts = { { text = "Built with" }, { icon = "heart" }, { text = "Astra" } } })
     end
     about._settingsContentBuilder = buildAbout
 
     local function buildGeneral()
-        general:CreateSection({ name = "Keyboard & cursor" })
         general:CreateKeybind({
             name = "Toggle Keybind",
-            description = "Click the key, then press one letter (A–Z). Escape cancels. A letter is required.",
             value = window.settings.toggleKeybind,
             callback = function(letter)
                 window.settings.toggleKeybind = Enum.KeyCode[letter]
@@ -5362,8 +5348,6 @@ function settingsComponent.buildUI(window)
                 window:SaveSettings()
             end,
         })
-        general:CreateDivider({ text = "Window & capsule" })
-
         general:CreateCollapsibleGroup({
             name = "Window Behavior",
             icon = "layout",
@@ -5411,7 +5395,6 @@ function settingsComponent.buildUI(window)
                 },
             },
         })
-
     end
     general._settingsContentBuilder = buildGeneral
 
@@ -5425,7 +5408,6 @@ function settingsComponent.buildUI(window)
         local fontOptions = { "Default", "Astra" }
         local fontChoices = { Default = "default", Astra = "brand" }
 
-        appearance:CreateSection({ name = "Typography" })
         appearance:CreateDropdown({
             name = "Font",
             options = fontOptions,
@@ -5449,7 +5431,6 @@ function settingsComponent.buildUI(window)
         local layoutDropdown
         local currentLayout = window.settings.layoutMode or window.layout.mode
 
-        appearance:CreateSection({ name = "Layout" })
         layoutDropdown = appearance:CreateDropdown({
             name = "Bar Layout",
             options = { layoutMap.sidebar, layoutMap.collapsedSidebar },
@@ -5543,7 +5524,6 @@ function settingsComponent.buildUI(window)
                 },
             },
         })
-
     end
     appearance._settingsContentBuilder = buildAppearance
 
@@ -27839,105 +27819,105 @@ local LineOffsets = {
     [13] = 4189,
     [14] = 4928,
     [15] = 5266,
-    [16] = 5800,
-    [17] = 5863,
-    [18] = 6337,
-    [19] = 6683,
-    [20] = 6697,
-    [21] = 6754,
-    [22] = 6885,
-    [23] = 7248,
-    [24] = 7487,
-    [25] = 7809,
-    [26] = 7909,
-    [27] = 7971,
-    [28] = 8619,
-    [29] = 8842,
-    [30] = 9188,
-    [31] = 9642,
-    [32] = 6657,
-    [34] = 10576,
-    [35] = 11447,
-    [36] = 11546,
-    [37] = 11767,
-    [38] = 12188,
-    [39] = 12643,
-    [40] = 12838,
-    [41] = 12983,
-    [42] = 14577,
-    [43] = 14825,
-    [44] = 15060,
-    [45] = 15345,
-    [46] = 15782,
-    [47] = 16026,
-    [48] = 17010,
-    [49] = 17801,
-    [50] = 17887,
-    [51] = 18496,
-    [52] = 19375,
-    [53] = 19922,
-    [54] = 20052,
-    [55] = 20204,
-    [57] = 20721,
-    [58] = 20747,
-    [59] = 20766,
-    [60] = 20799,
-    [61] = 20925,
-    [62] = 20951,
-    [63] = 21000,
-    [64] = 20696,
-    [65] = 21105,
-    [66] = 21410,
-    [67] = 21441,
-    [68] = 21094,
-    [69] = 21484,
-    [70] = 21504,
-    [71] = 21536,
-    [72] = 21466,
-    [73] = 21643,
-    [74] = 21711,
-    [76] = 21793,
-    [77] = 21960,
-    [78] = 21979,
-    [79] = 21778,
-    [80] = 22610,
-    [81] = 22656,
-    [82] = 22738,
-    [83] = 22933,
-    [84] = 23064,
-    [85] = 23167,
-    [86] = 23336,
-    [87] = 23676,
-    [88] = 22075,
-    [89] = 24320,
-    [90] = 24206,
-    [91] = 24459,
-    [92] = 24557,
-    [93] = 24735,
-    [94] = 24794,
-    [95] = 24824,
-    [96] = 25075,
-    [97] = 25124,
-    [98] = 25577,
-    [99] = 25595,
-    [100] = 25802,
-    [101] = 25822,
-    [102] = 25950,
-    [103] = 26049,
-    [104] = 26071,
-    [105] = 26127,
-    [106] = 26592,
-    [107] = 26628,
-    [108] = 26646,
-    [109] = 27006,
-    [110] = 27018,
-    [111] = 27069,
-    [112] = 27088,
-    [113] = 27347,
-    [114] = 27391,
-    [115] = 27607,
-    [116] = 27635,
-    [117] = 27646,
+    [16] = 5780,
+    [17] = 5843,
+    [18] = 6317,
+    [19] = 6663,
+    [20] = 6677,
+    [21] = 6734,
+    [22] = 6865,
+    [23] = 7228,
+    [24] = 7467,
+    [25] = 7789,
+    [26] = 7889,
+    [27] = 7951,
+    [28] = 8599,
+    [29] = 8822,
+    [30] = 9168,
+    [31] = 9622,
+    [32] = 6637,
+    [34] = 10556,
+    [35] = 11427,
+    [36] = 11526,
+    [37] = 11747,
+    [38] = 12168,
+    [39] = 12623,
+    [40] = 12818,
+    [41] = 12963,
+    [42] = 14557,
+    [43] = 14805,
+    [44] = 15040,
+    [45] = 15325,
+    [46] = 15762,
+    [47] = 16006,
+    [48] = 16990,
+    [49] = 17781,
+    [50] = 17867,
+    [51] = 18476,
+    [52] = 19355,
+    [53] = 19902,
+    [54] = 20032,
+    [55] = 20184,
+    [57] = 20701,
+    [58] = 20727,
+    [59] = 20746,
+    [60] = 20779,
+    [61] = 20905,
+    [62] = 20931,
+    [63] = 20980,
+    [64] = 20676,
+    [65] = 21085,
+    [66] = 21390,
+    [67] = 21421,
+    [68] = 21074,
+    [69] = 21464,
+    [70] = 21484,
+    [71] = 21516,
+    [72] = 21446,
+    [73] = 21623,
+    [74] = 21691,
+    [76] = 21773,
+    [77] = 21940,
+    [78] = 21959,
+    [79] = 21758,
+    [80] = 22590,
+    [81] = 22636,
+    [82] = 22718,
+    [83] = 22913,
+    [84] = 23044,
+    [85] = 23147,
+    [86] = 23316,
+    [87] = 23656,
+    [88] = 22055,
+    [89] = 24300,
+    [90] = 24186,
+    [91] = 24439,
+    [92] = 24537,
+    [93] = 24715,
+    [94] = 24774,
+    [95] = 24804,
+    [96] = 25055,
+    [97] = 25104,
+    [98] = 25557,
+    [99] = 25575,
+    [100] = 25782,
+    [101] = 25802,
+    [102] = 25930,
+    [103] = 26029,
+    [104] = 26051,
+    [105] = 26107,
+    [106] = 26572,
+    [107] = 26608,
+    [108] = 26626,
+    [109] = 26986,
+    [110] = 26998,
+    [111] = 27049,
+    [112] = 27068,
+    [113] = 27327,
+    [114] = 27371,
+    [115] = 27587,
+    [116] = 27615,
+    [117] = 27626,
 }
 
 -- Misc AOT variable imports

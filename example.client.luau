@@ -1339,6 +1339,47 @@ local function buildStudio(unlockedKey)
         },
     })
 
+    lab:CreateDivider({ text = "Mode Picker" })
+
+    local demoModePicker = lab:CreateModePicker({
+        title = "Mode Picker",
+        subtitle = "Astra demo",
+        left_icon = "zap",
+        right_icon = "rotate-ccw",
+        left_icon_color = { r = 77, g = 163, b = 255, a = 255 },
+        flag = "demo.lab.modePicker",
+        modes = {
+            { label = "Normal", type = "default", description = "Balanced speed and depth. The default resting state." },
+            { label = "Fast", type = "dot", description = "Quick answers with slightly less reasoning." },
+            { label = "Balanced", type = "dot", description = "An even split between speed and depth." },
+            {
+                label = "Advanced",
+                type = "dot",
+                optional = true,
+                description = "Deeper reasoning for complex problems.",
+                icon_color = Color3.fromRGB(245, 159, 11),
+            },
+            {
+                label = "Max",
+                type = "dot",
+                optional = true,
+                description = "Everything the model has, every time.",
+                icon_color = Color3.fromRGB(236, 72, 153),
+            },
+        },
+        callback = function(index, label)
+            demoText:Set("Mode picker: " .. label .. " (" .. index .. ").")
+        end,
+        onReset = function()
+            demoText:Set("Mode picker reset to Mode 1.")
+        end,
+    })
+
+    local modeActions = lab:CreateGroup({ direction = "row" })
+    modeActions:CreateButton({ name = "Mode 2", icon = "arrow-right", callback = function() demoModePicker:Set(2) end })
+    modeActions:CreateButton({ name = "Last mode", icon = "star", callback = function() demoModePicker:Set(5) end })
+    modeActions:CreateButton({ name = "Reset", icon = "rotate-ccw", callback = function() demoModePicker:Reset() end })
+
     --[[
     ===========================================================================
     8. Configs — the persistence API

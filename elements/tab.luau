@@ -436,6 +436,10 @@ function state:CreateSlider(a36)
     return self:_register(require(script.Parent.slider).new(self, a36))
 end
 
+function state:CreateModePicker(props)
+    return self:_register(require(script.Parent.modePicker).new(self, props))
+end
+
 function state:CreateDropdown(a37)
     return self:_register(require(script.Parent.dropdown).new(self, a37))
 end

@@ -299,8 +299,10 @@ expect(
 local expectedSettingsContent = {
     Overview = 6,
     Controls = 5,
-    -- Appearance has no Theme picker: Layout section, Bar Layout, Motion & Feedback.
-    Appearance = 3,
+    -- Appearance has no Theme picker: Layout section, Bar Layout,
+    -- Motion & Feedback, plus the Typography section and Font dropdown
+    -- added by the font-selection change.
+    Appearance = 5,
     Persistence = 2,
 }
 for name, wanted in expectedSettingsContent do

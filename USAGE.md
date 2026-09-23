@@ -517,7 +517,7 @@ The settings tabs are:
 |---|---|
 | **Overview** | First tab: library About Card, copyable repository and guide Links, and a Footer. |
 | **Controls** | Required A–Z menu Keybind, unlock-cursor toggle, and Window Behavior (duplicate protection, keep on screen, draggable capsule, reset positions). |
-| **Appearance** | Standalone Bar Layout Dropdown; Motion & Feedback (haptics, animation speed). |
+| **Appearance** | Standalone Font and Bar Layout Dropdowns; Motion & Feedback (haptics, animation speed). |
 | **Persistence** | Auto Save / Auto Load toggles; saved-configurations Dropdown + name Input + Save/Load/Delete actions. |
 
 The menu binding cannot be cleared. Saved legacy non-letter bindings (including

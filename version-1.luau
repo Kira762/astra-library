@@ -324,22 +324,17 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 			end)
 		end)
 		task.spawn(function()
-			local mediumFont = State.fontManager:loadFont(Constants.fontAsset, Enum.FontWeight.Medium)
-			local semiBoldFont = State.fontManager:loadFont(Constants.fontAsset, Enum.FontWeight.SemiBold)
-			if
-				not window.unloaded
-				and mediumFont
-				and semiBoldFont
-				and mediumFont ~= State.fallbackFont
-			and semiBoldFont ~= State.fallbackFont
-		then
 			--[[
-			A font swap is a theme pass over every instance the window
-			owns, so running it while the window is still arriving puts that
-			pass on the frames the entrance needs. It waits for the window to
-			land instead — bounded, because a host that never shows the
-			window must still end up with its font.
+			Startup brand-font swap — only for the `brand` selection
+			(Settings → Appearance → Font); the stock default is already
+			what the startup theme resolve painted. A font swap is a theme
+			pass over every instance the window owns, so it waits for the
+			window to land before applying — bounded, because a host that
+			never shows the window must still end up with its font.
 			]]
+			if window.settings.fontChoice ~= "brand" then
+				return
+			end
 			local waited = 0
 			while
 				waited < FONT_SETTLE_BUDGET
@@ -349,10 +344,9 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 				waited += task.wait()
 			end
 			if not window.unloaded then
-				window:ChangeTheme({ Font = mediumFont, TitleFont = semiBoldFont })
+				window:_applyFontSetting()
 			end
-		end
-	end)
+		end)
 	end
 
 	if not window.unloaded then
@@ -1108,7 +1102,10 @@ export type VariablesState = {
 	assetResolver: AssetResolver,
 	fontManager: FontManager,
 	setFallbackFont: (font: Enum.Font | Font) -> (),
+	fontChoice: string,
 	brandFont: (weight: Enum.FontWeight?) -> Font,
+	setFontChoice: (choice: string) -> (),
+	brandFontPair: () -> (Font, Font),
 }
 
 local state = {} :: VariablesState
@@ -1158,6 +1155,14 @@ end)
 
 state.fallbackFont = Font.fromEnum(Enum.Font.BuilderSans)
 
+--[[
+Live font selection behind the Font/TitleFont theme keys: "default"
+(stock fallback family — the original Roblox look) or "brand"
+(constants.fontAsset). Library-wide like the motion profile, since
+theme resolution reads it on every resolve.
+]]
+state.fontChoice = constants.defaultFontChoice
+
 state.fileSystemManager = fileSystemManager.new()
 state.assetResolver =
 	assetResolver.new(true, assetResolver.Enum.AssetDownloadUrl.RoProxyDownloadUrl) :: AssetResolver
@@ -1184,10 +1189,37 @@ function state.setFallbackFont(font: Enum.Font | Font)
 end
 
 function state.brandFont(weight: Enum.FontWeight?): Font
-	if state.secureMode then
+	if state.secureMode or state.fontChoice ~= "brand" then
 		return Font.new(state.fallbackFont.Family, weight)
 	end
 	return Font.new(constants.fontAsset, weight)
+end
+
+function state.setFontChoice(choice: string)
+	state.fontChoice = if choice == "brand" then "brand" else "default"
+end
+
+--[[
+The Medium/SemiBold pair the theme keys and the runtime font switch
+apply. Yields only in secure mode with the brand selected — the font
+manager downloads the family once — and falls back to the stock pair
+when the brand cannot resolve.
+]]
+function state.brandFontPair(): (Font, Font)
+	if state.fontChoice == "brand" then
+		if state.secureMode then
+			local mediumFont = state.fontManager:loadFont(constants.fontAsset, Enum.FontWeight.Medium)
+			local semiBoldFont = state.fontManager:loadFont(constants.fontAsset, Enum.FontWeight.SemiBold)
+			if mediumFont and semiBoldFont then
+				return mediumFont, semiBoldFont
+			end
+		else
+			local family = constants.fontAsset
+			return Font.new(family, Enum.FontWeight.Medium), Font.new(family, Enum.FontWeight.SemiBold)
+		end
+	end
+	local family = state.fallbackFont.Family
+	return Font.new(family, Enum.FontWeight.Medium), Font.new(family, Enum.FontWeight.SemiBold)
 end
 
 return state
@@ -5329,9 +5361,33 @@ function settingsComponent.buildUI(window)
     local function buildAppearance()
         --[[
         The only built-in palette is `default`; hosts overlay keys through
-        `window:ChangeTheme({ ... })`. Appearance therefore has nothing to
-        pick — layout and motion stay here.
+        `window:ChangeTheme({ ... })`. Appearance therefore has no colour
+        to pick — the font selection, layout and motion stay here.
         ]]
+        local fontLabels = { default = "Default", brand = "Astra" }
+        local fontOptions = { "Default", "Astra" }
+        local fontChoices = { Default = "default", Astra = "brand" }
+
+        appearance:CreateSection({ name = "Typography" })
+        appearance:CreateDropdown({
+            name = "Font",
+            options = fontOptions,
+            value = fontLabels[window.settings.fontChoice or "default"] or fontLabels.default,
+            callback = function(choice)
+                local requested = fontChoices[choice]
+                if not requested or requested == (window.settings.fontChoice or "default") then
+                    return
+                end
+                window.settings.fontChoice = requested
+                window:_applyFontSetting()
+                window:SaveSettings()
+                window:Notify({
+                    title = "Font changed",
+                    content = "Switched to the " .. choice .. " font.",
+                })
+            end,
+        })
+
         local layoutMap = { sidebar = "Sidebar (Responsive)", collapsedSidebar = "Collapsed Sidebar" }
         local layoutDropdown
         local currentLayout = window.settings.layoutMode or window.layout.mode
@@ -7800,6 +7856,15 @@ function Window:LoadSettings()
     that loaded settings would animate at whatever the last one used.
     ]]
     self:_applyMotionSetting()
+    --[[
+    The font choice lives in the same file and resolves through
+    library-wide state on the next theme pass, so sync it here —
+    `ChangeTheme(self.settings.theme)` at startup reads it. A `brand`
+    choice is swapped in after the entrance by the entrypoint's
+    settled apply.
+    ]]
+    local coreState = require(script.Parent.Parent.Parent.core.state)
+    coreState.setFontChoice(self.settings.fontChoice)
     if migrated then
         self:SaveSettings()
     end
@@ -7964,6 +8029,7 @@ function Window.new(props)
         antiWindowDuplicate = true,
         layoutMode = layout.mode,
         motionSpeed = "normal",
+        fontChoice = constants.defaultFontChoice,
         autoSaveConfig = self.configuration.autoSave,
         autoLoadConfig = self.configuration.autoLoad,
     }
@@ -9071,6 +9137,28 @@ function Window:_applyMotionSetting()
         self.settings.motionSpeed = "normal"
         motion.setProfile("normal")
     end
+end
+
+--[[
+Applies the selected font family (settings.fontChoice, Settings →
+Appearance → Font) to every text surface through the Font/TitleFont
+theme pass — mid-session included. Also syncs the library-wide choice
+new theme resolutions read. May yield briefly in secure mode with the
+brand selected (the font manager's one-time download).
+]]
+function Window:_applyFontSetting()
+    state.setFontChoice(self.settings.fontChoice)
+    if state.secureMode and state.fontChoice == "brand" then
+        task.spawn(function()
+            local mediumFont, semiBoldFont = state.brandFontPair()
+            if not self.unloaded then
+                self:ChangeTheme({ Font = mediumFont, TitleFont = semiBoldFont })
+            end
+        end)
+        return
+    end
+    local mediumFont, semiBoldFont = state.brandFontPair()
+    self:ChangeTheme({ Font = mediumFont, TitleFont = semiBoldFont })
 end
 
 function Window:_syncLiveAnimation()
@@ -19763,6 +19851,12 @@ function appearance.validate(key: string, value: any): (boolean, any)
         end
         return false, nil
     end
+    if key == "fontChoice" then
+        if value == "default" or value == "brand" then
+            return true, value
+        end
+        return false, nil
+    end
     return false, nil
 end
 
@@ -19801,6 +19895,7 @@ defaults.values = {
     antiWindowDuplicate = true,
     layoutMode = "sidebar",
     motionSpeed = "normal",
+    fontChoice = "default",
     autoSaveConfig = true,
     autoLoadConfig = true,
 }
@@ -20090,6 +20185,12 @@ registry.definitions = {
         with the game for frame time.
         ]]
         description = "Animation speed: relaxed, normal, snappy, or instant (no animation).",
+    },
+    fontChoice = {
+        key = "fontChoice",
+        kind = "enum",
+        domain = "appearance",
+        description = "Text font: default (the original Roblox look) or brand (Astra's custom family).",
     },
 }
 
@@ -23755,6 +23856,15 @@ local iconRegistry = require(script.Parent.Parent.images.windowIcons)
 local uiIcons = require(script.Parent.Parent.images.uiIcons)
 local constants = {}
 
+--[[
+Font selection. `default` renders every text surface with the stock
+fallback font — the original Roblox look (state.fallbackFont,
+Enum.Font.BuilderSans) — while `brand` uses the custom family below
+(Finger Paint, rbxassetid://12187375716). This value is only the
+initial choice: the live selection is the persisted `fontChoice`
+window setting (Settings → Appearance → Font), switchable mid-session.
+]]
+constants.defaultFontChoice = "default" -- "default" | "brand"
 constants.fontAsset = "rbxassetid://12187375716"
 
 constants.icons = iconRegistry.ids
@@ -26427,6 +26537,7 @@ type SettingsWindow = {
         antiWindowDuplicate: boolean,
         layoutMode: string,
         motionSpeed: string,
+        fontChoice: string,
         autoSaveConfig: boolean,
         autoLoadConfig: boolean,
     },
@@ -26443,6 +26554,7 @@ type DecodedSettings = {
     antiWindowDuplicate: unknown?,
     layoutMode: unknown?,
     motionSpeed: unknown?,
+    fontChoice: unknown?,
     autoSaveConfig: unknown?,
     autoLoadConfig: unknown?,
 }
@@ -26468,6 +26580,7 @@ function persistenceSettings.saveSettings(window: SettingsWindow): boolean
         antiWindowDuplicate = window.settings.antiWindowDuplicate,
         layoutMode = window.settings.layoutMode,
         motionSpeed = window.settings.motionSpeed,
+        fontChoice = window.settings.fontChoice,
         autoSaveConfig = window.settings.autoSaveConfig,
         autoLoadConfig = window.settings.autoLoadConfig,
     }
@@ -26598,6 +26711,10 @@ function persistenceSettings.loadSettings(window: SettingsWindow): (boolean, boo
         if motion.profiles[decodedSettings.motionSpeed] then
             window.settings.motionSpeed = decodedSettings.motionSpeed
         end
+    end
+
+    if decodedSettings.fontChoice == "default" or decodedSettings.fontChoice == "brand" then
+        window.settings.fontChoice = decodedSettings.fontChoice
     end
 
     return true, migrated
@@ -26830,116 +26947,116 @@ end)() end,
 
 local LineOffsets = {
     [2] = 47,
-    [3] = 471,
-    [5] = 1080,
-    [6] = 1063,
-    [7] = 1197,
-    [8] = 1339,
-    [9] = 1590,
-    [10] = 1972,
-    [11] = 3342,
-    [12] = 3751,
-    [13] = 4100,
-    [14] = 4839,
-    [15] = 5177,
-    [16] = 5687,
-    [17] = 5750,
-    [18] = 6224,
-    [19] = 6570,
-    [20] = 6584,
-    [21] = 6641,
-    [22] = 6772,
-    [23] = 7112,
-    [24] = 7351,
-    [25] = 7673,
-    [26] = 7773,
-    [27] = 7826,
-    [28] = 8473,
-    [29] = 8696,
-    [30] = 9042,
-    [31] = 9474,
-    [32] = 6544,
-    [34] = 10408,
-    [35] = 11279,
-    [36] = 11378,
-    [37] = 11599,
-    [38] = 12020,
-    [39] = 12474,
-    [40] = 12669,
-    [41] = 12814,
-    [42] = 14408,
-    [43] = 14656,
-    [44] = 14887,
-    [45] = 15172,
-    [46] = 15609,
-    [47] = 15853,
-    [48] = 16837,
-    [49] = 16923,
-    [50] = 17532,
-    [51] = 18411,
-    [52] = 18954,
-    [53] = 19084,
-    [54] = 19236,
-    [56] = 19753,
-    [57] = 19773,
-    [58] = 19792,
-    [59] = 19824,
-    [60] = 19950,
-    [61] = 19976,
-    [62] = 20025,
-    [63] = 19728,
-    [64] = 20124,
-    [65] = 20429,
-    [66] = 20460,
-    [67] = 20113,
-    [68] = 20503,
-    [69] = 20523,
-    [70] = 20555,
-    [71] = 20485,
-    [72] = 20662,
-    [73] = 20730,
-    [75] = 20812,
-    [76] = 20979,
-    [77] = 20998,
-    [78] = 20797,
-    [79] = 21629,
-    [80] = 21675,
-    [81] = 21757,
-    [82] = 21952,
-    [83] = 22083,
-    [84] = 22186,
-    [85] = 22355,
-    [86] = 22695,
-    [87] = 21094,
-    [88] = 23339,
-    [89] = 23225,
-    [90] = 23478,
-    [91] = 23576,
-    [92] = 23754,
-    [93] = 23804,
-    [94] = 23834,
-    [95] = 24085,
-    [96] = 24134,
-    [97] = 24587,
-    [98] = 24605,
-    [99] = 24812,
-    [100] = 24832,
-    [101] = 24960,
-    [102] = 25059,
-    [103] = 25081,
-    [104] = 25137,
-    [105] = 25602,
-    [106] = 25638,
-    [107] = 25656,
-    [108] = 26016,
-    [109] = 26028,
-    [110] = 26079,
-    [111] = 26098,
-    [112] = 26357,
-    [113] = 26401,
-    [114] = 26610,
-    [115] = 26638,
-    [116] = 26649,
+    [3] = 465,
+    [5] = 1074,
+    [6] = 1057,
+    [7] = 1229,
+    [8] = 1371,
+    [9] = 1622,
+    [10] = 2004,
+    [11] = 3374,
+    [12] = 3783,
+    [13] = 4132,
+    [14] = 4871,
+    [15] = 5209,
+    [16] = 5743,
+    [17] = 5806,
+    [18] = 6280,
+    [19] = 6626,
+    [20] = 6640,
+    [21] = 6697,
+    [22] = 6828,
+    [23] = 7168,
+    [24] = 7407,
+    [25] = 7729,
+    [26] = 7829,
+    [27] = 7891,
+    [28] = 8539,
+    [29] = 8762,
+    [30] = 9108,
+    [31] = 9562,
+    [32] = 6600,
+    [34] = 10496,
+    [35] = 11367,
+    [36] = 11466,
+    [37] = 11687,
+    [38] = 12108,
+    [39] = 12562,
+    [40] = 12757,
+    [41] = 12902,
+    [42] = 14496,
+    [43] = 14744,
+    [44] = 14975,
+    [45] = 15260,
+    [46] = 15697,
+    [47] = 15941,
+    [48] = 16925,
+    [49] = 17011,
+    [50] = 17620,
+    [51] = 18499,
+    [52] = 19042,
+    [53] = 19172,
+    [54] = 19324,
+    [56] = 19841,
+    [57] = 19867,
+    [58] = 19886,
+    [59] = 19919,
+    [60] = 20045,
+    [61] = 20071,
+    [62] = 20120,
+    [63] = 19816,
+    [64] = 20225,
+    [65] = 20530,
+    [66] = 20561,
+    [67] = 20214,
+    [68] = 20604,
+    [69] = 20624,
+    [70] = 20656,
+    [71] = 20586,
+    [72] = 20763,
+    [73] = 20831,
+    [75] = 20913,
+    [76] = 21080,
+    [77] = 21099,
+    [78] = 20898,
+    [79] = 21730,
+    [80] = 21776,
+    [81] = 21858,
+    [82] = 22053,
+    [83] = 22184,
+    [84] = 22287,
+    [85] = 22456,
+    [86] = 22796,
+    [87] = 21195,
+    [88] = 23440,
+    [89] = 23326,
+    [90] = 23579,
+    [91] = 23677,
+    [92] = 23855,
+    [93] = 23914,
+    [94] = 23944,
+    [95] = 24195,
+    [96] = 24244,
+    [97] = 24697,
+    [98] = 24715,
+    [99] = 24922,
+    [100] = 24942,
+    [101] = 25070,
+    [102] = 25169,
+    [103] = 25191,
+    [104] = 25247,
+    [105] = 25712,
+    [106] = 25748,
+    [107] = 25766,
+    [108] = 26126,
+    [109] = 26138,
+    [110] = 26189,
+    [111] = 26208,
+    [112] = 26467,
+    [113] = 26511,
+    [114] = 26727,
+    [115] = 26755,
+    [116] = 26766,
 }
 
 -- Misc AOT variable imports

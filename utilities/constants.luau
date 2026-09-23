@@ -2,6 +2,15 @@ local iconRegistry = require(script.Parent.Parent.images.windowIcons)
 local uiIcons = require(script.Parent.Parent.images.uiIcons)
 local constants = {}
 
+--[[
+Font selection. `default` renders every text surface with the stock
+fallback font — the original Roblox look (state.fallbackFont,
+Enum.Font.BuilderSans) — while `brand` uses the custom family below
+(Finger Paint, rbxassetid://12187375716). This value is only the
+initial choice: the live selection is the persisted `fontChoice`
+window setting (Settings → Appearance → Font), switchable mid-session.
+]]
+constants.defaultFontChoice = "default" -- "default" | "brand"
 constants.fontAsset = "rbxassetid://12187375716"
 
 constants.icons = iconRegistry.ids

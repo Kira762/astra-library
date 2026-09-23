@@ -153,9 +153,33 @@ function settingsComponent.buildUI(window)
     local function buildAppearance()
         --[[
         The only built-in palette is `default`; hosts overlay keys through
-        `window:ChangeTheme({ ... })`. Appearance therefore has nothing to
-        pick — layout and motion stay here.
+        `window:ChangeTheme({ ... })`. Appearance therefore has no colour
+        to pick — the font selection, layout and motion stay here.
         ]]
+        local fontLabels = { default = "Default", brand = "Astra" }
+        local fontOptions = { "Default", "Astra" }
+        local fontChoices = { Default = "default", Astra = "brand" }
+
+        appearance:CreateSection({ name = "Typography" })
+        appearance:CreateDropdown({
+            name = "Font",
+            options = fontOptions,
+            value = fontLabels[window.settings.fontChoice or "default"] or fontLabels.default,
+            callback = function(choice)
+                local requested = fontChoices[choice]
+                if not requested or requested == (window.settings.fontChoice or "default") then
+                    return
+                end
+                window.settings.fontChoice = requested
+                window:_applyFontSetting()
+                window:SaveSettings()
+                window:Notify({
+                    title = "Font changed",
+                    content = "Switched to the " .. choice .. " font.",
+                })
+            end,
+        })
+
         local layoutMap = { sidebar = "Sidebar (Responsive)", collapsedSidebar = "Collapsed Sidebar" }
         local layoutDropdown
         local currentLayout = window.settings.layoutMode or window.layout.mode

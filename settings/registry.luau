@@ -67,6 +67,12 @@ registry.definitions = {
         ]]
         description = "Animation speed: relaxed, normal, snappy, or instant (no animation).",
     },
+    fontChoice = {
+        key = "fontChoice",
+        kind = "enum",
+        domain = "appearance",
+        description = "Text font: default (the original Roblox look) or brand (Astra's custom family).",
+    },
 }
 
 function registry.definition(definitions: string): SettingDefinition?

@@ -44,8 +44,13 @@ Shared runtime singletons:
   `httpService`, `textService`, `replicatedStorage`,
   `localizationService`, `guiContainer` (secure-mode aware).
 - `secureMode` — platform detection; `fallbackFont` (default
-  `Enum.Font.BuilderSans`) + `setFallbackFont(font)`; `brandFont(weight)` —
-  font resolver honoring the platform's brand font override.
+  `Enum.Font.BuilderSans`) + `setFallbackFont(font)`; `fontChoice`
+  (`"default"`/`"brand"`, initial value `constants.defaultFontChoice`, set
+  via `setFontChoice`); `brandFont(weight)` / `brandFontPair()` — font
+  resolvers honoring the selection (and the platform's brand font
+  override): `"default"` resolves everything to the fallback family (the
+  original Roblox look), `"brand"` to `constants.fontAsset` — through
+  `fontManager`'s one-time download in secure mode.
 - Manager singletons: `fileSystemManager`, `assetResolver`, `fontManager`.
 
 ---
@@ -70,7 +75,7 @@ Notable instance fields set in `new`: `screenGui`, `main`, `elements`,
 `tabList`, `sidebar`, `settings` (plain table: `toggleKeybind`, `theme`,
 `mouseOverride`, `keepOnScreen`, `haptics`,
 `dragMinimisedBar`,
-`antiWindowDuplicate`, `layoutMode`), `rfSettings` (the
+`antiWindowDuplicate`, `layoutMode`, `motionSpeed`, `fontChoice`), `rfSettings` (the
 built-in "Overview" settings tab), `_settingsTabs` (settings-tab list),
 `_settingsMode` / `_previousTab` (settings-mode bookkeeping),
 `settingsAction` / `minimiseAction` (topbar actions), `drag`,
@@ -84,7 +89,8 @@ Method map (names preserved through minification). Settings-related:
   (1004), all `isSettingsTab` and `forgetState`. The gear opens the first row.
   Each stores a `_settingsContentBuilder`; `_buildSettingsContent(tab)` runs it
   on first selection after construction. Controls owns keyboard, cursor and
-  window behavior. Appearance owns layout and Motion & Feedback.
+  window behavior. Appearance owns the font selection, layout and Motion &
+  Feedback.
   Persistence always hosts saved-config Save/Load/Delete (independent of
   the `configuration` prop), plus default-on Auto Save Config and Auto Load
   Config toggles. Storage defaults are internal; the named-preset dropdown
@@ -139,7 +145,7 @@ its anchored resting spot, and by `ToggleMinimise`'s expand),
 Dedicated settings component providing lazy UI generation for Overview, Controls, Appearance and Persistence, in that order:
 - `buildUI(window)` — reuses `rfSettings` as the first Overview shell and adds the other three. Overview renders the About Card, copyable resource Links and Footer.
 - Controls uses `elements/keybind` for the menu letter (callback converts the uppercase string to a KeyCode), an unlock-cursor Toggle and Window Behavior. There is no typed-key parser or mouse/unbound menu option.
-- Appearance owns the standalone layout Dropdown and a related Motion & Feedback group. Persistence owns configuration toggles and save/load/delete controls. No built-in Collapsible Group contains only one element.
+- Appearance owns the standalone Font and layout Dropdowns and a related Motion & Feedback group. Persistence owns configuration toggles and save/load/delete controls. No built-in Collapsible Group contains only one element.
 - `buildContent(window, tab)` — lazily constructs controls within a given settings tab upon first selection.
 - `toggleSettingsMode(window)` — toggles between user tabs and settings tabs.
 - `setSettingsMode(window, active)` — applies visibility and layout for settings mode.
@@ -447,7 +453,8 @@ Per-element specifics:
   entry per setting. Keys: `toggleKeybind` (keybind/behavior),
   `mouseOverride` (boolean/behavior), `keepOnScreen` (boolean/appearance),
   `haptics` (boolean/performance),
-  `antiWindowDuplicate` (boolean/behavior), `layoutMode` (enum/appearance).
+  `antiWindowDuplicate` (boolean/behavior), `layoutMode` (enum/appearance),
+  `motionSpeed` (enum/performance), `fontChoice` (enum/appearance).
   Lookup: `registry.definition(key)`, `registry.keys()`.
 - `defaults.luau` — `values`: flat defaults (`toggleKeybind = Enum.KeyCode.K`,
   `layoutMode = "sidebar"`, …); `defaults.clone(overrides)`.
@@ -459,7 +466,8 @@ Per-element specifics:
   `utilities.persistenceSettings`.
 - `appearance.luau`, `behavior.luau`, `performance.luau` — per-domain
   `validate(key, value) -> (ok, normalized)`. Appearance additionally
-  whitelists `layoutMode ∈ { top, sidebar, collapsedSidebar }`.
+  whitelists `layoutMode ∈ { sidebar, collapsedSidebar }` and
+  `fontChoice ∈ { default, brand }`.
 
 ---
 
@@ -642,6 +650,10 @@ When touching a minified file, re-minify only that file, then
 `luau-compile` it and run `scripts/check_requires.py`,
 `scripts/check_instance_fields.py`, `scripts/check_dangling_refs.py`, and
 `node scripts/generate_bundle.js` — or just `sh scripts/check_all.sh`, which
+runs every gate including the runtime tests.
+(Validate against the full tree with `scripts/smoke_test_bundle.sh`.)
+h`.)
+`, which
 runs every gate including the runtime tests.
 (Validate against the full tree with `scripts/smoke_test_bundle.sh`.)
 h`.)

@@ -1,0 +1,40 @@
+name: Discord Push Notification
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  notify-discord:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      # The payload builder lives in the repository (.github/scripts) so it can
+      # be read, reviewed and tested locally instead of hiding inside YAML.
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      # A push payload lists the paths a commit touched but not the lines
+      # inside them, so the `path +24 -9` block needs one API call that the
+      # notification step cannot make for itself. Decoration must not be able
+      # to break the build: the collector prints a document either way (an
+      # empty one is fine), and its exit code is ignored on purpose.
+      - name: Collect the per-file line counts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sh .github/scripts/discord-diffstat.sh "$GITHUB_EVENT_PATH" \
+            >"$RUNNER_TEMP/discord-diffstat.json" || true
+
+      - name: Send push details to Discord
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_DIFFSTAT: ${{ runner.temp }}/discord-diffstat.json
+          # Repository variable (Settings > Secrets and variables > Actions >
+          # Variables). Leave it unset for the neutral dark-theme colour; set
+          # 15922165 for a channel that runs Discord's light theme.
+          DISCORD_EMBED_COLOR: ${{ vars.DISCORD_EMBED_COLOR }}
+        run: sh .github/scripts/discord-notify.sh "$GITHUB_EVENT_PATH"

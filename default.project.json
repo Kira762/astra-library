@@ -1,0 +1,24 @@
+{
+  "name": "Astra UI Library",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Astra": {
+        "$path": "library_entrypoint.luau"
+      },
+      "assets": { "$path": "assets" },
+      "core": { "$path": "core" },
+      "components": { "$path": "components" },
+      "elements": { "$path": "elements" },
+      "settings": { "$path": "settings" },
+      "cache": { "$path": "cache" },
+      "functions": { "$path": "functions" },
+      "layouts": { "$path": "layouts" },
+      "images": { "$path": "images" },
+      "icons": { "$path": "icons" },
+      "themes": { "$path": "themes" },
+      "utilities": { "$path": "utilities" },
+      "Types": { "$path": "Types.luau" }
+    }
+  }
+}

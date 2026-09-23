@@ -1347,6 +1347,7 @@ local function buildStudio(unlockedKey)
         left_icon = "zap",
         right_icon = "rotate-ccw",
         left_icon_color = { r = 77, g = 163, b = 255, a = 255 },
+        accent = "left_icon",
         flag = "demo.lab.modePicker",
         modes = {
             { label = "Normal", type = "default", description = "Balanced speed and depth. The default resting state." },

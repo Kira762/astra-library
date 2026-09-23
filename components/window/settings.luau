@@ -28,6 +28,15 @@ function Window:LoadSettings()
     that loaded settings would animate at whatever the last one used.
     ]]
     self:_applyMotionSetting()
+    --[[
+    The font choice lives in the same file and resolves through
+    library-wide state on the next theme pass, so sync it here —
+    `ChangeTheme(self.settings.theme)` at startup reads it. A `brand`
+    choice is swapped in after the entrance by the entrypoint's
+    settled apply.
+    ]]
+    local coreState = require(script.Parent.Parent.Parent.core.state)
+    coreState.setFontChoice(self.settings.fontChoice)
     if migrated then
         self:SaveSettings()
     end

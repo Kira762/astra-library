@@ -27,6 +27,7 @@ type SettingsWindow = {
         antiWindowDuplicate: boolean,
         layoutMode: string,
         motionSpeed: string,
+        fontChoice: string,
         autoSaveConfig: boolean,
         autoLoadConfig: boolean,
     },
@@ -43,6 +44,7 @@ type DecodedSettings = {
     antiWindowDuplicate: unknown?,
     layoutMode: unknown?,
     motionSpeed: unknown?,
+    fontChoice: unknown?,
     autoSaveConfig: unknown?,
     autoLoadConfig: unknown?,
 }
@@ -68,6 +70,7 @@ function persistenceSettings.saveSettings(window: SettingsWindow): boolean
         antiWindowDuplicate = window.settings.antiWindowDuplicate,
         layoutMode = window.settings.layoutMode,
         motionSpeed = window.settings.motionSpeed,
+        fontChoice = window.settings.fontChoice,
         autoSaveConfig = window.settings.autoSaveConfig,
         autoLoadConfig = window.settings.autoLoadConfig,
     }
@@ -198,6 +201,10 @@ function persistenceSettings.loadSettings(window: SettingsWindow): (boolean, boo
         if motion.profiles[decodedSettings.motionSpeed] then
             window.settings.motionSpeed = decodedSettings.motionSpeed
         end
+    end
+
+    if decodedSettings.fontChoice == "default" or decodedSettings.fontChoice == "brand" then
+        window.settings.fontChoice = decodedSettings.fontChoice
     end
 
     return true, migrated

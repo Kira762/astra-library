@@ -278,22 +278,17 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 			end)
 		end)
 		task.spawn(function()
-			local mediumFont = State.fontManager:loadFont(Constants.fontAsset, Enum.FontWeight.Medium)
-			local semiBoldFont = State.fontManager:loadFont(Constants.fontAsset, Enum.FontWeight.SemiBold)
-			if
-				not window.unloaded
-				and mediumFont
-				and semiBoldFont
-				and mediumFont ~= State.fallbackFont
-			and semiBoldFont ~= State.fallbackFont
-		then
 			--[[
-			A font swap is a theme pass over every instance the window
-			owns, so running it while the window is still arriving puts that
-			pass on the frames the entrance needs. It waits for the window to
-			land instead — bounded, because a host that never shows the
-			window must still end up with its font.
+			Startup brand-font swap — only for the `brand` selection
+			(Settings → Appearance → Font); the stock default is already
+			what the startup theme resolve painted. A font swap is a theme
+			pass over every instance the window owns, so it waits for the
+			window to land before applying — bounded, because a host that
+			never shows the window must still end up with its font.
 			]]
+			if window.settings.fontChoice ~= "brand" then
+				return
+			end
 			local waited = 0
 			while
 				waited < FONT_SETTLE_BUDGET
@@ -303,10 +298,9 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 				waited += task.wait()
 			end
 			if not window.unloaded then
-				window:ChangeTheme({ Font = mediumFont, TitleFont = semiBoldFont })
+				window:_applyFontSetting()
 			end
-		end
-	end)
+		end)
 	end
 
 	if not window.unloaded then

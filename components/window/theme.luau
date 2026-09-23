@@ -32,6 +32,28 @@ function Window:_applyMotionSetting()
     end
 end
 
+--[[
+Applies the selected font family (settings.fontChoice, Settings →
+Appearance → Font) to every text surface through the Font/TitleFont
+theme pass — mid-session included. Also syncs the library-wide choice
+new theme resolutions read. May yield briefly in secure mode with the
+brand selected (the font manager's one-time download).
+]]
+function Window:_applyFontSetting()
+    state.setFontChoice(self.settings.fontChoice)
+    if state.secureMode and state.fontChoice == "brand" then
+        task.spawn(function()
+            local mediumFont, semiBoldFont = state.brandFontPair()
+            if not self.unloaded then
+                self:ChangeTheme({ Font = mediumFont, TitleFont = semiBoldFont })
+            end
+        end)
+        return
+    end
+    local mediumFont, semiBoldFont = state.brandFontPair()
+    self:ChangeTheme({ Font = mediumFont, TitleFont = semiBoldFont })
+end
+
 function Window:_syncLiveAnimation()
     if not self.theme.LiveAnimation then
         self._liveAnimating = false         return

@@ -1,5 +1,39 @@
 # Changelog
 
+## 2026-09-23 — Font selection: Default now, Astra on demand
+
+The custom brand font (Finger Paint, `rbxassetid://12187375716`) is no longer
+forced onto every text surface. The library now carries a font selection —
+**Default** (the original Roblox look, the fallback family) and **Astra** (the
+brand family) — and Default is what a fresh install shows. Switch between them
+anytime in **Settings → Appearance → Font**; the choice applies mid-session
+through the same `Font`/`TitleFont` theme pass the secure-mode swap always
+used, and it persists with the rest of the settings.
+
+- **`utilities/constants.luau`**
+  - the `useBrandFont` kill switch becomes `defaultFontChoice` (`"default"`),
+    the selection's initial value; `fontAsset` unchanged.
+- **`core/state.luau`**
+  - `fontChoice` + `setFontChoice()` (library-wide, like the motion profile);
+    `brandFont()` resolves through it; new `brandFontPair()` returns the
+    Medium/SemiBold pair for the selection (yields only for the secure-mode
+    brand download, falls back to the stock pair).
+- **`components/window/theme.luau`**
+  - `Window:_applyFontSetting()` applies the selection via a
+    `Font`/`TitleFont` theme pass — the mid-session switch.
+- **`components/settings.luau`**
+  - Appearance gains a Typography section with the Font dropdown
+    (Default / Astra); picking one switches the running window at once.
+- **`components/window/startup.luau`**, **`components/window/settings.luau`**,
+  **`library_entrypoint.luau`**
+  - `fontChoice` joins the settings table; `LoadSettings` syncs the selection
+    before the startup theme resolve; the settled startup swap runs only for
+    a `brand` selection.
+- **`settings/`**, **`utilities/persistenceSettings.luau`**
+  - `fontChoice` default, registry definition (enum/appearance) and
+    validator; the key joins the persisted settings payload with the same
+    hand-edit validation the motion profile uses.
+
 ## 2026-09-23 — Link copy taps hold still, and four Link bugs closed
 
 A tap on a Link card's copy control still moved the card. Restoring the canvas

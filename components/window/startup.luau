@@ -139,6 +139,7 @@ function Window.new(props)
         antiWindowDuplicate = true,
         layoutMode = layout.mode,
         motionSpeed = "normal",
+        fontChoice = constants.defaultFontChoice,
         autoSaveConfig = self.configuration.autoSave,
         autoLoadConfig = self.configuration.autoLoad,
     }

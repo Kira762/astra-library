@@ -11,6 +11,12 @@ function appearance.validate(key: string, value: any): (boolean, any)
         end
         return false, nil
     end
+    if key == "fontChoice" then
+        if value == "default" or value == "brand" then
+            return true, value
+        end
+        return false, nil
+    end
     return false, nil
 end
 

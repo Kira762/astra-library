@@ -17,8 +17,8 @@ Expected behavior under test:
        configured set and fires onReset,
   * M7 AddMode/RemoveMode respect max/min and the optional flag, and
        allow_mode_add_remove = false closes both,
-  * M8 with no picker-level description the line follows the selected
-       mode's description,
+  * M8 a passed description (picker-level or per-mode) is inert: the
+       picker renders no description line,
   * M9 the title wears the left icon's RGB while the subtitle keeps the
        default content color — and keeps wearing it through a hover cycle
        and a per-mode icon color,
@@ -109,20 +109,18 @@ local picker = tab:CreateModePicker({
 	left_icon_color = { r = 77, g = 163, b = 255, a = 255 },
 	flag = "test.modePicker",
 	modes = {
-		{ label = "Normal", type = "default", description = "Default mode." },
-		{ label = "Fast", type = "dot", description = "Second mode." },
-		{ label = "Balanced", type = "dot", description = "Third mode." },
+		{ label = "Normal", type = "default" },
+		{ label = "Fast", type = "dot" },
+		{ label = "Balanced", type = "dot" },
 		{
 			label = "Advanced",
 			type = "dot",
 			optional = true,
-			description = "Fourth mode.",
 		},
 		{
 			label = "Max",
 			type = "dot",
 			optional = true,
-			description = "Fifth and maximum mode.",
 			icon_color = { r = 236, g = 72, b = 153 },
 			onEnable = function(index, label)
 				table.insert(enabled, { index, label })
@@ -205,8 +203,8 @@ picker:Set(1, true)
 TestPump(1.2)
 eqColor(picker.title.TextColor3, 77, 163, 255, "M9 title returns to the configured icon color")
 
--- M8: the description line follows the selected mode.
-eq(picker.descriptionLabel.Text, "Default mode.", "M8 initial description is mode 1's line")
+-- M8: no description line exists, whatever the props carried.
+eq(picker.descriptionLabel, nil, "M8 the picker builds no description line")
 
 -- M3: Set snaps, fires onEnable then callback, and clamps.
 picker:Set(5)
@@ -217,7 +215,6 @@ eq(enabled[1][1], 5, "M3 onEnable index")
 eq(enabled[1][2], "Max", "M3 onEnable label")
 eq(calls[#calls][1], 5, "M3 callback index")
 eq(calls[#calls][2], "Max", "M3 callback label")
-eq(picker.descriptionLabel.Text, "Fifth and maximum mode.", "M8 description follows the mode")
 
 picker:Set(99)
 TestPump(0.8)

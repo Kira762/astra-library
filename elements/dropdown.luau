@@ -13,7 +13,6 @@ local flag = require(constants.locale)
 local options = require(constants.HapticEngine)
 local value = require(constants.windowSizing)
 local multiSelect = require(constants.lockable)
-local description = require(script.Parent.description)
 
 local placeholder = name.icons.chevron
 local callback = name.icons.check
@@ -152,7 +151,6 @@ function state.new(tab, a49)
         window = tab.window,
         name = a49.name or a49.Name or "Dropdown",
         icon = tab.window:ResolveIcon(a49.icon or a49.Icon),
-        description = a49.description or a49.Description,
         forgetState = a49.forgetState or a49.ForgetState or tab.forgetState,
         flag = a49.flag
             or a49.Flag
@@ -193,15 +191,13 @@ function state.new(tab, a49)
     })
 
     --[[
-    The card grows for a description before anything is built inside it:
-    the visible top card, the title row and the value column all seat
-    themselves against the base region of the taller card, and the option
-    panel keeps its 41px card plus the gap above it.
+    The visible top card, the title row and the value column seat
+    themselves against the 41px card, and the option panel keeps its
+    41px card plus the gap above it.
     ]]
-    description.attach(self)
 
         self.top = self.window:Create("Frame", {
-        Size = UDim2.new(1, 0, 0, description.height(self, 41)),
+        Size = UDim2.new(1, 0, 0, 41),
         Position = UDim2.fromScale(0, 0),
         BorderSizePixel = 0,
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
@@ -219,7 +215,7 @@ function state.new(tab, a49)
 
         Parent = self.top,
         Size = UDim2.new(1, -195, 0, 16),
-        Position = UDim2.new(0, 20, description.center(self, 41)),
+        Position = UDim2.new(0, 20, 0.5, 0),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
         ZIndex = 5,
@@ -268,7 +264,7 @@ function state.new(tab, a49)
 
     self.selectedLabel = self.window:Create("TextLabel", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -41, description.center(self, 41)),
+        Position = UDim2.new(1, -41, 0.5, 0),
         Size = UDim2.fromOffset(130, 15),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
@@ -283,7 +279,7 @@ function state.new(tab, a49)
 
     self.chevron = self.window:Create("ImageLabel", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -18, description.center(self, 41)),
+        Position = UDim2.new(1, -18, 0.5, 0),
         Size = UDim2.fromOffset(16, 16),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
@@ -297,7 +293,7 @@ function state.new(tab, a49)
 
         self.interact = self.window:Create("TextButton", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, description.height(self, 41)),
+        Size = UDim2.new(1, 0, 0, 41),
         Position = UDim2.fromScale(0, 0),
         BorderSizePixel = 0,
         Text = "",
@@ -311,7 +307,7 @@ function state.new(tab, a49)
                     self.panel = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 1),
         Position = UDim2.new(1, 0, 1, 0),
-        Size = UDim2.new(1, 0, 1, -(a22 + a23 + (self._descriptionExtra or 0))),
+        Size = UDim2.new(1, 0, 1, -(a22 + a23)),
         BorderSizePixel = 0,
         ClipsDescendants = true,
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
@@ -1203,7 +1199,7 @@ function state:_openHeight()
     local a110 = self:_pageHeight()
         local a111 = math.min(math.max(n, 1), a27, a104(a110 - a109))
 
-    return math.min(a109 + a102(a111), a110) + (self._descriptionExtra or 0)
+    return math.min(a109 + a102(a111), a110)
 end
 
 --[[
@@ -1366,7 +1362,7 @@ function state:_close()
         self._renderOptionState(a125, true)
     end
 
-    motion.tween(self.main, { Size = UDim2.new(1, -20, 0, description.height(self, 41)) }, a32)
+    motion.tween(self.main, { Size = UDim2.new(1, -20, 0, 41) }, a32)
 end
 
 function state:_destroyOption(a126)

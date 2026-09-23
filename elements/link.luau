@@ -25,7 +25,6 @@ local utilities = script.Parent.Parent.utilities
 local functions = require(script.Parent.Parent.functions)
 local coreState = require(script.Parent.Parent.core.state)
 local image = require(script.Parent.Parent.images.image)
-local description = require(script.Parent.description)
 local haptic = require(utilities.HapticEngine)
 local locale = require(utilities.locale)
 local lockable = require(utilities.lockable)
@@ -34,9 +33,9 @@ local moveable = require(utilities.moveable)
 
 --[[
 Card metrics: one card, two lines. The title is the Text element's 16px
-TitlingColor heading; the subtitle is the 14px muted body line every
-element description in the library uses. Without a subtitle the card
-collapses to the single-line height so it sits level with a Button.
+TitlingColor heading; the subtitle is the card's 14px muted body line.
+Without a subtitle the card collapses to the single-line height so it
+sits level with a Button.
 ]]
 local cardHeight = 56
 local cardHeightSingle = 43
@@ -78,7 +77,7 @@ local restingSubtitleTransparency = 0.45
 The trailing glyph rests at the same half transparency the Button's tap
 glyph used, and the Dropdown and Collapsible chevrons still do. The card
 owns the fade itself: `Window:_revealCommon` only knows the shared parts
-(stroke, title, body, leading icon, description), and the shared tap-glyph
+(stroke, title, body, leading icon), and the shared tap-glyph
 reveal it used to read went out with the Button's trailing cursor — so
 without this the glyph is built invisible and never appears.
 ]]
@@ -225,7 +224,6 @@ function state.new(tab, element)
         -- The hidden value: stored on the element, never shown as text.
         link = tostring(element.link or element.Link or ""),
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
-        description = element.description or element.Description,
         callback = element.callback or element.Callback,
         compact = tab.compact or false,
         --[[
@@ -262,12 +260,10 @@ function state:_baseHeight(): number
 end
 
 --[[
-Every writer of the card's shape goes through here: the height rides the
-description's measured extra (elements/description.luau), so a wrapped
-helper line grows the card instead of running under it, and the text
-column and the copy control stay centred in the base region they belong
-to. The compact row has no height to own - the row layout sizes it - so
-only the two centred children are re-seated there.
+Every writer of the card's shape goes through here: the text column and
+the copy control stay centred in the base region they belong to. The
+compact row has no height to own - the row layout sizes it - so only the
+two centred children are re-seated there.
 ]]
 function state:_layoutContent()
     if self.compact then
@@ -275,13 +271,12 @@ function state:_layoutContent()
     end
 
     local base = self:_baseHeight()
-    local centerScale, centerOffset = description.center(self, base)
-    self.main.Size = UDim2.new(1, -20, 0, description.height(self, base))
+    self.main.Size = UDim2.new(1, -20, 0, base)
     if self.container then
-        self.container.Position = UDim2.new(0, gutter, centerScale, centerOffset)
+        self.container.Position = UDim2.new(0, gutter, 0.5, 0)
     end
     if self.copyButton then
-        self.copyButton.Position = UDim2.new(1, -gutter, centerScale, centerOffset)
+        self.copyButton.Position = UDim2.new(1, -gutter, 0.5, 0)
     end
 end
 
@@ -300,19 +295,10 @@ function state:_buildFull()
     self.stroke = window:StyleElementBody(self.main)
     self.hoverOverlay = window:CreateHoverOverlay(self.main)
 
-    --[[
-    A description grows the card before the rows are placed, exactly as it
-    does for the Button and the Stat, so `description.center` below
-    answers for the grown card.
-    ]]
-    description.attach(self)
-
-    local centerScale, centerOffset = description.center(self, self:_baseHeight())
-
     self.container = window:Create("Frame", {
         Name = "Content",
         Size = UDim2.new(1, -contentInset, 0, self:_contentHeight()),
-        Position = UDim2.new(0, gutter, centerScale, centerOffset),
+        Position = UDim2.new(0, gutter, 0.5, 0),
         AnchorPoint = Vector2.new(0, 0.5),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
@@ -397,7 +383,7 @@ function state:_buildFull()
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
     self:_buildCopyControl(self.main, {
-        Position = UDim2.new(1, -gutter, centerScale, centerOffset),
+        Position = UDim2.new(1, -gutter, 0.5, 0),
         AnchorPoint = Vector2.new(1, 0.5),
     })
 
@@ -862,15 +848,9 @@ function state:_applyPresence()
         self.textColumn.Size = UDim2.new(1, offset, 0, self:_contentHeight())
     end
     --[[
-    The card's base just changed height (43 with one line, 56 with two), so
-    the description line has to be re-seated against the new base the way
-    the slider re-seats it for every layout it writes: `attach` pinned it
-    once, at the height the card had when it was built, and nothing else
-    has moved it since. Without this the line keeps its old offset — 13px
-    too low on a card that just dropped its subtitle — where it sits on
-    top of the text column or past the card's bottom edge.
+    The card's base just changed height (43 with one line, 56 with two),
+    so the centred rows have to re-seat against the new base.
     ]]
-    description.rebase(self, self:_baseHeight())
     self:_layoutContent()
 end
 

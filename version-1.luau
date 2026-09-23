@@ -659,7 +659,6 @@ export type ModeDefinition = {
     label: string?,
     type: string?,           -- "default" | "toggle" | "dot" (descriptive)
     dot_position: number?,   -- normalized to 1..n by dot order
-    description: string?,
     onEnable: ((index: number, label: string) -> ())?,
     optional: boolean?,      -- only optional modes can be removed at runtime
     icon_color: (Color3 | { r: number?, g: number?, b: number?, a: number? })?,
@@ -671,7 +670,6 @@ export type ModePickerProps = {
 
     title: string?,
     subtitle: string?,
-    description: string?,    -- static line; omitted = shows the selected mode's line
 
     mode: number?,           -- initial mode, default 1
     min_modes: number?,      -- clamped to a floor of 3
@@ -679,7 +677,7 @@ export type ModePickerProps = {
     allow_mode_add_remove: boolean?,
 
     title_color_same_as_left_icon: boolean?,
-    -- subtitle/description always wear the default text colors; no props exist.
+    -- the subtitle always wears the default text colors; no props exist.
     ui_color: string?,               -- "inherit" (default); anything else is ignored
     slider_shape: string?,           -- "toggle_knob" (default, the only shape)
     accent: string?,                 -- "theme" (default) | "left_icon"
@@ -721,7 +719,6 @@ export type LinkProps = {
     subtitle: string?,
     link: string?,
     icon: (string | number)?,
-    description: string?,
     callback: ((link: string) -> ())?,
 }
 
@@ -752,7 +749,6 @@ export type AboutCardProps = {
     subtitle: string?,
     icon: (string | number)?,
     rows: { AboutCardRow }?,
-    description: string?,
     action: AboutCardAction?,
 }
 
@@ -904,7 +900,6 @@ export type AboutCard = Moveable & Lockable & {
     SetSubtitle: (self: AboutCard, subtitle: string?) -> (),
     SetIcon: (self: AboutCard, icon: (string | number)?) -> (),
     SetRow: (self: AboutCard, index: number, row: AboutCardRow) -> (),
-    SetDescription: (self: AboutCard, text: string?) -> (),
 }
 
 export type Popup = {
@@ -10555,8 +10550,7 @@ end)() end,
     [34] = function()local wax,script,require=ImportGlobals(34)local ImportGlobals return (function(...)
 --[[
 CreateAboutCard: one card that carries an About page — a brand header, a
-row of data tiles, a description paragraph and an optional trailing
-action band.
+row of data tiles and an optional trailing action band.
 
 The recipe is fixed and every string in it is host copy:
 
@@ -10565,7 +10559,6 @@ The recipe is fixed and every string in it is host copy:
     label above its value. Every tile shares one line evenly: the three-row
     About recipe stays three-across instead of leaving its last tile alone
     on a second line,
-  * description — one wrapped paragraph under the tiles,
   * action (optional) — a tappable band carrying an icon, a label, a
     subtitle and the card's trailing chevron. It is the card's trailing
     row, which is why the data rows stop at three: a fourth would be the
@@ -10623,7 +10616,6 @@ local tileValueSize = 14
 local tileValueHeight = 17
 local tileLineGap = 1
 local tileTextHeight = tileLabelHeight + tileLineGap + tileValueHeight
-local descriptionSize = 14
 local actionHeight = 56
 local actionHeightSingle = 41
 local actionPad = 14
@@ -10735,7 +10727,6 @@ function state.new(tab, props)
         name = textOrNil(read(props, "name", "Name")) or "About",
         subtitle = textOrNil(read(props, "subtitle", "Subtitle")),
         icon = window:ResolveIcon(read(props, "icon", "Icon")),
-        description = textOrNil(read(props, "description", "Description")),
         rows = {},
         --[[
         Every painted part of the card in one list (see `restValue`), so a
@@ -10802,7 +10793,6 @@ function state:_build(rows, action)
 
     self:_buildHeader()
     self:_buildRows(rows)
-    self:_buildDescription()
     if type(action) == "table" then
         self:_buildAction(action)
     end
@@ -11108,37 +11098,6 @@ function state:_layoutRows()
     end
 end
 
---[[
-The paragraph is the card's `descriptionLabel`: its resting transparency,
-its reveal and hide, and the lock message the window swaps in while the
-card is locked are the shared ones every element's helper line uses
-(components/window/elements.luau), so the card joins that recipe instead of
-carrying a second, private one.
-]]
-function state:_buildDescription()
-    local window = self.window
-
-    self.descriptionLabel = window:Create("TextLabel", {
-        Name = "Description",
-        Text = locale.t(self.description or ""),
-        Size = UDim2.new(1, 0, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        TextSize = descriptionSize,
-        TextWrapped = true,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextYAlignment = Enum.TextYAlignment.Top,
-        LayoutOrder = 3,
-        Visible = self.description ~= nil,
-        TextTransparency = 1,
-        Parent = self.main,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
-    if self.description then
-        window:_bindLocale(self.descriptionLabel, "Text", self.description)
-    end
-end
-
 function state:_buildAction(action)
     local window = self.window
 
@@ -11407,16 +11366,6 @@ function state:SetRow(index, row)
     end
 end
 
-function state:SetDescription(text)
-    self.description = textOrNil(text)
-    if self.description then
-        self.window:_bindLocale(self.descriptionLabel, "Text", self.description)
-    else
-        self.descriptionLabel.Text = ""
-    end
-    self.descriptionLabel.Visible = self.description ~= nil
-end
-
 moveable(state)
 lockable(state)
 
@@ -11431,8 +11380,6 @@ content container, icon, and title label.
 ]]
 
 local baseCard = {}
-
-local description = require(script.Parent.description)
 
 export type BaseCardOpts = {
     height: number?,
@@ -11458,19 +11405,11 @@ function baseCard.buildFull(element: any, opts: BaseCardOpts?): any
     element.stroke = window:StyleElementBody(element.main)
     element.hoverOverlay = window:CreateHoverOverlay(element.main)
 
-    --[[
-    A description grows the card here, before the title row is built, so
-    the row centres in the base region instead of drifting down into the
-    line (see elements/description.luau).
-    ]]
-    description.attach(element)
-    local centerScale, centerOffset = description.center(element, height)
-
     element.container = window:Create("Frame", {
         BorderSizePixel = 0,
         Parent = element.main,
         Size = UDim2.new(1, -rightPadding, 0, 16),
-        Position = UDim2.new(0, 20, centerScale, centerOffset),
+        Position = UDim2.new(0, 20, 0.5, 0),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
     })
@@ -11536,7 +11475,6 @@ local name = require(constants.lockable)
 local icon = require(constants.locale)
 local callback = require(constants.HapticEngine)
 local baseCard = require(script.Parent.baseCard)
-local description = require(script.Parent.description)
 -- The card and stroke provide press feedback without a trailing glyph.
 local motion = require(constants.motion)
 local element = "snappy"
@@ -11550,7 +11488,6 @@ function state.new(tab, frame)
         window = tab.window,
         name = frame.name or frame.Name or "Button",
         icon = tab.window:ResolveIcon(frame.icon or frame.Icon),
-        description = frame.description or frame.Description,
         compact = tab.compact or false,
         callback = frame.callback or frame.Callback or function() end,
     }, state)
@@ -11601,7 +11538,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 motion.spec("snappy"),
-                { Size = UDim2.new(1, -26, 0, description.height(self, 43)) }
+                { Size = UDim2.new(1, -26, 0, 43) }
             )
             :Play()
 
@@ -11617,7 +11554,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 motion.spec(tapRelease),
-                { Size = UDim2.new(1, -20, 0, description.height(self, 43)) }
+                { Size = UDim2.new(1, -20, 0, 43) }
             )
             :Play()
         Button.tweenService
@@ -12626,21 +12563,19 @@ grows its own card by the measured height of this line instead of spawning
 a standalone row beneath the card, so the description can never sit on top
 of the element's own UI and nothing renders below the card:
 
-  * the line is a muted 14px `ContentColor` label, the Collapsible Group
-    header recipe (one line: a 41px card grows to 61px),
+  * the line is a muted 14px `ContentColor` label,
   * the card grows by the measured, wrapped line count, so a host copy
-    that wraps reserves exactly the room it renders in,
-  * controls keep centring in the *base* region the card had before it
-    grew (`center`), and bottom-anchored tracks/labels ride up by the
-    extra (`height`), so nothing drifts down into the line,
+    that wraps reserves exactly the room it renders in — the element's
+    bottom-anchored rows ride up by `_descriptionExtra`,
   * the line stays locale-bound (`Window:SetLocale` retypes it and the card
     re-measures) and doubles as the lock-message surface
     (`Window:_setElementLocked` swaps its text, restoring the description
     on unlock) exactly as the old below-card descriptor row did.
 
-Call `attach` straight after the element's main frame is stroked and
-before its centred children are built, so `center` already answers for the
-grown card. Every writer of the card's height goes through `height`.
+The Stat is the element that attaches the line; the Collapsible Group
+header carries its own variant of the recipe inline. Call `attach`
+straight after the element's main frame is stroked and before its
+children are built.
 ]]
 local description = {}
 
@@ -12715,45 +12650,9 @@ local function lineCount(self): number
 end
 
 --[[
-Card heights everywhere go through here: writers state their base and the
-description's measured extra rides along, so hover tweens, layout switches
-and the dropdown's open height all keep the line's room.
+Card heights ride `_descriptionExtra`: an element's bottom-anchored rows
+subtract it from their Y so nothing drifts down into the line.
 ]]
-function description.height(self, base: number): number
-    return base + (self._descriptionExtra or 0)
-end
-
---[[
-Y placement for the rows and controls that centre in the card: with a
-description they centre in the base region, not the grown card.
-]]
-function description.center(self, base: number): (number, number)
-    if self.descriptionLabel then
-        return 0, base / 2
-    end
-    return 0.5, 0
-end
-
---[[
-Elements whose card changes shape (the slider's wide/narrow/minimal
-layouts) re-seat the line against the base region they just wrote, so the
-line stays in the band under the controls in every mode.
-
-The base rides on `_descriptionBase`, never on `_baseHeight`: this module
-stores it on the element, and an element is free to own a `_baseHeight`
-method of its own — the Link card does. Sharing the name meant `attach`
-overwrote that method with a number, so the card's very next
-`self:_baseHeight()` died with "attempt to call a number value" on any
-Link built with a description.
-]]
-function description.rebase(self, base: number)
-    if not self.descriptionLabel then
-        return
-    end
-    self._descriptionBase = base
-    self.descriptionLabel.Position = UDim2.fromOffset(insetX, base - topGap)
-end
-
 local function apply(self, count: number)
     self._descriptionLines = count
     local extra = count * lineHeight + bottomPad
@@ -12781,13 +12680,13 @@ function description.attach(self)
         return
     end
 
-    self._descriptionBase = self.main.Size.Y.Offset
+    local base = self.main.Size.Y.Offset
     self._descriptionExtra = 0
 
     self.descriptionLabel = self.window:Create("TextLabel", {
         Name = "Description",
         Text = locale.t(self.description),
-        Position = UDim2.fromOffset(insetX, self._descriptionBase - topGap),
+        Position = UDim2.fromOffset(insetX, base - topGap),
         Size = UDim2.new(1, -insetX * 2, 0, lineHeight),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -12975,7 +12874,6 @@ local flag = require(constants.locale)
 local options = require(constants.HapticEngine)
 local value = require(constants.windowSizing)
 local multiSelect = require(constants.lockable)
-local description = require(script.Parent.description)
 
 local placeholder = name.icons.chevron
 local callback = name.icons.check
@@ -13114,7 +13012,6 @@ function state.new(tab, a49)
         window = tab.window,
         name = a49.name or a49.Name or "Dropdown",
         icon = tab.window:ResolveIcon(a49.icon or a49.Icon),
-        description = a49.description or a49.Description,
         forgetState = a49.forgetState or a49.ForgetState or tab.forgetState,
         flag = a49.flag
             or a49.Flag
@@ -13155,15 +13052,13 @@ function state.new(tab, a49)
     })
 
     --[[
-    The card grows for a description before anything is built inside it:
-    the visible top card, the title row and the value column all seat
-    themselves against the base region of the taller card, and the option
-    panel keeps its 41px card plus the gap above it.
+    The visible top card, the title row and the value column seat
+    themselves against the 41px card, and the option panel keeps its
+    41px card plus the gap above it.
     ]]
-    description.attach(self)
 
         self.top = self.window:Create("Frame", {
-        Size = UDim2.new(1, 0, 0, description.height(self, 41)),
+        Size = UDim2.new(1, 0, 0, 41),
         Position = UDim2.fromScale(0, 0),
         BorderSizePixel = 0,
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
@@ -13181,7 +13076,7 @@ function state.new(tab, a49)
 
         Parent = self.top,
         Size = UDim2.new(1, -195, 0, 16),
-        Position = UDim2.new(0, 20, description.center(self, 41)),
+        Position = UDim2.new(0, 20, 0.5, 0),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
         ZIndex = 5,
@@ -13230,7 +13125,7 @@ function state.new(tab, a49)
 
     self.selectedLabel = self.window:Create("TextLabel", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -41, description.center(self, 41)),
+        Position = UDim2.new(1, -41, 0.5, 0),
         Size = UDim2.fromOffset(130, 15),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
@@ -13245,7 +13140,7 @@ function state.new(tab, a49)
 
     self.chevron = self.window:Create("ImageLabel", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -18, description.center(self, 41)),
+        Position = UDim2.new(1, -18, 0.5, 0),
         Size = UDim2.fromOffset(16, 16),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
@@ -13259,7 +13154,7 @@ function state.new(tab, a49)
 
         self.interact = self.window:Create("TextButton", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, description.height(self, 41)),
+        Size = UDim2.new(1, 0, 0, 41),
         Position = UDim2.fromScale(0, 0),
         BorderSizePixel = 0,
         Text = "",
@@ -13273,7 +13168,7 @@ function state.new(tab, a49)
                     self.panel = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 1),
         Position = UDim2.new(1, 0, 1, 0),
-        Size = UDim2.new(1, 0, 1, -(a22 + a23 + (self._descriptionExtra or 0))),
+        Size = UDim2.new(1, 0, 1, -(a22 + a23)),
         BorderSizePixel = 0,
         ClipsDescendants = true,
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
@@ -14165,7 +14060,7 @@ function state:_openHeight()
     local a110 = self:_pageHeight()
         local a111 = math.min(math.max(n, 1), a27, a104(a110 - a109))
 
-    return math.min(a109 + a102(a111), a110) + (self._descriptionExtra or 0)
+    return math.min(a109 + a102(a111), a110)
 end
 
 --[[
@@ -14328,7 +14223,7 @@ function state:_close()
         self._renderOptionState(a125, true)
     end
 
-    motion.tween(self.main, { Size = UDim2.new(1, -20, 0, description.height(self, 41)) }, a32)
+    motion.tween(self.main, { Size = UDim2.new(1, -20, 0, 41) }, a32)
 end
 
 function state:_destroyOption(a126)
@@ -15045,10 +14940,10 @@ local constants = script.Parent.Parent.utilities
 
 local Input = require(constants.Parent.core.state)
 local tab = require(script.Parent.Parent.functions)
+
 local props = require(constants.moveable)
 local name = require(constants.lockable)
 local placeholder = require(constants.locale)
-local description = require(script.Parent.description)
 local numeric = require(constants.constants)
 local clearOnFocus = require(constants.HapticEngine)
 
@@ -15080,7 +14975,6 @@ function state.new(tab, placeholderLabel)
         window = tab.window,
         name = placeholderLabel.name or placeholderLabel.Name or "Input",
         icon = tab.window:ResolveIcon(placeholderLabel.icon or placeholderLabel.Icon),
-        description = placeholderLabel.description or placeholderLabel.Description,
         forgetState = placeholderLabel.forgetState or placeholderLabel.ForgetState or tab.forgetState,
         placeholder = placeholderLabel.placeholder or placeholderLabel.Placeholder or "",
         numeric = placeholderLabel.numeric or placeholderLabel.Numeric or false,
@@ -15110,16 +15004,9 @@ function state.new(tab, placeholderLabel)
     self.stroke = self.window:StyleElementBody(self.main)
     self.hoverOverlay = self.window:CreateHoverOverlay(self.main)
 
-    --[[
-    The card grows for a description before the title row and the field
-    box are built, so both centre in the base region instead of riding
-    down onto the line.
-    ]]
-    description.attach(self)
-
     self.container = self.window:Create("Frame", {
         Size = UDim2.new(1, -115, 0, 16),
-        Position = UDim2.new(0, 20, description.center(self, 41)),
+        Position = UDim2.new(0, 20, 0.5, 0),
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -15169,7 +15056,7 @@ function state.new(tab, placeholderLabel)
 
     self.box = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -7, description.center(self, 41)),
+        Position = UDim2.new(1, -7, 0.5, 0),
         Size = UDim2.fromOffset(85, 30),
         BorderSizePixel = 0,
 
@@ -16030,7 +15917,6 @@ local utilities = script.Parent.Parent.utilities
 local functions = require(script.Parent.Parent.functions)
 local coreState = require(script.Parent.Parent.core.state)
 local image = require(script.Parent.Parent.images.image)
-local description = require(script.Parent.description)
 local haptic = require(utilities.HapticEngine)
 local locale = require(utilities.locale)
 local lockable = require(utilities.lockable)
@@ -16039,9 +15925,9 @@ local moveable = require(utilities.moveable)
 
 --[[
 Card metrics: one card, two lines. The title is the Text element's 16px
-TitlingColor heading; the subtitle is the 14px muted body line every
-element description in the library uses. Without a subtitle the card
-collapses to the single-line height so it sits level with a Button.
+TitlingColor heading; the subtitle is the card's 14px muted body line.
+Without a subtitle the card collapses to the single-line height so it
+sits level with a Button.
 ]]
 local cardHeight = 56
 local cardHeightSingle = 43
@@ -16083,7 +15969,7 @@ local restingSubtitleTransparency = 0.45
 The trailing glyph rests at the same half transparency the Button's tap
 glyph used, and the Dropdown and Collapsible chevrons still do. The card
 owns the fade itself: `Window:_revealCommon` only knows the shared parts
-(stroke, title, body, leading icon, description), and the shared tap-glyph
+(stroke, title, body, leading icon), and the shared tap-glyph
 reveal it used to read went out with the Button's trailing cursor — so
 without this the glyph is built invisible and never appears.
 ]]
@@ -16230,7 +16116,6 @@ function state.new(tab, element)
         -- The hidden value: stored on the element, never shown as text.
         link = tostring(element.link or element.Link or ""),
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
-        description = element.description or element.Description,
         callback = element.callback or element.Callback,
         compact = tab.compact or false,
         --[[
@@ -16267,12 +16152,10 @@ function state:_baseHeight(): number
 end
 
 --[[
-Every writer of the card's shape goes through here: the height rides the
-description's measured extra (elements/description.luau), so a wrapped
-helper line grows the card instead of running under it, and the text
-column and the copy control stay centred in the base region they belong
-to. The compact row has no height to own - the row layout sizes it - so
-only the two centred children are re-seated there.
+Every writer of the card's shape goes through here: the text column and
+the copy control stay centred in the base region they belong to. The
+compact row has no height to own - the row layout sizes it - so only the
+two centred children are re-seated there.
 ]]
 function state:_layoutContent()
     if self.compact then
@@ -16280,13 +16163,12 @@ function state:_layoutContent()
     end
 
     local base = self:_baseHeight()
-    local centerScale, centerOffset = description.center(self, base)
-    self.main.Size = UDim2.new(1, -20, 0, description.height(self, base))
+    self.main.Size = UDim2.new(1, -20, 0, base)
     if self.container then
-        self.container.Position = UDim2.new(0, gutter, centerScale, centerOffset)
+        self.container.Position = UDim2.new(0, gutter, 0.5, 0)
     end
     if self.copyButton then
-        self.copyButton.Position = UDim2.new(1, -gutter, centerScale, centerOffset)
+        self.copyButton.Position = UDim2.new(1, -gutter, 0.5, 0)
     end
 end
 
@@ -16305,19 +16187,10 @@ function state:_buildFull()
     self.stroke = window:StyleElementBody(self.main)
     self.hoverOverlay = window:CreateHoverOverlay(self.main)
 
-    --[[
-    A description grows the card before the rows are placed, exactly as it
-    does for the Button and the Stat, so `description.center` below
-    answers for the grown card.
-    ]]
-    description.attach(self)
-
-    local centerScale, centerOffset = description.center(self, self:_baseHeight())
-
     self.container = window:Create("Frame", {
         Name = "Content",
         Size = UDim2.new(1, -contentInset, 0, self:_contentHeight()),
-        Position = UDim2.new(0, gutter, centerScale, centerOffset),
+        Position = UDim2.new(0, gutter, 0.5, 0),
         AnchorPoint = Vector2.new(0, 0.5),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
@@ -16402,7 +16275,7 @@ function state:_buildFull()
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
     self:_buildCopyControl(self.main, {
-        Position = UDim2.new(1, -gutter, centerScale, centerOffset),
+        Position = UDim2.new(1, -gutter, 0.5, 0),
         AnchorPoint = Vector2.new(1, 0.5),
     })
 
@@ -16867,15 +16740,9 @@ function state:_applyPresence()
         self.textColumn.Size = UDim2.new(1, offset, 0, self:_contentHeight())
     end
     --[[
-    The card's base just changed height (43 with one line, 56 with two), so
-    the description line has to be re-seated against the new base the way
-    the slider re-seats it for every layout it writes: `attach` pinned it
-    once, at the height the card had when it was built, and nothing else
-    has moved it since. Without this the line keeps its old offset — 13px
-    too low on a card that just dropped its subtitle — where it sits on
-    top of the text column or past the card's bottom edge.
+    The card's base just changed height (43 with one line, 56 with two),
+    so the centred rows have to re-seat against the new base.
     ]]
-    description.rebase(self, self:_baseHeight())
     self:_layoutContent()
 end
 
@@ -16996,8 +16863,6 @@ local constants = script.Parent.Parent.utilities
 local ModePicker = require(constants.Parent.core.state)
 local locale = require(constants.locale)
 local haptic = require(constants.HapticEngine)
-local description = require(script.Parent.description)
-
 --[[
 The Mode Picker rides the shared motion vocabulary: the knob travels on
 `normal` (the same beat as a slider value change), a drag chase would need
@@ -17068,7 +16933,6 @@ local function normalizeModes(raw)
 					label = tostring(mode.label or mode.Label or ("Mode " .. tostring(key))),
 					type = mode.type or mode.Type or "dot",
 					dot_position = tonumber(mode.dot_position or mode.DotPosition or key) or #list + 1,
-					description = mode.description or mode.Description,
 					onEnable = mode.onEnable or mode.OnEnable,
 					optional = mode.optional or mode.Optional or false,
 					icon_color = mode.icon_color or mode.IconColor,
@@ -17105,7 +16969,6 @@ function state.new(tab, element)
 		window = tab.window,
 		titleText = tostring(element.title or element.Title or "Mode Picker"),
 		subtitle = tostring(element.subtitle or element.Subtitle or ""),
-		staticDescription = element.description or element.Description,
 		forgetState = element.forgetState or element.ForgetState or tab.forgetState,
 		flag = element.flag
 			or element.Flag
@@ -17136,7 +16999,6 @@ function state.new(tab, element)
 
 	self.name = self.titleText
 	self.mode = self.defaultMode
-	self.description = self.staticDescription or self.modes[self.mode].description or ""
 
 	self.window:_registerControl(self)
 	self:_build()
@@ -17158,14 +17020,6 @@ function state:_build()
 
 	self.stroke = window:StyleElementBody(self.main)
 	self.hoverOverlay = window:CreateHoverOverlay(self.main)
-
-	--[[
-	The description line grows the card before anything else is placed,
-	so the header and track centre in the base region exactly like every
-	other element card. A picker without a description of its own shows
-	the selected mode's line and rewraps as modes change.
-	]]
-	description.attach(self)
 
 	-- Header: display-only icon, centred title/subtitle stack, reset button.
 	self.iconLabel = window:Create("ImageLabel", {
@@ -17534,9 +17388,8 @@ end
 
 --[[
 One path for every mode change (drag, tap, Set, Reset): knob and fill
-travel on the shared beat, dots repaint, the icon/title/fill colours
-drift if the mode carries an icon colour, and the description line
-rewraps to the new mode's line.
+travel on the shared beat, dots repaint, and the icon/title/fill colours
+drift if the mode carries an icon colour.
 ]]
 function state:_applyMode(index, instant)
 	local fraction = self:_stopFraction(index)
@@ -17550,10 +17403,6 @@ function state:_applyMode(index, instant)
 	self:_renderFill(instant)
 	self:_paintDots()
 	self:_applyColors(instant)
-
-	if self.descriptionLabel and not self.staticDescription then
-		self.descriptionLabel.Text = self.modes[index].description or ""
-	end
 end
 
 --[[
@@ -17712,7 +17561,7 @@ end
 function state:_setShown(show, animate)
 	local w = self.window
 	--[[
-	stroke, title, main, iconLabel and descriptionLabel are revealed by
+	stroke, title, main and iconLabel are revealed by
 	_revealCommon/_hideCommon; this list carries only the picker's own
 	surfaces.
 	]]
@@ -17877,7 +17726,6 @@ local name = require(constants.moveable)
 local flag = require(constants.lockable)
 local range = require(constants.locale)
 local value = require(constants.HapticEngine)
-local description = require(script.Parent.description)
 
 local function increment(suffix)
     local minimal = 0
@@ -17935,7 +17783,6 @@ function state.new(ownerTab, a31)
         window = ownerTab.window,
         name = a31.name or a31.Name or "Slider",
         icon = ownerTab.window:ResolveIcon(a31.icon or a31.Icon),
-        description = a31.description or a31.Description,
         forgetState = a31.forgetState or a31.ForgetState or ownerTab.forgetState,
 
         range = a31.range or a31.Range or { 0, 100 },
@@ -17989,11 +17836,6 @@ function state.new(ownerTab, a31)
     }, { BackgroundTransparency = "ElementTransparency" })
 
     self.stroke = self.window:StyleElementBody(self.main)
-    --[[
-    The card grows for a description before the label row and the track
-    are built, so both seat themselves against the grown region below.
-    ]]
-    description.attach(self)
     self._lastValue = self.value
 
     if not self.minimal then
@@ -18143,10 +17985,9 @@ function state.new(ownerTab, a31)
     self:_applyLayout()
 
     if self.minimal then
-        self.main.Size = UDim2.new(1, -20, 0, description.height(self, 41))
-        description.rebase(self, 41)
+        self.main.Size = UDim2.new(1, -20, 0, 41)
         self.track.AnchorPoint = Vector2.new(0.5, 0.5)
-        self.track.Position = UDim2.new(0.5, 0, description.center(self, 41))
+        self.track.Position = UDim2.new(0.5, 0, 0.5, 0)
         self.track.Size = UDim2.new(1, -30, 0, 14)
     end
 
@@ -18158,7 +17999,7 @@ end
 function state:_buildLabel()
     self.container = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 20, description.center(self, 65)),
+        Position = UDim2.new(0, 20, 0.5, 0),
         Size = UDim2.new(1, -255, 0, 33),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -18252,13 +18093,8 @@ function state:_buildLabel()
 end
 
 function state:_setMainHeight(a34)
-    --[[
-    `a34` is the base region every layout writes (65 wide, 70 narrow); the
-    description's measured extra rides along and the line is re-seated
-    against the new base.
-    ]]
-    local height = description.height(self, a34)
-    description.rebase(self, a34)
+    -- `a34` is the height every layout writes (65 wide, 70 narrow).
+    local height = a34
     if self._widthManaged then
         self.main.Size = UDim2.new(self.main.Size.X.Scale, self.main.Size.X.Offset, 0, height)
     else
@@ -18289,13 +18125,13 @@ function state:_applyLayout()
         self.valueHost.Size = UDim2.new(0, 0, 0, 16)
 
         self.track.AnchorPoint = Vector2.new(0.5, 1)
-        self.track.Position = UDim2.new(0.5, 0, 1, -14 - (self._descriptionExtra or 0))
+        self.track.Position = UDim2.new(0.5, 0, 1, -14)
         self.track.Size = UDim2.new(1, -30, 0, 14)
     else
         self:_setMainHeight(65)
 
         self.container.AnchorPoint = Vector2.new(0, 0.5)
-        self.container.Position = UDim2.new(0, 20, description.center(self, 65))
+        self.container.Position = UDim2.new(0, 20, 0.5, 0)
         self.container.Size = UDim2.new(1, -255, 0, 33)
         self.containerLayout.FillDirection = Enum.FillDirection.Vertical
         self.titleFlex.FlexMode = Enum.UIFlexMode.None
@@ -18303,7 +18139,7 @@ function state:_applyLayout()
         self.valueHost.Size = UDim2.new(1, 0, 0, 16)
 
         self.track.AnchorPoint = Vector2.new(1, 0.5)
-        self.track.Position = UDim2.new(1, -15, description.center(self, 65))
+        self.track.Position = UDim2.new(1, -15, 0.5, 0)
         self.track.Size = UDim2.new(0, 222, 0, 14)
     end
 
@@ -20194,7 +20030,6 @@ local name = require(constants.lockable)
 local flag = require(constants.locale)
 local value = require(constants.HapticEngine)
 local baseCard = require(script.Parent.baseCard)
-local description = require(script.Parent.description)
 --[[
 The switch rides the shared motion vocabulary. The knob is the one
 genuinely mechanical surface in the library, so it gets the short Back
@@ -20249,7 +20084,6 @@ function state.new(tab, element)
         window = tab.window,
         name = element.name or element.Name or "Toggle",
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
-        description = element.description or element.Description,
         forgetState = element.forgetState or element.ForgetState or tab.forgetState,
         compact = tab.compact or false,
         flag = element.flag
@@ -20385,11 +20219,7 @@ function state:_buildFull()
     })
 
     self:_buildSwitch(self.main)
-    --[[
-    The switch centres in the base region too, so a described card grows
-    under the toggle instead of pushing it down onto the line.
-    ]]
-    self.functionContainer.Position = UDim2.new(1, -15, description.center(self, 41))
+    self.functionContainer.Position = UDim2.new(1, -15, 0.5, 0)
     self.functionContainer.AnchorPoint = Vector2.new(1, 0.5)
 
     self.window:_wireElementHover(self)
@@ -20400,7 +20230,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 motion.spec("snappy"),
-                { Size = UDim2.new(1, -26, 0, description.height(self, 41)) }
+                { Size = UDim2.new(1, -26, 0, 41) }
             )
             :Play()
 
@@ -20416,7 +20246,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 motion.spec("settle"),
-                { Size = UDim2.new(1, -20, 0, description.height(self, 41)) }
+                { Size = UDim2.new(1, -20, 0, 41) }
             )
             :Play()
         motion.tween(
@@ -27808,116 +27638,116 @@ end)() end,
 local LineOffsets = {
     [2] = 47,
     [3] = 468,
-    [5] = 1131,
-    [6] = 1114,
-    [7] = 1286,
-    [8] = 1428,
-    [9] = 1679,
-    [10] = 2061,
-    [11] = 3431,
-    [12] = 3840,
-    [13] = 4189,
-    [14] = 4928,
-    [15] = 5266,
-    [16] = 5780,
-    [17] = 5843,
-    [18] = 6317,
-    [19] = 6663,
-    [20] = 6677,
-    [21] = 6734,
-    [22] = 6865,
-    [23] = 7228,
-    [24] = 7467,
-    [25] = 7789,
-    [26] = 7889,
-    [27] = 7951,
-    [28] = 8599,
-    [29] = 8822,
-    [30] = 9168,
-    [31] = 9622,
-    [32] = 6637,
-    [34] = 10556,
-    [35] = 11427,
-    [36] = 11526,
-    [37] = 11747,
-    [38] = 12168,
-    [39] = 12623,
-    [40] = 12818,
-    [41] = 12963,
-    [42] = 14557,
-    [43] = 14805,
-    [44] = 15040,
-    [45] = 15325,
-    [46] = 15762,
-    [47] = 16006,
-    [48] = 16990,
-    [49] = 17781,
-    [50] = 17867,
-    [51] = 18476,
-    [52] = 19355,
-    [53] = 19902,
-    [54] = 20032,
-    [55] = 20184,
-    [57] = 20701,
-    [58] = 20727,
-    [59] = 20746,
-    [60] = 20779,
-    [61] = 20905,
-    [62] = 20931,
-    [63] = 20980,
-    [64] = 20676,
-    [65] = 21085,
-    [66] = 21390,
-    [67] = 21421,
-    [68] = 21074,
-    [69] = 21464,
-    [70] = 21484,
-    [71] = 21516,
-    [72] = 21446,
-    [73] = 21623,
-    [74] = 21691,
-    [76] = 21773,
-    [77] = 21940,
-    [78] = 21959,
-    [79] = 21758,
-    [80] = 22590,
-    [81] = 22636,
-    [82] = 22718,
-    [83] = 22913,
-    [84] = 23044,
-    [85] = 23147,
-    [86] = 23316,
-    [87] = 23656,
-    [88] = 22055,
-    [89] = 24300,
-    [90] = 24186,
-    [91] = 24439,
-    [92] = 24537,
-    [93] = 24715,
-    [94] = 24774,
-    [95] = 24804,
-    [96] = 25055,
-    [97] = 25104,
-    [98] = 25557,
-    [99] = 25575,
-    [100] = 25782,
-    [101] = 25802,
-    [102] = 25930,
-    [103] = 26029,
-    [104] = 26051,
-    [105] = 26107,
-    [106] = 26572,
-    [107] = 26608,
-    [108] = 26626,
-    [109] = 26986,
-    [110] = 26998,
-    [111] = 27049,
-    [112] = 27068,
-    [113] = 27327,
-    [114] = 27371,
-    [115] = 27587,
-    [116] = 27615,
-    [117] = 27626,
+    [5] = 1126,
+    [6] = 1109,
+    [7] = 1281,
+    [8] = 1423,
+    [9] = 1674,
+    [10] = 2056,
+    [11] = 3426,
+    [12] = 3835,
+    [13] = 4184,
+    [14] = 4923,
+    [15] = 5261,
+    [16] = 5775,
+    [17] = 5838,
+    [18] = 6312,
+    [19] = 6658,
+    [20] = 6672,
+    [21] = 6729,
+    [22] = 6860,
+    [23] = 7223,
+    [24] = 7462,
+    [25] = 7784,
+    [26] = 7884,
+    [27] = 7946,
+    [28] = 8594,
+    [29] = 8817,
+    [30] = 9163,
+    [31] = 9617,
+    [32] = 6632,
+    [34] = 10551,
+    [35] = 11376,
+    [36] = 11465,
+    [37] = 11684,
+    [38] = 12105,
+    [39] = 12560,
+    [40] = 12717,
+    [41] = 12862,
+    [42] = 14452,
+    [43] = 14700,
+    [44] = 14935,
+    [45] = 15212,
+    [46] = 15649,
+    [47] = 15893,
+    [48] = 16857,
+    [49] = 17630,
+    [50] = 17716,
+    [51] = 18312,
+    [52] = 19191,
+    [53] = 19738,
+    [54] = 19868,
+    [55] = 20020,
+    [57] = 20531,
+    [58] = 20557,
+    [59] = 20576,
+    [60] = 20609,
+    [61] = 20735,
+    [62] = 20761,
+    [63] = 20810,
+    [64] = 20506,
+    [65] = 20915,
+    [66] = 21220,
+    [67] = 21251,
+    [68] = 20904,
+    [69] = 21294,
+    [70] = 21314,
+    [71] = 21346,
+    [72] = 21276,
+    [73] = 21453,
+    [74] = 21521,
+    [76] = 21603,
+    [77] = 21770,
+    [78] = 21789,
+    [79] = 21588,
+    [80] = 22420,
+    [81] = 22466,
+    [82] = 22548,
+    [83] = 22743,
+    [84] = 22874,
+    [85] = 22977,
+    [86] = 23146,
+    [87] = 23486,
+    [88] = 21885,
+    [89] = 24130,
+    [90] = 24016,
+    [91] = 24269,
+    [92] = 24367,
+    [93] = 24545,
+    [94] = 24604,
+    [95] = 24634,
+    [96] = 24885,
+    [97] = 24934,
+    [98] = 25387,
+    [99] = 25405,
+    [100] = 25612,
+    [101] = 25632,
+    [102] = 25760,
+    [103] = 25859,
+    [104] = 25881,
+    [105] = 25937,
+    [106] = 26402,
+    [107] = 26438,
+    [108] = 26456,
+    [109] = 26816,
+    [110] = 26828,
+    [111] = 26879,
+    [112] = 26898,
+    [113] = 27157,
+    [114] = 27201,
+    [115] = 27417,
+    [116] = 27445,
+    [117] = 27456,
 }
 
 -- Misc AOT variable imports

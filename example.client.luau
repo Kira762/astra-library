@@ -172,7 +172,6 @@ local function buildStudio(unlockedKey)
             { icon = "layers", label = "Tabs", value = "10" },
             { icon = "user", label = "Author", value = "Astra Team" },
         },
-        description = "Nine working tabs plus a gated one: character and combat controls, real lighting and camera edits, teleporting, a live performance sampler, an element-handle lab, the persistence API, and theme/motion/window controls. Everything here does something.",
         action = {
             icon = "file-text",
             name = "Release history",
@@ -364,7 +363,6 @@ local function buildStudio(unlockedKey)
         value = 16,
         increment = 1,
         suffix = " studs/s",
-        description = "Writes Humanoid.WalkSpeed as you drag.",
         callback = function(value)
             local hum = humanoid()
             if not hum then
@@ -401,7 +399,6 @@ local function buildStudio(unlockedKey)
         name = "Infinite jump",
         flag = "demo.infiniteJump",
         value = false,
-        description = "Re-enters the jumping state on every jump request.",
         callback = function(enabled)
             if enabled then
                 local signal = member(UserInputService, "JumpRequest")
@@ -432,7 +429,6 @@ local function buildStudio(unlockedKey)
         name = "Freeze in place",
         flag = "demo.freeze",
         value = false,
-        description = "Zeroes WalkSpeed and restores the previous value on release.",
         callback = function(enabled)
             local hum = humanoid()
             if not hum then
@@ -456,7 +452,6 @@ local function buildStudio(unlockedKey)
         value = "R",
         flag = "demo.respawnKey",
         icon = "rotate-cw",
-        description = "Click the keycap, then press one letter A–Z.",
         callback = function(letter)
             local hum = humanoid()
             if hum then
@@ -557,7 +552,6 @@ local function buildStudio(unlockedKey)
         flag = "demo.target",
         options = roster(),
         placeholder = "Pick a player",
-        description = "Rebuilt from Players:GetPlayers() by the refresh button.",
         callback = function(selected)
             targetText:Set("Locked on " .. tostring(selected) .. ".")
             logEvent("Target set to " .. tostring(selected) .. ".", "~", "Combat")
@@ -634,7 +628,6 @@ local function buildStudio(unlockedKey)
     combat:CreateButton({
         name = "Simulate engagement",
         icon = "zap",
-        description = "Rolls hits against the current smoothing setting and updates the stats.",
         callback = function()
             local smoothing = window:Get("demo.smoothing") or 35
             local shots = math.random(6, 18)
@@ -741,7 +734,6 @@ local function buildStudio(unlockedKey)
         range = { 30, 120 },
         value = 70,
         suffix = "°",
-        description = "Writes CurrentCamera.FieldOfView.",
         callback = function(value)
             local cam = camera()
             if cam then
@@ -755,7 +747,6 @@ local function buildStudio(unlockedKey)
         name = "Colour grade",
         flag = "demo.grade",
         value = false,
-        description = "Inserts a ColorCorrectionEffect and removes it again on release.",
         callback = function(enabled)
             if not Lighting then
                 tell("Unavailable", "No Lighting service to parent the effect to.", "triangle-alert")
@@ -958,7 +949,6 @@ local function buildStudio(unlockedKey)
         flag = "demo.landmark",
         options = { "Origin", "Sky", "Underground" },
         value = "Origin",
-        description = "Jump to a preset, or add your own from the current position.",
     })
 
     local landmarkTargets = {
@@ -1095,7 +1085,6 @@ local function buildStudio(unlockedKey)
         name = "Live updates",
         flag = "demo.sampler",
         value = false,
-        description = "Connects one Heartbeat listener and disconnects it again on release.",
         callback = function(enabled)
             if enabled then
                 if not samplerConnection and RunService and member(RunService, "Heartbeat") then
@@ -1118,7 +1107,6 @@ local function buildStudio(unlockedKey)
     stats:CreateButton({
         name = "Take a snapshot",
         icon = "camera",
-        description = "Runs one sample immediately and logs the numbers.",
         callback = function()
             lastSample = os.clock() - 1
             sample()
@@ -1350,21 +1338,19 @@ local function buildStudio(unlockedKey)
         accent = "left_icon",
         flag = "demo.lab.modePicker",
         modes = {
-            { label = "Normal", type = "default", description = "Balanced speed and depth. The default resting state." },
-            { label = "Fast", type = "dot", description = "Quick answers with slightly less reasoning." },
-            { label = "Balanced", type = "dot", description = "An even split between speed and depth." },
+            { label = "Normal", type = "default" },
+            { label = "Fast", type = "dot" },
+            { label = "Balanced", type = "dot" },
             {
                 label = "Advanced",
                 type = "dot",
                 optional = true,
-                description = "Deeper reasoning for complex problems.",
                 icon_color = Color3.fromRGB(245, 159, 11),
             },
             {
                 label = "Max",
                 type = "dot",
                 optional = true,
-                description = "Everything the model has, every time.",
                 icon_color = Color3.fromRGB(236, 72, 153),
             },
         },
@@ -1402,7 +1388,6 @@ local function buildStudio(unlockedKey)
         name = "Saved slots",
         options = { "No slots saved yet" },
         placeholder = "Pick a slot",
-        description = "Rebuilt from window:ListConfigs() by the refresh button.",
     })
 
     local flagDumpText
@@ -1485,7 +1470,6 @@ local function buildStudio(unlockedKey)
     configs:CreateButton({
         name = "Dump flags",
         icon = "list",
-        description = "Prints every flag to the console and summarises it here.",
         callback = function()
             local lines = {}
             for flag, value in window.Flags do
@@ -1578,7 +1562,6 @@ local function buildStudio(unlockedKey)
         range = { 0, 24 },
         value = 12,
         suffix = "px",
-        description = "CornerRoundness — the window silhouette and its bands.",
         callback = function(value)
             window:ChangeTheme({ CornerRoundness = UDim.new(0, value) })
         end,
@@ -1589,7 +1572,6 @@ local function buildStudio(unlockedKey)
         range = { 0, 16 },
         value = 8,
         suffix = "px",
-        description = "ElementCornerRadius — cards, fields, rows and panels.",
         callback = function(value)
             window:ChangeTheme({ ElementCornerRadius = UDim.new(0, value) })
         end,
@@ -1622,7 +1604,6 @@ local function buildStudio(unlockedKey)
         name = "Animations enabled",
         flag = "demo.animations",
         value = true,
-        description = "Off applies every target immediately, with no tweens.",
         callback = function(enabled)
             Astra.Motion.setEnabled(enabled)
         end,
@@ -1655,7 +1636,6 @@ local function buildStudio(unlockedKey)
     overlayActions:CreateButton({
         name = "Same again",
         icon = "copy",
-        description = "Exact title+content pairs replace the live card instead of stacking.",
         callback = function()
             tell("Dedupe demo", "Fire this twice — the card is replaced, not duplicated.")
         end,
@@ -1732,7 +1712,6 @@ local function buildStudio(unlockedKey)
     windowTab:CreateButton({
         name = "Unlock Premium",
         icon = "unlock",
-        description = "tab:SetLocked(false) is the only switch — locking is host-controlled.",
         callback = function()
             premium:SetLocked(false)
             window:Navigate(premium)
@@ -1744,7 +1723,6 @@ local function buildStudio(unlockedKey)
     windowTab:CreateButton({
         name = "Unload window",
         icon = "power",
-        description = "Asks first, then destroys every instance the window owns.",
         callback = function()
             window:Popup({
                 title = "Unload Astra?",
@@ -1787,7 +1765,6 @@ local function buildStudio(unlockedKey)
     premium:CreateButton({
         name = "Re-lock this tab",
         icon = "lock",
-        description = "Locking the open tab moves the selection to another unlocked tab.",
         callback = function()
             premium:SetLocked(true)
         end,

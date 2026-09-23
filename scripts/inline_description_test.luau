@@ -1,38 +1,42 @@
 --[[
-===== in-card description assertions: the line never covers the element ====
+===== in-card description assertions: stat and group lines only ============
 Runs the real Astra bundle (loaded as global `Astra` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau.
 
-An element created with a `description` renders it inside its own card: a
-muted 14px line under the title band (the Collapsible Group header recipe,
-one line: 41 -> 61). The card grows by the measured wrapped-line height and
-the element's own UI keeps the space it always had, so the line can never
-cover the title row, the control or the card's edge — the overlap this
-suite exists to pin.
+The in-card description line is a Stat recipe now: a muted 14px line under
+the card's controls (the Collapsible Group header carries its own variant
+of it, one line: 41 -> 61). The card grows by the measured wrapped-line
+height and the element's own UI keeps the space it always had, so the line
+can never cover the controls or the card's edge.
+
+Button, Toggle, Slider, Dropdown, Input, Mode Picker, About Card and Link
+no longer accept the prop: a `description` passed to one of them is
+ignored — no line, no growth, base geometry exactly as if the prop had
+never been there.
 
 Expected behavior under test:
-  * D1 the label is a child of the element's own card and the tab page
-       holds nothing but element cards (no standalone row under the card),
-  * D2 the one-line recipe: a 41px card grows to 61px with a 14px, wrapped
-       label at (20, 37), 17px tall,
-  * D3 the title row keeps centring in the base region (20.5, not 30.5),
-  * D4 a wrapped description grows the card line by line (lines*17 + 3),
-  * D5 no described element's line intersects its own title row, control
-       surface or any bottom-anchored track/readout, and every line stays
-       inside its card,
-  * D6 the slider re-seats the line for each layout mode (wide, narrow,
-       minimal) and keeps its track centred in the base region,
-  * D7 the dropdown's closed and open heights both carry the extra, so its
-       option panel opens below the line,
-  * D8 the line reveals with its element at 0.45 transparency,
-  * D9 locking swaps the line for the lock message, unlocking restores the
-       original description,
-  * D10 the stat readouts ride up above the line,
-  * D11 an element without a description keeps its card height and carries
-       no label,
-  * D12 the Collapsible Group header grows to 61px with its own line,
-  * D13 and that header's body starts below that line, so the group's own
-       children never sit on top of the copy.
+  * D1 the tab page holds nothing but element cards (no standalone row
+       under any card),
+  * D2 the one-line recipe on the Stat: a 70px card grows to 90px with a
+       14px, wrapped label at (20, 66), 17px tall,
+  * D3 a control built with a `description` prop keeps its base geometry:
+       same card height, title and controls centred as ever, no label,
+  * D4 a wrapped description grows the Stat card line by line
+       (lines*17 + 3),
+  * D5 no Stat line intersects the Stat's own readouts, and every line
+       stays inside its card,
+  * D6 the described and plain dropdowns open to the same height,
+  * D7 the line reveals with its element at 0.45 transparency,
+  * D8 locking a described Collapsible Group swaps its line for the lock
+       message, unlocking restores the description,
+  * D9 the Stat's bottom-anchored readouts ride up above the line,
+  * D10 an element without a description keeps its card height and
+       carries no label,
+  * D11 the Collapsible Group header grows to 61px with its own line,
+  * D12 and that header's body starts below that line, so the group's own
+       children never sit on top of the copy,
+  * D13 a declarative child's `description` prop is ignored too: the
+       grouped control keeps its base card and carries no label.
 ]]
 
 local function expect(cond, message)
@@ -114,11 +118,11 @@ local function describe(text): string
 end
 
 --[[
-The line must clear the element's own UI: the title row, whatever control
-surface the element draws, and the parts that anchor to the card's bottom
-(a slider track, a progress bar, a stat readout). Frames that only paint
-the card behind the text (backgrounds, hover overlays, click targets) are
-not content and are deliberately not listed.
+The line must clear the element's own UI: whatever control surface the
+element draws and the parts that anchor to the card's bottom (a progress
+bar, a stat readout). Frames that only paint the card behind the text
+(backgrounds, hover overlays, click targets) are not content and are
+deliberately not listed.
 ]]
 local function assertClearOfContent(element, line, parts)
 	for _, part in parts do
@@ -137,6 +141,13 @@ TestPump(0.6)
 local tab = window:CreateTab({ name = "Controls" })
 local more = window:CreateTab({ name = "More" })
 
+local stat = tab:CreateStat({ name = "Frames", value = 240, description = "Per second." })
+local wrapped = tab:CreateStat({
+	name = "Wrapped",
+	value = 240,
+	description = "A longer helper line that runs long enough to wrap onto a second line inside the card.",
+})
+local plainStat = more:CreateStat({ name = "Plain stat", value = 1 })
 local toggle = tab:CreateToggle({ name = "Notifications", description = "Ping me." })
 local button = tab:CreateButton({ name = "Run routine", description = "Starts the routine." })
 local slider = tab:CreateSlider({ name = "Volume", range = { 0, 100 }, value = 40, description = "Master level." })
@@ -145,7 +156,7 @@ local minimal = tab:CreateSlider({
 	range = { 0, 100 },
 	value = 40,
 	minimal = true,
-	description = "Narrow cards keep the line too.",
+	description = "Ignored on a minimal slider.",
 })
 local dropdown = tab:CreateDropdown({
 	name = "Quality",
@@ -154,13 +165,22 @@ local dropdown = tab:CreateDropdown({
 	value = "Low",
 })
 local input = tab:CreateInput({ name = "Display name", placeholder = "Enter a name", description = "Shown to friends." })
-local stat = tab:CreateStat({ name = "Frames", value = 240, description = "Per second." })
-local undescribed = tab:CreateToggle({ name = "No description" })
-local wrapped = more:CreateInput({
-	name = "Wrapped",
-	placeholder = "Enter a name",
-	description = "Type one letter. Extra characters are removed automatically, which makes this line wrap.",
+local picker = more:CreateModePicker({
+	title = "Modes",
+	description = "A static picker line the picker no longer renders.",
+	modes = {
+		{ label = "Normal", type = "default", description = "Default mode." },
+		{ label = "Fast", type = "dot", description = "Second mode." },
+		{ label = "Balanced", type = "dot", description = "Third mode." },
+	},
 })
+local about = more:CreateAboutCard({
+	name = "About",
+	subtitle = "The card",
+	description = "A paragraph the card no longer renders.",
+})
+local link = more:CreateLink({ name = "Docs", link = "https://example.com", description = "Ignored helper line." })
+local undescribed = tab:CreateToggle({ name = "No description" })
 local group = more:CreateCollapsibleGroup({
 	name = "Player Preferences",
 	description = "Click to expand. Closing keeps the values active.",
@@ -168,22 +188,28 @@ local group = more:CreateCollapsibleGroup({
 })
 TestPump(0.6)
 
--- ===== D1: inside the card, nothing below it ===============================
-expect(toggle.descriptor == nil, "D1 there is no standalone descriptor row any more")
-expect(toggle.descriptionLabel ~= nil, "D1 the element carries an in-card description label")
+-- ===== D1: element cards only, nothing below them ==========================
+expect(stat.descriptor == nil, "D1 there is no standalone descriptor row any more")
+expect(stat.descriptionLabel ~= nil, "D1 the Stat carries an in-card description label")
 expect(
-	toggle.descriptionLabel.Parent == toggle.main,
+	stat.descriptionLabel.Parent == stat.main,
 	"D1 the label is a child of the element's own card"
 )
 local cards = {
+	[stat.main] = true,
+	[wrapped.main] = true,
+	[plainStat.main] = true,
 	[toggle.main] = true,
 	[button.main] = true,
 	[slider.main] = true,
 	[minimal.main] = true,
 	[dropdown.main] = true,
 	[input.main] = true,
-	[stat.main] = true,
+	[picker.main] = true,
+	[about.main] = true,
+	[link.main] = true,
 	[undescribed.main] = true,
+	[group.main] = true,
 }
 for _, child in tab.tabPage:GetChildren() do
 	if child:IsA("Frame") then
@@ -191,47 +217,55 @@ for _, child in tab.tabPage:GetChildren() do
 	end
 end
 
--- ===== D2: the one-line recipe ============================================
-near(toggle.main.Size.Y.Offset, 61, "D2 a one-line description grows the 41px card to 61px")
-near(toggle.descriptionLabel.Position.X.Offset, 20, "D2 the line sits on the card's left inset")
-near(toggle.descriptionLabel.Position.Y.Offset, 37, "D2 the line sits under the 41px title band")
-near(toggle.descriptionLabel.Size.Y.Offset, 17, "D2 one line is 17px tall")
-eq(toggle.descriptionLabel.Text, "Ping me.", "D2 the line shows the description")
-eq(toggle.descriptionLabel.TextSize, 14, "D2 the line uses the 14px in-UI description size")
-eq(toggle.descriptionLabel.TextWrapped, true, "D2 the line wraps")
-near(button.main.Size.Y.Offset, 63, "D2 a described 43px button card grows to 63px")
-near(input.main.Size.Y.Offset, 61, "D2 a described input card grows to 61px")
-near(dropdown.main.Size.Y.Offset, 61, "D2 a described dropdown card grows to 61px")
+-- ===== D2: the one-line recipe on the Stat =================================
+near(stat.main.Size.Y.Offset, 90, "D2 a one-line description grows the 70px stat card to 90px")
+near(stat.descriptionLabel.Position.X.Offset, 20, "D2 the line sits on the card's left inset")
+near(stat.descriptionLabel.Position.Y.Offset, 66, "D2 the line sits under the 70px control region")
+near(stat.descriptionLabel.Size.Y.Offset, 17, "D2 one line is 17px tall")
+eq(stat.descriptionLabel.Text, "Per second.", "D2 the line shows the description")
+eq(stat.descriptionLabel.TextSize, 14, "D2 the line uses the 14px in-UI description size")
+eq(stat.descriptionLabel.TextWrapped, true, "D2 the line wraps")
 
--- ===== D3: controls keep the base region ==================================
+-- ===== D3: a passed description prop is inert on the eight elements ========
+eq(toggle.descriptionLabel, nil, "D3 a described toggle carries no label")
+near(toggle.main.Size.Y.Offset, 41, "D3 a described toggle keeps its 41px card")
 local toggleTitle = rectOf(toggle.container, toggle.main.AbsoluteSize)
-near(toggleTitle.y + toggleTitle.h / 2, 20.5, "D3 the title row centres in the 41px base region, not the grown card")
+near(toggleTitle.y + toggleTitle.h / 2, 20.5, "D3 the toggle's title row keeps centring in the 41px card")
+near(button.main.Size.Y.Offset, 43, "D3 a described button keeps its 43px card")
+eq(button.descriptionLabel, nil, "D3 a described button carries no label")
+near(slider.main.Size.Y.Offset, 65, "D3 a described slider keeps its 65px wide card")
+eq(slider.descriptionLabel, nil, "D3 a described slider carries no label")
+local sliderTrack = rectOf(slider.track, slider.main.AbsoluteSize)
+near(sliderTrack.y + sliderTrack.h / 2, 32.5, "D3 the wide track keeps its base-region centre")
+near(minimal.main.Size.Y.Offset, 41, "D3 a described minimal slider keeps its 41px card")
+local minimalTrack = rectOf(minimal.track, minimal.main.AbsoluteSize)
+near(minimalTrack.y + minimalTrack.h / 2, 20.5, "D3 the minimal track keeps its base-region centre")
+near(input.main.Size.Y.Offset, 41, "D3 a described input keeps its 41px card")
+eq(input.descriptionLabel, nil, "D3 a described input carries no label")
 local inputTitle = rectOf(input.container, input.main.AbsoluteSize)
 near(inputTitle.y + inputTitle.h / 2, 20.5, "D3 the input's title row keeps the base region")
 local inputField = rectOf(input.box, input.main.AbsoluteSize)
 near(inputField.y + inputField.h / 2, 20.5, "D3 the input's field box keeps the base region")
-local dropdownTitle = rectOf(dropdown.container, dropdown.main.AbsoluteSize)
-near(dropdownTitle.y + dropdownTitle.h / 2, 20.5, "D3 the dropdown's title row keeps the base region")
+near(picker.main.Size.Y.Offset, 84, "D3 a described picker keeps its 84px card")
+eq(picker.descriptionLabel, nil, "D3 a described picker carries no label")
+eq(about.descriptionLabel, nil, "D3 a described About card carries no paragraph label")
+expect(about.SetDescription == nil, "D3 the About card exposes no SetDescription any more")
+near(link.main.Size.Y.Offset, 43, "D3 a described link keeps its single-line 43px card")
+eq(link.descriptionLabel, nil, "D3 a described link carries no label")
 
--- ===== D4: wrapped descriptions grow line by line =========================
+-- ===== D4: wrapped descriptions grow the Stat line by line =================
 eq(wrapped._descriptionLines, 2, "D4 the long description measures as two lines")
-near(wrapped.main.Size.Y.Offset, 41 + 2 * 17 + 3, "D4 the card grows by lines*17 + 3 (78px)")
+near(wrapped.main.Size.Y.Offset, 70 + 2 * 17 + 3, "D4 the card grows by lines*17 + 3 (107px)")
 near(wrapped.descriptionLabel.Size.Y.Offset, 34, "D4 the label reserves two line heights")
 
--- ===== D5: the line never covers the element's own UI =====================
+-- ===== D5: the line never covers the Stat's own UI =========================
 local function lineOf(element)
 	return rectIn(element.descriptionLabel, element.main)
 end
 
 for _, case in {
-	{ element = toggle, parts = { toggle.container, toggle.functionContainer } },
-	{ element = button, parts = { button.container } },
-	{ element = slider, parts = { slider.container, slider.track } },
-	{ element = minimal, parts = { minimal.track } },
-	{ element = dropdown, parts = { dropdown.container, dropdown.selectedLabel, dropdown.chevron } },
-	{ element = input, parts = { input.container, input.box } },
 	{ element = stat, parts = { stat.titleContainer, stat.valueHost, stat.changeHost } },
-	{ element = wrapped, parts = { wrapped.container, wrapped.box } },
+	{ element = wrapped, parts = { wrapped.titleContainer, wrapped.valueHost, wrapped.changeHost } },
 } do
 	local element = case.element
 	local line = lineOf(element)
@@ -243,93 +277,67 @@ for _, case in {
 	assertClearOfContent(element, line, case.parts)
 end
 
--- ===== D6: the slider re-seats the line per layout mode ===================
-local sliderCard = rectOf(slider.track, slider.main.AbsoluteSize)
-near(slider.main.Size.Y.Offset, 85, "D6 the wide slider card carries the line (65 + 20)")
-near(sliderCard.y + sliderCard.h / 2, 32.5, "D6 the wide track centres in the 65px base region")
-near(slider.descriptionLabel.Position.Y.Offset, 61, "D6 the line sits under the wide base region")
-near(minimal.main.Size.Y.Offset, 61, "D6 the minimal slider card carries the line (41 + 20)")
-near(minimal.descriptionLabel.Position.Y.Offset, 37, "D6 the minimal slider re-seats the line at 37")
-local minimalTrack = rectOf(minimal.track, minimal.main.AbsoluteSize)
-near(minimalTrack.y + minimalTrack.h / 2, 20.5, "D6 the minimal track centres in the base region")
-
--- ===== D7: the dropdown's open height carries the extra ===================
+-- ===== D6: the dropdown opens to the same height with or without a line ===
 local dropdownPlain = more:CreateDropdown({ name = "Plain", options = { "A", "B" }, value = "A" })
 TestPump(0.3)
 near(
 	dropdown:_openHeight() - dropdownPlain:_openHeight(),
-	20,
-	"D7 the described dropdown's open height carries the same 20px the closed card does"
+	0,
+	"D6 a passed description no longer adds anything to the dropdown's open height"
 )
 dropdown:_open()
 TestPump(0.8)
-near(dropdown.main.Size.Y.Offset, dropdown:_openHeight(), "D7 the open card reaches the open height")
-local openLine = lineOf(dropdown)
-local panel = rectIn(dropdown.panel, dropdown.main)
-expect(
-	not overlaps(panel, openLine),
-	"D7 the option panel " .. describe(panel) .. " stays below the line " .. describe(openLine)
-)
-local firstRow = dropdown._optionFrames[1].frame
-if firstRow then
-	local row = rectIn(firstRow, dropdown.main)
-	expect(
-		not overlaps(row, openLine),
-		"D7 the first option row " .. describe(row) .. " stays below the line " .. describe(openLine)
-	)
-end
+near(dropdown.main.Size.Y.Offset, dropdown:_openHeight(), "D6 the open card reaches the open height")
 dropdown:_close()
 TestPump(0.8)
-near(dropdown.main.Size.Y.Offset, 61, "D7 closing returns the card to the described closed height")
+near(dropdown.main.Size.Y.Offset, 41, "D6 closing returns the card to the 41px closed height")
 
--- ===== D8: the line reveals with its element ==============================
-eq(toggle.descriptionLabel.TextTransparency, 0.45, "D8 the line reveals with its element at 0.45")
+-- ===== D7: the line reveals with its element ===============================
+eq(stat.descriptionLabel.TextTransparency, 0.45, "D7 the line reveals with its element at 0.45")
 window:Show()
 TestPump(0.8)
-eq(toggle.descriptionLabel.TextTransparency, 0.45, "D8 the line stays at 0.45 once the window is shown")
+eq(stat.descriptionLabel.TextTransparency, 0.45, "D7 the line stays at 0.45 once the window is shown")
 
--- ===== D9: the lock message rides the same line ===========================
-toggle:Lock("Locked by the host.")
+-- ===== D8: the lock message rides the group's own line =====================
+group:Lock("Locked by the host.")
 TestPump(0.4)
-eq(toggle.descriptionLabel.Text, "Locked by the host.", "D9 locking swaps the line for the lock message")
-toggle:Unlock()
+eq(group.descriptionLabel.Text, "Locked by the host.", "D8 locking swaps the line for the lock message")
+group:Unlock()
 TestPump(0.4)
-eq(toggle.descriptionLabel.Text, "Ping me.", "D9 unlocking restores the description")
+eq(group.descriptionLabel.Text, "Click to expand. Closing keeps the values active.", "D8 unlocking restores the description")
 
--- ===== D10: bottom-anchored bars ride above the line ======================
+-- ===== D9: bottom-anchored readouts ride above the line ====================
 local statValue = rectOf(stat.valueHost, stat.main.AbsoluteSize)
-near(statValue.y + statValue.h, 90 - 12 - 20, "D10 the stat's value host rides up above the line")
-near(stat.main.Size.Y.Offset, 90, "D10 the described stat card grows by the line (70 + 20)")
+near(statValue.y + statValue.h, 90 - 12 - 20, "D9 the stat's value host rides up above the line")
+near(stat.main.Size.Y.Offset, 90, "D9 the described stat card grows by the line (70 + 20)")
 
--- ===== D11: no description, no line, no growth ============================
-eq(undescribed.descriptionLabel, nil, "D11 an undescribed element carries no label")
-near(undescribed.main.Size.Y.Offset, 41, "D11 an undescribed element keeps its 41px card")
+-- ===== D10: no description, no line, no growth =============================
+eq(plainStat.descriptionLabel, nil, "D10 an undescribed element carries no label")
+near(plainStat.main.Size.Y.Offset, 70, "D10 an undescribed element keeps its base card")
+eq(undescribed.descriptionLabel, nil, "D10 an undescribed toggle carries no label")
+near(undescribed.main.Size.Y.Offset, 41, "D10 an undescribed toggle keeps its 41px card")
 
--- ===== D12: the Collapsible Group header carries its own line =============
-near(group.headerHeight, 61, "D12 a described group header grows to 61px")
-expect(group.descriptionLabel ~= nil, "D12 the group carries a header line")
-near(group.descriptionLabel.Position.Y.Offset, 37, "D12 the group's line sits under the title band")
-eq(group.descriptionLabel.TextSize, 14, "D12 the group's line matches the element description size")
-near(group.main.Size.Y.Offset, 61, "D12 the collapsed container matches the header")
+-- ===== D11: the Collapsible Group header carries its own line ==============
+near(group.headerHeight, 61, "D11 a described group header grows to 61px")
+expect(group.descriptionLabel ~= nil, "D11 the group carries a header line")
+near(group.descriptionLabel.Position.Y.Offset, 37, "D11 the group's line sits under the title band")
+eq(group.descriptionLabel.TextSize, 14, "D11 the group's line matches the element description size")
+near(group.main.Size.Y.Offset, 61, "D11 the collapsed container matches the header")
 
--- ===== D13: the group's body starts below its line ======================
+-- ===== D12: the group's body starts below its line =========================
 local groupLine = rectIn(group.descriptionLabel, group.main)
 local groupClip = rectIn(group.bodyClip, group.main)
 expect(
 	groupClip.y >= groupLine.y + groupLine.h,
-	"D13 the group's contents clip " .. describe(groupClip) .. " starts below its line " .. describe(groupLine)
+	"D12 the group's contents clip " .. describe(groupClip) .. " starts below its line " .. describe(groupLine)
 )
-near(groupClip.y, 62, "D13 the described group's body starts under the divider at 61px")
+near(groupClip.y, 62, "D12 the described group's body starts under the divider at 61px")
 local plainGroup = more:CreateCollapsibleGroup({ name = "Plain group", elements = {} })
 TestPump(0.3)
-near(plainGroup.headerHeight, 41, "D13 an undescribed group header stays 41px")
-near(rectIn(plainGroup.bodyClip, plainGroup.main).y, 42, "D13 an undescribed group's body starts under the divider at 41px")
+near(plainGroup.headerHeight, 41, "D12 an undescribed group header stays 41px")
+near(rectIn(plainGroup.bodyClip, plainGroup.main).y, 42, "D12 an undescribed group's body starts under the divider at 41px")
 
---[[
-A described control inside a group carries the same line: the declarative
-child receives the prop and grows its own card, so the group's measured
-content includes the extra.
-]]
+-- ===== D13: declarative children ignore the prop too =======================
 local groupedGroup = more:CreateCollapsibleGroup({
 	name = "Grouped children",
 	elements = {
@@ -340,14 +348,8 @@ local groupedGroup = more:CreateCollapsibleGroup({
 TestPump(0.4)
 local groupedToggle = groupedGroup.elements[1]
 local groupedButton = groupedGroup.elements[2]
-near(groupedToggle.main.Size.Y.Offset, 61, "D13 a described control inside a group grows to 61px")
-expect(groupedToggle.descriptionLabel.Parent == groupedToggle.main, "D13 the grouped line is inside the control's card")
-local groupedLine = rectIn(groupedToggle.descriptionLabel, groupedToggle.main)
-local groupedTitle = rectIn(groupedToggle.container, groupedToggle.main)
-expect(
-	not overlaps(groupedLine, groupedTitle),
-	"D13 the grouped line " .. describe(groupedLine) .. " clears the control's title row " .. describe(groupedTitle)
-)
+eq(groupedToggle.descriptionLabel, nil, "D13 a described grouped toggle carries no label")
+near(groupedToggle.main.Size.Y.Offset, 41, "D13 a described grouped toggle keeps its 41px card")
 near(groupedButton.main.Size.Y.Offset, 43, "D13 an undescribed sibling keeps its base 43px card")
 
 window:Unload()

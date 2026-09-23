@@ -1,7 +1,8 @@
 #!/bin/sh
-# Runtime test for the in-card element description: the muted line lives inside
-# the element's own card, grows it by its measured height, and never covers the
-# title row, the control or a bottom-anchored bar.
+# Runtime test for the in-card element description: the muted line is a Stat
+# recipe now (the Collapsible Group header carries its own variant), it lives
+# inside the card, grows it by its measured height, and never covers the
+# controls or a bottom-anchored bar. The eight other elements ignore the prop.
 #
 # Assembles: mini Roblox stubs + bundle (wrapped in a function to keep
 # `local` scoping) + assertions, writes it to a temp file, and runs it under

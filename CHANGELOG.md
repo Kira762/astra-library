@@ -1,5 +1,65 @@
 # Changelog
 
+## Unreleased — The description prop is gone from the interactive elements
+
+The in-card `description` helper line was a per-element feature that eight of
+the ten card elements carried through a shared module, tripling every card's
+height writers for a line most hosts never passed. It is now a Stat recipe:
+`elements/description.luau` shrinks to the one entry point the Stat uses
+(`attach`, which grows the card by the measured, wrapped line height and rides
+the extra on `_descriptionExtra`), and the Collapsible Group header keeps its
+own inline variant of the same recipe. Button, Toggle, Slider, Dropdown, Input,
+Mode Picker, About Card and Link no longer read the prop — a `description`
+passed to one of them is ignored silently: no line, no card growth, base
+geometry exactly as if the prop had never been there. Nothing throws, so
+existing configs keep running; the helper copy simply stops rendering. The
+lock-message swap (`Window:_setElementLocked`) still rides the line wherever a
+line exists (Stat via reveal/hide, Collapsible Group via its header), and
+locking the eight prop-less elements still draws the scrim — it just has no
+text surface any more.
+
+- **`elements/button.luau`, `elements/toggle.luau`** — the `description` prop
+  read, the module require and the `description.height` calls in the press
+  tween are gone; the cards tween between their fixed 43px / 41px heights.
+- **`elements/baseCard.luau`** — `buildFull` no longer calls
+  `description.attach`/`description.center`; the content row centres in the
+  card again (the shared plumbing only ever answered for described cards).
+- **`elements/slider.luau`** — the prop, the `attach` call, `_descriptionExtra`
+  and every `height`/`center`/`rebase` hop are gone; `_setMainHeight` writes
+  the layout height directly and the wide/narrow/minimal layouts keep their
+  base-region centring without re-seating a line.
+- **`elements/dropdown.luau`** — same removal; the closed card is a fixed 41px,
+  the panel and `_openHeight` lose their `+ extra` terms.
+- **`elements/input.luau`, `elements/link.luau`** — the prop and all
+  `attach`/`center`/`height`/`rebase` calls are gone; the Link card's
+  `_layoutContent` recentres its rows against the pure base height.
+- **`elements/modePicker.luau`** — the picker-level `description`, the per-mode
+  `description` field and the line that followed the selected mode are gone;
+  `_applyMode` no longer retypes a label.
+- **`elements/aboutCard.luau`** — the wrapped paragraph block, the
+  `_buildDescription` builder and the `SetDescription` method are removed; the
+  card is header + rows + optional action band.
+- **`elements/description.luau`** — trimmed to `attach` plus the measuring
+  internals; the now-unused `height`/`center`/`rebase` helpers are deleted.
+- **`Types.luau`** — `description` dropped from `ModeDefinition`,
+  `ModePickerProps`, `LinkProps` and `AboutCardProps`; `SetDescription` dropped
+  from the `AboutCard` type.
+- **`example.client.luau`, `skills/astra/assets/example-window.luau`** — every
+  `description` prop on the eight elements removed (Stat and Collapsible Group
+  copies stay).
+- **Docs** — `USAGE.md`, `MODULES.md`, `README.md`, `SPEC_PICKER_SET.md` and
+  `skills/astra/SKILL.md` / `references/elements.md` now describe the line as
+  Stat/Collapsible-Group-only and drop the prop from every signature and
+  example.
+- **Tests** — `scripts/inline_description_test.luau` rewritten around the new
+  contract (the Stat recipe renders; the eight elements ignore the prop, keep
+  base geometry and open heights); `description_geometry_probe.luau`,
+  `about_card_test.luau`, `link_element_test.luau`, `mode_picker_test.luau`
+  and `info_alert_test.luau` updated to match.
+- **`version-1.luau`** — regenerated. Like the previous entries, it still needs
+  re-signing with the `SIGNING_KEY` secret (the committed `.sig` was already
+  out of date before this change).
+
 ## Unreleased — Leaner built-in Settings
 
 Feedback on the built-in Settings pages: "good but too bloated". Every setting

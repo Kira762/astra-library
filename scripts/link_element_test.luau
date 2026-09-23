@@ -33,8 +33,8 @@ Expected behavior under test:
   * L11 a press on the copy control cannot move the page: a pan taken under
        the press is undone where it lands, a quiet press writes nothing, and
        a release the control never sees still ends the hold,
-  * L12 a card with a description builds, and the description line is
-       re-seated against the base every time the card's height changes,
+  * L12 a passed `description` prop is inert: the card keeps its base
+       heights and recentres its rows every time the subtitle changes them,
   * L13 a card with no link copies nothing and keeps the copy glyph,
   * L14 a press on a card inside a Group pins the scroll surface above it
        instead of asking the group's own frame for a canvas,
@@ -491,52 +491,46 @@ canvasWatcher:Disconnect()
 -- And the control can never be pulled into selection-into-view.
 eq(pin.copyButton.Selectable, false, "L11 the copy control is not selectable")
 
--- ===== L12: a card with a description =====================================
+-- ===== L12: a passed description prop is inert =============================
 
 --[[
-The description line grows the card, and the card's base height is what the
-text column, the copy control and the line itself are seated against.
-`attach` pins the line once, at the height the card had when it was built,
-so every later writer of that base has to re-seat it: a card that drops its
-subtitle shrinks 56 to 43, and a line left at its old offset sits 13px too
-low — on top of the text column, or past the card's bottom edge.
-
-This is also the shape that used to fail outright: the description module
-stores its base on the element under the very name the card's own
-`_baseHeight` method answers to, so `attach` replaced that method with a
-number and the card died with "attempt to call a number value" on the line
-after it.
+The link card has no description line: a `description` prop changes
+nothing. The base height is still what the text column and the copy
+control are seated against, so a card that drops its subtitle shrinks
+56 to 43 and both rows re-centre with it.
 ]]
 local described = tab:CreateLink({
 	name = "Described",
 	subtitle = "Two lines",
 	link = "https://example.com/described",
-	description = "A helper line that wraps",
+	description = "A helper line that no longer renders",
 })
 TestPump(0.4)
 
-expect(described.descriptionLabel ~= nil, "L12 a card with a description builds at all")
-eq(described.main.Size.Y.Offset, 56 + described._descriptionExtra, "L12 ... and the description grows the card")
-eq(described.descriptionLabel.Position.Y.Offset, 56 - 4, "L12 the line is seated under the two-line base")
-eq(described.container.Position.Y.Offset, 28, "L12 ... the text column centres in the base region")
-eq(described.copyButton.Position.Y.Offset, 28, "L12 ... and so does the copy control")
+eq(described.descriptionLabel, nil, "L12 a described card builds no description line")
+eq(described.main.Size.Y.Offset, 56, "L12 ... and the card keeps its two-line base height")
+-- The rows centre on scale (0.5) with a zero offset, so read the effective centre.
+local function centreY(row, height)
+	return row.Position.Y.Scale * height + row.Position.Y.Offset
+end
+eq(centreY(described.container, 56), 28, "L12 ... the text column centres in the base region")
+eq(centreY(described.copyButton, 56), 28, "L12 ... and so does the copy control")
 
 described:SetSubtitle("")
 TestPump(0.2)
-eq(described.main.Size.Y.Offset, 43 + described._descriptionExtra, "L12 dropping the subtitle shrinks the card")
-eq(described.descriptionLabel.Position.Y.Offset, 43 - 4, "L12 ... and the line follows the base down")
-eq(described.container.Position.Y.Offset, 21.5, "L12 ... the text column re-centres with it")
-eq(described.copyButton.Position.Y.Offset, 21.5, "L12 ... and so does the copy control")
+eq(described.main.Size.Y.Offset, 43, "L12 dropping the subtitle shrinks the card")
+eq(centreY(described.container, 43), 21.5, "L12 ... the text column re-centres with it")
+eq(centreY(described.copyButton, 43), 21.5, "L12 ... and so does the copy control")
 
 described:SetSubtitle("Two lines again")
 TestPump(0.2)
-eq(described.descriptionLabel.Position.Y.Offset, 56 - 4, "L12 restoring the subtitle seats the line back at the base")
-eq(described.container.Position.Y.Offset, 28, "L12 ... with the text column back in the middle")
+eq(described.main.Size.Y.Offset, 56, "L12 restoring the subtitle seats the base back at two lines")
+eq(centreY(described.container, 56), 28, "L12 ... with the text column back in the middle")
 
--- An idempotent write leaves the line where it is.
+-- An idempotent write changes nothing.
 described:SetSubtitle("Two lines again")
 TestPump(0.2)
-eq(described.descriptionLabel.Position.Y.Offset, 56 - 4, "L12 rewriting the same subtitle changes nothing")
+eq(centreY(described.container, 56), 28, "L12 rewriting the same subtitle changes nothing")
 
 -- ===== L13: a card with no link copies nothing ============================
 

@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased — Leaner built-in Settings
+
+Feedback on the built-in Settings pages: "good but too bloated". Every setting
+stays, but the extra text around them is gone.
+
+- **Overview** — the About card now has just the header and two tiles (Version,
+  Author). The Build tile and the marketing paragraph are gone, and so are the
+  "Resources" header, the separate Usage guide link, the divider and the footer.
+  One Repository link is left, and it leads to the docs, releases and issues.
+- **Controls** — the "Keyboard & cursor" section header, the "Window & capsule"
+  divider and the Toggle Keybind's helper sentence are gone.
+- **Appearance** — the "Typography" and "Layout" section headers are gone;
+  Font, Bar Layout and Motion & Feedback read fine on their own.
+- **`scripts/sidebar_tab_sizing_test.luau`** — T9d element counts updated
+  (Overview 2, Controls 3, Appearance 3).
+- **`version-1.luau`** — regenerated. Like the previous entries, it still needs
+  re-signing with the `SIGNING_KEY` secret (the committed `.sig` was already
+  out of date before this change).
+
 ## Unreleased — Mode Picker: the title keeps its colour, the knob fits the track
 
 Two artifacts on the Mode Picker card, both read off a live session.

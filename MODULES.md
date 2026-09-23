@@ -143,7 +143,7 @@ its anchored resting spot, and by `ToggleMinimise`'s expand),
 
 ### `components/settings.luau`
 Dedicated settings component providing lazy UI generation for Overview, Controls, Appearance and Persistence, in that order:
-- `buildUI(window)` — reuses `rfSettings` as the first Overview shell and adds the other three. Overview renders the About Card, copyable resource Links and Footer.
+- `buildUI(window)` — reuses `rfSettings` as the first Overview shell and adds the other three. Overview renders a compact About Card (Version and Author) and one copyable Repository link.
 - Controls uses `elements/keybind` for the menu letter (callback converts the uppercase string to a KeyCode), an unlock-cursor Toggle and Window Behavior. There is no typed-key parser or mouse/unbound menu option.
 - Appearance owns the standalone Font and layout Dropdowns and a related Motion & Feedback group. Persistence owns configuration toggles and save/load/delete controls. No built-in Collapsible Group contains only one element.
 - `buildContent(window, tab)` — lazily constructs controls within a given settings tab upon first selection.

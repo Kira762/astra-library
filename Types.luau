@@ -188,6 +188,46 @@ export type InputProps = {
     callback: ((value: string) -> ())?,
 }
 
+export type ModeDefinition = {
+    label: string?,
+    type: string?,           -- "default" | "toggle" | "dot" (descriptive)
+    dot_position: number?,   -- normalized to 1..n by dot order
+    description: string?,
+    onEnable: ((index: number, label: string) -> ())?,
+    optional: boolean?,      -- only optional modes can be removed at runtime
+    icon_color: (Color3 | { r: number?, g: number?, b: number?, a: number? })?,
+}
+
+export type ModePickerProps = {
+    left_icon: (string | number)?,
+    right_icon: (string | number)?,
+
+    title: string?,
+    subtitle: string?,
+    description: string?,    -- static line; omitted = shows the selected mode's line
+
+    mode: number?,           -- initial mode, default 1
+    min_modes: number?,      -- clamped to a floor of 3
+    max_modes: number?,      -- clamped to a ceiling of 5
+    allow_mode_add_remove: boolean?,
+
+    title_color_same_as_left_icon: boolean?,
+    -- subtitle/description always wear the default text colors; no props exist.
+    ui_color: string?,               -- "inherit" (default); anything else is ignored
+    slider_shape: string?,           -- "toggle_knob" (default, the only shape)
+    accent: string?,                 -- "theme" (default) | "left_icon"
+
+    left_icon_color: (Color3 | { r: number?, g: number?, b: number?, a: number? })?,
+    reset_on_right_icon_press: boolean?,
+
+    modes: { ModeDefinition } | { [number]: ModeDefinition },
+
+    flag: string?,
+    forgetState: boolean?,
+    callback: ((index: number, label: string) -> ())?,
+    onReset: ((picker: any) -> ())?,
+}
+
 export type StatProps = {
     name: string?,
     icon: (string | number)?,
@@ -307,6 +347,18 @@ export type Slider = Moveable & Lockable & {
     SetInfo: (self: Slider, text: string?) -> (),
 }
 
+export type ModePicker = Moveable & Lockable & {
+    mode: number,
+    modes: { ModeDefinition },
+    Set: (self: ModePicker, index: number, silent: boolean?) -> number,
+    Get: (self: ModePicker) -> (number, string),
+    Reset: (self: ModePicker) -> number,
+    AddMode: (self: ModePicker, mode: ModeDefinition) -> (boolean, string?),
+    RemoveMode: (self: ModePicker, index: number) -> (boolean, string?),
+    SetLeftIconColor: (self: ModePicker, color: Color3 | { r: number?, g: number?, b: number?, a: number? }) -> (),
+    SetSubtitle: (self: ModePicker, text: string?) -> (),
+}
+
 export type Dropdown = Moveable & Lockable & {
     value: { string },     Set: (self: Dropdown, value: string | { string }, skipCallback: boolean?) -> (),
     Refresh: (self: Dropdown, options: { string }) -> (),
@@ -398,6 +450,7 @@ export type Group = Moveable & {
     CreateStat: (self: Group, props: StatProps) -> Stat,
     CreateKeybind: (self: Group, props: KeybindProps) -> Keybind?,
     CreateSlider: (self: Group, props: SliderProps) -> Slider,
+    CreateModePicker: (self: Group, props: ModePickerProps) -> ModePicker,
         CreateDropdown: (self: Group, props: DropdownProps) -> Dropdown?,
     CreateSection: (self: Group, props: SectionProps) -> Section?,
     CreateText: (self: Group, props: TextProps) -> Text?,
@@ -432,6 +485,7 @@ export type Tab = {
     CreateButton: (self: Tab, props: ButtonProps) -> Button,
     CreateToggle: (self: Tab, props: ToggleProps) -> Toggle,
     CreateSlider: (self: Tab, props: SliderProps) -> Slider,
+    CreateModePicker: (self: Tab, props: ModePickerProps) -> ModePicker,
     CreateDropdown: (self: Tab, props: DropdownProps) -> Dropdown,
     CreateKeybind: (self: Tab, props: KeybindProps) -> Keybind,
     CreateInput: (self: Tab, props: InputProps) -> Input,

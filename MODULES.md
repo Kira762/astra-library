@@ -422,6 +422,28 @@ Per-element specifics:
   apply, locking disables the action band. The Settings → About tab is the
   reference instance, built from `components/settings.luau`'s `aboutVersion`,
   `aboutBuild` and `aboutAuthor`.
+- `modePicker.luau` — the Mode Picker (`__type = "ModePicker"`): a multi-stop
+  slider card with a display-only left icon, a centred title/subtitle stack and
+  a reset button. Modes normalize from a map or array into a dot_position-sorted
+  list of 3..5 (`min_modes`/`max_modes` clamp to that window; construction
+  outside it errors `Astra:CreateModePicker — modes must be between N and M,
+  got K`). The track borrows the toggle's switch height and the toggle's knob
+  (26x18 pill), snapped to one 4px dot per stop; the fill's right edge rides the
+  knob centre through the same scale/offset pair the dots use, so no resize
+  handler is needed. `left_icon_color` (Color3 or `{r,g,b,a}`) paints the icon
+  and, with `title_color_same_as_left_icon`, the title; per-mode `icon_color`
+  overrides drift in on the delayed accent beat when a mode enables.
+  `accent = "left_icon"` also retints fill and fill glow, otherwise both stay
+  theme-bound like every other element. Drag and tap snap live through
+  `HapticEngine.click()` per crossed stop; each mode's `onEnable` and the
+  picker's `callback` fire through `_runGuarded`. The right icon resets to
+  Mode 1, rolls runtime `AddMode`/`RemoveMode` back to the configured set and
+  hands the config its `onReset`. `AddMode`/`RemoveMode` enforce the 3..5
+  window and the `optional` flag; `allow_mode_add_remove = false` closes both.
+  The description line is static when `description` is passed and otherwise
+  rewraps to the selected mode's line. Tab, column Group and declarative
+  Collapsible Groups all construct it; row Groups warn and skip it like every
+  non-compact element.
 - `divider.luau`, `stat.luau`, `text.luau` — display and interaction elements.
 - `footer.luau` — the centred inline text-and-icon strip ("Built with ⚡ Astra ♡"):
   an ordered run of `{ text }` / `{ icon }` segments under one centring list

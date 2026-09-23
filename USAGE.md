@@ -281,6 +281,41 @@ tab:CreateSlider({
 })
 ```
 
+### Mode Picker
+Multi-stop slider with a display-only left icon, a centred title/subtitle
+stack and a reset button. Modes are always between 3 and 5; the knob is the
+toggle's own knob, snapped to one dot per mode.
+```lua
+local m = tab:CreateModePicker({
+    title = "Mode Picker", subtitle = "GPT-5.6 Sol",
+    left_icon = "zap", right_icon = "rotate-ccw",
+    left_icon_color = { r = 77, g = 163, b = 255, a = 255 },
+    title_color_same_as_left_icon = true,   -- title wears the icon's RGB
+    accent = "theme",                       -- or "left_icon"
+    mode = 1, min_modes = 3, max_modes = 5,
+    allow_mode_add_remove = true,
+    reset_on_right_icon_press = true,       -- reset returns to Mode 1
+    modes = {
+        { label = "Normal", type = "default", description = "Default mode." },
+        { label = "Fast",    type = "dot",    description = "Second mode." },
+        { label = "Max",     type = "dot",    optional = true,
+          icon_color = Color3.fromRGB(236, 72, 153),
+          onEnable = function(index, label) end },
+    },
+    callback = function(index, label) end,
+    onReset = function(picker) end,
+})
+m:Set(2)                 -- snap to the second dot
+m:Get()                  -- index, label
+m:Reset()                -- Mode 1 + configured mode set + configured icon color
+m:AddMode({ label = "Extra", optional = true })   -- capped at max_modes (5)
+m:RemoveMode(4)          -- optional modes only, floored at min_modes (3)
+m:SetLeftIconColor(Color3.fromRGB(34, 197, 94))
+```
+The card's description line shows `description` when you pass one, and
+otherwise follows the selected mode's own `description`. Subtitle and
+description always wear the default text colors — no color props exist.
+
 ### Dropdown
 ```lua
 local d = tab:CreateDropdown({

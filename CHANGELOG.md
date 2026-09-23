@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased — Mode Picker element
+
+A new `ModePicker` element: a multi-stop slider card inspired by modern
+model-picker UIs, built from the library's own parts. A display-only left
+icon (RGB-customizable, optionally per mode), a centred title that can wear
+the icon's color, a default-colored subtitle, a reset button that returns the
+picker to Mode 1 and the configured mode set, and a toggle-knob slider that
+snaps to one dot per mode with a haptic tick per crossed stop. Modes are
+always 3–5 (`min_modes`/`max_modes` clamp into that window), each independently
+configurable with label, description, `onEnable` callback, optional flag and
+icon color; `AddMode`/`RemoveMode` respect the window and the optional flag.
+
+- **`elements/modePicker.luau`** (new) — the element: normalized mode list,
+  dot/track/fill/knob geometry from the toggle's switch metrics, drag + tap
+  snapping on the shared motion specs, theme-bound surfaces with explicit
+  accent parts, reveal/hide and theme passes, moveable/lockable, flag
+  persistence of the committed mode index.
+- **`elements/tab.luau`, `elements/group.luau`, `elements/collapsibleGroup.luau`**
+  — `CreateModePicker` on Tab and column Groups; `ModePicker` joins the
+  declarative Collapsible Group constructors (row Groups warn and skip it).
+- **`Types.luau`, `library_entrypoint.luau`** — `ModeDefinition`,
+  `ModePickerProps`, `ModePicker` types and exports; Tab/Group interfaces.
+- **`example.client.luau`** — Elements tab gains a Mode Picker divider with a
+  five-mode demo (per-mode icon colors on the last two) and Set/Reset buttons.
+- **`scripts/mode_picker_test.luau` / `.sh`** — runtime coverage: mode window
+  enforcement, snap/set/callback order, reset semantics, add/remove bounds.
+
 ## 2026-09-23 — Font selection: Default now, Astra on demand
 
 The custom brand font (Finger Paint, `rbxassetid://12187375716`) is no longer

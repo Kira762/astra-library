@@ -16435,13 +16435,19 @@ Writing the snapshot back on release is not enough: the user watches the
 card move for as long as they hold it, and every other element in the
 library answers a tap without shifting a pixel. So the gesture is pinned
 instead. The canvas is snapshotted when the press begins (MouseButton1 or
-Touch) and a watcher writes that snapshot straight back for as long as the
-press is down, so a pan started under the press is undone on the frame it
-lands and the page never leaves where the press found it. Release drops
-the watcher and puts the page back where the press found it, in case a
-write slipped through after the last guard. A click that arrives without a
-press has no snapshot, so it cannot corrupt a scroll the user made in
-between.
+Touch) and a watcher writes that snapshot straight back for as long as
+the press is down, so a pan started under the press is undone on the frame it
+lands and the page never leaves where the press found it.
+
+The release does not end it either. A pan the bridge started under the
+press usually keeps arriving after the finger lifts — momentum writes,
+one per frame — and a single restore would be overwritten by the very
+next one, which is the tap still walking the page away. So the release
+opens a short, frame-bounded settle window (a bounded run of Heartbeats)
+that keeps writing the restored spot back, and hands the page back the
+moment the user does anything deliberate: a new press or touch anywhere,
+or a mouse-wheel step. A quiet press — one the page never reacted to —
+opens no window at all.
 
 The gesture is ended from the control (its release, or the click whose
 release never reached us) and from the input service, the way the slider
@@ -16472,6 +16478,13 @@ function state:_pinPressToCanvas()
         return
     end
 
+    --[[
+    The settle window, in frames. Momentum pans write one frame at a time,
+    so the bound is frames rather than seconds: at any refresh rate it
+    covers the same number of momentum writes.
+    ]]
+    local postReleaseFrames = 30
+
     local function isPress(input)
         local kind = if input ~= nil then input.UserInputType else nil
         return kind == Enum.UserInputType.MouseButton1 or kind == Enum.UserInputType.Touch
@@ -16482,53 +16495,121 @@ function state:_pinPressToCanvas()
         return not self.window.unloaded and page.Parent ~= nil
     end
 
-    --[[
-    Ends the gesture: drop the watcher, then restore the snapshot, but only
-    if the page moved.
-    ]]
-    local function settle()
-        local held = self._pressCanvas
-        self._pressCanvas = nil
-        if self._pressGuard then
-            window:DisconnectMany(self, { self._pressGuard })
-            self._pressGuard = nil
+    local canvasGuard = nil
+    local frameGuard = nil
+
+    local function dropWatchers()
+        local stale = {}
+        if canvasGuard then
+            table.insert(stale, canvasGuard)
+            canvasGuard = nil
         end
-        if not held then
-            return
+        if frameGuard then
+            table.insert(stale, frameGuard)
+            frameGuard = nil
         end
-        if not writable() then
-            return
-        end
-        local now = page.CanvasPosition
-        if now.X ~= held.X or now.Y ~= held.Y then
-            page.CanvasPosition = held
+        if #stale > 0 then
+            window:DisconnectMany(self, stale)
         end
     end
 
     --[[
-    Holds the canvas still for the length of the gesture: every write that
-    lands while the press is down is answered with the snapshot.
+    The spot the page must hold: the press snapshot while the finger is
+    down, the restored spot during the settle window, nothing after.
     ]]
+    local function pinTarget()
+        if self._pressCanvas then
+            return self._pressCanvas
+        end
+        if self._pinSnapshot then
+            return self._pinSnapshot
+        end
+        return nil
+    end
+
+    local function endGesture()
+        self._pressCanvas = nil
+        self._pinSnapshot = nil
+        self._pinFrames = nil
+        dropWatchers()
+    end
+
+    local function ensureCanvasGuard()
+        if canvasGuard then
+            return
+        end
+        canvasGuard = window:ConnectFor(self, page:GetPropertyChangedSignal("CanvasPosition"), function()
+            local target = pinTarget()
+            if not target or not writable() then
+                endGesture()
+                return
+            end
+            local now = page.CanvasPosition
+            if now.X ~= target.X or now.Y ~= target.Y then
+                -- The press moved the page under us: remember it, so the
+                -- release knows the gesture is worth a settle window.
+                self._pressMoved = true
+                page.CanvasPosition = target
+            end
+        end)
+    end
+
+    local function ensureFrameGuard()
+        if frameGuard then
+            return
+        end
+        frameGuard = window:ConnectFor(self, coreState.runService.Heartbeat, function()
+            if self._pressCanvas or not self._pinSnapshot then
+                return
+            end
+            self._pinFrames = (self._pinFrames or 0) - 1
+            if self._pinFrames <= 0 then
+                endGesture()
+            end
+        end)
+    end
+
+    --[[
+    Ends the press: drop it, restore the snapshot, but only if the page
+    moved — and only a press the page reacted to opens the settle window.
+    ]]
+    local function settle(openWindow: boolean?)
+        local held = self._pressCanvas
+        local moved = self._pressMoved == true
+        self._pressCanvas = nil
+        self._pressMoved = nil
+        if not writable() then
+            endGesture()
+            return
+        end
+        if held then
+            local now = page.CanvasPosition
+            if now.X ~= held.X or now.Y ~= held.Y then
+                page.CanvasPosition = held
+            end
+            if openWindow ~= false and moved then
+                self._pinSnapshot = held
+                self._pinFrames = postReleaseFrames
+                ensureCanvasGuard()
+                ensureFrameGuard()
+            else
+                endGesture()
+            end
+        elseif openWindow == false or not self._pinSnapshot then
+            endGesture()
+        end
+    end
+
     local function hold()
         if self._pressCanvas then
             return
         end
+        -- A new press takes over from any settle window still open.
+        self._pinSnapshot = nil
+        self._pinFrames = nil
+        self._pressMoved = nil
         self._pressCanvas = page.CanvasPosition
-
-        self._pressGuard = window:ConnectFor(self, page:GetPropertyChangedSignal("CanvasPosition"), function()
-            local pinned = self._pressCanvas
-            if not pinned then
-                return
-            end
-            if not writable() then
-                settle()
-                return
-            end
-            local now = page.CanvasPosition
-            if now.X ~= pinned.X or now.Y ~= pinned.Y then
-                page.CanvasPosition = pinned
-            end
-        end)
+        ensureCanvasGuard()
     end
 
     window:ConnectFor(self, self.copyButton.InputBegan, function(input)
@@ -16562,8 +16643,34 @@ function state:_pinPressToCanvas()
         settle()
     end)
 
+    --[[
+    A new press or touch anywhere — including back on this control, whose
+    own handler re-snapshots — is the user gesturing on purpose: any
+    settle window ends at once so it can never eat a deliberate scroll.
+    ]]
+    window:ConnectFor(self, coreState.userInputService.InputBegan, function(input)
+        if not isPress(input) then
+            return
+        end
+        if self._pressCanvas then
+            return
+        end
+        endGesture()
+    end)
+
+    --[[ A mouse-wheel step is a deliberate scroll the same way. ]]
+    window:ConnectFor(self, coreState.userInputService.InputChanged, function(input)
+        if input == nil or input.UserInputType ~= Enum.UserInputType.MouseWheel then
+            return
+        end
+        if self._pressCanvas then
+            return
+        end
+        endGesture()
+    end)
+
     window:ConnectFor(self, coreState.userInputService.WindowFocusReleased, function()
-        settle()
+        settle(false)
     end)
 end
 
@@ -27680,74 +27787,74 @@ local LineOffsets = {
     [45] = 15212,
     [46] = 15649,
     [47] = 15893,
-    [48] = 16857,
-    [49] = 17630,
-    [50] = 17716,
-    [51] = 18312,
-    [52] = 19191,
-    [53] = 19738,
-    [54] = 19868,
-    [55] = 20020,
-    [57] = 20531,
-    [58] = 20557,
-    [59] = 20576,
-    [60] = 20609,
-    [61] = 20735,
-    [62] = 20761,
-    [63] = 20810,
-    [64] = 20506,
-    [65] = 20915,
-    [66] = 21220,
-    [67] = 21251,
-    [68] = 20904,
-    [69] = 21294,
-    [70] = 21314,
-    [71] = 21346,
-    [72] = 21276,
-    [73] = 21453,
-    [74] = 21521,
-    [76] = 21603,
-    [77] = 21770,
-    [78] = 21789,
-    [79] = 21588,
-    [80] = 22420,
-    [81] = 22466,
-    [82] = 22548,
-    [83] = 22743,
-    [84] = 22874,
-    [85] = 22977,
-    [86] = 23146,
-    [87] = 23486,
-    [88] = 21885,
-    [89] = 24130,
-    [90] = 24016,
-    [91] = 24269,
-    [92] = 24367,
-    [93] = 24545,
-    [94] = 24604,
-    [95] = 24634,
-    [96] = 24885,
-    [97] = 24934,
-    [98] = 25387,
-    [99] = 25405,
-    [100] = 25612,
-    [101] = 25632,
-    [102] = 25760,
-    [103] = 25859,
-    [104] = 25881,
-    [105] = 25937,
-    [106] = 26402,
-    [107] = 26438,
-    [108] = 26456,
-    [109] = 26816,
-    [110] = 26828,
-    [111] = 26879,
-    [112] = 26898,
-    [113] = 27157,
-    [114] = 27201,
-    [115] = 27417,
-    [116] = 27445,
-    [117] = 27456,
+    [48] = 16964,
+    [49] = 17737,
+    [50] = 17823,
+    [51] = 18419,
+    [52] = 19298,
+    [53] = 19845,
+    [54] = 19975,
+    [55] = 20127,
+    [57] = 20638,
+    [58] = 20664,
+    [59] = 20683,
+    [60] = 20716,
+    [61] = 20842,
+    [62] = 20868,
+    [63] = 20917,
+    [64] = 20613,
+    [65] = 21022,
+    [66] = 21327,
+    [67] = 21358,
+    [68] = 21011,
+    [69] = 21401,
+    [70] = 21421,
+    [71] = 21453,
+    [72] = 21383,
+    [73] = 21560,
+    [74] = 21628,
+    [76] = 21710,
+    [77] = 21877,
+    [78] = 21896,
+    [79] = 21695,
+    [80] = 22527,
+    [81] = 22573,
+    [82] = 22655,
+    [83] = 22850,
+    [84] = 22981,
+    [85] = 23084,
+    [86] = 23253,
+    [87] = 23593,
+    [88] = 21992,
+    [89] = 24237,
+    [90] = 24123,
+    [91] = 24376,
+    [92] = 24474,
+    [93] = 24652,
+    [94] = 24711,
+    [95] = 24741,
+    [96] = 24992,
+    [97] = 25041,
+    [98] = 25494,
+    [99] = 25512,
+    [100] = 25719,
+    [101] = 25739,
+    [102] = 25867,
+    [103] = 25966,
+    [104] = 25988,
+    [105] = 26044,
+    [106] = 26509,
+    [107] = 26545,
+    [108] = 26563,
+    [109] = 26923,
+    [110] = 26935,
+    [111] = 26986,
+    [112] = 27005,
+    [113] = 27264,
+    [114] = 27308,
+    [115] = 27524,
+    [116] = 27552,
+    [117] = 27563,
 }
 
 -- Misc AOT variable imports

@@ -31,8 +31,10 @@ Expected behavior under test:
   * L10 the trailing glyph is drawn while the card is and hidden when it is
        not — the card owns that fade, so nothing else can be relied on for it,
   * L11 a press on the copy control cannot move the page: a pan taken under
-       the press is undone where it lands, a quiet press writes nothing, and
-       a release the control never sees still ends the hold,
+       the press is undone where it lands, momentum writes after the release
+       are reverted for a short settle window (ended early by a new press or
+       a wheel step), a quiet press writes nothing, and a release the control
+       never sees still ends the hold,
   * L12 a passed `description` prop is inert: the card keeps its base
        heights and recentres its rows every time the subtitle changes them,
   * L13 a card with no link copies nothing and keeps the copy glyph,
@@ -441,6 +443,8 @@ pin.copyButton.InputEnded:Fire({ UserInputType = Enum.UserInputType.MouseButton1
 TestPump(0.1)
 eq(canvasWrites, 0, "L11 releasing a press that never moved writes nothing")
 eq(page.CanvasPosition.Y, 0, "L11 ... and the page is where the press found it")
+-- The release opened a settle window around the restored spot; let it run out.
+TestPump(2)
 
 -- A press that never moves writes nothing: a scrolled page stays put.
 page.CanvasPosition = Vector2.new(0, 55)
@@ -470,6 +474,74 @@ TestPump(0.1)
 eq(page.CanvasPosition.Y, 55, "L11 ... back to where the touch found it")
 
 --[[
+The release is not the end of it: a pan the bridge started under the press
+keeps arriving after the finger lifts, one momentum write per frame, and a
+single restore on release would be overwritten by the very next one. The
+settle window opened by the release keeps writing the restored spot back.
+]]
+pin.copyButton.InputBegan:Fire({ UserInputType = Enum.UserInputType.Touch })
+page.CanvasPosition = Vector2.new(0, 90)
+TestPump(0.1)
+eq(page.CanvasPosition.Y, 55, "L11 the momentum case starts pinned like any press")
+pin.copyButton.InputEnded:Fire({ UserInputType = Enum.UserInputType.Touch })
+page.CanvasPosition = Vector2.new(0, 150)
+TestPump(0.1)
+eq(page.CanvasPosition.Y, 55, "L11 momentum right after the release is reverted")
+TestPump(2)
+page.CanvasPosition = Vector2.new(0, 130)
+TestPump(0.1)
+eq(page.CanvasPosition.Y, 130, "L11 ... but the settle window expires and scrolling is the user's again")
+page.CanvasPosition = Vector2.new(0, 55)
+TestPump(0.1)
+
+--[[
+A quiet press — one the page never reacted to — opens no settle window:
+the scroll is free the moment the finger lifts.
+]]
+pin.copyButton.InputBegan:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
+TestPump(0.1)
+pin.copyButton.InputEnded:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
+TestPump(0.1)
+page.CanvasPosition = Vector2.new(0, 200)
+TestPump(0.1)
+eq(page.CanvasPosition.Y, 200, "L11 a quiet press opens no settle window")
+page.CanvasPosition = Vector2.new(0, 55)
+TestPump(0.1)
+
+--[[
+The settle window also ends the moment the user does anything deliberate.
+A mouse-wheel step is one such input.
+]]
+pin.copyButton.InputBegan:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
+page.CanvasPosition = Vector2.new(0, 210)
+TestPump(0.1)
+eq(page.CanvasPosition.Y, 55, "L11 the wheel case starts pinned")
+pin.copyButton.InputEnded:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
+TestPump(0.1)
+game:GetService("UserInputService").InputChanged:Fire({ UserInputType = Enum.UserInputType.MouseWheel }, false)
+TestPump(0.1)
+page.CanvasPosition = Vector2.new(0, 260)
+TestPump(0.1)
+eq(page.CanvasPosition.Y, 260, "L11 a mouse-wheel step hands the page back at once")
+page.CanvasPosition = Vector2.new(0, 55)
+TestPump(0.1)
+
+-- ...and so is a new press or touch anywhere.
+pin.copyButton.InputBegan:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
+page.CanvasPosition = Vector2.new(0, 240)
+TestPump(0.1)
+eq(page.CanvasPosition.Y, 55, "L11 the new-press case starts pinned")
+pin.copyButton.InputEnded:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
+TestPump(0.1)
+game:GetService("UserInputService").InputBegan:Fire({ UserInputType = Enum.UserInputType.MouseButton1 }, false)
+TestPump(0.1)
+page.CanvasPosition = Vector2.new(0, 300)
+TestPump(0.1)
+eq(page.CanvasPosition.Y, 300, "L11 a new press ends the settle window")
+page.CanvasPosition = Vector2.new(0, 55)
+TestPump(0.1)
+
+--[[
 A release the control never receives — it landed off the window, or the
 input bridge swallowed it — still ends the hold, or the page would be
 pinned still for the rest of the session.
@@ -480,6 +552,10 @@ TestPump(0.1)
 eq(page.CanvasPosition.Y, 55, "L11 a swallowed release leaves the page pinned")
 game:GetService("UserInputService").InputEnded:Fire({ UserInputType = Enum.UserInputType.MouseButton1 }, false)
 TestPump(0.1)
+page.CanvasPosition = Vector2.new(0, 400)
+TestPump(0.1)
+eq(page.CanvasPosition.Y, 55, "L11 ... and the release's settle window still reverts momentum")
+TestPump(2)
 page.CanvasPosition = Vector2.new(0, 300)
 TestPump(0.1)
 eq(page.CanvasPosition.Y, 300, "L11 the input service ends the hold, and the page scrolls again")

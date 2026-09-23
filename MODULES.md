@@ -396,7 +396,12 @@ Per-element specifics:
   clipboard each tap (`setclipboard` / `toclipboard` / `setrbxclipboard` / a
   `Clipboard` object / `StudioService:CopyToClipboard`), and glyph swaps go through
   `images/image.luau`'s `assign` so remote icons get the same cache rewrite the
-  window's `Create` applies. Full card for a tab or a column Group, compact row for
+  window's `Create` applies. The copy press never moves the page: `_pinPressToCanvas`
+  snapshots the nearest ScrollingFrame's `CanvasPosition` at press and writes it
+  back while held, and the release opens a frame-bounded settle window that keeps
+  reverting momentum pans — ended early by a new press/touch anywhere or a
+  mouse-wheel step, so a deliberate scroll is never eaten. A quiet press opens no
+  window. Full card for a tab or a column Group, compact row for
   a horizontal one.
 - `aboutCard.luau` — the About card (`__type = "AboutCard"`): one container with
   three blocks — a header (leading icon plus a title/subtitle stack), a row of one

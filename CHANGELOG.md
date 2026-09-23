@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased — Link: the copy tap can no longer walk the page away
+
+Reported live: pressing the Link's copy control scrolled the elements area
+away from where the user left it. The press itself was already pinned —
+`_pinPressToCanvas` snapshots the tab page's `CanvasPosition` and writes the
+snapshot back for as long as the press is down — but the release restored the
+snapshot **once** and dropped the watcher. A pan that the input bridge started
+under the press does not stop at the release: its momentum keeps writing
+`CanvasPosition` one frame at a time, and the first write after the restore
+won — the page drifted off and stayed there.
+
+- **`elements/link.luau`** — the release now opens a short, frame-bounded
+  settle window (30 Heartbeats, so it covers the same number of momentum
+  writes at any refresh rate) that keeps writing the restored spot back; a
+  quiet press — one the page never reacted to — opens no window at all. The
+  window ends early the moment the user does anything deliberate: a new press
+  or touch anywhere (`UserInputService.InputBegan`), or a mouse-wheel step
+  (`InputChanged` with `MouseWheel`), so a deliberate scroll is never eaten.
+  `WindowFocusReleased` closes the window outright instead of reopening one.
+- **`scripts/link_element_test.luau`** — L11 gained the momentum case
+  (reverted after release, free again once the window expires), the quiet
+  press case (no window), and early-exit cases for the wheel and a new press;
+  the swallowed-release case now proves the window reverts momentum and then
+  expires. `scripts/sidebar_sizing_stubs.luau` gained the
+  `UserInputService.InputChanged` signal the wheel case fires.
+- **`MODULES.md`** — the `link.luau` entry documents the settle window.
+- **`version-1.luau`** — regenerated.
+
 ## Unreleased — The description prop is gone from the interactive elements
 
 The in-card `description` helper line was a per-element feature that eight of

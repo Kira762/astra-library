@@ -124,7 +124,7 @@ Dropdown, Input, ModePicker, AboutCard and Link ignore the prop.
 | Create on Tab / Group | Key props | Handle methods |
 |---|---|---|
 | `CreateSection({ name, icon })` | heading band for a part of the page | — |
-| `CreateText({ name, text, icon })` | body copy card | `:Set(text)`, `:SetTitle(name)` |
+| `CreateText({ name, text })` | body copy card | `:Set(text)`, `:SetTitle(name)` |
 | `CreateButton({ name, icon, callback })` | Optional leading icon; no trailing cursor glyph | — |
 | `CreateKeybind({ name, value, flag, callback })` | Required editable one-letter A–Z field; uppercase string value, default K; no description row | `Set`, `Capture`, `CancelCapture` |
 | `CreateToggle({ name, value, flag, callback })` | fires `callback(on)` | `:Set(on, skipCallback?)` |
@@ -132,7 +132,7 @@ Dropdown, Input, ModePicker, AboutCard and Link ignore the prop.
 | `CreateDropdown({ name, options, value, multiSelect, placeholder, flag, callback })` | multi-select value is a table | `:Refresh(options)`, `:Add(option)`, `:Remove(option)` |
 | `CreateInput({ name, value, placeholder, numeric, clearOnFocus, flag, callback })` | text field, `callback(text)` | `:Set(text)` |
 | `CreateLink({ name, subtitle, link, icon, callback })` | card carrying a hidden URL; the trailing control copies it and swaps in a check mark for two seconds — the link is never rendered | `:Set(link)`, `:SetLink(link)`, `:SetTitle(name)`, `:SetSubtitle(text)`, `:SetIcon(icon)`, `:Copy()`, `:IsConfirming()` |
-| `CreateAboutCard({ name, subtitle, icon, rows = { { icon, label, value } }, action = { icon, name, subtitle, callback } })` | one card: brand header, **1–3** compact data tiles kept on one equal-width line, and an optional tappable action band (a fourth row errors) | `:SetTitle(name)`, `:SetSubtitle(text?)`, `:SetIcon(icon)`, `:SetRow(index, row)` |
+| `CreateAboutCard({ name, subtitle, rows = { { label, value } }, action = { name, subtitle, callback } })` | one card: brand header, **1–3** compact data tiles kept on one equal-width line, and an optional tappable action band (a fourth row errors) | `:SetTitle(name)`, `:SetSubtitle(text?)`, `:SetRow(index, row)` |
 | `CreateStat({ name, value, prefix, suffix, display, compact, letter, changeMode, changeBaseline })` | readout card; a string `value` shows one letter unless `letter = false`, which reads the whole value | `:Set(value)`, `:SetText(text)`, `:ResetBaseline(n)` |
 | `CreateFooter({ parts, textSize, spacing })` | centred run of text and inline icons (`parts = { { text = "Built with" }, { icon = "zap" }, { text = "Astra" } }`; plain strings are text shorthand); re-centres as one unit | `:Set(parts)` |
 | `CreateDivider({ text, line, spacing })` | rule between controls | — |

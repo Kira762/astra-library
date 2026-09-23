@@ -104,14 +104,12 @@ local function buildStudio(unlockedKey)
     overview:CreateAboutCard({
         name = "Astra",
         subtitle = "A live testbed for the whole API.",
-        icon = 80387863064905,
         rows = {
-            { icon = "code", label = "Version", value = "1.4.0" },
-            { icon = "layers", label = "Tabs", value = "10" },
-            { icon = "user", label = "Author", value = "Astra Team" },
+            { label = "Version", value = "1.4.0" },
+            { label = "Tabs", value = "10" },
+            { label = "Author", value = "Astra Team" },
         },
         action = {
-            icon = "file-text",
             name = "Release history",
             callback = function()
                 overview:Select()
@@ -125,7 +123,6 @@ local function buildStudio(unlockedKey)
     overview:CreateText({
         name = "Start here",
         text = "Every tab drives something real: Player edits the character, Live Stats samples the frame loop, Elements drives every handle.",
-        icon = "compass",
     })
 
     local actionsRun = overview:CreateStat({
@@ -355,7 +352,6 @@ local function buildStudio(unlockedKey)
     identityText = player:CreateText({
         name = "Identity",
         text = "Press Read character to load live values.",
-        icon = "id-card",
     })
 
     player:CreateCollapsibleGroup({
@@ -388,7 +384,7 @@ local function buildStudio(unlockedKey)
         return names
     end
 
-    local targetText = combat:CreateText({ name = "Current target", text = "None selected.", icon = "target" })
+    local targetText = combat:CreateText({ name = "Current target", text = "None selected." })
 
     local targetList = combat:CreateDropdown({
         name = "Target player",
@@ -473,7 +469,7 @@ local function buildStudio(unlockedKey)
     local visuals = window:CreateTab({ name = "Visuals", icon = "eye" })
 
     if not Lighting then
-        visuals:CreateText({ name = "Lighting unavailable", text = "Lighting controls report back instead of throwing.", icon = "triangle-alert" })
+        visuals:CreateText({ name = "Lighting unavailable", text = "Lighting controls report back instead of throwing." })
     end
 
     visuals:CreateSection({ name = "Lighting", icon = "sun" })
@@ -920,7 +916,7 @@ local function buildStudio(unlockedKey)
         end,
     })
     local demoStat = lab:CreateStat({ name = "Sample stat", value = 10, changeMode = "delta", changeBaseline = "initial" })
-    demoText = lab:CreateText({ name = "Readout", text = "Use the buttons below to drive each handle.", icon = "terminal" })
+    demoText = lab:CreateText({ name = "Readout", text = "Use the buttons below to drive each handle." })
 
     local handleActions = lab:CreateGroup({ direction = "row" })
     handleActions:CreateButton({ name = "Toggle off", icon = "power-off", callback = function() demoToggle:Set(false) end })
@@ -1083,7 +1079,6 @@ local function buildStudio(unlockedKey)
     configs:CreateText({
         name = "Persistence path",
         text = tostring(folder or "no writable storage") .. " → " .. tostring(file or "none"),
-        icon = "hard-drive",
     })
 
     configs:CreateButton({
@@ -1273,7 +1268,6 @@ local function buildStudio(unlockedKey)
     premium:CreateText({
         name = "You unlocked this tab",
         text = "Locked tabs are never built visible and search never indexes them.",
-        icon = "sparkles",
     })
     premium:CreateStat({ name = "Status", value = "Unlocked", letter = false })
     premium:CreateButton({

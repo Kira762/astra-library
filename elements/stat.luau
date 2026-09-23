@@ -109,13 +109,10 @@ function state.new(tab, a25)
         then (a25.letter or a25.Letter) == true
         else not numeric
 
-    local resolvedIcon = tab.window:ResolveIcon(a25.icon or a25.Icon)
-
     local self = setmetatable({
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = a25.name or a25.Name or "Statistic",
-        icon = resolvedIcon,
         description = a25.description or a25.Description,
 
         value = desiredValue,
@@ -135,8 +132,7 @@ function state.new(tab, a25)
         display = (a25.display or a25.Display or "value"),
         --[[
         The glyph badge replaces the numeric readouts for text values and
-        whenever the caller asks for a letter explicitly. A provided icon
-        keeps the normal leading icon.
+        whenever the caller asks for a letter explicitly.
         ]]
         letter = letterMode,
         --[[
@@ -230,7 +226,7 @@ function state:_buildFull()
     self.title = window:Create("TextLabel", {
         Text = prefix.t(self.name),
 
-        Size = UDim2.new(1, if self.icon then -30 else 0, 0, 16),
+        Size = UDim2.new(1, 0, 0, 16),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 15,
@@ -255,19 +251,6 @@ function state:_buildFull()
     window:Create("UICorner", {
         Parent = self.gradientContainer,
     }, { CornerRadius = "ElementCornerRadius" })
-
-    if self.icon then
-        self.iconLabel = window:Create("ImageLabel", {
-            Image = self.icon,
-            Size = UDim2.fromOffset(22, 22),
-            BorderSizePixel = 0,
-            BackgroundTransparency = 1,
-            ZIndex = 10,
-
-            ImageTransparency = 1,
-            Parent = self.titleContainer,
-        }, { ImageColor3 = "ContentColor" })
-    end
 
     self.containerLayout = window:Create("UIListLayout", {
         Padding = UDim.new(0, 8),
@@ -497,20 +480,6 @@ function state:_buildCompact()
 
         Parent = self.titleContainer,
     })
-
-    if self.icon then
-        self.iconLabel = window:Create("ImageLabel", {
-            Image = self.icon,
-            Size = UDim2.fromOffset(18, 18),
-            BorderSizePixel = 0,
-            BackgroundTransparency = 1,
-            LayoutOrder = 0,
-            ZIndex = 6,
-
-            ImageTransparency = 1,
-            Parent = self.titleContainer,
-        }, { ImageColor3 = "ContentColor" })
-    end
 
     self.title = window:Create("TextLabel", {
         Text = prefix.t(self.name),
@@ -825,9 +794,6 @@ function state:_setShown(a66, a67)
         )
         w:_reveal(self.card, { BackgroundTransparency = if a66 then 0 else 1 }, a67)
         w:_reveal(self.title, { TextTransparency = if a66 then 0 else 1 }, a67)
-        if self.iconLabel then
-            w:_reveal(self.iconLabel, { ImageTransparency = if a66 then 0 else 1 }, a67)
-        end
         if self.readoutOdo then
             self.readoutOdo:reveal(if a66 then 0 else 1, a67)
         else
@@ -862,9 +828,6 @@ end
 
 function state:_minWidth()
     local w = 24 + 8
-    if self.icon then
-        w += 24
-    end
     w += tab.textWidth(self.window.theme.Font, 15, prefix.resolve(self.name))
     local a68 = if self.display == "change" then self:_formatChange(0) else self:_formatValue(self.value)
     w += tab.textWidth(self.window.theme.Font, 15, a68)

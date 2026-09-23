@@ -25,14 +25,12 @@ local releaseHistory
 overview:CreateAboutCard({
     name = "Astra",
     subtitle = "A small studio for every element.",
-    icon = 80387863064905,
     rows = {
-        { icon = "code", label = "Version", value = "1.4.0" },
-        { icon = "package", label = "Build", value = "2026.09.21" },
-        { icon = "user", label = "Author", value = "Astra Team" },
+        { label = "Version", value = "1.4.0" },
+        { label = "Build", value = "2026.09.21" },
+        { label = "Author", value = "Astra Team" },
     },
     action = {
-        icon = "file-text",
         name = "Release history",
         subtitle = "Explore the changes behind this studio",
         callback = function()

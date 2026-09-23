@@ -434,14 +434,12 @@ local changelogPanel -- assign below with tab:CreateIsolated(...)
 local card = tab:CreateAboutCard({
     name = "Astra",                                  -- header title
     subtitle = "UI Library for a better experience.", -- muted line under it
-    icon = 80387863064905,                           -- leading mark (name or asset id)
     rows = {                                         -- 1 to 3 data rows
-        { icon = "code",    label = "Version", value = "1.4.0" },
-        { icon = "package", label = "Build",   value = "2026.09.12" },
-        { icon = "user",    label = "Author",  value = "Astra Team" },
+        { label = "Version", value = "1.4.0" },
+        { label = "Build",   value = "2026.09.12" },
+        { label = "Author",  value = "Astra Team" },
     },
     action = {                                       -- optional trailing band
-        icon = "file-text",
         name = "View Changelog",
         subtitle = "See what's new in this version",
         callback = function()
@@ -451,9 +449,9 @@ local card = tab:CreateAboutCard({
 })
 ```
 
-One card with three blocks: a header (icon, title, subtitle), a row of data
-tiles (each a leading icon, a label and a value), and an optional action band
-that is the card's only tappable surface.
+One card with three blocks: a header (title, subtitle), a row of data
+tiles (each a label and a value), and an optional action band that is the
+card's only tappable surface.
 
 All data tiles share one compact 48px line, split evenly from left to right. The
 standard Version / Build / Author recipe therefore stays three-across instead
@@ -463,15 +461,14 @@ Tiles and the action band use the regular `ElementSurface` fill, not the darker
 window gradient, so they remain consistent with the rest of the controls. A
 fourth row errors at construction
 (`Astra:CreateAboutCard — at most 3 data rows are supported, got 4`) because the
-action band is the card's trailing row. A row without `icon`, or a card without
-`rows`/`action`, simply leaves those parts out of the layout. The card accepts
-no `description`: the prop is ignored.
+action band is the card's trailing row. A card without `rows`/`action` simply
+leaves those parts out of the layout. Icon props on the card, its rows and its
+action are ignored, as is `description`.
 
 ```lua
 card:SetTitle("Release notes")        -- header title
 card:SetSubtitle(nil)                 -- drop the second line (header closes to one band)
-card:SetIcon("sparkles")              -- leading mark (nil removes it)
-card:SetRow(1, { icon = "box", label = "Version", value = "1.5.0" })  -- rewrite one row in place
+card:SetRow(1, { label = "Version", value = "1.5.0" })  -- rewrite one row in place
 ```
 
 `SetRow` addresses a row the card already has and only touches the fields it is
@@ -480,7 +477,7 @@ band.
 
 ### Text / Divider / Group
 ```lua
-local x = tab:CreateText({ name = "Title", text = "Body text", icon = "info" })
+local x = tab:CreateText({ name = "Title", text = "Body text" })
 x:Set("New body") x:SetTitle("New title")
 
 tab:CreateDivider()  tab:CreateDivider({ text = "or" })  tab:CreateDivider({ line = false, spacing = 8 })

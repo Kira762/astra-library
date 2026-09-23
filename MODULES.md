@@ -404,30 +404,28 @@ Per-element specifics:
   window. Full card for a tab or a column Group, compact row for
   a horizontal one.
 - `aboutCard.luau` — the About card (`__type = "AboutCard"`): one container with
-  three blocks — a header (leading icon plus a title/subtitle stack), a row of one
-  to three data tiles (each a badge icon with a label above its value), and an
-  optional action band (icon, label, subtitle, the
+  three blocks — a header (a title/subtitle stack), a row of one
+  to three data tiles (each a label above its value), and an
+  optional action band (label, subtitle, the
   built-in trailing chevron and one full-band tap target). Surfaces reuse the
   shared nesting recipe: the card is the standard element body, a tile and the
   band use the regular `ElementSurface` fill with the element corner and stroke
-  (`insetSurface`) instead of the darker window gradient, and a badge stays in
-  the same control-surface family. `_layoutRows` keeps all one to three tiles on
-  one compact 48px line and gives each an equal scale-based slice after its 8px
-  gaps, so the Version / Build / Author recipe remains three-across rather than
-  leaving Author alone on a second line. The scale geometry follows window
-  resizing directly and `SetRow` refreshes it after an icon reservation changes;
-  unusually long copy truncates inside its tile instead of changing the card's
-  structure. A fourth row errors at construction with
+  (`insetSurface`) instead of the darker window gradient. `_layoutRows` keeps
+  all one to three tiles on one compact 48px line and gives each an equal
+  scale-based slice after its 8px gaps, so the Version / Build / Author recipe
+  remains three-across rather than leaving Author alone on a second line. The
+  scale geometry follows window resizing directly and `SetRow` refreshes it
+  after a rewrite; unusually long copy truncates inside its tile instead of
+  changing the card's structure. A fourth row errors at construction with
   `Astra:CreateAboutCard — at most 3 data rows are supported, got N` because the
-  action band is the card's trailing row. A row without an icon drops its badge
-  and hands the tile to its text (`_applyRowIcon`), and a card without rows
-  or action leaves those blocks out of the list layout; the `description`
-  paragraph is gone and a passed `description` prop is ignored. Reveal and
-  theme passes run over one tracked part list (`parts`, each `{ instance,
-  property, rest kind }` with the rest values in `restValue`), so a hidden card
-  takes every label, glyph and stroke out together and a theme change re-reads
-  them all. Setters: `SetTitle`/`SetSubtitle` (which reopens or closes the header
-  band), `SetIcon` and `SetRow(index, row)`; moveable/lockable
+  action band is the card's trailing row. A card without rows
+  or action leaves those blocks out of the list layout; icon props and the
+  `description` prop are ignored (the icon slots and the paragraph are gone).
+  Reveal and theme passes run over one tracked part list (`parts`, each
+  `{ instance, property, rest kind }` with the rest values in `restValue`), so a
+  hidden card takes every label and stroke out together and a theme change
+  re-reads them all. Setters: `SetTitle`/`SetSubtitle` (which reopens or closes
+  the header band) and `SetRow(index, row)`; moveable/lockable
   apply, locking disables the action band. The Settings → About tab is the
   reference instance, built from `components/settings.luau`'s `aboutVersion`,
   `aboutBuild` and `aboutAuthor`.

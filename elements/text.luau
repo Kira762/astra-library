@@ -16,7 +16,6 @@ function state.new(tab, element)
         window = tab.window,
         name = tostring(element.name or element.Name or ""),
         text = tostring(element.text or element.Text or ""),
-        icon = tab.window:ResolveIcon(element.icon or element.Icon),
     }, state)
 
             self.main = self.window:Create("Frame", {
@@ -68,21 +67,9 @@ function state.new(tab, element)
         Parent = self.titleRow,
     })
 
-    if self.icon then
-        self.iconLabel = self.window:Create("ImageLabel", {
-            Image = self.icon,
-            Size = UDim2.fromOffset(16, 16),
-            BorderSizePixel = 0,
-            BackgroundTransparency = 1,
-
-                        ImageTransparency = 1,
-            Parent = self.titleRow,
-        }, { ImageColor3 = "ContentColor" })
-    end
-
     self.title = self.window:Create("TextLabel", {
         Text = Text.t(self.name),
-        Size = UDim2.new(1, if self.icon then -22 else 0, 0, 0),
+        Size = UDim2.new(1, 0, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
@@ -118,12 +105,12 @@ function state.new(tab, element)
 end
 
 function state:_applyPresence()
-    self.titleRow.Visible = self.name ~= "" or self.icon ~= nil
+    self.titleRow.Visible = self.name ~= ""
     self.body.Visible = self.text ~= ""
 end
 
-function state:Set(icon)
-    self.text = tostring(icon)
+function state:Set(body)
+    self.text = tostring(body)
     self.window:_bindLocale(self.body, "Text", self.text)
     self:_applyPresence()
 end

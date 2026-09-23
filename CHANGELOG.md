@@ -1,5 +1,76 @@
 # Changelog
 
+## 2026-09-23 — Link copy taps hold still, and four Link bugs closed
+
+A tap on a Link card's copy control still moved the card. Restoring the canvas
+on release (the previous fix) left the page scrolling *during* the press — the
+user watched the card slide down the page and spring back, which no other
+element in the library does on a tap. The gesture is now pinned instead: the
+canvas is snapshotted when the press begins, a watcher writes that snapshot
+back for as long as the press is down, and the page is therefore never seen to
+move at all. Release drops the watcher, and the gesture is ended from the
+input service as well as the control, so a release the bridge swallows cannot
+leave the page pinned for the rest of the session.
+
+Running the suite under the Luau CLI also turned up a bug no static read could
+see: **a Link card built with a `description` prop could not be built at all.**
+`elements/description.luau` stores its base height on the element as
+`_baseHeight`, and the Link card owns a `_baseHeight()` *method* — so
+`description.attach` replaced the method with a number and the very next line
+(`description.center(self, self:_baseHeight())`) died with "attempt to call a
+number value". The module's field is now `_descriptionBase`.
+
+- **`elements/link.luau`**
+  - `_pinPressToCanvas` holds the canvas still for the length of the gesture
+    (snapshot + watcher) instead of restoring it on release; the gesture ends
+    on the control's release, on a press-less click, on
+    `UserInputService.InputEnded`, and on `WindowFocusReleased`; the pinned
+    surface is the nearest `ScrollingFrame` above the control, so a card
+    inside a Group pins the tab page rather than asking the group's own frame
+    for a canvas — asking a frame for its `CanvasPosition` is an error, not a
+    zero, so a press on a grouped card used to throw "CanvasPosition is not a
+    valid member of Frame".
+  - `_applyPresence` re-seats the description line against the new base
+    (`description.rebase`) when the subtitle comes or goes: the card shrinks
+    56 → 43 and the line used to stay 13px too low, overlapping the text
+    column or running past the card's bottom edge.
+  - `_copy` refuses an empty link (no clipboard write, no check mark, no
+    callback, a notification that says why) — `link` defaults to `""`, and a
+    card built without the prop used to report a silent success.
+  - `_copy` reads the writer's return value as well as the `pcall`: some hosts
+    spell a failed write as `false`.
+  - `haptic.click()` moved after the clipboard has actually taken the link, so
+    a failed tap no longer feels like a hit.
+  - The confirm timer checks the card is still in a live tree before it
+    resets, so a hold ends with the tab its card belonged to instead of
+    running two seconds against a destroyed glyph.
+  - `_setShown(true)` puts a revealed card back on the copy glyph, closing the
+    one path no hide covered: a programmatic `Copy()` on a card nothing was
+    looking at.
+  - `_minWidth` measures the compact row that actually renders (row padding,
+    icon slot, gaps, copy target) instead of hard-coded stand-ins 8px short —
+    `group:_wrapChild` freezes a wrapped row at exactly this width, so an
+    under-measure clipped the row's own contents.
+  - The warn-once flag is module scope, not per card: ten link cards in a
+    clipboard-less host log one warning, not ten.
+  - `getfenv` is looked up inside a `pcall`, so a sandbox that ships a throwing
+    one answers the tap instead of erroring out of it.
+  - `checkCandidates` runs deeper, so a pack carrying `copy` but no `check`
+    still gives a successful copy its feedback.
+- **`elements/description.luau`** — the base height rides on `_descriptionBase`
+  rather than `_baseHeight`, a name no element owns as a method.
+- **`scripts/link_element_test.luau`** — L11 rewritten for the new contract (a
+  mid-press pan never moves the page, a quiet press writes nothing, a
+  swallowed release still ends the hold), plus new sections: L12 a card with a
+  description builds and its line follows every base change, L13 an empty link
+  copies nothing, L14 a press inside a Group, L15 a clipboard that fails by
+  return value and a throwing `getfenv`, L16 the row's measured width, L17 a
+  hold ends with its tab.
+- **Docs** — `USAGE.md` (links row: the empty-link answer, and the press that
+  never scrolls the page).
+- **`version-1.luau` / `version-1.luau.sig` / `loader.luau`** — bundle
+  regenerated and re-signed (dev-key path), loader pinned key synced.
+
 ## 2026-09-23 — Link copy taps no longer bounce the page
 
 Tapping a Link card's copy control could scroll the tab page down and snap

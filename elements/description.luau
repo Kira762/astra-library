@@ -116,12 +116,19 @@ end
 Elements whose card changes shape (the slider's wide/narrow/minimal
 layouts) re-seat the line against the base region they just wrote, so the
 line stays in the band under the controls in every mode.
+
+The base rides on `_descriptionBase`, never on `_baseHeight`: this module
+stores it on the element, and an element is free to own a `_baseHeight`
+method of its own — the Link card does. Sharing the name meant `attach`
+overwrote that method with a number, so the card's very next
+`self:_baseHeight()` died with "attempt to call a number value" on any
+Link built with a description.
 ]]
 function description.rebase(self, base: number)
     if not self.descriptionLabel then
         return
     end
-    self._baseHeight = base
+    self._descriptionBase = base
     self.descriptionLabel.Position = UDim2.fromOffset(insetX, base - topGap)
 end
 
@@ -152,13 +159,13 @@ function description.attach(self)
         return
     end
 
-    self._baseHeight = self.main.Size.Y.Offset
+    self._descriptionBase = self.main.Size.Y.Offset
     self._descriptionExtra = 0
 
     self.descriptionLabel = self.window:Create("TextLabel", {
         Name = "Description",
         Text = locale.t(self.description),
-        Position = UDim2.fromOffset(insetX, self._baseHeight - topGap),
+        Position = UDim2.fromOffset(insetX, self._descriptionBase - topGap),
         Size = UDim2.new(1, -insetX * 2, 0, lineHeight),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,

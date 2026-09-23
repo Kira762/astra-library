@@ -1,5 +1,48 @@
 # Changelog
 
+## 2026-09-23 — Signed loader channel: Ed25519-verified bundle delivery with silent fail-closed stubs
+
+The delivery path gained a defensive verification layer. `loader.luau` is now
+the official one-liner: it fetches `version-1.luau` and the detached
+`version-1.luau.sig`, checks `SHA-256(bundle)` inside an Ed25519-signed record
+`ASTRA-BUNDLE-V1|<version>|<digest>`, and passes the exact signed bytes to
+`loadstring` unchanged (LineOffsets error mapping preserved). Every failure
+mode — tampered bundle, corrupted/missing signature, wrong pinned public key,
+stale expected version, hostile network, or an in-bundle canary trip — ends in
+the same quiet no-op stub: no "TAMPER DETECTED", no printed errors, and chains
+like `Astra:CreateWindow({...}):CreateTab(...)` or `Astra.Settings.readPersisted`
+stay silent because the stub returns itself for every index and call.
+
+- **`loader.luau`** — pure SHA-256/SHA-512 (bit32 only, no native crypto) and a
+  pure-Lua Ed25519 verifier (RFC 8032; ~0.1s on executor-class hardware),
+  SHA-256 published vectors + RFC 8032 test vectors + a Node differential
+  check all green. Config pins `EXPECTED_BUNDLE_VERSION` and `PUBLIC_KEY`
+  (kept in sync by `scripts/sign_bundle.js`); official mode is strict
+  signature-only — the labeled degraded second-origin pin mode exists behind
+  an explicit `VERIFICATION_MODE = "pin"` edit and never triggers as a
+  fallback.
+- **`scripts/sign_bundle.js`** — signs/verifies the digest record; private key
+  comes from the `SIGNING_KEY` Actions secret in CI, or an auto-created
+  gitignored `scripts/dev_signing_key.pem` locally. Contributors never need
+  the production key. Writes `version-1.luau.sig` (128 hex chars).
+- **Bundle canaries (inside the signed bytes)** — environment-fingerprint
+  snapshot around module execution, closure-count guard, and a decoy entry in
+  the shared environment that silently flags touches; each trip returns the
+  same quiet stub. No per-frame cost, no loud names in the runtime path.
+- **`scripts/generate_bundle.js`** — emits the canaries and a shared wrapper
+  builder so the LineOffsets scan can never drift from emitted wrappers.
+- **Tests** — `scripts/loader_crypto_test.sh` (crypto vectors) and
+  `scripts/loader_integrity_test.sh` (11 cases: valid → real API; tamper /
+  bad sig / missing sig / wrong key / stale version / fetch error / canary
+  trip / pin mismatch → stub; honest pin → real API), both discovered by
+  `scripts/check_all.sh` and run in CI on the pre-obfuscation artifact.
+- **`.github/workflows/sign-bundle.yml`** — verify on every relevant PR/push;
+  re-sign and commit only on `main` pushes **and** only when the `SIGNING_KEY`
+  secret exists.
+- **Scope note (README)** — raw-bundle one-liner still works (canaries only),
+  Rojo/Studio unchanged, and loader-replacement/hooking/server-enforcement are
+  out of scope: *integrity ≠ authorization*.
+
 ## 2026-09-23 — Key gate icons render: the card routes images through the shared pipeline
 
 The key gate's icons — the Sirius header mark, the close button, and every

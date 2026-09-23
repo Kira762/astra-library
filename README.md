@@ -10,8 +10,10 @@ startup.
 
 ## Use the library
 
+The official one-liner loads through the verifying loader:
+
 ```lua
-local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"))()
+local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/loader.luau"))()
 
 local window = Astra:CreateWindow({ name = "Example Hub", subtitle = "v1.0" })
 local tab = window:CreateTab({ name = "Home", icon = "house" })
@@ -28,8 +30,42 @@ tab:Select()
 Two things have to be right: the runtime must provide `loadstring` (executors do,
 plain Studio does not) and `HttpService` requests must be enabled. In Studio/Rojo
 the same library is a ModuleScript — `require(game:GetService("ReplicatedStorage").Astra)`.
-Always load the published bundle `version-1.luau`; the modular folders are its
-source, not a runtime entry point.
+Always load the published artifacts from the repository root; the modular folders
+are the bundle's source, not a runtime entry point.
+
+## Integrity and verification
+
+The loader fetches `version-1.luau` plus its detached signature
+`version-1.luau.sig`, checks `SHA-256(bundle)` inside an Ed25519-signed record
+`ASTRA-BUNDLE-V1|<version>|<digest>`, and hands the **exact verified bytes** to
+`loadstring` (no mutation, error line mapping intact). Any failure — tampered
+bundle, corrupted or missing signature, pinned public key mismatch, stale
+version, network error, or an in-bundle canary tripping — resolves to a silent
+no-op stub: no error, no print, and `Astra:CreateWindow(...)` keeps chaining
+without raising. The public key and expected version are pinned inside
+`loader.luau`; CI re-signs with the `SIGNING_KEY` Actions secret (contributor
+machines only ever need the gitignored throwaway dev key).
+
+Current release checksum:
+
+```
+sha256(version-1.luau) = 74888062f11ab2aa366177bed37aed44688d73dd6fca215137fc1d210ce4f59b
+```
+
+(`node scripts/sign_bundle.js --verify` prints the live digest whenever the
+bundle changes.)
+
+### Backward compatibility and scope
+
+| Path | Behaviour |
+|---|---|
+| Old one-liner loading `version-1.luau` directly | Still works. No signature check happens at this path, but the signed bundle's own canaries (environment fingerprint, closure count, decoy) still run inside it. |
+| Rojo / Studio `require(ReplicatedStorage.Astra)` | Unaffected — the loader and signature files are not part of the Rojo tree. |
+| Replacing `loader.luau`, hooking `loadstring`/`HttpGet`, server-side enforcement | Out of scope **on purpose**. Verification proves the bundle is the one this repository published — *integrity ≠ authorization*. It does not authenticate the client, the executor, the end user, or any server; treat it as tamper evidence for the delivery channel, not as a trust root. |
+
+The loader is strict-mode only: there is no automatic fallback to a weaker
+check. A second-origin pin mode exists as an explicitly configured, labeled
+degraded option (`VERIFICATION_MODE = "pin"`) and is never selected silently.
 
 ## What is in the box
 

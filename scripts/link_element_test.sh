@@ -1,7 +1,8 @@
 #!/bin/sh
 # Runtime test for the Link element (CreateLink): the hidden URL, the copy
 # control's tap cycle, its per-card state inside a Group and a Collapsible
-# Group, the setters, locking, the compact row, and the no-clipboard path.
+# Group, the setters, locking, the compact row, the no-clipboard path, and
+# the press that pins the tab page's canvas across the tap.
 #
 # Assembles: mini Roblox stubs + bundle (wrapped in a function to keep
 # `local` scoping) + assertions, writes it to a temp file, and runs it under

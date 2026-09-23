@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-09-23 — Link copy taps no longer bounce the page
+
+Tapping a Link card's copy control could scroll the tab page down and snap
+it back on release. Nothing in the card's own copy path moved anything — no
+size tween, no canvas write, no drag hook — the movement came from the press
+itself: the control was `Selectable = true` (every TextButton's default), so
+engine and executor input paths could pull it into selection-into-view, and
+an input bridge that does not mark the press as game-processed lets the
+tab's `AutomaticCanvasSize` ScrollingFrame take the press as the start of a
+pan, which springs back when the press ends.
+
+- **`elements/link.luau`** — the copy control is built `Selectable = false`
+  (selection can never scroll the page to it; the card title carries that
+  role), and the press is pinned to the page: the canvas position is
+  snapshotted when the press begins (MouseButton1 or Touch) and written back
+  when it ends, so release restores exactly what the press found. No
+  movement writes nothing, and a press-less click has no snapshot to
+  restore, so it can never corrupt a scroll the user made in between.
+- **`scripts/link_element_test.luau`** — new L11: a 120px mid-press pan is
+  restored on release with exactly one canvas write, a press that never
+  moves writes nothing, a press-less click never touches the canvas, a touch
+  pins the same way back to where the touch found the page, and the control
+  reports `Selectable == false`.
+- **`version-1.luau` / `version-1.luau.sig` / `loader.luau`** — bundle
+  regenerated and re-signed (dev-key path; the integrity suite caught the
+  stale signature on the way, as designed), loader pinned key synced.
+
 ## 2026-09-23 — Signed loader channel: Ed25519-verified bundle delivery with silent fail-closed stubs
 
 The delivery path gained a defensive verification layer. `loader.luau` is now

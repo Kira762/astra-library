@@ -7,8 +7,6 @@ local constants = script.Parent.Parent.utilities
 local ModePicker = require(constants.Parent.core.state)
 local locale = require(constants.locale)
 local haptic = require(constants.HapticEngine)
-local description = require(script.Parent.description)
-
 --[[
 The Mode Picker rides the shared motion vocabulary: the knob travels on
 `normal` (the same beat as a slider value change), a drag chase would need
@@ -79,7 +77,6 @@ local function normalizeModes(raw)
 					label = tostring(mode.label or mode.Label or ("Mode " .. tostring(key))),
 					type = mode.type or mode.Type or "dot",
 					dot_position = tonumber(mode.dot_position or mode.DotPosition or key) or #list + 1,
-					description = mode.description or mode.Description,
 					onEnable = mode.onEnable or mode.OnEnable,
 					optional = mode.optional or mode.Optional or false,
 					icon_color = mode.icon_color or mode.IconColor,
@@ -116,7 +113,6 @@ function state.new(tab, element)
 		window = tab.window,
 		titleText = tostring(element.title or element.Title or "Mode Picker"),
 		subtitle = tostring(element.subtitle or element.Subtitle or ""),
-		staticDescription = element.description or element.Description,
 		forgetState = element.forgetState or element.ForgetState or tab.forgetState,
 		flag = element.flag
 			or element.Flag
@@ -147,7 +143,6 @@ function state.new(tab, element)
 
 	self.name = self.titleText
 	self.mode = self.defaultMode
-	self.description = self.staticDescription or self.modes[self.mode].description or ""
 
 	self.window:_registerControl(self)
 	self:_build()
@@ -169,14 +164,6 @@ function state:_build()
 
 	self.stroke = window:StyleElementBody(self.main)
 	self.hoverOverlay = window:CreateHoverOverlay(self.main)
-
-	--[[
-	The description line grows the card before anything else is placed,
-	so the header and track centre in the base region exactly like every
-	other element card. A picker without a description of its own shows
-	the selected mode's line and rewraps as modes change.
-	]]
-	description.attach(self)
 
 	-- Header: display-only icon, centred title/subtitle stack, reset button.
 	self.iconLabel = window:Create("ImageLabel", {
@@ -545,9 +532,8 @@ end
 
 --[[
 One path for every mode change (drag, tap, Set, Reset): knob and fill
-travel on the shared beat, dots repaint, the icon/title/fill colours
-drift if the mode carries an icon colour, and the description line
-rewraps to the new mode's line.
+travel on the shared beat, dots repaint, and the icon/title/fill colours
+drift if the mode carries an icon colour.
 ]]
 function state:_applyMode(index, instant)
 	local fraction = self:_stopFraction(index)
@@ -561,10 +547,6 @@ function state:_applyMode(index, instant)
 	self:_renderFill(instant)
 	self:_paintDots()
 	self:_applyColors(instant)
-
-	if self.descriptionLabel and not self.staticDescription then
-		self.descriptionLabel.Text = self.modes[index].description or ""
-	end
 end
 
 --[[
@@ -723,7 +705,7 @@ end
 function state:_setShown(show, animate)
 	local w = self.window
 	--[[
-	stroke, title, main, iconLabel and descriptionLabel are revealed by
+	stroke, title, main and iconLabel are revealed by
 	_revealCommon/_hideCommon; this list carries only the picker's own
 	surfaces.
 	]]

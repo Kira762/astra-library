@@ -11,7 +11,6 @@ local name = require(constants.moveable)
 local flag = require(constants.lockable)
 local range = require(constants.locale)
 local value = require(constants.HapticEngine)
-local description = require(script.Parent.description)
 
 local function increment(suffix)
     local minimal = 0
@@ -69,7 +68,6 @@ function state.new(ownerTab, a31)
         window = ownerTab.window,
         name = a31.name or a31.Name or "Slider",
         icon = ownerTab.window:ResolveIcon(a31.icon or a31.Icon),
-        description = a31.description or a31.Description,
         forgetState = a31.forgetState or a31.ForgetState or ownerTab.forgetState,
 
         range = a31.range or a31.Range or { 0, 100 },
@@ -123,11 +121,6 @@ function state.new(ownerTab, a31)
     }, { BackgroundTransparency = "ElementTransparency" })
 
     self.stroke = self.window:StyleElementBody(self.main)
-    --[[
-    The card grows for a description before the label row and the track
-    are built, so both seat themselves against the grown region below.
-    ]]
-    description.attach(self)
     self._lastValue = self.value
 
     if not self.minimal then
@@ -277,10 +270,9 @@ function state.new(ownerTab, a31)
     self:_applyLayout()
 
     if self.minimal then
-        self.main.Size = UDim2.new(1, -20, 0, description.height(self, 41))
-        description.rebase(self, 41)
+        self.main.Size = UDim2.new(1, -20, 0, 41)
         self.track.AnchorPoint = Vector2.new(0.5, 0.5)
-        self.track.Position = UDim2.new(0.5, 0, description.center(self, 41))
+        self.track.Position = UDim2.new(0.5, 0, 0.5, 0)
         self.track.Size = UDim2.new(1, -30, 0, 14)
     end
 
@@ -292,7 +284,7 @@ end
 function state:_buildLabel()
     self.container = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 20, description.center(self, 65)),
+        Position = UDim2.new(0, 20, 0.5, 0),
         Size = UDim2.new(1, -255, 0, 33),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -386,13 +378,8 @@ function state:_buildLabel()
 end
 
 function state:_setMainHeight(a34)
-    --[[
-    `a34` is the base region every layout writes (65 wide, 70 narrow); the
-    description's measured extra rides along and the line is re-seated
-    against the new base.
-    ]]
-    local height = description.height(self, a34)
-    description.rebase(self, a34)
+    -- `a34` is the height every layout writes (65 wide, 70 narrow).
+    local height = a34
     if self._widthManaged then
         self.main.Size = UDim2.new(self.main.Size.X.Scale, self.main.Size.X.Offset, 0, height)
     else
@@ -423,13 +410,13 @@ function state:_applyLayout()
         self.valueHost.Size = UDim2.new(0, 0, 0, 16)
 
         self.track.AnchorPoint = Vector2.new(0.5, 1)
-        self.track.Position = UDim2.new(0.5, 0, 1, -14 - (self._descriptionExtra or 0))
+        self.track.Position = UDim2.new(0.5, 0, 1, -14)
         self.track.Size = UDim2.new(1, -30, 0, 14)
     else
         self:_setMainHeight(65)
 
         self.container.AnchorPoint = Vector2.new(0, 0.5)
-        self.container.Position = UDim2.new(0, 20, description.center(self, 65))
+        self.container.Position = UDim2.new(0, 20, 0.5, 0)
         self.container.Size = UDim2.new(1, -255, 0, 33)
         self.containerLayout.FillDirection = Enum.FillDirection.Vertical
         self.titleFlex.FlexMode = Enum.UIFlexMode.None
@@ -437,7 +424,7 @@ function state:_applyLayout()
         self.valueHost.Size = UDim2.new(1, 0, 0, 16)
 
         self.track.AnchorPoint = Vector2.new(1, 0.5)
-        self.track.Position = UDim2.new(1, -15, description.center(self, 65))
+        self.track.Position = UDim2.new(1, -15, 0.5, 0)
         self.track.Size = UDim2.new(0, 222, 0, 14)
     end
 

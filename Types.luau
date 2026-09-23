@@ -192,7 +192,6 @@ export type ModeDefinition = {
     label: string?,
     type: string?,           -- "default" | "toggle" | "dot" (descriptive)
     dot_position: number?,   -- normalized to 1..n by dot order
-    description: string?,
     onEnable: ((index: number, label: string) -> ())?,
     optional: boolean?,      -- only optional modes can be removed at runtime
     icon_color: (Color3 | { r: number?, g: number?, b: number?, a: number? })?,
@@ -204,7 +203,6 @@ export type ModePickerProps = {
 
     title: string?,
     subtitle: string?,
-    description: string?,    -- static line; omitted = shows the selected mode's line
 
     mode: number?,           -- initial mode, default 1
     min_modes: number?,      -- clamped to a floor of 3
@@ -212,7 +210,7 @@ export type ModePickerProps = {
     allow_mode_add_remove: boolean?,
 
     title_color_same_as_left_icon: boolean?,
-    -- subtitle/description always wear the default text colors; no props exist.
+    -- the subtitle always wears the default text colors; no props exist.
     ui_color: string?,               -- "inherit" (default); anything else is ignored
     slider_shape: string?,           -- "toggle_knob" (default, the only shape)
     accent: string?,                 -- "theme" (default) | "left_icon"
@@ -254,7 +252,6 @@ export type LinkProps = {
     subtitle: string?,
     link: string?,
     icon: (string | number)?,
-    description: string?,
     callback: ((link: string) -> ())?,
 }
 
@@ -285,7 +282,6 @@ export type AboutCardProps = {
     subtitle: string?,
     icon: (string | number)?,
     rows: { AboutCardRow }?,
-    description: string?,
     action: AboutCardAction?,
 }
 
@@ -437,7 +433,6 @@ export type AboutCard = Moveable & Lockable & {
     SetSubtitle: (self: AboutCard, subtitle: string?) -> (),
     SetIcon: (self: AboutCard, icon: (string | number)?) -> (),
     SetRow: (self: AboutCard, index: number, row: AboutCardRow) -> (),
-    SetDescription: (self: AboutCard, text: string?) -> (),
 }
 
 export type Popup = {

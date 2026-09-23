@@ -122,15 +122,10 @@ local tab = window:CreateTab({ name = "Controls" })
 local more = window:CreateTab({ name = "More" })
 
 local elements = {
-	{ "toggle", "Notifications", tab:CreateToggle({ name = "Notifications", description = "Ping me.", value = true }) },
-	{ "button", "Run routine", tab:CreateButton({ name = "Run routine", description = "Starts the routine.", callback = function() end }) },
-	{ "slider", "Volume", tab:CreateSlider({ name = "Volume", range = { 0, 100 }, value = 40, description = "Master level." }) },
-	{ "minimal", "Sensitivity", tab:CreateSlider({ name = "Sensitivity", range = { 0, 100 }, value = 40, minimal = true, description = "Narrow cards keep the line." }) },
-	{ "dropdown", "Quality", tab:CreateDropdown({ name = "Quality", description = "Applies instantly.", options = { "Low", "High" }, value = "Low" }) },
-	{ "input", "Display name", tab:CreateInput({ name = "Display name", description = "Shown to friends.", placeholder = "Enter a name" }) },
 	{ "stat", "Frames", tab:CreateStat({ name = "Frames", value = 240, description = "Per second." }) },
+	{ "stat", "Wrapped", tab:CreateStat({ name = "Wrapped", value = 240, description = "A longer helper line that runs long enough to wrap onto a second line inside the card." }) },
 	{ "toggle", "No description", tab:CreateToggle({ name = "No description" }) },
-	{ "input", "Wrapped hint", more:CreateInput({ name = "Wrapped hint", description = "Type one letter. Extra characters are removed automatically, which makes this line wrap.", placeholder = "Enter a name" }) },
+	{ "toggle", "Ignored description", tab:CreateToggle({ name = "Ignored description", description = "Ping me.", value = true }) },
 	{ "group", "Player Preferences", more:CreateCollapsibleGroup({ name = "Player Preferences", description = "Click to expand. Closing keeps the values active.", elements = {} }) },
 	{
 		"grouped",

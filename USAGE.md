@@ -246,8 +246,13 @@ Every element supports `Moveable` (`:MoveTo`, `:MoveToTop`, `:MoveToBottom`, `:M
 Functional info (`circle-alert`) badges have been permanently removed from
 `Button`, `Toggle`, `Slider`, `Dropdown`, and `Input`. Legacy `info` / `infoIcon`
 props are ignored and `SetInfo` is a compatibility no-op, so old hosts do not
-throw or recreate the badges. Use `description` for an inline helper line, or
-`window:ShowTooltip(anchor, text)` for an explicitly host-managed tooltip.
+throw or recreate the badges. Use `window:ShowTooltip(anchor, text)` for an
+explicitly host-managed tooltip.
+
+The in-card `description` line is a Stat recipe now (the Collapsible Group
+header carries its own variant of it). `Button`, `Toggle`, `Slider`, `Dropdown`,
+`Input`, `ModePicker`, `AboutCard`, and `Link` no longer accept the prop: a
+`description` passed to one of them is ignored — no line, no card growth.
 
 ### Button
 ```lua
@@ -296,8 +301,8 @@ local m = tab:CreateModePicker({
     allow_mode_add_remove = true,
     reset_on_right_icon_press = true,       -- reset returns to Mode 1
     modes = {
-        { label = "Normal", type = "default", description = "Default mode." },
-        { label = "Fast",    type = "dot",    description = "Second mode." },
+        { label = "Normal", type = "default" },
+        { label = "Fast",    type = "dot"    },
         { label = "Max",     type = "dot",    optional = true,
           icon_color = Color3.fromRGB(236, 72, 153),
           onEnable = function(index, label) end },
@@ -312,9 +317,9 @@ m:AddMode({ label = "Extra", optional = true })   -- capped at max_modes (5)
 m:RemoveMode(4)          -- optional modes only, floored at min_modes (3)
 m:SetLeftIconColor(Color3.fromRGB(34, 197, 94))
 ```
-The card's description line shows `description` when you pass one, and
-otherwise follows the selected mode's own `description`. Subtitle and
-description always wear the default text colors — no color props exist.
+The picker renders no description line — a `description` passed on the
+picker or on a mode is ignored. The subtitle always wears the default text
+colors — no color props exist.
 
 ### Dropdown
 ```lua
@@ -333,7 +338,6 @@ d:Remove("A")
 ```lua
 local shortcut = tab:CreateKeybind({
     name = "Shortcut", value = "K", flag = "shortcut",
-    description = "Click the keycap, then press one letter.",
     callback = function(letter) print(letter) end, -- uppercase string
 })
 shortcut:Set("p")                 -- stores P and calls back on a change
@@ -354,7 +358,7 @@ rebinding the menu's current letter does not accidentally hide the window.
 
 Available on tabs, column Groups, and declarative Collapsible Groups using
 `type = "Keybind"` (not compact rows). Supports flags, `forgetState`, move/lock
-methods, a leading `icon`, and descriptions. Values and callbacks use uppercase
+methods, and a leading `icon`. Values and callbacks use uppercase
 strings for config persistence. The control records a shortcut; hosts decide what
 to do with it. Built-in Settings → Controls uses it to set the menu-toggle KeyCode.
 
@@ -436,8 +440,6 @@ local card = tab:CreateAboutCard({
         { icon = "package", label = "Build",   value = "2026.09.12" },
         { icon = "user",    label = "Author",  value = "Astra Team" },
     },
-    description = "Astra is a modern and flexible UI library designed to make "
-        .. "your experience smoother, cleaner, and more customizable.",
     action = {                                       -- optional trailing band
         icon = "file-text",
         name = "View Changelog",
@@ -449,9 +451,9 @@ local card = tab:CreateAboutCard({
 })
 ```
 
-One card with four blocks: a header (icon, title, subtitle), a row of data
-tiles (each a leading icon, a label and a value), a description paragraph, and
-an optional action band that is the card's only tappable surface.
+One card with three blocks: a header (icon, title, subtitle), a row of data
+tiles (each a leading icon, a label and a value), and an optional action band
+that is the card's only tappable surface.
 
 All data tiles share one compact 48px line, split evenly from left to right. The
 standard Version / Build / Author recipe therefore stays three-across instead
@@ -462,14 +464,14 @@ window gradient, so they remain consistent with the rest of the controls. A
 fourth row errors at construction
 (`Astra:CreateAboutCard — at most 3 data rows are supported, got 4`) because the
 action band is the card's trailing row. A row without `icon`, or a card without
-`rows`/`description`/`action`, simply leaves those parts out of the layout.
+`rows`/`action`, simply leaves those parts out of the layout. The card accepts
+no `description`: the prop is ignored.
 
 ```lua
 card:SetTitle("Release notes")        -- header title
 card:SetSubtitle(nil)                 -- drop the second line (header closes to one band)
 card:SetIcon("sparkles")              -- leading mark (nil removes it)
 card:SetRow(1, { icon = "box", label = "Version", value = "1.5.0" })  -- rewrite one row in place
-card:SetDescription("Shorter copy.")  -- paragraph (nil/"" removes it)
 ```
 
 `SetRow` addresses a row the card already has and only touches the fields it is

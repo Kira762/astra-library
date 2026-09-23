@@ -3,18 +3,19 @@
 Runs the real Astra bundle (loaded as global `Astra` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau.
 
-The About card is one container with four blocks: a brand header, a row of
-at most three data tiles, a description paragraph and an optional trailing
-action band. Expected behavior under test:
+The About card is one container with three blocks: a brand header, a row
+of at most three data tiles and an optional trailing action band. Expected
+behavior under test:
   * A1 the header renders the leading icon, the title and the subtitle, and
        the band is as tall as the copy it carries,
   * A2 one, two or three compact tiles always share a single row evenly and
        each carries its badge icon and its own label and value,
-  * A3 the description is one wrapped paragraph,
+  * A3 the card carries no description paragraph any more — the prop is
+       gone,
   * A4 the action band is the card's tap target: it renders its copy, its
        trailing chevron and fires its callback,
   * A5 a fourth data row is refused with an exact message,
-  * A6 the setters rewrite the header, one row and the paragraph in place,
+  * A6 the setters rewrite the header and one row in place,
   * A7 the card rests revealed, disappears with the window and comes back,
        and a theme change re-reads every resting value,
   * A8 a locked card fires nothing.
@@ -65,8 +66,6 @@ local function contains(values, wanted)
 	return false
 end
 
-local description = "Astra is a modern and flexible UI library designed to make your experience smoother, cleaner, and more customizable. Built for developers, by developers."
-
 local window = Astra:CreateWindow({
 	name = "About Test",
 	configuration = { autoSave = false, autoLoad = false },
@@ -89,7 +88,6 @@ local card = tab:CreateAboutCard({
 		{ icon = "package", label = "Build", value = "2026.09.12" },
 		{ icon = "user", label = "Author", value = "Astra Team" },
 	},
-	description = description,
 	action = {
 		icon = "file-text",
 		name = "View Changelog",
@@ -158,7 +156,7 @@ eq(single.rows[1].main.Position.X.Offset, 0, "A2 ... from the left edge")
 eq(single.header.Size.Y.Offset, 26, "A2 a header without a subtitle is the single-line band")
 eq(single.subtitleLabel.Visible, false, "A2 ... and its subtitle slot is off")
 eq(single.actionBand, nil, "A2 a card without an action has no band")
-eq(single.descriptionLabel.Visible, false, "A2 ... and an empty paragraph is out of the layout")
+eq(single.descriptionLabel, nil, "A2 ... and there is no paragraph slot at all")
 
 local pair = tab:CreateAboutCard({
 	name = "Two",
@@ -175,7 +173,7 @@ close(pair.rows[1].main.Size.X.Offset, -4, "A2 each half pays half the 8px gap")
 close(pair.rows[2].main.Position.X.Scale, 0.5, "A2 the second starts after half the band")
 close(pair.rows[2].main.Position.X.Offset, 4, "A2 ... and half the gap")
 
-local noRows = tab:CreateAboutCard({ name = "Bare", description = "Copy only." })
+local noRows = tab:CreateAboutCard({ name = "Bare" })
 TestPump(0.3)
 eq(#noRows.rows, 0, "A2 a card can carry no rows at all")
 eq(noRows.rowsHost.Visible, false, "A2 ... leaving the rows section out of the layout")
@@ -185,12 +183,10 @@ TestPump(0.3)
 eq(iconless.rows[1].badge.Visible, false, "A2 a row without an icon drops the badge")
 eq(iconless.rows[1].textColumn.Size.X.Offset, 0, "A2 ... and hands the whole tile to its text")
 
--- ===== A3: the description ==================================================
+-- ===== A3: no description paragraph =========================================
 
-eq(card.descriptionLabel.Visible, true, "A3 the paragraph is drawn")
-eq(card.descriptionLabel.Text, description, "A3 the copy is the paragraph")
-eq(card.descriptionLabel.TextWrapped, true, "A3 ... and it wraps")
-eq(card.descriptionLabel.AutomaticSize, Enum.AutomaticSize.Y, "A3 ... reserving its own wrapped height")
+eq(card.descriptionLabel, nil, "A3 the card builds no description paragraph")
+expect(card.SetDescription == nil, "A3 the card exposes no SetDescription any more")
 
 -- ===== A4: the action band ==================================================
 
@@ -277,15 +273,6 @@ local okRow = pcall(function()
 end)
 expect(not okRow, "A6 SetRow refuses an index the card does not have")
 
-card:SetDescription("Shorter copy.")
-TestPump(0.2)
-eq(card.descriptionLabel.Text, "Shorter copy.", "A6 SetDescription rewrites the paragraph")
-eq(card.descriptionLabel.Visible, true, "A6 ... keeping it drawn")
-
-card:SetDescription(nil)
-TestPump(0.2)
-eq(card.descriptionLabel.Visible, false, "A6 SetDescription(nil) takes it out of the layout")
-
 --[[
 The rendered copy is host copy: every string the props carried is on the
 card, and nothing else was invented.
@@ -310,7 +297,6 @@ eq(card.rows[1].badge.BackgroundTransparency, theme.ElementTransparency, "A7 the
 eq(card.rows[1].valueLabel.TextTransparency, 0, "A7 values rest solid")
 eq(card.rows[1].labelLabel.TextTransparency, 0.45, "A7 labels rest muted")
 eq(card.subtitleLabel.TextTransparency, 0.45, "A7 so does the header subtitle")
-eq(card.descriptionLabel.TextTransparency, 0.45, "A7 and the paragraph")
 eq(card.actionChevron.ImageTransparency, 0.4, "A7 the chevron rests on the baked transparency")
 eq(card.rows[1].badgeIcon.ImageTransparency, 0, "A7 the badge icon is fully drawn")
 
@@ -341,10 +327,6 @@ eq(card.rows[1].badge.BackgroundColor3, overrideSurface, "A7 the badge follows t
 
 -- ===== A8: the lock =========================================================
 
-card:SetDescription("Locked copy goes here.")
-TestPump(0.2)
-eq(card.descriptionLabel.Visible, true, "A8 the paragraph is back before the lock")
-
 card:Lock()
 TestPump(0.2)
 expect(card:IsLocked(), "A8 Lock marks the card")
@@ -355,16 +337,9 @@ card.actionButton.MouseButton1Click:Fire()
 TestPump(0.2)
 eq(taps, before, "A8 a locked card fires nothing")
 
---[[
-While it is locked the card's paragraph is the shared lock message; the
-description it had comes back on unlock.
-]]
-eq(card.descriptionLabel.Text, "This element is locked.", "A8 the paragraph carries the lock message")
-
 card:Unlock()
 TestPump(0.3)
 expect(not card:IsLocked(), "A8 Unlock releases the card")
-eq(card.descriptionLabel.Text, "Locked copy goes here.", "A8 ... and the paragraph comes back")
 
 card.actionButton.MouseButton1Click:Fire()
 TestPump(0.2)

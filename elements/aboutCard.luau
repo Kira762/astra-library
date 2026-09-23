@@ -1,7 +1,6 @@
 --[[
 CreateAboutCard: one card that carries an About page — a brand header, a
-row of data tiles, a description paragraph and an optional trailing
-action band.
+row of data tiles and an optional trailing action band.
 
 The recipe is fixed and every string in it is host copy:
 
@@ -10,7 +9,6 @@ The recipe is fixed and every string in it is host copy:
     label above its value. Every tile shares one line evenly: the three-row
     About recipe stays three-across instead of leaving its last tile alone
     on a second line,
-  * description — one wrapped paragraph under the tiles,
   * action (optional) — a tappable band carrying an icon, a label, a
     subtitle and the card's trailing chevron. It is the card's trailing
     row, which is why the data rows stop at three: a fourth would be the
@@ -68,7 +66,6 @@ local tileValueSize = 14
 local tileValueHeight = 17
 local tileLineGap = 1
 local tileTextHeight = tileLabelHeight + tileLineGap + tileValueHeight
-local descriptionSize = 14
 local actionHeight = 56
 local actionHeightSingle = 41
 local actionPad = 14
@@ -180,7 +177,6 @@ function state.new(tab, props)
         name = textOrNil(read(props, "name", "Name")) or "About",
         subtitle = textOrNil(read(props, "subtitle", "Subtitle")),
         icon = window:ResolveIcon(read(props, "icon", "Icon")),
-        description = textOrNil(read(props, "description", "Description")),
         rows = {},
         --[[
         Every painted part of the card in one list (see `restValue`), so a
@@ -247,7 +243,6 @@ function state:_build(rows, action)
 
     self:_buildHeader()
     self:_buildRows(rows)
-    self:_buildDescription()
     if type(action) == "table" then
         self:_buildAction(action)
     end
@@ -553,37 +548,6 @@ function state:_layoutRows()
     end
 end
 
---[[
-The paragraph is the card's `descriptionLabel`: its resting transparency,
-its reveal and hide, and the lock message the window swaps in while the
-card is locked are the shared ones every element's helper line uses
-(components/window/elements.luau), so the card joins that recipe instead of
-carrying a second, private one.
-]]
-function state:_buildDescription()
-    local window = self.window
-
-    self.descriptionLabel = window:Create("TextLabel", {
-        Name = "Description",
-        Text = locale.t(self.description or ""),
-        Size = UDim2.new(1, 0, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        TextSize = descriptionSize,
-        TextWrapped = true,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextYAlignment = Enum.TextYAlignment.Top,
-        LayoutOrder = 3,
-        Visible = self.description ~= nil,
-        TextTransparency = 1,
-        Parent = self.main,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
-    if self.description then
-        window:_bindLocale(self.descriptionLabel, "Text", self.description)
-    end
-end
-
 function state:_buildAction(action)
     local window = self.window
 
@@ -850,16 +814,6 @@ function state:SetRow(index, row)
         self:_layoutRows()
         self:_setShown(self._shown, false)
     end
-end
-
-function state:SetDescription(text)
-    self.description = textOrNil(text)
-    if self.description then
-        self.window:_bindLocale(self.descriptionLabel, "Text", self.description)
-    else
-        self.descriptionLabel.Text = ""
-    end
-    self.descriptionLabel.Visible = self.description ~= nil
 end
 
 moveable(state)

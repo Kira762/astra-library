@@ -21,12 +21,14 @@ live in `MODULES.md` (elements section) and `USAGE.md` (Mode Picker section).
 
 ## Config contract (as approved)
 
-`left_icon`, `right_icon`, `title`, `subtitle`, `description`, `mode`,
+`left_icon`, `right_icon`, `title`, `subtitle`, `mode`,
 `min_modes` (floor 3), `max_modes` (ceiling 5), `allow_mode_add_remove`,
 `title_color_same_as_left_icon`, `left_icon_color = { r, g, b, a }`,
 `reset_on_right_icon_press`, `modes[i] = { label, type, dot_position,
-description, onEnable, optional, icon_color }`, `onReset`.
-Subtitle and description wear default text colors by design — no color props.
+onEnable, optional, icon_color }`, `onReset`.
+Subtitle wears the default text colors by design — no color props. The picker
+renders no description line; a `description` on the picker or a mode is
+ignored.
 
 ## Deferred ideas (not designed, no code)
 

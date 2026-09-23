@@ -31,10 +31,12 @@ Expected behavior under test:
   * L10 the trailing glyph is drawn while the card is and hidden when it is
        not — the card owns that fade, so nothing else can be relied on for it,
   * L11 a press on the copy control cannot move the page: a pan taken under
-       the press is undone where it lands, a quiet press writes nothing, and
-       a release the control never sees still ends the hold,
-  * L12 a card with a description builds, and the description line is
-       re-seated against the base every time the card's height changes,
+       the press is undone where it lands, momentum writes after the release
+       are reverted for a short settle window (ended early by a new press or
+       a wheel step), a quiet press writes nothing, and a release the control
+       never sees still ends the hold,
+  * L12 a passed `description` prop is inert: the card keeps its base
+       heights and recentres its rows every time the subtitle changes them,
   * L13 a card with no link copies nothing and keeps the copy glyph,
   * L14 a press on a card inside a Group pins the scroll surface above it
        instead of asking the group's own frame for a canvas,
@@ -441,6 +443,8 @@ pin.copyButton.InputEnded:Fire({ UserInputType = Enum.UserInputType.MouseButton1
 TestPump(0.1)
 eq(canvasWrites, 0, "L11 releasing a press that never moved writes nothing")
 eq(page.CanvasPosition.Y, 0, "L11 ... and the page is where the press found it")
+-- The release opened a settle window around the restored spot; let it run out.
+TestPump(2)
 
 -- A press that never moves writes nothing: a scrolled page stays put.
 page.CanvasPosition = Vector2.new(0, 55)
@@ -470,6 +474,74 @@ TestPump(0.1)
 eq(page.CanvasPosition.Y, 55, "L11 ... back to where the touch found it")
 
 --[[
+The release is not the end of it: a pan the bridge started under the press
+keeps arriving after the finger lifts, one momentum write per frame, and a
+single restore on release would be overwritten by the very next one. The
+settle window opened by the release keeps writing the restored spot back.
+]]
+pin.copyButton.InputBegan:Fire({ UserInputType = Enum.UserInputType.Touch })
+page.CanvasPosition = Vector2.new(0, 90)
+TestPump(0.1)
+eq(page.CanvasPosition.Y, 55, "L11 the momentum case starts pinned like any press")
+pin.copyButton.InputEnded:Fire({ UserInputType = Enum.UserInputType.Touch })
+page.CanvasPosition = Vector2.new(0, 150)
+TestPump(0.1)
+eq(page.CanvasPosition.Y, 55, "L11 momentum right after the release is reverted")
+TestPump(2)
+page.CanvasPosition = Vector2.new(0, 130)
+TestPump(0.1)
+eq(page.CanvasPosition.Y, 130, "L11 ... but the settle window expires and scrolling is the user's again")
+page.CanvasPosition = Vector2.new(0, 55)
+TestPump(0.1)
+
+--[[
+A quiet press — one the page never reacted to — opens no settle window:
+the scroll is free the moment the finger lifts.
+]]
+pin.copyButton.InputBegan:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
+TestPump(0.1)
+pin.copyButton.InputEnded:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
+TestPump(0.1)
+page.CanvasPosition = Vector2.new(0, 200)
+TestPump(0.1)
+eq(page.CanvasPosition.Y, 200, "L11 a quiet press opens no settle window")
+page.CanvasPosition = Vector2.new(0, 55)
+TestPump(0.1)
+
+--[[
+The settle window also ends the moment the user does anything deliberate.
+A mouse-wheel step is one such input.
+]]
+pin.copyButton.InputBegan:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
+page.CanvasPosition = Vector2.new(0, 210)
+TestPump(0.1)
+eq(page.CanvasPosition.Y, 55, "L11 the wheel case starts pinned")
+pin.copyButton.InputEnded:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
+TestPump(0.1)
+game:GetService("UserInputService").InputChanged:Fire({ UserInputType = Enum.UserInputType.MouseWheel }, false)
+TestPump(0.1)
+page.CanvasPosition = Vector2.new(0, 260)
+TestPump(0.1)
+eq(page.CanvasPosition.Y, 260, "L11 a mouse-wheel step hands the page back at once")
+page.CanvasPosition = Vector2.new(0, 55)
+TestPump(0.1)
+
+-- ...and so is a new press or touch anywhere.
+pin.copyButton.InputBegan:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
+page.CanvasPosition = Vector2.new(0, 240)
+TestPump(0.1)
+eq(page.CanvasPosition.Y, 55, "L11 the new-press case starts pinned")
+pin.copyButton.InputEnded:Fire({ UserInputType = Enum.UserInputType.MouseButton1 })
+TestPump(0.1)
+game:GetService("UserInputService").InputBegan:Fire({ UserInputType = Enum.UserInputType.MouseButton1 }, false)
+TestPump(0.1)
+page.CanvasPosition = Vector2.new(0, 300)
+TestPump(0.1)
+eq(page.CanvasPosition.Y, 300, "L11 a new press ends the settle window")
+page.CanvasPosition = Vector2.new(0, 55)
+TestPump(0.1)
+
+--[[
 A release the control never receives — it landed off the window, or the
 input bridge swallowed it — still ends the hold, or the page would be
 pinned still for the rest of the session.
@@ -480,6 +552,10 @@ TestPump(0.1)
 eq(page.CanvasPosition.Y, 55, "L11 a swallowed release leaves the page pinned")
 game:GetService("UserInputService").InputEnded:Fire({ UserInputType = Enum.UserInputType.MouseButton1 }, false)
 TestPump(0.1)
+page.CanvasPosition = Vector2.new(0, 400)
+TestPump(0.1)
+eq(page.CanvasPosition.Y, 55, "L11 ... and the release's settle window still reverts momentum")
+TestPump(2)
 page.CanvasPosition = Vector2.new(0, 300)
 TestPump(0.1)
 eq(page.CanvasPosition.Y, 300, "L11 the input service ends the hold, and the page scrolls again")
@@ -491,52 +567,46 @@ canvasWatcher:Disconnect()
 -- And the control can never be pulled into selection-into-view.
 eq(pin.copyButton.Selectable, false, "L11 the copy control is not selectable")
 
--- ===== L12: a card with a description =====================================
+-- ===== L12: a passed description prop is inert =============================
 
 --[[
-The description line grows the card, and the card's base height is what the
-text column, the copy control and the line itself are seated against.
-`attach` pins the line once, at the height the card had when it was built,
-so every later writer of that base has to re-seat it: a card that drops its
-subtitle shrinks 56 to 43, and a line left at its old offset sits 13px too
-low — on top of the text column, or past the card's bottom edge.
-
-This is also the shape that used to fail outright: the description module
-stores its base on the element under the very name the card's own
-`_baseHeight` method answers to, so `attach` replaced that method with a
-number and the card died with "attempt to call a number value" on the line
-after it.
+The link card has no description line: a `description` prop changes
+nothing. The base height is still what the text column and the copy
+control are seated against, so a card that drops its subtitle shrinks
+56 to 43 and both rows re-centre with it.
 ]]
 local described = tab:CreateLink({
 	name = "Described",
 	subtitle = "Two lines",
 	link = "https://example.com/described",
-	description = "A helper line that wraps",
+	description = "A helper line that no longer renders",
 })
 TestPump(0.4)
 
-expect(described.descriptionLabel ~= nil, "L12 a card with a description builds at all")
-eq(described.main.Size.Y.Offset, 56 + described._descriptionExtra, "L12 ... and the description grows the card")
-eq(described.descriptionLabel.Position.Y.Offset, 56 - 4, "L12 the line is seated under the two-line base")
-eq(described.container.Position.Y.Offset, 28, "L12 ... the text column centres in the base region")
-eq(described.copyButton.Position.Y.Offset, 28, "L12 ... and so does the copy control")
+eq(described.descriptionLabel, nil, "L12 a described card builds no description line")
+eq(described.main.Size.Y.Offset, 56, "L12 ... and the card keeps its two-line base height")
+-- The rows centre on scale (0.5) with a zero offset, so read the effective centre.
+local function centreY(row, height)
+	return row.Position.Y.Scale * height + row.Position.Y.Offset
+end
+eq(centreY(described.container, 56), 28, "L12 ... the text column centres in the base region")
+eq(centreY(described.copyButton, 56), 28, "L12 ... and so does the copy control")
 
 described:SetSubtitle("")
 TestPump(0.2)
-eq(described.main.Size.Y.Offset, 43 + described._descriptionExtra, "L12 dropping the subtitle shrinks the card")
-eq(described.descriptionLabel.Position.Y.Offset, 43 - 4, "L12 ... and the line follows the base down")
-eq(described.container.Position.Y.Offset, 21.5, "L12 ... the text column re-centres with it")
-eq(described.copyButton.Position.Y.Offset, 21.5, "L12 ... and so does the copy control")
+eq(described.main.Size.Y.Offset, 43, "L12 dropping the subtitle shrinks the card")
+eq(centreY(described.container, 43), 21.5, "L12 ... the text column re-centres with it")
+eq(centreY(described.copyButton, 43), 21.5, "L12 ... and so does the copy control")
 
 described:SetSubtitle("Two lines again")
 TestPump(0.2)
-eq(described.descriptionLabel.Position.Y.Offset, 56 - 4, "L12 restoring the subtitle seats the line back at the base")
-eq(described.container.Position.Y.Offset, 28, "L12 ... with the text column back in the middle")
+eq(described.main.Size.Y.Offset, 56, "L12 restoring the subtitle seats the base back at two lines")
+eq(centreY(described.container, 56), 28, "L12 ... with the text column back in the middle")
 
--- An idempotent write leaves the line where it is.
+-- An idempotent write changes nothing.
 described:SetSubtitle("Two lines again")
 TestPump(0.2)
-eq(described.descriptionLabel.Position.Y.Offset, 56 - 4, "L12 rewriting the same subtitle changes nothing")
+eq(centreY(described.container, 56), 28, "L12 rewriting the same subtitle changes nothing")
 
 -- ===== L13: a card with no link copies nothing ============================
 

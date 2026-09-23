@@ -1,5 +1,5 @@
 #!/bin/sh
-# Test the About card: header, data-row geometry and cap, description, the
+# Test the About card: header, data-row geometry and cap, the
 # optional action band, the setters, reveal/theme paths and the lock.
 set -u
 

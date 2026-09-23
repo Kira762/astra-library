@@ -11,7 +11,6 @@ local name = require(constants.lockable)
 local flag = require(constants.locale)
 local value = require(constants.HapticEngine)
 local baseCard = require(script.Parent.baseCard)
-local description = require(script.Parent.description)
 --[[
 The switch rides the shared motion vocabulary. The knob is the one
 genuinely mechanical surface in the library, so it gets the short Back
@@ -66,7 +65,6 @@ function state.new(tab, element)
         window = tab.window,
         name = element.name or element.Name or "Toggle",
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
-        description = element.description or element.Description,
         forgetState = element.forgetState or element.ForgetState or tab.forgetState,
         compact = tab.compact or false,
         flag = element.flag
@@ -202,11 +200,7 @@ function state:_buildFull()
     })
 
     self:_buildSwitch(self.main)
-    --[[
-    The switch centres in the base region too, so a described card grows
-    under the toggle instead of pushing it down onto the line.
-    ]]
-    self.functionContainer.Position = UDim2.new(1, -15, description.center(self, 41))
+    self.functionContainer.Position = UDim2.new(1, -15, 0.5, 0)
     self.functionContainer.AnchorPoint = Vector2.new(1, 0.5)
 
     self.window:_wireElementHover(self)
@@ -217,7 +211,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 motion.spec("snappy"),
-                { Size = UDim2.new(1, -26, 0, description.height(self, 41)) }
+                { Size = UDim2.new(1, -26, 0, 41) }
             )
             :Play()
 
@@ -233,7 +227,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 motion.spec("settle"),
-                { Size = UDim2.new(1, -20, 0, description.height(self, 41)) }
+                { Size = UDim2.new(1, -20, 0, 41) }
             )
             :Play()
         motion.tween(

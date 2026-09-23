@@ -20,7 +20,7 @@ local controls = {
 }
 local group = tab:CreateGroup({ name = "Group" })
 table.insert(controls, group:CreateButton({ name = "Compact", info = "Old compact badge" }))
-local described = tab:CreateButton({ name = "Description", description = "Keep the inline helper text." })
+local described = tab:CreateButton({ name = "Description", description = "Inert helper text." })
 TestPump(2)
 
 local function noBadges()
@@ -42,7 +42,8 @@ for _, control in controls do
 end
 noBadges()
 expect(window.elementTooltip == nil, "no automatic info popup is allocated")
-expect(described.descriptionLabel ~= nil, "inline descriptions remain supported")
+expect(described.descriptionLabel == nil, "a passed description is inert: no inline helper line is built")
+expect(described.main.Size.Y.Offset == 43, "a passed description does not grow the button card")
 controls[1].interact.MouseButton1Click:Fire()
 TestPump(0.2)
 expect(clicked == 1, "removing info does not break the button callback")

@@ -365,8 +365,11 @@ Per-element specifics:
   silhouette on the same radius token.
 - `description.luau` — the in-card muted helper line: an element built with a
   `description` prop grows its own card by the measured, wrapped line height and
-  keeps its controls centred in the base region, so nothing renders below the
-  card. Functional `info` badges have been removed; `description` is unchanged.
+  its bottom-anchored rows ride up by the extra (`_descriptionExtra`), so nothing
+  renders below the card. The Stat is the element that attaches the line and the
+  Collapsible Group header carries its own variant; Button, Toggle, Slider,
+  Dropdown, Input, Mode Picker, About Card and Link no longer accept the prop
+  and ignore it silently.
 - `tab.luau` — tab class: `tabPage` (ScrollingFrame), `_register(element)` pipeline into `window.controls[flag]`, selector button visuals. `CreateChangelog` builds a regular changelog element wherever declared. Locked tabs (`locked` prop / `SetLocked(bool)`): the flag gates `Select` (no-op), the row tap (short "This tab is locked" notification instead), and hover; `_applyVisual` raises the row's content transparency while locked (copy of the shared state table, never a mutation of it); `SetLocked(true)` on the open tab clears `window.selectedTab` and selects the first unlocked non-neglect tab with same-rail preference (the `Remove` fallback rule), hiding the tab's elements and marking `_elementsPending` when no fallback exists.
 - `group.luau`, `section.luau`, `tabSection.luau` — container classes with UIListLayout locals.
 - `changelog.luau` — release-history element (`__type = "Changelog"`): normalizes `ChangelogEntry`/`ChangelogChange` props, maps symbols (`+`/`-`/`~`, or words like "added"/"removed"/"changed") to green/red/amber, fades entries in, supports `Set`/`Refresh`/`Add(entry, prepend?)`/`Clear`. Renders as a regular standalone element; supports `Set`/`Refresh`/`Add`/`Clear` and move/lock API.
@@ -393,12 +396,17 @@ Per-element specifics:
   clipboard each tap (`setclipboard` / `toclipboard` / `setrbxclipboard` / a
   `Clipboard` object / `StudioService:CopyToClipboard`), and glyph swaps go through
   `images/image.luau`'s `assign` so remote icons get the same cache rewrite the
-  window's `Create` applies. Full card for a tab or a column Group, compact row for
+  window's `Create` applies. The copy press never moves the page: `_pinPressToCanvas`
+  snapshots the nearest ScrollingFrame's `CanvasPosition` at press and writes it
+  back while held, and the release opens a frame-bounded settle window that keeps
+  reverting momentum pans — ended early by a new press/touch anywhere or a
+  mouse-wheel step, so a deliberate scroll is never eaten. A quiet press opens no
+  window. Full card for a tab or a column Group, compact row for
   a horizontal one.
 - `aboutCard.luau` — the About card (`__type = "AboutCard"`): one container with
-  four blocks — a header (leading icon plus a title/subtitle stack), a row of one
-  to three data tiles (each a badge icon with a label above its value), a wrapped
-  description paragraph and an optional action band (icon, label, subtitle, the
+  three blocks — a header (leading icon plus a title/subtitle stack), a row of one
+  to three data tiles (each a badge icon with a label above its value), and an
+  optional action band (icon, label, subtitle, the
   built-in trailing chevron and one full-band tap target). Surfaces reuse the
   shared nesting recipe: the card is the standard element body, a tile and the
   band use the regular `ElementSurface` fill with the element corner and stroke
@@ -412,13 +420,14 @@ Per-element specifics:
   structure. A fourth row errors at construction with
   `Astra:CreateAboutCard — at most 3 data rows are supported, got N` because the
   action band is the card's trailing row. A row without an icon drops its badge
-  and hands the tile to its text (`_applyRowIcon`), and a card without rows,
-  description or action leaves those blocks out of the list layout. Reveal and
+  and hands the tile to its text (`_applyRowIcon`), and a card without rows
+  or action leaves those blocks out of the list layout; the `description`
+  paragraph is gone and a passed `description` prop is ignored. Reveal and
   theme passes run over one tracked part list (`parts`, each `{ instance,
   property, rest kind }` with the rest values in `restValue`), so a hidden card
   takes every label, glyph and stroke out together and a theme change re-reads
   them all. Setters: `SetTitle`/`SetSubtitle` (which reopens or closes the header
-  band), `SetIcon`, `SetRow(index, row)` and `SetDescription`; moveable/lockable
+  band), `SetIcon` and `SetRow(index, row)`; moveable/lockable
   apply, locking disables the action band. The Settings → About tab is the
   reference instance, built from `components/settings.luau`'s `aboutVersion`,
   `aboutBuild` and `aboutAuthor`.
@@ -449,8 +458,8 @@ Per-element specifics:
   Mode 1, rolls runtime `AddMode`/`RemoveMode` back to the configured set and
   hands the config its `onReset`. `AddMode`/`RemoveMode` enforce the 3..5
   window and the `optional` flag; `allow_mode_add_remove = false` closes both.
-  The description line is static when `description` is passed and otherwise
-  rewraps to the selected mode's line. Tab, column Group and declarative
+  The picker renders no description line: a `description` passed on the picker
+  or on a mode is ignored. Tab, column Group and declarative
   Collapsible Groups all construct it; row Groups warn and skip it like every
   non-compact element.
 - `divider.luau`, `stat.luau`, `text.luau` — display and interaction elements.
@@ -653,7 +662,7 @@ Per-element specifics:
 | `tab_elements_test.sh` | Tab elements: only the selected tab is walked on a show/hide, a tab opened later shows its elements in the same frame and state, the search shows every tab it renders, and a late element shows with its tab. |
 | `tab_lock_test.sh` | Locked tabs: the preserved flag + badge (always hidden during the UI pause) and auto-select skipping a locked first tab; tap → notification with no selection; hover leaves the locked row dimmed; `Navigate`/`Select` guards; `SetLocked(false)` re-enables; locking the open tab moves the selection to a same-rail fallback; search excludes locked tabs' elements; locking every remaining tab clears the selection and hides content, and unlocking restores it; retained badge geometry with no layout reserve, full title slots, and hidden badges after collapse/rebuild. |
 | `toggle_switch_test.sh` | Switch geometry: one set of metrics, mirrored resting states, equal clearance, the sheen under the knob, and the animated positions matching the built ones. |
-| `mode_picker_test.sh` | Mode Picker: the 3..5 mode window, snap/Set/callback order and clamping, dot rebuilds on add/remove, the knob's stop scales, reset semantics, the description following the selected mode, the title wearing the icon's RGB — and keeping it through a hover cycle and a per-mode `icon_color` — plus the track geometry: the knob's clearance inside the track's pill at both end stops, the fill wearing the knob's own pill and reaching its trailing edge, the last stop leaving no unpainted tail, and the end dots still at the knob's centres. |
+| `mode_picker_test.sh` | Mode Picker: the 3..5 mode window, snap/Set/callback order and clamping, dot rebuilds on add/remove, the knob's stop scales, reset semantics, the absence of a description line, the title wearing the icon's RGB — and keeping it through a hover cycle and a per-mode `icon_color` — plus the track geometry: the knob's clearance inside the track's pill at both end stops, the fill wearing the knob's own pill and reaching its trailing edge, the last stop leaving no unpainted tail, and the end dots still at the knob's centres. |
 | `input_field_test.sh` | Field-box corners: the Input field rounds with the theme's `ElementCornerRadius` as a theme binding (pixel radius, never a capsule scale), re-stated on a theme switch, and shared with its element card. |
 | `corner_scale_test.sh` | The corner scale: the three nested tiers (12px shell, 8px elements, 32px folds) and which surface wears which, the round-by-nature controls deriving a half-height pill from their own metrics (switch track/knob/sheen, slider track/fill/handle, drag pill), the dropdown's row tiers read from the panel that clips them, a `ChangeTheme` reaching every bound surface, the corners that stay square on purpose (the elements band's top edge), and a sweep that fails if any painted surface in the tree is left with an all-zero corner. |
 | `keybind_input_test.sh` | Dedicated A–Z capture: required value, validation, focus handling, cancellation, current-key suppression, groups, flags, lock/removal/unload and settings validation. |

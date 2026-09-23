@@ -268,7 +268,6 @@ local card = tab:CreateAboutCard({
         { icon = "package", label = "Build",   value = "2026.09.12" },
         { icon = "user",    label = "Author",  value = "Astra Team" },
     },
-    description = "One wrapped paragraph.",
     action = {                                        -- optional trailing band
         icon = "file-text",
         name = "View Changelog",
@@ -283,11 +282,11 @@ card:SetTitle("Release notes")
 card:SetSubtitle(nil)                 -- "" / nil drops the header to one band
 card:SetIcon("sparkles")              -- nil removes the leading mark
 card:SetRow(1, { icon = "box", label = "Version", value = "1.5.0" })
-card:SetDescription("Shorter copy.")  -- "" / nil removes the paragraph
 ```
 
-- Four blocks in one card: header (icon, title, subtitle), the data rows, the
-  description paragraph and the optional action band.
+- Three blocks in one card: header (icon, title, subtitle), the data rows and
+  the optional action band. A `description` prop is ignored — the paragraph
+  block has been removed.
 - `rows` takes **1 to 3** entries. All entries stay on one compact 48px line and
   split it evenly from left to right, so Version / Build / Author renders as
   three columns rather than two columns plus an orphan below. On an unusually
@@ -296,7 +295,7 @@ card:SetDescription("Shorter copy.")  -- "" / nil removes the paragraph
   `Astra:CreateAboutCard — at most 3 data rows are supported, got N` — the action
   band is the card's trailing row.
 - Optional parts drop out of the layout instead of rendering blank: a row without
-  `icon` loses its badge, a card without `rows`, `description` or `action` simply
+  `icon` loses its badge, a card without `rows` or `action` simply
   has one block fewer.
 - The action band is the card's only tappable surface: a tap (anywhere on the
   band, not only the chevron) fires `callback` once, with a haptic click. The

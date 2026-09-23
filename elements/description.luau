@@ -4,21 +4,19 @@ grows its own card by the measured height of this line instead of spawning
 a standalone row beneath the card, so the description can never sit on top
 of the element's own UI and nothing renders below the card:
 
-  * the line is a muted 14px `ContentColor` label, the Collapsible Group
-    header recipe (one line: a 41px card grows to 61px),
+  * the line is a muted 14px `ContentColor` label,
   * the card grows by the measured, wrapped line count, so a host copy
-    that wraps reserves exactly the room it renders in,
-  * controls keep centring in the *base* region the card had before it
-    grew (`center`), and bottom-anchored tracks/labels ride up by the
-    extra (`height`), so nothing drifts down into the line,
+    that wraps reserves exactly the room it renders in — the element's
+    bottom-anchored rows ride up by `_descriptionExtra`,
   * the line stays locale-bound (`Window:SetLocale` retypes it and the card
     re-measures) and doubles as the lock-message surface
     (`Window:_setElementLocked` swaps its text, restoring the description
     on unlock) exactly as the old below-card descriptor row did.
 
-Call `attach` straight after the element's main frame is stroked and
-before its centred children are built, so `center` already answers for the
-grown card. Every writer of the card's height goes through `height`.
+The Stat is the element that attaches the line; the Collapsible Group
+header carries its own variant of the recipe inline. Call `attach`
+straight after the element's main frame is stroked and before its
+children are built.
 ]]
 local description = {}
 
@@ -93,45 +91,9 @@ local function lineCount(self): number
 end
 
 --[[
-Card heights everywhere go through here: writers state their base and the
-description's measured extra rides along, so hover tweens, layout switches
-and the dropdown's open height all keep the line's room.
+Card heights ride `_descriptionExtra`: an element's bottom-anchored rows
+subtract it from their Y so nothing drifts down into the line.
 ]]
-function description.height(self, base: number): number
-    return base + (self._descriptionExtra or 0)
-end
-
---[[
-Y placement for the rows and controls that centre in the card: with a
-description they centre in the base region, not the grown card.
-]]
-function description.center(self, base: number): (number, number)
-    if self.descriptionLabel then
-        return 0, base / 2
-    end
-    return 0.5, 0
-end
-
---[[
-Elements whose card changes shape (the slider's wide/narrow/minimal
-layouts) re-seat the line against the base region they just wrote, so the
-line stays in the band under the controls in every mode.
-
-The base rides on `_descriptionBase`, never on `_baseHeight`: this module
-stores it on the element, and an element is free to own a `_baseHeight`
-method of its own — the Link card does. Sharing the name meant `attach`
-overwrote that method with a number, so the card's very next
-`self:_baseHeight()` died with "attempt to call a number value" on any
-Link built with a description.
-]]
-function description.rebase(self, base: number)
-    if not self.descriptionLabel then
-        return
-    end
-    self._descriptionBase = base
-    self.descriptionLabel.Position = UDim2.fromOffset(insetX, base - topGap)
-end
-
 local function apply(self, count: number)
     self._descriptionLines = count
     local extra = count * lineHeight + bottomPad
@@ -159,13 +121,13 @@ function description.attach(self)
         return
     end
 
-    self._descriptionBase = self.main.Size.Y.Offset
+    local base = self.main.Size.Y.Offset
     self._descriptionExtra = 0
 
     self.descriptionLabel = self.window:Create("TextLabel", {
         Name = "Description",
         Text = locale.t(self.description),
-        Position = UDim2.fromOffset(insetX, self._descriptionBase - topGap),
+        Position = UDim2.fromOffset(insetX, base - topGap),
         Size = UDim2.new(1, -insetX * 2, 0, lineHeight),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,

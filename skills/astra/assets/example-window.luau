@@ -31,7 +31,6 @@ overview:CreateAboutCard({
         { icon = "package", label = "Build", value = "2026.09.21" },
         { icon = "user", label = "Author", value = "Astra Team" },
     },
-    description = "Explore the library in three focused spaces. Read the essentials here, try feedback and actions next, then tune a sample profile in Preferences.",
     action = {
         icon = "file-text",
         name = "Release history",
@@ -96,7 +95,7 @@ group. No collapsible wrapper is used for a lone control.
 actions:CreateSection({ name = "Activity" })
 local runs = actions:CreateStat({ name = "Completed runs", value = 0, suffix = " runs", changeMode = "delta", changeBaseline = "initial" })
 actions:CreateButton({
-    name = "Run a check", icon = "play", description = "Increment the counter and show a success notification.",
+    name = "Run a check", icon = "play",
     callback = function()
         runs:Set(runs.value + 1)
         window:Notify({ title = "Check complete", content = "The button callback ran successfully." })
@@ -108,7 +107,7 @@ shortcuts:CreateButton({ name = "Notify", icon = "bell", callback = function()
     window:Notify({ title = "Hello from Astra", content = "Click again to replace this exact notification with a fresh animated card." })
 end })
 actions:CreateDivider({ text = "Window preview" })
-actions:CreateButton({ name = "Hide to capsule", icon = "minus", description = "Restore by tapping the capsule or pressing your menu letter.", callback = function() window:Hide() end })
+actions:CreateButton({ name = "Hide to capsule", icon = "minus", callback = function() window:Hide() end })
 actions:CreateCollapsibleGroup({
     name = "Feedback lab", icon = "flask-conical", description = "Two ways to test the overlay system.",
     elements = {

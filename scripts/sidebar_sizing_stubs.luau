@@ -935,6 +935,7 @@ do
 	}
 	input.GetFocusedTextBox = function() return input._focusedTextBox end
 	input.InputBegan = newSignal()
+	input.InputChanged = newSignal()
 	input.InputEnded = newSignal()
 	input.WindowFocusReleased = newSignal()
 	input.GetMouseLocation = function()

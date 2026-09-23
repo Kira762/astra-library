@@ -11,7 +11,6 @@ local name = require(constants.lockable)
 local icon = require(constants.locale)
 local callback = require(constants.HapticEngine)
 local baseCard = require(script.Parent.baseCard)
-local description = require(script.Parent.description)
 -- The card and stroke provide press feedback without a trailing glyph.
 local motion = require(constants.motion)
 local element = "snappy"
@@ -25,7 +24,6 @@ function state.new(tab, frame)
         window = tab.window,
         name = frame.name or frame.Name or "Button",
         icon = tab.window:ResolveIcon(frame.icon or frame.Icon),
-        description = frame.description or frame.Description,
         compact = tab.compact or false,
         callback = frame.callback or frame.Callback or function() end,
     }, state)
@@ -76,7 +74,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 motion.spec("snappy"),
-                { Size = UDim2.new(1, -26, 0, description.height(self, 43)) }
+                { Size = UDim2.new(1, -26, 0, 43) }
             )
             :Play()
 
@@ -92,7 +90,7 @@ function state:_buildFull()
             :Create(
                 self.main,
                 motion.spec(tapRelease),
-                { Size = UDim2.new(1, -20, 0, description.height(self, 43)) }
+                { Size = UDim2.new(1, -20, 0, 43) }
             )
             :Play()
         Button.tweenService

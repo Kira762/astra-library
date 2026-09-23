@@ -25,7 +25,6 @@ local utilities = script.Parent.Parent.utilities
 local functions = require(script.Parent.Parent.functions)
 local coreState = require(script.Parent.Parent.core.state)
 local image = require(script.Parent.Parent.images.image)
-local description = require(script.Parent.description)
 local haptic = require(utilities.HapticEngine)
 local locale = require(utilities.locale)
 local lockable = require(utilities.lockable)
@@ -34,9 +33,9 @@ local moveable = require(utilities.moveable)
 
 --[[
 Card metrics: one card, two lines. The title is the Text element's 16px
-TitlingColor heading; the subtitle is the 14px muted body line every
-element description in the library uses. Without a subtitle the card
-collapses to the single-line height so it sits level with a Button.
+TitlingColor heading; the subtitle is the card's 14px muted body line.
+Without a subtitle the card collapses to the single-line height so it
+sits level with a Button.
 ]]
 local cardHeight = 56
 local cardHeightSingle = 43
@@ -78,7 +77,7 @@ local restingSubtitleTransparency = 0.45
 The trailing glyph rests at the same half transparency the Button's tap
 glyph used, and the Dropdown and Collapsible chevrons still do. The card
 owns the fade itself: `Window:_revealCommon` only knows the shared parts
-(stroke, title, body, leading icon, description), and the shared tap-glyph
+(stroke, title, body, leading icon), and the shared tap-glyph
 reveal it used to read went out with the Button's trailing cursor — so
 without this the glyph is built invisible and never appears.
 ]]
@@ -225,7 +224,6 @@ function state.new(tab, element)
         -- The hidden value: stored on the element, never shown as text.
         link = tostring(element.link or element.Link or ""),
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
-        description = element.description or element.Description,
         callback = element.callback or element.Callback,
         compact = tab.compact or false,
         --[[
@@ -262,12 +260,10 @@ function state:_baseHeight(): number
 end
 
 --[[
-Every writer of the card's shape goes through here: the height rides the
-description's measured extra (elements/description.luau), so a wrapped
-helper line grows the card instead of running under it, and the text
-column and the copy control stay centred in the base region they belong
-to. The compact row has no height to own - the row layout sizes it - so
-only the two centred children are re-seated there.
+Every writer of the card's shape goes through here: the text column and
+the copy control stay centred in the base region they belong to. The
+compact row has no height to own - the row layout sizes it - so only the
+two centred children are re-seated there.
 ]]
 function state:_layoutContent()
     if self.compact then
@@ -275,13 +271,12 @@ function state:_layoutContent()
     end
 
     local base = self:_baseHeight()
-    local centerScale, centerOffset = description.center(self, base)
-    self.main.Size = UDim2.new(1, -20, 0, description.height(self, base))
+    self.main.Size = UDim2.new(1, -20, 0, base)
     if self.container then
-        self.container.Position = UDim2.new(0, gutter, centerScale, centerOffset)
+        self.container.Position = UDim2.new(0, gutter, 0.5, 0)
     end
     if self.copyButton then
-        self.copyButton.Position = UDim2.new(1, -gutter, centerScale, centerOffset)
+        self.copyButton.Position = UDim2.new(1, -gutter, 0.5, 0)
     end
 end
 
@@ -300,19 +295,10 @@ function state:_buildFull()
     self.stroke = window:StyleElementBody(self.main)
     self.hoverOverlay = window:CreateHoverOverlay(self.main)
 
-    --[[
-    A description grows the card before the rows are placed, exactly as it
-    does for the Button and the Stat, so `description.center` below
-    answers for the grown card.
-    ]]
-    description.attach(self)
-
-    local centerScale, centerOffset = description.center(self, self:_baseHeight())
-
     self.container = window:Create("Frame", {
         Name = "Content",
         Size = UDim2.new(1, -contentInset, 0, self:_contentHeight()),
-        Position = UDim2.new(0, gutter, centerScale, centerOffset),
+        Position = UDim2.new(0, gutter, 0.5, 0),
         AnchorPoint = Vector2.new(0, 0.5),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
@@ -397,7 +383,7 @@ function state:_buildFull()
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
     self:_buildCopyControl(self.main, {
-        Position = UDim2.new(1, -gutter, centerScale, centerOffset),
+        Position = UDim2.new(1, -gutter, 0.5, 0),
         AnchorPoint = Vector2.new(1, 0.5),
     })
 
@@ -557,13 +543,19 @@ Writing the snapshot back on release is not enough: the user watches the
 card move for as long as they hold it, and every other element in the
 library answers a tap without shifting a pixel. So the gesture is pinned
 instead. The canvas is snapshotted when the press begins (MouseButton1 or
-Touch) and a watcher writes that snapshot straight back for as long as the
-press is down, so a pan started under the press is undone on the frame it
-lands and the page never leaves where the press found it. Release drops
-the watcher and puts the page back where the press found it, in case a
-write slipped through after the last guard. A click that arrives without a
-press has no snapshot, so it cannot corrupt a scroll the user made in
-between.
+Touch) and a watcher writes that snapshot straight back for as long as
+the press is down, so a pan started under the press is undone on the frame it
+lands and the page never leaves where the press found it.
+
+The release does not end it either. A pan the bridge started under the
+press usually keeps arriving after the finger lifts — momentum writes,
+one per frame — and a single restore would be overwritten by the very
+next one, which is the tap still walking the page away. So the release
+opens a short, frame-bounded settle window (a bounded run of Heartbeats)
+that keeps writing the restored spot back, and hands the page back the
+moment the user does anything deliberate: a new press or touch anywhere,
+or a mouse-wheel step. A quiet press — one the page never reacted to —
+opens no window at all.
 
 The gesture is ended from the control (its release, or the click whose
 release never reached us) and from the input service, the way the slider
@@ -594,6 +586,13 @@ function state:_pinPressToCanvas()
         return
     end
 
+    --[[
+    The settle window, in frames. Momentum pans write one frame at a time,
+    so the bound is frames rather than seconds: at any refresh rate it
+    covers the same number of momentum writes.
+    ]]
+    local postReleaseFrames = 30
+
     local function isPress(input)
         local kind = if input ~= nil then input.UserInputType else nil
         return kind == Enum.UserInputType.MouseButton1 or kind == Enum.UserInputType.Touch
@@ -604,53 +603,121 @@ function state:_pinPressToCanvas()
         return not self.window.unloaded and page.Parent ~= nil
     end
 
-    --[[
-    Ends the gesture: drop the watcher, then restore the snapshot, but only
-    if the page moved.
-    ]]
-    local function settle()
-        local held = self._pressCanvas
-        self._pressCanvas = nil
-        if self._pressGuard then
-            window:DisconnectMany(self, { self._pressGuard })
-            self._pressGuard = nil
+    local canvasGuard = nil
+    local frameGuard = nil
+
+    local function dropWatchers()
+        local stale = {}
+        if canvasGuard then
+            table.insert(stale, canvasGuard)
+            canvasGuard = nil
         end
-        if not held then
-            return
+        if frameGuard then
+            table.insert(stale, frameGuard)
+            frameGuard = nil
         end
-        if not writable() then
-            return
-        end
-        local now = page.CanvasPosition
-        if now.X ~= held.X or now.Y ~= held.Y then
-            page.CanvasPosition = held
+        if #stale > 0 then
+            window:DisconnectMany(self, stale)
         end
     end
 
     --[[
-    Holds the canvas still for the length of the gesture: every write that
-    lands while the press is down is answered with the snapshot.
+    The spot the page must hold: the press snapshot while the finger is
+    down, the restored spot during the settle window, nothing after.
     ]]
+    local function pinTarget()
+        if self._pressCanvas then
+            return self._pressCanvas
+        end
+        if self._pinSnapshot then
+            return self._pinSnapshot
+        end
+        return nil
+    end
+
+    local function endGesture()
+        self._pressCanvas = nil
+        self._pinSnapshot = nil
+        self._pinFrames = nil
+        dropWatchers()
+    end
+
+    local function ensureCanvasGuard()
+        if canvasGuard then
+            return
+        end
+        canvasGuard = window:ConnectFor(self, page:GetPropertyChangedSignal("CanvasPosition"), function()
+            local target = pinTarget()
+            if not target or not writable() then
+                endGesture()
+                return
+            end
+            local now = page.CanvasPosition
+            if now.X ~= target.X or now.Y ~= target.Y then
+                -- The press moved the page under us: remember it, so the
+                -- release knows the gesture is worth a settle window.
+                self._pressMoved = true
+                page.CanvasPosition = target
+            end
+        end)
+    end
+
+    local function ensureFrameGuard()
+        if frameGuard then
+            return
+        end
+        frameGuard = window:ConnectFor(self, coreState.runService.Heartbeat, function()
+            if self._pressCanvas or not self._pinSnapshot then
+                return
+            end
+            self._pinFrames = (self._pinFrames or 0) - 1
+            if self._pinFrames <= 0 then
+                endGesture()
+            end
+        end)
+    end
+
+    --[[
+    Ends the press: drop it, restore the snapshot, but only if the page
+    moved — and only a press the page reacted to opens the settle window.
+    ]]
+    local function settle(openWindow: boolean?)
+        local held = self._pressCanvas
+        local moved = self._pressMoved == true
+        self._pressCanvas = nil
+        self._pressMoved = nil
+        if not writable() then
+            endGesture()
+            return
+        end
+        if held then
+            local now = page.CanvasPosition
+            if now.X ~= held.X or now.Y ~= held.Y then
+                page.CanvasPosition = held
+            end
+            if openWindow ~= false and moved then
+                self._pinSnapshot = held
+                self._pinFrames = postReleaseFrames
+                ensureCanvasGuard()
+                ensureFrameGuard()
+            else
+                endGesture()
+            end
+        elseif openWindow == false or not self._pinSnapshot then
+            endGesture()
+        end
+    end
+
     local function hold()
         if self._pressCanvas then
             return
         end
+        -- A new press takes over from any settle window still open.
+        self._pinSnapshot = nil
+        self._pinFrames = nil
+        self._pressMoved = nil
         self._pressCanvas = page.CanvasPosition
-
-        self._pressGuard = window:ConnectFor(self, page:GetPropertyChangedSignal("CanvasPosition"), function()
-            local pinned = self._pressCanvas
-            if not pinned then
-                return
-            end
-            if not writable() then
-                settle()
-                return
-            end
-            local now = page.CanvasPosition
-            if now.X ~= pinned.X or now.Y ~= pinned.Y then
-                page.CanvasPosition = pinned
-            end
-        end)
+        ensureCanvasGuard()
     end
 
     window:ConnectFor(self, self.copyButton.InputBegan, function(input)
@@ -684,8 +751,34 @@ function state:_pinPressToCanvas()
         settle()
     end)
 
+    --[[
+    A new press or touch anywhere — including back on this control, whose
+    own handler re-snapshots — is the user gesturing on purpose: any
+    settle window ends at once so it can never eat a deliberate scroll.
+    ]]
+    window:ConnectFor(self, coreState.userInputService.InputBegan, function(input)
+        if not isPress(input) then
+            return
+        end
+        if self._pressCanvas then
+            return
+        end
+        endGesture()
+    end)
+
+    --[[ A mouse-wheel step is a deliberate scroll the same way. ]]
+    window:ConnectFor(self, coreState.userInputService.InputChanged, function(input)
+        if input == nil or input.UserInputType ~= Enum.UserInputType.MouseWheel then
+            return
+        end
+        if self._pressCanvas then
+            return
+        end
+        endGesture()
+    end)
+
     window:ConnectFor(self, coreState.userInputService.WindowFocusReleased, function()
-        settle()
+        settle(false)
     end)
 end
 
@@ -862,15 +955,9 @@ function state:_applyPresence()
         self.textColumn.Size = UDim2.new(1, offset, 0, self:_contentHeight())
     end
     --[[
-    The card's base just changed height (43 with one line, 56 with two), so
-    the description line has to be re-seated against the new base the way
-    the slider re-seats it for every layout it writes: `attach` pinned it
-    once, at the height the card had when it was built, and nothing else
-    has moved it since. Without this the line keeps its old offset — 13px
-    too low on a card that just dropped its subtitle — where it sits on
-    top of the text column or past the card's bottom edge.
+    The card's base just changed height (43 with one line, 56 with two),
+    so the centred rows have to re-seat against the new base.
     ]]
-    description.rebase(self, self:_baseHeight())
     self:_layoutContent()
 end
 

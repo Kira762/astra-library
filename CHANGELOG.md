@@ -22,6 +22,13 @@ default tier to leave interactive controls unlocked.
 - **`USAGE.md`, `skills/astra/references/elements.md`** — Element Lock Modes
   table and prose updated to show Level 1 with no default members and Level 2
   now containing Link alongside Input, Dropdown and Keybind.
+- **`components/window/elements.luau`, `elements/collapsibleGroup.luau`,
+  `elements/isolated.luau`** — lock scrims for the header-based containers
+  now mirror the header band's dynamic corners (all four when collapsed,
+  top-only when expanded) so a locked, expanded card shows a straight
+  divider instead of rounded bottom arcs, and every lock overlay preserves
+  the element's original placement while locked (verified that main
+  Position/Size and header metrics are unchanged across Mode 1–5).
 - **`version-1.luau`** — regenerated and re-signed.
 
 ## Unreleased — Five cumulative Elements Lock Modes

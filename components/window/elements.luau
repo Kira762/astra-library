@@ -238,9 +238,21 @@ function Window:_buildLockScrim(element)
         Parent = parent,
     }, { BackgroundColor3 = { "WindowColor", firstColor } })
 
-    self:Create("UICorner", {
+    element.lockScrimCorner = self:Create("UICorner", {
         Parent = element.lockScrim,
     }, { CornerRadius = "ElementCornerRadius" })
+
+    -- The two header-based containers (CollapsibleGroup / Isolated) keep
+    -- their lock surface on the header band, whose own corners flip
+    -- between collapsed (all four) and expanded (top only) so the band
+    -- squares off against the divider. The scrim must wear the same
+    -- corners or a locked, expanded header would show rounded bottom
+    -- arcs over a straight seam.
+    if element.headerCorner and element.lockScrimCorner then
+        for _, key in ipairs(shared.cornerKeys) do
+            element.lockScrimCorner[key] = element.headerCorner[key]
+        end
+    end
 end
 
 function Window:_flashResult(element, ok)

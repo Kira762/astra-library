@@ -25,12 +25,14 @@ local releaseHistory
 overview:CreateAboutCard({
     name = "Astra",
     subtitle = "A small studio for every element.",
+    icon = 80387863064905,
     rows = {
-        { label = "Version", value = "1.4.0" },
-        { label = "Build", value = "2026.09.21" },
-        { label = "Author", value = "Astra Team" },
+        { icon = "code", label = "Version", value = "1.4.0" },
+        { icon = "package", label = "Build", value = "2026.09.21" },
+        { icon = "user", label = "Author", value = "Astra Team" },
     },
     action = {
+        icon = "file-text",
         name = "Release history",
         subtitle = "Explore the changes behind this studio",
         callback = function()
@@ -142,6 +144,52 @@ preferences:CreateCollapsibleGroup({
         { type = "Toggle", name = "Desktop notifications", value = true, flag = "demo.desktop" },
         { type = "Switch", name = "Quiet mode", value = false, flag = "demo.quiet" },
     },
+})
+
+-- One compact tab exposes every public element by its constructor name.
+local allElements = window:CreateTab({ name = "All Elements", icon = "layout-grid" })
+allElements:CreateSection({ name = "Section", icon = "list" })
+allElements:CreateText({ name = "Text", text = "Text" })
+allElements:CreateButton({ name = "Button", icon = "mouse-pointer-click" })
+allElements:CreateToggle({ name = "Toggle", icon = "toggle-right", value = true })
+allElements:CreateSlider({ name = "Slider", icon = "sliders-horizontal", range = { 0, 100 }, value = 50 })
+allElements:CreateDropdown({ name = "Dropdown", icon = "list-filter", options = { "One", "Two" }, value = "One" })
+allElements:CreateInput({ name = "Input", icon = "text-cursor-input", value = "Input" })
+allElements:CreateKeybind({ name = "Keybind", icon = "keyboard", value = "K" })
+allElements:CreateStat({ name = "Stat", value = 42 })
+allElements:CreateLink({ name = "Link", subtitle = "Copy this URL", icon = "link", link = "https://github.com/Kira762/astra-version-1" })
+allElements:CreateAboutCard({
+    name = "AboutCard", subtitle = "AboutCard", icon = "info",
+    rows = {
+        { icon = "code", label = "Version", value = "1.4.0" },
+        { icon = "package", label = "Build", value = "All elements" },
+        { icon = "user", label = "Author", value = "Astra Team" },
+    },
+    action = { icon = "file-text", name = "AboutCard action" },
+})
+allElements:CreateFooter({ parts = { { text = "Footer" }, { icon = "zap" } } })
+allElements:CreateChangelog({ name = "Changelog", entries = { { version = "Demo", title = "Changelog", changes = { { symbol = "+", text = "Changelog" } } } } })
+allElements:CreateDivider({ text = "Divider" })
+local allGroup = allElements:CreateGroup({ direction = "column" })
+allGroup:CreateText({ name = "Group", text = "Group" })
+allElements:CreateCollapsibleGroup({
+    name = "CollapsibleGroup", icon = "chevrons-up-down", description = "CollapsibleGroup",
+    elements = {
+        { type = "Text", name = "Text", text = "CollapsibleGroup contents" },
+        { type = "Button", name = "Button" },
+    },
+})
+allElements:CreateModePicker({
+    title = "ModePicker", subtitle = "ModePicker", left_icon = "zap", right_icon = "rotate-ccw",
+    modes = {
+        { label = "One", type = "default" },
+        { label = "Two", type = "dot" },
+        { label = "Three", type = "dot" },
+    },
+})
+allElements:CreateIsolated({
+    name = "Isolated", subtitle = "Isolated", icon = "archive",
+    elements = { { type = "Changelog", name = "Changelog", entries = { { version = "Demo", title = "Isolated", changes = { { symbol = "+", text = "Isolated" } } } } } },
 })
 
 overview:Select()

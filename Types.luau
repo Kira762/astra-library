@@ -255,10 +255,11 @@ export type LinkProps = {
 }
 
 --[[
-One compact data tile of an About card: a label and a value.
+One compact data tile of an About card: a leading icon, a label and a value.
 Up to three tiles share one line; the count drives each tile's width.
 ]]
 export type AboutCardRow = {
+    icon: (string | number)?,
     label: string?,
     value: (string | number)?,
 }
@@ -269,6 +270,7 @@ one the data rows stop at three for — and it is the card's only tappable
 surface.
 ]]
 export type AboutCardAction = {
+    icon: (string | number)?,
     name: string?,
     subtitle: string?,
     callback: (() -> ())?,
@@ -277,6 +279,7 @@ export type AboutCardAction = {
 export type AboutCardProps = {
     name: string?,
     subtitle: string?,
+    icon: (string | number)?,
     rows: { AboutCardRow }?,
     action: AboutCardAction?,
 }
@@ -427,6 +430,7 @@ export type Link = Moveable & Lockable & {
 export type AboutCard = Moveable & Lockable & {
     SetTitle: (self: AboutCard, title: string) -> (),
     SetSubtitle: (self: AboutCard, subtitle: string?) -> (),
+    SetIcon: (self: AboutCard, icon: (string | number)?) -> (),
     SetRow: (self: AboutCard, index: number, row: AboutCardRow) -> (),
 }
 

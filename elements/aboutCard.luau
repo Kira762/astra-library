@@ -4,18 +4,20 @@ row of data tiles and an optional trailing action band.
 
 The recipe is fixed and every string in it is host copy:
 
-  * header — a title/subtitle stack,
-  * rows — one to three compact data tiles, each a label above its value.
-    Every tile shares one line evenly: the three-row About recipe stays
-    three-across instead of leaving its last tile alone on a second line,
-  * action (optional) — a tappable band carrying a label, a subtitle and
-    the card's trailing chevron. It is the card's trailing row, which is
-    why the data rows stop at three: a fourth would be the action itself.
+  * header — a leading icon plus a title/subtitle stack,
+  * rows — one to three compact data tiles, each a leading icon with a
+    label above its value. Every tile shares one line evenly: the three-row
+    About recipe stays three-across instead of leaving its last tile alone
+    on a second line,
+  * action (optional) — a tappable band carrying an icon, a label, a
+    subtitle and the card's trailing chevron. It is the card's trailing
+    row, which is why the data rows stop at three: a fourth would be the
+    action itself.
 
 Every surface stays inside the shared theme tokens — the card is the
-standard element body, each tile and the action band use ElementSurface
-with the element corner and stroke — so the card themes itself like every
-other element instead of hard-coding a dark inset.
+standard element body, each tile and the action band use ElementSurface,
+and the nested badge uses that same control family — so the card themes
+itself like every other element instead of hard-coding a dark inset.
 ]]
 
 local state = {}
@@ -24,6 +26,7 @@ state.__type = "AboutCard"
 
 local utilities = script.Parent.Parent.utilities
 
+local image = require(script.Parent.Parent.images.image)
 local haptic = require(utilities.HapticEngine)
 local locale = require(utilities.locale)
 local lockable = require(utilities.lockable)
@@ -38,12 +41,14 @@ local maxRows = 3
 
 --[[
 Card metrics. The card keeps the library's 20px gutter. Data tiles are a
-deliberately compact 48px band: the smaller inset leaves enough copy room
-for three equal tiles on the normal card width without making the third
-row wrap below the first two.
+deliberately compact 48px band: the smaller inset and badge leave enough
+copy room for three equal tiles on the normal card width without making the
+third row wrap below the first two.
 ]]
 local gutter = 20
 local sectionGap = 14
+local headerIconSize = 38
+local headerIconGap = 14
 local headerTitleSize = 20
 local headerTitleHeight = 26
 local headerSubtitleSize = 14
@@ -52,6 +57,9 @@ local headerLineGap = 2
 local tileHeight = 48
 local tileGap = 8
 local tilePad = 8
+local badgeSize = 28
+local badgeIconSize = 14
+local badgeGap = 8
 local tileLabelSize = 11
 local tileLabelHeight = 13
 local tileValueSize = 14
@@ -61,7 +69,8 @@ local tileTextHeight = tileLabelHeight + tileLineGap + tileValueHeight
 local actionHeight = 56
 local actionHeightSingle = 41
 local actionPad = 14
-local actionTextGap = 12
+local actionIconSize = 16
+local actionIconGap = 12
 local actionLabelSize = 16
 local actionLabelHeight = 19
 local actionSubtitleSize = 14
@@ -97,6 +106,9 @@ local restValue = {
     end,
     chevron = function()
         return restingChevronTransparency
+    end,
+    icon = function()
+        return 0
     end,
     solid = function()
         return 0
@@ -164,6 +176,7 @@ function state.new(tab, props)
         window = window,
         name = textOrNil(read(props, "name", "Name")) or "About",
         subtitle = textOrNil(read(props, "subtitle", "Subtitle")),
+        icon = window:ResolveIcon(read(props, "icon", "Icon")),
         rows = {},
         --[[
         Every painted part of the card in one list (see `restValue`), so a
@@ -248,9 +261,35 @@ function state:_buildHeader()
         Parent = self.main,
     })
 
+    window:Create("UIListLayout", {
+        FillDirection = Enum.FillDirection.Horizontal,
+        Padding = UDim.new(0, headerIconGap),
+        VerticalAlignment = Enum.VerticalAlignment.Center,
+        HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = self.header,
+    })
+
+    --[[
+    The leading slot exists whether or not the card started with an icon,
+    so `SetIcon` can add one later instead of silently doing nothing.
+    Hidden, it is out of the list layout's flow.
+    ]]
+    self.iconLabel = window:Create("ImageLabel", {
+        Name = "Icon",
+        Image = self.icon or "",
+        Size = UDim2.fromOffset(headerIconSize, headerIconSize),
+        BorderSizePixel = 0,
+        BackgroundTransparency = 1,
+        LayoutOrder = 0,
+        Visible = self.icon ~= nil,
+        ImageTransparency = 1,
+        Parent = self.header,
+    }, { ImageColor3 = "ContentColor" })
+
     self.headerText = window:Create("Frame", {
         Name = "Text",
-        Size = UDim2.new(1, 0, 0, height),
+        Size = UDim2.new(1, if self.icon then -(headerIconSize + headerIconGap) else 0, 0, height),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         LayoutOrder = 1,
@@ -310,7 +349,7 @@ second line reflows the band and the text column from one place.
 function state:_applyHeaderMetrics()
     local height = self:_headerHeight()
     self.header.Size = UDim2.new(1, 0, 0, height)
-    self.headerText.Size = UDim2.new(1, 0, 0, height)
+    self.headerText.Size = UDim2.new(1, if self.icon then -(headerIconSize + headerIconGap) else 0, 0, height)
     self.subtitleLabel.Visible = self.subtitle ~= nil
 end
 
@@ -349,6 +388,7 @@ function state:_buildRow(index, row)
     row = if type(row) == "table" then row else {}
 
     local entry = {
+        icon = window:ResolveIcon(read(row, "icon", "Icon")),
         label = textOf(read(row, "label", "Label")) or "",
         value = textOf(read(row, "value", "Value")) or "",
     }
@@ -376,11 +416,44 @@ function state:_buildRow(index, row)
 
     window:Create("UIListLayout", {
         FillDirection = Enum.FillDirection.Horizontal,
+        Padding = UDim.new(0, badgeGap),
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalAlignment = Enum.HorizontalAlignment.Left,
         SortOrder = Enum.SortOrder.LayoutOrder,
         Parent = entry.main,
     })
+
+    --[[
+    The badge is the small square the row's icon sits in. It carries the
+    content surface and the element stroke, so the mark reads as a chip on
+    the tile rather than as a floating glyph.
+    ]]
+    entry.badge = window:Create("Frame", {
+        Name = "Badge",
+        Size = UDim2.fromOffset(badgeSize, badgeSize),
+        BorderSizePixel = 0,
+        BackgroundTransparency = 1,
+        LayoutOrder = 0,
+        Parent = entry.main,
+    }, { BackgroundColor3 = "ElementSurface", BackgroundTransparency = "ElementTransparency" })
+    window:Create("UICorner", { Parent = entry.badge }, { CornerRadius = "ElementCornerRadius" })
+    entry.badgeStroke = window:Create("UIStroke", { Transparency = 1, Parent = entry.badge }, {
+        Color = "ElementStroke",
+        Transparency = "ElementStrokeTransparency",
+    })
+
+    entry.badgeIcon = window:Create("ImageLabel", {
+        Name = "Icon",
+        Image = entry.icon or "",
+        Size = UDim2.fromOffset(badgeIconSize, badgeIconSize),
+        Position = UDim2.fromScale(0.5, 0.5),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BorderSizePixel = 0,
+        BackgroundTransparency = 1,
+        Visible = entry.icon ~= nil,
+        ImageTransparency = 1,
+        Parent = entry.badge,
+    }, { ImageColor3 = "ContentColor" })
 
     entry.textColumn = window:Create("Frame", {
         Name = "Text",
@@ -429,10 +502,26 @@ function state:_buildRow(index, row)
 
     self:_track(entry.main, "BackgroundTransparency", "background")
     self:_track(entry.stroke, "Transparency", "stroke")
+    self:_track(entry.badge, "BackgroundTransparency", "background")
+    self:_track(entry.badgeStroke, "Transparency", "stroke")
+    self:_track(entry.badgeIcon, "ImageTransparency", "icon")
     self:_track(entry.labelLabel, "TextTransparency", "muted")
     self:_track(entry.valueLabel, "TextTransparency", "solid")
 
+    self:_applyRowIcon(entry)
+
     return entry
+end
+
+--[[
+The tile's text column reserves exactly the badge plus its gap, so a row
+without an icon hands the whole tile to its label and value.
+]]
+function state:_applyRowIcon(entry)
+    local hasIcon = entry.icon ~= nil
+    entry.badge.Visible = hasIcon
+    image.assign(entry.badgeIcon, "Image", entry.icon or "")
+    entry.textColumn.Size = UDim2.new(1, if hasIcon then -(badgeSize + badgeGap) else 0, 0, tileTextHeight)
 end
 
 --[[
@@ -465,10 +554,12 @@ function state:_buildAction(action)
     self.action = {
         name = textOf(read(action, "name", "Name")) or "",
         subtitle = textOrNil(read(action, "subtitle", "Subtitle")),
+        icon = window:ResolveIcon(read(action, "icon", "Icon")),
         callback = read(action, "callback", "Callback"),
     }
 
     local height = if self.action.subtitle then actionHeight else actionHeightSingle
+    local leading = actionPad + (if self.action.icon then actionIconSize + actionIconGap else 0)
     local contentHeight = if self.action.subtitle
         then actionLabelHeight + tileLineGap + actionSubtitleHeight
         else actionLabelHeight
@@ -486,10 +577,23 @@ function state:_buildAction(action)
     })
     self.actionStroke = insetSurface(window, self.actionBand)
 
+    self.actionIcon = window:Create("ImageLabel", {
+        Name = "Icon",
+        Image = self.action.icon or "",
+        Size = UDim2.fromOffset(actionIconSize, actionIconSize),
+        Position = UDim2.new(0, actionPad, 0.5, 0),
+        AnchorPoint = Vector2.new(0, 0.5),
+        BorderSizePixel = 0,
+        BackgroundTransparency = 1,
+        Visible = self.action.icon ~= nil,
+        ImageTransparency = 1,
+        Parent = self.actionBand,
+    }, { ImageColor3 = "ContentColor" })
+
     self.actionText = window:Create("Frame", {
         Name = "Text",
-        Size = UDim2.new(1, -(actionPad + actionChevronInset + actionChevronSize + actionTextGap), 0, contentHeight),
-        Position = UDim2.new(0, actionPad, 0.5, 0),
+        Size = UDim2.new(1, -(leading + actionChevronInset + actionChevronSize + actionIconGap), 0, contentHeight),
+        Position = UDim2.new(0, leading, 0.5, 0),
         AnchorPoint = Vector2.new(0, 0.5),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
@@ -570,6 +674,7 @@ function state:_buildAction(action)
 
     self:_track(self.actionBand, "BackgroundTransparency", "background")
     self:_track(self.actionStroke, "Transparency", "stroke")
+    self:_track(self.actionIcon, "ImageTransparency", "icon")
     self:_track(self.actionLabel, "TextTransparency", "solid")
     self:_track(self.actionSubtitle, "TextTransparency", "muted")
     self:_track(self.actionChevron, "ImageTransparency", "chevron")
@@ -641,8 +746,8 @@ function state:_refreshTheme()
 end
 
 --[[
-Public setters. The header's slots mirror the Isolated container's; the row
-setter rewrites one tile in place instead of rebuilding the row, so a live
+Public setters. The header icon slot mirrors the Isolated container's; the
+row setter rewrites one tile in place instead of rebuilding the row, so a live
 status card never re-measures its layout.
 ]]
 function state:SetTitle(title)
@@ -658,6 +763,18 @@ function state:SetSubtitle(subtitle)
         self.subtitleLabel.Text = ""
     end
     self:_applyHeaderMetrics()
+end
+
+function state:SetIcon(icon)
+    self.icon = self.window:ResolveIcon(icon)
+    image.assign(self.iconLabel, "Image", self.icon or "")
+    self.iconLabel.Visible = self.icon ~= nil
+    self:_applyHeaderMetrics()
+    --[[
+    The icon slot is tracked, so it lands at its resting transparency for
+    whichever state the card is in right now.
+    ]]
+    self:_setShown(self._shown, false)
 end
 
 function state:SetRow(index, row)
@@ -681,10 +798,17 @@ function state:SetRow(index, row)
         changed = true
     end
 
+    local icon = read(row, "icon", "Icon")
+    if icon ~= nil then
+        entry.icon = self.window:ResolveIcon(icon)
+        self:_applyRowIcon(entry)
+        changed = true
+    end
+
     --[[
-    Refresh the equal-slice row and re-paint after a rewrite; copy is
-    truncated inside its own compact tile rather than wrapping the last
-    tile onto another line.
+    Refresh the equal-slice row after an icon changes the text reservation;
+    copy is truncated inside its own compact tile rather than wrapping the
+    last tile onto another line.
     ]]
     if changed then
         self:_layoutRows()

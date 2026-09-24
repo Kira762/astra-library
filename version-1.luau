@@ -722,10 +722,11 @@ export type LinkProps = {
 }
 
 --[[
-One compact data tile of an About card: a label and a value.
+One compact data tile of an About card: a leading icon, a label and a value.
 Up to three tiles share one line; the count drives each tile's width.
 ]]
 export type AboutCardRow = {
+    icon: (string | number)?,
     label: string?,
     value: (string | number)?,
 }
@@ -736,6 +737,7 @@ one the data rows stop at three for — and it is the card's only tappable
 surface.
 ]]
 export type AboutCardAction = {
+    icon: (string | number)?,
     name: string?,
     subtitle: string?,
     callback: (() -> ())?,
@@ -744,6 +746,7 @@ export type AboutCardAction = {
 export type AboutCardProps = {
     name: string?,
     subtitle: string?,
+    icon: (string | number)?,
     rows: { AboutCardRow }?,
     action: AboutCardAction?,
 }
@@ -894,6 +897,7 @@ export type Link = Moveable & Lockable & {
 export type AboutCard = Moveable & Lockable & {
     SetTitle: (self: AboutCard, title: string) -> (),
     SetSubtitle: (self: AboutCard, subtitle: string?) -> (),
+    SetIcon: (self: AboutCard, icon: (string | number)?) -> (),
     SetRow: (self: AboutCard, index: number, row: AboutCardRow) -> (),
 }
 
@@ -5308,9 +5312,10 @@ function settingsComponent.buildUI(window)
         about:CreateAboutCard({
             name = "Astra",
             subtitle = "UI Library for a better experience.",
+            icon = constants.icons.dot,
             rows = {
-                { label = "Version", value = aboutVersion },
-                { label = "Author", value = aboutAuthor },
+                { icon = "code", label = "Version", value = aboutVersion },
+                { icon = "user", label = "Author", value = aboutAuthor },
             },
         })
         about:CreateLink({
@@ -10548,18 +10553,20 @@ row of data tiles and an optional trailing action band.
 
 The recipe is fixed and every string in it is host copy:
 
-  * header — a title/subtitle stack,
-  * rows — one to three compact data tiles, each a label above its value.
-    Every tile shares one line evenly: the three-row About recipe stays
-    three-across instead of leaving its last tile alone on a second line,
-  * action (optional) — a tappable band carrying a label, a subtitle and
-    the card's trailing chevron. It is the card's trailing row, which is
-    why the data rows stop at three: a fourth would be the action itself.
+  * header — a leading icon plus a title/subtitle stack,
+  * rows — one to three compact data tiles, each a leading icon with a
+    label above its value. Every tile shares one line evenly: the three-row
+    About recipe stays three-across instead of leaving its last tile alone
+    on a second line,
+  * action (optional) — a tappable band carrying an icon, a label, a
+    subtitle and the card's trailing chevron. It is the card's trailing
+    row, which is why the data rows stop at three: a fourth would be the
+    action itself.
 
 Every surface stays inside the shared theme tokens — the card is the
-standard element body, each tile and the action band use ElementSurface
-with the element corner and stroke — so the card themes itself like every
-other element instead of hard-coding a dark inset.
+standard element body, each tile and the action band use ElementSurface,
+and the nested badge uses that same control family — so the card themes
+itself like every other element instead of hard-coding a dark inset.
 ]]
 
 local state = {}
@@ -10568,6 +10575,7 @@ state.__type = "AboutCard"
 
 local utilities = script.Parent.Parent.utilities
 
+local image = require(script.Parent.Parent.images.image)
 local haptic = require(utilities.HapticEngine)
 local locale = require(utilities.locale)
 local lockable = require(utilities.lockable)
@@ -10582,12 +10590,14 @@ local maxRows = 3
 
 --[[
 Card metrics. The card keeps the library's 20px gutter. Data tiles are a
-deliberately compact 48px band: the smaller inset leaves enough copy room
-for three equal tiles on the normal card width without making the third
-row wrap below the first two.
+deliberately compact 48px band: the smaller inset and badge leave enough
+copy room for three equal tiles on the normal card width without making the
+third row wrap below the first two.
 ]]
 local gutter = 20
 local sectionGap = 14
+local headerIconSize = 38
+local headerIconGap = 14
 local headerTitleSize = 20
 local headerTitleHeight = 26
 local headerSubtitleSize = 14
@@ -10596,6 +10606,9 @@ local headerLineGap = 2
 local tileHeight = 48
 local tileGap = 8
 local tilePad = 8
+local badgeSize = 28
+local badgeIconSize = 14
+local badgeGap = 8
 local tileLabelSize = 11
 local tileLabelHeight = 13
 local tileValueSize = 14
@@ -10605,7 +10618,8 @@ local tileTextHeight = tileLabelHeight + tileLineGap + tileValueHeight
 local actionHeight = 56
 local actionHeightSingle = 41
 local actionPad = 14
-local actionTextGap = 12
+local actionIconSize = 16
+local actionIconGap = 12
 local actionLabelSize = 16
 local actionLabelHeight = 19
 local actionSubtitleSize = 14
@@ -10641,6 +10655,9 @@ local restValue = {
     end,
     chevron = function()
         return restingChevronTransparency
+    end,
+    icon = function()
+        return 0
     end,
     solid = function()
         return 0
@@ -10708,6 +10725,7 @@ function state.new(tab, props)
         window = window,
         name = textOrNil(read(props, "name", "Name")) or "About",
         subtitle = textOrNil(read(props, "subtitle", "Subtitle")),
+        icon = window:ResolveIcon(read(props, "icon", "Icon")),
         rows = {},
         --[[
         Every painted part of the card in one list (see `restValue`), so a
@@ -10792,9 +10810,35 @@ function state:_buildHeader()
         Parent = self.main,
     })
 
+    window:Create("UIListLayout", {
+        FillDirection = Enum.FillDirection.Horizontal,
+        Padding = UDim.new(0, headerIconGap),
+        VerticalAlignment = Enum.VerticalAlignment.Center,
+        HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = self.header,
+    })
+
+    --[[
+    The leading slot exists whether or not the card started with an icon,
+    so `SetIcon` can add one later instead of silently doing nothing.
+    Hidden, it is out of the list layout's flow.
+    ]]
+    self.iconLabel = window:Create("ImageLabel", {
+        Name = "Icon",
+        Image = self.icon or "",
+        Size = UDim2.fromOffset(headerIconSize, headerIconSize),
+        BorderSizePixel = 0,
+        BackgroundTransparency = 1,
+        LayoutOrder = 0,
+        Visible = self.icon ~= nil,
+        ImageTransparency = 1,
+        Parent = self.header,
+    }, { ImageColor3 = "ContentColor" })
+
     self.headerText = window:Create("Frame", {
         Name = "Text",
-        Size = UDim2.new(1, 0, 0, height),
+        Size = UDim2.new(1, if self.icon then -(headerIconSize + headerIconGap) else 0, 0, height),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         LayoutOrder = 1,
@@ -10854,7 +10898,7 @@ second line reflows the band and the text column from one place.
 function state:_applyHeaderMetrics()
     local height = self:_headerHeight()
     self.header.Size = UDim2.new(1, 0, 0, height)
-    self.headerText.Size = UDim2.new(1, 0, 0, height)
+    self.headerText.Size = UDim2.new(1, if self.icon then -(headerIconSize + headerIconGap) else 0, 0, height)
     self.subtitleLabel.Visible = self.subtitle ~= nil
 end
 
@@ -10893,6 +10937,7 @@ function state:_buildRow(index, row)
     row = if type(row) == "table" then row else {}
 
     local entry = {
+        icon = window:ResolveIcon(read(row, "icon", "Icon")),
         label = textOf(read(row, "label", "Label")) or "",
         value = textOf(read(row, "value", "Value")) or "",
     }
@@ -10920,11 +10965,44 @@ function state:_buildRow(index, row)
 
     window:Create("UIListLayout", {
         FillDirection = Enum.FillDirection.Horizontal,
+        Padding = UDim.new(0, badgeGap),
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalAlignment = Enum.HorizontalAlignment.Left,
         SortOrder = Enum.SortOrder.LayoutOrder,
         Parent = entry.main,
     })
+
+    --[[
+    The badge is the small square the row's icon sits in. It carries the
+    content surface and the element stroke, so the mark reads as a chip on
+    the tile rather than as a floating glyph.
+    ]]
+    entry.badge = window:Create("Frame", {
+        Name = "Badge",
+        Size = UDim2.fromOffset(badgeSize, badgeSize),
+        BorderSizePixel = 0,
+        BackgroundTransparency = 1,
+        LayoutOrder = 0,
+        Parent = entry.main,
+    }, { BackgroundColor3 = "ElementSurface", BackgroundTransparency = "ElementTransparency" })
+    window:Create("UICorner", { Parent = entry.badge }, { CornerRadius = "ElementCornerRadius" })
+    entry.badgeStroke = window:Create("UIStroke", { Transparency = 1, Parent = entry.badge }, {
+        Color = "ElementStroke",
+        Transparency = "ElementStrokeTransparency",
+    })
+
+    entry.badgeIcon = window:Create("ImageLabel", {
+        Name = "Icon",
+        Image = entry.icon or "",
+        Size = UDim2.fromOffset(badgeIconSize, badgeIconSize),
+        Position = UDim2.fromScale(0.5, 0.5),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BorderSizePixel = 0,
+        BackgroundTransparency = 1,
+        Visible = entry.icon ~= nil,
+        ImageTransparency = 1,
+        Parent = entry.badge,
+    }, { ImageColor3 = "ContentColor" })
 
     entry.textColumn = window:Create("Frame", {
         Name = "Text",
@@ -10973,10 +11051,26 @@ function state:_buildRow(index, row)
 
     self:_track(entry.main, "BackgroundTransparency", "background")
     self:_track(entry.stroke, "Transparency", "stroke")
+    self:_track(entry.badge, "BackgroundTransparency", "background")
+    self:_track(entry.badgeStroke, "Transparency", "stroke")
+    self:_track(entry.badgeIcon, "ImageTransparency", "icon")
     self:_track(entry.labelLabel, "TextTransparency", "muted")
     self:_track(entry.valueLabel, "TextTransparency", "solid")
 
+    self:_applyRowIcon(entry)
+
     return entry
+end
+
+--[[
+The tile's text column reserves exactly the badge plus its gap, so a row
+without an icon hands the whole tile to its label and value.
+]]
+function state:_applyRowIcon(entry)
+    local hasIcon = entry.icon ~= nil
+    entry.badge.Visible = hasIcon
+    image.assign(entry.badgeIcon, "Image", entry.icon or "")
+    entry.textColumn.Size = UDim2.new(1, if hasIcon then -(badgeSize + badgeGap) else 0, 0, tileTextHeight)
 end
 
 --[[
@@ -11009,10 +11103,12 @@ function state:_buildAction(action)
     self.action = {
         name = textOf(read(action, "name", "Name")) or "",
         subtitle = textOrNil(read(action, "subtitle", "Subtitle")),
+        icon = window:ResolveIcon(read(action, "icon", "Icon")),
         callback = read(action, "callback", "Callback"),
     }
 
     local height = if self.action.subtitle then actionHeight else actionHeightSingle
+    local leading = actionPad + (if self.action.icon then actionIconSize + actionIconGap else 0)
     local contentHeight = if self.action.subtitle
         then actionLabelHeight + tileLineGap + actionSubtitleHeight
         else actionLabelHeight
@@ -11030,10 +11126,23 @@ function state:_buildAction(action)
     })
     self.actionStroke = insetSurface(window, self.actionBand)
 
+    self.actionIcon = window:Create("ImageLabel", {
+        Name = "Icon",
+        Image = self.action.icon or "",
+        Size = UDim2.fromOffset(actionIconSize, actionIconSize),
+        Position = UDim2.new(0, actionPad, 0.5, 0),
+        AnchorPoint = Vector2.new(0, 0.5),
+        BorderSizePixel = 0,
+        BackgroundTransparency = 1,
+        Visible = self.action.icon ~= nil,
+        ImageTransparency = 1,
+        Parent = self.actionBand,
+    }, { ImageColor3 = "ContentColor" })
+
     self.actionText = window:Create("Frame", {
         Name = "Text",
-        Size = UDim2.new(1, -(actionPad + actionChevronInset + actionChevronSize + actionTextGap), 0, contentHeight),
-        Position = UDim2.new(0, actionPad, 0.5, 0),
+        Size = UDim2.new(1, -(leading + actionChevronInset + actionChevronSize + actionIconGap), 0, contentHeight),
+        Position = UDim2.new(0, leading, 0.5, 0),
         AnchorPoint = Vector2.new(0, 0.5),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
@@ -11114,6 +11223,7 @@ function state:_buildAction(action)
 
     self:_track(self.actionBand, "BackgroundTransparency", "background")
     self:_track(self.actionStroke, "Transparency", "stroke")
+    self:_track(self.actionIcon, "ImageTransparency", "icon")
     self:_track(self.actionLabel, "TextTransparency", "solid")
     self:_track(self.actionSubtitle, "TextTransparency", "muted")
     self:_track(self.actionChevron, "ImageTransparency", "chevron")
@@ -11185,8 +11295,8 @@ function state:_refreshTheme()
 end
 
 --[[
-Public setters. The header's slots mirror the Isolated container's; the row
-setter rewrites one tile in place instead of rebuilding the row, so a live
+Public setters. The header icon slot mirrors the Isolated container's; the
+row setter rewrites one tile in place instead of rebuilding the row, so a live
 status card never re-measures its layout.
 ]]
 function state:SetTitle(title)
@@ -11202,6 +11312,18 @@ function state:SetSubtitle(subtitle)
         self.subtitleLabel.Text = ""
     end
     self:_applyHeaderMetrics()
+end
+
+function state:SetIcon(icon)
+    self.icon = self.window:ResolveIcon(icon)
+    image.assign(self.iconLabel, "Image", self.icon or "")
+    self.iconLabel.Visible = self.icon ~= nil
+    self:_applyHeaderMetrics()
+    --[[
+    The icon slot is tracked, so it lands at its resting transparency for
+    whichever state the card is in right now.
+    ]]
+    self:_setShown(self._shown, false)
 end
 
 function state:SetRow(index, row)
@@ -11225,10 +11347,17 @@ function state:SetRow(index, row)
         changed = true
     end
 
+    local icon = read(row, "icon", "Icon")
+    if icon ~= nil then
+        entry.icon = self.window:ResolveIcon(icon)
+        self:_applyRowIcon(entry)
+        changed = true
+    end
+
     --[[
-    Refresh the equal-slice row and re-paint after a rewrite; copy is
-    truncated inside its own compact tile rather than wrapping the last
-    tile onto another line.
+    Refresh the equal-slice row after an icon changes the text reservation;
+    copy is truncated inside its own compact tile rather than wrapping the
+    last tile onto another line.
     ]]
     if changed then
         self:_layoutRows()
@@ -27565,116 +27694,116 @@ end)() end,
 local LineOffsets = {
     [2] = 47,
     [3] = 468,
-    [5] = 1121,
-    [6] = 1104,
-    [7] = 1276,
-    [8] = 1418,
-    [9] = 1669,
-    [10] = 2051,
-    [11] = 3421,
-    [12] = 3830,
-    [13] = 4179,
-    [14] = 4918,
-    [15] = 5256,
-    [16] = 5769,
-    [17] = 5832,
-    [18] = 6306,
-    [19] = 6652,
-    [20] = 6666,
-    [21] = 6723,
-    [22] = 6854,
-    [23] = 7217,
-    [24] = 7456,
-    [25] = 7778,
-    [26] = 7878,
-    [27] = 7940,
-    [28] = 8588,
-    [29] = 8811,
-    [30] = 9157,
-    [31] = 9611,
-    [32] = 6626,
-    [34] = 10545,
-    [35] = 11246,
-    [36] = 11335,
-    [37] = 11554,
-    [38] = 11975,
-    [39] = 12430,
-    [40] = 12587,
-    [41] = 12732,
-    [42] = 14322,
-    [43] = 14570,
-    [44] = 14805,
-    [45] = 15082,
-    [46] = 15519,
-    [47] = 15763,
-    [48] = 16834,
-    [49] = 17607,
-    [50] = 17693,
-    [51] = 18289,
-    [52] = 19131,
-    [53] = 19678,
-    [54] = 19808,
-    [55] = 19947,
-    [57] = 20458,
-    [58] = 20484,
-    [59] = 20503,
-    [60] = 20536,
-    [61] = 20662,
-    [62] = 20688,
-    [63] = 20737,
-    [64] = 20433,
-    [65] = 20842,
-    [66] = 21147,
-    [67] = 21178,
-    [68] = 20831,
-    [69] = 21221,
-    [70] = 21241,
-    [71] = 21273,
-    [72] = 21203,
-    [73] = 21380,
-    [74] = 21448,
-    [76] = 21530,
-    [77] = 21697,
-    [78] = 21716,
-    [79] = 21515,
-    [80] = 22347,
-    [81] = 22393,
-    [82] = 22475,
-    [83] = 22670,
-    [84] = 22801,
-    [85] = 22904,
-    [86] = 23073,
-    [87] = 23413,
-    [88] = 21812,
-    [89] = 24057,
-    [90] = 23943,
-    [91] = 24196,
-    [92] = 24294,
-    [93] = 24472,
-    [94] = 24531,
-    [95] = 24561,
-    [96] = 24812,
-    [97] = 24861,
-    [98] = 25314,
-    [99] = 25332,
-    [100] = 25539,
-    [101] = 25559,
-    [102] = 25687,
-    [103] = 25786,
-    [104] = 25808,
-    [105] = 25864,
-    [106] = 26329,
-    [107] = 26365,
-    [108] = 26383,
-    [109] = 26743,
-    [110] = 26755,
-    [111] = 26806,
-    [112] = 26825,
-    [113] = 27084,
-    [114] = 27128,
-    [115] = 27344,
-    [116] = 27372,
-    [117] = 27383,
+    [5] = 1125,
+    [6] = 1108,
+    [7] = 1280,
+    [8] = 1422,
+    [9] = 1673,
+    [10] = 2055,
+    [11] = 3425,
+    [12] = 3834,
+    [13] = 4183,
+    [14] = 4922,
+    [15] = 5260,
+    [16] = 5774,
+    [17] = 5837,
+    [18] = 6311,
+    [19] = 6657,
+    [20] = 6671,
+    [21] = 6728,
+    [22] = 6859,
+    [23] = 7222,
+    [24] = 7461,
+    [25] = 7783,
+    [26] = 7883,
+    [27] = 7945,
+    [28] = 8593,
+    [29] = 8816,
+    [30] = 9162,
+    [31] = 9616,
+    [32] = 6631,
+    [34] = 10550,
+    [35] = 11375,
+    [36] = 11464,
+    [37] = 11683,
+    [38] = 12104,
+    [39] = 12559,
+    [40] = 12716,
+    [41] = 12861,
+    [42] = 14451,
+    [43] = 14699,
+    [44] = 14934,
+    [45] = 15211,
+    [46] = 15648,
+    [47] = 15892,
+    [48] = 16963,
+    [49] = 17736,
+    [50] = 17822,
+    [51] = 18418,
+    [52] = 19260,
+    [53] = 19807,
+    [54] = 19937,
+    [55] = 20076,
+    [57] = 20587,
+    [58] = 20613,
+    [59] = 20632,
+    [60] = 20665,
+    [61] = 20791,
+    [62] = 20817,
+    [63] = 20866,
+    [64] = 20562,
+    [65] = 20971,
+    [66] = 21276,
+    [67] = 21307,
+    [68] = 20960,
+    [69] = 21350,
+    [70] = 21370,
+    [71] = 21402,
+    [72] = 21332,
+    [73] = 21509,
+    [74] = 21577,
+    [76] = 21659,
+    [77] = 21826,
+    [78] = 21845,
+    [79] = 21644,
+    [80] = 22476,
+    [81] = 22522,
+    [82] = 22604,
+    [83] = 22799,
+    [84] = 22930,
+    [85] = 23033,
+    [86] = 23202,
+    [87] = 23542,
+    [88] = 21941,
+    [89] = 24186,
+    [90] = 24072,
+    [91] = 24325,
+    [92] = 24423,
+    [93] = 24601,
+    [94] = 24660,
+    [95] = 24690,
+    [96] = 24941,
+    [97] = 24990,
+    [98] = 25443,
+    [99] = 25461,
+    [100] = 25668,
+    [101] = 25688,
+    [102] = 25816,
+    [103] = 25915,
+    [104] = 25937,
+    [105] = 25993,
+    [106] = 26458,
+    [107] = 26494,
+    [108] = 26512,
+    [109] = 26872,
+    [110] = 26884,
+    [111] = 26935,
+    [112] = 26954,
+    [113] = 27213,
+    [114] = 27257,
+    [115] = 27473,
+    [116] = 27501,
+    [117] = 27512,
 }
 
 -- Misc AOT variable imports

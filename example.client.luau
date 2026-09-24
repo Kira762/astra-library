@@ -104,12 +104,14 @@ local function buildStudio(unlockedKey)
     overview:CreateAboutCard({
         name = "Astra",
         subtitle = "A live testbed for the whole API.",
+        icon = 80387863064905,
         rows = {
-            { label = "Version", value = "1.4.0" },
-            { label = "Tabs", value = "10" },
-            { label = "Author", value = "Astra Team" },
+            { icon = "code", label = "Version", value = "1.4.0" },
+            { icon = "layers", label = "Tabs", value = "11" },
+            { icon = "user", label = "Author", value = "Astra Team" },
         },
         action = {
+            icon = "file-text",
             name = "Release history",
             callback = function()
                 overview:Select()
@@ -1008,7 +1010,74 @@ local function buildStudio(unlockedKey)
     modeActions:CreateButton({ name = "Mode 2", icon = "arrow-right", callback = function() demoModePicker:Set(2) end })
     modeActions:CreateButton({ name = "Reset", icon = "rotate-ccw", callback = function() demoModePicker:Reset() end })
 
-    -- 8. Configs — the persistence API
+    -- 8. All Elements — one tab with every public element constructor.
+    -- The visible names intentionally match the element names so this tab is
+    -- also a quick visual smoke test when a new build is loaded.
+    local allElements = window:CreateTab({ name = "All Elements", icon = "layout-grid" })
+    allElements:CreateSection({ name = "Section", icon = "list" })
+    local allText = allElements:CreateText({ name = "Text", text = "Text" })
+    allElements:CreateButton({
+        name = "Button", icon = "mouse-pointer-click",
+        callback = function() allText:Set("Button") end,
+    })
+    allElements:CreateToggle({ name = "Toggle", icon = "toggle-right", value = true })
+    allElements:CreateSlider({
+        name = "Slider", icon = "sliders-horizontal", range = { 0, 100 }, value = 50,
+    })
+    allElements:CreateDropdown({
+        name = "Dropdown", icon = "list-filter", options = { "One", "Two" }, value = "One",
+    })
+    allElements:CreateInput({ name = "Input", icon = "text-cursor-input", value = "Input" })
+    allElements:CreateKeybind({ name = "Keybind", icon = "keyboard", value = "K" })
+    allElements:CreateStat({ name = "Stat", value = 42, suffix = " points" })
+    allElements:CreateLink({
+        name = "Link", subtitle = "Copy this example URL", icon = "link",
+        link = "https://github.com/Kira762/astra-version-1",
+    })
+    allElements:CreateAboutCard({
+        name = "AboutCard", subtitle = "AboutCard with all icon slots restored", icon = "info",
+        rows = {
+            { icon = "code", label = "Version", value = "1.4.0" },
+            { icon = "package", label = "Build", value = "All elements" },
+            { icon = "user", label = "Author", value = "Astra Team" },
+        },
+        action = { icon = "file-text", name = "AboutCard action", subtitle = "The band is tappable" },
+    })
+    allElements:CreateFooter({ parts = { { text = "Footer" }, { icon = "zap" } } })
+    allElements:CreateChangelog({
+        name = "Changelog",
+        entries = { { version = "Demo", title = "Changelog", changes = { { symbol = "+", text = "Changelog" } } } },
+    })
+    allElements:CreateDivider({ text = "Divider" })
+
+    -- Group has no visible name property; its child is named Group so the
+    -- constructor is still obvious in the all-elements smoke-test tab.
+    local allGroup = allElements:CreateGroup({ direction = "column" })
+    allGroup:CreateText({ name = "Group", text = "Group" })
+
+    allElements:CreateCollapsibleGroup({
+        name = "CollapsibleGroup", icon = "chevrons-up-down", description = "CollapsibleGroup",
+        elements = {
+            { type = "Text", name = "Text", text = "CollapsibleGroup contents" },
+            { type = "Button", name = "Button" },
+        },
+    })
+    allElements:CreateModePicker({
+        title = "ModePicker", subtitle = "ModePicker", left_icon = "zap", right_icon = "rotate-ccw",
+        modes = {
+            { label = "One", type = "default" },
+            { label = "Two", type = "dot" },
+            { label = "Three", type = "dot" },
+        },
+    })
+    allElements:CreateIsolated({
+        name = "Isolated", subtitle = "Isolated", icon = "archive",
+        elements = { { type = "Changelog", name = "Changelog", entries = {
+            { version = "Demo", title = "Isolated", changes = { { symbol = "+", text = "Isolated" } } },
+        } } },
+    })
+
+    -- 9. Configs — the persistence API
     local configs = window:CreateTab({ name = "Configs", icon = "save" })
 
     configs:CreateSection({ name = "Slots", icon = "folder-open" })

@@ -1,4 +1,4 @@
---[[ 
+--[[
 ===== About card (CreateAboutCard) assertions =====
 Runs the real Astra bundle (loaded as global `Astra` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau.
@@ -6,15 +6,14 @@ mini Roblox environment from sidebar_sizing_stubs.luau.
 The About card is one container with three blocks: a brand header, a row
 of at most three data tiles and an optional trailing action band. Expected
 behavior under test:
-  * A1 the header renders the title and the subtitle, the band is as tall
-       as the copy it carries, and icon props are ignored — the card
-       builds no icon slot and exposes no SetIcon,
+  * A1 the header renders the leading icon, the title and the subtitle, and
+       the band is as tall as the copy it carries,
   * A2 one, two or three compact tiles always share a single row evenly and
-       each carries its own label and value (and no badge),
+       each carries its badge icon and its own label and value,
   * A3 the card carries no description paragraph any more — the prop is
        gone,
   * A4 the action band is the card's tap target: it renders its copy, its
-       trailing chevron and fires its callback (action icons are ignored),
+       trailing chevron and fires its callback,
   * A5 a fourth data row is refused with an exact message,
   * A6 the setters rewrite the header and one row in place,
   * A7 the card rests revealed, disappears with the window and comes back,
@@ -83,7 +82,6 @@ local taps = 0
 local card = tab:CreateAboutCard({
 	name = "Astra",
 	subtitle = "UI Library for a better experience.",
-	-- icon props are accepted and ignored everywhere on the card
 	icon = 80387863064905,
 	rows = {
 		{ icon = "code", label = "Version", value = "1.4.0" },
@@ -108,10 +106,8 @@ eq(card.title.Text, "Astra", "A1 the header title renders the name")
 eq(card.subtitleLabel.Text, "UI Library for a better experience.", "A1 the subtitle renders under it")
 eq(card.subtitleLabel.Visible, true, "A1 ... and the second line is on")
 eq(card.header.Size.Y.Offset, 46, "A1 the two-line header band is 26 + 2 + 18")
-eq(card.iconLabel, nil, "A1 the card builds no icon slot")
-eq(card.icon, nil, "A1 ... and stores no icon")
-expect(card.SetIcon == nil, "A1 ... and exposes no SetIcon")
-eq(card.headerText.Size.X.Offset, 0, "A1 the text stack takes the whole band")
+eq(card.iconLabel.Visible, true, "A1 the leading slot is drawn")
+expect(string.find(tostring(card.iconLabel.Image), "80387863064905", 1, true) ~= nil, "A1 the Astra asset id is kept")
 eq(card.main.Size.X.Offset, -20, "A1 the card keeps the element gutter")
 eq(card.main.AutomaticSize, Enum.AutomaticSize.Y, "A1 the card grows with its copy")
 
@@ -125,6 +121,7 @@ eq(#card._rowLines[1], 3, "A2 that line contains all three rows")
 
 local labels = { "Version", "Build", "Author" }
 local values = { "1.4.0", "2026.09.12", "Astra Team" }
+local icons = { "code", "package", "user" }
 for index, entry in ipairs(card.rows) do
 	eq(entry.main.Size.Y.Offset, 48, "A2 row " .. index .. " wears the compact tile height")
 	eq(entry.main.Position.Y.Offset, 0, "A2 row " .. index .. " never wraps below the line")
@@ -136,12 +133,17 @@ for index, entry in ipairs(card.rows) do
 	eq(entry.valueLabel.Text, values[index], "A2 ... and its value")
 	eq(entry.labelLabel.TextSize, 11, "A2 the label is the compact small line")
 	eq(entry.valueLabel.TextSize, 14, "A2 the value is the compact strong line")
-	eq(entry.badge, nil, "A2 row " .. index .. " builds no badge")
-	eq(entry.badgeIcon, nil, "A2 ... and no badge glyph")
-	eq(entry.icon, nil, "A2 ... and stores no icon")
-	eq(entry.textColumn.Size.X.Offset, 0, "A2 the text column takes the whole tile")
+	eq(entry.badge.Size.X.Offset, 28, "A2 the badge is compact")
+	eq(entry.badgeIcon.Size.X.Offset, 14, "A2 ... with a compact glyph")
+	eq(entry.badge.Visible, true, "A2 row " .. index .. " draws its badge")
+	eq(entry.badgeIcon.Visible, true, "A2 ... with the row icon in it")
+	eq(entry.icon, window:ResolveIcon(icons[index]), "A2 ... resolved through the icon catalog")
+	expect(entry.icon ~= nil and entry.icon ~= "", "A2 row " .. index .. " resolved a real icon")
+	expect(type(entry.badgeIcon.Image) == "string", "A2 ... and the badge carries the image slot")
+	eq(entry.textColumn.Size.X.Offset, -36, "A2 the text column reserves only the compact badge and gap")
 end
 
+expect(card.rows[1].icon ~= card.rows[2].icon, "A2 the rows carry their own icons")
 close(card.main.Size.X.Offset, -20, "A2 the card keeps the element gutter")
 
 -- One row fills the band on its own; two split it between them.
@@ -176,6 +178,11 @@ TestPump(0.3)
 eq(#noRows.rows, 0, "A2 a card can carry no rows at all")
 eq(noRows.rowsHost.Visible, false, "A2 ... leaving the rows section out of the layout")
 
+local iconless = tab:CreateAboutCard({ name = "Plain", rows = { { label = "No icon", value = "1" } } })
+TestPump(0.3)
+eq(iconless.rows[1].badge.Visible, false, "A2 a row without an icon drops the badge")
+eq(iconless.rows[1].textColumn.Size.X.Offset, 0, "A2 ... and hands the whole tile to its text")
+
 -- ===== A3: no description paragraph =========================================
 
 eq(card.descriptionLabel, nil, "A3 the card builds no description paragraph")
@@ -187,8 +194,8 @@ expect(card.actionBand ~= nil, "A4 the action band is built")
 eq(card.actionBand.Size.Y.Offset, 56, "A4 the two-line band is 19 + 1 + 16 tall")
 eq(card.actionLabel.Text, "View Changelog", "A4 the band renders its label")
 eq(card.actionSubtitle.Text, "See what's new in this version", "A4 ... and its subtitle")
-eq(card.actionIcon, nil, "A4 the action builds no icon slot")
-eq(card.action.icon, nil, "A4 ... and the action stores no icon")
+eq(card.action.icon, window:ResolveIcon("file-text"), "A4 the leading icon resolved from the repo packs")
+eq(card.actionIcon.Visible, true, "A4 ... and the slot is drawn")
 expect(
 	window:ResolveIcon("chevron-right") ~= "chevron-right",
 	"A4 the trailing chevron name resolves in the packs"
@@ -203,7 +210,7 @@ card.actionButton.MouseButton1Click:Fire()
 TestPump(0.3)
 eq(taps, 1, "A4 the band tap fired the callback")
 
--- A card built without an action keeps its header and rows.
+-- A card built without an action keeps its header, rows and paragraph.
 local quiet = tab:CreateAboutCard({ name = "Quiet", rows = { { label = "Only", value = "1" } } })
 TestPump(0.3)
 eq(quiet.actionButton, nil, "A4 a card without an action has nothing to tap")
@@ -244,13 +251,21 @@ TestPump(0.2)
 eq(card.header.Size.Y.Offset, 46, "A6 restoring it reopens the band")
 eq(card.subtitleLabel.Text, "Back again", "A6 ... with the new copy")
 
+card:SetIcon("sparkles")
+TestPump(0.2)
+expect(card.icon == window:ResolveIcon("sparkles"), "A6 SetIcon resolves the new icon")
+eq(card.iconLabel.Visible, true, "A6 ... and keeps the slot drawn")
+
+card:SetIcon(nil)
+TestPump(0.2)
+eq(card.iconLabel.Visible, false, "A6 SetIcon(nil) takes the slot out")
+
 card:SetRow(1, { icon = "box", label = "Version", value = "1.5.0" })
 TestPump(0.2)
 eq(card.rows[1].labelLabel.Text, "Version", "A6 SetRow rewrites the label")
 eq(card._rowLines and #card._rowLines == 1, true, "A6 ... and the compact row stays on one line")
 eq(card.rows[1].valueLabel.Text, "1.5.0", "A6 ... and the value")
-eq(card.rows[1].icon, nil, "A6 ... and row icon fields stay ignored")
-eq(card.rows[1].badge, nil, "A6 ... with no badge introduced")
+eq(card.rows[1].icon, window:ResolveIcon("box"), "A6 ... and re-resolves the row icon")
 eq(card.rows[2].valueLabel.Text, "2026.09.12", "A6 ... leaving the other rows alone")
 
 local okRow = pcall(function()
@@ -278,10 +293,12 @@ eq(card.rows[1].main.BackgroundTransparency, theme.ElementTransparency, "A7 a ti
 eq(card.rows[1].main.BackgroundColor3, theme.ElementSurface, "A7 the tile uses the regular element fill, not the dark window surface")
 eq(card.actionBand.BackgroundColor3, theme.ElementSurface, "A7 the action band uses that same UI surface")
 eq(card.rows[1].stroke.Transparency, theme.ElementStrokeTransparency, "A7 ... with its own stroke")
+eq(card.rows[1].badge.BackgroundTransparency, theme.ElementTransparency, "A7 the badge is drawn")
 eq(card.rows[1].valueLabel.TextTransparency, 0, "A7 values rest solid")
 eq(card.rows[1].labelLabel.TextTransparency, 0.45, "A7 labels rest muted")
 eq(card.subtitleLabel.TextTransparency, 0.45, "A7 so does the header subtitle")
 eq(card.actionChevron.ImageTransparency, 0.4, "A7 the chevron rests on the baked transparency")
+eq(card.rows[1].badgeIcon.ImageTransparency, 0, "A7 the badge icon is fully drawn")
 
 window:Hide()
 TestPump(0.8)
@@ -306,6 +323,7 @@ eq(card.rows[1].main.BackgroundColor3, overrideSurface, "A7 ... including the li
 eq(card.actionBand.BackgroundColor3, overrideSurface, "A7 ... and the matching action fill")
 eq(card.rows[1].labelLabel.TextTransparency, 0.45, "A7 ... keeping the muted lines muted")
 eq(card.rows[1].valueLabel.TextTransparency, 0, "A7 ... and the values solid")
+eq(card.rows[1].badge.BackgroundColor3, overrideSurface, "A7 the badge follows the content surface token")
 
 -- ===== A8: the lock =========================================================
 

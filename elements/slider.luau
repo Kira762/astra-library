@@ -221,6 +221,9 @@ function state.new(ownerTab, a31)
     end)
 
     self.window:ConnectFor(self, self.interact.InputBegan, function(a32)
+        if self:IsLocked() or not self.window:_interactive() then
+            return
+        end
         if
             a32.UserInputType == Enum.UserInputType.MouseButton1
             or a32.UserInputType == Enum.UserInputType.Touch
@@ -278,6 +281,7 @@ function state.new(ownerTab, a31)
 
     self:_renderProgress()
 
+    flag.register(self, a31)
     return self
 end
 
@@ -461,6 +465,9 @@ function state:_renderProgress(a39)
 end
 
 function state:_updateFromMouse()
+    if self:IsLocked() or not self.window:_interactive() then
+        return
+    end
     local a43 = self:_pillTravel()
     if a43 <= 0 then
         return

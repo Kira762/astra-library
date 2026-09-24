@@ -189,7 +189,16 @@ function state.new(tab, props)
         _shown = false,
     }, state)
 
-    self:_build(rows, read(props, "action", "Action"))
+    local action = read(props, "action", "Action")
+    local actionCallback = if type(action) == "table" then read(action, "callback", "Callback") else nil
+    self:_build(rows, action)
+    lockable.register(self, props, {
+        enabled = type(actionCallback) == "function",
+        id = read(props, "id", "Id") or (if type(action) == "table" then read(action, "id", "Id") else nil),
+        usage = if type(action) == "table" then read(action, "usage", "Usage") else nil,
+        lockLevel = if type(action) == "table" then read(action, "lockLevel", "LockLevel") else nil,
+        lockGroup = if type(action) == "table" then read(action, "lockGroup", "LockGroup") else nil,
+    })
 
     return self
 end
@@ -671,6 +680,9 @@ function state:_buildAction(action)
         ZIndex = 6,
         Parent = self.actionBand,
     })
+    -- If the action has a callback, lock only its tap surface; the card's
+    -- informational header and data rows remain fully readable.
+    self.lockSurface = self.actionButton
 
     self:_track(self.actionBand, "BackgroundTransparency", "background")
     self:_track(self.actionStroke, "Transparency", "stroke")

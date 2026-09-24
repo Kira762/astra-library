@@ -91,6 +91,7 @@ local tab = window:CreateTab({ name = "Links" })
 
 local callbacks = 0
 local card = tab:CreateLink({
+	lockLevel = 2,
 	name = "Discord",
 	subtitle = "Join our community",
 	link = "https://discord.gg/astra",
@@ -167,6 +168,7 @@ eq(card:IsConfirming(), false, "L3 ... and the confirmation window closed")
 -- ===== L4: each card owns its cycle ========================================
 
 local neighbour = tab:CreateLink({
+	lockLevel = 2,
 	name = "YouTube",
 	subtitle = "Watch the trailer",
 	link = "https://youtu.be/astra",
@@ -196,6 +198,7 @@ eq(neighbour._glyph, "copy", "L4 ... and so does its neighbour's")
 
 local group = tab:CreateGroup({ direction = "column" })
 local inGroup = group:CreateLink({
+	lockLevel = 2,
 	name = "Docs",
 	subtitle = "Read the guide",
 	link = "https://example.com/docs",
@@ -213,6 +216,7 @@ components, every card keeping its whole layout and its own cycle.
 ]]
 group:CreateButton({ name = "Grouped button" })
 local secondInGroup = group:CreateLink({
+	lockLevel = 2,
 	name = "Support",
 	subtitle = "Open a ticket",
 	link = "https://example.com/support",
@@ -229,8 +233,8 @@ eq(secondInGroup._glyph, "copy", "L5 ... while the other card in the same Group 
 local collapsible = tab:CreateCollapsibleGroup({
 	name = "Community",
 	elements = {
-		{ type = "Link", name = "Group Discord", subtitle = "Join us", link = "https://discord.gg/group" },
-		{ type = "Link", name = "Group YouTube", subtitle = "Watch", link = "https://youtu.be/group" },
+		{ type = "Link", lockLevel = 2, name = "Group Discord", subtitle = "Join us", link = "https://discord.gg/group" },
+		{ type = "Link", lockLevel = 2, name = "Group YouTube", subtitle = "Watch", link = "https://youtu.be/group" },
 	},
 })
 TestPump(0.4)
@@ -309,7 +313,7 @@ eq(card.iconLabel.Visible, true, "L6 SetIcon puts one back")
 The slot exists on a card built without one, so a host can add an icon
 later instead of the call doing nothing.
 ]]
-local bare = tab:CreateLink({ name = "No icon", subtitle = "Add one later", link = "https://example.com/bare" })
+local bare = tab:CreateLink({ lockLevel = 2,  name = "No icon", subtitle = "Add one later", link = "https://example.com/bare" })
 TestPump(0.4)
 eq(bare.iconLabel.Visible, false, "L6 a card built without an icon hides the slot")
 bare:SetIcon("link")
@@ -318,7 +322,7 @@ eq(bare.iconLabel.Visible, true, "L6 ... and SetIcon adds one to it anyway")
 
 -- ===== L7: a locked card does not copy =====================================
 
-local locked = tab:CreateLink({ name = "Locked", subtitle = "Nothing to copy", link = "https://example.com/locked" })
+local locked = tab:CreateLink({ lockLevel = 2,  name = "Locked", subtitle = "Nothing to copy", link = "https://example.com/locked" })
 TestPump(0.4)
 locked:Lock()
 TestPump(0.4)
@@ -338,7 +342,7 @@ eq(copied[#copied], "https://example.com/locked", "L7 unlocking restores the cop
 -- ===== L8: the compact row =================================================
 
 local row = tab:CreateGroup()
-local inRow = row:CreateLink({ name = "Row link", subtitle = "In a row", link = "https://example.com/row" })
+local inRow = row:CreateLink({ lockLevel = 2,  name = "Row link", subtitle = "In a row", link = "https://example.com/row" })
 TestPump(0.4)
 
 expect(inRow ~= nil, "L8 a row Group accepts a link card")
@@ -419,7 +423,7 @@ The Changed counter makes "never moves" literal: a pan taken under the
 press costs the pan's own write plus exactly one write back, and a quiet
 gesture costs none.
 ]]
-local pin = tab:CreateLink({ name = "Pinned", subtitle = "Stays put", link = "https://example.com/pin" })
+local pin = tab:CreateLink({ lockLevel = 2,  name = "Pinned", subtitle = "Stays put", link = "https://example.com/pin" })
 TestPump(0.4)
 local page = tab.tabPage
 eq(page.CanvasPosition.Y, 0, "L11 the tab page starts unscrolled")
@@ -576,6 +580,7 @@ control are seated against, so a card that drops its subtitle shrinks
 56 to 43 and both rows re-centre with it.
 ]]
 local described = tab:CreateLink({
+	lockLevel = 2,
 	name = "Described",
 	subtitle = "Two lines",
 	link = "https://example.com/described",
@@ -616,7 +621,7 @@ tap with a silent success: "" on the clipboard, the check mark, and the
 callback. The check mark means the link is on the clipboard, so nothing
 else may show it.
 ]]
-local empty = tab:CreateLink({ name = "No link", subtitle = "Nothing to copy" })
+local empty = tab:CreateLink({ lockLevel = 2,  name = "No link", subtitle = "Nothing to copy" })
 TestPump(0.4)
 eq(empty.link, "", "L13 a card built without a link carries an empty one")
 
@@ -645,6 +650,7 @@ scroll surface above the control instead, which is the tab page either way.
 ]]
 local column = tab:CreateGroup({ direction = "column" })
 local inColumn = column:CreateLink({
+	lockLevel = 2,
 	name = "In a column",
 	subtitle = "Grouped",
 	link = "https://example.com/column",
@@ -672,7 +678,7 @@ error, and the check mark would lie for both.
 setclipboard = function(_text)
 	return false
 end
-local refusing = tab:CreateLink({ name = "Refused", link = "https://example.com/refused" })
+local refusing = tab:CreateLink({ lockLevel = 2,  name = "Refused", link = "https://example.com/refused" })
 TestPump(0.4)
 local beforeRefused = #copied
 refusing.copyButton.MouseButton1Click:Fire()
@@ -726,8 +732,8 @@ its gap. Under-measuring clips the row's own contents (`ClipsDescendants`)
 instead of letting it wrap.
 ]]
 local measureRow = tab:CreateGroup()
-local measured = measureRow:CreateLink({ name = "Measured", subtitle = "Row" })
-local measuredIcon = measureRow:CreateLink({ name = "Measured", subtitle = "Row", icon = "link" })
+local measured = measureRow:CreateLink({ lockLevel = 2,  name = "Measured", subtitle = "Row" })
+local measuredIcon = measureRow:CreateLink({ lockLevel = 2,  name = "Measured", subtitle = "Row", icon = "link" })
 TestPump(0.4)
 
 -- The harness measures 0.6 * size per character, so the row's width is
@@ -748,7 +754,7 @@ any more: the hold it was in has to end with it instead of running two
 seconds against a glyph nothing can see.
 ]]
 local doomedTab = window:CreateTab({ name = "Doomed" })
-local doomed = doomedTab:CreateLink({ name = "Doomed", link = "https://example.com/doomed" })
+local doomed = doomedTab:CreateLink({ lockLevel = 2,  name = "Doomed", link = "https://example.com/doomed" })
 TestPump(0.4)
 doomed.copyButton.MouseButton1Click:Fire()
 TestPump(0.2)

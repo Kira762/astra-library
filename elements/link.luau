@@ -248,6 +248,7 @@ function state.new(tab, element)
         self:_buildFull()
     end
 
+    lockable.register(self, element)
     return self
 end
 
@@ -708,8 +709,16 @@ function state:_pinPressToCanvas()
         end
     end
 
-    local function hold()
+    -- If a mode engages mid-press, finish the scroll guard without leaving
+    -- the page pinned. An already-settling post-release window is untouched.
+    self.CancelCapture = function()
         if self._pressCanvas then
+            settle(false)
+        end
+    end
+
+    local function hold()
+        if self.locked or not window:_interactive() or self._pressCanvas then
             return
         end
         -- A new press takes over from any settle window still open.
@@ -783,7 +792,7 @@ function state:_pinPressToCanvas()
 end
 
 function state:_copy(): boolean
-    if self.locked then
+    if self.locked or not self.window:_interactive() then
         return false
     end
 

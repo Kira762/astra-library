@@ -365,5 +365,16 @@ Symbols: `+` added (green), `-` removed (red), `~` changed (amber); the words
 | Moveable | `:MoveTo(index)`, `:MoveToTop()`, `:MoveToBottom()`, `:MoveUp()`, `:MoveDown()` | every element, including Groups and Collapsible Groups |
 | Lockable | `:Lock()`, `:Unlock()`, `:IsLocked()` | most interactive elements |
 
-Locked elements ignore user input while keeping their value; `MoveTo` indices are
-tab-relative and re-clamped after sibling removal.
+Locked elements ignore user input while keeping their values, selection, callback
+and layout; `MoveTo` indices are tab-relative and re-clamped after sibling
+removal. Functional controls publish `usage = "lockable:astra:<elementId>"`
+(or a usage array that retains pre-existing entries). Static/decorative elements
+and Buttons without callbacks are excluded. Supply `id`/`elementId` for a stable
+ID and `lockLevel = 1..5` or `lockGroup` (`minor`, `standard`, `action`,
+`sensitive`, `all`) to override the automatic tier.
+
+Built-in Settings → Controls has a fixed, cumulative five-mode controller:
+Mode 1 locks level 1, each higher mode adds its level, and Mode 5 locks every
+registered control. Its own reset button remains usable; external code can use
+`window:SetElementLockMode(1..5)` and `window:GetElementLockMode()`. Manual locks
+compose with mode locks, and this client-side gate is not a security boundary.

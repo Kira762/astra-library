@@ -7,6 +7,7 @@ local constants = script.Parent.Parent.utilities
 local ModePicker = require(constants.Parent.core.state)
 local locale = require(constants.locale)
 local haptic = require(constants.HapticEngine)
+local lockable = require(constants.lockable)
 --[[
 The Mode Picker rides the shared motion vocabulary: the knob travels on
 `normal` (the same beat as a slider value change), a drag chase would need
@@ -108,19 +109,29 @@ function state.new(tab, element)
 		error(`Astra:CreateModePicker — modes must be between {minModes} and {maxModes}, got {#modes}`, 0)
 	end
 
+	local forgetState = element.forgetState
+	if forgetState == nil then
+		forgetState = element.ForgetState
+	end
+	if forgetState == nil then
+		forgetState = tab.forgetState
+	end
+	local titleText = tostring(element.title or element.Title or "Mode Picker")
+	local isLockSystemController = element.lockSystemController == true or element.LockSystemController == true
+
 	local self = setmetatable({
 		tab = assert(tab, "Missing argument #1 (Tab expected)"),
 		window = tab.window,
-		titleText = tostring(element.title or element.Title or "Mode Picker"),
+		titleText = titleText,
 		subtitle = tostring(element.subtitle or element.Subtitle or ""),
-		forgetState = element.forgetState or element.ForgetState or tab.forgetState,
+		forgetState = forgetState == true,
 		flag = element.flag
 			or element.Flag
 			or (
-				not (element.forgetState or element.ForgetState or tab.forgetState)
-					and tab.deriveFlagFromName(element.title or element.Title or "ModePicker")
+				not forgetState and tab.deriveFlagFromName(titleText)
 				or nil
 			),
+		_lockSystemController = isLockSystemController,
 
 		left_icon = tab.window:ResolveIcon(element.left_icon or element.LeftIcon or "zap"),
 		right_icon = tab.window:ResolveIcon(element.right_icon or element.RightIcon or "rotate-ccw"),
@@ -146,6 +157,16 @@ function state.new(tab, element)
 
 	self.window:_registerControl(self)
 	self:_build()
+	self._serialize = function(picker)
+		return picker.mode
+	end
+	self._deserialize = function(picker, value)
+		picker:Set(value, true)
+	end
+	lockable.register(self, element, { exempt = isLockSystemController })
+	if isLockSystemController then
+		self:_syncLockSystemMode()
+	end
 
 	return self
 end
@@ -593,16 +614,34 @@ function state:_applyColors(instant)
 	end
 end
 
+local lockModeSubtitles = {
+	[1] = "Mode 1 — minor controls locked",
+	[2] = "Mode 2 — inputs and selections locked",
+	[3] = "Mode 3 — important actions locked",
+	[4] = "Mode 4 — sensitive controls locked",
+	[5] = "Mode 5 — all lockable controls locked",
+}
+
+function state:_syncLockSystemMode()
+	if not self._lockSystemController then
+		return
+	end
+	self.window:SetElementLockMode(self.mode)
+	self:SetSubtitle(lockModeSubtitles[self.mode])
+end
+
 --[[
 Mode changes commit through here: clamp, animate, fire the mode's own
 onEnable plus the picker-level callback, and persist. `silent` skips
-callbacks for restore paths.
+callbacks for restore paths, but the built-in lock controller still applies
+the selected tier so restores and programmatic Set calls stay in sync.
 ]]
 function state:Set(index, silent)
 	index = math.clamp(math.round(tonumber(index) or self.mode), 1, #self.modes)
 	local changed = index ~= self.mode
 	self.mode = index
 	self:_applyMode(index, false)
+	self:_syncLockSystemMode()
 
 	if changed and not silent then
 		local mode = self.modes[index]
@@ -763,7 +802,6 @@ function state:_refreshTheme()
 end
 
 local moveable = require(constants.moveable)
-local lockable = require(constants.lockable)
 moveable(state)
 lockable(state)
 

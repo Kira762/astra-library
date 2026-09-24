@@ -47,6 +47,7 @@ function state.new(tab, placeholderLabel)
         clearOnFocus = placeholderLabel.clearOnFocus or placeholderLabel.ClearOnFocus or false,
 
         callback = placeholderLabel.callback or placeholderLabel.Callback or function() end,
+        _cancelingEdit = false,
     }, state)
 
     self.value =
@@ -169,11 +170,22 @@ function state.new(tab, placeholderLabel)
     end)
 
     self.window:ConnectFor(self, self.input.Focused, function()
+        if self:IsLocked() or not self.window:_interactive() then
+            self:CancelEditing()
+            return
+        end
         motion.tween(self.input, { TextTransparency = 0 }, element)
     end)
 
     self.window:ConnectFor(self, self.input.FocusLost, function()
         motion.tween(self.input, { TextTransparency = 0.6 }, element)
+        if self._cancelingEdit then
+            self._cancelingEdit = false
+            return
+        end
+        if self:IsLocked() then
+            return
+        end
         if self.clearOnFocus and self.input.Text == "" and self.value ~= "" then
             self.input.Text = self.value
             return
@@ -187,7 +199,39 @@ function state.new(tab, placeholderLabel)
     self.window:_wireElementHover(self)
 
     self:_sizeBox(false)
+    name.register(self, placeholderLabel)
     return self
+end
+
+-- End keyboard focus without committing or clearing the current edit buffer.
+-- A lock preserves both the committed value and the visible draft.
+function state:CancelEditing()
+    if not self.input then
+        return
+    end
+    local focused = false
+    local focusRead = pcall(function()
+        focused = self.input:IsFocused()
+    end)
+    if focusRead and not focused then
+        return
+    end
+
+    self._cancelingEdit = true
+    pcall(function()
+        self.input:ReleaseFocus()
+    end)
+    task.defer(function()
+        self._cancelingEdit = false
+    end)
+end
+
+function state:SetInteractionLocked(locked)
+    if not self.input then
+        return
+    end
+    self.input.TextEditable = not locked
+    self.input.Interactable = not locked
 end
 
 function state:_sizeBox(a16)

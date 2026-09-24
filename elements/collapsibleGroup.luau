@@ -286,7 +286,9 @@ function Collapsible.new(tab, props)
         self:_setExpanded(not self._expanded, true)
     end)
     w:_wireElementHover(self, { target = self.header, titleRestKey = "TitlingColor" })
+    self.lockSurface = self.header
     buildChildren(self, props.elements or {})
+    lockable.register(self, props)
     return self
 end
 

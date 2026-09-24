@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased — Five cumulative Elements Lock Modes
+
+Added a fixed five-mode lock controller to built-in Settings → Controls. The
+modes are cumulative: Mode 1 blocks the lowest-priority lockable controls and
+each higher mode adds its tier; Mode 5 blocks every functional element in the
+lock registry. The blue ramp and changing subtitle identify the active tier,
+and the controller/reset path is exempt so a host can always reduce or reset
+the mode. A per-window API also allows an external/admin controller to set or
+read the active mode.
+
+Locks are interaction gates rather than value resets: they preserve committed
+values, selections, callbacks and layout, display a disabled scrim, and guard
+user events before their callbacks run. Manual locks compose with mode locks.
+Functional controls publish `lockable:astra:<elementId>` usage metadata while
+static/decorative elements and callback-free Buttons are excluded. Explicit
+`lockLevel` / `lockGroup` settings can override the automatic tier.
+
+- **`utilities/lockable.luau`** — merges lock usage into existing usage values,
+  assigns stable per-window IDs and cumulative tiers, and registers only
+  functional controls.
+- **`components/window/elements.luau`** — owns the registry, lock-source
+  composition, lock visuals, cumulative mode API and late-control handling;
+  startup/teardown maintain per-window state.
+- **`elements/*.luau`** — functional elements register and guard user
+  interaction while locked; expandable group headers and About Card actions
+  have scoped lock surfaces.
+- **`components/settings.luau`** — adds the five-mode blue controller, persisted
+  as `astra.elementLockMode`, and places configuration deletion in Mode 4.
+- **`Types.luau`, `USAGE.md`, `scripts/elements_lock_test.*`** — publish the
+  configuration/API contract and cover cumulative tiers, callback/state
+  preservation, lock metadata, late registration and the always-available
+  controller.
+- **`version-1.luau`** — regenerate and re-sign for release.
+
 ## Unreleased — Restore About Card icon options
 
 `CreateAboutCard` once again supports a leading header icon, optional row badge

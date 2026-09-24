@@ -19,13 +19,14 @@ local tapRelease = "settle"
 function state.new(tab, frame)
     frame = if typeof(frame) == "table" then frame else {}
 
+    local callbackFunction = frame.callback or frame.Callback
     local self = setmetatable({
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = frame.name or frame.Name or "Button",
         icon = tab.window:ResolveIcon(frame.icon or frame.Icon),
         compact = tab.compact or false,
-        callback = frame.callback or frame.Callback or function() end,
+        callback = callbackFunction or function() end,
     }, state)
 
     if self.compact then
@@ -34,6 +35,9 @@ function state.new(tab, frame)
         self:_buildFull()
     end
 
+    -- A button without a host action is presentation-only; keep it out of
+    -- the lock registry rather than tagging a no-op callback.
+    name.register(self, frame, { enabled = type(callbackFunction) == "function" })
     return self
 end
 
@@ -62,6 +66,9 @@ function state:_buildFull()
     self.window:_wireElementHover(self)
 
     self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
+        if self:IsLocked() or not self.window:_interactive() then
+            return
+        end
         callback.click()
         Button.tweenService
             :Create(
@@ -162,6 +169,9 @@ function state:_buildCompact()
     self.window:_wireElementHover(self)
 
     self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
+        if self:IsLocked() or not self.window:_interactive() then
+            return
+        end
         callback.click()
         Button.tweenService
             :Create(

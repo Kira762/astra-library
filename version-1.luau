@@ -467,6 +467,18 @@ end)() end,
     [3] = function()local wax,script,require=ImportGlobals(3)local ImportGlobals return (function(...)
 export type Theme = string | { [string]: any }
 
+-- Lockable interactive elements receive a stable `lockable:astra:<id>` usage
+-- tag automatically. `lockLevel` (1..5) or `lockGroup` can override the
+-- automatic type-based group; a lock mode of 5 always covers every tag.
+export type ElementUsage = string | { string }
+export type LockableProps = {
+    id: string?,
+    elementId: string?,
+    usage: ElementUsage?,
+    lockLevel: number?,
+    lockGroup: string?,
+}
+
 export type Translator = (source: string, localeId: string) -> string?
 
 export type Translations = { [string]: { [string]: string } }
@@ -558,7 +570,7 @@ export type CollapsibleElementProps = {
     [string]: any,
 }
 
-export type CollapsibleGroupProps = {
+export type CollapsibleGroupProps = LockableProps & {
     name: string?,
     icon: (string | number)?,
     elements: { CollapsibleElementProps }?,
@@ -573,14 +585,14 @@ export type IsolatedElementProps = {
     [string]: any,
 }
 
-export type IsolatedProps = {
+export type IsolatedProps = LockableProps & {
     name: string?,
     subtitle: string?,
     icon: (string | number)?,
     elements: { IsolatedElementProps }?,
 }
 
-export type ButtonProps = {
+export type ButtonProps = LockableProps & {
     name: string?,
     icon: (string | number)?,
     -- Deprecated, ignored compatibility props; functional info badges were removed.
@@ -590,7 +602,7 @@ export type ButtonProps = {
     callback: (() -> ())?,
 }
 
-export type ToggleProps = {
+export type ToggleProps = LockableProps & {
     name: string?,
     icon: (string | number)?,
     info: string?, -- Deprecated; ignored
@@ -601,7 +613,7 @@ export type ToggleProps = {
     callback: ((value: boolean) -> ())?,
 }
 
-export type SliderProps = {
+export type SliderProps = LockableProps & {
     name: string?,
     icon: (string | number)?,
     info: string?, -- Deprecated; ignored
@@ -614,7 +626,7 @@ export type SliderProps = {
         callback: ((value: number, dragging: boolean) -> ())?,
 }
 
-export type DropdownProps = {
+export type DropdownProps = LockableProps & {
     name: string?,
     icon: (string | number)?,
     info: string?, -- Deprecated; ignored
@@ -632,7 +644,7 @@ export type DropdownProps = {
 Required, editable one-letter key field. Strings are normalised to uppercase;
 invalid edits restore the previous letter instead of leaving the control blank.
 ]]
-export type KeybindProps = {
+export type KeybindProps = LockableProps & {
     name: string?,
     icon: (string | number)?,
     value: (string | EnumItem)?,
@@ -641,7 +653,7 @@ export type KeybindProps = {
     callback: ((letter: string) -> ())?,
 }
 
-export type InputProps = {
+export type InputProps = LockableProps & {
     name: string?,
     icon: (string | number)?,
     info: string?, -- Deprecated; ignored
@@ -664,7 +676,7 @@ export type ModeDefinition = {
     icon_color: (Color3 | { r: number?, g: number?, b: number?, a: number? })?,
 }
 
-export type ModePickerProps = {
+export type ModePickerProps = LockableProps & {
     left_icon: (string | number)?,
     right_icon: (string | number)?,
 
@@ -691,6 +703,8 @@ export type ModePickerProps = {
     forgetState: boolean?,
     callback: ((index: number, label: string) -> ())?,
     onReset: ((picker: any) -> ())?,
+    -- Internal: keep the built-in element-lock controller outside its own lock tiers.
+    lockSystemController: boolean?,
 }
 
 export type StatProps = {
@@ -713,7 +727,7 @@ export type StatProps = {
 `link` is the hidden value: stored on the element and copied by the card's
 trailing control, never rendered as text.
 ]]
-export type LinkProps = {
+export type LinkProps = LockableProps & {
     name: string?,
     subtitle: string?,
     link: string?,
@@ -736,14 +750,14 @@ The card's optional trailing band. It is the fourth block of the card — the
 one the data rows stop at three for — and it is the card's only tappable
 surface.
 ]]
-export type AboutCardAction = {
+export type AboutCardAction = LockableProps & {
     icon: (string | number)?,
     name: string?,
     subtitle: string?,
     callback: (() -> ())?,
 }
 
-export type AboutCardProps = {
+export type AboutCardProps = LockableProps & {
     name: string?,
     subtitle: string?,
     icon: (string | number)?,
@@ -785,8 +799,14 @@ export type Moveable = {
 }
 
 export type Lockable = {
-    Lock: (self: any, reason: string?) -> (),
-    Unlock: (self: any) -> (),
+    -- Automated for functional controls; static/decorative elements have none.
+    elementId: string?,
+    usage: ElementUsage?,
+    usageTag: string?,
+    lockUsage: string?,
+    lockLevel: number?,
+    Lock: (self: any, reason: string?) -> boolean,
+    Unlock: (self: any) -> boolean,
     IsLocked: (self: any) -> boolean,
 }
 
@@ -991,6 +1011,8 @@ export type Window = {
     GetPath: (self: Window) -> (string, string),
     Get: (self: Window, flag: string) -> any,
     Set: (self: Window, flag: string, value: any) -> boolean,
+    SetElementLockMode: (self: Window, mode: number) -> number,
+    GetElementLockMode: (self: Window) -> number,
     Unload: (self: Window) -> (),
 }
 
@@ -5342,6 +5364,46 @@ function settingsComponent.buildUI(window)
                 window:SaveSettings()
             end,
         })
+
+        -- A fixed five-stop controller. The ramp paints the active fill/icon
+        -- from pale blue at Mode 1 to deep blue at Mode 5; its own control is
+        -- deliberately exempt from the lock registry so it can always unlock
+        -- the rest of the page.
+        local lockModeColors = {
+            { r = 234, g = 242, b = 255 }, -- #EAF2FF
+            { r = 201, g = 221, b = 255 }, -- #C9DDFF
+            { r = 147, g = 184, b = 255 }, -- #93B8FF
+            { r = 90, g = 134, b = 240 }, -- #5A86F0
+            { r = 29, g = 63, b = 168 }, -- #1D3FA8
+        }
+        local lockModes = {}
+        for index, color in ipairs(lockModeColors) do
+            table.insert(lockModes, {
+                label = "Mode " .. tostring(index),
+                type = if index == 1 then "default" else "dot",
+                icon_color = color,
+            })
+        end
+        window._elementLockModePicker = general:CreateModePicker({
+            id = "astraElementLockMode",
+            title = "Element Lock Mode",
+            subtitle = "Higher modes restrict more interactive controls",
+            left_icon = "lock-keyhole",
+            right_icon = "rotate-ccw",
+            left_icon_color = lockModeColors[1],
+            title_color_same_as_left_icon = false,
+            accent = "left_icon",
+            mode = window:GetElementLockMode(),
+            min_modes = 5,
+            max_modes = 5,
+            allow_mode_add_remove = false,
+            reset_on_right_icon_press = true,
+            flag = "astra.elementLockMode",
+            forgetState = false,
+            lockSystemController = true,
+            modes = lockModes,
+        })
+
         general:CreateCollapsibleGroup({
             name = "Window Behavior",
             icon = "layout",
@@ -5650,6 +5712,7 @@ function settingsComponent.buildUI(window)
                         {
                             type = "Button",
                             name = "Delete",
+                            lockLevel = 4,
                             callback = function()
                                 local name = selected
                                 if not name or name == "" then
@@ -6899,7 +6962,8 @@ function Window:_restoreLate(element)
     end
 
     local wasLoading = self._loading
-    self._loading = true     persistence.applyTo(element, self._loadedConfig[element.flag])
+    self._loading = true
+    persistence.applyTo(element, self._loadedConfig[element.flag])
     self._loading = wasLoading
 end
 
@@ -6923,70 +6987,176 @@ function Window:_unregisterControl(element)
     end
 end
 
-function Window:_setElementLocked(element, locked, message)
-    locked = locked == true
-                local wasLocked = element.locked == true
-    if wasLocked == locked and not (locked and message) then
-        return
+function Window:_registerLockableElement(element)
+    if not element or element._isLockable ~= true or element._lockSystemController then
+        return false
     end
-    element.locked = locked
-    if locked and element.CancelCapture then element:CancelCapture() end
 
+    self._lockableElements = self._lockableElements or {}
+    self._lockableElementSet = self._lockableElementSet or {}
+    self._lockableElementIds = self._lockableElementIds or {}
+    if self._lockableElementSet[element] then
+        return true
+    end
+
+    self._lockableElementSet[element] = true
+    table.insert(self._lockableElements, element)
+    self._lockableElementIds[element.elementId] = element
+
+    -- Controls created after a mode change join the active cumulative tier.
+    local mode = self._elementLockMode or 1
+    self:_setElementLocked(element, (element.lockLevel or 5) <= mode, nil, "mode")
+    return true
+end
+
+function Window:_unregisterLockableElement(element)
+    if not element or not self._lockableElementSet or not self._lockableElementSet[element] then
+        return false
+    end
+
+    self._lockableElementSet[element] = nil
+    if self._lockableElementIds and self._lockableElementIds[element.elementId] == element then
+        self._lockableElementIds[element.elementId] = nil
+    end
+    for index, registered in ipairs(self._lockableElements or {}) do
+        if registered == element then
+            table.remove(self._lockableElements, index)
+            break
+        end
+    end
+    return true
+end
+
+function Window:GetElementLockMode(): number
+    return math.clamp(math.round(tonumber(self._elementLockMode) or 1), 1, 5)
+end
+
+--[[
+The active tier is cumulative: an element assigned to level N stays locked
+for every mode >= N. Mode 5 therefore locks every registered lockable
+control. Manual locks are tracked separately and cannot be cleared by a
+mode change (or use Unlock to bypass an active mode).
+]]
+function Window:SetElementLockMode(mode): number
+    local nextMode = math.clamp(math.round(tonumber(mode) or self:GetElementLockMode()), 1, 5)
+    self._elementLockMode = nextMode
+    for _, element in ipairs(self._lockableElements or {}) do
+        if element._isLockable == true then
+            self:_setElementLocked(element, (element.lockLevel or 5) <= nextMode, nil, "mode")
+        end
+    end
+
+    local picker = self._elementLockModePicker
+    if picker and picker.mode ~= nextMode then
+        picker:Set(nextMode, true)
+    end
+    return nextMode
+end
+
+function Window:_setElementLocked(element, locked, message, source)
+    if not element or element.window ~= self or element._isLockable ~= true or element._lockSystemController then
+        return false
+    end
+
+    source = source or "manual"
+    locked = locked == true
+    if source == "mode" then
+        element._modeLocked = locked
+    else
+        element._manualLocked = locked
+        element._manualLockReason = if locked and type(message) == "string" and message ~= "" then message else nil
+    end
+
+    local nextLocked = element._manualLocked == true or element._modeLocked == true
+    local nextMessage = if element._manualLocked then element._manualLockReason else nil
+    local wasLocked = element.locked == true
+    if wasLocked == nextLocked and element._lockMessage == nextMessage then
+        return false
+    end
+
+    element.locked = nextLocked
+    element._lockMessage = nextMessage
+
+    -- Stop only transient gestures. Values, selection, callbacks and layout
+    -- are untouched; an expanded control stays expanded under its scrim.
+    if nextLocked and not wasLocked then
+        if element.CancelCapture then
+            element:CancelCapture()
+        end
+        if element.CancelEditing then
+            element:CancelEditing()
+        end
+        if element.dragging and element._endDrag then
+            element:_endDrag()
+        end
+    end
+    if element.SetInteractionLocked then
+        element:SetInteractionLocked(nextLocked)
+    end
+
+    local lockSurface = element.lockSurface or element.main
+    if not lockSurface then
+        return true
+    end
     if not element.lockScrim then
         self:_buildLockScrim(element)
     end
 
-    --[[
-    The lock scrim arrives on the shared hover spec; the unlock delay
-    tracks its duration so the scrim never hides after it has faded.
-    ]]
+    -- The scrim arrives on the shared hover spec. The delayed hide runs
+    -- only after it fades and re-checks the live lock state before hiding.
     local lockSpec = "snappy"
-
-    if locked then
+    if nextLocked then
         element.lockScrim.Visible = true
     end
     motion.tween(element.lockScrim, {
-        BackgroundTransparency = if locked then lockScrimTransparency else 1,
+        BackgroundTransparency = if nextLocked then lockScrimTransparency else 1,
     }, lockSpec)
-    if not locked then
+    if not nextLocked then
         task.delay(0.25, function()
             if not element.locked and element.lockScrim and element.lockScrim.Parent then
-                element.lockScrim.Visible = false             end
+                element.lockScrim.Visible = false
+            end
         end)
     end
 
-        local label = element.descriptionLabel
-    if not label then
-        return
-    end
+    local label = element.descriptionLabel
+    if label then
+        -- Manual lock reasons retain their historic copy, but an automatic
+        -- mode lock never replaces the description line (which could resize
+        -- a wrapped card). The scrim itself is the restricted-state cue.
+        if element._manualLocked then
+            element._descriptionBefore = element._descriptionBefore or label.Text
+            label.Text = locale.resolve(nextMessage or "This element is locked.")
+        elseif element._descriptionBefore then
+            label.Text = element._descriptionBefore
+            element._descriptionBefore = nil
+        end
 
-    if locked then
-                        element._descriptionBefore = element._descriptionBefore or label.Text
-        label.Text = locale.resolve(message or "This element is locked.")
-    elseif element._descriptionBefore then
-        label.Text = element._descriptionBefore
-        element._descriptionBefore = nil
+        motion.tween(label, {
+            TextTransparency = if nextLocked then lockedTextTransparency else 0.45,
+        }, lockSpec)
     end
-
-    motion.tween(label, {
-        TextTransparency = if locked then lockedTextTransparency else 0.45,
-    }, lockSpec)
+    return true
 end
 
 function Window:_buildLockScrim(element)
+    local parent = element.lockSurface or element.main
+    if not parent then
+        return
+    end
     element.lockScrim = self:Create("TextButton", {
         Name = "ElementLock",
         Active = true,
         AutoButtonColor = false,
+        Selectable = false,
         Size = UDim2.fromScale(1, 1),
         BorderSizePixel = 0,
         Text = "",
         TextTransparency = 1,
         ZIndex = constants.zIndex.elementLock,
         Visible = false,
-
-                        BackgroundTransparency = 1,
-        Parent = element.main,
+        BackgroundTransparency = 1,
+        Parent = parent,
     }, { BackgroundColor3 = { "WindowColor", firstColor } })
 
     self:Create("UICorner", {
@@ -7105,12 +7275,15 @@ function Window:_wireElementHover(element, options)
 end
 
 function Window:_runGuarded(element, fn, ...)
-            if element.locked then
+    if element and element.locked then
         return
     end
 
     local args = table.pack(...)
     task.spawn(function()
+        if element and element.locked then
+            return
+        end
         local ok, err = pcall(function()
             return fn(table.unpack(args, 1, args.n))
         end)
@@ -8027,6 +8200,10 @@ function Window.new(props)
         theme = resolveTheme(props.theme or props.Theme),
 
         controls = {},
+        _elementLockMode = 1,
+        _lockableElements = {},
+        _lockableElementSet = {},
+        _lockableElementIds = {},
 
         configuration = (function()
             -- Legacy overrides remain accepted, but normal usage needs no config table.
@@ -9063,6 +9240,10 @@ function Window:_destroyTree()
     table.clear(self.localeProperties)
     table.clear(self.controls)
     table.clear(self.tabs)
+    table.clear(self._lockableElements)
+    table.clear(self._lockableElementSet)
+    table.clear(self._lockableElementIds)
+    self._elementLockModePicker = nil
     --[[
     overlayQueue.close already drained the queue into its safe resting
     shape (empty pending list, closed flag); wiping the table itself used
@@ -10738,7 +10919,16 @@ function state.new(tab, props)
         _shown = false,
     }, state)
 
-    self:_build(rows, read(props, "action", "Action"))
+    local action = read(props, "action", "Action")
+    local actionCallback = if type(action) == "table" then read(action, "callback", "Callback") else nil
+    self:_build(rows, action)
+    lockable.register(self, props, {
+        enabled = type(actionCallback) == "function",
+        id = read(props, "id", "Id") or (if type(action) == "table" then read(action, "id", "Id") else nil),
+        usage = if type(action) == "table" then read(action, "usage", "Usage") else nil,
+        lockLevel = if type(action) == "table" then read(action, "lockLevel", "LockLevel") else nil,
+        lockGroup = if type(action) == "table" then read(action, "lockGroup", "LockGroup") else nil,
+    })
 
     return self
 end
@@ -11220,6 +11410,9 @@ function state:_buildAction(action)
         ZIndex = 6,
         Parent = self.actionBand,
     })
+    -- If the action has a callback, lock only its tap surface; the card's
+    -- informational header and data rows remain fully readable.
+    self.lockSurface = self.actionButton
 
     self:_track(self.actionBand, "BackgroundTransparency", "background")
     self:_track(self.actionStroke, "Transparency", "stroke")
@@ -11482,13 +11675,14 @@ local tapRelease = "settle"
 function state.new(tab, frame)
     frame = if typeof(frame) == "table" then frame else {}
 
+    local callbackFunction = frame.callback or frame.Callback
     local self = setmetatable({
         tab = assert(tab, "Missing argument #1 (Tab expected)"),
         window = tab.window,
         name = frame.name or frame.Name or "Button",
         icon = tab.window:ResolveIcon(frame.icon or frame.Icon),
         compact = tab.compact or false,
-        callback = frame.callback or frame.Callback or function() end,
+        callback = callbackFunction or function() end,
     }, state)
 
     if self.compact then
@@ -11497,6 +11691,9 @@ function state.new(tab, frame)
         self:_buildFull()
     end
 
+    -- A button without a host action is presentation-only; keep it out of
+    -- the lock registry rather than tagging a no-op callback.
+    name.register(self, frame, { enabled = type(callbackFunction) == "function" })
     return self
 end
 
@@ -11525,6 +11722,9 @@ function state:_buildFull()
     self.window:_wireElementHover(self)
 
     self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
+        if self:IsLocked() or not self.window:_interactive() then
+            return
+        end
         callback.click()
         Button.tweenService
             :Create(
@@ -11625,6 +11825,9 @@ function state:_buildCompact()
     self.window:_wireElementHover(self)
 
     self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
+        if self:IsLocked() or not self.window:_interactive() then
+            return
+        end
         callback.click()
         Button.tweenService
             :Create(
@@ -12389,7 +12592,9 @@ function Collapsible.new(tab, props)
         self:_setExpanded(not self._expanded, true)
     end)
     w:_wireElementHover(self, { target = self.header, titleRestKey = "TitlingColor" })
+    self.lockSurface = self.header
     buildChildren(self, props.elements or {})
+    lockable.register(self, props)
     return self
 end
 
@@ -13424,7 +13629,7 @@ function state.new(tab, a49)
         table.insert(
             a73.connections,
             self.window:ConnectFor(self, a69.MouseButton1Click, function()
-                                if not self._isOpen then
+                if self:IsLocked() or not self.window:_interactive() or not self._isOpen then
                     return
                 end
                 options.click()
@@ -13486,6 +13691,9 @@ function state.new(tab, a49)
     self:_updateCorners()
 
         self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
+        if self:IsLocked() or not self.window:_interactive() then
+            return
+        end
         options.click()
         if self._isOpen then
             self:_close()
@@ -13523,6 +13731,7 @@ function state.new(tab, a49)
         )
     end)
 
+    multiSelect.register(self, a49)
     return self
 end
 
@@ -13604,11 +13813,17 @@ function state:_buildSearch()
     }, { ImageColor3 = "ContentColor" })
 
     self.window:ConnectFor(self, self.searchToggle.MouseButton1Click, function()
+        if self:IsLocked() or not self.window:_interactive() then
+            return
+        end
         if not self._searchOpen then
             self:_expandSearch()
         end
     end)
     self.window:ConnectFor(self, self.searchIcon.MouseButton1Click, function()
+        if self:IsLocked() or not self.window:_interactive() then
+            return
+        end
         if self._searchOpen then
             self:_collapseSearch()
         else
@@ -13616,13 +13831,28 @@ function state:_buildSearch()
         end
     end)
     self.window:ConnectFor(self, self.searchInput:GetPropertyChangedSignal("Text"), function()
+        if self:IsLocked() then
+            return
+        end
         self:_applyFilter(self.searchInput.Text)
     end)
     self.window:ConnectFor(self, self.searchInput.FocusLost, function()
+        if self:IsLocked() then
+            return
+        end
         if self.searchInput.Text == "" then
             self:_collapseSearch()
         end
     end)
+end
+
+function state:SetInteractionLocked(locked)
+    if not self.searchInput then
+        return
+    end
+    local editable = not locked and self._searchOpen == true
+    self.searchInput.TextEditable = editable
+    self.searchInput.Interactable = editable
 end
 
 function state:_expandSearch()
@@ -13888,14 +14118,14 @@ function state:_buildActions()
     end)
 
     self.window:ConnectFor(self, self.selectAll.MouseButton1Click, function()
-        if not self._isOpen then
+        if self:IsLocked() or not self.window:_interactive() or not self._isOpen then
             return
         end
         self:_toggleVisibleSelection()
         self:_afterBulkChange()
     end)
     self.window:ConnectFor(self, self.clear.MouseButton1Click, function()
-        if not self._isOpen then
+        if self:IsLocked() or not self.window:_interactive() or not self._isOpen then
             return
         end
         self:_clearVisibleSelection()
@@ -14116,6 +14346,9 @@ function state:_open()
         self.window:Disconnect(self._outsideClickConn)
     end
     self._outsideClickConn = self.window:Connect(Dropdown.userInputService.InputBegan, function(a112)
+        if self:IsLocked() then
+            return
+        end
         if
             a112.UserInputType ~= Enum.UserInputType.MouseButton1
             and a112.UserInputType ~= Enum.UserInputType.Touch
@@ -14980,6 +15213,7 @@ function state.new(tab, placeholderLabel)
         clearOnFocus = placeholderLabel.clearOnFocus or placeholderLabel.ClearOnFocus or false,
 
         callback = placeholderLabel.callback or placeholderLabel.Callback or function() end,
+        _cancelingEdit = false,
     }, state)
 
     self.value =
@@ -15102,11 +15336,22 @@ function state.new(tab, placeholderLabel)
     end)
 
     self.window:ConnectFor(self, self.input.Focused, function()
+        if self:IsLocked() or not self.window:_interactive() then
+            self:CancelEditing()
+            return
+        end
         motion.tween(self.input, { TextTransparency = 0 }, element)
     end)
 
     self.window:ConnectFor(self, self.input.FocusLost, function()
         motion.tween(self.input, { TextTransparency = 0.6 }, element)
+        if self._cancelingEdit then
+            self._cancelingEdit = false
+            return
+        end
+        if self:IsLocked() then
+            return
+        end
         if self.clearOnFocus and self.input.Text == "" and self.value ~= "" then
             self.input.Text = self.value
             return
@@ -15120,7 +15365,39 @@ function state.new(tab, placeholderLabel)
     self.window:_wireElementHover(self)
 
     self:_sizeBox(false)
+    name.register(self, placeholderLabel)
     return self
+end
+
+-- End keyboard focus without committing or clearing the current edit buffer.
+-- A lock preserves both the committed value and the visible draft.
+function state:CancelEditing()
+    if not self.input then
+        return
+    end
+    local focused = false
+    local focusRead = pcall(function()
+        focused = self.input:IsFocused()
+    end)
+    if focusRead and not focused then
+        return
+    end
+
+    self._cancelingEdit = true
+    pcall(function()
+        self.input:ReleaseFocus()
+    end)
+    task.defer(function()
+        self._cancelingEdit = false
+    end)
+end
+
+function state:SetInteractionLocked(locked)
+    if not self.input then
+        return
+    end
+    self.input.TextEditable = not locked
+    self.input.Interactable = not locked
 end
 
 function state:_sizeBox(a16)
@@ -15444,7 +15721,9 @@ function Isolated.new(tab, props)
         self:_setExpanded(not self._expanded, true)
     end)
     w:_wireElementHover(self, { target = self.header, titleRestKey = "TitlingColor" })
+    self.lockSurface = self.header
     buildChildren(self, props.elements or {})
+    lockable.register(self, props)
     return self
 end
 
@@ -15770,6 +16049,7 @@ function Keybind.new(tab, props)
     end)
 
     self.window:_wireElementHover(self)
+    lockable.register(self, props)
     return self
 end
 
@@ -15830,6 +16110,14 @@ function Keybind:CancelCapture()
             self.keyButton:ReleaseFocus()
         end)
     end
+end
+
+function Keybind:SetInteractionLocked(locked)
+    if not self.keyButton then
+        return
+    end
+    self.keyButton.TextEditable = not locked
+    self.keyButton.Interactable = not locked
 end
 
 function Keybind:_captureInput(input)
@@ -16139,6 +16427,7 @@ function state.new(tab, element)
         self:_buildFull()
     end
 
+    lockable.register(self, element)
     return self
 end
 
@@ -16599,8 +16888,16 @@ function state:_pinPressToCanvas()
         end
     end
 
-    local function hold()
+    -- If a mode engages mid-press, finish the scroll guard without leaving
+    -- the page pinned. An already-settling post-release window is untouched.
+    self.CancelCapture = function()
         if self._pressCanvas then
+            settle(false)
+        end
+    end
+
+    local function hold()
+        if self.locked or not window:_interactive() or self._pressCanvas then
             return
         end
         -- A new press takes over from any settle window still open.
@@ -16674,7 +16971,7 @@ function state:_pinPressToCanvas()
 end
 
 function state:_copy(): boolean
-    if self.locked then
+    if self.locked or not self.window:_interactive() then
         return false
     end
 
@@ -16969,6 +17266,7 @@ local constants = script.Parent.Parent.utilities
 local ModePicker = require(constants.Parent.core.state)
 local locale = require(constants.locale)
 local haptic = require(constants.HapticEngine)
+local lockable = require(constants.lockable)
 --[[
 The Mode Picker rides the shared motion vocabulary: the knob travels on
 `normal` (the same beat as a slider value change), a drag chase would need
@@ -17070,19 +17368,29 @@ function state.new(tab, element)
 		error(`Astra:CreateModePicker — modes must be between {minModes} and {maxModes}, got {#modes}`, 0)
 	end
 
+	local forgetState = element.forgetState
+	if forgetState == nil then
+		forgetState = element.ForgetState
+	end
+	if forgetState == nil then
+		forgetState = tab.forgetState
+	end
+	local titleText = tostring(element.title or element.Title or "Mode Picker")
+	local isLockSystemController = element.lockSystemController == true or element.LockSystemController == true
+
 	local self = setmetatable({
 		tab = assert(tab, "Missing argument #1 (Tab expected)"),
 		window = tab.window,
-		titleText = tostring(element.title or element.Title or "Mode Picker"),
+		titleText = titleText,
 		subtitle = tostring(element.subtitle or element.Subtitle or ""),
-		forgetState = element.forgetState or element.ForgetState or tab.forgetState,
+		forgetState = forgetState == true,
 		flag = element.flag
 			or element.Flag
 			or (
-				not (element.forgetState or element.ForgetState or tab.forgetState)
-					and tab.deriveFlagFromName(element.title or element.Title or "ModePicker")
+				not forgetState and tab.deriveFlagFromName(titleText)
 				or nil
 			),
+		_lockSystemController = isLockSystemController,
 
 		left_icon = tab.window:ResolveIcon(element.left_icon or element.LeftIcon or "zap"),
 		right_icon = tab.window:ResolveIcon(element.right_icon or element.RightIcon or "rotate-ccw"),
@@ -17108,6 +17416,16 @@ function state.new(tab, element)
 
 	self.window:_registerControl(self)
 	self:_build()
+	self._serialize = function(picker)
+		return picker.mode
+	end
+	self._deserialize = function(picker, value)
+		picker:Set(value, true)
+	end
+	lockable.register(self, element, { exempt = isLockSystemController })
+	if isLockSystemController then
+		self:_syncLockSystemMode()
+	end
 
 	return self
 end
@@ -17555,16 +17873,34 @@ function state:_applyColors(instant)
 	end
 end
 
+local lockModeSubtitles = {
+	[1] = "Mode 1 — minor controls locked",
+	[2] = "Mode 2 — inputs and selections locked",
+	[3] = "Mode 3 — important actions locked",
+	[4] = "Mode 4 — sensitive controls locked",
+	[5] = "Mode 5 — all lockable controls locked",
+}
+
+function state:_syncLockSystemMode()
+	if not self._lockSystemController then
+		return
+	end
+	self.window:SetElementLockMode(self.mode)
+	self:SetSubtitle(lockModeSubtitles[self.mode])
+end
+
 --[[
 Mode changes commit through here: clamp, animate, fire the mode's own
 onEnable plus the picker-level callback, and persist. `silent` skips
-callbacks for restore paths.
+callbacks for restore paths, but the built-in lock controller still applies
+the selected tier so restores and programmatic Set calls stay in sync.
 ]]
 function state:Set(index, silent)
 	index = math.clamp(math.round(tonumber(index) or self.mode), 1, #self.modes)
 	local changed = index ~= self.mode
 	self.mode = index
 	self:_applyMode(index, false)
+	self:_syncLockSystemMode()
 
 	if changed and not silent then
 		local mode = self.modes[index]
@@ -17725,7 +18061,6 @@ function state:_refreshTheme()
 end
 
 local moveable = require(constants.moveable)
-local lockable = require(constants.lockable)
 moveable(state)
 lockable(state)
 
@@ -18042,6 +18377,9 @@ function state.new(ownerTab, a31)
     end)
 
     self.window:ConnectFor(self, self.interact.InputBegan, function(a32)
+        if self:IsLocked() or not self.window:_interactive() then
+            return
+        end
         if
             a32.UserInputType == Enum.UserInputType.MouseButton1
             or a32.UserInputType == Enum.UserInputType.Touch
@@ -18099,6 +18437,7 @@ function state.new(ownerTab, a31)
 
     self:_renderProgress()
 
+    flag.register(self, a31)
     return self
 end
 
@@ -18282,6 +18621,9 @@ function state:_renderProgress(a39)
 end
 
 function state:_updateFromMouse()
+    if self:IsLocked() or not self.window:_interactive() then
+        return
+    end
     local a43 = self:_pillTravel()
     if a43 <= 0 then
         return
@@ -19275,6 +19617,10 @@ local flagNames = require(script.Parent.Parent.functions.flagNames)
 local function customOrder(window, forgetState)
     for _, element in forgetState do
         if element.CancelCapture then element:CancelCapture() end
+        if window._elementLockModePicker == element then
+            window._elementLockModePicker = nil
+        end
+        window:_unregisterLockableElement(element)
         if element.__type == "Group" or element.__type == "CollapsibleGroup" or element.__type == "Isolated" then
             customOrder(window, element.elements)
         else
@@ -20163,6 +20509,7 @@ function state.new(tab, element)
         self:_buildFull()
     end
 
+    name.register(self, element)
     return self
 end
 
@@ -20245,6 +20592,9 @@ function state:_buildSwitch(frame)
 end
 
 function state:_performToggle()
+    if self:IsLocked() or not self.window:_interactive() then
+        return false
+    end
     value.click()
     self.value = not self.value
     self:_animateIndicator()
@@ -25912,23 +26262,231 @@ return locale
 
 end)() end,
     [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
-local function lockable<T>(element: T): T
-    local target = element :: any
+--[[
+Lockable controls keep their value and callback intact while a lock source
+blocks user input. This mixin also stamps the public usage tag used by the
+window's cumulative element-lock modes:
 
-    function target:Lock(reason: string?)
-        self.window:_setElementLocked(self, true, reason)
-    end
+    lockable:astra:<elementId>
 
-    function target:Unlock()
-        self.window:_setElementLocked(self, false)
-    end
+`register` is called by interactive element constructors after their UI has
+been built. Static presentation elements never call it, so they never get a
+lock tag or enter the mode registry.
+]]
+local lockable = {}
 
-    function target:IsLocked(): boolean
-        return self.locked == true
-    end
+local LOCK_USAGE_PREFIX = "lockable:astra:"
 
-    return element
+local defaultLockLevels = {
+	Link = 1,
+	Input = 2,
+	Dropdown = 2,
+	Keybind = 2,
+	Toggle = 3,
+	Slider = 3,
+	Button = 3,
+	AboutCard = 3,
+	ModePicker = 3,
+}
+
+local lockGroupLevels = {
+	minor = 1,
+	low = 1,
+	noncritical = 1,
+	standard = 2,
+	input = 2,
+	selection = 2,
+	action = 3,
+	important = 3,
+	advanced = 4,
+	sensitive = 4,
+	highimpact = 4,
+	remaining = 5,
+	all = 5,
+}
+
+local function read(properties, lower, upper)
+	if type(properties) ~= "table" then
+		return nil
+	end
+	local value = properties[lower]
+	if value == nil then
+		value = properties[upper]
+	end
+	return value
 end
+
+local function idFromWords(value)
+	local words = {}
+	for word in tostring(value or ""):gmatch("[%w]+") do
+		if #words == 0 then
+			table.insert(words, string.lower(word))
+		else
+			table.insert(words, string.upper(string.sub(word, 1, 1)) .. string.lower(string.sub(word, 2)))
+		end
+	end
+	return table.concat(words)
+end
+
+local function normalizeId(value, fallback)
+	local id = tostring(value or ""):gsub("[^%w_%-]", "")
+	if id == "" then
+		id = idFromWords(fallback)
+	end
+	if id == "" then
+		id = "element"
+	end
+	return id
+end
+
+local function mergeUsages(first, second)
+	local merged = {}
+	local function append(value)
+		if type(value) == "string" and value ~= "" then
+			if not table.find(merged, value) then
+				table.insert(merged, value)
+			end
+		elseif type(value) == "table" then
+			for _, usage in ipairs(value) do
+				if type(usage) == "string" and usage ~= "" and not table.find(merged, usage) then
+					table.insert(merged, usage)
+				end
+			end
+		end
+	end
+	append(first)
+	append(second)
+	if #merged == 0 then
+		return nil
+	end
+	if #merged == 1 then
+		return merged[1]
+	end
+	return merged
+end
+
+local function usageWithTag(existing, tag)
+	local usages = mergeUsages(existing, tag)
+	return usages or tag
+end
+
+local function requestedLevel(properties, options, element)
+	local level = options.lockLevel
+	if level == nil then
+		level = options.lockGroup
+	end
+	if level == nil then
+		level = read(properties, "lockLevel", "LockLevel")
+	end
+	if level == nil then
+		level = read(properties, "lockGroup", "LockGroup")
+	end
+	if type(level) == "string" then
+		local key = string.lower(level):gsub("[%s_%-]", "")
+		level = lockGroupLevels[key]
+	end
+
+	local numeric = tonumber(level)
+	if numeric then
+		return math.clamp(math.round(numeric), 1, 5)
+	end
+	return defaultLockLevels[element.__type] or 5
+end
+
+local function uniqueId(window, baseId, element)
+	if not window then
+		return baseId
+	end
+
+	window._lockableElementIds = window._lockableElementIds or {}
+	local candidate = baseId
+	local suffix = 2
+	while window._lockableElementIds[candidate] and window._lockableElementIds[candidate] ~= element do
+		candidate = baseId .. suffix
+		suffix += 1
+	end
+	return candidate
+end
+
+function lockable.register(element, properties, options)
+	properties = if type(properties) == "table" then properties else {}
+	options = if type(options) == "table" then options else {}
+
+	local window = element.window
+	local isController = options.exempt == true
+		or element._lockSystemController == true
+		or read(properties, "lockSystemController", "LockSystemController") == true
+	local enabled = options.enabled
+	if enabled == nil then
+		enabled = true
+	end
+
+	if isController or not enabled then
+		element._isLockable = false
+		element._lockSystemController = isController
+		return nil
+	end
+
+	local explicitId = options.id
+	if explicitId == nil then
+		explicitId = read(properties, "id", "Id")
+	end
+	if explicitId == nil then
+		explicitId = read(properties, "elementId", "ElementId")
+	end
+	local name = element.name or element.__type or "Element"
+	local baseId = normalizeId(explicitId, name)
+	local elementId = uniqueId(window, baseId, element)
+	local usageTag = LOCK_USAGE_PREFIX .. elementId
+	local existingUsage = mergeUsages(
+		read(properties, "usage", "Usage"),
+		options.usage
+	)
+
+	element.id = elementId
+	element.elementId = elementId
+	element.usageTag = usageTag
+	element.lockUsage = usageTag
+	element.usage = usageWithTag(existingUsage, usageTag)
+	element.lockLevel = requestedLevel(properties, options, element)
+	element._isLockable = true
+	element._lockSystemController = false
+
+	if window and window._registerLockableElement then
+		window:_registerLockableElement(element)
+	end
+	return usageTag
+end
+
+local function lockableMixin<T>(element: T): T
+	local target = element :: any
+
+	function target:Lock(reason: string?)
+		if self._isLockable ~= true or self._lockSystemController then
+			return false
+		end
+		return self.window:_setElementLocked(self, true, reason, "manual")
+	end
+
+	function target:Unlock()
+		if self._isLockable ~= true or self._lockSystemController then
+			return false
+		end
+		return self.window:_setElementLocked(self, false, nil, "manual")
+	end
+
+	function target:IsLocked(): boolean
+		return self.locked == true
+	end
+
+	return element
+end
+
+setmetatable(lockable, {
+	__call = function(_, element)
+		return lockableMixin(element)
+	end,
+})
 
 return lockable
 
@@ -27694,116 +28252,116 @@ end)() end,
 local LineOffsets = {
     [2] = 47,
     [3] = 468,
-    [5] = 1125,
-    [6] = 1108,
-    [7] = 1280,
-    [8] = 1422,
-    [9] = 1673,
-    [10] = 2055,
-    [11] = 3425,
-    [12] = 3834,
-    [13] = 4183,
-    [14] = 4922,
-    [15] = 5260,
-    [16] = 5774,
-    [17] = 5837,
-    [18] = 6311,
-    [19] = 6657,
-    [20] = 6671,
-    [21] = 6728,
-    [22] = 6859,
-    [23] = 7222,
-    [24] = 7461,
-    [25] = 7783,
-    [26] = 7883,
-    [27] = 7945,
-    [28] = 8593,
-    [29] = 8816,
-    [30] = 9162,
-    [31] = 9616,
-    [32] = 6631,
-    [34] = 10550,
-    [35] = 11375,
-    [36] = 11464,
-    [37] = 11683,
-    [38] = 12104,
-    [39] = 12559,
-    [40] = 12716,
-    [41] = 12861,
-    [42] = 14451,
-    [43] = 14699,
-    [44] = 14934,
-    [45] = 15211,
-    [46] = 15648,
-    [47] = 15892,
-    [48] = 16963,
-    [49] = 17736,
-    [50] = 17822,
-    [51] = 18418,
-    [52] = 19260,
-    [53] = 19807,
-    [54] = 19937,
-    [55] = 20076,
-    [57] = 20587,
-    [58] = 20613,
-    [59] = 20632,
-    [60] = 20665,
-    [61] = 20791,
-    [62] = 20817,
-    [63] = 20866,
-    [64] = 20562,
-    [65] = 20971,
-    [66] = 21276,
-    [67] = 21307,
-    [68] = 20960,
-    [69] = 21350,
-    [70] = 21370,
-    [71] = 21402,
-    [72] = 21332,
-    [73] = 21509,
-    [74] = 21577,
-    [76] = 21659,
-    [77] = 21826,
-    [78] = 21845,
-    [79] = 21644,
-    [80] = 22476,
-    [81] = 22522,
-    [82] = 22604,
-    [83] = 22799,
-    [84] = 22930,
-    [85] = 23033,
-    [86] = 23202,
-    [87] = 23542,
-    [88] = 21941,
-    [89] = 24186,
-    [90] = 24072,
-    [91] = 24325,
-    [92] = 24423,
-    [93] = 24601,
-    [94] = 24660,
-    [95] = 24690,
-    [96] = 24941,
-    [97] = 24990,
-    [98] = 25443,
-    [99] = 25461,
-    [100] = 25668,
-    [101] = 25688,
-    [102] = 25816,
-    [103] = 25915,
-    [104] = 25937,
-    [105] = 25993,
-    [106] = 26458,
-    [107] = 26494,
-    [108] = 26512,
-    [109] = 26872,
-    [110] = 26884,
-    [111] = 26935,
-    [112] = 26954,
-    [113] = 27213,
-    [114] = 27257,
-    [115] = 27473,
-    [116] = 27501,
-    [117] = 27512,
+    [5] = 1147,
+    [6] = 1130,
+    [7] = 1302,
+    [8] = 1444,
+    [9] = 1695,
+    [10] = 2077,
+    [11] = 3447,
+    [12] = 3856,
+    [13] = 4205,
+    [14] = 4944,
+    [15] = 5282,
+    [16] = 5837,
+    [17] = 5900,
+    [18] = 6374,
+    [19] = 6720,
+    [20] = 6734,
+    [21] = 6791,
+    [22] = 6922,
+    [23] = 7395,
+    [24] = 7634,
+    [25] = 7956,
+    [26] = 8056,
+    [27] = 8118,
+    [28] = 8770,
+    [29] = 8993,
+    [30] = 9343,
+    [31] = 9797,
+    [32] = 6694,
+    [34] = 10731,
+    [35] = 11568,
+    [36] = 11657,
+    [37] = 11886,
+    [38] = 12307,
+    [39] = 12764,
+    [40] = 12921,
+    [41] = 13066,
+    [42] = 14684,
+    [43] = 14932,
+    [44] = 15167,
+    [45] = 15488,
+    [46] = 15927,
+    [47] = 16180,
+    [48] = 17260,
+    [49] = 18071,
+    [50] = 18157,
+    [51] = 18760,
+    [52] = 19602,
+    [53] = 20153,
+    [54] = 20283,
+    [55] = 20422,
+    [57] = 20937,
+    [58] = 20963,
+    [59] = 20982,
+    [60] = 21015,
+    [61] = 21141,
+    [62] = 21167,
+    [63] = 21216,
+    [64] = 20912,
+    [65] = 21321,
+    [66] = 21626,
+    [67] = 21657,
+    [68] = 21310,
+    [69] = 21700,
+    [70] = 21720,
+    [71] = 21752,
+    [72] = 21682,
+    [73] = 21859,
+    [74] = 21927,
+    [76] = 22009,
+    [77] = 22176,
+    [78] = 22195,
+    [79] = 21994,
+    [80] = 22826,
+    [81] = 22872,
+    [82] = 22954,
+    [83] = 23149,
+    [84] = 23280,
+    [85] = 23383,
+    [86] = 23552,
+    [87] = 23892,
+    [88] = 22291,
+    [89] = 24536,
+    [90] = 24422,
+    [91] = 24675,
+    [92] = 24773,
+    [93] = 24951,
+    [94] = 25010,
+    [95] = 25040,
+    [96] = 25291,
+    [97] = 25340,
+    [98] = 25793,
+    [99] = 25811,
+    [100] = 26018,
+    [101] = 26038,
+    [102] = 26166,
+    [103] = 26265,
+    [104] = 26495,
+    [105] = 26551,
+    [106] = 27016,
+    [107] = 27052,
+    [108] = 27070,
+    [109] = 27430,
+    [110] = 27442,
+    [111] = 27493,
+    [112] = 27512,
+    [113] = 27771,
+    [114] = 27815,
+    [115] = 28031,
+    [116] = 28059,
+    [117] = 28070,
 }
 
 -- Misc AOT variable imports

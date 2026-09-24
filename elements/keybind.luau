@@ -123,6 +123,7 @@ function Keybind.new(tab, props)
     end)
 
     self.window:_wireElementHover(self)
+    lockable.register(self, props)
     return self
 end
 
@@ -183,6 +184,14 @@ function Keybind:CancelCapture()
             self.keyButton:ReleaseFocus()
         end)
     end
+end
+
+function Keybind:SetInteractionLocked(locked)
+    if not self.keyButton then
+        return
+    end
+    self.keyButton.TextEditable = not locked
+    self.keyButton.Interactable = not locked
 end
 
 function Keybind:_captureInput(input)

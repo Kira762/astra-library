@@ -83,6 +83,46 @@ function settingsComponent.buildUI(window)
                 window:SaveSettings()
             end,
         })
+
+        -- A fixed five-stop controller. The ramp paints the active fill/icon
+        -- from pale blue at Mode 1 to deep blue at Mode 5; its own control is
+        -- deliberately exempt from the lock registry so it can always unlock
+        -- the rest of the page.
+        local lockModeColors = {
+            { r = 234, g = 242, b = 255 }, -- #EAF2FF
+            { r = 201, g = 221, b = 255 }, -- #C9DDFF
+            { r = 147, g = 184, b = 255 }, -- #93B8FF
+            { r = 90, g = 134, b = 240 }, -- #5A86F0
+            { r = 29, g = 63, b = 168 }, -- #1D3FA8
+        }
+        local lockModes = {}
+        for index, color in ipairs(lockModeColors) do
+            table.insert(lockModes, {
+                label = "Mode " .. tostring(index),
+                type = if index == 1 then "default" else "dot",
+                icon_color = color,
+            })
+        end
+        window._elementLockModePicker = general:CreateModePicker({
+            id = "astraElementLockMode",
+            title = "Element Lock Mode",
+            subtitle = "Higher modes restrict more interactive controls",
+            left_icon = "lock-keyhole",
+            right_icon = "rotate-ccw",
+            left_icon_color = lockModeColors[1],
+            title_color_same_as_left_icon = false,
+            accent = "left_icon",
+            mode = window:GetElementLockMode(),
+            min_modes = 5,
+            max_modes = 5,
+            allow_mode_add_remove = false,
+            reset_on_right_icon_press = true,
+            flag = "astra.elementLockMode",
+            forgetState = false,
+            lockSystemController = true,
+            modes = lockModes,
+        })
+
         general:CreateCollapsibleGroup({
             name = "Window Behavior",
             icon = "layout",
@@ -391,6 +431,7 @@ function settingsComponent.buildUI(window)
                         {
                             type = "Button",
                             name = "Delete",
+                            lockLevel = 4,
                             callback = function()
                                 local name = selected
                                 if not name or name == "" then

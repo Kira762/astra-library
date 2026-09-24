@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased — Regression guard skill and exhaustive invariant harness
+
+The three bug classes that shipped more than once — Mode 1 locking when it
+should be unlocked, `string expected, got table` / stale subtitles on locale
+change, and lock-time layout shifts or rounded corners over a straight divider
+— now have a dedicated Agent Skill and an automated harness that fails CI
+instead of reaching users.
+
+- **`skills/astra-guard/`** — new combined guard skill (one skill, three
+  references). `SKILL.md` encodes the contract and the run gate;
+  `references/lock-tiers.md` documents the five cumulative tiers (no automatic
+  Level 1, Level 2 = Link/Input/Dropdown/Keybind, Level 3 = Toggle/Slider/
+  Button/ModePicker/AboutCard, Level 4 = sensitive/advanced, Level 5 =
+  remaining, plus `lockGroup` string aliases and the `fallback or 5` rule);
+  `references/text-locale.md` mandates `Window:_bindLocale` so `Text` is always
+  a string and updates on `SetLocale`; `references/layout-geometry.md`
+  mandates the placement invariant (`Position/Size/Parent` unchanged across
+  `SetElementLockMode(1..5)`), the header/scrim corner mirror (`8,0` expanded
+  vs `8,8` collapsed for both CollapsibleGroup and Isolated), and the
+  knob/fill pill geometry.
+- **`scripts/guard_invariants_test.luau` + `scripts/guard_invariants_test.sh`**
+  — exhaustive harness that builds every lockable and non-lockable element and
+  asserts: 12 lockable types have correct `lockLevel` + `lockable:astra:<id>`
+  in `usage`; 8 non-lockable have `usageTag=nil` / `_isLockable~=true`;
+  Mode 1 locks only explicit `lockLevel=1` (auto-tiered stay unlocked) and
+  Modes 2–5 are cumulative; placement (`Position/Size/Parent`, scrim `Visible`
+  + `ZIndex 60`) for 16 elements across Mode 1↔5; header vs scrim corner sync
+  `8,0`/`8,8` for both containers in both states; controller
+  `_elementLockModePicker` exempt and locale-bound (subtitle string, updates on
+  `RegisterTranslations` + `SetLocale` for both controller and regular
+  `ModePicker:SetSubtitle`); manual vs mode composition, late-element
+  inheritance, and locked-input guards. Runs automatically in
+  `scripts/check_all.sh` (`6/6` → `46 passed, 0 failed`).
+
 ## Unreleased — Controller locale fix and Mode 1 unlocked
 
 The lock controller's subtitle could throw `string expected, got table` and

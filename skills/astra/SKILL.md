@@ -186,6 +186,7 @@ Read only what the task needs:
   themes, icon packs, motion service, localisation, persistence, startup pacing.
 - `references/repo-workflow.md` — working inside this repository: bundle generation,
   syntax and checker scripts, runtime tests, docs/changelog conventions.
+- `skills/astra-guard/SKILL.md` + `skills/astra-guard/references/*` — regression guard for lock tiers, text/locale and layout geometry (the three recurring bug classes). Consult before shipping anything that touches `elements/`, `components/window/elements.luau`, `utilities/lockable.luau`, or `utilities/locale`.
 - `assets/example-window.luau` — a single-file, copy-pasteable hub covering every
   element type. It is Luau-parsed, but `scripts/check_syntax.sh` only walks the
   library paths, so compile it directly after editing.

@@ -7159,9 +7159,21 @@ function Window:_buildLockScrim(element)
         Parent = parent,
     }, { BackgroundColor3 = { "WindowColor", firstColor } })
 
-    self:Create("UICorner", {
+    element.lockScrimCorner = self:Create("UICorner", {
         Parent = element.lockScrim,
     }, { CornerRadius = "ElementCornerRadius" })
+
+    -- The two header-based containers (CollapsibleGroup / Isolated) keep
+    -- their lock surface on the header band, whose own corners flip
+    -- between collapsed (all four) and expanded (top only) so the band
+    -- squares off against the divider. The scrim must wear the same
+    -- corners or a locked, expanded header would show rounded bottom
+    -- arcs over a straight seam.
+    if element.headerCorner and element.lockScrimCorner then
+        for _, key in ipairs(shared.cornerKeys) do
+            element.lockScrimCorner[key] = element.headerCorner[key]
+        end
+    end
 end
 
 function Window:_flashResult(element, ok)
@@ -12616,6 +12628,13 @@ function Collapsible:_fitHeaderCorners()
         if self._expanded then bandCorners.expanded else bandCorners.collapsed,
         "ElementCornerRadius"
     )
+    if self.lockScrimCorner then
+        self.window:_setRoundedCorners(
+            self.lockScrimCorner,
+            if self._expanded then bandCorners.expanded else bandCorners.collapsed,
+            "ElementCornerRadius"
+        )
+    end
 end
 
 function Collapsible:_resize(animate)
@@ -15741,6 +15760,13 @@ function Isolated:_fitHeaderCorners()
         if self._expanded then bandCorners.expanded else bandCorners.collapsed,
         "ElementCornerRadius"
     )
+    if self.lockScrimCorner then
+        self.window:_setRoundedCorners(
+            self.lockScrimCorner,
+            if self._expanded then bandCorners.expanded else bandCorners.collapsed,
+            "ElementCornerRadius"
+        )
+    end
 end
 
 --[[
@@ -17874,7 +17900,7 @@ function state:_applyColors(instant)
 end
 
 local lockModeSubtitles = {
-	[1] = "Mode 1 — minor controls locked",
+	[1] = "Mode 1 — all controls unlocked",
 	[2] = "Mode 2 — inputs and selections locked",
 	[3] = "Mode 3 — important actions locked",
 	[4] = "Mode 4 — sensitive controls locked",
@@ -17992,7 +18018,7 @@ end
 
 function state:SetSubtitle(text)
 	self.subtitle = tostring(text or "")
-	self.subtitleLabel.Text = locale.t(self.subtitle)
+	self.window:_bindLocale(self.subtitleLabel, "Text", self.subtitle)
 	self.subtitleLabel.Visible = self.subtitle ~= ""
 end
 
@@ -26278,7 +26304,7 @@ local lockable = {}
 local LOCK_USAGE_PREFIX = "lockable:astra:"
 
 local defaultLockLevels = {
-	Link = 1,
+	Link = 2,
 	Input = 2,
 	Dropdown = 2,
 	Keybind = 2,
@@ -28270,98 +28296,98 @@ local LineOffsets = {
     [20] = 6734,
     [21] = 6791,
     [22] = 6922,
-    [23] = 7395,
-    [24] = 7634,
-    [25] = 7956,
-    [26] = 8056,
-    [27] = 8118,
-    [28] = 8770,
-    [29] = 8993,
-    [30] = 9343,
-    [31] = 9797,
+    [23] = 7407,
+    [24] = 7646,
+    [25] = 7968,
+    [26] = 8068,
+    [27] = 8130,
+    [28] = 8782,
+    [29] = 9005,
+    [30] = 9355,
+    [31] = 9809,
     [32] = 6694,
-    [34] = 10731,
-    [35] = 11568,
-    [36] = 11657,
-    [37] = 11886,
-    [38] = 12307,
-    [39] = 12764,
-    [40] = 12921,
-    [41] = 13066,
-    [42] = 14684,
-    [43] = 14932,
-    [44] = 15167,
-    [45] = 15488,
-    [46] = 15927,
-    [47] = 16180,
-    [48] = 17260,
-    [49] = 18071,
-    [50] = 18157,
-    [51] = 18760,
-    [52] = 19602,
-    [53] = 20153,
-    [54] = 20283,
-    [55] = 20422,
-    [57] = 20937,
-    [58] = 20963,
-    [59] = 20982,
-    [60] = 21015,
-    [61] = 21141,
-    [62] = 21167,
-    [63] = 21216,
-    [64] = 20912,
-    [65] = 21321,
-    [66] = 21626,
-    [67] = 21657,
-    [68] = 21310,
-    [69] = 21700,
-    [70] = 21720,
-    [71] = 21752,
-    [72] = 21682,
-    [73] = 21859,
-    [74] = 21927,
-    [76] = 22009,
-    [77] = 22176,
-    [78] = 22195,
-    [79] = 21994,
-    [80] = 22826,
-    [81] = 22872,
-    [82] = 22954,
-    [83] = 23149,
-    [84] = 23280,
-    [85] = 23383,
-    [86] = 23552,
-    [87] = 23892,
-    [88] = 22291,
-    [89] = 24536,
-    [90] = 24422,
-    [91] = 24675,
-    [92] = 24773,
-    [93] = 24951,
-    [94] = 25010,
-    [95] = 25040,
-    [96] = 25291,
-    [97] = 25340,
-    [98] = 25793,
-    [99] = 25811,
-    [100] = 26018,
-    [101] = 26038,
-    [102] = 26166,
-    [103] = 26265,
-    [104] = 26495,
-    [105] = 26551,
-    [106] = 27016,
-    [107] = 27052,
-    [108] = 27070,
-    [109] = 27430,
-    [110] = 27442,
-    [111] = 27493,
-    [112] = 27512,
-    [113] = 27771,
-    [114] = 27815,
-    [115] = 28031,
-    [116] = 28059,
-    [117] = 28070,
+    [34] = 10743,
+    [35] = 11580,
+    [36] = 11669,
+    [37] = 11898,
+    [38] = 12319,
+    [39] = 12783,
+    [40] = 12940,
+    [41] = 13085,
+    [42] = 14703,
+    [43] = 14951,
+    [44] = 15186,
+    [45] = 15507,
+    [46] = 15953,
+    [47] = 16206,
+    [48] = 17286,
+    [49] = 18097,
+    [50] = 18183,
+    [51] = 18786,
+    [52] = 19628,
+    [53] = 20179,
+    [54] = 20309,
+    [55] = 20448,
+    [57] = 20963,
+    [58] = 20989,
+    [59] = 21008,
+    [60] = 21041,
+    [61] = 21167,
+    [62] = 21193,
+    [63] = 21242,
+    [64] = 20938,
+    [65] = 21347,
+    [66] = 21652,
+    [67] = 21683,
+    [68] = 21336,
+    [69] = 21726,
+    [70] = 21746,
+    [71] = 21778,
+    [72] = 21708,
+    [73] = 21885,
+    [74] = 21953,
+    [76] = 22035,
+    [77] = 22202,
+    [78] = 22221,
+    [79] = 22020,
+    [80] = 22852,
+    [81] = 22898,
+    [82] = 22980,
+    [83] = 23175,
+    [84] = 23306,
+    [85] = 23409,
+    [86] = 23578,
+    [87] = 23918,
+    [88] = 22317,
+    [89] = 24562,
+    [90] = 24448,
+    [91] = 24701,
+    [92] = 24799,
+    [93] = 24977,
+    [94] = 25036,
+    [95] = 25066,
+    [96] = 25317,
+    [97] = 25366,
+    [98] = 25819,
+    [99] = 25837,
+    [100] = 26044,
+    [101] = 26064,
+    [102] = 26192,
+    [103] = 26291,
+    [104] = 26521,
+    [105] = 26577,
+    [106] = 27042,
+    [107] = 27078,
+    [108] = 27096,
+    [109] = 27456,
+    [110] = 27468,
+    [111] = 27519,
+    [112] = 27538,
+    [113] = 27797,
+    [114] = 27841,
+    [115] = 28057,
+    [116] = 28085,
+    [117] = 28096,
 }
 
 -- Misc AOT variable imports

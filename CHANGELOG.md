@@ -1,5 +1,70 @@
 # Changelog
 
+## Unreleased — Regression guard skill and exhaustive invariant harness
+
+The three bug classes that shipped more than once — Mode 1 locking when it
+should be unlocked, `string expected, got table` / stale subtitles on locale
+change, and lock-time layout shifts or rounded corners over a straight divider
+— now have a dedicated Agent Skill and an automated harness that fails CI
+instead of reaching users.
+
+- **`skills/astra-guard/`** — new combined guard skill (one skill, three
+  references). `SKILL.md` encodes the contract and the run gate;
+  `references/lock-tiers.md` documents the five cumulative tiers (no automatic
+  Level 1, Level 2 = Link/Input/Dropdown/Keybind, Level 3 = Toggle/Slider/
+  Button/ModePicker/AboutCard, Level 4 = sensitive/advanced, Level 5 =
+  remaining, plus `lockGroup` string aliases and the `fallback or 5` rule);
+  `references/text-locale.md` mandates `Window:_bindLocale` so `Text` is always
+  a string and updates on `SetLocale`; `references/layout-geometry.md`
+  mandates the placement invariant (`Position/Size/Parent` unchanged across
+  `SetElementLockMode(1..5)`), the header/scrim corner mirror (`8,0` expanded
+  vs `8,8` collapsed for both CollapsibleGroup and Isolated), and the
+  knob/fill pill geometry.
+- **`scripts/guard_invariants_test.luau` + `scripts/guard_invariants_test.sh`**
+  — exhaustive harness that builds every lockable and non-lockable element and
+  asserts: 12 lockable types have correct `lockLevel` + `lockable:astra:<id>`
+  in `usage`; 8 non-lockable have `usageTag=nil` / `_isLockable~=true`;
+  Mode 1 locks only explicit `lockLevel=1` (auto-tiered stay unlocked) and
+  Modes 2–5 are cumulative; placement (`Position/Size/Parent`, scrim `Visible`
+  + `ZIndex 60`) for 16 elements across Mode 1↔5; header vs scrim corner sync
+  `8,0`/`8,8` for both containers in both states; controller
+  `_elementLockModePicker` exempt and locale-bound (subtitle string, updates on
+  `RegisterTranslations` + `SetLocale` for both controller and regular
+  `ModePicker:SetSubtitle`); manual vs mode composition, late-element
+  inheritance, and locked-input guards. Runs automatically in
+  `scripts/check_all.sh` (`6/6` → `46 passed, 0 failed`).
+
+## Unreleased — Controller locale fix and Mode 1 unlocked
+
+The lock controller's subtitle could throw `string expected, got table` and
+leave the controller's title/subtitle invisible or stale after a locale
+change; Mode 1 also locked Links by default when the intent is for the
+default tier to leave interactive controls unlocked.
+
+- **`elements/modePicker.luau`** — `SetSubtitle` now uses the window's
+  locale-binding path (`Window:_bindLocale`) so `Text` receives a string and
+  the subtitle updates when the locale changes (the crash was `locale.t`'s
+  token table being assigned directly to `TextLabel.Text`). The built-in
+  controller's Mode 1 subtitle is now `Mode 1 — all controls unlocked` to
+  match the unlocked default.
+- **`utilities/lockable.luau`** — default Links move from Level 1 to Level 2
+  (`standard` / `input` tier). Mode 1 therefore leaves automatically tiered
+  controls unlocked; an explicit `lockLevel = 1` / `lockGroup = "minor"` still
+  locks at Mode 1, and higher modes remain cumulative through Mode 5.
+- **`scripts/elements_lock_test.luau`** — Link tier expectation updated
+  (minor → standard) and controller subtitle checked for the unlocked Mode 1.
+- **`USAGE.md`, `skills/astra/references/elements.md`** — Element Lock Modes
+  table and prose updated to show Level 1 with no default members and Level 2
+  now containing Link alongside Input, Dropdown and Keybind.
+- **`components/window/elements.luau`, `elements/collapsibleGroup.luau`,
+  `elements/isolated.luau`** — lock scrims for the header-based containers
+  now mirror the header band's dynamic corners (all four when collapsed,
+  top-only when expanded) so a locked, expanded card shows a straight
+  divider instead of rounded bottom arcs, and every lock overlay preserves
+  the element's original placement while locked (verified that main
+  Position/Size and header metrics are unchanged across Mode 1–5).
+- **`version-1.luau`** — regenerated and re-signed.
+
 ## Unreleased — Five cumulative Elements Lock Modes
 
 Added a fixed five-mode lock controller to built-in Settings → Controls. The

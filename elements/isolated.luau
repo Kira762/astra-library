@@ -254,6 +254,13 @@ function Isolated:_fitHeaderCorners()
         if self._expanded then bandCorners.expanded else bandCorners.collapsed,
         "ElementCornerRadius"
     )
+    if self.lockScrimCorner then
+        self.window:_setRoundedCorners(
+            self.lockScrimCorner,
+            if self._expanded then bandCorners.expanded else bandCorners.collapsed,
+            "ElementCornerRadius"
+        )
+    end
 end
 
 --[[

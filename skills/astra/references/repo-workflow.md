@@ -20,6 +20,7 @@ scripts load).
 | `icons/` | Seven icon packs, `packBuilder`, custom-asset resolution. |
 | `scripts/` | Build, syntax gate, static checkers and runtime tests. |
 | `skills/astra/` | The Agent Skill published to skills.sh (this folder). |
+| `skills/astra-guard/` | Regression guard for the three recurring bug classes (lock tiers, text/locale, layout geometry). |
 | `default.project.json`, `wax.project.json` | Rojo / Wax project mapping for Studio. |
 
 Function bodies in the tree are minified (locals renamed `a1`, `a2`, …); top-level
@@ -52,7 +53,8 @@ sh scripts/<feature>_test.sh        # the per-feature runtime tests
   like `file.luau` are ignored on purpose — too ambiguous to judge.
 - `check_all.sh` runs all of the above plus the full runtime suite in fixed order
   (`1/6` requires through `6/6` runtime tests) and is the single command to run
-  before publishing.
+  before publishing. The `astra-guard` harness (`scripts/guard_invariants_test.sh`)
+  is part of that suite; it guards the three recurring bug classes.
 - Runtime tests assemble mini Roblox stubs + the bundle (wrapped in a function so the
   bundle's own error-line mapping survives) + assertions, then run them under the
   Luau CLI. `ASTRA_BUNDLE=/path/to/bundle` points a test at another build.

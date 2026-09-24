@@ -152,7 +152,10 @@ Runtime: `:Expand()`, `:Collapse()`, `:Toggle()`, `:SetTitle(text)`,
 `:SetSubtitle(text?)`, `:SetIcon(icon)` (left icon only; the chevron is fixed).
 
 Elements support `:MoveTo(index)`, `:MoveUp()`, `:MoveDown()`, `:MoveToTop()`,
-`:MoveToBottom()`; most also support `:Lock()`, `:Unlock()`, `:IsLocked()`.
+`:MoveToBottom()`; most functional elements also support `:Lock()`, `:Unlock()`,
+`:IsLocked()` and participate in the five cumulative Element Lock Modes in
+Settings → Controls. Modes preserve control state and guard user input; static
+elements and callback-free Buttons are not lockable.
 
 ## Window surface in one glance
 

@@ -631,7 +631,8 @@ Per-element specifics:
   `cardCorners`, …) and dispatch into the `layouts/` builders
   (`get`, `implementation`, `railWidthFor`).
 - `HapticEngine.luau` — vibration wrappers guarded by service availability.
-- `moveable.luau`, `lockable.luau` — drag/lock mixins.
+- `moveable.luau` — drag/reordering mixin.
+- `lockable.luau` — Lockable API plus stable `lockable:astra:<elementId>` usage tags, functional-control registration and automatic level/group resolution for the cumulative five-mode lock system.
 - `log.luau` — warn/error/log with Astra prefix.
 - `locale.luau` — translation table + `SetTranslator` support.
 - `filesystem.luau`, `filesystemManager.luau` — RobloxFS abstraction (isFolder/WriteFile wrappers, secure-mode aware).
@@ -661,6 +662,7 @@ Per-element specifics:
 | `dropdown_actions_test.sh` | The multi-select action row: only a multi-select dropdown builds it, the checkbox's two states (the drawn outline against the rows' check glyph), Select all filling the visible set and toggling it back off, Clear sparing what the filter hides, the box following picks and filters, the 32px row in the open height, and the bin resolving to the pack's trash icon. |
 | `tab_elements_test.sh` | Tab elements: only the selected tab is walked on a show/hide, a tab opened later shows its elements in the same frame and state, the search shows every tab it renders, and a late element shows with its tab. |
 | `tab_lock_test.sh` | Locked tabs: the preserved flag + badge (always hidden during the UI pause) and auto-select skipping a locked first tab; tap → notification with no selection; hover leaves the locked row dimmed; `Navigate`/`Select` guards; `SetLocked(false)` re-enables; locking the open tab moves the selection to a same-rail fallback; search excludes locked tabs' elements; locking every remaining tab clears the selection and hides content, and unlocking restores it; retained badge geometry with no layout reserve, full title slots, and hidden badges after collapse/rebuild. |
+| `elements_lock_test.sh` | Elements Lock System: per-window usage tags and stable IDs, existing usage merge, functional-only registration, default and explicit lock tiers, cumulative Mode 1–5 behavior, manual-lock composition, guarded callbacks, preserved input/draft/selection/layout, expanded-dropdown lock behavior, late controls, and the persistent five-mode built-in controller with its Mode 5 reset path. |
 | `toggle_switch_test.sh` | Switch geometry: one set of metrics, mirrored resting states, equal clearance, the sheen under the knob, and the animated positions matching the built ones. |
 | `mode_picker_test.sh` | Mode Picker: the 3..5 mode window, snap/Set/callback order and clamping, dot rebuilds on add/remove, the knob's stop scales, reset semantics, the absence of a description line, the title wearing the icon's RGB — and keeping it through a hover cycle and a per-mode `icon_color` — plus the track geometry: the knob's clearance inside the track's pill at both end stops, the fill wearing the knob's own pill and reaching its trailing edge, the last stop leaving no unpainted tail, and the end dots still at the knob's centres. |
 | `input_field_test.sh` | Field-box corners: the Input field rounds with the theme's `ElementCornerRadius` as a theme binding (pixel radius, never a capsule scale), re-stated on a theme switch, and shared with its element card. |

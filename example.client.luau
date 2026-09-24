@@ -937,7 +937,13 @@ local function buildStudio(unlockedKey)
     lab:CreateDivider({ text = "Move & lock" })
 
     local movableA = lab:CreateButton({ name = "Movable A", icon = "arrow-up" })
-    local movableB = lab:CreateButton({ name = "Movable B", icon = "arrow-down" })
+    local movableB = lab:CreateButton({
+        name = "Movable B",
+        icon = "arrow-down",
+        callback = function()
+            demoText:Set("Movable B clicked.")
+        end,
+    })
 
     local moveActions = lab:CreateGroup({ direction = "row" })
     moveActions:CreateButton({ name = "A to top", icon = "chevrons-up", callback = function() movableA:MoveToTop() end })

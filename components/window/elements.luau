@@ -41,7 +41,8 @@ function Window:_restoreLate(element)
     end
 
     local wasLoading = self._loading
-    self._loading = true     persistence.applyTo(element, self._loadedConfig[element.flag])
+    self._loading = true
+    persistence.applyTo(element, self._loadedConfig[element.flag])
     self._loading = wasLoading
 end
 
@@ -65,70 +66,176 @@ function Window:_unregisterControl(element)
     end
 end
 
-function Window:_setElementLocked(element, locked, message)
-    locked = locked == true
-                local wasLocked = element.locked == true
-    if wasLocked == locked and not (locked and message) then
-        return
+function Window:_registerLockableElement(element)
+    if not element or element._isLockable ~= true or element._lockSystemController then
+        return false
     end
-    element.locked = locked
-    if locked and element.CancelCapture then element:CancelCapture() end
 
+    self._lockableElements = self._lockableElements or {}
+    self._lockableElementSet = self._lockableElementSet or {}
+    self._lockableElementIds = self._lockableElementIds or {}
+    if self._lockableElementSet[element] then
+        return true
+    end
+
+    self._lockableElementSet[element] = true
+    table.insert(self._lockableElements, element)
+    self._lockableElementIds[element.elementId] = element
+
+    -- Controls created after a mode change join the active cumulative tier.
+    local mode = self._elementLockMode or 1
+    self:_setElementLocked(element, (element.lockLevel or 5) <= mode, nil, "mode")
+    return true
+end
+
+function Window:_unregisterLockableElement(element)
+    if not element or not self._lockableElementSet or not self._lockableElementSet[element] then
+        return false
+    end
+
+    self._lockableElementSet[element] = nil
+    if self._lockableElementIds and self._lockableElementIds[element.elementId] == element then
+        self._lockableElementIds[element.elementId] = nil
+    end
+    for index, registered in ipairs(self._lockableElements or {}) do
+        if registered == element then
+            table.remove(self._lockableElements, index)
+            break
+        end
+    end
+    return true
+end
+
+function Window:GetElementLockMode(): number
+    return math.clamp(math.round(tonumber(self._elementLockMode) or 1), 1, 5)
+end
+
+--[[
+The active tier is cumulative: an element assigned to level N stays locked
+for every mode >= N. Mode 5 therefore locks every registered lockable
+control. Manual locks are tracked separately and cannot be cleared by a
+mode change (or use Unlock to bypass an active mode).
+]]
+function Window:SetElementLockMode(mode): number
+    local nextMode = math.clamp(math.round(tonumber(mode) or self:GetElementLockMode()), 1, 5)
+    self._elementLockMode = nextMode
+    for _, element in ipairs(self._lockableElements or {}) do
+        if element._isLockable == true then
+            self:_setElementLocked(element, (element.lockLevel or 5) <= nextMode, nil, "mode")
+        end
+    end
+
+    local picker = self._elementLockModePicker
+    if picker and picker.mode ~= nextMode then
+        picker:Set(nextMode, true)
+    end
+    return nextMode
+end
+
+function Window:_setElementLocked(element, locked, message, source)
+    if not element or element.window ~= self or element._isLockable ~= true or element._lockSystemController then
+        return false
+    end
+
+    source = source or "manual"
+    locked = locked == true
+    if source == "mode" then
+        element._modeLocked = locked
+    else
+        element._manualLocked = locked
+        element._manualLockReason = if locked and type(message) == "string" and message ~= "" then message else nil
+    end
+
+    local nextLocked = element._manualLocked == true or element._modeLocked == true
+    local nextMessage = if element._manualLocked then element._manualLockReason else nil
+    local wasLocked = element.locked == true
+    if wasLocked == nextLocked and element._lockMessage == nextMessage then
+        return false
+    end
+
+    element.locked = nextLocked
+    element._lockMessage = nextMessage
+
+    -- Stop only transient gestures. Values, selection, callbacks and layout
+    -- are untouched; an expanded control stays expanded under its scrim.
+    if nextLocked and not wasLocked then
+        if element.CancelCapture then
+            element:CancelCapture()
+        end
+        if element.CancelEditing then
+            element:CancelEditing()
+        end
+        if element.dragging and element._endDrag then
+            element:_endDrag()
+        end
+    end
+    if element.SetInteractionLocked then
+        element:SetInteractionLocked(nextLocked)
+    end
+
+    local lockSurface = element.lockSurface or element.main
+    if not lockSurface then
+        return true
+    end
     if not element.lockScrim then
         self:_buildLockScrim(element)
     end
 
-    --[[
-    The lock scrim arrives on the shared hover spec; the unlock delay
-    tracks its duration so the scrim never hides after it has faded.
-    ]]
+    -- The scrim arrives on the shared hover spec. The delayed hide runs
+    -- only after it fades and re-checks the live lock state before hiding.
     local lockSpec = "snappy"
-
-    if locked then
+    if nextLocked then
         element.lockScrim.Visible = true
     end
     motion.tween(element.lockScrim, {
-        BackgroundTransparency = if locked then lockScrimTransparency else 1,
+        BackgroundTransparency = if nextLocked then lockScrimTransparency else 1,
     }, lockSpec)
-    if not locked then
+    if not nextLocked then
         task.delay(0.25, function()
             if not element.locked and element.lockScrim and element.lockScrim.Parent then
-                element.lockScrim.Visible = false             end
+                element.lockScrim.Visible = false
+            end
         end)
     end
 
-        local label = element.descriptionLabel
-    if not label then
-        return
-    end
+    local label = element.descriptionLabel
+    if label then
+        -- Manual lock reasons retain their historic copy, but an automatic
+        -- mode lock never replaces the description line (which could resize
+        -- a wrapped card). The scrim itself is the restricted-state cue.
+        if element._manualLocked then
+            element._descriptionBefore = element._descriptionBefore or label.Text
+            label.Text = locale.resolve(nextMessage or "This element is locked.")
+        elseif element._descriptionBefore then
+            label.Text = element._descriptionBefore
+            element._descriptionBefore = nil
+        end
 
-    if locked then
-                        element._descriptionBefore = element._descriptionBefore or label.Text
-        label.Text = locale.resolve(message or "This element is locked.")
-    elseif element._descriptionBefore then
-        label.Text = element._descriptionBefore
-        element._descriptionBefore = nil
+        motion.tween(label, {
+            TextTransparency = if nextLocked then lockedTextTransparency else 0.45,
+        }, lockSpec)
     end
-
-    motion.tween(label, {
-        TextTransparency = if locked then lockedTextTransparency else 0.45,
-    }, lockSpec)
+    return true
 end
 
 function Window:_buildLockScrim(element)
+    local parent = element.lockSurface or element.main
+    if not parent then
+        return
+    end
     element.lockScrim = self:Create("TextButton", {
         Name = "ElementLock",
         Active = true,
         AutoButtonColor = false,
+        Selectable = false,
         Size = UDim2.fromScale(1, 1),
         BorderSizePixel = 0,
         Text = "",
         TextTransparency = 1,
         ZIndex = constants.zIndex.elementLock,
         Visible = false,
-
-                        BackgroundTransparency = 1,
-        Parent = element.main,
+        BackgroundTransparency = 1,
+        Parent = parent,
     }, { BackgroundColor3 = { "WindowColor", firstColor } })
 
     self:Create("UICorner", {
@@ -247,12 +354,15 @@ function Window:_wireElementHover(element, options)
 end
 
 function Window:_runGuarded(element, fn, ...)
-            if element.locked then
+    if element and element.locked then
         return
     end
 
     local args = table.pack(...)
     task.spawn(function()
+        if element and element.locked then
+            return
+        end
         local ok, err = pcall(function()
             return fn(table.unpack(args, 1, args.n))
         end)

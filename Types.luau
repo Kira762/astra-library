@@ -1,5 +1,17 @@
 export type Theme = string | { [string]: any }
 
+-- Lockable interactive elements receive a stable `lockable:astra:<id>` usage
+-- tag automatically. `lockLevel` (1..5) or `lockGroup` can override the
+-- automatic type-based group; a lock mode of 5 always covers every tag.
+export type ElementUsage = string | { string }
+export type LockableProps = {
+    id: string?,
+    elementId: string?,
+    usage: ElementUsage?,
+    lockLevel: number?,
+    lockGroup: string?,
+}
+
 export type Translator = (source: string, localeId: string) -> string?
 
 export type Translations = { [string]: { [string]: string } }
@@ -91,7 +103,7 @@ export type CollapsibleElementProps = {
     [string]: any,
 }
 
-export type CollapsibleGroupProps = {
+export type CollapsibleGroupProps = LockableProps & {
     name: string?,
     icon: (string | number)?,
     elements: { CollapsibleElementProps }?,
@@ -106,14 +118,14 @@ export type IsolatedElementProps = {
     [string]: any,
 }
 
-export type IsolatedProps = {
+export type IsolatedProps = LockableProps & {
     name: string?,
     subtitle: string?,
     icon: (string | number)?,
     elements: { IsolatedElementProps }?,
 }
 
-export type ButtonProps = {
+export type ButtonProps = LockableProps & {
     name: string?,
     icon: (string | number)?,
     -- Deprecated, ignored compatibility props; functional info badges were removed.
@@ -123,7 +135,7 @@ export type ButtonProps = {
     callback: (() -> ())?,
 }
 
-export type ToggleProps = {
+export type ToggleProps = LockableProps & {
     name: string?,
     icon: (string | number)?,
     info: string?, -- Deprecated; ignored
@@ -134,7 +146,7 @@ export type ToggleProps = {
     callback: ((value: boolean) -> ())?,
 }
 
-export type SliderProps = {
+export type SliderProps = LockableProps & {
     name: string?,
     icon: (string | number)?,
     info: string?, -- Deprecated; ignored
@@ -147,7 +159,7 @@ export type SliderProps = {
         callback: ((value: number, dragging: boolean) -> ())?,
 }
 
-export type DropdownProps = {
+export type DropdownProps = LockableProps & {
     name: string?,
     icon: (string | number)?,
     info: string?, -- Deprecated; ignored
@@ -165,7 +177,7 @@ export type DropdownProps = {
 Required, editable one-letter key field. Strings are normalised to uppercase;
 invalid edits restore the previous letter instead of leaving the control blank.
 ]]
-export type KeybindProps = {
+export type KeybindProps = LockableProps & {
     name: string?,
     icon: (string | number)?,
     value: (string | EnumItem)?,
@@ -174,7 +186,7 @@ export type KeybindProps = {
     callback: ((letter: string) -> ())?,
 }
 
-export type InputProps = {
+export type InputProps = LockableProps & {
     name: string?,
     icon: (string | number)?,
     info: string?, -- Deprecated; ignored
@@ -197,7 +209,7 @@ export type ModeDefinition = {
     icon_color: (Color3 | { r: number?, g: number?, b: number?, a: number? })?,
 }
 
-export type ModePickerProps = {
+export type ModePickerProps = LockableProps & {
     left_icon: (string | number)?,
     right_icon: (string | number)?,
 
@@ -224,6 +236,8 @@ export type ModePickerProps = {
     forgetState: boolean?,
     callback: ((index: number, label: string) -> ())?,
     onReset: ((picker: any) -> ())?,
+    -- Internal: keep the built-in element-lock controller outside its own lock tiers.
+    lockSystemController: boolean?,
 }
 
 export type StatProps = {
@@ -246,7 +260,7 @@ export type StatProps = {
 `link` is the hidden value: stored on the element and copied by the card's
 trailing control, never rendered as text.
 ]]
-export type LinkProps = {
+export type LinkProps = LockableProps & {
     name: string?,
     subtitle: string?,
     link: string?,
@@ -269,14 +283,14 @@ The card's optional trailing band. It is the fourth block of the card — the
 one the data rows stop at three for — and it is the card's only tappable
 surface.
 ]]
-export type AboutCardAction = {
+export type AboutCardAction = LockableProps & {
     icon: (string | number)?,
     name: string?,
     subtitle: string?,
     callback: (() -> ())?,
 }
 
-export type AboutCardProps = {
+export type AboutCardProps = LockableProps & {
     name: string?,
     subtitle: string?,
     icon: (string | number)?,
@@ -318,8 +332,14 @@ export type Moveable = {
 }
 
 export type Lockable = {
-    Lock: (self: any, reason: string?) -> (),
-    Unlock: (self: any) -> (),
+    -- Automated for functional controls; static/decorative elements have none.
+    elementId: string?,
+    usage: ElementUsage?,
+    usageTag: string?,
+    lockUsage: string?,
+    lockLevel: number?,
+    Lock: (self: any, reason: string?) -> boolean,
+    Unlock: (self: any) -> boolean,
     IsLocked: (self: any) -> boolean,
 }
 
@@ -524,6 +544,8 @@ export type Window = {
     GetPath: (self: Window) -> (string, string),
     Get: (self: Window, flag: string) -> any,
     Set: (self: Window, flag: string, value: any) -> boolean,
+    SetElementLockMode: (self: Window, mode: number) -> number,
+    GetElementLockMode: (self: Window) -> number,
     Unload: (self: Window) -> (),
 }
 

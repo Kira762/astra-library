@@ -243,6 +243,50 @@ premium:SetLocked(false)
 
 Every element supports `Moveable` (`:MoveTo`, `:MoveToTop`, `:MoveToBottom`, `:MoveUp`, `:MoveDown`) and most support `Lockable` (`:Lock`, `:Unlock`, `:IsLocked`). Most element props also accept `icon`.
 
+#### Element Lock Modes
+
+The built-in **Settings → Controls → Element Lock Mode** picker has five fixed,
+cumulative modes. Mode 1 applies the smallest lock set; each higher mode keeps
+those locks and adds another tier; Mode 5 locks every lockable functional
+element. The blue mode ramp and subtitle identify the active mode. The picker
+itself is exempt, so its reset button remains usable in Mode 5. Hosts can also
+reset/unlock externally with `window:SetElementLockMode(1)` or inspect the
+current tier with `window:GetElementLockMode()`.
+
+Modes are an interaction gate, not a reset: locks preserve values, selections,
+callbacks and layout. They show a disabled scrim and block user input/callbacks;
+programmatic setters and manual `:Lock()` / `:Unlock()` remain available to the
+host. Manual locks compose with mode locks, so `:Unlock()` cannot bypass a
+currently active mode. This is UI behavior, not a security boundary against a
+client that can call library APIs directly.
+
+Lockable elements carry a `usage` entry in the form
+`lockable:astra:<elementId>`. Existing usage entries are kept; set `id` (or
+`elementId`) for a stable explicit ID. Repeated IDs in one window get a unique
+numeric suffix. Static/decorative elements and Buttons without a callback do
+not receive a lock tag. `lockLevel` accepts 1–5 and overrides the automatic
+tier; `lockGroup` is an alternative string shorthand:
+
+| Level | `lockGroup` names | Default functional elements |
+| --- | --- | --- |
+| 1 | `minor`, `low`, `noncritical` | Link |
+| 2 | `standard`, `input`, `selection` | Input, Dropdown, Keybind |
+| 3 | `action`, `important` | Button, Toggle, Slider, About Card actions, Mode Picker |
+| 4 | `advanced`, `sensitive`, `highimpact` | No default type; use for sensitive actions such as deleting a configuration |
+| 5 | `remaining`, `all` | Other lockable controls, including Collapsible Group and Isolated headers |
+
+```lua
+local exportButton = tab:CreateButton({
+    id = "exportSettings",
+    name = "Export settings",
+    lockGroup = "sensitive", -- first blocked in Mode 4
+    callback = exportSettings,
+})
+
+window:SetElementLockMode(3) -- lock levels 1–3
+print(window:GetElementLockMode())
+```
+
 Functional info (`circle-alert`) badges have been permanently removed from
 `Button`, `Toggle`, `Slider`, `Dropdown`, and `Input`. Legacy `info` / `infoIcon`
 props are ignored and `SetInfo` is a compatibility no-op, so old hosts do not

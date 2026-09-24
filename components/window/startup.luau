@@ -83,6 +83,10 @@ function Window.new(props)
         theme = resolveTheme(props.theme or props.Theme),
 
         controls = {},
+        _elementLockMode = 1,
+        _lockableElements = {},
+        _lockableElementSet = {},
+        _lockableElementIds = {},
 
         configuration = (function()
             -- Legacy overrides remain accepted, but normal usage needs no config table.

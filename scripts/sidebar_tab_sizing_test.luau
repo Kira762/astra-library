@@ -299,8 +299,8 @@ expect(
 local expectedSettingsContent = {
     -- Kept deliberately lean: About card + Repository link.
     Overview = 2,
-    -- Toggle Keybind, Unlock cursor, Window Behavior group.
-    Controls = 3,
+    -- Toggle Keybind, Unlock cursor, Element Lock Mode, Window Behavior group.
+    Controls = 4,
     -- Font, Bar Layout, Motion & Feedback (no section headers).
     Appearance = 3,
     Persistence = 2,

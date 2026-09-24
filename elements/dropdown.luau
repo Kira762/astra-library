@@ -564,7 +564,7 @@ function state.new(tab, a49)
         table.insert(
             a73.connections,
             self.window:ConnectFor(self, a69.MouseButton1Click, function()
-                                if not self._isOpen then
+                if self:IsLocked() or not self.window:_interactive() or not self._isOpen then
                     return
                 end
                 options.click()
@@ -626,6 +626,9 @@ function state.new(tab, a49)
     self:_updateCorners()
 
         self.window:ConnectFor(self, self.interact.MouseButton1Click, function()
+        if self:IsLocked() or not self.window:_interactive() then
+            return
+        end
         options.click()
         if self._isOpen then
             self:_close()
@@ -663,6 +666,7 @@ function state.new(tab, a49)
         )
     end)
 
+    multiSelect.register(self, a49)
     return self
 end
 
@@ -744,11 +748,17 @@ function state:_buildSearch()
     }, { ImageColor3 = "ContentColor" })
 
     self.window:ConnectFor(self, self.searchToggle.MouseButton1Click, function()
+        if self:IsLocked() or not self.window:_interactive() then
+            return
+        end
         if not self._searchOpen then
             self:_expandSearch()
         end
     end)
     self.window:ConnectFor(self, self.searchIcon.MouseButton1Click, function()
+        if self:IsLocked() or not self.window:_interactive() then
+            return
+        end
         if self._searchOpen then
             self:_collapseSearch()
         else
@@ -756,13 +766,28 @@ function state:_buildSearch()
         end
     end)
     self.window:ConnectFor(self, self.searchInput:GetPropertyChangedSignal("Text"), function()
+        if self:IsLocked() then
+            return
+        end
         self:_applyFilter(self.searchInput.Text)
     end)
     self.window:ConnectFor(self, self.searchInput.FocusLost, function()
+        if self:IsLocked() then
+            return
+        end
         if self.searchInput.Text == "" then
             self:_collapseSearch()
         end
     end)
+end
+
+function state:SetInteractionLocked(locked)
+    if not self.searchInput then
+        return
+    end
+    local editable = not locked and self._searchOpen == true
+    self.searchInput.TextEditable = editable
+    self.searchInput.Interactable = editable
 end
 
 function state:_expandSearch()
@@ -1028,14 +1053,14 @@ function state:_buildActions()
     end)
 
     self.window:ConnectFor(self, self.selectAll.MouseButton1Click, function()
-        if not self._isOpen then
+        if self:IsLocked() or not self.window:_interactive() or not self._isOpen then
             return
         end
         self:_toggleVisibleSelection()
         self:_afterBulkChange()
     end)
     self.window:ConnectFor(self, self.clear.MouseButton1Click, function()
-        if not self._isOpen then
+        if self:IsLocked() or not self.window:_interactive() or not self._isOpen then
             return
         end
         self:_clearVisibleSelection()
@@ -1256,6 +1281,9 @@ function state:_open()
         self.window:Disconnect(self._outsideClickConn)
     end
     self._outsideClickConn = self.window:Connect(Dropdown.userInputService.InputBegan, function(a112)
+        if self:IsLocked() then
+            return
+        end
         if
             a112.UserInputType ~= Enum.UserInputType.MouseButton1
             and a112.UserInputType ~= Enum.UserInputType.Touch

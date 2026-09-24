@@ -16,6 +16,10 @@ local flagNames = require(script.Parent.Parent.functions.flagNames)
 local function customOrder(window, forgetState)
     for _, element in forgetState do
         if element.CancelCapture then element:CancelCapture() end
+        if window._elementLockModePicker == element then
+            window._elementLockModePicker = nil
+        end
+        window:_unregisterLockableElement(element)
         if element.__type == "Group" or element.__type == "CollapsibleGroup" or element.__type == "Isolated" then
             customOrder(window, element.elements)
         else

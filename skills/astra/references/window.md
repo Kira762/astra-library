@@ -135,7 +135,7 @@ previous tab. User code does not build these tabs.
 | Tab | Contents |
 |---|---|
 | **Overview** | First tab: About Card, resource Links and Footer. |
-| **Controls** | Required single-letter A–Z Keybind, unlock cursor, Window Behavior and reset positions. |
+| **Controls** | Five-mode Element Lock controller, required single-letter A–Z Keybind, unlock cursor, Window Behavior and reset positions. |
 | **Appearance** | Standalone Bar Layout, Motion & Feedback. |
 | **Persistence** | Auto Save / Auto Load, configurations Dropdown, name Input and Save/Load/Delete. |
 

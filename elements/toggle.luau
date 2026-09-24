@@ -88,6 +88,7 @@ function state.new(tab, element)
         self:_buildFull()
     end
 
+    name.register(self, element)
     return self
 end
 
@@ -170,6 +171,9 @@ function state:_buildSwitch(frame)
 end
 
 function state:_performToggle()
+    if self:IsLocked() or not self.window:_interactive() then
+        return false
+    end
     value.click()
     self.value = not self.value
     self:_animateIndicator()

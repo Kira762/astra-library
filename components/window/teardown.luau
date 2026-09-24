@@ -248,6 +248,10 @@ function Window:_destroyTree()
     table.clear(self.localeProperties)
     table.clear(self.controls)
     table.clear(self.tabs)
+    table.clear(self._lockableElements)
+    table.clear(self._lockableElementSet)
+    table.clear(self._lockableElementIds)
+    self._elementLockModePicker = nil
     --[[
     overlayQueue.close already drained the queue into its safe resting
     shape (empty pending list, closed flag); wiping the table itself used

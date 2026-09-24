@@ -32,7 +32,31 @@ local userTabs = {}
 for _, tab in window.tabs do
     if not tab._isSettingsTab then table.insert(userTabs, tab) end
 end
-assert(#userTabs == 10, "Demo has ten purpose-based tabs")
+assert(#userTabs == 11, "Demo has eleven purpose-based tabs, including All Elements")
+local allElementsTab
+for _, tab in userTabs do
+    if tab.name == "All Elements" then
+        allElementsTab = tab
+        break
+    end
+end
+assert(allElementsTab ~= nil, "Demo includes the All Elements tab")
+local allElementNames = {}
+for _, element in allElementsTab.elements do
+    local kind = if element.__type == "Statistic" then "Stat" else element.__type
+    local visibleName = element.name
+    if kind == "Footer" then
+        visibleName = element.parts[1] and element.parts[1].value
+    elseif kind == "Divider" then
+        visibleName = element.text
+    elseif kind == "Group" then
+        visibleName = element.elements[1] and element.elements[1].name
+    end
+    allElementNames[kind] = visibleName
+end
+for _, kind in { "Section", "Text", "Button", "Toggle", "Slider", "Dropdown", "Input", "Keybind", "Stat", "Link", "AboutCard", "Footer", "Changelog", "Divider", "Group", "CollapsibleGroup", "ModePicker", "Isolated" } do
+    assert(allElementNames[kind] == kind, "All Elements names its " .. kind .. " entry correctly")
+end
 local types = {}
 local function scan(elements, informationOnlyHere)
     for _, element in elements do
@@ -49,7 +73,7 @@ end
 for _, tab in userTabs do
     tab:Select()
     TestPump(0.5)
-    scan(tab.elements, tab == overview)
+    scan(tab.elements, tab == overview or tab.name == "All Elements")
 end
 for _, kind in { "AboutCard", "Section", "Text", "Stat", "Divider", "Link", "Changelog", "Isolated", "Footer", "Button", "Group", "CollapsibleGroup", "Input", "Keybind", "Toggle", "Slider", "Dropdown" } do
     assert(types[kind], "Demo exercises " .. kind)

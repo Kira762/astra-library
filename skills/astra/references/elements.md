@@ -262,12 +262,14 @@ local changelogPanel -- assign below with tab:CreateIsolated(...)
 local card = tab:CreateAboutCard({
     name = "Astra",                                   -- header title
     subtitle = "UI Library for a better experience.", -- muted line under it
+    icon = 80387863064905,                            -- pack name or asset id
     rows = {                                          -- 1 to 3 rows
-        { label = "Version", value = "1.4.0" },
-        { label = "Build",   value = "2026.09.12" },
-        { label = "Author",  value = "Astra Team" },
+        { icon = "code",    label = "Version", value = "1.4.0" },
+        { icon = "package", label = "Build",   value = "2026.09.12" },
+        { icon = "user",    label = "Author",  value = "Astra Team" },
     },
     action = {                                        -- optional trailing band
+        icon = "file-text",
         name = "View Changelog",
         subtitle = "See what's new in this version",
         callback = function()
@@ -278,12 +280,13 @@ local card = tab:CreateAboutCard({
 
 card:SetTitle("Release notes")
 card:SetSubtitle(nil)                 -- "" / nil drops the header to one band
-card:SetRow(1, { label = "Version", value = "1.5.0" })
+card:SetIcon("sparkles")              -- nil removes the leading mark
+card:SetRow(1, { icon = "box", label = "Version", value = "1.5.0" })
 ```
 
-- Three blocks in one card: header (title, subtitle), the data rows and
-  the optional action band. `icon` and `description` props are ignored — the
-  icon slots and the paragraph block have been removed.
+- Three blocks in one card: header (icon, title, subtitle), the data rows and
+  the optional action band. `description` is ignored — the paragraph block
+  has been removed.
 - `rows` takes **1 to 3** entries. All entries stay on one compact 48px line and
   split it evenly from left to right, so Version / Build / Author renders as
   three columns rather than two columns plus an orphan below. On an unusually
@@ -291,8 +294,9 @@ card:SetRow(1, { label = "Version", value = "1.5.0" })
   tile. A fourth row errors at construction:
   `Astra:CreateAboutCard — at most 3 data rows are supported, got N` — the action
   band is the card's trailing row.
-- Optional parts drop out of the layout instead of rendering blank: a card
-  without `rows` or `action` simply has one block fewer.
+- Optional parts drop out of the layout instead of rendering blank: a row without
+  `icon` loses its badge, and a card without `rows` or `action` simply has one
+  block fewer.
 - The action band is the card's only tappable surface: a tap (anywhere on the
   band, not only the chevron) fires `callback` once, with a haptic click. The
   trailing chevron itself is fixed and has no setter.

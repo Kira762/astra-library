@@ -53,9 +53,10 @@ function settingsComponent.buildUI(window)
         about:CreateAboutCard({
             name = "Astra",
             subtitle = "UI Library for a better experience.",
+            icon = constants.icons.dot,
             rows = {
-                { label = "Version", value = aboutVersion },
-                { label = "Author", value = aboutAuthor },
+                { icon = "code", label = "Version", value = aboutVersion },
+                { icon = "user", label = "Author", value = aboutAuthor },
             },
         })
         about:CreateLink({

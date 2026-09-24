@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased — Controller locale fix and Mode 1 unlocked
+
+The lock controller's subtitle could throw `string expected, got table` and
+leave the controller's title/subtitle invisible or stale after a locale
+change; Mode 1 also locked Links by default when the intent is for the
+default tier to leave interactive controls unlocked.
+
+- **`elements/modePicker.luau`** — `SetSubtitle` now uses the window's
+  locale-binding path (`Window:_bindLocale`) so `Text` receives a string and
+  the subtitle updates when the locale changes (the crash was `locale.t`'s
+  token table being assigned directly to `TextLabel.Text`). The built-in
+  controller's Mode 1 subtitle is now `Mode 1 — all controls unlocked` to
+  match the unlocked default.
+- **`utilities/lockable.luau`** — default Links move from Level 1 to Level 2
+  (`standard` / `input` tier). Mode 1 therefore leaves automatically tiered
+  controls unlocked; an explicit `lockLevel = 1` / `lockGroup = "minor"` still
+  locks at Mode 1, and higher modes remain cumulative through Mode 5.
+- **`scripts/elements_lock_test.luau`** — Link tier expectation updated
+  (minor → standard) and controller subtitle checked for the unlocked Mode 1.
+- **`USAGE.md`, `skills/astra/references/elements.md`** — Element Lock Modes
+  table and prose updated to show Level 1 with no default members and Level 2
+  now containing Link alongside Input, Dropdown and Keybind.
+- **`version-1.luau`** — regenerated and re-signed.
+
 ## Unreleased — Five cumulative Elements Lock Modes
 
 Added a fixed five-mode lock controller to built-in Settings → Controls. The

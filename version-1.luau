@@ -17874,7 +17874,7 @@ function state:_applyColors(instant)
 end
 
 local lockModeSubtitles = {
-	[1] = "Mode 1 — minor controls locked",
+	[1] = "Mode 1 — all controls unlocked",
 	[2] = "Mode 2 — inputs and selections locked",
 	[3] = "Mode 3 — important actions locked",
 	[4] = "Mode 4 — sensitive controls locked",
@@ -17992,7 +17992,7 @@ end
 
 function state:SetSubtitle(text)
 	self.subtitle = tostring(text or "")
-	self.subtitleLabel.Text = locale.t(self.subtitle)
+	self.window:_bindLocale(self.subtitleLabel, "Text", self.subtitle)
 	self.subtitleLabel.Visible = self.subtitle ~= ""
 end
 
@@ -26278,7 +26278,7 @@ local lockable = {}
 local LOCK_USAGE_PREFIX = "lockable:astra:"
 
 local defaultLockLevels = {
-	Link = 1,
+	Link = 2,
 	Input = 2,
 	Dropdown = 2,
 	Keybind = 2,

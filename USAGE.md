@@ -246,11 +246,12 @@ Every element supports `Moveable` (`:MoveTo`, `:MoveToTop`, `:MoveToBottom`, `:M
 #### Element Lock Modes
 
 The built-in **Settings → Controls → Element Lock Mode** picker has five fixed,
-cumulative modes. Mode 1 applies the smallest lock set; each higher mode keeps
-those locks and adds another tier; Mode 5 locks every lockable functional
-element. The blue mode ramp and subtitle identify the active mode. The picker
-itself is exempt, so its reset button remains usable in Mode 5. Hosts can also
-reset/unlock externally with `window:SetElementLockMode(1)` or inspect the
+cumulative modes. Mode 1 leaves automatically tiered controls unlocked (only an
+explicit `lockLevel = 1` / `lockGroup = "minor"` would lock at this tier); each
+higher mode keeps those locks and adds another tier; Mode 5 locks every lockable
+functional element. The blue mode ramp and subtitle identify the active mode. The
+picker itself is exempt, so its reset button remains usable in Mode 5. Hosts can
+also reset/unlock externally with `window:SetElementLockMode(1)` or inspect the
 current tier with `window:GetElementLockMode()`.
 
 Modes are an interaction gate, not a reset: locks preserve values, selections,
@@ -269,8 +270,8 @@ tier; `lockGroup` is an alternative string shorthand:
 
 | Level | `lockGroup` names | Default functional elements |
 | --- | --- | --- |
-| 1 | `minor`, `low`, `noncritical` | Link |
-| 2 | `standard`, `input`, `selection` | Input, Dropdown, Keybind |
+| 1 | `minor`, `low`, `noncritical` | _None_ — only controls with an explicit `lockLevel = 1` / `lockGroup = "minor"` |
+| 2 | `standard`, `input`, `selection` | Link, Input, Dropdown, Keybind |
 | 3 | `action`, `important` | Button, Toggle, Slider, About Card actions, Mode Picker |
 | 4 | `advanced`, `sensitive`, `highimpact` | No default type; use for sensitive actions such as deleting a configuration |
 | 5 | `remaining`, `all` | Other lockable controls, including Collapsible Group and Isolated headers |

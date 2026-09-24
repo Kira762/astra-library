@@ -177,7 +177,7 @@ end
 
 eq(toggle.usageTag, "lockable:astra:createToggle", "toggle uses the documented usage format")
 eq(input.usageTag, "lockable:astra:usernameInput", "input uses its explicit element id")
-eq(link.lockLevel, 1, "Links default to the minor tier")
+eq(link.lockLevel, 2, "Links default to the standard tier")
 eq(input.lockLevel, 2, "Inputs default to the standard tier")
 eq(dropdown.lockLevel, 2, "Dropdowns default to the standard tier")
 eq(keybind.lockLevel, 2, "Keybinds default to the standard tier")

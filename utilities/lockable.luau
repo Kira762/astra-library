@@ -14,7 +14,7 @@ local lockable = {}
 local LOCK_USAGE_PREFIX = "lockable:astra:"
 
 local defaultLockLevels = {
-	Link = 1,
+	Link = 2,
 	Input = 2,
 	Dropdown = 2,
 	Keybind = 2,

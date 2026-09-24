@@ -374,7 +374,9 @@ ID and `lockLevel = 1..5` or `lockGroup` (`minor`, `standard`, `action`,
 `sensitive`, `all`) to override the automatic tier.
 
 Built-in Settings → Controls has a fixed, cumulative five-mode controller:
-Mode 1 locks level 1, each higher mode adds its level, and Mode 5 locks every
-registered control. Its own reset button remains usable; external code can use
-`window:SetElementLockMode(1..5)` and `window:GetElementLockMode()`. Manual locks
-compose with mode locks, and this client-side gate is not a security boundary.
+Mode 1 locks level 1 (no default members — only an explicit `lockLevel = 1` /
+`lockGroup = "minor"` locks here), each higher mode adds its level, and Mode 5
+locks every registered control. Its own reset button remains usable; external
+code can use `window:SetElementLockMode(1..5)` and `window:GetElementLockMode()`.
+Manual locks compose with mode locks, and this client-side gate is not a
+security boundary.

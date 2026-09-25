@@ -402,6 +402,7 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 			end
 			if window._autoShowCancelled then
 				window._startupComplete = true
+				(window :: any)._hostBuildSettled = true
 				return
 			end
 			if window.hidden then
@@ -423,9 +424,20 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 				end
 			end
 
-			if window.unloaded or window._autoShowCancelled then
+			if window.unloaded then
 				return
 			end
+			if window._autoShowCancelled then
+				(window :: any)._hostBuildSettled = true
+				return
+			end
+			--[[
+			The host's build is over: from here on a host `tab:Select()` /
+			`window:Navigate()` is a deliberate move and always applies. Until
+			now it only applied while the user had not picked a tab yet
+			(see `Tab:Select`).
+			]]
+			(window :: any)._hostBuildSettled = true
 			window:Show()
 
 			--[[
@@ -5835,16 +5847,22 @@ function settingsComponent.applySettingsLayout(window, isSettings)
 end
 
 function settingsComponent.toggleSettingsMode(window)
+    --[[
+    Only the Settings action calls this, so it is the user navigating: the
+    selections below bypass the startup gate in `Tab:Select`, and the mark
+    keeps the host's closing `tab:Select()` from pulling them back out.
+    ]]
+    window._userNavigated = true
     if window._settingsMode then
         local previousTab = window._previousTab
         window._previousTab = nil
         if previousTab and previousTab.window == window and previousTab.tabPage and not previousTab._isSettingsTab then
-            previousTab:Select()
+            previousTab:_select()
             return
         end
         for _, tab in window.tabs do
-            if not tab._isSettingsTab and tab.window == window and tab.tabPage then
-                tab:Select()
+            if not tab._isSettingsTab and tab.window == window and tab.tabPage and not tab.locked then
+                tab:_select()
                 return
             end
         end
@@ -5852,7 +5870,7 @@ function settingsComponent.toggleSettingsMode(window)
     end
 
     window._previousTab = window.selectedTab
-    window.rfSettings:Select()
+    window.rfSettings:_select()
 end
 
 function settingsComponent.setSettingsMode(window, active)
@@ -8893,8 +8911,14 @@ function Window:CreateTab(props)
         A locked first tab must not steal the selection from the row
         behind it; and a locked tab never selects itself.
         ]]
-        if isFirst and not tab.locked then
-            tab:Select(true)
+        --[[
+        Nor may a late first tab take the selection from the user: a tab
+        the host creates after the user has already opened one (or
+        Settings) mid-build stays unselected in its rail instead of
+        pulling the window onto itself.
+        ]]
+        if isFirst and not tab.locked and not (self._userNavigated and self.selectedTab ~= nil) then
+            tab:_select(true)
         end
 
                         if not self.hidden and not self.minimised then
@@ -20473,7 +20497,13 @@ function state:_bindSelector()
             })
             return
         end
-        self:Select()
+        --[[
+        A row tap is the user choosing a tab: record it so the host's own
+        startup selection (`tab:Select()` at the end of its build, or the
+        first-tab auto-select in `Window:CreateTab`) cannot take it back.
+        ]]
+        self.window._userNavigated = true
+        self:_select()
     end))
     table.insert(self.connections, self.window:Connect(self.topbarItemInteract.MouseEnter, function()
         if self.locked or not self.window:_interactive() then
@@ -20549,7 +20579,27 @@ function state:_spinGradients()
     end
 end
 
+--[[
+The public selection. The window is on screen and tappable while the host
+is still building it (the staged startup reveals the shell after one frame
+and paces the remaining constructors across later frames), so a host's
+closing `tab:Select()` — the documented last line of every build — used to
+land seconds after the user had already opened another tab or Settings and
+yank them back to the first tab. Until the host's construction has gone
+quiet (`_hostBuildSettled`, set by the entrypoint), a host selection only
+applies while the user has not picked a tab yet; after that it is honoured
+as before. Internal moves (row taps, the Settings action, the fallback when
+the open tab is locked or removed) go through `_select` directly.
+]]
 function state:Select(a24)
+    local win = self.window
+    if win._userNavigated and not win._hostBuildSettled and win.selectedTab ~= nil then
+        return
+    end
+    self:_select(a24)
+end
+
+function state:_select(a24)
     if self.window.unloaded then
         --[[
         A superseded script's build can end with a selection call after
@@ -20687,7 +20737,7 @@ function state:SetLocked(locked)
         end
     end
     if fallback then
-        fallback:Select()
+        fallback:_select()
     else
         --[[
         Pathological: every other tab is locked or neglected. Clear the
@@ -20846,7 +20896,7 @@ function state:Remove()
             end
         end
         if fallback then
-            fallback:Select()
+            fallback:_select()
         end
     end
 
@@ -28979,118 +29029,118 @@ end)() end,
 
 local LineOffsets = {
     [2] = 47,
-    [3] = 470,
-    [5] = 1182,
-    [6] = 1165,
-    [7] = 1337,
-    [8] = 1479,
-    [9] = 1730,
-    [10] = 2112,
-    [11] = 3482,
-    [12] = 3891,
-    [13] = 4240,
-    [14] = 4979,
-    [15] = 5317,
-    [16] = 5880,
-    [17] = 5943,
-    [18] = 6417,
-    [19] = 6763,
-    [20] = 6777,
-    [21] = 6834,
-    [22] = 6965,
-    [23] = 7472,
-    [24] = 7711,
-    [25] = 8033,
-    [26] = 8133,
-    [27] = 8195,
-    [28] = 8847,
-    [29] = 9089,
-    [30] = 9439,
-    [31] = 9893,
-    [32] = 6737,
-    [34] = 10827,
-    [35] = 11664,
-    [36] = 11753,
-    [37] = 11982,
-    [38] = 12403,
-    [39] = 12868,
-    [40] = 13025,
-    [41] = 13170,
-    [42] = 14788,
-    [43] = 15036,
-    [44] = 15276,
-    [45] = 15597,
-    [46] = 16043,
-    [47] = 16296,
-    [48] = 17376,
-    [49] = 18200,
-    [50] = 18286,
-    [51] = 18889,
-    [52] = 19731,
-    [53] = 20325,
-    [54] = 20880,
-    [55] = 21010,
-    [56] = 21149,
-    [58] = 21664,
-    [59] = 21690,
-    [60] = 21709,
-    [61] = 21742,
-    [62] = 21868,
-    [63] = 21894,
-    [64] = 21943,
-    [65] = 21639,
-    [66] = 22048,
-    [67] = 22353,
-    [68] = 22384,
-    [69] = 22037,
-    [70] = 22427,
-    [71] = 22447,
-    [72] = 22479,
-    [73] = 22409,
-    [74] = 22586,
-    [75] = 22654,
-    [77] = 22736,
-    [78] = 22903,
-    [79] = 22922,
-    [80] = 22721,
-    [81] = 23553,
-    [82] = 23599,
-    [83] = 23681,
-    [84] = 23876,
-    [85] = 24007,
-    [86] = 24110,
-    [87] = 24279,
-    [88] = 24619,
-    [89] = 23018,
-    [90] = 25263,
-    [91] = 25149,
-    [92] = 25402,
-    [93] = 25500,
-    [94] = 25678,
-    [95] = 25737,
-    [96] = 25767,
-    [97] = 26018,
-    [98] = 26067,
-    [99] = 26520,
-    [100] = 26538,
-    [101] = 26745,
-    [102] = 26765,
-    [103] = 26893,
-    [104] = 26992,
-    [105] = 27223,
-    [106] = 27279,
-    [107] = 27744,
-    [108] = 27780,
-    [109] = 27798,
-    [110] = 28158,
-    [111] = 28170,
-    [112] = 28221,
-    [113] = 28240,
-    [114] = 28499,
-    [115] = 28543,
-    [116] = 28759,
-    [117] = 28787,
-    [118] = 28798,
+    [3] = 482,
+    [5] = 1194,
+    [6] = 1177,
+    [7] = 1349,
+    [8] = 1491,
+    [9] = 1742,
+    [10] = 2124,
+    [11] = 3494,
+    [12] = 3903,
+    [13] = 4252,
+    [14] = 4991,
+    [15] = 5329,
+    [16] = 5898,
+    [17] = 5961,
+    [18] = 6435,
+    [19] = 6781,
+    [20] = 6795,
+    [21] = 6852,
+    [22] = 6983,
+    [23] = 7490,
+    [24] = 7729,
+    [25] = 8051,
+    [26] = 8151,
+    [27] = 8213,
+    [28] = 8865,
+    [29] = 9113,
+    [30] = 9463,
+    [31] = 9917,
+    [32] = 6755,
+    [34] = 10851,
+    [35] = 11688,
+    [36] = 11777,
+    [37] = 12006,
+    [38] = 12427,
+    [39] = 12892,
+    [40] = 13049,
+    [41] = 13194,
+    [42] = 14812,
+    [43] = 15060,
+    [44] = 15300,
+    [45] = 15621,
+    [46] = 16067,
+    [47] = 16320,
+    [48] = 17400,
+    [49] = 18224,
+    [50] = 18310,
+    [51] = 18913,
+    [52] = 19755,
+    [53] = 20349,
+    [54] = 20930,
+    [55] = 21060,
+    [56] = 21199,
+    [58] = 21714,
+    [59] = 21740,
+    [60] = 21759,
+    [61] = 21792,
+    [62] = 21918,
+    [63] = 21944,
+    [64] = 21993,
+    [65] = 21689,
+    [66] = 22098,
+    [67] = 22403,
+    [68] = 22434,
+    [69] = 22087,
+    [70] = 22477,
+    [71] = 22497,
+    [72] = 22529,
+    [73] = 22459,
+    [74] = 22636,
+    [75] = 22704,
+    [77] = 22786,
+    [78] = 22953,
+    [79] = 22972,
+    [80] = 22771,
+    [81] = 23603,
+    [82] = 23649,
+    [83] = 23731,
+    [84] = 23926,
+    [85] = 24057,
+    [86] = 24160,
+    [87] = 24329,
+    [88] = 24669,
+    [89] = 23068,
+    [90] = 25313,
+    [91] = 25199,
+    [92] = 25452,
+    [93] = 25550,
+    [94] = 25728,
+    [95] = 25787,
+    [96] = 25817,
+    [97] = 26068,
+    [98] = 26117,
+    [99] = 26570,
+    [100] = 26588,
+    [101] = 26795,
+    [102] = 26815,
+    [103] = 26943,
+    [104] = 27042,
+    [105] = 27273,
+    [106] = 27329,
+    [107] = 27794,
+    [108] = 27830,
+    [109] = 27848,
+    [110] = 28208,
+    [111] = 28220,
+    [112] = 28271,
+    [113] = 28290,
+    [114] = 28549,
+    [115] = 28593,
+    [116] = 28809,
+    [117] = 28837,
+    [118] = 28848,
 }
 
 -- Misc AOT variable imports

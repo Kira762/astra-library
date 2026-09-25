@@ -519,16 +519,22 @@ function settingsComponent.applySettingsLayout(window, isSettings)
 end
 
 function settingsComponent.toggleSettingsMode(window)
+    --[[
+    Only the Settings action calls this, so it is the user navigating: the
+    selections below bypass the startup gate in `Tab:Select`, and the mark
+    keeps the host's closing `tab:Select()` from pulling them back out.
+    ]]
+    window._userNavigated = true
     if window._settingsMode then
         local previousTab = window._previousTab
         window._previousTab = nil
         if previousTab and previousTab.window == window and previousTab.tabPage and not previousTab._isSettingsTab then
-            previousTab:Select()
+            previousTab:_select()
             return
         end
         for _, tab in window.tabs do
-            if not tab._isSettingsTab and tab.window == window and tab.tabPage then
-                tab:Select()
+            if not tab._isSettingsTab and tab.window == window and tab.tabPage and not tab.locked then
+                tab:_select()
                 return
             end
         end
@@ -536,7 +542,7 @@ function settingsComponent.toggleSettingsMode(window)
     end
 
     window._previousTab = window.selectedTab
-    window.rfSettings:Select()
+    window.rfSettings:_select()
 end
 
 function settingsComponent.setSettingsMode(window, active)

@@ -47,8 +47,14 @@ function Window:CreateTab(props)
         A locked first tab must not steal the selection from the row
         behind it; and a locked tab never selects itself.
         ]]
-        if isFirst and not tab.locked then
-            tab:Select(true)
+        --[[
+        Nor may a late first tab take the selection from the user: a tab
+        the host creates after the user has already opened one (or
+        Settings) mid-build stays unselected in its rail instead of
+        pulling the window onto itself.
+        ]]
+        if isFirst and not tab.locked and not (self._userNavigated and self.selectedTab ~= nil) then
+            tab:_select(true)
         end
 
                         if not self.hidden and not self.minimised then

@@ -107,7 +107,7 @@ local function buildStudio(unlockedKey)
         icon = 80387863064905,
         rows = {
             { icon = "code", label = "Version", value = "1.4.0" },
-            { icon = "layers", label = "Tabs", value = "12" },
+            { icon = "layers", label = "Tabs", value = "13" },
             { icon = "user", label = "Author", value = "Astra Team" },
         },
         action = {
@@ -124,7 +124,7 @@ local function buildStudio(unlockedKey)
 
     overview:CreateText({
         name = "Start here",
-        text = "Every tab drives something real: Player edits the character, Live Stats samples the frame loop, Elements drives every handle, Steppers is a pure UI test (no callbacks).",
+        text = "Every tab drives something real: Player edits the character, Live Stats samples the frame loop, Elements drives every handle, Steppers is a pure UI test (no callbacks). New Elements collects the newest APIs in one place.",
     })
 
     local actionsRun = overview:CreateStat({
@@ -183,7 +183,55 @@ local function buildStudio(unlockedKey)
     overview:CreateDivider()
     overview:CreateFooter({ parts = { { text = "Built with" }, { icon = "zap" }, { text = "Astra" } } })
 
-    -- 2. Player — real character edits
+    -- 2. New Elements — recently added APIs in one place so they are easy
+    -- to find when you come back to the studio. The Stepper redesign with
+    -- the new `description` prop is the headline here. All Elements
+    -- already showcases every constructor, so this tab stays focused on
+    -- the new look + the new prop.
+    local newElements = window:CreateTab({ name = "New Elements", icon = "sparkles" })
+
+    newElements:CreateSection({ name = "Stepper (pill capsule + description)", icon = "hash" })
+
+    newElements:CreateText({
+        name = "What changed",
+        text = "The [−] [value] [+] counter is now one pill capsule on the right of the card. A new `description` prop attaches a subtitle under the title (same recipe the Stat uses). Behaviour contract is unchanged: clamp, typed commits, focus glow and the lock tier all keep working.",
+    })
+
+    local pillStat = newElements:CreateStat({ name = "Pill value", value = 1, changeMode = "delta", changeBaseline = "initial", suffix = " units" })
+    newElements:CreateStepper({
+        name = "Counter",
+        icon = "hash",
+        description = "Increase or decrease the value",
+        flag = "demo.new.counter",
+        value = 1, min = 0, max = 10, step = 1,
+        callback = function(value) pillStat:Set(value) end,
+    })
+
+    newElements:CreateStepper({
+        name = "Bounded range",
+        icon = "hash",
+        description = "0–100, step 5 — test ceiling clamping",
+        flag = "demo.new.bounded",
+        value = 0, min = 0, max = 100, step = 5,
+    })
+
+    newElements:CreateStepper({
+        name = "Fractional step",
+        icon = "hash",
+        description = "0–1, step 0.25 — fractional precision",
+        flag = "demo.new.frac",
+        value = 0, min = 0, max = 1, step = 0.25,
+    })
+
+    newElements:CreateStepper({
+        name = "Negative range",
+        icon = "hash",
+        description = "-5 to +5 — floor + ceiling both directions",
+        flag = "demo.new.negative",
+        value = 0, min = -5, max = 5, step = 1,
+    })
+
+    -- 3. Player — real character edits
     local player = window:CreateTab({ name = "Player", icon = "user-round" })
 
     player:CreateSection({ name = "Movement", icon = "footprints" })
@@ -366,7 +414,7 @@ local function buildStudio(unlockedKey)
         },
     })
 
-    -- 3. Combat — target list and live counters
+    -- 4. Combat — target list and live counters
     local combat = window:CreateTab({ name = "Combat", icon = "sword" })
 
     combat:CreateSection({ name = "Targeting", icon = "crosshair" })
@@ -467,7 +515,7 @@ local function buildStudio(unlockedKey)
         },
     })
 
-    -- 4. Visuals — real Lighting and Camera edits
+    -- 5. Visuals — real Lighting and Camera edits
     local visuals = window:CreateTab({ name = "Visuals", icon = "eye" })
 
     if not Lighting then
@@ -623,7 +671,7 @@ local function buildStudio(unlockedKey)
         end,
     })
 
-    -- 5. World — coordinates and teleporting
+    -- 6. World — coordinates and teleporting
     local world = window:CreateTab({ name = "World", icon = "map" })
 
     world:CreateSection({ name = "Coordinates", icon = "move-3d" })
@@ -753,7 +801,7 @@ local function buildStudio(unlockedKey)
         logEvent("Waypoints cleared.", "-")
     end
 
-    -- 6. Live Stats — a real sampler on the frame loop
+    -- 7. Live Stats — a real sampler on the frame loop
     local stats = window:CreateTab({ name = "Live Stats", icon = "activity" })
 
     stats:CreateSection({ name = "Sampler", icon = "gauge" })
@@ -865,7 +913,7 @@ local function buildStudio(unlockedKey)
         ))
     end
 
-    -- 7. Elements — every handle, driven
+    -- 8. Elements — every handle, driven
     local lab = window:CreateTab({ name = "Elements", icon = "flask-conical" })
 
     lab:CreateSection({ name = "Handles", icon = "sliders-horizontal" })
@@ -1016,7 +1064,7 @@ local function buildStudio(unlockedKey)
     modeActions:CreateButton({ name = "Mode 2", icon = "arrow-right", callback = function() demoModePicker:Set(2) end })
     modeActions:CreateButton({ name = "Reset", icon = "rotate-ccw", callback = function() demoModePicker:Reset() end })
 
-    -- 8. All Elements — one tab with every public element constructor.
+    -- 9. All Elements — one tab with every public element constructor.
     -- The visible names intentionally match the element names so this tab is
     -- also a quick visual smoke test when a new build is loaded.
     local allElements = window:CreateTab({ name = "All Elements", icon = "layout-grid" })
@@ -1087,7 +1135,7 @@ local function buildStudio(unlockedKey)
         } } },
     })
 
-    -- 9. Steppers — pure UI test of the Stepper element (no callbacks, no wiring)
+    -- 10. Steppers — pure UI test of the Stepper element (no callbacks, no wiring)
     local steppers = window:CreateTab({ name = "Steppers", icon = "hash" })
     steppers:CreateSection({ name = "Stepper UI test", icon = "hash" })
     steppers:CreateStepper({ name = "Value Configuration", icon = "hash", value = 0, min = 0, step = 1 })
@@ -1097,7 +1145,7 @@ local function buildStudio(unlockedKey)
     steppers:CreateStepper({ name = "Bias", icon = "hash", value = 0, min = -5, max = 5, step = 1 })
     steppers:CreateText({ name = "UI test only — no callbacks, no game wiring", text = "Tap [-] / [+], type values, test clamping. Boundaries: Value (0 floor), Party (max 8), Wager (step 25, cap 500), Opacity (fractional 0–1), Bias (min -5)." })
 
-    -- 10. Configs — the persistence API
+    -- 11. Configs — the persistence API
     local configs = window:CreateTab({ name = "Configs", icon = "save" })
 
     configs:CreateSection({ name = "Slots", icon = "folder-open" })
@@ -1199,7 +1247,7 @@ local function buildStudio(unlockedKey)
 
     refreshSlots()
 
-    -- 11. Window — theme, motion, visibility, overlays, diagnostics
+    -- 12. Window — theme, motion, visibility, overlays, diagnostics
     -- Built after this tab, but its unlock button closes over it.
     local premium
 
@@ -1350,7 +1398,7 @@ local function buildStudio(unlockedKey)
         end,
     })
 
-    -- 12. Premium — starts locked, unlocked from the Window tab
+    -- 13. Premium — starts locked, unlocked from the Window tab
     premium = window:CreateTab({ name = "Premium", icon = "star", locked = true })
 
     premium:CreateSection({ name = "Gated", icon = "crown" })

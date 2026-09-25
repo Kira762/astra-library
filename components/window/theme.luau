@@ -25,13 +25,6 @@ function Window:ResolveIcon(value, pack)
     return icons.resolve(value, pack)
 end
 
-function Window:_applyMotionSetting()
-    if not motion.setProfile(self.settings.motionSpeed) then
-        self.settings.motionSpeed = "normal"
-        motion.setProfile("normal")
-    end
-end
-
 --[[
 Applies the selected font family (settings.fontChoice, Settings →
 Appearance → Font) to every text surface through the Font/TitleFont

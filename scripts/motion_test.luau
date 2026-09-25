@@ -1,6 +1,6 @@
---[[
+--[[ 
 ===== motion service assertions: shared specs, time scale, profiles, =====
-===== tween ownership, and the window's Animation speed setting      =====
+===== tween ownership, and the built-in default profile              =====
 Runs the real Astra bundle (loaded as global `Astra` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau.
 
@@ -20,8 +20,9 @@ Expected behavior under test:
        properties are all satisfied creates no tween at all,
   * M7 with animation off the targets are applied immediately and no tween
        is created,
-  * M8 the window's "Animation speed" setting reaches the service (both
-       when it is applied and when a bad value has to fall back),
+  * M8 the animation-speed setting is gone: windows no longer force a
+       profile onto the service, `settings.motionSpeed` no longer exists,
+       and the settings manager no longer registers it,
   * M9 element hover is wired through the service: a hover animates, a
        rapid leave cancels the enter tween on the same property, and with
        animation off a hover creates nothing,
@@ -59,6 +60,13 @@ end
 
 local state = Astra.Core.state
 local motion = Astra.Motion
+
+-- ===== M0: the built-in default is "normal but faster", never instant =====
+
+eq(motion.getProfile(), "snappy", "M0 the library ships on the normal-but-faster profile")
+expect(motion.getTimeScale() > 0 and motion.getTimeScale() < 1, "M0 the default is faster than normal")
+expect(motion.isEnabled(), "M0 the default still animates (it is not instant)")
+eq(motion.setProfile("normal"), true, "M0 hosts can still rescale the library")
 
 -- ===== M1: public surface and vocabulary =====
 
@@ -200,23 +208,19 @@ eq(created, beforeInstant, "M7 ... and none is created")
 eq(instantFrame.BackgroundTransparency, 0.2, "M7 the target is applied immediately")
 motion.setProfile("normal")
 
--- ===== M8: the window's Animation speed setting =====
+-- ===== M8: the animation-speed setting is gone; windows leave the service alone =====
 
+motion.setProfile("relaxed")
 local window = Astra:CreateWindow({ name = "Motion Test" })
 TestPump(1.2)
 
-window.settings.motionSpeed = "relaxed"
-window:_applyMotionSetting()
-eq(motion.getProfile(), "relaxed", "M8 the window setting reaches the motion service")
-
-window.settings.motionSpeed = "not-a-profile"
-window:_applyMotionSetting()
-eq(motion.getProfile(), "normal", "M8 a bad value falls back to normal")
-eq(window.settings.motionSpeed, "normal", "M8 ... and the setting is corrected in place")
+eq(motion.getProfile(), "relaxed", "M8 creating a window no longer forces a profile")
+eq(window.settings.motionSpeed, nil, "M8 the animation-speed setting is gone")
+eq(window._applyMotionSetting, nil, "M8 ... and nothing applies one")
 
 local manager = Astra.Settings.newManager()
-eq(manager:set("motionSpeed", "snappy"), true, "M8 the settings manager accepts a known profile")
-eq(manager:set("motionSpeed", "not-a-profile"), false, "M8 the settings manager rejects an unknown profile")
+eq(manager:set("motionSpeed", "snappy"), false, "M8 the settings manager no longer knows motionSpeed")
+eq(manager:set("haptics", true), true, "M8 ... and still knows the settings that remain")
 
 -- ===== M9: element hover runs through the service =====
 
@@ -243,9 +247,8 @@ TestPump(0.1)
 
 -- ===== M11: the no-tween settle paths (animation off) =====
 
+motion.setProfile("instant")
 local instantWindow = Astra:CreateWindow({ name = "Motion Instant" })
-instantWindow.settings.motionSpeed = "instant"
-instantWindow:_applyMotionSetting()
 TestPump(1.2)
 
 eq(instantWindow.main.Visible, true, "M11 the window is up with animation off")

@@ -14,6 +14,7 @@
 | `window:Close()` | Animated close; unloads the window when the transition ends. |
 | `window:Save(name?)` / `window:Load(name?)` | Write/read a saved config of flagged values. |
 | `window:ListConfigs()` / `DeleteConfig(name)` | Saved-config bookkeeping. |
+| `window:OnConfigsChanged(fn)` | `fn` after every save/delete (autosave included); returns an unsubscribe. |
 | `window:Get(flag)` / `window:Set(flag, value)` | Read/write a registered flag. |
 | `window.Flags` | Table of every registered flag's current value. |
 | `window:ChangeTheme(theme)` | `"default"` or a partial theme table overlaid on it. |
@@ -136,7 +137,7 @@ previous tab. User code does not build these tabs.
 |---|---|
 | **Overview** | First tab: About Card, resource Links and Footer. |
 | **Controls** | Five-mode Element Lock controller, required single-letter A–Z Keybind, unlock cursor, Window Behavior and reset positions. |
-| **Appearance** | Standalone Bar Layout, Motion & Feedback. |
+| **Appearance** | Standalone Bar Layout and Haptics (the animation-speed picker was removed). |
 | **Persistence** | Auto Save / Auto Load, configurations Dropdown, name Input and Save/Load/Delete. |
 
 Old non-letter menu bindings migrate to K. Capsule content only appears after
@@ -210,6 +211,10 @@ InOut (`glide`), playful surfaces use small Back overshoots (`pop`, `settle`,
 `spring`). A tween already at its target is skipped, and a conflicting in-flight
 tween on the same property is cancelled, so repeated event handlers cannot stack.
 
+The library ships on the `snappy` profile — the normal motion language, played
+faster, never `instant`. There is no animation-speed setting; `setProfile` is
+the only way to rescale the library's pace.
+
 ## Localisation
 
 ```lua
@@ -234,7 +239,9 @@ control values).
   Collapsible Groups use the same system.
 - `forgetState = true` excludes an element from save/load.
 - Named configs: `window:Save("Slot2")`, `window:Load("Slot2")`,
-  `window:ListConfigs()`, `window:DeleteConfig("Slot2")`.
+  `window:ListConfigs()`, `window:DeleteConfig("Slot2")`. The Settings
+  configurations list is live: `window:OnConfigsChanged(fn)` (returns an
+  unsubscribe) fires after every save/delete, autosave included.
 - A legacy `configuration = { fileName, customFolder, autoSave, autoLoad }` table on
   `CreateWindow` is still accepted, but the built-in save/load preferences take
   precedence. Default storage identifiers are shared by windows using the defaults —

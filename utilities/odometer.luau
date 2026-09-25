@@ -237,9 +237,9 @@ function odometer:_reelRoll(rollReel, rollDigit, up)
     rollReel.target = rollDigit
 
         --[[
-        `motion.spec` rescales the reel's TweenInfo with the active speed
+        `motion.spec` rescales the reel's TweenInfo with the active
     profile (cached per info), so the digit roll answers the same
-    "Animation speed" setting as every other surface.
+    motion time scale as every other surface.
         ]]
     local roll = motion.spec(self.roll)
     local stripTween = coreState.tweenService:Create(rollReel.strip, roll, {

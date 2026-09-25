@@ -6,7 +6,8 @@ removed, so Appearance no longer offers a theme picker. This suite
 pins that:
   * a fresh window is on the default palette,
   * Appearance has no Theme group,
-  * Bar Layout and Motion & Feedback remain,
+  * Bar Layout and a standalone Haptics toggle remain (the animation-speed
+    picker is gone and its one-child fold is dissolved),
   * ChangeTheme("default") is a no-op on the palette,
   * an unknown built-in name falls back to default,
   * a custom theme table still overlays keys.
@@ -67,7 +68,9 @@ colorEq(window.theme.Accent, defaultAccent, "the default teal accent is in effec
 expect(findSettingsElement(window, "Appearance", "Theme") == nil, "Appearance has no Theme picker")
 expect(findSettingsElement(window, "Appearance", "Current theme") == nil, "Appearance has no current-theme stat")
 expect(findSettingsElement(window, "Appearance", "Bar Layout") ~= nil, "Bar Layout remains on Appearance")
-expect(findSettingsElement(window, "Appearance", "Motion & Feedback") ~= nil, "Motion & Feedback remains on Appearance")
+expect(findSettingsElement(window, "Appearance", "Haptics") ~= nil, "Haptics remains on Appearance")
+expect(findSettingsElement(window, "Appearance", "Animation speed") == nil, "the animation-speed setting is gone")
+expect(findSettingsElement(window, "Appearance", "Motion & Feedback") == nil, "its one-child fold is dissolved")
 
 window:ChangeTheme("default")
 TestPump(0.2)

@@ -75,4 +75,31 @@ window:Unload() -- deliberately before the debounce fires
 window, group = create()
 assert(group.elements[2].value == 44, "Closing promptly flushes the last edit")
 window:Unload()
-print("CONFIG PREFERENCES: defaults, coalesced saving, independent toggles and next-startup loading passed")
+
+--[[ Settings -> Configurations is live: the "Saved Configurations" list
+re-reads on every save/delete (autosave included), so a config written
+after the panel was built still shows up. This is the "autosaved config
+is not showing in the settings Config section" regression. ]]
+window = Astra:CreateWindow({
+    name = "List freshness",
+    configuration = { fileName = "Autosave-Visible", customFolder = "AstraVisibility", autoSave = true, autoLoad = true },
+})
+group = window:CreateTab({ name = "Main" }):CreateCollapsibleGroup({ name = "Saved controls", elements = {
+    { type = "Toggle", name = "Active", flag = "freshActive", value = false },
+} })
+TestPump(1)
+controls = settings(window) -- the panel builds BEFORE anything is saved
+assert(not table.find(controls["Saved Configurations"].options, "Autosave-Visible"), "Nothing is saved before the first change")
+group.elements[1]:Set(true)
+TestPump(0.5)
+assert(isfile((select(2, window:GetPath()))), "Autosave wrote the default config")
+assert(table.find(controls["Saved Configurations"].options, "Autosave-Visible"), "Autosaved config shows in the settings Config section")
+assert(window:Save("Named While Open"), "Host-side named save works")
+assert(table.find(controls["Saved Configurations"].options, "Named While Open"), "A named save shows without a manual refresh")
+assert(window:DeleteConfig("Named While Open"), "Host-side delete works")
+assert(not table.find(controls["Saved Configurations"].options, "Named While Open"), "A deleted config leaves the list")
+local disconnect = window:OnConfigsChanged(function() end)
+assert(type(disconnect) == "function", "OnConfigsChanged returns an unsubscribe")
+disconnect()
+window:Unload()
+print("CONFIG PREFERENCES: defaults, coalesced saving, independent toggles, next-startup loading and the live config list passed")

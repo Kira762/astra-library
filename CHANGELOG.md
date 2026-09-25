@@ -1,5 +1,85 @@
 # Changelog
 
+## Unreleased — Autosaved configs now show up in the settings Configurations list
+
+With Auto Save on (the default, and the `AutoSave = true` a usage writes in
+its `configuration` table), the config file was written correctly but the
+Settings → Persistence → Configurations list kept showing "No saved
+configurations". The "Saved Configurations" dropdown snapshotted
+`ListConfigs()` when the lazily built panel first opened and only re-read it
+after the panel's own Save/Delete buttons — an autosave landed behind it
+silently, so the config "was not showing in there". A host-side
+`window:Save(name)` had the same gap.
+
+The list is now live on both sides: every successful save or delete (the
+debounced autosave included) notifies subscribers, and the panel re-reads the
+folder whenever the tab is reopened, so the dropdown is current whenever it
+is seen.
+
+- **`components/window/config.luau`** — `Window:OnConfigsChanged(listener)`
+  subscribes to the saved-config list and returns its unsubscribe; `Save` and
+  `DeleteConfig` emit after every success.
+- **`components/settings.luau`** — the Configurations dropdown subscribes to
+  `OnConfigsChanged` and refreshes at build time; `buildContent` runs a tab's
+  `_settingsContentRefresh` hook on every reopen (a re-select re-reads the
+  folder).
+- **`example.client.luau`** — the Configs tab's "Saved slots" list subscribes
+  the same way, so the usage's slot list follows autosaves too.
+- **`Types.luau`** — `OnConfigsChanged` joins the Window interface.
+- **`scripts/config_preferences_test.luau`** — new phase (the regression): the
+  panel built before any save then shows the autosaved config, a host-side
+  named save appears without a manual refresh, a delete removes it, and the
+  listener unsubscribe works.
+- **`USAGE.md`, `MODULES.md`, `skills/astra/references/window.md`** — the new
+  window method and the live-list contract.
+- **`version-1.luau`, `version-1.luau.sig`, `loader.luau`, `README.md`** — the
+  bundle is regenerated and re-signed (`node scripts/sign_bundle.js`, dev key,
+  pinned `PUBLIC_KEY` synced) and the README checksum updated.
+
+## Unreleased — The Animation speed setting is gone; motion is built-in
+
+Settings → Appearance no longer offers an animation-speed picker. The library
+now plays at one built-in pace: the normal motion language, faster — and
+deliberately not instant (the old `snappy` scale, 0.7x — the middle ground
+between Normal and Instant). `Astra.Motion.setProfile`/`setTimeScale` stay as
+the host-facing way to rescale it; `window.settings.motionSpeed` and the
+persisted key are gone, and creating a window no longer forces a profile onto
+the library-wide service.
+
+- **`components/settings.luau`** — the "Animation speed" dropdown and the
+  Motion & Feedback group are removed; the Haptics toggle stands alone (a
+  built-in group holds at least two elements).
+- **`components/window/startup.luau`**, **`components/window/theme.luau`**,
+  **`components/window/settings.luau`** — `motionSpeed` leaves the settings
+  table and `_applyMotionSetting` (and its startup/LoadSettings calls) is
+  deleted.
+- **`utilities/motion.luau`** — the service's shipped default is the `snappy`
+  profile (normal, but faster — never instant); the profile API and vocabulary
+  are unchanged.
+- **`utilities/persistenceSettings.luau`**, **`settings/registry.luau`**,
+  **`settings/defaults.luau`**, **`settings/performance.luau`** — the
+  `motionSpeed` key is gone from the schema, the registry and the validators
+  (older settings files simply keep an ignored key).
+- **`example.client.luau`** — the Window tab's "Motion profile" demo dropdown
+  is removed (its autosaved flag would have pinned the pace back to 1x);
+  "Animations enabled" (`Motion.setEnabled`) stays.
+- **`utilities/odometer.luau`** — comment follows the active time scale, not
+  the removed setting.
+- **`scripts/motion_test.luau`** — M0 pins the shipped default (snappy scale,
+  animation on), M8 pins that windows no longer force a profile and the
+  settings manager no longer knows `motionSpeed`, M11 drives `instant` through
+  `setProfile` directly.
+- **`scripts/theme_settings_test.luau`** — Appearance pins a standalone Haptics
+  toggle, no "Animation speed" and no one-child fold.
+- **`scripts/startup_test.luau`**, **`scripts/adaptive_hardware_test.luau`** —
+  the entrance-pop visibility guards follow the faster default (0.55s at 1x →
+  0.385s; guarded at ≥0.35s).
+- **`USAGE.md`, `MODULES.md`, `skills/astra/references/window.md`** — the
+  settings table, the Motion section and the settings registry notes.
+- **`version-1.luau`, `version-1.luau.sig`, `loader.luau`, `README.md`** — the
+  bundle is regenerated and re-signed (`node scripts/sign_bundle.js`, dev key,
+  pinned `PUBLIC_KEY` synced) and the README checksum updated.
+
 ## Unreleased — Empty executor `ImageCache` leftovers are discarded
 
 A sibling `ImageCache` folder next to `Astra/` in the executor workspace is

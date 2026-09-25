@@ -49,7 +49,7 @@ machines only ever need the gitignored throwaway dev key).
 Current release checksum:
 
 ```
-sha256(version-1.luau) = cd2dd0caddc605ab7bc8178305245743d79068e55f655255370534060bcf04d9
+sha256(version-1.luau) = 8273c730168ef56998c512a53147e2fcf2d7848141019ffb066cf3ced315a98e
 ```
 
 (`node scripts/sign_bundle.js --verify` prints the live digest whenever the

@@ -9,7 +9,6 @@ defaults.values = {
     haptics = false,
     antiWindowDuplicate = true,
     layoutMode = "sidebar",
-    motionSpeed = "normal",
     fontChoice = "default",
     autoSaveConfig = true,
     autoLoadConfig = true,

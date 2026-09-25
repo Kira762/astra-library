@@ -17,15 +17,14 @@ TweenService:Create directly. That has three costs:
 This module is the one place that answers all three: named specs are
 created once, `motion.tween` cancels an in-flight tween when it would fight
 over the same property, and everything animated through it answers to a
-single time scale (`motion.setProfile`, the "Animation speed" setting).
-Sites that still call `TweenService:Create` directly (component-local
-flourishes such as the notification queue) keep their own timing until they are
-moved over.
+single time scale (`motion.setProfile`). Sites that still call
+`TweenService:Create` directly (component-local flourishes such as the
+notification queue) keep their own timing until they are moved over.
 
 Behaviour contract, deliberately conservative:
   * `motion.tween` is a drop-in for `TweenService:Create(instance, info,
-    props):Play()` — same target values, same easing, same duration at the
-    default profile.
+    props):Play()` — same target values, same easing, and the spec's own
+    duration at the `normal` profile (the active time scale rescales it).
   * Properties already equal to their target are dropped from the tween; a
     call whose properties all match does not create a tween at all (this is
     the same "skip unchanged" rule the window's reveal path already used).
@@ -136,9 +135,11 @@ local SPECS: { [string]: TweenInfo } = {
 local DEFAULT_SPEC = "normal"
 
 --[[
-Profiles map the "Animation speed" setting onto the time scale. `instant`
-is the reduced-motion / lowest-cost option: nothing tweens, every target is
-applied on the spot.
+Profiles map named speeds onto the time scale. The library ships on
+`snappy` — the normal motion language, played faster — deliberately not
+`instant`, which is an explicit opt-out of animation rather than a
+speed. `instant` remains the reduced-motion / lowest-cost option for
+hosts that want it: nothing tweens, every target is applied on the spot.
 ]]
 motion.profiles = {
 	relaxed = { timeScale = 1.35 },
@@ -146,6 +147,13 @@ motion.profiles = {
 	snappy = { timeScale = 0.7 },
 	instant = { timeScale = 0, enabled = false },
 }
+
+--[[
+The built-in default: normal, but faster — never instant. The old
+"Animation speed" setting is gone, so this is what the interface plays;
+hosts can still rescale everything through `motion.setProfile`.
+]]
+local DEFAULT_PROFILE = "snappy"
 
 motion.specNames = {
 	"instant",
@@ -175,8 +183,8 @@ motion.specNames = {
 }
 
 motion.enabled = true
-motion.timeScale = 1
-motion.profile = "normal"
+motion.profile = DEFAULT_PROFILE
+motion.timeScale = (motion.profiles[DEFAULT_PROFILE] :: any).timeScale or 1
 
 --[[
 Scaled specs are cached per input (a name or a TweenInfo) and dropped

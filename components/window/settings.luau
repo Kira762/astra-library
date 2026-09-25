@@ -1,5 +1,4 @@
 local utilities = script.Parent.Parent.Parent.utilities
-local motion = require(utilities.motion)
 local persistence = require(utilities.persistence)
 local settingsComponent = require(script.Parent.Parent.settings)
 
@@ -21,13 +20,6 @@ function Window:LoadSettings()
     local loaded, migrated = persistence.loadSettings(self)
     self.configuration.autoSave = self.settings.autoSaveConfig
     self.configuration.autoLoad = self.settings.autoLoadConfig
-    --[[
-    The animation-speed setting lives in the same file, and the motion
-    service is a library-wide singleton, so it is re-applied here rather
-    than only when the settings control is touched — otherwise a window
-    that loaded settings would animate at whatever the last one used.
-    ]]
-    self:_applyMotionSetting()
     --[[
     The font choice lives in the same file and resolves through
     library-wide state on the next theme pass, so sync it here —

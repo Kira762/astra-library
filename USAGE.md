@@ -157,6 +157,7 @@ Titles, themes, and every window method.
 | `window:Close()` | Animated close (confirm popup is added by the topbar action); unloads the window when the transition finishes. |
 | `window:Save(name?)` / `window:Load(name?)` | Save/load flags. |
 | `window:ListConfigs()` | Array of saved config names. |
+| `window:OnConfigsChanged(fn)` | Runs `fn` after every save/delete (autosave included); returns an unsubscribe. |
 | `window:DeleteConfig(name)` | Delete a saved config. |
 | `window:Get(flag)` / `window:Set(flag, value)` | Read/write by flag. |
 | `window:ChangeTheme(theme)` | Swap theme at runtime. |
@@ -659,7 +660,7 @@ The settings tabs are:
 |---|---|
 | **Overview** | First tab: library About Card, copyable repository and guide Links, and a Footer. |
 | **Controls** | Required A–Z menu Keybind, unlock-cursor toggle, and Window Behavior (duplicate protection, keep on screen, draggable capsule, reset positions). |
-| **Appearance** | Standalone Font and Bar Layout Dropdowns; Motion & Feedback (haptics, animation speed). |
+| **Appearance** | Standalone Font and Bar Layout Dropdowns and a standalone Haptics toggle. |
 | **Persistence** | Auto Save / Auto Load toggles; saved-configurations Dropdown + name Input + Save/Load/Delete actions. |
 
 The menu binding cannot be cleared. Saved legacy non-letter bindings (including
@@ -845,11 +846,13 @@ never the destroyed tree.
 
 Astra's window transitions — hover, element reveal, the window entrance, the
 result flashes, every card's entrance and dismissal — run through one service,
-so your own animations can use the same timing and answer the same
-"Animation speed" setting the user picked in Performance → Motion. (The
-entrance queue that spaces the notification and toast arrivals paces itself
-through `Motion.step`, so it stretches and shortens with that setting too;
-the only curves outside the vocabulary are two delayed glow beats, and those rescale with the
+so your own animations can use the same timing and follow the same built-in
+motion: the normal language, played faster — never instant. The old
+"Animation speed" setting is gone; `Astra.Motion.setProfile` still rescales
+everything for a host that wants a different pace. (The entrance queue that
+spaces the notification and toast arrivals paces itself through `Motion.step`,
+so it stretches and shortens with the active profile too; the only curves
+outside the vocabulary are two delayed glow beats, and those rescale with the
 profile as well.)
 
 ```lua

@@ -188,7 +188,9 @@ function settingsComponent.buildUI(window)
         --[[
         The only built-in palette is `default`; hosts overlay keys through
         `window:ChangeTheme({ ... })`. Appearance therefore has no colour
-        to pick — the font selection, layout and motion stay here.
+        to pick — the font selection, layout and haptics stay here. The
+        "Animation speed" setting is gone: the library plays at its
+        built-in motion (the normal language, faster — never instant).
         ]]
         local fontLabels = { default = "Default", brand = "Astra" }
         local fontOptions = { "Default", "Astra" }
@@ -274,41 +276,19 @@ function settingsComponent.buildUI(window)
             end,
         })
 
-        local motionLabels = { relaxed = "Relaxed", normal = "Normal", snappy = "Snappy", instant = "Instant" }
-        local motionOptions = { "Relaxed", "Normal", "Snappy", "Instant" }
-        local motionProfiles = { Relaxed = "relaxed", Normal = "normal", Snappy = "snappy", Instant = "instant" }
-        local currentMotion = motionLabels[window.settings.motionSpeed] or motionLabels.normal
-
-        appearance:CreateCollapsibleGroup({
-            name = "Motion & Feedback",
-            icon = "gauge",
-            elements = {
-                {
-                    type = "Toggle",
-                    name = "Haptics",
-                    value = window.settings.haptics,
-                    callback = function(value)
-                        window.settings.haptics = value
-                        haptic.setEnabled(value)
-                        window:SaveSettings()
-                    end,
-                },
-                {
-                    type = "Dropdown",
-                    name = "Animation speed",
-                    options = motionOptions,
-                    value = currentMotion,
-                    callback = function(value)
-                        local profile = motionProfiles[value]
-                        if not profile or profile == window.settings.motionSpeed then
-                            return
-                        end
-                        window.settings.motionSpeed = profile
-                        window:_applyMotionSetting()
-                        window:SaveSettings()
-                    end,
-                },
-            },
+        --[[
+        Haptics is the one feedback preference left (the animation-speed
+        picker was removed), so it stands alone — built-in groups hold at
+        least two elements.
+        ]]
+        appearance:CreateToggle({
+            name = "Haptics",
+            value = window.settings.haptics,
+            callback = function(value)
+                window.settings.haptics = value
+                haptic.setEnabled(value)
+                window:SaveSettings()
+            end,
         })
     end
     appearance._settingsContentBuilder = buildAppearance
@@ -470,6 +450,17 @@ function settingsComponent.buildUI(window)
         })
         configDropdown = configGroup.elements[1]
         configName = configGroup.elements[2]
+
+        --[[
+        The list is live, not a build-time snapshot: an autosaved config
+        (or a host-side Save/Delete) has to appear here without a manual
+        Save first. `OnConfigsChanged` fires on every write and delete,
+        and the tab's refresh hook re-reads the folder on every reopen,
+        so the dropdown cannot go stale.
+        ]]
+        refresh()
+        window:OnConfigsChanged(refresh)
+        persistence._settingsContentRefresh = refresh
     end
     persistence._settingsContentBuilder = buildPersistence
 end
@@ -482,6 +473,13 @@ function settingsComponent.buildContent(window, tab)
     keeps one bad element from taking the whole window down.
     ]]
     if window._settingsContentBuilt[tab] or not tab._settingsContentBuilder then
+        --[[
+        Already built: the reopen hook re-reads anything the panel
+        derives from disk (the saved-configurations list).
+        ]]
+        if window._settingsContentBuilt[tab] and tab._settingsContentRefresh then
+            tab._settingsContentRefresh()
+        end
         return
     end
     window._settingsContentBuilt[tab] = true

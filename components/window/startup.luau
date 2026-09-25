@@ -142,7 +142,6 @@ function Window.new(props)
         dragMinimisedBar = false,
         antiWindowDuplicate = true,
         layoutMode = layout.mode,
-        motionSpeed = "normal",
         fontChoice = constants.defaultFontChoice,
         autoSaveConfig = self.configuration.autoSave,
         autoLoadConfig = self.configuration.autoLoad,
@@ -525,7 +524,6 @@ function Window.new(props)
     self:_watchViewport()
     self:_updateWindowTitle()
 
-    self:_applyMotionSetting()
     self:_syncLiveAnimation()
 
     --[[
@@ -639,11 +637,3 @@ function Window:_loadCheckpoint(appliedCount)
         end
     end
 end
-
---[[
-The "Animation speed" setting owns the motion service's time scale. It is
-applied from the window (not only from the settings control) so a window
-built from persisted settings, a configuration load and a live change all
-reach the same state; an unknown persisted value falls back to `normal`
-instead of leaving the library on whatever the last window used.
-]]

@@ -43,7 +43,8 @@ expect(motion.forUI == motion.uiSpec, "H2 motion.forUI is an alias of motion.uiS
 
 local windowSpec = motion.uiSpec("window")
 expect(windowSpec.EasingStyle == Enum.EasingStyle.Back, "H2 window entrance uses aesthetic Back spring")
-expect(windowSpec.Time >= 0.5, "H2 window entrance is visible")
+-- pop is 0.55s at 1x; the built-in faster default scales it to 0.385s.
+expect(windowSpec.Time >= 0.35, "H2 window entrance is visible")
 
 local popupSpec = motion.uiSpec("popup")
 expect(popupSpec.EasingStyle == Enum.EasingStyle.Circular, "H2 modal popup uses Circular deceleration")

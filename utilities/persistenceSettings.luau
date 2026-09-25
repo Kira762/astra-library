@@ -26,7 +26,6 @@ type SettingsWindow = {
         haptics: boolean,
         antiWindowDuplicate: boolean,
         layoutMode: string,
-        motionSpeed: string,
         fontChoice: string,
         autoSaveConfig: boolean,
         autoLoadConfig: boolean,
@@ -43,7 +42,6 @@ type DecodedSettings = {
         haptics: unknown?,
     antiWindowDuplicate: unknown?,
     layoutMode: unknown?,
-    motionSpeed: unknown?,
     fontChoice: unknown?,
     autoSaveConfig: unknown?,
     autoLoadConfig: unknown?,
@@ -69,7 +67,6 @@ function persistenceSettings.saveSettings(window: SettingsWindow): boolean
         haptics = window.settings.haptics,
         antiWindowDuplicate = window.settings.antiWindowDuplicate,
         layoutMode = window.settings.layoutMode,
-        motionSpeed = window.settings.motionSpeed,
         fontChoice = window.settings.fontChoice,
         autoSaveConfig = window.settings.autoSaveConfig,
         autoLoadConfig = window.settings.autoLoadConfig,
@@ -189,18 +186,6 @@ function persistenceSettings.loadSettings(window: SettingsWindow): (boolean, boo
         or decodedSettings.layoutMode == "collapsedSidebar"
     then
         window.settings.layoutMode = decodedSettings.layoutMode
-    end
-
-    --[[
-    Motion profiles are validated by the motion service, the same way the
-    live setting is, so a hand-edited settings file cannot put the library
-    on a profile that does not exist.
-    ]]
-    if type(decodedSettings.motionSpeed) == "string" then
-        local motion = require(script.Parent.motion)
-        if motion.profiles[decodedSettings.motionSpeed] then
-            window.settings.motionSpeed = decodedSettings.motionSpeed
-        end
     end
 
     if decodedSettings.fontChoice == "default" or decodedSettings.fontChoice == "brand" then

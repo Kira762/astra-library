@@ -53,20 +53,6 @@ registry.definitions = {
         domain = "appearance",
         description = "Bar layout mode: sidebar or collapsedSidebar.",
     },
-    motionSpeed = {
-        key = "motionSpeed",
-        kind = "enum",
-        domain = "performance",
-        --[[
-        Backed by utilities/motion.luau: relaxed/normal/snappy rescale
-        every transition routed through the motion service (the window's
-        entrance, the element reveals and hovers, the result flashes), and
-        instant switches that animation off - targets are applied on the
-        spot - for accessibility and for machines where the UI is competing
-        with the game for frame time.
-        ]]
-        description = "Animation speed: relaxed, normal, snappy, or instant (no animation).",
-    },
     fontChoice = {
         key = "fontChoice",
         kind = "enum",

@@ -573,6 +573,7 @@ export type Window = {
     Save: (self: Window, name: string?) -> boolean,
     Load: (self: Window, name: string?) -> boolean,
     ListConfigs: (self: Window) -> { string },
+    OnConfigsChanged: (self: Window, listener: () -> ()) -> () -> (),
     DeleteConfig: (self: Window, name: string) -> boolean,
     GetPath: (self: Window) -> (string, string),
     Get: (self: Window, flag: string) -> any,

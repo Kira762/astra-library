@@ -7,11 +7,50 @@ function Window:GetPath()
     return persistence.getPath(self)
 end
 
+--[[
+Subscribes to the window's saved-config list: the listener runs after
+every successful `Save` (autosave included) and `DeleteConfig`, so a UI
+that lists `ListConfigs()` cannot go stale while it is open. Returns an
+unsubscribe function; listeners live and die with the window.
+]]
+function Window:OnConfigsChanged(listener)
+    if type(listener) ~= "function" then
+        return function() end
+    end
+    self._configListListeners = self._configListListeners or {}
+    table.insert(self._configListListeners, listener)
+    local subscribed = true
+    return function()
+        if not subscribed then
+            return
+        end
+        subscribed = false
+        local index = self._configListListeners and table.find(self._configListListeners, listener)
+        if index then
+            table.remove(self._configListListeners, index)
+        end
+    end
+end
+
+function Window:_emitConfigsChanged()
+    local listeners = self._configListListeners
+    if not listeners then
+        return
+    end
+    for _, listener in table.clone(listeners) do
+        pcall(listener)
+    end
+end
+
 function Window:Save(name)
     if name ~= nil and (type(name) ~= "string" or name == "") then
         return false
     end
-    return persistence.save(self, name)
+    local saved = persistence.save(self, name)
+    if saved then
+        self:_emitConfigsChanged()
+    end
+    return saved
 end
 
 function Window:Load(name)
@@ -36,7 +75,11 @@ function Window:ListConfigs()
 end
 
 function Window:DeleteConfig(name)
-    return persistence.delete(self, name)
+    local deleted = persistence.delete(self, name)
+    if deleted then
+        self:_emitConfigsChanged()
+    end
+    return deleted
 end
 
 function Window:Get(flag)

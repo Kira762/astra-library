@@ -1,8 +1,8 @@
 #!/bin/sh
-# Runtime test for utilities/motion.luau: shared spec values, the time scale
-# and its cache, the speed profiles, tween ownership/cancelling, the no-op
-# and animation-off paths, and the window's "Animation speed" setting
-# reaching the service.
+# Runtime test for utilities/motion.luau: the built-in default profile
+# (normal but faster, never instant), shared spec values, the time scale
+# and its cache, the speed profiles, tween ownership/cancelling, and the
+# no-op and animation-off paths.
 #
 # Assembles: mini Roblox stubs + bundle (wrapped in a function to keep
 # `local` scoping) + assertions, writes it to a temp file, and runs it under

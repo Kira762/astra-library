@@ -1241,6 +1241,8 @@ local function buildStudio(unlockedKey)
 
     flagDumpText = configs.elements[#configs.elements].elements[1]
 
+    -- The slot list is live: autosaved configs appear without a manual Save.
+    window:OnConfigsChanged(refreshSlots)
     refreshSlots()
 
     -- 12. Window — theme, motion, visibility, overlays, diagnostics
@@ -1289,15 +1291,11 @@ local function buildStudio(unlockedKey)
 
     windowTab:CreateDivider({ text = "Motion" })
 
-    windowTab:CreateDropdown({
-        name = "Motion profile",
-        flag = "demo.motionProfile",
-        options = { "instant", "snappy", "normal", "relaxed" },
-        value = "normal",
-        callback = function(profile)
-            Astra.Motion.setProfile(profile)
-        end,
-    })
+    --[[
+    The animation-speed picker is gone: the library plays at its built-in
+    motion (normal, faster, never instant). Hosts that want to rescale it
+    still can, through Astra.Motion.setProfile.
+    ]]
     windowTab:CreateToggle({
         name = "Animations enabled",
         flag = "demo.animations",

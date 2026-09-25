@@ -75,7 +75,7 @@ Notable instance fields set in `new`: `screenGui`, `main`, `elements`,
 `tabList`, `sidebar`, `settings` (plain table: `toggleKeybind`, `theme`,
 `mouseOverride`, `keepOnScreen`, `haptics`,
 `dragMinimisedBar`,
-`antiWindowDuplicate`, `layoutMode`, `motionSpeed`, `fontChoice`), `rfSettings` (the
+`antiWindowDuplicate`, `layoutMode`, `fontChoice`), `rfSettings` (the
 built-in "Overview" settings tab), `_settingsTabs` (settings-tab list),
 `_settingsMode` / `_previousTab` (settings-mode bookkeeping),
 `settingsAction` / `minimiseAction` (topbar actions), `drag`,
@@ -120,6 +120,8 @@ Public surface:
   (constructs its card on the entrance queue's turn, see
   `components/overlayQueue.luau`)/`Popup`, `Show`/`Hide`/`ToggleHide`/`ToggleMinimise`, `Close` (animated
   close → `Unload`), `Save`/`Load`/`ListConfigs`/`DeleteConfig`/`GetPath`,
+  `OnConfigsChanged` (listener on every save/delete, autosave included —
+  returns its unsubscribe),
   `Get`/`Set`, `Navigate`, `SetLocale`/`SetTranslator`/
   `RegisterTranslations`, `ResolveIcon`, `Unload`.
 - Lifecycle/extension helpers: `Connect`/`ConnectFor`/`Disconnect`/
@@ -145,7 +147,7 @@ its anchored resting spot, and by `ToggleMinimise`'s expand),
 Dedicated settings component providing lazy UI generation for Overview, Controls, Appearance and Persistence, in that order:
 - `buildUI(window)` — reuses `rfSettings` as the first Overview shell and adds the other three. Overview renders a compact About Card (Version and Author) and one copyable Repository link.
 - Controls uses `elements/keybind` for the menu letter (callback converts the uppercase string to a KeyCode), an unlock-cursor Toggle and Window Behavior. There is no typed-key parser or mouse/unbound menu option.
-- Appearance owns the standalone Font and layout Dropdowns and a related Motion & Feedback group. Persistence owns configuration toggles and save/load/delete controls. No built-in Collapsible Group contains only one element.
+- Appearance owns the standalone Font and layout Dropdowns and a standalone Haptics toggle (the "Animation speed" picker was removed; the library plays at its built-in motion). Persistence owns configuration toggles and save/load/delete controls; its saved-configurations list is live (`OnConfigsChanged` + a reopen hook), so autosaved configs appear without a manual Save. No built-in Collapsible Group contains only one element.
 - `buildContent(window, tab)` — lazily constructs controls within a given settings tab upon first selection.
 - `toggleSettingsMode(window)` — toggles between user tabs and settings tabs.
 - `setSettingsMode(window, active)` — applies visibility and layout for settings mode.
@@ -263,7 +265,7 @@ backlog waits), `entranceBudget` / `gateBudget` (bounded waits, so neither a
 card that never reports back nor a gate nobody opens can park the pump),
 `maxQueued` (six waiting requests, oldest dropped past that). Every wait is
 accumulated from `task.wait()` deltas and the gaps go through `motion.step`,
-so the queue answers the "Animation speed" setting instead of the wall clock.
+so the queue answers the motion service's time scale instead of the wall clock.
 
 ### `components/notification.luau`, `popup.luau`, `tooltip.luau`, `keySystem.luau`
 Overlay queues: `a1..a4` — container frame, TweenInfo presets, queue table, active-instance guard.
@@ -495,7 +497,8 @@ Per-element specifics:
   `mouseOverride` (boolean/behavior), `keepOnScreen` (boolean/appearance),
   `haptics` (boolean/performance),
   `antiWindowDuplicate` (boolean/behavior), `layoutMode` (enum/appearance),
-  `motionSpeed` (enum/performance), `fontChoice` (enum/appearance).
+  `fontChoice` (enum/appearance). The `motionSpeed` key was removed with the
+  "Animation speed" setting.
   Lookup: `registry.definition(key)`, `registry.keys()`.
 - `defaults.luau` — `values`: flat defaults (`toggleKeybind = Enum.KeyCode.K`,
   `layoutMode = "sidebar"`, …); `defaults.clone(overrides)`.
@@ -619,8 +622,10 @@ Per-element specifics:
   over the same property, `motion.spec(info)` for rescaling a bespoke
   TweenInfo (delayed glow beats, the odometer reel) with the active profile,
   `motion.step(base)` for cascade pacing, and the speed profiles (`relaxed`
-  1.35x, `normal` 1x, `snappy` 0.7x, `instant` = no animation) behind the
-  window's "Animation speed" setting. Public as `Astra.Motion`.
+  1.35x, `normal` 1x, `snappy` 0.7x, `instant` = no animation). The library
+  ships on `snappy` — the normal motion language, played faster, deliberately
+  never `instant` — and `setProfile` is the host-facing way to rescale it
+  (the "Animation speed" setting is gone). Public as `Astra.Motion`.
 - `persistenceSettings.luau` — settings JSON encode/decode.
 - `persistenceWrite.luau` — atomic write helper.
 - `persistenceConfig.luau`, `persistencePaths.luau` — window-config serialization and key paths.
@@ -678,7 +683,7 @@ Per-element specifics:
 | `slider_travel_test.sh` | Slider knob travel: the capsule's centre stays half a knob inside each track end (resting, held and after release), so it never overlaps the track end or card edge at max/min, and the fill ends at the knob's centre. |
 | `stepper_value_test.sh` | Stepper values: the `0` default, per-click `±step` with the display following, the `0` floor (a `(−)` tap there is a no-op with no callback), the optional `max` ceiling, typed commits clamping into range and unparseable text restoring the old value, the callback firing only on real changes, an inert `description` prop (no helper line, no card growth), the field's stroke being the pill's own `SurfaceStroke` (tightened by focus, restored on leave), and the title block and pill cluster sharing one centre line. |
 | `icons_test.sh` | Icon resolver: name-only lookup across the packs in priority order (and how lazily they load), qualified `pack:name`, case sensitivity, unknown-pack warnings, custom assets (one import per path, memoised misses, the `listfiles` index), cache-key separation, and `window:ResolveIcon`. |
-| `motion_test.sh` | Motion service: shared specs, time scale + its cache, profiles, tween ownership (cancel-on-overlap vs. unrelated properties), the no-op and animation-off paths, the window's "Animation speed" setting, and hover going through the service. |
+| `motion_test.sh` | Motion service: the built-in default profile (normal but faster, never instant), shared specs, time scale + its cache, profiles, tween ownership (cancel-on-overlap vs. unrelated properties), the no-op and animation-off paths, windows no longer forcing a profile, and hover going through the service. |
 | `anti_duplicate_window_test.sh` | Anti Duplicate Window: sequential CreateWindow replaces the previous shell, per-window opt-out still allows a second window, overlapping constructions from rapid re-entry collapse to exactly one live window, and replacement never interrupts active construction — a window whose host thread is suspended at a pacing checkpoint is marked unloaded at once and torn down only once that construction goes quiet, and a construction overtaken mid-`Window.new` hands its host a window that keeps accepting constructors before it is torn down unshown. |
 
 All of them assemble `scripts/sidebar_sizing_stubs.luau` + `version-1.luau`

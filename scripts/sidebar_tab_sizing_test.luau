@@ -301,7 +301,7 @@ local expectedSettingsContent = {
     Overview = 2,
     -- Toggle Keybind, Unlock cursor, Element Lock Mode, Window Behavior group.
     Controls = 4,
-    -- Font, Bar Layout, Motion & Feedback (no section headers).
+    -- Font, Bar Layout, Haptics (no section headers).
     Appearance = 3,
     Persistence = 2,
 }

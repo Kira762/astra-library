@@ -1054,6 +1054,7 @@ export type Window = {
     Save: (self: Window, name: string?) -> boolean,
     Load: (self: Window, name: string?) -> boolean,
     ListConfigs: (self: Window) -> { string },
+    OnConfigsChanged: (self: Window, listener: () -> ()) -> () -> (),
     DeleteConfig: (self: Window, name: string) -> boolean,
     GetPath: (self: Window) -> (string, string),
     Get: (self: Window, flag: string) -> any,
@@ -5516,7 +5517,9 @@ function settingsComponent.buildUI(window)
         --[[
         The only built-in palette is `default`; hosts overlay keys through
         `window:ChangeTheme({ ... })`. Appearance therefore has no colour
-        to pick — the font selection, layout and motion stay here.
+        to pick — the font selection, layout and haptics stay here. The
+        "Animation speed" setting is gone: the library plays at its
+        built-in motion (the normal language, faster — never instant).
         ]]
         local fontLabels = { default = "Default", brand = "Astra" }
         local fontOptions = { "Default", "Astra" }
@@ -5602,41 +5605,19 @@ function settingsComponent.buildUI(window)
             end,
         })
 
-        local motionLabels = { relaxed = "Relaxed", normal = "Normal", snappy = "Snappy", instant = "Instant" }
-        local motionOptions = { "Relaxed", "Normal", "Snappy", "Instant" }
-        local motionProfiles = { Relaxed = "relaxed", Normal = "normal", Snappy = "snappy", Instant = "instant" }
-        local currentMotion = motionLabels[window.settings.motionSpeed] or motionLabels.normal
-
-        appearance:CreateCollapsibleGroup({
-            name = "Motion & Feedback",
-            icon = "gauge",
-            elements = {
-                {
-                    type = "Toggle",
-                    name = "Haptics",
-                    value = window.settings.haptics,
-                    callback = function(value)
-                        window.settings.haptics = value
-                        haptic.setEnabled(value)
-                        window:SaveSettings()
-                    end,
-                },
-                {
-                    type = "Dropdown",
-                    name = "Animation speed",
-                    options = motionOptions,
-                    value = currentMotion,
-                    callback = function(value)
-                        local profile = motionProfiles[value]
-                        if not profile or profile == window.settings.motionSpeed then
-                            return
-                        end
-                        window.settings.motionSpeed = profile
-                        window:_applyMotionSetting()
-                        window:SaveSettings()
-                    end,
-                },
-            },
+        --[[
+        Haptics is the one feedback preference left (the animation-speed
+        picker was removed), so it stands alone — built-in groups hold at
+        least two elements.
+        ]]
+        appearance:CreateToggle({
+            name = "Haptics",
+            value = window.settings.haptics,
+            callback = function(value)
+                window.settings.haptics = value
+                haptic.setEnabled(value)
+                window:SaveSettings()
+            end,
         })
     end
     appearance._settingsContentBuilder = buildAppearance
@@ -5798,6 +5779,17 @@ function settingsComponent.buildUI(window)
         })
         configDropdown = configGroup.elements[1]
         configName = configGroup.elements[2]
+
+        --[[
+        The list is live, not a build-time snapshot: an autosaved config
+        (or a host-side Save/Delete) has to appear here without a manual
+        Save first. `OnConfigsChanged` fires on every write and delete,
+        and the tab's refresh hook re-reads the folder on every reopen,
+        so the dropdown cannot go stale.
+        ]]
+        refresh()
+        window:OnConfigsChanged(refresh)
+        persistence._settingsContentRefresh = refresh
     end
     persistence._settingsContentBuilder = buildPersistence
 end
@@ -5810,6 +5802,13 @@ function settingsComponent.buildContent(window, tab)
     keeps one bad element from taking the whole window down.
     ]]
     if window._settingsContentBuilt[tab] or not tab._settingsContentBuilder then
+        --[[
+        Already built: the reopen hook re-reads anything the panel
+        derives from disk (the saved-configurations list).
+        ]]
+        if window._settingsContentBuilt[tab] and tab._settingsContentRefresh then
+            tab._settingsContentRefresh()
+        end
         return
     end
     window._settingsContentBuilt[tab] = true
@@ -6804,11 +6803,50 @@ function Window:GetPath()
     return persistence.getPath(self)
 end
 
+--[[
+Subscribes to the window's saved-config list: the listener runs after
+every successful `Save` (autosave included) and `DeleteConfig`, so a UI
+that lists `ListConfigs()` cannot go stale while it is open. Returns an
+unsubscribe function; listeners live and die with the window.
+]]
+function Window:OnConfigsChanged(listener)
+    if type(listener) ~= "function" then
+        return function() end
+    end
+    self._configListListeners = self._configListListeners or {}
+    table.insert(self._configListListeners, listener)
+    local subscribed = true
+    return function()
+        if not subscribed then
+            return
+        end
+        subscribed = false
+        local index = self._configListListeners and table.find(self._configListListeners, listener)
+        if index then
+            table.remove(self._configListListeners, index)
+        end
+    end
+end
+
+function Window:_emitConfigsChanged()
+    local listeners = self._configListListeners
+    if not listeners then
+        return
+    end
+    for _, listener in table.clone(listeners) do
+        pcall(listener)
+    end
+end
+
 function Window:Save(name)
     if name ~= nil and (type(name) ~= "string" or name == "") then
         return false
     end
-    return persistence.save(self, name)
+    local saved = persistence.save(self, name)
+    if saved then
+        self:_emitConfigsChanged()
+    end
+    return saved
 end
 
 function Window:Load(name)
@@ -6833,7 +6871,11 @@ function Window:ListConfigs()
 end
 
 function Window:DeleteConfig(name)
-    return persistence.delete(self, name)
+    local deleted = persistence.delete(self, name)
+    if deleted then
+        self:_emitConfigsChanged()
+    end
+    return deleted
 end
 
 function Window:Get(flag)
@@ -8195,7 +8237,6 @@ end
 end)() end,
     [26] = function()local wax,script,require=ImportGlobals(26)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.Parent.utilities
-local motion = require(utilities.motion)
 local persistence = require(utilities.persistence)
 local settingsComponent = require(script.Parent.Parent.settings)
 
@@ -8217,13 +8258,6 @@ function Window:LoadSettings()
     local loaded, migrated = persistence.loadSettings(self)
     self.configuration.autoSave = self.settings.autoSaveConfig
     self.configuration.autoLoad = self.settings.autoLoadConfig
-    --[[
-    The animation-speed setting lives in the same file, and the motion
-    service is a library-wide singleton, so it is re-applied here rather
-    than only when the settings control is touched — otherwise a window
-    that loaded settings would animate at whatever the last one used.
-    ]]
-    self:_applyMotionSetting()
     --[[
     The font choice lives in the same file and resolves through
     library-wide state on the next theme pass, so sync it here —
@@ -8400,7 +8434,6 @@ function Window.new(props)
         dragMinimisedBar = false,
         antiWindowDuplicate = true,
         layoutMode = layout.mode,
-        motionSpeed = "normal",
         fontChoice = constants.defaultFontChoice,
         autoSaveConfig = self.configuration.autoSave,
         autoLoadConfig = self.configuration.autoLoad,
@@ -8783,7 +8816,6 @@ function Window.new(props)
     self:_watchViewport()
     self:_updateWindowTitle()
 
-    self:_applyMotionSetting()
     self:_syncLiveAnimation()
 
     --[[
@@ -8897,14 +8929,6 @@ function Window:_loadCheckpoint(appliedCount)
         end
     end
 end
-
---[[
-The "Animation speed" setting owns the motion service's time scale. It is
-applied from the window (not only from the settings control) so a window
-built from persisted settings, a configuration load and a live change all
-reach the same state; an unknown persisted value falls back to `normal`
-instead of leaving the library on whatever the last window used.
-]]
 
 end)() end,
     [28] = function()local wax,script,require=ImportGlobals(28)local ImportGlobals return (function(...)
@@ -9531,13 +9555,6 @@ local Window = require(script.Parent.class)
 
 function Window:ResolveIcon(value, pack)
     return icons.resolve(value, pack)
-end
-
-function Window:_applyMotionSetting()
-    if not motion.setProfile(self.settings.motionSpeed) then
-        self.settings.motionSpeed = "normal"
-        motion.setProfile("normal")
-    end
 end
 
 --[[
@@ -21813,7 +21830,6 @@ defaults.values = {
     haptics = false,
     antiWindowDuplicate = true,
     layoutMode = "sidebar",
-    motionSpeed = "normal",
     fontChoice = "default",
     autoSaveConfig = true,
     autoLoadConfig = true,
@@ -21962,23 +21978,11 @@ return SettingsManager
 end)() end,
     [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
 
-local motion = require(script.Parent.Parent.utilities.motion)
-
 local performance = {}
 
 function performance.validate(key: string, value: any): (boolean, any)
     if key == "haptics" then
         return type(value) == "boolean", value == true
-    end
-    if key == "motionSpeed" then
-        --[[
-        Validated against the motion service's own profile list, so the
-        setting can never name a profile the library does not implement.
-        ]]
-        if type(value) == "string" and motion.profiles[value] then
-            return true, value
-        end
-        return false, nil
     end
     return false, nil
 end
@@ -22090,20 +22094,6 @@ registry.definitions = {
         kind = "enum",
         domain = "appearance",
         description = "Bar layout mode: sidebar or collapsedSidebar.",
-    },
-    motionSpeed = {
-        key = "motionSpeed",
-        kind = "enum",
-        domain = "performance",
-        --[[
-        Backed by utilities/motion.luau: relaxed/normal/snappy rescale
-        every transition routed through the motion service (the window's
-        entrance, the element reveals and hovers, the result flashes), and
-        instant switches that animation off - targets are applied on the
-        spot - for accessibility and for machines where the UI is competing
-        with the game for frame time.
-        ]]
-        description = "Animation speed: relaxed, normal, snappy, or instant (no animation).",
     },
     fontChoice = {
         key = "fontChoice",
@@ -27455,15 +27445,14 @@ TweenService:Create directly. That has three costs:
 This module is the one place that answers all three: named specs are
 created once, `motion.tween` cancels an in-flight tween when it would fight
 over the same property, and everything animated through it answers to a
-single time scale (`motion.setProfile`, the "Animation speed" setting).
-Sites that still call `TweenService:Create` directly (component-local
-flourishes such as the notification queue) keep their own timing until they are
-moved over.
+single time scale (`motion.setProfile`). Sites that still call
+`TweenService:Create` directly (component-local flourishes such as the
+notification queue) keep their own timing until they are moved over.
 
 Behaviour contract, deliberately conservative:
   * `motion.tween` is a drop-in for `TweenService:Create(instance, info,
-    props):Play()` — same target values, same easing, same duration at the
-    default profile.
+    props):Play()` — same target values, same easing, and the spec's own
+    duration at the `normal` profile (the active time scale rescales it).
   * Properties already equal to their target are dropped from the tween; a
     call whose properties all match does not create a tween at all (this is
     the same "skip unchanged" rule the window's reveal path already used).
@@ -27574,9 +27563,11 @@ local SPECS: { [string]: TweenInfo } = {
 local DEFAULT_SPEC = "normal"
 
 --[[
-Profiles map the "Animation speed" setting onto the time scale. `instant`
-is the reduced-motion / lowest-cost option: nothing tweens, every target is
-applied on the spot.
+Profiles map named speeds onto the time scale. The library ships on
+`snappy` — the normal motion language, played faster — deliberately not
+`instant`, which is an explicit opt-out of animation rather than a
+speed. `instant` remains the reduced-motion / lowest-cost option for
+hosts that want it: nothing tweens, every target is applied on the spot.
 ]]
 motion.profiles = {
 	relaxed = { timeScale = 1.35 },
@@ -27584,6 +27575,13 @@ motion.profiles = {
 	snappy = { timeScale = 0.7 },
 	instant = { timeScale = 0, enabled = false },
 }
+
+--[[
+The built-in default: normal, but faster — never instant. The old
+"Animation speed" setting is gone, so this is what the interface plays;
+hosts can still rescale everything through `motion.setProfile`.
+]]
+local DEFAULT_PROFILE = "snappy"
 
 motion.specNames = {
 	"instant",
@@ -27613,8 +27611,8 @@ motion.specNames = {
 }
 
 motion.enabled = true
-motion.timeScale = 1
-motion.profile = "normal"
+motion.profile = DEFAULT_PROFILE
+motion.timeScale = (motion.profiles[DEFAULT_PROFILE] :: any).timeScale or 1
 
 --[[
 Scaled specs are cached per input (a name or a TweenInfo) and dropped
@@ -28194,9 +28192,9 @@ function odometer:_reelRoll(rollReel, rollDigit, up)
     rollReel.target = rollDigit
 
         --[[
-        `motion.spec` rescales the reel's TweenInfo with the active speed
+        `motion.spec` rescales the reel's TweenInfo with the active
     profile (cached per info), so the digit roll answers the same
-    "Animation speed" setting as every other surface.
+    motion time scale as every other surface.
         ]]
     local roll = motion.spec(self.roll)
     local stripTween = coreState.tweenService:Create(rollReel.strip, roll, {
@@ -28767,7 +28765,6 @@ type SettingsWindow = {
         haptics: boolean,
         antiWindowDuplicate: boolean,
         layoutMode: string,
-        motionSpeed: string,
         fontChoice: string,
         autoSaveConfig: boolean,
         autoLoadConfig: boolean,
@@ -28784,7 +28781,6 @@ type DecodedSettings = {
         haptics: unknown?,
     antiWindowDuplicate: unknown?,
     layoutMode: unknown?,
-    motionSpeed: unknown?,
     fontChoice: unknown?,
     autoSaveConfig: unknown?,
     autoLoadConfig: unknown?,
@@ -28810,7 +28806,6 @@ function persistenceSettings.saveSettings(window: SettingsWindow): boolean
         haptics = window.settings.haptics,
         antiWindowDuplicate = window.settings.antiWindowDuplicate,
         layoutMode = window.settings.layoutMode,
-        motionSpeed = window.settings.motionSpeed,
         fontChoice = window.settings.fontChoice,
         autoSaveConfig = window.settings.autoSaveConfig,
         autoLoadConfig = window.settings.autoLoadConfig,
@@ -28930,18 +28925,6 @@ function persistenceSettings.loadSettings(window: SettingsWindow): (boolean, boo
         or decodedSettings.layoutMode == "collapsedSidebar"
     then
         window.settings.layoutMode = decodedSettings.layoutMode
-    end
-
-    --[[
-    Motion profiles are validated by the motion service, the same way the
-    live setting is, so a hand-edited settings file cannot put the library
-    on a profile that does not exist.
-    ]]
-    if type(decodedSettings.motionSpeed) == "string" then
-        local motion = require(script.Parent.motion)
-        if motion.profiles[decodedSettings.motionSpeed] then
-            window.settings.motionSpeed = decodedSettings.motionSpeed
-        end
     end
 
     if decodedSettings.fontChoice == "default" or decodedSettings.fontChoice == "brand" then
@@ -29179,117 +29162,117 @@ end)() end,
 local LineOffsets = {
     [2] = 47,
     [3] = 482,
-    [5] = 1194,
-    [6] = 1177,
-    [7] = 1349,
-    [8] = 1491,
-    [9] = 1742,
-    [10] = 2124,
-    [11] = 3494,
-    [12] = 3903,
-    [13] = 4252,
-    [14] = 4991,
-    [15] = 5329,
-    [16] = 5901,
-    [17] = 5964,
-    [18] = 6438,
-    [19] = 6784,
-    [20] = 6798,
-    [21] = 6855,
-    [22] = 6995,
-    [23] = 7536,
-    [24] = 7775,
-    [25] = 8097,
-    [26] = 8197,
-    [27] = 8259,
-    [28] = 8911,
-    [29] = 9159,
-    [30] = 9509,
-    [31] = 9963,
-    [32] = 6758,
-    [34] = 10897,
-    [35] = 11734,
-    [36] = 11823,
-    [37] = 12052,
-    [38] = 12473,
-    [39] = 12938,
-    [40] = 13095,
-    [41] = 13240,
-    [42] = 14858,
-    [43] = 15106,
-    [44] = 15346,
-    [45] = 15667,
-    [46] = 16113,
-    [47] = 16366,
-    [48] = 17446,
-    [49] = 18270,
-    [50] = 18356,
-    [51] = 18959,
-    [52] = 19801,
-    [53] = 20395,
-    [54] = 20976,
-    [55] = 21106,
-    [56] = 21245,
-    [58] = 21760,
-    [59] = 21786,
-    [60] = 21805,
-    [61] = 21838,
-    [62] = 21964,
-    [63] = 21990,
-    [64] = 22039,
-    [65] = 21735,
-    [66] = 22144,
-    [67] = 22460,
-    [68] = 22491,
-    [69] = 22133,
-    [70] = 22534,
-    [71] = 22554,
-    [72] = 22586,
-    [73] = 22516,
-    [74] = 22693,
-    [75] = 22761,
-    [77] = 22843,
-    [78] = 23010,
-    [79] = 23029,
-    [80] = 22828,
-    [81] = 23670,
-    [82] = 23716,
-    [83] = 23798,
-    [84] = 23993,
-    [85] = 24124,
-    [86] = 24227,
-    [87] = 24396,
-    [88] = 24736,
-    [89] = 23125,
-    [90] = 25380,
-    [91] = 25266,
-    [92] = 25519,
-    [93] = 25617,
-    [94] = 25795,
-    [95] = 25854,
-    [96] = 25884,
-    [97] = 26176,
-    [98] = 26225,
-    [99] = 26680,
-    [100] = 26698,
-    [101] = 26905,
-    [102] = 26925,
-    [103] = 27053,
-    [104] = 27152,
-    [105] = 27383,
-    [106] = 27439,
-    [107] = 27904,
-    [108] = 27940,
-    [109] = 27958,
-    [110] = 28318,
-    [111] = 28330,
-    [112] = 28381,
-    [113] = 28400,
-    [114] = 28698,
-    [115] = 28742,
-    [116] = 28958,
-    [117] = 28986,
-    [118] = 28997,
+    [5] = 1195,
+    [6] = 1178,
+    [7] = 1350,
+    [8] = 1492,
+    [9] = 1743,
+    [10] = 2125,
+    [11] = 3495,
+    [12] = 3904,
+    [13] = 4253,
+    [14] = 4992,
+    [15] = 5330,
+    [16] = 5900,
+    [17] = 5963,
+    [18] = 6437,
+    [19] = 6783,
+    [20] = 6797,
+    [21] = 6897,
+    [22] = 7037,
+    [23] = 7578,
+    [24] = 7817,
+    [25] = 8139,
+    [26] = 8239,
+    [27] = 8293,
+    [28] = 8935,
+    [29] = 9183,
+    [30] = 9533,
+    [31] = 9980,
+    [32] = 6757,
+    [34] = 10914,
+    [35] = 11751,
+    [36] = 11840,
+    [37] = 12069,
+    [38] = 12490,
+    [39] = 12955,
+    [40] = 13112,
+    [41] = 13257,
+    [42] = 14875,
+    [43] = 15123,
+    [44] = 15363,
+    [45] = 15684,
+    [46] = 16130,
+    [47] = 16383,
+    [48] = 17463,
+    [49] = 18287,
+    [50] = 18373,
+    [51] = 18976,
+    [52] = 19818,
+    [53] = 20412,
+    [54] = 20993,
+    [55] = 21123,
+    [56] = 21262,
+    [58] = 21777,
+    [59] = 21803,
+    [60] = 21822,
+    [61] = 21854,
+    [62] = 21980,
+    [63] = 21994,
+    [64] = 22043,
+    [65] = 21752,
+    [66] = 22134,
+    [67] = 22450,
+    [68] = 22481,
+    [69] = 22123,
+    [70] = 22524,
+    [71] = 22544,
+    [72] = 22576,
+    [73] = 22506,
+    [74] = 22683,
+    [75] = 22751,
+    [77] = 22833,
+    [78] = 23000,
+    [79] = 23019,
+    [80] = 22818,
+    [81] = 23660,
+    [82] = 23706,
+    [83] = 23788,
+    [84] = 23983,
+    [85] = 24114,
+    [86] = 24217,
+    [87] = 24386,
+    [88] = 24726,
+    [89] = 23115,
+    [90] = 25370,
+    [91] = 25256,
+    [92] = 25509,
+    [93] = 25607,
+    [94] = 25785,
+    [95] = 25844,
+    [96] = 25874,
+    [97] = 26166,
+    [98] = 26215,
+    [99] = 26670,
+    [100] = 26688,
+    [101] = 26895,
+    [102] = 26915,
+    [103] = 27043,
+    [104] = 27142,
+    [105] = 27373,
+    [106] = 27429,
+    [107] = 27902,
+    [108] = 27938,
+    [109] = 27956,
+    [110] = 28316,
+    [111] = 28328,
+    [112] = 28379,
+    [113] = 28398,
+    [114] = 28696,
+    [115] = 28740,
+    [116] = 28941,
+    [117] = 28969,
+    [118] = 28980,
 }
 
 -- Misc AOT variable imports

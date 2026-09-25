@@ -3,6 +3,7 @@ local constants = require(utilities.constants)
 local locale = require(utilities.locale)
 local haptic = require(utilities.HapticEngine)
 local layouts = require(utilities.layouts)
+local shared = require(script.Parent.window.constants)
 
 local settingsComponent = {}
 
@@ -87,7 +88,9 @@ function settingsComponent.buildUI(window)
         -- A fixed five-stop controller. The ramp paints the active fill/icon
         -- from pale blue at Mode 1 to deep blue at Mode 5; its own control is
         -- deliberately exempt from the lock registry so it can always unlock
-        -- the rest of the page.
+        -- the rest of the page. Its flag is shared with the persistence layer
+        -- (`Window:_restoreUnowned`): this panel builds lazily on first open,
+        -- so a saved tier has to reach the window before this control exists.
         local lockModeColors = {
             { r = 234, g = 242, b = 255 }, -- #EAF2FF
             { r = 201, g = 221, b = 255 }, -- #C9DDFF
@@ -125,7 +128,7 @@ function settingsComponent.buildUI(window)
             max_modes = 5,
             allow_mode_add_remove = false,
             reset_on_right_icon_press = true,
-            flag = "astra.elementLockMode",
+            flag = shared.elementLockModeFlag,
             forgetState = false,
             lockSystemController = true,
             modes = lockModes,

@@ -5331,6 +5331,7 @@ local constants = require(utilities.constants)
 local locale = require(utilities.locale)
 local haptic = require(utilities.HapticEngine)
 local layouts = require(utilities.layouts)
+local shared = require(script.Parent.window.constants)
 
 local settingsComponent = {}
 
@@ -5415,7 +5416,9 @@ function settingsComponent.buildUI(window)
         -- A fixed five-stop controller. The ramp paints the active fill/icon
         -- from pale blue at Mode 1 to deep blue at Mode 5; its own control is
         -- deliberately exempt from the lock registry so it can always unlock
-        -- the rest of the page.
+        -- the rest of the page. Its flag is shared with the persistence layer
+        -- (`Window:_restoreUnowned`): this panel builds lazily on first open,
+        -- so a saved tier has to reach the window before this control exists.
         local lockModeColors = {
             { r = 234, g = 242, b = 255 }, -- #EAF2FF
             { r = 201, g = 221, b = 255 }, -- #C9DDFF
@@ -5453,7 +5456,7 @@ function settingsComponent.buildUI(window)
             max_modes = 5,
             allow_mode_add_remove = false,
             reset_on_right_icon_press = true,
-            flag = "astra.elementLockMode",
+            flag = shared.elementLockModeFlag,
             forgetState = false,
             lockSystemController = true,
             modes = lockModes,
@@ -6910,6 +6913,14 @@ local windowSurfaceGradientOffset = Vector2.new(0, -0.1)
 local lockScrimTransparency = 0.55
 local lockedTextTransparency = 0.55
 
+--[[
+The config flag of the built-in Element Lock Mode controller. It is shared
+because the controller's control is built lazily (Settings → Controls), so
+the persistence layer has to recognise the value while no control owns it:
+see `Window:_restoreUnowned` / `Window:_unownedConfigValues`.
+]]
+local elementLockModeFlag = "astra.elementLockMode"
+
 local viewportCheckInterval = 2
 
 --[[
@@ -6969,6 +6980,7 @@ return {
     windowSurfaceGradientOffset = windowSurfaceGradientOffset,
     lockScrimTransparency = lockScrimTransparency,
     lockedTextTransparency = lockedTextTransparency,
+    elementLockModeFlag = elementLockModeFlag,
     viewportCheckInterval = viewportCheckInterval,
     constructionFrameBudget = constructionFrameBudget,
     constructionInstanceBudget = constructionInstanceBudget,
@@ -7112,6 +7124,40 @@ function Window:SetElementLockMode(mode): number
         picker:Set(nextMode, true)
     end
     return nextMode
+end
+
+--[[
+`_restoreLate` restores a control that arrives after the configuration was
+loaded. This is the case it cannot reach: a persisted value whose control
+does not exist yet. The element-lock tier is exactly that, because its
+control is the Settings → Controls picker and settings panels build lazily
+on first open — so a saved Mode 5 had nothing to restore into at startup.
+The page came up unlocked and only locked once the player opened that panel
+or nudged the picker, which read as the tier not being saved at all. The
+window therefore answers for the state it owns directly; a live control of
+the same flag wins and restores through the normal path instead.
+]]
+function Window:_restoreUnowned(values)
+    if typeof(values) ~= "table" or self.controls[shared.elementLockModeFlag] then
+        return
+    end
+    local stored = tonumber(values[shared.elementLockModeFlag])
+    if stored then
+        self:SetElementLockMode(stored)
+    end
+end
+
+--[[
+The save-side mirror: a configuration written before the Settings panel was
+ever opened still carries the active tier, so a saved config stays a
+complete snapshot (and a host that drives the modes through
+`SetElementLockMode` alone persists them too).
+]]
+function Window:_unownedConfigValues()
+    if self.controls[shared.elementLockModeFlag] then
+        return nil
+    end
+    return { [shared.elementLockModeFlag] = self:GetElementLockMode() }
 end
 
 function Window:_setElementLocked(element, locked, message, source)
@@ -28316,6 +28362,13 @@ type ConfigWindow = {
     _loadedConfig: { [string]: unknown }?,
     _loadedConfigPath: string?,
     _loadCheckpoint: ((any, number) -> ())?,
+    --[[
+    Window-owned state whose control may not have been built yet (the
+    element-lock tier lives behind the lazily built Settings → Controls
+    panel). Both are optional so a host-side window stub keeps working.
+    ]]
+    _restoreUnowned: ((any, { [string]: unknown }) -> ())?,
+    _unownedConfigValues: ((any) -> { [string]: unknown }?)?,
 }
 
 function persistenceConfig.getPath(window: ConfigWindow, requestedName: unknown?): (string?, string?)
@@ -28354,6 +28407,23 @@ function persistenceConfig.save(window: ConfigWindow, saveName: unknown?): boole
         for preservedKey, preservedValue in loadedConfig do
             if window.controls[preservedKey] == nil then
                 payload[preservedKey] = preservedValue
+            end
+        end
+    end
+
+    --[[
+    Window-owned state with no live control — the element-lock tier, whose
+    control sits in a settings panel that builds lazily on first open — is
+    part of the snapshot as well. It merges after the preserved keys so the
+    tier this session is actually running wins over the loaded file's copy.
+    ]]
+    if typeof(window._unownedConfigValues) == "function" then
+        local ownedValues = window:_unownedConfigValues()
+        if type(ownedValues) == "table" then
+            for ownedFlag, ownedValue in ownedValues do
+                if window.controls[ownedFlag] == nil then
+                    payload[ownedFlag] = ownedValue
+                end
             end
         end
     end
@@ -28477,6 +28547,21 @@ function persistenceConfig.load(window: ConfigWindow, loadName: unknown?): boole
 
                 window._loadedConfig = values
     window._loadedConfigPath = loadPath
+
+    --[[
+    Values whose control does not exist yet still have to land: the element
+    lock tier's control is the Settings → Controls picker, and settings
+    panels build lazily on first open, so without this a saved Mode 5 sat in
+    the file until the player opened that panel (or moved the picker). It
+    runs under the loading guard because locking a focused Input releases
+    its focus, and that commit must not schedule a write mid-load.
+    ]]
+    if typeof(window._restoreUnowned) == "function" then
+        local wasLoadingUnowned = window._loading
+        window._loading = true
+        window:_restoreUnowned(values)
+        window._loading = wasLoadingUnowned
+    end
 
     return true
 end
@@ -29041,106 +29126,106 @@ local LineOffsets = {
     [13] = 4252,
     [14] = 4991,
     [15] = 5329,
-    [16] = 5898,
-    [17] = 5961,
-    [18] = 6435,
-    [19] = 6781,
-    [20] = 6795,
-    [21] = 6852,
-    [22] = 6983,
-    [23] = 7490,
-    [24] = 7729,
-    [25] = 8051,
-    [26] = 8151,
-    [27] = 8213,
-    [28] = 8865,
-    [29] = 9113,
-    [30] = 9463,
-    [31] = 9917,
-    [32] = 6755,
-    [34] = 10851,
-    [35] = 11688,
-    [36] = 11777,
-    [37] = 12006,
-    [38] = 12427,
-    [39] = 12892,
-    [40] = 13049,
-    [41] = 13194,
-    [42] = 14812,
-    [43] = 15060,
-    [44] = 15300,
-    [45] = 15621,
-    [46] = 16067,
-    [47] = 16320,
-    [48] = 17400,
-    [49] = 18224,
-    [50] = 18310,
-    [51] = 18913,
-    [52] = 19755,
-    [53] = 20349,
-    [54] = 20930,
-    [55] = 21060,
-    [56] = 21199,
-    [58] = 21714,
-    [59] = 21740,
-    [60] = 21759,
-    [61] = 21792,
-    [62] = 21918,
-    [63] = 21944,
-    [64] = 21993,
-    [65] = 21689,
-    [66] = 22098,
-    [67] = 22403,
-    [68] = 22434,
-    [69] = 22087,
-    [70] = 22477,
-    [71] = 22497,
-    [72] = 22529,
-    [73] = 22459,
-    [74] = 22636,
-    [75] = 22704,
-    [77] = 22786,
-    [78] = 22953,
-    [79] = 22972,
-    [80] = 22771,
-    [81] = 23603,
-    [82] = 23649,
-    [83] = 23731,
-    [84] = 23926,
-    [85] = 24057,
-    [86] = 24160,
-    [87] = 24329,
-    [88] = 24669,
-    [89] = 23068,
-    [90] = 25313,
-    [91] = 25199,
-    [92] = 25452,
-    [93] = 25550,
-    [94] = 25728,
-    [95] = 25787,
-    [96] = 25817,
-    [97] = 26068,
-    [98] = 26117,
-    [99] = 26570,
-    [100] = 26588,
-    [101] = 26795,
-    [102] = 26815,
-    [103] = 26943,
-    [104] = 27042,
-    [105] = 27273,
-    [106] = 27329,
-    [107] = 27794,
-    [108] = 27830,
-    [109] = 27848,
-    [110] = 28208,
-    [111] = 28220,
-    [112] = 28271,
-    [113] = 28290,
-    [114] = 28549,
-    [115] = 28593,
-    [116] = 28809,
-    [117] = 28837,
-    [118] = 28848,
+    [16] = 5901,
+    [17] = 5964,
+    [18] = 6438,
+    [19] = 6784,
+    [20] = 6798,
+    [21] = 6855,
+    [22] = 6995,
+    [23] = 7536,
+    [24] = 7775,
+    [25] = 8097,
+    [26] = 8197,
+    [27] = 8259,
+    [28] = 8911,
+    [29] = 9159,
+    [30] = 9509,
+    [31] = 9963,
+    [32] = 6758,
+    [34] = 10897,
+    [35] = 11734,
+    [36] = 11823,
+    [37] = 12052,
+    [38] = 12473,
+    [39] = 12938,
+    [40] = 13095,
+    [41] = 13240,
+    [42] = 14858,
+    [43] = 15106,
+    [44] = 15346,
+    [45] = 15667,
+    [46] = 16113,
+    [47] = 16366,
+    [48] = 17446,
+    [49] = 18270,
+    [50] = 18356,
+    [51] = 18959,
+    [52] = 19801,
+    [53] = 20395,
+    [54] = 20976,
+    [55] = 21106,
+    [56] = 21245,
+    [58] = 21760,
+    [59] = 21786,
+    [60] = 21805,
+    [61] = 21838,
+    [62] = 21964,
+    [63] = 21990,
+    [64] = 22039,
+    [65] = 21735,
+    [66] = 22144,
+    [67] = 22449,
+    [68] = 22480,
+    [69] = 22133,
+    [70] = 22523,
+    [71] = 22543,
+    [72] = 22575,
+    [73] = 22505,
+    [74] = 22682,
+    [75] = 22750,
+    [77] = 22832,
+    [78] = 22999,
+    [79] = 23018,
+    [80] = 22817,
+    [81] = 23649,
+    [82] = 23695,
+    [83] = 23777,
+    [84] = 23972,
+    [85] = 24103,
+    [86] = 24206,
+    [87] = 24375,
+    [88] = 24715,
+    [89] = 23114,
+    [90] = 25359,
+    [91] = 25245,
+    [92] = 25498,
+    [93] = 25596,
+    [94] = 25774,
+    [95] = 25833,
+    [96] = 25863,
+    [97] = 26114,
+    [98] = 26163,
+    [99] = 26616,
+    [100] = 26634,
+    [101] = 26841,
+    [102] = 26861,
+    [103] = 26989,
+    [104] = 27088,
+    [105] = 27319,
+    [106] = 27375,
+    [107] = 27840,
+    [108] = 27876,
+    [109] = 27894,
+    [110] = 28254,
+    [111] = 28266,
+    [112] = 28317,
+    [113] = 28336,
+    [114] = 28634,
+    [115] = 28678,
+    [116] = 28894,
+    [117] = 28922,
+    [118] = 28933,
 }
 
 -- Misc AOT variable imports

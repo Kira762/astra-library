@@ -32,7 +32,7 @@ local userTabs = {}
 for _, tab in window.tabs do
     if not tab._isSettingsTab then table.insert(userTabs, tab) end
 end
-assert(#userTabs == 11, "Demo has eleven purpose-based tabs, including All Elements")
+assert(#userTabs == 12, "Demo has twelve purpose-based tabs, including All Elements and Steppers")
 local allElementsTab
 for _, tab in userTabs do
     if tab.name == "All Elements" then
@@ -54,7 +54,7 @@ for _, element in allElementsTab.elements do
     end
     allElementNames[kind] = visibleName
 end
-for _, kind in { "Section", "Text", "Button", "Toggle", "Slider", "Dropdown", "Input", "Keybind", "Stat", "Link", "AboutCard", "Footer", "Changelog", "Divider", "Group", "CollapsibleGroup", "ModePicker", "Isolated" } do
+for _, kind in { "Section", "Text", "Button", "Toggle", "Slider", "Stepper", "Dropdown", "Input", "Keybind", "Stat", "Link", "AboutCard", "Footer", "Changelog", "Divider", "Group", "CollapsibleGroup", "ModePicker", "Isolated" } do
     assert(allElementNames[kind] == kind, "All Elements names its " .. kind .. " entry correctly")
 end
 local types = {}
@@ -75,7 +75,7 @@ for _, tab in userTabs do
     TestPump(0.5)
     scan(tab.elements, tab == overview or tab.name == "All Elements")
 end
-for _, kind in { "AboutCard", "Section", "Text", "Stat", "Divider", "Link", "Changelog", "Isolated", "Footer", "Button", "Group", "CollapsibleGroup", "Input", "Keybind", "Toggle", "Slider", "Dropdown" } do
+for _, kind in { "AboutCard", "Section", "Text", "Stat", "Divider", "Link", "Changelog", "Isolated", "Footer", "Button", "Group", "CollapsibleGroup", "Input", "Keybind", "Toggle", "Stepper", "Slider", "Dropdown" } do
     assert(types[kind], "Demo exercises " .. kind)
 end
 window:_buildSettingsUI()

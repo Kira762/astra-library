@@ -33,6 +33,9 @@ restores the previous value. The callback fires only on real changes.
 - **`scripts/stepper_value_test.luau`** — runtime assertions for the
   default state, per-click stepping, the `0` floor, the optional ceiling,
   typed commits and the callback-on-change-only rule.
+- **`example.client.luau`, `scripts/example_test.luau`** — new "Steppers"
+  demo tab (pure UI test, twelve tabs total, All Elements Stepper renamed
+  to match its type), overview note, section numbers updated.
 
 ## Unreleased — Lock system Mode Picker descriptions
 

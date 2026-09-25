@@ -107,7 +107,7 @@ local function buildStudio(unlockedKey)
         icon = 80387863064905,
         rows = {
             { icon = "code", label = "Version", value = "1.4.0" },
-            { icon = "layers", label = "Tabs", value = "11" },
+            { icon = "layers", label = "Tabs", value = "12" },
             { icon = "user", label = "Author", value = "Astra Team" },
         },
         action = {
@@ -124,7 +124,7 @@ local function buildStudio(unlockedKey)
 
     overview:CreateText({
         name = "Start here",
-        text = "Every tab drives something real: Player edits the character, Live Stats samples the frame loop, Elements drives every handle.",
+        text = "Every tab drives something real: Player edits the character, Live Stats samples the frame loop, Elements drives every handle, Steppers is a pure UI test (no callbacks).",
     })
 
     local actionsRun = overview:CreateStat({
@@ -1031,7 +1031,7 @@ local function buildStudio(unlockedKey)
         name = "Slider", icon = "sliders-horizontal", range = { 0, 100 }, value = 50,
     })
     allElements:CreateStepper({
-        name = "Value Configuration", icon = "hash", flag = "demo.stepper",
+        name = "Stepper", icon = "hash", flag = "demo.stepper",
         value = 0, min = 0, step = 1,
     })
     allElements:CreateDropdown({
@@ -1087,7 +1087,17 @@ local function buildStudio(unlockedKey)
         } } },
     })
 
-    -- 9. Configs — the persistence API
+    -- 9. Steppers — pure UI test of the Stepper element (no callbacks, no wiring)
+    local steppers = window:CreateTab({ name = "Steppers", icon = "hash" })
+    steppers:CreateSection({ name = "Stepper UI test", icon = "hash" })
+    steppers:CreateStepper({ name = "Value Configuration", icon = "hash", value = 0, min = 0, step = 1 })
+    steppers:CreateStepper({ name = "Party size", icon = "hash", value = 1, min = 1, max = 8, step = 1 })
+    steppers:CreateStepper({ name = "Wager", icon = "hash", value = 0, min = 0, max = 500, step = 25 })
+    steppers:CreateStepper({ name = "Opacity", icon = "hash", value = 1, min = 0, max = 1, step = 0.1 })
+    steppers:CreateStepper({ name = "Bias", icon = "hash", value = 0, min = -5, max = 5, step = 1 })
+    steppers:CreateText({ name = "UI test only — no callbacks, no game wiring", text = "Tap [-] / [+], type values, test clamping. Boundaries: Value (0 floor), Party (max 8), Wager (step 25, cap 500), Opacity (fractional 0–1), Bias (min -5)." })
+
+    -- 10. Configs — the persistence API
     local configs = window:CreateTab({ name = "Configs", icon = "save" })
 
     configs:CreateSection({ name = "Slots", icon = "folder-open" })
@@ -1189,7 +1199,7 @@ local function buildStudio(unlockedKey)
 
     refreshSlots()
 
-    -- 9. Window — theme, motion, visibility, overlays, diagnostics
+    -- 11. Window — theme, motion, visibility, overlays, diagnostics
     -- Built after this tab, but its unlock button closes over it.
     local premium
 
@@ -1340,7 +1350,7 @@ local function buildStudio(unlockedKey)
         end,
     })
 
-    -- 10. Premium — starts locked, unlocked from the Window tab
+    -- 12. Premium — starts locked, unlocked from the Window tab
     premium = window:CreateTab({ name = "Premium", icon = "star", locked = true })
 
     premium:CreateSection({ name = "Gated", icon = "crown" })

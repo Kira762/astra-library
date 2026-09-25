@@ -42,10 +42,10 @@ Accepted as `lockLevel` (number 1–5, clamped/rounded) or `lockGroup` (string, 
 
 ```
 Mode 1 — nothing automatic (only explicit Level 1). Subtitle: "Mode 1 — all controls unlocked"
-Mode 2 — Level 1–2              (inputs, links, dropdowns, keybinds)
-Mode 3 — Level 1–3              + Toggles, Sliders, Buttons, ModePickers, AboutCard actions
-Mode 4 — Level 1–4              + sensitive / advanced
-Mode 5 — Level 1–5              = every registered lockable control
+Mode 2 — Level 1–2              (inputs, links, dropdowns, keybinds). Subtitle: "Mode 2 — inputs and selections locked (Links, Inputs, Dropdowns, Keybinds)"
+Mode 3 — Level 1–3              + Toggles, Sliders, Buttons, ModePickers, AboutCard actions. Subtitle: "Mode 3 — important actions locked (Buttons, Toggles, Sliders, Mode Pickers)"
+Mode 4 — Level 1–4              + sensitive / advanced. Subtitle: "Mode 4 — sensitive controls locked (high-impact actions)"
+Mode 5 — Level 1–5              = every registered lockable control. Subtitle: "Mode 5 — all lockable controls locked (Collapsible Groups, Isolated headers)"
 ```
 
 Lowering the mode unlocks only tiers above it. Raising it never unlocks. `Window:SetElementLockMode` / `GetElementLockMode` clamp to 1–5.
@@ -67,7 +67,7 @@ usageTag = nil, usage = nil, IsLocked() == false at every mode including 5
 Manual Lock/Unlock are no-ops on it
 ```
 
-It drives `Window:SetElementLockMode` and keeps its own `Mode N — …` subtitle in sync. Its five modes are fixed (`minModes = 5, maxModes = 5, allow_mode_add_remove = false`).
+It drives `Window:SetElementLockMode` and keeps its own `Mode N — …` subtitle in sync with descriptions of what element types each mode locks. Its five modes carry `description` metadata and are fixed (`minModes = 5, maxModes = 5, allow_mode_add_remove = false`).
 
 ## Manual locks compose
 

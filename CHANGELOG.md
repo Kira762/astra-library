@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased — Lock system Mode Picker descriptions
+
+Users adjusting the built-in Element Lock Mode controller in Settings → Controls
+could not tell which specific element types each mode locks. Modes now carry
+explicit descriptions documenting what is disabled at each stop, and the
+controller updates its subtitle to display the affected element types as the
+user drags or selects a mode.
+
+- **`components/settings.luau`** — `lockModes` definitions on the built-in
+  `Element Lock Mode` picker now carry descriptions specifying the locked
+  controls for each tier: Mode 1 (all controls unlocked), Mode 2 (Links, Inputs,
+  Dropdowns, Keybinds), Mode 3 (Buttons, Toggles, Sliders, Mode Pickers),
+  Mode 4 (sensitive & high-impact actions), Mode 5 (all lockable controls
+  including Collapsible Groups and Isolated headers).
+- **`elements/modePicker.luau`** — `normalizeModes` preserves mode-level
+  `description` fields; `lockModeSubtitles` and `_syncLockSystemMode` incorporate
+  per-mode descriptions so the active subtitle names the locked element types.
+- **`Types.luau`** — `ModeDefinition` exports `description: string?`.
+- **`USAGE.md` & `skills/astra-guard/references/lock-tiers.md`** — documented the
+  descriptive subtitles and mode definitions for the Element Lock Mode picker.
+- **`scripts/guard_invariants_test.luau` & `scripts/elements_lock_test.luau`** —
+  asserted that controller modes carry descriptions and that subtitles across
+  Modes 1–5 correctly identify the locked element categories.
+
 ## Unreleased — Compact-row lock scrim layout fix
 
 At Modes 3–5 (and Mode 2 for links) an element inside a row group rendered

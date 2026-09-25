@@ -363,6 +363,7 @@ eq(controller.minModes, 5, "controller cannot shrink below five modes")
 eq(controller.maxModes, 5, "controller cannot exceed five modes")
 for index, mode in ipairs(controller.modes) do
 	eq(mode.label, "Mode " .. tostring(index), "controller label at index " .. tostring(index))
+	expect(type(mode.description) == "string" and #mode.description > 0, "mode " .. tostring(index) .. " has description")
 end
 expect(not controller.allow_mode_add_remove, "controller modes are fixed")
 expect(not controller:IsLocked(), "Mode Picker controller remains unlocked in Mode 5")

@@ -40,6 +40,23 @@ local function eqColor(color, r, g, b, message)
 	end
 end
 
+-- Mirrors Window:_buildLockScrim's flow-layout probe: a GuiObject child of
+-- any of these joins the layout as an item, so a lock surface that hosts one
+-- would adopt the scrim and reflow its own content on every lock.
+local function flowLayoutChild(frame)
+	for _, child in frame:GetChildren() do
+		if
+			child:IsA("UIListLayout")
+			or child:IsA("UIGridLayout")
+			or child:IsA("UITableLayout")
+			or child:IsA("UIPageLayout")
+		then
+			return child
+		end
+	end
+	return nil
+end
+
 -- ── bootstrap window + tab ──────────────────────────────────────────────
 local window = Astra:CreateWindow({ name = "Guard Invariants" })
 TestPump(0.5)
@@ -270,11 +287,91 @@ for key, element in pairs(allElements) do
 		expect(element.lockScrim ~= nil, key .. " lockScrim built")
 		expect(element.lockScrim.__props.Visible == true, key .. " scrim visible at Mode 5")
 		eq(element.lockScrim.__props.ZIndex, 60, key .. " scrim ZIndex 60")
+		-- Overlay, not a layout item: the surface the scrim parents to must
+		-- host no flow layout, or the scrim joins it and shoves the surface's
+		-- own content on every lock (the compact-row regression).
+		local surface = element.lockSurface or element.main
+		eq(element.lockScrim.Parent, surface, key .. " scrim parents to the lock surface")
+		expect(
+			flowLayoutChild(surface) == nil,
+			key .. " lock surface hosts no flow layout (the scrim must stay an overlay)"
+		)
 	end
 end
 -- reset for later sections
 window:SetElementLockMode(1)
 TestPump(0.2)
+
+-- ── D2: compact rows — the scrim must not join the row's content flow ───
+-- Regression: the scrim parented onto the compact row joined its
+-- UIListLayout as an item beside the row's own button, so at Mode 3+ the
+-- icon/label squeezed into half the pill and clipped past the row edge.
+local rowActions = tab:CreateGroup({ direction = "row" })
+local rowButton = rowActions:CreateButton({
+	name = "Refresh roster",
+	id = "rowButton",
+	icon = "refresh-cw",
+	callback = function() end,
+})
+local rowToggle = rowActions:CreateToggle({
+	name = "Row toggle",
+	id = "rowToggle",
+	value = true,
+	callback = function() end,
+})
+local rowLink = rowActions:CreateLink({
+	name = "Row link",
+	id = "rowLink",
+	link = "https://example.com",
+})
+TestPump(0.2)
+
+local compactRows = {
+	rowButton = rowButton,
+	rowToggle = rowToggle,
+	rowLink = rowLink,
+}
+for key, element in pairs(compactRows) do
+	local row = element.main
+	local content = row:FindFirstChild("Content")
+	expect(content ~= nil, key .. " compact row keeps an inner content frame")
+	eq(content.Size.X.Scale, 1, key .. " content frame spans the row width")
+	eq(content.Size.Y.Scale, 1, key .. " content frame spans the row height")
+	eq(element.interact.Parent, content, key .. " row surface flows inside the content frame")
+	expect(flowLayoutChild(content) ~= nil, key .. " content frame hosts the row's UIListLayout")
+	expect(flowLayoutChild(row) == nil, key .. " row itself stays layout-free for overlays")
+end
+
+local compactSnapshots = {}
+for key, element in pairs(compactRows) do
+	local pos = element.interact.Position
+	local size = element.interact.Size
+	compactSnapshots[key] = {
+		pos = { X = pos.X.Offset, Y = pos.Y.Offset },
+		size = { X = size.X.Offset, Y = size.Y.Offset },
+	}
+end
+window:SetElementLockMode(5)
+TestPump(0.2)
+for key, element in pairs(compactRows) do
+	expect(element:IsLocked(), key .. " locks at Mode 5")
+	expect(element.lockScrim ~= nil, key .. " scrim built")
+	expect(element.lockScrim.__props.Visible == true, key .. " scrim visible at Mode 5")
+	eq(element.lockScrim.Parent, element.main, key .. " scrim overlays the row instead of flowing beside the button")
+	expect(element.lockScrim ~= element.interact, key .. " scrim never replaces the interact surface")
+	local before = compactSnapshots[key]
+	local pos = element.interact.Position
+	local size = element.interact.Size
+	eq(pos.X.Offset, before.pos.X, key .. " interact X offset stable across lock")
+	eq(pos.Y.Offset, before.pos.Y, key .. " interact Y offset stable across lock")
+	eq(size.X.Offset, before.size.X, key .. " interact width stable across lock")
+	eq(size.Y.Offset, before.size.Y, key .. " interact height stable across lock")
+end
+window:SetElementLockMode(1)
+TestPump(0.2)
+for key, element in pairs(compactRows) do
+	expect(not element:IsLocked(), key .. " unlocks back at Mode 1")
+end
 
 -- ── E: corner sync — header vs scrim (both containers) ──────────────────
 local function cornerOffsets(cornerInstance)

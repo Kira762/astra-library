@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased — Compact-row lock scrim layout fix
+
+At Modes 3–5 (and Mode 2 for links) an element inside a row group rendered
+lopsided and half-clipped: its lock scrim joined the compact row's
+`UIListLayout` as a layout item beside the row's own button, so the icon/label
+squeezed into half the pill, truncated and ran past the row's clipped edge —
+the "uneven, outside the elements area" report. Locking is an overlay, not a
+layout change (the placement invariant), and compact rows were the one surface
+that broke it.
+
+- **`components/window/tabs.luau`** — `Window:_buildCompactRow` now lays the
+  row's content out on an inner full-size `Content` frame; the row itself stays
+  layout-free so the lock scrim stacks absolutely over the content instead of
+  taking a layout slot. Applies to compact Button, Toggle and Link rows (cost:
+  +1 transparent Frame instance per compact row — below the budget ceilings,
+  which pin the full-width builds only).
+- **`components/window/elements.luau`** — `_buildLockScrim` warns if a lock
+  surface hosts a list/grid/table/page layout (the scrim would join it), so a
+  new element cannot silently reintroduce lock-time layout shifts.
+- **`scripts/guard_invariants_test.luau`** — section D now asserts every
+  lockable's scrim parents to a layout-free lock surface; new section D2 builds
+  a real row group (compact button/toggle/link) and pins the overlay contract
+  across Mode 5 (scrim is a sibling overlay on the row, interact geometry
+  stable across lock/unlock).
+- **`skills/astra-guard/references/layout-geometry.md`** — placement invariant
+  extended with the layout-free lock-surface rule and the content-frame recipe.
+
 ## Unreleased — Regression guard skill and exhaustive invariant harness
 
 The three bug classes that shipped more than once — Mode 1 locking when it

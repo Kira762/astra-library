@@ -15,6 +15,11 @@ assert(before.Position == after.Position and before.Size == after.Size and befor
 
 Same for `headerCorner` metrics on header-based containers.
 
+**Lock surfaces must be layout-free.** The scrim is a GuiObject child of `element.lockSurface or element.main`, and any GuiObject child of a `UIListLayout` (or `UIGridLayout` / `UITableLayout` / `UIPageLayout`) host **joins that layout as an item**. A flow layout directly on the lock surface would therefore adopt the scrim the moment the element locks and shove the surface's own content around — the compact-row regression, where the icon/label squeezed into half the pill and clipped past the row edge at Modes 3–5. Rules:
+
+- A lock surface (`lockSurface` or `main`) never hosts a flow layout. Layout-managed surfaces keep their flow on an **inner full-size content frame** (`Window:_buildCompactRow`'s `Content` frame), and the scrim stacks absolutely beside it.
+- `Window:_buildLockScrim` warns at lock time if a surface violates this; `scripts/guard_invariants_test.luau` (section D) asserts every lockable's scrim parents to a layout-free surface, and section D2 pins the compact-row shape (content frame hosts the flow, row hosts the scrim) across Mode 5.
+
 The guard (`scripts/guard_invariants_test.luau`) snapshots `Position/Size/Parent` for **16 elements** — Button, Toggle, Slider, Input, Dropdown, Keybind, Link, ModePicker, AboutCard, CollapsibleGroup, Isolated, Stat, Text, Divider, Section, Footer — and asserts equality across `SetElementLockMode(1)` ↔ `SetElementLockMode(5)`. Lockables also assert the scrim exists as an overlay:
 
 ```
@@ -84,7 +89,7 @@ sh scripts/slider_travel_test.sh     # slider knob travel and value reach the en
 
 ## When to touch this
 
-Any change to `components/window/constants.luau` (`ElementCornerRadius`, `zIndex.elementLock`), `components/window/theme.luau:_setRoundedCorners`, `components/window/elements.luau:_buildLockScrim` / `_setElementLocked`, `elements/collapsibleGroup.luau` / `isolated.luau` header band, or `elements/modePicker.luau` / `slider.luau` track metrics must be followed by:
+Any change to `components/window/constants.luau` (`ElementCornerRadius`, `zIndex.elementLock`), `components/window/theme.luau:_setRoundedCorners`, `components/window/elements.luau:_buildLockScrim` / `_setElementLocked`, `components/window/tabs.luau:_buildCompactRow` (the content frame that keeps lock surfaces layout-free), `elements/collapsibleGroup.luau` / `isolated.luau` header band, or `elements/modePicker.luau` / `slider.luau` track metrics must be followed by:
 
 ```sh
 node scripts/generate_bundle.js

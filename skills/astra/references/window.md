@@ -240,7 +240,9 @@ control values).
   precedence. Default storage identifiers are shared by windows using the defaults —
   unrelated hubs should use separate named presets.
 - File persistence needs a runtime with writable storage; `window:GetPath()` returns
-  the `(folder, file)` pair actually in use.
+  the `(folder, file)` pair actually in use. Configs are under `Astra/config/`;
+  cached images are under `Astra/assets/`. Astra does not create a workspace-root
+  `ImageCache` folder (and discards an empty executor leftover of that name).
 
 ## Startup pacing
 

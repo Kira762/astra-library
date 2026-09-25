@@ -22190,6 +22190,19 @@ local pngMagic = "\137PNG\r\n\26\n"
 local remoteRewrites: { [string]: string } = {}
 local remotePending: { [string]: { RemoteCallback } } = {}
 
+local function importCustomAsset(filePath: string): string?
+    local env = getfenv()
+    if type(env.getcustomasset) ~= "function" then
+        return nil
+    end
+    local ok, uri = pcall(env.getcustomasset, filePath)
+    filesystem.discardExecutorImageCache()
+    if ok and type(uri) == "string" then
+        return uri
+    end
+    return nil
+end
+
 local function cacheFile(filePath: string, url: string): string?
         if type(getfenv().getcustomasset) ~= "function" or typeof(filesystem.isfile) ~= "function" then
         return nil
@@ -22205,8 +22218,7 @@ local function cacheFile(filePath: string, url: string): string?
             return nil
         end
     end
-    local ok, uri = pcall(getfenv().getcustomasset, filePath)
-    return if ok and type(uri) == "string" then uri else nil
+    return importCustomAsset(filePath)
 end
 
 local function remoteFilePath(url: string): string
@@ -22236,8 +22248,8 @@ function imageCache.remote(url: string, onReady: RemoteCallback?): string
 
     local filePath = remoteFilePath(url)
     if filesystem.isfile(filePath) then
-        local ok, uri = pcall(env.getcustomasset, filePath)
-        if ok and type(uri) == "string" then
+        local uri = importCustomAsset(filePath)
+        if uri then
             remoteRewrites[url] = uri
             if onReady then
                 task.defer(onReady, uri)
@@ -22361,8 +22373,7 @@ function imageCache.preload(onSettled: PreloadCallback?): (boolean, number)
         local filePath = path.join(cacheFolder, tostring(id) .. ".png")
         local uri: string? = nil
         if filesystem.isfile(filePath) then
-            local ok, res = pcall(env.getcustomasset, filePath)
-            uri = if ok and type(res) == "string" then res else nil
+            uri = importCustomAsset(filePath)
         end
         if uri then
                         rewrites[id] = uri
@@ -22404,8 +22415,8 @@ function imageCache.avatar(userId: unknown, onReady: AvatarCallback?): string
 
     local filePath = avatarPath(userId)
     if filesystem.isfile(filePath) then
-        local ok, uri = pcall(getfenv().getcustomasset, filePath)
-        if ok and type(uri) == "string" then
+        local uri = importCustomAsset(filePath)
+        if uri then
             return uri
         end
     end
@@ -23138,6 +23149,8 @@ is never overridden by that order, and an unknown or mis-cased pack name
 resolves to nothing rather than to some other pack.
 ]]
 
+local filesystem = require(script.Parent.utilities.filesystem)
+
 local icons = {}
 
 --[[
@@ -23262,6 +23275,16 @@ local namedAssets = {
 
 local function environment(): any
     return (getfenv and getfenv()) or _G
+end
+
+local function customAsset(path: string): (boolean, string?)
+    local env = environment()
+    if type(env.getcustomasset) ~= "function" then
+        return false, nil
+    end
+    local ok, uri = pcall(env.getcustomasset, path)
+    filesystem.discardExecutorImageCache()
+    return ok, uri
 end
 
 --[[
@@ -23408,14 +23431,13 @@ local function customFile(value: string): string?
     if probed ~= nil then
         return probed or nil
     end
-    local env = environment()
-    if type(env.getcustomasset) ~= "function" then
+    if type(environment().getcustomasset) ~= "function" then
         customProbed[value] = false
         return nil
     end
     for _, ext in ipairs(customExtensions) do
         local path = customAssetFolder .. "/" .. value .. ext
-        local ok, uri = pcall(env.getcustomasset, path)
+        local ok, uri = customAsset(path)
         if ok and type(uri) == "string" and uri ~= "" then
             customProbed[value] = path
             customUris[path] = uri
@@ -23424,7 +23446,7 @@ local function customFile(value: string): string?
     end
     -- A file with no extension is the last accepted form (historic).
     local bare = customAssetFolder .. "/" .. value
-    local ok, uri = pcall(env.getcustomasset, bare)
+    local ok, uri = customAsset(bare)
     if ok and type(uri) == "string" and uri ~= "" then
         customProbed[value] = bare
         customUris[bare] = uri
@@ -23443,8 +23465,7 @@ local function customUri(value: string): string?
     if cached ~= nil then
         return cached or nil
     end
-    local env = environment()
-    local ok, uri = pcall(env.getcustomasset, path)
+    local ok, uri = customAsset(path)
     if ok and type(uri) == "string" and uri ~= "" then
         customUris[path] = uri
         return uri
@@ -26107,6 +26128,47 @@ function filesystem.ensureDir(ensureDirPath: string)
     end
 end
 
+--[[
+Some executors mkdir a workspace-root `ImageCache` the first time
+`getcustomasset` runs, then store the converted asset somewhere else
+(Roblox content / rbxasset://) and leave that folder empty. Astra already
+caches images under `Astra/assets`, never at the workspace root and never
+inside `Astra/config`, so an empty leftover is just noise.
+
+Only a root folder with no children is removed. A folder that actually
+holds files — another script's cache, or an executor that does write here
+— is left alone.
+]]
+local executorImageCacheFolder = "ImageCache"
+
+function filesystem.discardEmptyFolder(folderPath: string)
+    if type(folderPath) ~= "string" or folderPath == "" then
+        return
+    end
+    if string.find(folderPath, "/", 1, true) or string.find(folderPath, "\\", 1, true) then
+        return
+    end
+    if typeof(filesystem.isfolder) ~= "function" or typeof(filesystem.delfolder) ~= "function" then
+        return
+    end
+    local existsOk, exists = pcall(filesystem.isfolder, folderPath)
+    if not existsOk or not exists then
+        return
+    end
+    if typeof(filesystem.listfiles) ~= "function" then
+        return
+    end
+    local listOk, entries = pcall(filesystem.listfiles, folderPath)
+    if not listOk or type(entries) ~= "table" or #entries > 0 then
+        return
+    end
+    pcall(filesystem.delfolder, folderPath)
+end
+
+function filesystem.discardExecutorImageCache()
+    filesystem.discardEmptyFolder(executorImageCacheFolder)
+end
+
 return filesystem
 
 end)() end,
@@ -26441,6 +26503,7 @@ local function a44(
             pcall(a4.writefile, a58, a62)
         end
         local ok, a63 = pcall(a25.getcustomasset, a58)
+        a4.discardExecutorImageCache()
         if ok and type(a63) == "string" then
             a53.faces[i].assetId = a63
             if self._debug then
@@ -26462,6 +26525,7 @@ local function a44(
         return self.defaultOptions.fallbackFont
     end
     local a65, a66 = pcall(a25.getcustomasset, a55 .. "/manifest.json")
+    a4.discardExecutorImageCache()
     if not a65 or not a66 then
         if self._debug then
             a6.warn("Failed to load font manifest for id: " .. tostring(a45))
@@ -29175,57 +29239,57 @@ local LineOffsets = {
     [64] = 22039,
     [65] = 21735,
     [66] = 22144,
-    [67] = 22449,
-    [68] = 22480,
+    [67] = 22460,
+    [68] = 22491,
     [69] = 22133,
-    [70] = 22523,
-    [71] = 22543,
-    [72] = 22575,
-    [73] = 22505,
-    [74] = 22682,
-    [75] = 22750,
-    [77] = 22832,
-    [78] = 22999,
-    [79] = 23018,
-    [80] = 22817,
-    [81] = 23649,
-    [82] = 23695,
-    [83] = 23777,
-    [84] = 23972,
-    [85] = 24103,
-    [86] = 24206,
-    [87] = 24375,
-    [88] = 24715,
-    [89] = 23114,
-    [90] = 25359,
-    [91] = 25245,
-    [92] = 25498,
-    [93] = 25596,
-    [94] = 25774,
-    [95] = 25833,
-    [96] = 25863,
-    [97] = 26114,
-    [98] = 26163,
-    [99] = 26616,
-    [100] = 26634,
-    [101] = 26841,
-    [102] = 26861,
-    [103] = 26989,
-    [104] = 27088,
-    [105] = 27319,
-    [106] = 27375,
-    [107] = 27840,
-    [108] = 27876,
-    [109] = 27894,
-    [110] = 28254,
-    [111] = 28266,
-    [112] = 28317,
-    [113] = 28336,
-    [114] = 28634,
-    [115] = 28678,
-    [116] = 28894,
-    [117] = 28922,
-    [118] = 28933,
+    [70] = 22534,
+    [71] = 22554,
+    [72] = 22586,
+    [73] = 22516,
+    [74] = 22693,
+    [75] = 22761,
+    [77] = 22843,
+    [78] = 23010,
+    [79] = 23029,
+    [80] = 22828,
+    [81] = 23670,
+    [82] = 23716,
+    [83] = 23798,
+    [84] = 23993,
+    [85] = 24124,
+    [86] = 24227,
+    [87] = 24396,
+    [88] = 24736,
+    [89] = 23125,
+    [90] = 25380,
+    [91] = 25266,
+    [92] = 25519,
+    [93] = 25617,
+    [94] = 25795,
+    [95] = 25854,
+    [96] = 25884,
+    [97] = 26176,
+    [98] = 26225,
+    [99] = 26680,
+    [100] = 26698,
+    [101] = 26905,
+    [102] = 26925,
+    [103] = 27053,
+    [104] = 27152,
+    [105] = 27383,
+    [106] = 27439,
+    [107] = 27904,
+    [108] = 27940,
+    [109] = 27958,
+    [110] = 28318,
+    [111] = 28330,
+    [112] = 28381,
+    [113] = 28400,
+    [114] = 28698,
+    [115] = 28742,
+    [116] = 28958,
+    [117] = 28986,
+    [118] = 28997,
 }
 
 -- Misc AOT variable imports

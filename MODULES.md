@@ -537,7 +537,7 @@ Per-element specifics:
   rewrites, blocklist hook, in-flight tracking.
 - `windowIcons.luau` — asset-id registry for built-in chrome icons (settings,
   close, minimize, …).
-- `cache/imageCache.luau` — disk/memory cache; `pcall(callback, uri or "")` at the end of the retry chain.
+- `cache/imageCache.luau` — disk/memory cache under `Astra/assets/images-icon`; `pcall(callback, uri or "")` at the end of the retry chain. `getcustomasset` goes through `importCustomAsset`, which discards an empty executor `ImageCache` leftover.
 - `cache/moduleCache.luau`, `persistenceCache.luau`, `init.luau` — generic memoization layers.
 
 ---
@@ -636,7 +636,7 @@ Per-element specifics:
 - `lockable.luau` — Lockable API plus stable `lockable:astra:<elementId>` usage tags, functional-control registration and automatic level/group resolution for the cumulative five-mode lock system.
 - `log.luau` — warn/error/log with Astra prefix.
 - `locale.luau` — translation table + `SetTranslator` support.
-- `filesystem.luau`, `filesystemManager.luau` — RobloxFS abstraction (isFolder/WriteFile wrappers, secure-mode aware).
+- `filesystem.luau`, `filesystemManager.luau` — RobloxFS abstraction (isFolder/WriteFile wrappers, secure-mode aware). `discardEmptyFolder` / `discardExecutorImageCache` remove a workspace-root `ImageCache` leftover some executors mkdir on `getcustomasset` when that folder has no children; Astra's own image files stay under `Astra/assets`, never under `Astra/config`.
 - `assetResolver.luau`, `network.luau`, `services.luau` — platform layer (HTTP fetch with retries, service singletons).
 - `windowSizing.luau` — responsive size computation (desktop tiers around the
   600x420 default, min/max protected) plus the fixed mobile profile returned
@@ -666,6 +666,7 @@ Per-element specifics:
 | `tab_lock_test.sh` | Locked tabs: the preserved flag + badge (always hidden during the UI pause) and auto-select skipping a locked first tab; tap → notification with no selection; hover leaves the locked row dimmed; `Navigate`/`Select` guards; `SetLocked(false)` re-enables; locking the open tab moves the selection to a same-rail fallback; search excludes locked tabs' elements; locking every remaining tab clears the selection and hides content, and unlocking restores it; retained badge geometry with no layout reserve, full title slots, and hidden badges after collapse/rebuild. |
 | `elements_lock_test.sh` | Elements Lock System: per-window usage tags and stable IDs, existing usage merge, functional-only registration, default and explicit lock tiers, cumulative Mode 1–5 behavior, manual-lock composition, guarded callbacks, preserved input/draft/selection/layout, expanded-dropdown lock behavior, late controls, and the persistent five-mode built-in controller with its Mode 5 reset path. |
 | `lock_mode_persistence_test.sh` | Element Lock Mode round trip: the chosen tier is written to the config, the next execution locks the page from it before Settings is ever opened (its control builds lazily), the lazily built controller agrees with the live tier and then owns the flag, a config saved without that panel still carries a host-driven tier, and a lowered tier leaves no stale locks. |
+| `image_cache_folder_test.sh` | Workspace folders: configs stay under `Astra/config`, Astra never creates a root `ImageCache`, an empty executor `ImageCache` created by `getcustomasset` is discarded, and a non-empty one is left alone. |
 | `toggle_switch_test.sh` | Switch geometry: one set of metrics, mirrored resting states, equal clearance, the sheen under the knob, and the animated positions matching the built ones. |
 | `mode_picker_test.sh` | Mode Picker: the 3..5 mode window, snap/Set/callback order and clamping, dot rebuilds on add/remove, the knob's stop scales, reset semantics, the absence of a description line, the title wearing the icon's RGB — and keeping it through a hover cycle and a per-mode `icon_color` — plus the track geometry: the knob's clearance inside the track's pill at both end stops, the fill wearing the knob's own pill and reaching its trailing edge, the last stop leaving no unpainted tail, and the end dots still at the knob's centres. |
 | `input_field_test.sh` | Field-box corners: the Input field rounds with the theme's `ElementCornerRadius` as a theme binding (pixel radius, never a capsule scale), re-stated on a theme switch, and shared with its element card. |

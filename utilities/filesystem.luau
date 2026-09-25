@@ -245,4 +245,45 @@ function filesystem.ensureDir(ensureDirPath: string)
     end
 end
 
+--[[
+Some executors mkdir a workspace-root `ImageCache` the first time
+`getcustomasset` runs, then store the converted asset somewhere else
+(Roblox content / rbxasset://) and leave that folder empty. Astra already
+caches images under `Astra/assets`, never at the workspace root and never
+inside `Astra/config`, so an empty leftover is just noise.
+
+Only a root folder with no children is removed. A folder that actually
+holds files — another script's cache, or an executor that does write here
+— is left alone.
+]]
+local executorImageCacheFolder = "ImageCache"
+
+function filesystem.discardEmptyFolder(folderPath: string)
+    if type(folderPath) ~= "string" or folderPath == "" then
+        return
+    end
+    if string.find(folderPath, "/", 1, true) or string.find(folderPath, "\\", 1, true) then
+        return
+    end
+    if typeof(filesystem.isfolder) ~= "function" or typeof(filesystem.delfolder) ~= "function" then
+        return
+    end
+    local existsOk, exists = pcall(filesystem.isfolder, folderPath)
+    if not existsOk or not exists then
+        return
+    end
+    if typeof(filesystem.listfiles) ~= "function" then
+        return
+    end
+    local listOk, entries = pcall(filesystem.listfiles, folderPath)
+    if not listOk or type(entries) ~= "table" or #entries > 0 then
+        return
+    end
+    pcall(filesystem.delfolder, folderPath)
+end
+
+function filesystem.discardExecutorImageCache()
+    filesystem.discardEmptyFolder(executorImageCacheFolder)
+end
+
 return filesystem

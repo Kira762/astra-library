@@ -102,6 +102,12 @@ from control values, even while Auto Save Config is off.
 - Stable, unique flags are recommended for controls that should be restored.
 - Ordinary controls and controls inside Collapsible Groups use the same system.
 - File persistence requires a runtime with writable storage.
+- Astra only creates an `Astra/` folder in the executor workspace
+  (`config/`, `settings/`, `assets/`, `keys/`). Saved configs live under
+  `Astra/config/`. Cached images live under `Astra/assets/`, not a sibling
+  `ImageCache` folder and not inside `config/`. Some executors mkdir an
+  empty `ImageCache` on `getcustomasset`; Astra discards that leftover
+  when it has no files.
 
 Default storage identifiers are internal and are not displayed in Settings.
 The default configuration is shared by windows using the defaults; unrelated hubs

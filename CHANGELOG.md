@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased — Empty executor `ImageCache` leftovers are discarded
+
+A sibling `ImageCache` folder next to `Astra/` in the executor workspace is
+not Astra's. Configs are written under `Astra/config/` and cached images
+under `Astra/assets/images-icon/`. Some executors mkdir `ImageCache` on
+the first `getcustomasset` call and then store the converted asset
+somewhere else, leaving an empty folder. That leftover is now removed
+when it has no files; a folder that actually holds data is left alone.
+Image files are not moved into `Astra/config/`.
+
+- **`utilities/filesystem.luau`** — `discardEmptyFolder` / `discardExecutorImageCache`
+  delete a workspace-root folder only when `listfiles` reports no children.
+- **`cache/imageCache.luau`**, **`icons/init.luau`**, **`utilities/fontManager.luau`** —
+  every `getcustomasset` call sweeps the leftover afterwards.
+- **`scripts/image_cache_folder_test.luau`** — new runtime test (C1–C3):
+  configs stay under `Astra/config`, an empty leftover is discarded, a
+  non-empty cache is kept.
+- **`USAGE.md`, `MODULES.md`, `skills/astra/references/window.md`** — the
+  workspace layout and the new test.
+- **`version-1.luau`, `version-1.luau.sig`, `loader.luau`, `README.md`** — the
+  bundle is regenerated and re-signed (`node scripts/sign_bundle.js`, dev key,
+  pinned `PUBLIC_KEY` synced) and the README checksum updated.
+
 ## Unreleased — A saved Element Lock Mode now locks the page on the next run
 
 Leaving the Element Lock Mode on anything above Mode 1 only held for the

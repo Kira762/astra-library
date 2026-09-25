@@ -32,7 +32,7 @@ local userTabs = {}
 for _, tab in window.tabs do
     if not tab._isSettingsTab then table.insert(userTabs, tab) end
 end
-assert(#userTabs == 12, "Demo has twelve purpose-based tabs, including All Elements and Steppers")
+assert(#userTabs == 13, "Demo has thirteen purpose-based tabs, including New Elements, All Elements and Steppers")
 local allElementsTab
 for _, tab in userTabs do
     if tab.name == "All Elements" then

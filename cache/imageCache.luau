@@ -47,6 +47,19 @@ local pngMagic = "\137PNG\r\n\26\n"
 local remoteRewrites: { [string]: string } = {}
 local remotePending: { [string]: { RemoteCallback } } = {}
 
+local function importCustomAsset(filePath: string): string?
+    local env = getfenv()
+    if type(env.getcustomasset) ~= "function" then
+        return nil
+    end
+    local ok, uri = pcall(env.getcustomasset, filePath)
+    filesystem.discardExecutorImageCache()
+    if ok and type(uri) == "string" then
+        return uri
+    end
+    return nil
+end
+
 local function cacheFile(filePath: string, url: string): string?
         if type(getfenv().getcustomasset) ~= "function" or typeof(filesystem.isfile) ~= "function" then
         return nil
@@ -62,8 +75,7 @@ local function cacheFile(filePath: string, url: string): string?
             return nil
         end
     end
-    local ok, uri = pcall(getfenv().getcustomasset, filePath)
-    return if ok and type(uri) == "string" then uri else nil
+    return importCustomAsset(filePath)
 end
 
 local function remoteFilePath(url: string): string
@@ -93,8 +105,8 @@ function imageCache.remote(url: string, onReady: RemoteCallback?): string
 
     local filePath = remoteFilePath(url)
     if filesystem.isfile(filePath) then
-        local ok, uri = pcall(env.getcustomasset, filePath)
-        if ok and type(uri) == "string" then
+        local uri = importCustomAsset(filePath)
+        if uri then
             remoteRewrites[url] = uri
             if onReady then
                 task.defer(onReady, uri)
@@ -218,8 +230,7 @@ function imageCache.preload(onSettled: PreloadCallback?): (boolean, number)
         local filePath = path.join(cacheFolder, tostring(id) .. ".png")
         local uri: string? = nil
         if filesystem.isfile(filePath) then
-            local ok, res = pcall(env.getcustomasset, filePath)
-            uri = if ok and type(res) == "string" then res else nil
+            uri = importCustomAsset(filePath)
         end
         if uri then
                         rewrites[id] = uri
@@ -261,8 +272,8 @@ function imageCache.avatar(userId: unknown, onReady: AvatarCallback?): string
 
     local filePath = avatarPath(userId)
     if filesystem.isfile(filePath) then
-        local ok, uri = pcall(getfenv().getcustomasset, filePath)
-        if ok and type(uri) == "string" then
+        local uri = importCustomAsset(filePath)
+        if uri then
             return uri
         end
     end

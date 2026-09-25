@@ -279,6 +279,7 @@ local function a44(
             pcall(a4.writefile, a58, a62)
         end
         local ok, a63 = pcall(a25.getcustomasset, a58)
+        a4.discardExecutorImageCache()
         if ok and type(a63) == "string" then
             a53.faces[i].assetId = a63
             if self._debug then
@@ -300,6 +301,7 @@ local function a44(
         return self.defaultOptions.fallbackFont
     end
     local a65, a66 = pcall(a25.getcustomasset, a55 .. "/manifest.json")
+    a4.discardExecutorImageCache()
     if not a65 or not a66 then
         if self._debug then
             a6.warn("Failed to load font manifest for id: " .. tostring(a45))

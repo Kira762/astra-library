@@ -25,6 +25,8 @@ is never overridden by that order, and an unknown or mis-cased pack name
 resolves to nothing rather than to some other pack.
 ]]
 
+local filesystem = require(script.Parent.utilities.filesystem)
+
 local icons = {}
 
 --[[
@@ -149,6 +151,16 @@ local namedAssets = {
 
 local function environment(): any
     return (getfenv and getfenv()) or _G
+end
+
+local function customAsset(path: string): (boolean, string?)
+    local env = environment()
+    if type(env.getcustomasset) ~= "function" then
+        return false, nil
+    end
+    local ok, uri = pcall(env.getcustomasset, path)
+    filesystem.discardExecutorImageCache()
+    return ok, uri
 end
 
 --[[
@@ -295,14 +307,13 @@ local function customFile(value: string): string?
     if probed ~= nil then
         return probed or nil
     end
-    local env = environment()
-    if type(env.getcustomasset) ~= "function" then
+    if type(environment().getcustomasset) ~= "function" then
         customProbed[value] = false
         return nil
     end
     for _, ext in ipairs(customExtensions) do
         local path = customAssetFolder .. "/" .. value .. ext
-        local ok, uri = pcall(env.getcustomasset, path)
+        local ok, uri = customAsset(path)
         if ok and type(uri) == "string" and uri ~= "" then
             customProbed[value] = path
             customUris[path] = uri
@@ -311,7 +322,7 @@ local function customFile(value: string): string?
     end
     -- A file with no extension is the last accepted form (historic).
     local bare = customAssetFolder .. "/" .. value
-    local ok, uri = pcall(env.getcustomasset, bare)
+    local ok, uri = customAsset(bare)
     if ok and type(uri) == "string" and uri ~= "" then
         customProbed[value] = bare
         customUris[bare] = uri
@@ -330,8 +341,7 @@ local function customUri(value: string): string?
     if cached ~= nil then
         return cached or nil
     end
-    local env = environment()
-    local ok, uri = pcall(env.getcustomasset, path)
+    local ok, uri = customAsset(path)
     if ok and type(uri) == "string" and uri ~= "" then
         customUris[path] = uri
         return uri

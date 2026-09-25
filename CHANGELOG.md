@@ -1,5 +1,44 @@
 # Changelog
 
+## Unreleased — Tabs tapped during startup no longer snap back to the first tab
+
+Tapping another tab or the Settings action right after a script ran sent the
+player straight back to the first main tab. The window appears after one
+frame and the host's build keeps streaming in behind it (construction
+checkpoints pace the remaining controls across frames), so the player can
+already tap while the script is still running — and every script ends its
+build with `tab:Select()` on its first tab. That call landed after the tap
+and took the selection back. A first main tab created after the player had
+opened Settings did the same through the `CreateTab` auto-select. The host's
+startup selection is now only a default: once the player has picked a tab or
+opened Settings, it no longer overrides them until the build has gone quiet,
+after which `Select` and `Navigate` behave exactly as before.
+
+- **`elements/tab.luau`** — `Select` is split into the public gate and the
+  internal `_select`. `Select` is skipped while `window._userNavigated` is
+  set and the host build has not settled; the row tap marks
+  `_userNavigated` and calls `_select`, and the lock/remove fallbacks call
+  `_select` so they always move the selection off a tab that went away.
+- **`components/settings.luau`** — the Settings action marks
+  `_userNavigated` and enters/leaves the settings rail through `_select`;
+  leaving Settings also skips locked tabs when it falls back to the first
+  main tab.
+- **`components/window/tabs.luau`** — the first-tab auto-select in
+  `CreateTab` does not fire once the player has navigated.
+- **`library_entrypoint.luau`** — sets `window._hostBuildSettled` when the
+  host's construction goes quiet (and when the auto-show is cancelled).
+- **`scripts/startup_navigation_test.luau`** — new runtime test (N1–N5):
+  a paced host build with a row tap / Settings tap in the middle keeps the
+  player's choice through the closing `Select`, a late first tab stays
+  unselected, host navigation works after startup, and the host's selection
+  still applies when the player did not tap.
+- **`USAGE.md`, `MODULES.md`** — the startup selection rule and the new test.
+- **`version-1.luau.sig`, `loader.luau`, `README.md`** — the bundle is
+  re-signed (`node scripts/sign_bundle.js`, dev key, pinned `PUBLIC_KEY`
+  synced) and the README checksum updated. The previous three merges
+  changed the bundle without re-signing, so the committed signature had
+  stopped matching and the verifying loader was failing closed to its stub.
+
 ## Unreleased — Stepper: neutral pill, one-row card
 
 The Stepper's value field no longer wears the accent stroke: the whole row

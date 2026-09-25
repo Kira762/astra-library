@@ -149,7 +149,13 @@ function state:_bindSelector()
             })
             return
         end
-        self:Select()
+        --[[
+        A row tap is the user choosing a tab: record it so the host's own
+        startup selection (`tab:Select()` at the end of its build, or the
+        first-tab auto-select in `Window:CreateTab`) cannot take it back.
+        ]]
+        self.window._userNavigated = true
+        self:_select()
     end))
     table.insert(self.connections, self.window:Connect(self.topbarItemInteract.MouseEnter, function()
         if self.locked or not self.window:_interactive() then
@@ -225,7 +231,27 @@ function state:_spinGradients()
     end
 end
 
+--[[
+The public selection. The window is on screen and tappable while the host
+is still building it (the staged startup reveals the shell after one frame
+and paces the remaining constructors across later frames), so a host's
+closing `tab:Select()` — the documented last line of every build — used to
+land seconds after the user had already opened another tab or Settings and
+yank them back to the first tab. Until the host's construction has gone
+quiet (`_hostBuildSettled`, set by the entrypoint), a host selection only
+applies while the user has not picked a tab yet; after that it is honoured
+as before. Internal moves (row taps, the Settings action, the fallback when
+the open tab is locked or removed) go through `_select` directly.
+]]
 function state:Select(a24)
+    local win = self.window
+    if win._userNavigated and not win._hostBuildSettled and win.selectedTab ~= nil then
+        return
+    end
+    self:_select(a24)
+end
+
+function state:_select(a24)
     if self.window.unloaded then
         --[[
         A superseded script's build can end with a selection call after
@@ -363,7 +389,7 @@ function state:SetLocked(locked)
         end
     end
     if fallback then
-        fallback:Select()
+        fallback:_select()
     else
         --[[
         Pathological: every other tab is locked or neglected. Clear the
@@ -522,7 +548,7 @@ function state:Remove()
             end
         end
         if fallback then
-            fallback:Select()
+            fallback:_select()
         end
     end
 

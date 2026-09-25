@@ -187,6 +187,14 @@ local col = row:CreateGroup({ direction = "column" }) -- nested column
 col:CreateToggle({ name = "Left 1" })
 ```
 
+**The user's choice wins during startup.** The window appears after one
+frame and the rest of your build streams in behind it, so the player can
+already tap tabs (or Settings) while your script is still adding controls.
+If they do, the `tab:Select()` / `window:Navigate()` at the end of your
+build, and the auto-select of a first tab you create late, are skipped — the
+player stays where they tapped. Once your build has gone quiet (two frames
+with no construction), `Select` and `Navigate` always apply again.
+
 Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateStepper`, `CreateDropdown`, `CreateInput`, `CreateLink`, `CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup` and `CreateIsolated`.
 
 Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateStepper`, `CreateDropdown`, `CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateLink`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.

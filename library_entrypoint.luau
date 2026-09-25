@@ -356,6 +356,7 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 			end
 			if window._autoShowCancelled then
 				window._startupComplete = true
+				(window :: any)._hostBuildSettled = true
 				return
 			end
 			if window.hidden then
@@ -377,9 +378,20 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 				end
 			end
 
-			if window.unloaded or window._autoShowCancelled then
+			if window.unloaded then
 				return
 			end
+			if window._autoShowCancelled then
+				(window :: any)._hostBuildSettled = true
+				return
+			end
+			--[[
+			The host's build is over: from here on a host `tab:Select()` /
+			`window:Navigate()` is a deliberate move and always applies. Until
+			now it only applied while the user had not picked a tab yet
+			(see `Tab:Select`).
+			]]
+			(window :: any)._hostBuildSettled = true
 			window:Show()
 
 			--[[

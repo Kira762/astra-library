@@ -213,7 +213,8 @@ function state.new(tab, element)
 
     self.window:Create("UICorner", {
         Parent = self.cluster,
-    }, { CornerRadius = UDim.new(0, clusterRadius) })
+        CornerRadius = UDim.new(0, clusterRadius),
+    })
 
     self.clusterStroke = self.window:Create("UIStroke", {
         Transparency = 1,
@@ -283,7 +284,8 @@ function state:_buildStepButton(glyphName: string, layoutOrder: number)
 
     window:Create("UICorner", {
         Parent = button,
-    }, { CornerRadius = UDim.new(0, buttonSize / 2) })
+        CornerRadius = UDim.new(0, buttonSize / 2),
+    })
 
     local stroke = window:Create("UIStroke", {
         Transparency = 1,
@@ -360,7 +362,8 @@ function state:_buildField()
 
     window:Create("UICorner", {
         Parent = self.box,
-    }, { CornerRadius = UDim.new(0, fieldHeight / 2) })
+        CornerRadius = UDim.new(0, fieldHeight / 2),
+    })
 
     self.boxStroke = window:Create("UIStroke", {
         Transparency = 0.55,

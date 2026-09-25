@@ -76,6 +76,9 @@ local function normalizeModes(raw)
 			if typeof(mode) == "table" then
 				table.insert(list, {
 					label = tostring(mode.label or mode.Label or ("Mode " .. tostring(key))),
+					description = if mode.description ~= nil then tostring(mode.description)
+						elseif mode.Description ~= nil then tostring(mode.Description)
+						else nil,
 					type = mode.type or mode.Type or "dot",
 					dot_position = tonumber(mode.dot_position or mode.DotPosition or key) or #list + 1,
 					onEnable = mode.onEnable or mode.OnEnable,
@@ -616,10 +619,10 @@ end
 
 local lockModeSubtitles = {
 	[1] = "Mode 1 — all controls unlocked",
-	[2] = "Mode 2 — inputs and selections locked",
-	[3] = "Mode 3 — important actions locked",
-	[4] = "Mode 4 — sensitive controls locked",
-	[5] = "Mode 5 — all lockable controls locked",
+	[2] = "Mode 2 — inputs and selections locked (Links, Inputs, Dropdowns, Keybinds)",
+	[3] = "Mode 3 — important actions locked (Buttons, Toggles, Sliders, Mode Pickers)",
+	[4] = "Mode 4 — sensitive controls locked (high-impact actions)",
+	[5] = "Mode 5 — all lockable controls locked (Collapsible Groups, Isolated headers)",
 }
 
 function state:_syncLockSystemMode()
@@ -627,7 +630,17 @@ function state:_syncLockSystemMode()
 		return
 	end
 	self.window:SetElementLockMode(self.mode)
-	self:SetSubtitle(lockModeSubtitles[self.mode])
+	local modeDef = self.modes[self.mode]
+	local desc = modeDef and (modeDef.description or modeDef.Description)
+	if desc and desc ~= "" then
+		if string.find(desc, "^Mode %d") then
+			self:SetSubtitle(desc)
+		else
+			self:SetSubtitle(`Mode {self.mode} — {desc}`)
+		end
+	else
+		self:SetSubtitle(lockModeSubtitles[self.mode] or `Mode {self.mode}`)
+	end
 end
 
 --[[

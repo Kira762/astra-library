@@ -249,7 +249,11 @@ The built-in **Settings → Controls → Element Lock Mode** picker has five fix
 cumulative modes. Mode 1 leaves automatically tiered controls unlocked (only an
 explicit `lockLevel = 1` / `lockGroup = "minor"` would lock at this tier); each
 higher mode keeps those locks and adds another tier; Mode 5 locks every lockable
-functional element. The blue mode ramp and subtitle identify the active mode. The
+functional element. The blue mode ramp and subtitle identify the active mode, with
+descriptions specifying which element types each mode locks (e.g. Mode 2 locks
+Links, Inputs, Dropdowns, and Keybinds; Mode 3 locks Buttons, Toggles, Sliders,
+and Mode Pickers; Mode 4 locks sensitive actions; Mode 5 locks all remaining
+lockable controls including Collapsible Groups and Isolated headers). The
 picker itself is exempt, so its reset button remains usable in Mode 5. Hosts can
 also reset/unlock externally with `window:SetElementLockMode(1)` or inspect the
 current tier with `window:GetElementLockMode()`.

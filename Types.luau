@@ -202,6 +202,7 @@ export type InputProps = LockableProps & {
 
 export type ModeDefinition = {
     label: string?,
+    description: string?,
     type: string?,           -- "default" | "toggle" | "dot" (descriptive)
     dot_position: number?,   -- normalized to 1..n by dot order
     onEnable: ((index: number, label: string) -> ())?,

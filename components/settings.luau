@@ -95,10 +95,18 @@ function settingsComponent.buildUI(window)
             { r = 90, g = 134, b = 240 }, -- #5A86F0
             { r = 29, g = 63, b = 168 }, -- #1D3FA8
         }
+        local lockModeDescriptions = {
+            [1] = "all controls unlocked",
+            [2] = "inputs and selections locked (Links, Inputs, Dropdowns, Keybinds)",
+            [3] = "important actions locked (Buttons, Toggles, Sliders, Mode Pickers)",
+            [4] = "sensitive controls locked (high-impact actions)",
+            [5] = "all lockable controls locked (Collapsible Groups, Isolated headers)",
+        }
         local lockModes = {}
         for index, color in ipairs(lockModeColors) do
             table.insert(lockModes, {
                 label = "Mode " .. tostring(index),
+                description = lockModeDescriptions[index],
                 type = if index == 1 then "default" else "dot",
                 icon_color = color,
             })

@@ -14,15 +14,19 @@ Behaviour contract:
     step's precision and clamped into range on commit, and anything that
     does not parse restores the previous value.
 
-The row carries an optional subtitle below the title (the `description`
-prop, attached through the shared description engine — same recipe as
-the Stat). The cluster on the right is one pill: the buttons flank the
-focal value field with the same gap on both sides so the eye lands on
-the number, and the whole pill wears the neutral button surface with a
-hairline stroke so it reads as a single, intentional control rather than
-three adjacent buttons. The value field itself wears the accent stroke
-at rest and tightens to the active focus glow when focused, which is
-what makes it the focal point of the row.
+The cluster on the right is one pill: the buttons flank the value field
+with the same gap on both sides so the eye lands on the number, and the
+whole pill — buttons and field alike — wears the neutral button surface
+with the same hairline stroke, so it reads as a single, intentional
+control rather than three adjacent buttons. Nothing in the row is
+accented: the field is the focal point by size (taller than the buttons,
+larger text) and not by colour, and its stroke tightens one stop when
+focused, which is the only state feedback it carries.
+
+A `description` passed to a Stepper is ignored: the row is one line of
+title and one pill, exactly like the Button/Toggle/Slider family, so the
+title block and the cluster share one centre line and the card keeps its
+single-row height.
 ]]
 
 local state = {}
@@ -36,7 +40,6 @@ local locale = require(utilities.locale)
 local haptic = require(utilities.HapticEngine)
 local moveable = require(utilities.moveable)
 local lockable = require(utilities.lockable)
-local description = require(script.Parent.description)
 
 --[[
 Value, field and button motion all ride the shared service: `snappy`
@@ -53,7 +56,7 @@ two buttons and the field share one rounded surface with hairline
 dividers, so the row is symmetric around the value — the focal point
 the design asks for. The field is 2px taller than the buttons (30 vs 28)
 and carries the larger text, which is what makes it read as the primary
-surface rather than a third button.
+surface rather than a third button — size, not an accent colour.
 ]]
 local buttonSize = 28
 local fieldWidth = 56
@@ -63,6 +66,17 @@ local glyphSize = 14
 local valueTextSize = 17
 local clusterWidth = buttonSize * 2 + fieldWidth + clusterGap * 2
 local clusterRadius = fieldHeight / 2
+
+--[[
+The field's hairline is the pill's own: the same neutral `SurfaceStroke`
+the cluster and both buttons wear, one stop tighter while the field is
+focused. The whole row wears one stroke colour — nothing in it is
+accented — so the field reads as the focal point by size and text
+weight alone, and the capsule stays one surface rather than a card with
+a highlighted chip inside it.
+]]
+local fieldStrokeRest = 0.85
+local fieldStrokeFocus = 0.4
 
 --[[ Decimal places a step needs (the slider's increment rule). ]]
 local function placesFor(step: number): number
@@ -96,7 +110,6 @@ function state.new(tab, element)
         window = tab.window,
         name = element.name or element.Name or "Stepper",
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
-        description = element.description or element.Description,
         forgetState = element.forgetState or element.ForgetState or tab.forgetState,
 
         -- Range/step normalization mirrors the slider: swapped bounds are
@@ -139,14 +152,12 @@ function state.new(tab, element)
     self.hoverOverlay = self.window:CreateHoverOverlay(self.main)
 
     --[[
-    Title block: leading icon + name, like every other card. The
-    description (subtitle) is attached as a wrapped line beneath the
-    title — the same recipe the Stat uses, so a wrapped subtitle
-    reserves exactly the room it renders in and the cluster rides up
-    by the extra height.
+    Title block: leading icon + name, like every other card, vertically
+    centred on the card's single row — the same line the pill cluster
+    sits on, so the title and the control read as one row. A
+    `description` prop is not attached: the Stepper keeps the one-line
+    row the rest of the control family uses.
     ]]
-    description.attach(self)
-
     self.container = self.window:Create("Frame", {
         Size = UDim2.new(1, -(clusterWidth + 45), 0, 16),
         Position = UDim2.new(0, 20, 0.5, 0),
@@ -197,13 +208,12 @@ function state.new(tab, element)
     buttons and the value field together. The pill wears the neutral
     button surface with the surface stroke, and the value field sits on
     top of it (slightly larger) so the three controls read as one
-    capsule rather than three independent buttons. The cluster rides up
-    by the description's extra height, just like the bottom-anchored
-    rows on every other card with a subtitle.
+    capsule rather than three independent buttons. It is centred on the
+    card, exactly like the title block beside it.
     ]]
     self.cluster = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -15, 0.5, -(self._descriptionExtra or 0) / 2),
+        Position = UDim2.new(1, -15, 0.5, 0),
         Size = UDim2.fromOffset(clusterWidth, fieldHeight),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -342,11 +352,12 @@ end
 
 --[[
 The value field — the focal point inside the pill. It is a real
-TextBox dressed as the input family's field (FieldBackground + accent
-stroke), but larger and wearing the accent stroke at rest so the eye
-lands on the number first. Invalid text never lands: the sanitizer keeps
-digits, dot and sign while typing, and a commit that does not parse
-restores the displayed value.
+TextBox dressed as the input family's field (FieldBackground + the same
+neutral SurfaceStroke hairline, at the input's own rest transparency),
+but taller than the two buttons and carrying the larger text, which is
+what makes the eye land on the number. Invalid text never lands: the
+sanitizer keeps digits, dot and sign while typing, and a commit that
+does not parse restores the displayed value.
 ]]
 function state:_buildField()
     local window = self.window
@@ -366,9 +377,9 @@ function state:_buildField()
     })
 
     self.boxStroke = window:Create("UIStroke", {
-        Transparency = 0.55,
+        Transparency = fieldStrokeRest,
         Parent = self.box,
-    }, { Color = "AccentStroke" })
+    }, { Color = "SurfaceStroke" })
 
     self._glowIdle = 0.85
     self.input = window:Create("TextBox", {
@@ -401,12 +412,12 @@ function state:_buildField()
             return
         end
         motion.tween(self.input, { TextTransparency = 0 }, focusSpec)
-        motion.tween(self.boxStroke, { Transparency = 0.25 }, focusSpec)
+        motion.tween(self.boxStroke, { Transparency = fieldStrokeFocus }, focusSpec)
     end)
 
     window:ConnectFor(self, self.input.FocusLost, function()
         motion.tween(self.input, { TextTransparency = 0.1 }, focusSpec)
-        motion.tween(self.boxStroke, { Transparency = 0.55 }, focusSpec)
+        motion.tween(self.boxStroke, { Transparency = fieldStrokeRest }, focusSpec)
         if self._cancelingEdit then
             self._cancelingEdit = false
             return
@@ -532,7 +543,7 @@ function state:_setShown(shown, animate)
     if shown then
         w:_revealCommon(self, animate)
         w:_reveal(self.box, { BackgroundTransparency = w.theme.FieldTransparency }, animate)
-        w:_reveal(self.boxStroke, { Transparency = 0.55 }, animate)
+        w:_reveal(self.boxStroke, { Transparency = fieldStrokeRest }, animate)
         w:_reveal(self.input, { TextTransparency = 0.1 }, animate)
     else
         w:_hideCommon(self, animate)

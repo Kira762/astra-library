@@ -151,9 +151,12 @@ uses the compact card; `dragging` is true while the handle is being moved.
 
 ## Stepper
 
-The `[−] [value] [+]` counter: icon-style tap buttons around a highlighted,
-editable value field. The value starts at `0` (or `value`), never goes below
-`min` (default `0`), and has no upper limit unless `max` is set.
+The `[−] [value] [+]` counter: icon-style tap buttons around an editable
+value field, all three inside one capsule (neutral `NeutralButton` surface,
+one `SurfaceStroke` hairline). The value starts at `0` (or `value`), never
+goes below `min` (default `0`), and has no upper limit unless `max` is set.
+Nothing in the row is accented — the field leads by size — and a
+`description` prop is ignored (the card stays one row).
 
 ```lua
 local amount = tab:CreateStepper({

@@ -629,9 +629,12 @@ export type SliderProps = LockableProps & {
 }
 
 --[[
-The [−] [value] [+] counter row. `min` defaults to 0 (the value never
-sinks below it) and `max` is optional — omit it for no upper limit.
-`step` is one button tap and the value display's precision.
+The [−] [value] [+] counter row — one neutral capsule, with the value
+field leading by size. `min` defaults to 0 (the value never sinks below
+it) and `max` is optional — omit it for no upper limit. `step` is one
+button tap and the value display's precision. There is no `description`
+slot: like the Button/Toggle/Slider family the prop is ignored, and the
+card keeps its single-row height.
 ]]
 export type StepperProps = LockableProps & {
     name: string?,
@@ -19741,15 +19744,19 @@ Behaviour contract:
     step's precision and clamped into range on commit, and anything that
     does not parse restores the previous value.
 
-The row carries an optional subtitle below the title (the `description`
-prop, attached through the shared description engine — same recipe as
-the Stat). The cluster on the right is one pill: the buttons flank the
-focal value field with the same gap on both sides so the eye lands on
-the number, and the whole pill wears the neutral button surface with a
-hairline stroke so it reads as a single, intentional control rather than
-three adjacent buttons. The value field itself wears the accent stroke
-at rest and tightens to the active focus glow when focused, which is
-what makes it the focal point of the row.
+The cluster on the right is one pill: the buttons flank the value field
+with the same gap on both sides so the eye lands on the number, and the
+whole pill — buttons and field alike — wears the neutral button surface
+with the same hairline stroke, so it reads as a single, intentional
+control rather than three adjacent buttons. Nothing in the row is
+accented: the field is the focal point by size (taller than the buttons,
+larger text) and not by colour, and its stroke tightens one stop when
+focused, which is the only state feedback it carries.
+
+A `description` passed to a Stepper is ignored: the row is one line of
+title and one pill, exactly like the Button/Toggle/Slider family, so the
+title block and the cluster share one centre line and the card keeps its
+single-row height.
 ]]
 
 local state = {}
@@ -19763,7 +19770,6 @@ local locale = require(utilities.locale)
 local haptic = require(utilities.HapticEngine)
 local moveable = require(utilities.moveable)
 local lockable = require(utilities.lockable)
-local description = require(script.Parent.description)
 
 --[[
 Value, field and button motion all ride the shared service: `snappy`
@@ -19780,7 +19786,7 @@ two buttons and the field share one rounded surface with hairline
 dividers, so the row is symmetric around the value — the focal point
 the design asks for. The field is 2px taller than the buttons (30 vs 28)
 and carries the larger text, which is what makes it read as the primary
-surface rather than a third button.
+surface rather than a third button — size, not an accent colour.
 ]]
 local buttonSize = 28
 local fieldWidth = 56
@@ -19790,6 +19796,17 @@ local glyphSize = 14
 local valueTextSize = 17
 local clusterWidth = buttonSize * 2 + fieldWidth + clusterGap * 2
 local clusterRadius = fieldHeight / 2
+
+--[[
+The field's hairline is the pill's own: the same neutral `SurfaceStroke`
+the cluster and both buttons wear, one stop tighter while the field is
+focused. The whole row wears one stroke colour — nothing in it is
+accented — so the field reads as the focal point by size and text
+weight alone, and the capsule stays one surface rather than a card with
+a highlighted chip inside it.
+]]
+local fieldStrokeRest = 0.85
+local fieldStrokeFocus = 0.4
 
 --[[ Decimal places a step needs (the slider's increment rule). ]]
 local function placesFor(step: number): number
@@ -19823,7 +19840,6 @@ function state.new(tab, element)
         window = tab.window,
         name = element.name or element.Name or "Stepper",
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
-        description = element.description or element.Description,
         forgetState = element.forgetState or element.ForgetState or tab.forgetState,
 
         -- Range/step normalization mirrors the slider: swapped bounds are
@@ -19866,14 +19882,12 @@ function state.new(tab, element)
     self.hoverOverlay = self.window:CreateHoverOverlay(self.main)
 
     --[[
-    Title block: leading icon + name, like every other card. The
-    description (subtitle) is attached as a wrapped line beneath the
-    title — the same recipe the Stat uses, so a wrapped subtitle
-    reserves exactly the room it renders in and the cluster rides up
-    by the extra height.
+    Title block: leading icon + name, like every other card, vertically
+    centred on the card's single row — the same line the pill cluster
+    sits on, so the title and the control read as one row. A
+    `description` prop is not attached: the Stepper keeps the one-line
+    row the rest of the control family uses.
     ]]
-    description.attach(self)
-
     self.container = self.window:Create("Frame", {
         Size = UDim2.new(1, -(clusterWidth + 45), 0, 16),
         Position = UDim2.new(0, 20, 0.5, 0),
@@ -19924,13 +19938,12 @@ function state.new(tab, element)
     buttons and the value field together. The pill wears the neutral
     button surface with the surface stroke, and the value field sits on
     top of it (slightly larger) so the three controls read as one
-    capsule rather than three independent buttons. The cluster rides up
-    by the description's extra height, just like the bottom-anchored
-    rows on every other card with a subtitle.
+    capsule rather than three independent buttons. It is centred on the
+    card, exactly like the title block beside it.
     ]]
     self.cluster = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -15, 0.5, -(self._descriptionExtra or 0) / 2),
+        Position = UDim2.new(1, -15, 0.5, 0),
         Size = UDim2.fromOffset(clusterWidth, fieldHeight),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
@@ -20069,11 +20082,12 @@ end
 
 --[[
 The value field — the focal point inside the pill. It is a real
-TextBox dressed as the input family's field (FieldBackground + accent
-stroke), but larger and wearing the accent stroke at rest so the eye
-lands on the number first. Invalid text never lands: the sanitizer keeps
-digits, dot and sign while typing, and a commit that does not parse
-restores the displayed value.
+TextBox dressed as the input family's field (FieldBackground + the same
+neutral SurfaceStroke hairline, at the input's own rest transparency),
+but taller than the two buttons and carrying the larger text, which is
+what makes the eye land on the number. Invalid text never lands: the
+sanitizer keeps digits, dot and sign while typing, and a commit that
+does not parse restores the displayed value.
 ]]
 function state:_buildField()
     local window = self.window
@@ -20093,9 +20107,9 @@ function state:_buildField()
     })
 
     self.boxStroke = window:Create("UIStroke", {
-        Transparency = 0.55,
+        Transparency = fieldStrokeRest,
         Parent = self.box,
-    }, { Color = "AccentStroke" })
+    }, { Color = "SurfaceStroke" })
 
     self._glowIdle = 0.85
     self.input = window:Create("TextBox", {
@@ -20128,12 +20142,12 @@ function state:_buildField()
             return
         end
         motion.tween(self.input, { TextTransparency = 0 }, focusSpec)
-        motion.tween(self.boxStroke, { Transparency = 0.25 }, focusSpec)
+        motion.tween(self.boxStroke, { Transparency = fieldStrokeFocus }, focusSpec)
     end)
 
     window:ConnectFor(self, self.input.FocusLost, function()
         motion.tween(self.input, { TextTransparency = 0.1 }, focusSpec)
-        motion.tween(self.boxStroke, { Transparency = 0.55 }, focusSpec)
+        motion.tween(self.boxStroke, { Transparency = fieldStrokeRest }, focusSpec)
         if self._cancelingEdit then
             self._cancelingEdit = false
             return
@@ -20259,7 +20273,7 @@ function state:_setShown(shown, animate)
     if shown then
         w:_revealCommon(self, animate)
         w:_reveal(self.box, { BackgroundTransparency = w.theme.FieldTransparency }, animate)
-        w:_reveal(self.boxStroke, { Transparency = 0.55 }, animate)
+        w:_reveal(self.boxStroke, { Transparency = fieldStrokeRest }, animate)
         w:_reveal(self.input, { TextTransparency = 0.1 }, animate)
     else
         w:_hideCommon(self, animate)
@@ -28966,117 +28980,117 @@ end)() end,
 local LineOffsets = {
     [2] = 47,
     [3] = 470,
-    [5] = 1179,
-    [6] = 1162,
-    [7] = 1334,
-    [8] = 1476,
-    [9] = 1727,
-    [10] = 2109,
-    [11] = 3479,
-    [12] = 3888,
-    [13] = 4237,
-    [14] = 4976,
-    [15] = 5314,
-    [16] = 5877,
-    [17] = 5940,
-    [18] = 6414,
-    [19] = 6760,
-    [20] = 6774,
-    [21] = 6831,
-    [22] = 6962,
-    [23] = 7469,
-    [24] = 7708,
-    [25] = 8030,
-    [26] = 8130,
-    [27] = 8192,
-    [28] = 8844,
-    [29] = 9086,
-    [30] = 9436,
-    [31] = 9890,
-    [32] = 6734,
-    [34] = 10824,
-    [35] = 11661,
-    [36] = 11750,
-    [37] = 11979,
-    [38] = 12400,
-    [39] = 12865,
-    [40] = 13022,
-    [41] = 13167,
-    [42] = 14785,
-    [43] = 15033,
-    [44] = 15273,
-    [45] = 15594,
-    [46] = 16040,
-    [47] = 16293,
-    [48] = 17373,
-    [49] = 18197,
-    [50] = 18283,
-    [51] = 18886,
-    [52] = 19728,
-    [53] = 20311,
-    [54] = 20866,
-    [55] = 20996,
-    [56] = 21135,
-    [58] = 21650,
-    [59] = 21676,
-    [60] = 21695,
-    [61] = 21728,
-    [62] = 21854,
-    [63] = 21880,
-    [64] = 21929,
-    [65] = 21625,
-    [66] = 22034,
-    [67] = 22339,
-    [68] = 22370,
-    [69] = 22023,
-    [70] = 22413,
-    [71] = 22433,
-    [72] = 22465,
-    [73] = 22395,
-    [74] = 22572,
-    [75] = 22640,
-    [77] = 22722,
-    [78] = 22889,
-    [79] = 22908,
-    [80] = 22707,
-    [81] = 23539,
-    [82] = 23585,
-    [83] = 23667,
-    [84] = 23862,
-    [85] = 23993,
-    [86] = 24096,
-    [87] = 24265,
-    [88] = 24605,
-    [89] = 23004,
-    [90] = 25249,
-    [91] = 25135,
-    [92] = 25388,
-    [93] = 25486,
-    [94] = 25664,
-    [95] = 25723,
-    [96] = 25753,
-    [97] = 26004,
-    [98] = 26053,
-    [99] = 26506,
-    [100] = 26524,
-    [101] = 26731,
-    [102] = 26751,
-    [103] = 26879,
-    [104] = 26978,
-    [105] = 27209,
-    [106] = 27265,
-    [107] = 27730,
-    [108] = 27766,
-    [109] = 27784,
-    [110] = 28144,
-    [111] = 28156,
-    [112] = 28207,
-    [113] = 28226,
-    [114] = 28485,
-    [115] = 28529,
-    [116] = 28745,
-    [117] = 28773,
-    [118] = 28784,
+    [5] = 1182,
+    [6] = 1165,
+    [7] = 1337,
+    [8] = 1479,
+    [9] = 1730,
+    [10] = 2112,
+    [11] = 3482,
+    [12] = 3891,
+    [13] = 4240,
+    [14] = 4979,
+    [15] = 5317,
+    [16] = 5880,
+    [17] = 5943,
+    [18] = 6417,
+    [19] = 6763,
+    [20] = 6777,
+    [21] = 6834,
+    [22] = 6965,
+    [23] = 7472,
+    [24] = 7711,
+    [25] = 8033,
+    [26] = 8133,
+    [27] = 8195,
+    [28] = 8847,
+    [29] = 9089,
+    [30] = 9439,
+    [31] = 9893,
+    [32] = 6737,
+    [34] = 10827,
+    [35] = 11664,
+    [36] = 11753,
+    [37] = 11982,
+    [38] = 12403,
+    [39] = 12868,
+    [40] = 13025,
+    [41] = 13170,
+    [42] = 14788,
+    [43] = 15036,
+    [44] = 15276,
+    [45] = 15597,
+    [46] = 16043,
+    [47] = 16296,
+    [48] = 17376,
+    [49] = 18200,
+    [50] = 18286,
+    [51] = 18889,
+    [52] = 19731,
+    [53] = 20325,
+    [54] = 20880,
+    [55] = 21010,
+    [56] = 21149,
+    [58] = 21664,
+    [59] = 21690,
+    [60] = 21709,
+    [61] = 21742,
+    [62] = 21868,
+    [63] = 21894,
+    [64] = 21943,
+    [65] = 21639,
+    [66] = 22048,
+    [67] = 22353,
+    [68] = 22384,
+    [69] = 22037,
+    [70] = 22427,
+    [71] = 22447,
+    [72] = 22479,
+    [73] = 22409,
+    [74] = 22586,
+    [75] = 22654,
+    [77] = 22736,
+    [78] = 22903,
+    [79] = 22922,
+    [80] = 22721,
+    [81] = 23553,
+    [82] = 23599,
+    [83] = 23681,
+    [84] = 23876,
+    [85] = 24007,
+    [86] = 24110,
+    [87] = 24279,
+    [88] = 24619,
+    [89] = 23018,
+    [90] = 25263,
+    [91] = 25149,
+    [92] = 25402,
+    [93] = 25500,
+    [94] = 25678,
+    [95] = 25737,
+    [96] = 25767,
+    [97] = 26018,
+    [98] = 26067,
+    [99] = 26520,
+    [100] = 26538,
+    [101] = 26745,
+    [102] = 26765,
+    [103] = 26893,
+    [104] = 26992,
+    [105] = 27223,
+    [106] = 27279,
+    [107] = 27744,
+    [108] = 27780,
+    [109] = 27798,
+    [110] = 28158,
+    [111] = 28170,
+    [112] = 28221,
+    [113] = 28240,
+    [114] = 28499,
+    [115] = 28543,
+    [116] = 28759,
+    [117] = 28787,
+    [118] = 28798,
 }
 
 -- Misc AOT variable imports

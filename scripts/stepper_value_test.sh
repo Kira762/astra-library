@@ -2,8 +2,9 @@
 # Runtime test for the Stepper (Value Configuration) element: the 0 default,
 # per-click ±step with the display following, the 0 floor (a (−) tap there is
 # a no-op with no callback), the optional max ceiling, typed commits clamping
-# into range with unparseable text restoring the old value, and the callback
-# firing only on real changes.
+# into range with unparseable text restoring the old value, the callback
+# firing only on real changes, an inert description prop, the field's neutral
+# SurfaceStroke hairline (tightened by focus) and the title/pill centre line.
 #
 # Assembles: mini Roblox stubs + bundle (wrapped in a function to keep
 # `local` scoping) + assertions, writes it to a temp file, and runs it under

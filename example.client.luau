@@ -184,24 +184,23 @@ local function buildStudio(unlockedKey)
     overview:CreateFooter({ parts = { { text = "Built with" }, { icon = "zap" }, { text = "Astra" } } })
 
     -- 2. New Elements — recently added APIs in one place so they are easy
-    -- to find when you come back to the studio. The Stepper redesign with
-    -- the new `description` prop is the headline here. All Elements
-    -- already showcases every constructor, so this tab stays focused on
-    -- the new look + the new prop.
+    -- to find when you come back to the studio. The Stepper redesign (the
+    -- [−] [value] [+] counter as one pill capsule) is the headline here.
+    -- All Elements already showcases every constructor, so this tab stays
+    -- focused on the new look.
     local newElements = window:CreateTab({ name = "New Elements", icon = "sparkles" })
 
-    newElements:CreateSection({ name = "Stepper (pill capsule + description)", icon = "hash" })
+    newElements:CreateSection({ name = "Stepper (pill capsule)", icon = "hash" })
 
     newElements:CreateText({
         name = "What changed",
-        text = "The [−] [value] [+] counter is now one pill capsule on the right of the card. A new `description` prop attaches a subtitle under the title (same recipe the Stat uses). Behaviour contract is unchanged: clamp, typed commits, focus glow and the lock tier all keep working.",
+        text = "The [−] [value] [+] counter is now one pill capsule on the right of the card: both buttons and the value field wear the same neutral surface and hairline stroke, and the larger number carries the focus instead of an accent ring. Behaviour contract is unchanged: clamp, typed commits, focus ring and the lock tier all keep working.",
     })
 
     local pillStat = newElements:CreateStat({ name = "Pill value", value = 1, changeMode = "delta", changeBaseline = "initial", suffix = " units" })
     newElements:CreateStepper({
         name = "Counter",
         icon = "hash",
-        description = "Increase or decrease the value",
         flag = "demo.new.counter",
         value = 1, min = 0, max = 10, step = 1,
         callback = function(value) pillStat:Set(value) end,
@@ -210,7 +209,6 @@ local function buildStudio(unlockedKey)
     newElements:CreateStepper({
         name = "Bounded range",
         icon = "hash",
-        description = "0–100, step 5 — test ceiling clamping",
         flag = "demo.new.bounded",
         value = 0, min = 0, max = 100, step = 5,
     })
@@ -218,7 +216,6 @@ local function buildStudio(unlockedKey)
     newElements:CreateStepper({
         name = "Fractional step",
         icon = "hash",
-        description = "0–1, step 0.25 — fractional precision",
         flag = "demo.new.frac",
         value = 0, min = 0, max = 1, step = 0.25,
     })
@@ -226,7 +223,6 @@ local function buildStudio(unlockedKey)
     newElements:CreateStepper({
         name = "Negative range",
         icon = "hash",
-        description = "-5 to +5 — floor + ceiling both directions",
         flag = "demo.new.negative",
         value = 0, min = -5, max = 5, step = 1,
     })

@@ -119,7 +119,7 @@ The first tab opens on its own and layout is a user setting (**Settings → Appe
 
 `flag`, `icon` and `name` are accepted almost everywhere; `description` is a helper
 line on `CreateCollapsibleGroup` and `CreateStat` only — Button, Toggle, Slider,
-Dropdown, Input, ModePicker, AboutCard and Link ignore the prop.
+Stepper, Dropdown, Input, ModePicker, AboutCard and Link ignore the prop.
 
 | Create on Tab / Group | Key props | Handle methods |
 |---|---|---|
@@ -129,6 +129,7 @@ Dropdown, Input, ModePicker, AboutCard and Link ignore the prop.
 | `CreateKeybind({ name, value, flag, callback })` | Required editable one-letter A–Z field; uppercase string value, default K; no description row | `Set`, `Capture`, `CancelCapture` |
 | `CreateToggle({ name, value, flag, callback })` | fires `callback(on)` | `:Set(on, skipCallback?)` |
 | `CreateSlider({ name, range = { min, max }, value, increment, suffix, minimal, flag, callback })` | `callback(value, dragging)` | `:Set(value)` |
+| `CreateStepper({ name, min, max, step, value, flag, callback })` | `[−] [value] [+]` capsule; one tap is one clamped `step`, `min` defaults to 0, `max` optional | `:Set(value)`, `:Get()`, `:Increment()`, `:Decrement()` |
 | `CreateDropdown({ name, options, value, multiSelect, placeholder, flag, callback })` | multi-select value is a table | `:Refresh(options)`, `:Add(option)`, `:Remove(option)` |
 | `CreateInput({ name, value, placeholder, numeric, clearOnFocus, flag, callback })` | text field, `callback(text)` | `:Set(text)` |
 | `CreateLink({ name, subtitle, link, icon, callback })` | card carrying a hidden URL; the trailing control copies it and swaps in a check mark for two seconds — the link is never rendered | `:Set(link)`, `:SetLink(link)`, `:SetTitle(name)`, `:SetSubtitle(text)`, `:SetIcon(icon)`, `:Copy()`, `:IsConfirming()` |

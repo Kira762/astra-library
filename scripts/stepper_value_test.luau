@@ -16,7 +16,11 @@ horizontal cluster around the focal value field. Behaviour under test:
        restores the previous value,
   * S6 the callback fires only on real changes,
   * S7 layout: minus, field and plus share one horizontal cluster and
-       the value field wears the larger text (the focal point).
+       the value field wears the larger text (the focal point),
+  * S8 a passed `description` is inert: no helper line, no card growth,
+  * S9 the row wears no accent: the field's stroke is the pill's own
+       neutral `SurfaceStroke`, tightening one stop while focused,
+  * S10 the title block and the pill cluster share one centre line.
 ]]
 
 local function expect(cond, message)
@@ -32,6 +36,43 @@ local function eq(actual, wanted, message)
 			0
 		)
 	end
+end
+
+local function near(actual, wanted, message)
+	if math.abs(actual - wanted) >= 0.01 then
+		error(
+			"STEPPER VALUE FAIL: " .. message .. " (got " .. tostring(actual) .. ", want " .. tostring(wanted) .. ")",
+			0
+		)
+	end
+end
+
+--[[
+Card-local vertical centre of an instance, walked with the anchor math the
+engine applies — the S10 alignment assertions compare two centre lines, so
+the declared scales and offsets both have to land right.
+]]
+local function centerY(instance, ancestor)
+	local y, height = 0, 0
+	local node = instance
+	while node do
+		local parent = node.Parent
+		if not parent then
+			break
+		end
+		local size = parent.AbsoluteSize
+		local position, nodeSize, anchor = node.Position, node.Size, node.AnchorPoint
+		local nodeHeight = nodeSize.Y.Scale * size.Y + nodeSize.Y.Offset
+		if node == instance then
+			height = nodeHeight
+		end
+		y = y + position.Y.Scale * size.Y + position.Y.Offset - anchor.Y * nodeHeight
+		if parent == ancestor then
+			break
+		end
+		node = parent
+	end
+	return y + height / 2
 end
 
 local window = Astra:CreateWindow({ name = "Stepper Value Test" })
@@ -179,3 +220,56 @@ for _, child in stepper.plusButton:GetChildren() do
 end
 expect(minusGlyph, "S7 the minus control is icon-style (glyph, not a text label)")
 expect(plusGlyph, "S7 the plus control is icon-style (glyph, not a text label)")
+
+-- ===== S8: a passed description is inert ==================================
+--[[
+The Stepper is a one-line control row like the Button/Toggle/Slider family:
+the prop is ignored, so nothing is drawn under the title and the card keeps
+its 41px single-row height.
+]]
+local described = tab:CreateStepper({
+	name = "Described",
+	description = "Never rendered",
+	value = 0, min = 0, max = 10, step = 1,
+})
+TestPump(0.4)
+eq(described.descriptionLabel, nil, "S8 a passed description builds no helper line")
+eq(described._descriptionExtra, nil, "S8 no description room is reserved")
+near(described.main.Size.Y.Offset, 41, "S8 the card keeps its 41px single-row height")
+
+-- ===== S9: no accent in the row — the field wears the pill's stroke ========
+--[[
+The pill cluster and both buttons wear the theme's neutral `SurfaceStroke`
+hairline; the field is the focal point by size alone, so it wears that same
+stroke (the input family's own rest transparency) instead of the accent, and
+focus only tightens it one stop.
+]]
+near(stepper.boxStroke.Transparency, 0.85, "S9 the field rests at the input family's 0.85 hairline")
+eq(stepper.boxStroke.Color, stepper.clusterStroke.Color, "S9 the field's stroke matches the pill's")
+eq(stepper.boxStroke.Color, stepper.window.theme.SurfaceStroke, "S9 ... and it is the theme's SurfaceStroke")
+expect(stepper.boxStroke.Color ~= stepper.window.theme.AccentStroke, "S9 the field wears no accent stroke")
+
+stepper.input.Focused:Fire()
+TestPump(0.4)
+near(stepper.boxStroke.Transparency, 0.4, "S9 focusing tightens the field's hairline one stop")
+
+stepper.input.FocusLost:Fire(false)
+TestPump(0.5)
+near(stepper.boxStroke.Transparency, 0.85, "S9 leaving the field returns the hairline to rest")
+
+-- ===== S10: title block and cluster share one centre line =================
+--[[
+Both are centred on the card, so the row reads as one line and the pill can
+never float above the title again (the described variant is covered too).
+]]
+near(centerY(stepper.container, stepper.main), stepper.main.AbsoluteSize.Y / 2, "S10 the title block sits on the card's centre")
+near(
+	centerY(stepper.cluster, stepper.main),
+	centerY(stepper.container, stepper.main),
+	"S10 the pill cluster shares the title's centre line"
+)
+near(
+	centerY(described.cluster, described.main),
+	centerY(described.container, described.main),
+	"S10 ... and so does a described stepper's"
+)

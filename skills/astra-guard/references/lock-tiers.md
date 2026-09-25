@@ -12,6 +12,7 @@ local defaultLockLevels = {
   Keybind = 2,
   Toggle = 3,
   Slider = 3,
+  Stepper = 3,
   Button = 3,
   AboutCard = 3,
   ModePicker = 3,
@@ -43,7 +44,7 @@ Accepted as `lockLevel` (number 1–5, clamped/rounded) or `lockGroup` (string, 
 ```
 Mode 1 — nothing automatic (only explicit Level 1). Subtitle: "Mode 1 — all controls unlocked"
 Mode 2 — Level 1–2              (inputs, links, dropdowns, keybinds). Subtitle: "Mode 2 — inputs and selections locked (Links, Inputs, Dropdowns, Keybinds)"
-Mode 3 — Level 1–3              + Toggles, Sliders, Buttons, ModePickers, AboutCard actions. Subtitle: "Mode 3 — important actions locked (Buttons, Toggles, Sliders, Mode Pickers)"
+Mode 3 — Level 1–3              + Toggles, Sliders, Steppers, Buttons, ModePickers, AboutCard actions. Subtitle: "Mode 3 — important actions locked (Buttons, Toggles, Sliders, Steppers, Mode Pickers)"
 Mode 4 — Level 1–4              + sensitive / advanced. Subtitle: "Mode 4 — sensitive controls locked (high-impact actions)"
 Mode 5 — Level 1–5              = every registered lockable control. Subtitle: "Mode 5 — all lockable controls locked (Collapsible Groups, Isolated headers)"
 ```

@@ -98,7 +98,7 @@ function settingsComponent.buildUI(window)
         local lockModeDescriptions = {
             [1] = "all controls unlocked",
             [2] = "inputs and selections locked (Links, Inputs, Dropdowns, Keybinds)",
-            [3] = "important actions locked (Buttons, Toggles, Sliders, Mode Pickers)",
+            [3] = "important actions locked (Buttons, Toggles, Sliders, Steppers, Mode Pickers)",
             [4] = "sensitive controls locked (high-impact actions)",
             [5] = "all lockable controls locked (Collapsible Groups, Isolated headers)",
         }

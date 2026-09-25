@@ -4,9 +4,9 @@
 
 A Roblox/Luau interface library for executor scripts: one loader line, one
 `CreateWindow` call, and tabs full of elements — buttons, toggles, sliders,
-dropdowns, inputs, letter-only keybinds, stats, text, dividers, groups, collapsible
-groups and changelog — with built-in settings, themes, icon packs, saved configs and staged
-startup.
+steppers, dropdowns, inputs, letter-only keybinds, stats, text, dividers, groups,
+collapsible groups and changelog — with built-in settings, themes, icon packs,
+saved configs and staged startup.
 
 ## Use the library
 

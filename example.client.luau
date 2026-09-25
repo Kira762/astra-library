@@ -1030,6 +1030,10 @@ local function buildStudio(unlockedKey)
     allElements:CreateSlider({
         name = "Slider", icon = "sliders-horizontal", range = { 0, 100 }, value = 50,
     })
+    allElements:CreateStepper({
+        name = "Value Configuration", icon = "hash", flag = "demo.stepper",
+        value = 0, min = 0, step = 1,
+    })
     allElements:CreateDropdown({
         name = "Dropdown", icon = "list-filter", options = { "One", "Two" }, value = "One",
     })

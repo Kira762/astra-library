@@ -440,6 +440,10 @@ function state:CreateSlider(a36)
     return self:_register(require(script.Parent.slider).new(self, a36))
 end
 
+function state:CreateStepper(props)
+    return self:_register(require(script.Parent.stepper).new(self, props))
+end
+
 function state:CreateModePicker(props)
     return self:_register(require(script.Parent.modePicker).new(self, props))
 end

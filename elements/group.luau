@@ -14,6 +14,7 @@ local direction = {
     switch = true,
     stat = true,
     slider = true,
+    stepper = true,
     link = true,
 }
 
@@ -74,7 +75,7 @@ function state:_add(a13, a14)
     end
     if self.compact and not direction[a13] then
         Group.warn(
-            `Astra: a row only holds compact elements (button/toggle/stat/slider), ignoring '{a13}'. Use a column for it.`
+            `Astra: a row only holds compact elements (button/toggle/stat/slider/stepper), ignoring '{a13}'. Use a column for it.`
         )
         return nil
     end
@@ -147,6 +148,10 @@ function state:CreateStat(a20)
 end
 function state:CreateSlider(a21)
     return self:_add("slider", a21)
+end
+
+function state:CreateStepper(props)
+    return self:_add("stepper", props)
 end
 
 function state:CreateModePicker(props)

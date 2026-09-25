@@ -159,6 +159,24 @@ export type SliderProps = LockableProps & {
         callback: ((value: number, dragging: boolean) -> ())?,
 }
 
+--[[
+The [−] [value] [+] counter row. `min` defaults to 0 (the value never
+sinks below it) and `max` is optional — omit it for no upper limit.
+`step` is one button tap and the value display's precision.
+]]
+export type StepperProps = LockableProps & {
+    name: string?,
+    icon: (string | number)?,
+    flag: string?,
+    min: number?,
+    max: number?,
+    step: number?,
+    value: number?,
+    increment: number?, -- Deprecated alias of `step`
+    forgetState: boolean?,
+    callback: ((value: number) -> ())?,
+}
+
 export type DropdownProps = LockableProps & {
     name: string?,
     icon: (string | number)?,
@@ -363,6 +381,15 @@ export type Slider = Moveable & Lockable & {
     SetInfo: (self: Slider, text: string?) -> (),
 }
 
+export type Stepper = Moveable & Lockable & {
+    value: number,
+    Get: (self: Stepper) -> number,
+    Set: (self: Stepper, value: number, skipCallback: boolean?) -> (),
+    Increment: (self: Stepper, skipCallback: boolean?) -> (),
+    Decrement: (self: Stepper, skipCallback: boolean?) -> (),
+    CancelEditing: (self: Stepper) -> (),
+}
+
 export type ModePicker = Moveable & Lockable & {
     mode: number,
     modes: { ModeDefinition },
@@ -465,6 +492,7 @@ export type Group = Moveable & {
     CreateStat: (self: Group, props: StatProps) -> Stat,
     CreateKeybind: (self: Group, props: KeybindProps) -> Keybind?,
     CreateSlider: (self: Group, props: SliderProps) -> Slider,
+    CreateStepper: (self: Group, props: StepperProps) -> Stepper,
     CreateModePicker: (self: Group, props: ModePickerProps) -> ModePicker,
         CreateDropdown: (self: Group, props: DropdownProps) -> Dropdown?,
     CreateSection: (self: Group, props: SectionProps) -> Section?,
@@ -500,6 +528,7 @@ export type Tab = {
     CreateButton: (self: Tab, props: ButtonProps) -> Button,
     CreateToggle: (self: Tab, props: ToggleProps) -> Toggle,
     CreateSlider: (self: Tab, props: SliderProps) -> Slider,
+    CreateStepper: (self: Tab, props: StepperProps) -> Stepper,
     CreateModePicker: (self: Tab, props: ModePickerProps) -> ModePicker,
     CreateDropdown: (self: Tab, props: DropdownProps) -> Dropdown,
     CreateKeybind: (self: Tab, props: KeybindProps) -> Keybind,

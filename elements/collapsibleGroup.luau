@@ -19,6 +19,7 @@ local constructors = {
     Toggle = function(parent, props) return require(script.Parent.toggle).new(parent, props) end,
     Switch = function(parent, props) return require(script.Parent.toggle).new(parent, props) end,
     Slider = function(parent, props) return require(script.Parent.slider).new(parent, props) end,
+    Stepper = function(parent, props) return require(script.Parent.stepper).new(parent, props) end,
     ModePicker = function(parent, props) return require(script.Parent.modePicker).new(parent, props) end,
     Dropdown = function(parent, props) return require(script.Parent.dropdown).new(parent, props) end,
     Keybind = function(parent, props) return require(script.Parent.keybind).new(parent, props) end,
@@ -32,7 +33,7 @@ local constructors = {
     Divider = function(parent, props) return require(script.Parent.divider).new(parent, props) end,
     Group = function(parent, props) return require(script.Parent.group).new(parent, props) end,
 }
-local compactTypes = { Button = true, Toggle = true, Switch = true, Slider = true, Stat = true, Group = true, Link = true }
+local compactTypes = { Button = true, Toggle = true, Switch = true, Slider = true, Stepper = true, Stat = true, Group = true, Link = true }
 
 --[[
 Which corners of the header band carry the container's arcs. Open, the band

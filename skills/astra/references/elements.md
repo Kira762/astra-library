@@ -25,7 +25,7 @@ cannot be opened (the lock badge UI is temporarily hidden; tap raises a
 notification, search skips its elements, `Select`/`Navigate` bail). Only
 `tab:SetLocked(false)` unlocks it.
 
-Tab constructors: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`,
+Tab constructors: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateStepper`, `CreateDropdown`,
 `CreateInput`, `CreateLink`, `CreateStat`, `CreateSection`, `CreateText`,
 `CreateFooter`, `CreateDivider`, `CreateGroup`, `CreateCollapsibleGroup`, and `CreateIsolated`.
 
@@ -148,6 +148,29 @@ local s = tab:CreateSlider({
 
 `range` is `{ min, max }`; `suffix` is appended to the readout; `minimal = true`
 uses the compact card; `dragging` is true while the handle is being moved.
+
+## Stepper
+
+The `[−] [value] [+]` counter: icon-style tap buttons around a highlighted,
+editable value field. The value starts at `0` (or `value`), never goes below
+`min` (default `0`), and has no upper limit unless `max` is set.
+
+```lua
+local amount = tab:CreateStepper({
+    name = "Value Configuration", icon = "hash",
+    flag = "amount", value = 0, min = 0, step = 1,
+    callback = function(value) print(value) end,
+})
+amount:Set(5)          -- clamped into [min, max]
+amount:Increment()     -- one (+) tap
+amount:Decrement()     -- one (−) tap — never below min
+print(amount:Get())
+```
+
+`step` is one tap and the value's display precision. The field takes typed
+numbers (rounded and clamped on commit; unparseable text restores the old
+value). The callback fires only when the value changes; `Set(value, true)` is
+the silent form. Declarative type name: `Stepper`.
 
 ## Dropdown
 

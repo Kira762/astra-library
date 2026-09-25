@@ -187,9 +187,9 @@ local col = row:CreateGroup({ direction = "column" }) -- nested column
 col:CreateToggle({ name = "Left 1" })
 ```
 
-Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateInput`, `CreateLink`, `CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup` and `CreateIsolated`.
+Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateStepper`, `CreateDropdown`, `CreateInput`, `CreateLink`, `CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup` and `CreateIsolated`.
 
-Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateDropdown`, `CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateLink`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
+Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateStepper`, `CreateDropdown`, `CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateLink`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
 
 Selected tabs retain their outline and highlight. Unselected tabs retain an
 outline but have no fill/shadow highlight, including on hover.
@@ -334,6 +334,34 @@ tab:CreateSlider({
     callback = function(value, dragging) end,
 })
 ```
+
+### Stepper
+The `[−] [value] [+]` value counter: two icon-style tap buttons around a
+highlighted, editable value field — those three controls are the whole
+element, horizontally laid out beside the title. The value starts at `0`
+(or `value`) and never goes below `min` (default `0`); `+` adds `step`
+with **no upper limit** unless `max` is set, and the display rewrites in
+real time after every click.
+```lua
+local amount = tab:CreateStepper({
+    name = "Value Configuration", icon = "hash",
+    flag = "amount", value = 0, min = 0, step = 1,
+    callback = function(value) print(value) end,
+})
+amount:Set(5)          -- clamped into [min, max]
+amount:Increment()     -- one (+) tap
+amount:Decrement()     -- one (−) tap — never below min
+print(amount:Get())
+```
+
+The value field is a real input: type a number and press Enter (or click
+away) and it is rounded to `step`'s precision and clamped into range;
+text that does not parse restores the previous value. The callback only
+fires when the value actually changes — a `(−)` tap at `0` is a
+deliberate no-op — and `Set(value, true)` skips it. Supports flags,
+`forgetState`, move/lock methods and a leading `icon`; the stepper joins
+the Slider's lock tier (Mode 3). Available on tabs, row/column Groups,
+and declarative Collapsible Groups using `type = "Stepper"`.
 
 ### Mode Picker
 Multi-stop slider with a display-only left icon, a centred title/subtitle

@@ -20,6 +20,7 @@ local defaultLockLevels = {
 	Keybind = 2,
 	Toggle = 3,
 	Slider = 3,
+	Stepper = 3,
 	Button = 3,
 	AboutCard = 3,
 	ModePicker = 3,

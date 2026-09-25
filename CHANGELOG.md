@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased — Stepper (Value Configuration) element
+
+The missing numeric counter between the slider and the input: a `[−]`
+icon button, a highlighted editable value field and a `[+]` icon button
+on one row — the three controls and nothing else. The value starts at
+`0`, `+` adds `step` with no upper limit unless `max` is set, `−`
+subtracts `step` but never below `min` (default `0`), and the field
+rewrites in real time after every click. Typed numbers are rounded to
+the step's precision and clamped into range on commit; unparseable text
+restores the previous value. The callback fires only on real changes.
+
+- **`elements/stepper.luau`** — the new element (`__type = "Stepper"`):
+  icon-style `minus`/`plus` tap buttons (catalog glyphs on the neutral
+  button surface) flanking the focal value field (larger text on the
+  input field surface wearing the accent stroke at rest). `Set` /
+  `Get` / `Increment` / `Decrement` / `CancelEditing`, config
+  persistence through the standard flag pipeline, reveal/hide and
+  theme passes, and the Input family's focus ring and result flash.
+- **`elements/tab.luau`, `elements/group.luau`, `elements/collapsibleGroup.luau`** —
+  `CreateStepper` on tabs and groups (`type = "Stepper"` declaratively),
+  and the compact-row allow-list accepts it beside the slider.
+- **`utilities/lockable.luau`** — Stepper joins the Slider's lock tier
+  (default level 3).
+- **`components/settings.luau`, `elements/modePicker.luau`** — Mode 3
+  lock descriptions name Steppers alongside Buttons, Toggles, Sliders
+  and Mode Pickers.
+- **`Types.luau`, `library_entrypoint.luau`** — `StepperProps` /
+  `Stepper` exports and the `CreateStepper` signatures.
+- **`USAGE.md`, `MODULES.md`, `README.md`, skills references** — the
+  "Value Configuration" recipe, module notes and lock-tier mapping.
+- **`scripts/stepper_value_test.luau`** — runtime assertions for the
+  default state, per-click stepping, the `0` floor, the optional ceiling,
+  typed commits and the callback-on-change-only rule.
+
 ## Unreleased — Lock system Mode Picker descriptions
 
 Users adjusting the built-in Element Lock Mode controller in Settings → Controls

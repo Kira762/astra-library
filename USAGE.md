@@ -337,19 +337,17 @@ tab:CreateSlider({
 
 ### Stepper
 The `[−] [value] [+]` value counter row: a single pill capsule on the
-right of the card carrying two icon-style tap buttons around a
-highlighted, editable value field — the three controls read as one
-surface, with the field as the focal point between the two quieter
-glyph buttons. An optional subtitle (`description`) wraps under the
-title; the pill rides up to stay vertically centred in the taller card,
-exactly like the other elements that take a subtitle. The value starts
-at `0` (or `value`) and never goes below `min` (default `0`); `+` adds
-`step` with **no upper limit** unless `max` is set, and the display
-rewrites in real time after every click.
+right of the card carrying two icon-style tap buttons around an editable
+value field — the three controls read as one surface, with the field as
+the focal point between the two quieter glyph buttons. The card is a
+single row like the rest of the control family: a `description` passed
+to a Stepper is ignored, and the title and the pill share one centre
+line. The value starts at `0` (or `value`) and never goes below `min`
+(default `0`); `+` adds `step` with **no upper limit** unless `max` is
+set, and the display rewrites in real time after every click.
 ```lua
 local amount = tab:CreateStepper({
     name = "Value Configuration", icon = "hash",
-    description = "Increase or decrease the value",
     flag = "amount", value = 0, min = 0, step = 1,
     callback = function(value) print(value) end,
 })
@@ -361,13 +359,14 @@ print(amount:Get())
 
 The value field is a real input: type a number and press Enter (or click
 away) and it is rounded to `step`'s precision and clamped into range;
-text that does not parse restores the previous value. The pill wears
-the neutral button surface with the surface stroke; the field sits on
-top wearing the accent stroke at rest, tightening to the active focus
-glow when focused, which is what makes the value the row's focal
-point. The callback only fires when the value actually changes — a
-`(−)` tap at `0` is a deliberate no-op — and `Set(value, true)` skips
-it. Supports flags, `forgetState`, move/lock methods and a leading
+text that does not parse restores the previous value. Nothing in the row
+is accented: the pill, both buttons and the field all wear the neutral
+button surface with the same `SurfaceStroke` hairline, the field is the
+focal point by size (taller than the buttons, larger text), and focusing
+it just tightens that hairline one stop. The callback only fires when
+the value actually changes — a `(−)` tap at `0` is a deliberate no-op —
+and `Set(value, true)` skips it. Supports flags, `forgetState`,
+move/lock methods and a leading
 `icon`; the stepper joins the Slider's lock tier (Mode 3). Available on
 tabs, row/column Groups, and declarative Collapsible Groups using
 `type = "Stepper"`.

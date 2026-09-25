@@ -1,5 +1,43 @@
 # Changelog
 
+## Unreleased — Stepper: neutral pill, one-row card
+
+The Stepper's value field no longer wears the accent stroke: the whole row
+is one neutral capsule. Buttons, pill and field all wear the
+`NeutralButton` surface with the same `SurfaceStroke` hairline, and the
+field holds the eye by size alone (30px tall against the buttons' 28,
+17px text against the title's 16) — a stroke that tightens one stop while
+the field is focused is the only state change left. A `description`
+passed to a Stepper is ignored, exactly like the
+Button/Toggle/Slider/Dropdown family: no helper line is attached and the
+card keeps its 41px single-row height. With the title block and the pill
+both centred on that row, the cluster can no longer float above the
+title — the described variant used to sit half a line (10px) high,
+because the cluster rode up by the description's height while the title
+stayed centred on the taller card.
+
+- **`elements/stepper.luau`** — the field's `UIStroke` moves from
+  `AccentStroke` at 0.55 to `SurfaceStroke` at the input family's 0.85
+  rest transparency (0.4 while focused), with the two values named in one
+  place — the shared result-flash restore already settled the field onto
+  `SurfaceStroke` at 0.85, so what the element declares at rest and what
+  it comes back to after a flash now agree. The `description` prop and
+  the shared description engine are dropped from the element, so the
+  title block sits on the card's centre line and the cluster on the same
+  one (`UDim2.new(1, -15, 0.5, 0)`).
+- **`scripts/stepper_value_test.luau`** — the contract is pinned:
+  a passed `description` builds no line and does not grow the card (S8),
+  the field's stroke is the pill's own `SurfaceStroke`, tightening on
+  focus and returning to rest (S9), and the title block and the pill
+  cluster share one centre line on plain and described steppers alike
+  (S10).
+- **`example.client.luau`** — the New Elements tab drops the stepper
+  descriptions and the copy that sold them; the section and its guide
+  text now describe the neutral capsule.
+- **`USAGE.md`, `MODULES.md`, `skills/astra/references/elements.md`** —
+  the Stepper recipe, module notes and the agent reference describe the
+  one-stroke capsule and the ignored `description` prop.
+
 ## Unreleased — Stepper (Value Configuration) element
 
 The missing numeric counter between the slider and the input: a `[−]`

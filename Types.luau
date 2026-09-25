@@ -160,9 +160,12 @@ export type SliderProps = LockableProps & {
 }
 
 --[[
-The [−] [value] [+] counter row. `min` defaults to 0 (the value never
-sinks below it) and `max` is optional — omit it for no upper limit.
-`step` is one button tap and the value display's precision.
+The [−] [value] [+] counter row — one neutral capsule, with the value
+field leading by size. `min` defaults to 0 (the value never sinks below
+it) and `max` is optional — omit it for no upper limit. `step` is one
+button tap and the value display's precision. There is no `description`
+slot: like the Button/Toggle/Slider family the prop is ignored, and the
+card keeps its single-row height.
 ]]
 export type StepperProps = LockableProps & {
     name: string?,

@@ -19727,8 +19727,9 @@ end)() end,
     [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
 --[[
 The Stepper ("Value Configuration") is the library's numeric counter row:
-an icon-style minus button, a highlighted editable value field, and an
-icon-style plus button, laid out horizontally beside the element title.
+an integrated pill capsule with a `[−]` button, a highlighted editable
+value field, and a `[+]` button — three controls that read as one
+surface, not three.
 
 Behaviour contract:
   * the value starts at `0` (or the `value` prop) and never leaves
@@ -19740,9 +19741,15 @@ Behaviour contract:
     step's precision and clamped into range on commit, and anything that
     does not parse restores the previous value.
 
-The three controls are the whole card — no status bar, no secondary
-sections — and the value field is deliberately the focal point (larger
-text on an accent-lit field) between the two quieter glyph buttons.
+The row carries an optional subtitle below the title (the `description`
+prop, attached through the shared description engine — same recipe as
+the Stat). The cluster on the right is one pill: the buttons flank the
+focal value field with the same gap on both sides so the eye lands on
+the number, and the whole pill wears the neutral button surface with a
+hairline stroke so it reads as a single, intentional control rather than
+three adjacent buttons. The value field itself wears the accent stroke
+at rest and tightens to the active focus glow when focused, which is
+what makes it the focal point of the row.
 ]]
 
 local state = {}
@@ -19756,6 +19763,7 @@ local locale = require(utilities.locale)
 local haptic = require(utilities.HapticEngine)
 local moveable = require(utilities.moveable)
 local lockable = require(utilities.lockable)
+local description = require(script.Parent.description)
 
 --[[
 Value, field and button motion all ride the shared service: `snappy`
@@ -19767,11 +19775,12 @@ local hoverSpec = "snappy"
 local focusSpec = "fast"
 
 --[[
-Cluster metrics, in one place. The two buttons flank the field with the
-same gap on both sides, so the row is symmetric around the value — the
-focal point the design asks for. The field is 2px taller than the
-buttons (30 vs 28) and carries the larger text, which is what makes it
-read as the primary surface rather than a third button.
+Cluster metrics, in one place. The whole cluster is a single pill: the
+two buttons and the field share one rounded surface with hairline
+dividers, so the row is symmetric around the value — the focal point
+the design asks for. The field is 2px taller than the buttons (30 vs 28)
+and carries the larger text, which is what makes it read as the primary
+surface rather than a third button.
 ]]
 local buttonSize = 28
 local fieldWidth = 56
@@ -19780,6 +19789,7 @@ local clusterGap = 6
 local glyphSize = 14
 local valueTextSize = 17
 local clusterWidth = buttonSize * 2 + fieldWidth + clusterGap * 2
+local clusterRadius = fieldHeight / 2
 
 --[[ Decimal places a step needs (the slider's increment rule). ]]
 local function placesFor(step: number): number
@@ -19813,6 +19823,7 @@ function state.new(tab, element)
         window = tab.window,
         name = element.name or element.Name or "Stepper",
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
+        description = element.description or element.Description,
         forgetState = element.forgetState or element.ForgetState or tab.forgetState,
 
         -- Range/step normalization mirrors the slider: swapped bounds are
@@ -19854,7 +19865,15 @@ function state.new(tab, element)
     self.stroke = self.window:StyleElementBody(self.main)
     self.hoverOverlay = self.window:CreateHoverOverlay(self.main)
 
-    --[[ Title block: leading icon + name, like every other card. ]]
+    --[[
+    Title block: leading icon + name, like every other card. The
+    description (subtitle) is attached as a wrapped line beneath the
+    title — the same recipe the Stat uses, so a wrapped subtitle
+    reserves exactly the room it renders in and the cluster rides up
+    by the extra height.
+    ]]
+    description.attach(self)
+
     self.container = self.window:Create("Frame", {
         Size = UDim2.new(1, -(clusterWidth + 45), 0, 16),
         Position = UDim2.new(0, 20, 0.5, 0),
@@ -19900,16 +19919,33 @@ function state.new(tab, element)
         Parent = self.container,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-    --[[ The [−] [value] [+] cluster: the three core elements, one row. ]]
+    --[[
+    The pill cluster: a single rounded surface carrying the two icon
+    buttons and the value field together. The pill wears the neutral
+    button surface with the surface stroke, and the value field sits on
+    top of it (slightly larger) so the three controls read as one
+    capsule rather than three independent buttons. The cluster rides up
+    by the description's extra height, just like the bottom-anchored
+    rows on every other card with a subtitle.
+    ]]
     self.cluster = self.window:Create("Frame", {
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -15, 0.5, 0),
+        Position = UDim2.new(1, -15, 0.5, -(self._descriptionExtra or 0) / 2),
         Size = UDim2.fromOffset(clusterWidth, fieldHeight),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ZIndex = 5,
         Parent = self.main,
-    })
+    }, { BackgroundColor3 = "NeutralButton" })
+
+    self.window:Create("UICorner", {
+        Parent = self.cluster,
+    }, { CornerRadius = UDim.new(0, clusterRadius) })
+
+    self.clusterStroke = self.window:Create("UIStroke", {
+        Transparency = 1,
+        Parent = self.cluster,
+    }, { Color = "SurfaceStroke" })
 
     self.window:Create("UIListLayout", {
         Padding = UDim.new(0, clusterGap),
@@ -19949,10 +19985,13 @@ function state.new(tab, element)
 end
 
 --[[
-One of the two icon buttons: a 28px rounded square on the neutral button
-surface with the resolved glyph centred on it. Icon-style, never a text
-label — the glyphs are catalog icons so they theme and scale with the
-rest of the window.
+One of the two icon buttons: a 28px rounded square nested inside the
+shared pill, with the resolved glyph centred on it. The button is
+transparent at rest so the pill's surface bleeds through (the whole
+cluster is one capsule); a hover lifts the local surface to the neutral
+hover colour and a press dips to the pressed surface. The vertical
+dividers on each button give the row the look of three segments —
+the value field in the middle is the focal point.
 ]]
 function state:_buildStepButton(glyphName: string, layoutOrder: number)
     local window = self.window
@@ -19971,7 +20010,7 @@ function state:_buildStepButton(glyphName: string, layoutOrder: number)
 
     window:Create("UICorner", {
         Parent = button,
-    }, { CornerRadius = "ElementCornerRadius" })
+    }, { CornerRadius = UDim.new(0, buttonSize / 2) })
 
     local stroke = window:Create("UIStroke", {
         Transparency = 1,
@@ -20027,12 +20066,12 @@ function state:_pressButton(button, hoverKey: string)
 end
 
 --[[
-The value field — the focal point between the buttons. It is a real
-TextBox dressed as the input family's field (FieldBackground + stroke),
-but larger and wearing the accent stroke at rest so the eye lands on the
-number first. Invalid text never lands: the sanitizer keeps digits, dot
-and sign while typing, and a commit that does not parse restores the
-displayed value.
+The value field — the focal point inside the pill. It is a real
+TextBox dressed as the input family's field (FieldBackground + accent
+stroke), but larger and wearing the accent stroke at rest so the eye
+lands on the number first. Invalid text never lands: the sanitizer keeps
+digits, dot and sign while typing, and a commit that does not parse
+restores the displayed value.
 ]]
 function state:_buildField()
     local window = self.window
@@ -20048,7 +20087,7 @@ function state:_buildField()
 
     window:Create("UICorner", {
         Parent = self.box,
-    }, { CornerRadius = "ElementCornerRadius" })
+    }, { CornerRadius = UDim.new(0, fieldHeight / 2) })
 
     self.boxStroke = window:Create("UIStroke", {
         Transparency = 0.55,
@@ -20226,8 +20265,12 @@ function state:_setShown(shown, animate)
         w:_reveal(self.input, { TextTransparency = 1 }, animate)
     end
 
-    -- The buttons rest as opaque neutral surfaces (0), the field above on
-    -- the theme's field transparency; hidden, every part goes to 1.
+    -- The pill cluster rests as the neutral button surface (0), the field
+    -- above on the theme's field transparency; hidden, every part goes
+    -- to 1. The two buttons inside the pill inherit the pill's transparency
+    -- behaviour and the glyph on each button fades with its parent.
+    w:_reveal(self.cluster, { BackgroundTransparency = if shown then 0 else 1 }, animate)
+    w:_reveal(self.clusterStroke, { Transparency = if shown then 0.85 else 1 }, animate)
     for index, button in { self.minusButton, self.plusButton } do
         local stroke = if index == 1 then self.minusStroke else self.plusStroke
         w:_reveal(button, { BackgroundTransparency = if shown then 0 else 1 }, animate)
@@ -28967,70 +29010,70 @@ local LineOffsets = {
     [50] = 18283,
     [51] = 18886,
     [52] = 19728,
-    [53] = 20265,
-    [54] = 20820,
-    [55] = 20950,
-    [56] = 21089,
-    [58] = 21604,
-    [59] = 21630,
-    [60] = 21649,
-    [61] = 21682,
-    [62] = 21808,
-    [63] = 21834,
-    [64] = 21883,
-    [65] = 21579,
-    [66] = 21988,
-    [67] = 22293,
-    [68] = 22324,
-    [69] = 21977,
-    [70] = 22367,
-    [71] = 22387,
-    [72] = 22419,
-    [73] = 22349,
-    [74] = 22526,
-    [75] = 22594,
-    [77] = 22676,
-    [78] = 22843,
-    [79] = 22862,
-    [80] = 22661,
-    [81] = 23493,
-    [82] = 23539,
-    [83] = 23621,
-    [84] = 23816,
-    [85] = 23947,
-    [86] = 24050,
-    [87] = 24219,
-    [88] = 24559,
-    [89] = 22958,
-    [90] = 25203,
-    [91] = 25089,
-    [92] = 25342,
-    [93] = 25440,
-    [94] = 25618,
-    [95] = 25677,
-    [96] = 25707,
-    [97] = 25958,
-    [98] = 26007,
-    [99] = 26460,
-    [100] = 26478,
-    [101] = 26685,
-    [102] = 26705,
-    [103] = 26833,
-    [104] = 26932,
-    [105] = 27163,
-    [106] = 27219,
-    [107] = 27684,
-    [108] = 27720,
-    [109] = 27738,
-    [110] = 28098,
-    [111] = 28110,
-    [112] = 28161,
-    [113] = 28180,
-    [114] = 28439,
-    [115] = 28483,
-    [116] = 28699,
-    [117] = 28727,
-    [118] = 28738,
+    [53] = 20308,
+    [54] = 20863,
+    [55] = 20993,
+    [56] = 21132,
+    [58] = 21647,
+    [59] = 21673,
+    [60] = 21692,
+    [61] = 21725,
+    [62] = 21851,
+    [63] = 21877,
+    [64] = 21926,
+    [65] = 21622,
+    [66] = 22031,
+    [67] = 22336,
+    [68] = 22367,
+    [69] = 22020,
+    [70] = 22410,
+    [71] = 22430,
+    [72] = 22462,
+    [73] = 22392,
+    [74] = 22569,
+    [75] = 22637,
+    [77] = 22719,
+    [78] = 22886,
+    [79] = 22905,
+    [80] = 22704,
+    [81] = 23536,
+    [82] = 23582,
+    [83] = 23664,
+    [84] = 23859,
+    [85] = 23990,
+    [86] = 24093,
+    [87] = 24262,
+    [88] = 24602,
+    [89] = 23001,
+    [90] = 25246,
+    [91] = 25132,
+    [92] = 25385,
+    [93] = 25483,
+    [94] = 25661,
+    [95] = 25720,
+    [96] = 25750,
+    [97] = 26001,
+    [98] = 26050,
+    [99] = 26503,
+    [100] = 26521,
+    [101] = 26728,
+    [102] = 26748,
+    [103] = 26876,
+    [104] = 26975,
+    [105] = 27206,
+    [106] = 27262,
+    [107] = 27727,
+    [108] = 27763,
+    [109] = 27781,
+    [110] = 28141,
+    [111] = 28153,
+    [112] = 28204,
+    [113] = 28223,
+    [114] = 28482,
+    [115] = 28526,
+    [116] = 28742,
+    [117] = 28770,
+    [118] = 28781,
 }
 
 -- Misc AOT variable imports

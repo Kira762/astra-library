@@ -187,29 +187,48 @@ function Window:_buildCompactRow(tab, name, zIndex)
 
     local stroke = self:StyleElementBody(row)
 
-        self:Create("UIFlexItem", {
+    self:Create("UIFlexItem", {
         FlexMode = Enum.UIFlexMode.Fill,
         Parent = row,
     })
 
-        self:Create("UIListLayout", {
+    --[[
+    The row's content flow rides an inner full-size frame, never the row
+    itself. The element-lock scrim is a scale-sized overlay child of
+    `main`, and any GuiObject child of a UIListLayout host joins that
+    layout as an item — a scrim parented straight onto the row took a
+    slot beside the row's own button the moment the element locked (Mode
+    3 for buttons and toggles, Mode 2 for links), squeezing the icon/label
+    into half the pill and clipping it past the row's edge. `row` stays
+    layout-free so the content frame and the scrim stack absolutely.
+    ]]
+    local content = self:Create("Frame", {
+        Name = "Content",
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Size = UDim2.fromScale(1, 1),
+        Parent = row,
+    })
+
+    self:Create("UIListLayout", {
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalFlex = Enum.UIFlexAlignment.Fill,
 
-        Parent = row,
+        Parent = content,
     })
 
-        local button = self:Create("TextButton", {
+    local button = self:Create("TextButton", {
         Text = "",
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 1,         AutomaticSize = Enum.AutomaticSize.X,
+        BackgroundTransparency = 1,
+        AutomaticSize = Enum.AutomaticSize.X,
         Size = UDim2.fromOffset(0, compactRowHeight),
         BorderSizePixel = 0,
         TextTransparency = 1,
         ZIndex = zIndex or 1,
 
-        Parent = row,
+        Parent = content,
     })
 
     self:Create("UICorner", {

@@ -7144,6 +7144,28 @@ function Window:_buildLockScrim(element)
     if not parent then
         return
     end
+    --[[
+    The scrim must read as a pure overlay, never as a layout item: any
+    GuiObject child of a UIListLayout host joins that layout, so a scrim
+    parented onto a layout-managed surface takes a slot beside the
+    surface's own content and shoves it around the moment the element
+    locks (compact rows shipped exactly that shift). Layouts belong on an
+    inner content frame — see `Window:_buildCompactRow`. Loud warning so
+    a new element cannot silently reintroduce lock-time layout shifts.
+    ]]
+    for _, child in ipairs(parent:GetChildren()) do
+        if
+            child:IsA("UIListLayout")
+            or child:IsA("UIGridLayout")
+            or child:IsA("UITableLayout")
+            or child:IsA("UIPageLayout")
+        then
+            log.warn(
+                `Astra: {element.__type} '{element.name}' lock surface hosts a {child.ClassName}; the lock scrim will join its layout and shift the content when locked. Move the layout onto an inner content frame.`
+            )
+            break
+        end
+    end
     element.lockScrim = self:Create("TextButton", {
         Name = "ElementLock",
         Active = true,
@@ -8968,29 +8990,48 @@ function Window:_buildCompactRow(tab, name, zIndex)
 
     local stroke = self:StyleElementBody(row)
 
-        self:Create("UIFlexItem", {
+    self:Create("UIFlexItem", {
         FlexMode = Enum.UIFlexMode.Fill,
         Parent = row,
     })
 
-        self:Create("UIListLayout", {
+    --[[
+    The row's content flow rides an inner full-size frame, never the row
+    itself. The element-lock scrim is a scale-sized overlay child of
+    `main`, and any GuiObject child of a UIListLayout host joins that
+    layout as an item — a scrim parented straight onto the row took a
+    slot beside the row's own button the moment the element locked (Mode
+    3 for buttons and toggles, Mode 2 for links), squeezing the icon/label
+    into half the pill and clipping it past the row's edge. `row` stays
+    layout-free so the content frame and the scrim stack absolutely.
+    ]]
+    local content = self:Create("Frame", {
+        Name = "Content",
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Size = UDim2.fromScale(1, 1),
+        Parent = row,
+    })
+
+    self:Create("UIListLayout", {
         FillDirection = Enum.FillDirection.Horizontal,
         VerticalAlignment = Enum.VerticalAlignment.Center,
         HorizontalFlex = Enum.UIFlexAlignment.Fill,
 
-        Parent = row,
+        Parent = content,
     })
 
-        local button = self:Create("TextButton", {
+    local button = self:Create("TextButton", {
         Text = "",
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 1,         AutomaticSize = Enum.AutomaticSize.X,
+        BackgroundTransparency = 1,
+        AutomaticSize = Enum.AutomaticSize.X,
         Size = UDim2.fromOffset(0, compactRowHeight),
         BorderSizePixel = 0,
         TextTransparency = 1,
         ZIndex = zIndex or 1,
 
-        Parent = row,
+        Parent = content,
     })
 
     self:Create("UICorner", {
@@ -28296,98 +28337,98 @@ local LineOffsets = {
     [20] = 6734,
     [21] = 6791,
     [22] = 6922,
-    [23] = 7407,
-    [24] = 7646,
-    [25] = 7968,
-    [26] = 8068,
-    [27] = 8130,
-    [28] = 8782,
-    [29] = 9005,
-    [30] = 9355,
-    [31] = 9809,
+    [23] = 7429,
+    [24] = 7668,
+    [25] = 7990,
+    [26] = 8090,
+    [27] = 8152,
+    [28] = 8804,
+    [29] = 9046,
+    [30] = 9396,
+    [31] = 9850,
     [32] = 6694,
-    [34] = 10743,
-    [35] = 11580,
-    [36] = 11669,
-    [37] = 11898,
-    [38] = 12319,
-    [39] = 12783,
-    [40] = 12940,
-    [41] = 13085,
-    [42] = 14703,
-    [43] = 14951,
-    [44] = 15186,
-    [45] = 15507,
-    [46] = 15953,
-    [47] = 16206,
-    [48] = 17286,
-    [49] = 18097,
-    [50] = 18183,
-    [51] = 18786,
-    [52] = 19628,
-    [53] = 20179,
-    [54] = 20309,
-    [55] = 20448,
-    [57] = 20963,
-    [58] = 20989,
-    [59] = 21008,
-    [60] = 21041,
-    [61] = 21167,
-    [62] = 21193,
-    [63] = 21242,
-    [64] = 20938,
-    [65] = 21347,
-    [66] = 21652,
-    [67] = 21683,
-    [68] = 21336,
-    [69] = 21726,
-    [70] = 21746,
-    [71] = 21778,
-    [72] = 21708,
-    [73] = 21885,
-    [74] = 21953,
-    [76] = 22035,
-    [77] = 22202,
-    [78] = 22221,
-    [79] = 22020,
-    [80] = 22852,
-    [81] = 22898,
-    [82] = 22980,
-    [83] = 23175,
-    [84] = 23306,
-    [85] = 23409,
-    [86] = 23578,
-    [87] = 23918,
-    [88] = 22317,
-    [89] = 24562,
-    [90] = 24448,
-    [91] = 24701,
-    [92] = 24799,
-    [93] = 24977,
-    [94] = 25036,
-    [95] = 25066,
-    [96] = 25317,
-    [97] = 25366,
-    [98] = 25819,
-    [99] = 25837,
-    [100] = 26044,
-    [101] = 26064,
-    [102] = 26192,
-    [103] = 26291,
-    [104] = 26521,
-    [105] = 26577,
-    [106] = 27042,
-    [107] = 27078,
-    [108] = 27096,
-    [109] = 27456,
-    [110] = 27468,
-    [111] = 27519,
-    [112] = 27538,
-    [113] = 27797,
-    [114] = 27841,
-    [115] = 28057,
-    [116] = 28085,
-    [117] = 28096,
+    [34] = 10784,
+    [35] = 11621,
+    [36] = 11710,
+    [37] = 11939,
+    [38] = 12360,
+    [39] = 12824,
+    [40] = 12981,
+    [41] = 13126,
+    [42] = 14744,
+    [43] = 14992,
+    [44] = 15227,
+    [45] = 15548,
+    [46] = 15994,
+    [47] = 16247,
+    [48] = 17327,
+    [49] = 18138,
+    [50] = 18224,
+    [51] = 18827,
+    [52] = 19669,
+    [53] = 20220,
+    [54] = 20350,
+    [55] = 20489,
+    [57] = 21004,
+    [58] = 21030,
+    [59] = 21049,
+    [60] = 21082,
+    [61] = 21208,
+    [62] = 21234,
+    [63] = 21283,
+    [64] = 20979,
+    [65] = 21388,
+    [66] = 21693,
+    [67] = 21724,
+    [68] = 21377,
+    [69] = 21767,
+    [70] = 21787,
+    [71] = 21819,
+    [72] = 21749,
+    [73] = 21926,
+    [74] = 21994,
+    [76] = 22076,
+    [77] = 22243,
+    [78] = 22262,
+    [79] = 22061,
+    [80] = 22893,
+    [81] = 22939,
+    [82] = 23021,
+    [83] = 23216,
+    [84] = 23347,
+    [85] = 23450,
+    [86] = 23619,
+    [87] = 23959,
+    [88] = 22358,
+    [89] = 24603,
+    [90] = 24489,
+    [91] = 24742,
+    [92] = 24840,
+    [93] = 25018,
+    [94] = 25077,
+    [95] = 25107,
+    [96] = 25358,
+    [97] = 25407,
+    [98] = 25860,
+    [99] = 25878,
+    [100] = 26085,
+    [101] = 26105,
+    [102] = 26233,
+    [103] = 26332,
+    [104] = 26562,
+    [105] = 26618,
+    [106] = 27083,
+    [107] = 27119,
+    [108] = 27137,
+    [109] = 27497,
+    [110] = 27509,
+    [111] = 27560,
+    [112] = 27579,
+    [113] = 27838,
+    [114] = 27882,
+    [115] = 28098,
+    [116] = 28126,
+    [117] = 28137,
 }
 
 -- Misc AOT variable imports

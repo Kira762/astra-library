@@ -223,6 +223,28 @@ function Window:_buildLockScrim(element)
     if not parent then
         return
     end
+    --[[
+    The scrim must read as a pure overlay, never as a layout item: any
+    GuiObject child of a UIListLayout host joins that layout, so a scrim
+    parented onto a layout-managed surface takes a slot beside the
+    surface's own content and shoves it around the moment the element
+    locks (compact rows shipped exactly that shift). Layouts belong on an
+    inner content frame — see `Window:_buildCompactRow`. Loud warning so
+    a new element cannot silently reintroduce lock-time layout shifts.
+    ]]
+    for _, child in ipairs(parent:GetChildren()) do
+        if
+            child:IsA("UIListLayout")
+            or child:IsA("UIGridLayout")
+            or child:IsA("UITableLayout")
+            or child:IsA("UIPageLayout")
+        then
+            log.warn(
+                `Astra: {element.__type} '{element.name}' lock surface hosts a {child.ClassName}; the lock scrim will join its layout and shift the content when locked. Move the layout onto an inner content frame.`
+            )
+            break
+        end
+    end
     element.lockScrim = self:Create("TextButton", {
         Name = "ElementLock",
         Active = true,

@@ -132,6 +132,40 @@ function Window:SetElementLockMode(mode): number
     return nextMode
 end
 
+--[[
+`_restoreLate` restores a control that arrives after the configuration was
+loaded. This is the case it cannot reach: a persisted value whose control
+does not exist yet. The element-lock tier is exactly that, because its
+control is the Settings → Controls picker and settings panels build lazily
+on first open — so a saved Mode 5 had nothing to restore into at startup.
+The page came up unlocked and only locked once the player opened that panel
+or nudged the picker, which read as the tier not being saved at all. The
+window therefore answers for the state it owns directly; a live control of
+the same flag wins and restores through the normal path instead.
+]]
+function Window:_restoreUnowned(values)
+    if typeof(values) ~= "table" or self.controls[shared.elementLockModeFlag] then
+        return
+    end
+    local stored = tonumber(values[shared.elementLockModeFlag])
+    if stored then
+        self:SetElementLockMode(stored)
+    end
+end
+
+--[[
+The save-side mirror: a configuration written before the Settings panel was
+ever opened still carries the active tier, so a saved config stays a
+complete snapshot (and a host that drives the modes through
+`SetElementLockMode` alone persists them too).
+]]
+function Window:_unownedConfigValues()
+    if self.controls[shared.elementLockModeFlag] then
+        return nil
+    end
+    return { [shared.elementLockModeFlag] = self:GetElementLockMode() }
+end
+
 function Window:_setElementLocked(element, locked, message, source)
     if not element or element.window ~= self or element._isLockable ~= true or element._lockSystemController then
         return false

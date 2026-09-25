@@ -266,6 +266,12 @@ picker itself is exempt, so its reset button remains usable in Mode 5. Hosts can
 also reset/unlock externally with `window:SetElementLockMode(1)` or inspect the
 current tier with `window:GetElementLockMode()`.
 
+The active tier is part of the saved configuration (flag
+`astra.elementLockMode`), so the next run comes back on the same mode and locks
+its controls straight away — the Settings panel does not have to be opened
+first, and a tier set through `window:SetElementLockMode` is saved even when
+that panel was never built.
+
 Modes are an interaction gate, not a reset: locks preserve values, selections,
 callbacks and layout. They show a disabled scrim and block user input/callbacks;
 programmatic setters and manual `:Lock()` / `:Unlock()` remain available to the

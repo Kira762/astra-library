@@ -70,6 +70,29 @@ Manual Lock/Unlock are no-ops on it
 
 It drives `Window:SetElementLockMode` and keeps its own `Mode N — …` subtitle in sync with descriptions of what element types each mode locks. Its five modes carry `description` metadata and are fixed (`minModes = 5, maxModes = 5, allow_mode_add_remove = false`).
 
+## Persistence
+
+The tier travels with the configuration under the shared flag
+`astra.elementLockMode` (`components/window/constants.luau` →
+`elementLockModeFlag`; used by `components/settings.luau` and
+`components/window/elements.luau`).
+
+The controller lives in a settings panel that builds lazily on first open, so
+its flag has no control while a window is starting. Two window methods close
+that gap, both called from `utilities/persistenceConfig.luau`:
+
+```
+Window:_restoreUnowned(values)   load: apply a persisted tier no control owns yet
+Window:_unownedConfigValues()    save: the live tier, so a snapshot is complete
+```
+
+Without `_restoreUnowned` a saved Mode 5 waited for the player to open
+Settings → Controls (or to move the picker) before anything locked; without
+`_unownedConfigValues` a config saved before that panel was ever opened lost a
+tier the host had set through `SetElementLockMode`. A live control of the same
+flag always wins, so once the panel is built the normal control path owns the
+round trip.
+
 ## Manual locks compose
 
 ```
@@ -86,4 +109,4 @@ effective locked = _manualLocked or _modeLocked
 - `defaultLockLevels` still has no `=1`; fallback still `or 5`.
 - New element types added with `lockable.register` default to `5` unless intentionally tiered.
 - Any rename of `lockGroupLevels` keys stays case/space insensitive.
-- Tests: `sh scripts/guard_invariants_test.sh` and `sh scripts/elements_lock_test.sh` both green.
+- Tests: `sh scripts/guard_invariants_test.sh`, `sh scripts/elements_lock_test.sh` and `sh scripts/lock_mode_persistence_test.sh` all green.

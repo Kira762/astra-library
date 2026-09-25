@@ -27,6 +27,13 @@ type ConfigWindow = {
     _loadedConfig: { [string]: unknown }?,
     _loadedConfigPath: string?,
     _loadCheckpoint: ((any, number) -> ())?,
+    --[[
+    Window-owned state whose control may not have been built yet (the
+    element-lock tier lives behind the lazily built Settings → Controls
+    panel). Both are optional so a host-side window stub keeps working.
+    ]]
+    _restoreUnowned: ((any, { [string]: unknown }) -> ())?,
+    _unownedConfigValues: ((any) -> { [string]: unknown }?)?,
 }
 
 function persistenceConfig.getPath(window: ConfigWindow, requestedName: unknown?): (string?, string?)
@@ -65,6 +72,23 @@ function persistenceConfig.save(window: ConfigWindow, saveName: unknown?): boole
         for preservedKey, preservedValue in loadedConfig do
             if window.controls[preservedKey] == nil then
                 payload[preservedKey] = preservedValue
+            end
+        end
+    end
+
+    --[[
+    Window-owned state with no live control — the element-lock tier, whose
+    control sits in a settings panel that builds lazily on first open — is
+    part of the snapshot as well. It merges after the preserved keys so the
+    tier this session is actually running wins over the loaded file's copy.
+    ]]
+    if typeof(window._unownedConfigValues) == "function" then
+        local ownedValues = window:_unownedConfigValues()
+        if type(ownedValues) == "table" then
+            for ownedFlag, ownedValue in ownedValues do
+                if window.controls[ownedFlag] == nil then
+                    payload[ownedFlag] = ownedValue
+                end
             end
         end
     end
@@ -188,6 +212,21 @@ function persistenceConfig.load(window: ConfigWindow, loadName: unknown?): boole
 
                 window._loadedConfig = values
     window._loadedConfigPath = loadPath
+
+    --[[
+    Values whose control does not exist yet still have to land: the element
+    lock tier's control is the Settings → Controls picker, and settings
+    panels build lazily on first open, so without this a saved Mode 5 sat in
+    the file until the player opened that panel (or moved the picker). It
+    runs under the loading guard because locking a focused Input releases
+    its focus, and that commit must not schedule a write mid-load.
+    ]]
+    if typeof(window._restoreUnowned) == "function" then
+        local wasLoadingUnowned = window._loading
+        window._loading = true
+        window:_restoreUnowned(values)
+        window._loading = wasLoadingUnowned
+    end
 
     return true
 end

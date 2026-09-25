@@ -1,5 +1,44 @@
 # Changelog
 
+## Unreleased — A saved Element Lock Mode now locks the page on the next run
+
+Leaving the Element Lock Mode on anything above Mode 1 only held for the
+session that picked it. The tier is saved with the configuration
+(`astra.elementLockMode`), but the control that owns that flag is the
+Settings → Controls picker, and settings panels build lazily on first open —
+so on a re-execution the value had nothing to restore into. The window came up
+in Mode 1 with every control unlocked and stayed that way until the player
+opened that panel or nudged the picker, which read as the mode not being saved
+at all. A tier set through `window:SetElementLockMode` had the mirror problem:
+with no control built, a save dropped it from the file entirely.
+
+The window now answers for the state it owns directly, on both sides of the
+round trip, so the tier behaves like any other restored control: it is applied
+while the configuration loads and it is written into every snapshot.
+
+- **`components/window/constants.luau`** — the flag becomes a shared constant
+  (`elementLockModeFlag`) so the persistence side and the panel cannot drift.
+- **`components/settings.luau`** — the controller's `flag` reads the constant.
+- **`components/window/elements.luau`** — `Window:_restoreUnowned(values)`
+  applies a persisted tier no control owns yet, and
+  `Window:_unownedConfigValues()` hands the save the live tier while the panel
+  is unbuilt; a live control of the same flag always wins.
+- **`utilities/persistenceConfig.luau`** — `load` calls `_restoreUnowned`
+  under the loading guard (locking a focused Input releases its focus, and
+  that commit must not schedule a write mid-load); `save` merges
+  `_unownedConfigValues` after the preserved keys, so the tier this session is
+  running wins over the loaded file's copy.
+- **`scripts/lock_mode_persistence_test.luau`** — new runtime test (L1–L5):
+  the tier is written, the next execution locks levels 2/3/5 before Settings is
+  ever opened, the lazily built picker agrees with the live tier and then owns
+  the flag, a host-driven tier survives a save made without the panel, and a
+  lowered tier leaves no stale locks.
+- **`USAGE.md`, `MODULES.md`, `skills/astra-guard/references/lock-tiers.md`** —
+  the persistence contract and the new test.
+- **`version-1.luau`, `version-1.luau.sig`, `loader.luau`, `README.md`** — the
+  bundle is regenerated and re-signed (`node scripts/sign_bundle.js`, dev key,
+  pinned `PUBLIC_KEY` synced) and the README checksum updated.
+
 ## Unreleased — Tabs tapped during startup no longer snap back to the first tab
 
 Tapping another tab or the Settings action right after a script ran sent the

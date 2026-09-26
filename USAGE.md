@@ -842,6 +842,38 @@ hub), the interrupted build finishes detached instead of erroring: a late
 tab/section, and everything chained onto it lands in a throwaway container —
 never the destroyed tree.
 
+### HttpGuard (spy/hook detection)
+
+HttpSpy-style tools hook the functions Astra fetches with (`game:HttpGet`,
+the executor's `request`, `__namecall`) to log every URL and optionally spoof
+responses. HttpGuard detects the interception and refuses to feed it:
+
+```lua
+local ok, report = Astra.HttpGuard.check("strict")  -- raises on any signal
+-- report: { clean, executor, captured, httpSpy, hooked, signals = { { id, layer, detail } } }
+```
+
+Policies: `audit` (report only), `warn` (report + `warn()`), `strict` (raise;
+the default), `off` (skip). Detection runs in three layers — spy artifacts
+(the tool's window, log files, API table), baseline drift against references
+captured at load, and baseline-free heuristics — all gated on executor
+evidence, so Studio and plain Luau always scan clean and `scan()` never
+raises.
+
+Enforcement is already wired where it matters: the signed loader refuses to
+fetch under interception (quiet stub, like any other failure; setting
+`SPY_PREFLIGHT` to `"off"` in `loader.luau` disables it), and
+`grabKeyFromSite` key fetches are strict — a hit drops the key like a failed
+fetch, so the gate fails closed. Asset downloads only warn and fall back.
+Hosts that want strict-at-load call `Astra.HttpGuard.check("strict")` before
+`CreateWindow`.
+
+One honest limit: nothing inside an executor can *prevent* a hook — a spy the
+user runs themselves sees whatever the script fetches. Treat HttpGuard as
+tamper evidence for your own deployments (unknown policies fail closed like
+`strict`), not as a trust root; anything that must be enforced needs a
+server.
+
 ### Motion (animation)
 
 Astra's window transitions — hover, element reveal, the window entrance, the

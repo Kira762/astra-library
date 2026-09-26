@@ -215,6 +215,27 @@ The library ships on the `snappy` profile — the normal motion language, played
 faster, never `instant`. There is no animation-speed setting; `setProfile` is
 the only way to rescale the library's pace.
 
+## HttpGuard
+
+```lua
+local ok, report = Astra.HttpGuard.check("strict")   -- audit | warn | strict | off
+local report = Astra.HttpGuard.scan()                 -- never raises
+local proceed, body = Astra.HttpGuard.guardFetch(url, function() return game:HttpGet(url) end, "strict")
+Astra.HttpGuard.setDefaultPolicy("audit")
+```
+
+Detects HttpSpy-style HTTP interception in three layers (spy artifacts,
+baseline drift vs the load-time capture, baseline-free heuristics), gated on
+executor evidence so Studio and bare Luau always scan clean. `report.signals`
+carry stable `id`s (`genv-spy-api`, `coregui-spy-window`, `spy-log-files`,
+`namecall-swapped`, `method-swapped`, `requestfn-swapped`,
+`namecall-lclosure`, `cfunc-lua-source`) with a `layer` (`A`/`B`/`C`) and
+human `detail`. Already enforced: the loader preflights strict before
+fetching (quiet stub on a hit, `SPY_PREFLIGHT = "off"` to disable),
+`grabKeyFromSite` fetches are strict (a hit drops the key, gate fails closed),
+asset downloads warn-and-fallback. Not the entrypoint default: call
+`check("strict")` before `CreateWindow` for strict-at-load.
+
 ## Localisation
 
 ```lua

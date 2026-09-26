@@ -643,6 +643,20 @@ Per-element specifics:
 - `locale.luau` — translation table + `SetTranslator` support.
 - `filesystem.luau`, `filesystemManager.luau` — RobloxFS abstraction (isFolder/WriteFile wrappers, secure-mode aware). `discardEmptyFolder` / `discardExecutorImageCache` remove a workspace-root `ImageCache` leftover some executors mkdir on `getcustomasset` when that folder has no children; Astra's own image files stay under `Astra/assets`, never under `Astra/config`.
 - `assetResolver.luau`, `network.luau`, `services.luau` — platform layer (HTTP fetch with retries, service singletons).
+- `httpGuard.luau` — HTTP interception (spy/hook) detection, public as
+  `Astra.HttpGuard`: `scan()` (never raises), `check(policy)` (`audit` /
+  `warn` / `strict` / `off`, unknown fails closed), `guardFetch`,
+  `capture()`, default-policy accessors. Three layers — A: spy artifacts
+  (`getgenv().HttpSpy` API shape, `HttpSpyGui` window, `HttpSpy_*.txt` logs),
+  B: drift vs the load-time baseline (`capture()` runs first in the
+  entrypoint), C: baseline-free heuristics (Lua-closure `__namecall`,
+  non-`[C]` sources) — all behind an executor-evidence gate (hook primitives
+  only; filesystem functions are stubbed in tests so they never count).
+  Strict where it matters: the loader preflights before fetching (quiet stub
+  on a hit, `SPY_PREFLIGHT` escape hatch), `keySystem` `grabKeyFromSite`
+  fetches refuse-and-drop, `network.getGuardedRequestFn` (default `warn`)
+  backs `assetResolver`'s warn-and-fallback. Tested by
+  `scripts/http_guard_test.luau` plus loader-integrity cases 11–12.
 - `windowSizing.luau` — responsive size computation (desktop tiers around the
   600x420 default, min/max protected) plus the fixed mobile profile returned
   for touch-only phone-sized viewports (`isMobileViewport`).

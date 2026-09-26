@@ -682,12 +682,54 @@ export type KeySystem = {
     Close: (self: KeySystem) -> (),
 }
 
+--[[
+One HttpGuard finding. `layer` is `A` (spy artifact: the tool's own traces),
+`B` (baseline drift: a captured reference no longer matches) or `C`
+(heuristic: the reference looks hooked without needing a baseline). `id` is
+stable (`genv-spy-api`, `coregui-spy-window`, `spy-log-files`,
+`namecall-swapped`, `method-swapped`, `requestfn-swapped`,
+`namecall-lclosure`, `cfunc-lua-source`); `detail` is human text.
+]]
+export type HttpGuardSignal = {
+    id: string,
+    layer: string,
+    detail: string,
+}
+
+export type HttpGuardReport = {
+    clean: boolean,
+    executor: boolean,
+    captured: boolean,
+    httpSpy: boolean,
+    hooked: boolean,
+    signals: { HttpGuardSignal },
+}
+
+export type HttpGuardPolicy = "audit" | "warn" | "strict" | "off"
+
+--[[
+HTTP interception detection, public as `Astra.HttpGuard`. `capture`
+snapshots the pristine references (the entrypoint already calls it on load);
+`scan` reports; `check` enforces a policy (`strict` raises on any signal,
+unknown policies fail closed like it); `guardFetch` runs a fetch only when
+the policy allows it.
+]]
+export type HttpGuardService = {
+    capture: () -> boolean,
+    scan: () -> HttpGuardReport,
+    check: (policy: HttpGuardPolicy?) -> (boolean, HttpGuardReport),
+    guardFetch: (url: string, fetch: () -> any, policy: HttpGuardPolicy?) -> (boolean, any),
+    setDefaultPolicy: (policy: HttpGuardPolicy) -> HttpGuardPolicy,
+    getDefaultPolicy: () -> HttpGuardPolicy,
+}
+
 export type Astra = {
     CreateWindow: (self: Astra, props: WindowProps) -> Window,
     CreateKeySystem: (self: Astra, props: KeySystemProps) -> KeySystem,
     Icons: IconCatalog,
     Motion: MotionService,
     Performance: any?,
+    HttpGuard: HttpGuardService,
 }
 
 return {}

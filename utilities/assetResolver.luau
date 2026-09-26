@@ -119,7 +119,10 @@ function assetResolver.getAssetContentFromUrl(
     end
 
     local content: string? = nil
-    local requestFn = networkUtil.getRequestFn()
+    -- Asset URLs are public CDN addresses, so interception here warns (via
+    -- HttpGuard) and falls back to the no-request-function path instead of
+    -- breaking the UI — unlike key fetches, which fail closed.
+    local requestFn = networkUtil.getGuardedRequestFn(nil, "warn")
     if not requestFn then
         logger.warn("No request function available to download asset content.")
     else

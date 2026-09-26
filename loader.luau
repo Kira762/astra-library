@@ -47,7 +47,7 @@ skips the fetch/verify/load sequence.
 local BUNDLE_URL = "https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"
 local SIG_URL = "https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau.sig"
 local EXPECTED_BUNDLE_VERSION = "1.0.0"
-local PUBLIC_KEY = "5b29efc245b1c00d1c84986098ef34a0b2bb0104524f7ed3526c431b336b1a3b"
+local PUBLIC_KEY = "4c389bd5c6aa334ae645692ba0d7d2f3fb78b17d50f514d2361ad830db05984b"
 
 -- Verification mode. The official loader ships "signature" and never
 -- downgrades itself: a failed signature check always fails closed, there is
@@ -59,6 +59,14 @@ local PUBLIC_KEY = "5b29efc245b1c00d1c84986098ef34a0b2bb0104524f7ed3526c431b336b
 -- An unknown mode value fails closed as well.
 local VERIFICATION_MODE = "signature" -- "signature" | "pin" (degraded)
 local SECONDARY_PIN_URL = "" -- pin mode only; serves the record as plain text
+
+-- Spy preflight. "strict" refuses to fetch while HTTP interception is
+-- detected (an HttpSpy-style tool would log both URLs and could spoof the
+-- bundle bytes — the signature would catch the spoof, but the fetch URLs
+-- themselves still leak, so a hit returns the quiet stub like any other
+-- failure). "off" skips the scan. There is no "warn": the loader is silent
+-- by contract and has no channel to report through.
+local SPY_PREFLIGHT = "strict" -- "strict" | "off"
 
 local RECORD_PREFIX = "ASTRA-BUNDLE-V1"
 
@@ -918,6 +926,123 @@ local function tryFetch(url)
 end
 
 -- ===========================================================================
+-- spy preflight — a standalone subset of utilities/httpGuard (the loader
+-- cannot require bundle modules). Order-independent probes only: a baseline
+-- captured at the top of this file and compared a millisecond later would
+-- prove nothing. Returns an array of signal ids, never raises.
+-- ===========================================================================
+
+local function spyPreflight()
+	local signals = {}
+	local function emit(id)
+		signals[#signals + 1] = id
+	end
+	-- Executor evidence: hook/introspection primitives only. A spy cannot
+	-- run without them, so their absence means clean (Studio, bare Luau).
+	local hasHookPrim = type(hookfunction) == "function"
+		or type(hookmetamethod) == "function"
+		or type(islclosure) == "function"
+		or type(iscclosure) == "function"
+		or type(newcclosure) == "function"
+		or type(getrawmetatable) == "function"
+		or type(getgc) == "function"
+		or type(checkcaller) == "function"
+		or type(getnamecallmethod) == "function"
+		or type(replaceclosure) == "function"
+	if not hasHookPrim then
+		return signals
+	end
+	-- A1: getgenv().HttpSpy with the spy's API shape.
+	pcall(function()
+		if type(getgenv) == "function" then
+			local genv = getgenv()
+			if type(genv) == "table" and type(genv.HttpSpy) == "table" then
+				local spy = genv.HttpSpy
+				local hits = 0
+				if spy.OnRequest ~= nil then hits = hits + 1 end
+				if spy.HookSynRequest ~= nil then hits = hits + 1 end
+				if spy.BlockUrl ~= nil then hits = hits + 1 end
+				if spy.ProxyHost ~= nil then hits = hits + 1 end
+				if spy.ToggleGui ~= nil then hits = hits + 1 end
+				if spy.SaveLogs ~= nil then hits = hits + 1 end
+				if hits >= 2 then
+					emit("genv-spy-api")
+				end
+			end
+		end
+	end)
+	-- A2: the spy's CoreGui/gethui window.
+	pcall(function()
+		if game ~= nil then
+			local roots = {}
+			local coreOk, coreGui = pcall(function()
+				return game:GetService("CoreGui")
+			end)
+			if coreOk and coreGui ~= nil then
+				roots[#roots + 1] = coreGui
+			end
+			if type(gethui) == "function" then
+				local huiOk, hui = pcall(gethui)
+				if huiOk and hui ~= nil then
+					roots[#roots + 1] = hui
+				end
+			end
+			for _, root in ipairs(roots) do
+				local finder = root.FindFirstChild
+				if type(finder) == "function" then
+					local found = finder(root, "HttpSpyGui", true)
+					if found ~= nil and found.Name == "HttpSpyGui"
+						and (found.ClassName == "ScreenGui" or found.ClassName == nil)
+					then
+						emit("coregui-spy-window")
+						break
+					end
+				end
+			end
+		end
+	end)
+	-- A3: the spy's workspace log files.
+	pcall(function()
+		if type(listfiles) == "function" then
+			for _, dir in ipairs({ "", "." }) do
+				local listOk, files = pcall(listfiles, dir)
+				if listOk and type(files) == "table" then
+					for _, path in ipairs(files) do
+						if type(path) == "string"
+							and (path:match("HttpSpy_[^/\\]*%.txt$") or path:match("HttpSpy_log[^/\\]*%.txt$"))
+						then
+							emit("spy-log-files")
+							break
+						end
+					end
+				end
+				if #signals > 0 then
+					break
+				end
+			end
+		end
+	end)
+	-- C1: __namecall is a Lua closure (pristine is a C closure).
+	pcall(function()
+		if game ~= nil and type(getrawmetatable) == "function" then
+			local mt = getrawmetatable(game)
+			if type(mt) == "table" and type(mt.__namecall) == "function" then
+				if type(islclosure) == "function" then
+					if islclosure(mt.__namecall) == true then
+						emit("namecall-lclosure")
+					end
+				elseif type(iscclosure) == "function" then
+					if iscclosure(mt.__namecall) == false then
+						emit("namecall-lclosure")
+					end
+				end
+			end
+		end
+	end)
+	return signals
+end
+
+-- ===========================================================================
 -- main — fetch, verify, execute the exact signed bytes. Fail → stub.
 -- ===========================================================================
 
@@ -926,6 +1051,13 @@ local function makeRecord(version, digestHex)
 end
 
 local function main()
+	if SPY_PREFLIGHT ~= "off" then
+		local spyOk, spySignals = pcall(spyPreflight)
+		if spyOk and type(spySignals) == "table" and #spySignals > 0 then
+			return quietStub()
+		end
+	end
+
 	local bundle = tryFetch(BUNDLE_URL)
 	if type(bundle) ~= "string" or #bundle == 0 then
 		return quietStub()
@@ -1060,6 +1192,7 @@ local internals = {
 	makeRecord = makeRecord,
 	quietStub = quietStub,
 	tryFetch = tryFetch,
+	spyPreflight = spyPreflight,
 	main = main,
 	BUNDLE_URL = BUNDLE_URL,
 	SIG_URL = SIG_URL,
@@ -1067,6 +1200,7 @@ local internals = {
 	PUBLIC_KEY = PUBLIC_KEY,
 	VERIFICATION_MODE = VERIFICATION_MODE,
 	SECONDARY_PIN_URL = SECONDARY_PIN_URL,
+	SPY_PREFLIGHT = SPY_PREFLIGHT,
 	RECORD_PREFIX = RECORD_PREFIX,
 }
 

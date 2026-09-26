@@ -12,7 +12,7 @@ local ImportGlobals
 -- __recFP snapshots the environment when the MainModule closure starts,
 -- __checkFP re-snapshots after every module has loaded; a mismatch means
 -- something was replaced mid-load. Silent: failure returns a no-op stub.
-local ExpectedClosureCount = 113;
+local ExpectedClosureCount = 114;
 local __fp
 local function __snap()
     return table.concat({
@@ -44,6 +44,16 @@ end
 -- Holds direct closure data (defining this before the DOM tree for line debugging etc)
 local ClosureBindings = {
     [2] = function()local wax,script,require=ImportGlobals(2)local ImportGlobals __recFP() return (function(...)
+--[[
+HttpGuard loads and captures first, before any other module runs: the
+baseline-drift layer compares against these references, so the earlier the
+snapshot, the smaller the window a spy has to load in between. Capture is
+silent and never raises; enforcement lives at the fetch points (the loader
+preflight, the key system) and in `Astra.HttpGuard.check` for hosts.
+]]
+local HttpGuard = require(script.Parent.utilities.httpGuard)
+HttpGuard.capture()
+
 local Core = require(script.Parent.core)
 local State = require(script.Parent.core.state)
 local Image = require(script.Parent.images.image)
@@ -115,6 +125,10 @@ export type Divider = types.Divider
 export type AboutCard = types.AboutCard
 export type Popup = types.Popup
 export type KeySystem = types.KeySystem
+export type HttpGuardSignal = types.HttpGuardSignal
+export type HttpGuardReport = types.HttpGuardReport
+export type HttpGuardPolicy = types.HttpGuardPolicy
+export type HttpGuardService = types.HttpGuardService
 export type Astra = types.Astra
 
 type WindowModule = { new: (types.WindowProps) -> types.Window }
@@ -252,6 +266,14 @@ Astra.Motion = Motion
 Astra.Core = Core
 Astra.Settings = Settings
 Astra.Performance = HardwarePerformance
+
+--[[
+HTTP interception detection (`utilities/httpGuard.luau`): `scan()` reports,
+`check(policy)` enforces (`audit` / `warn` / `strict` / `off`), `capture()`
+re-baselines, `guardFetch` wraps a fetch. Hosts that want strict-at-load call
+`Astra.HttpGuard.check("strict")` before `CreateWindow`.
+]]
+Astra.HttpGuard = HttpGuard
 
 function Astra:CreateWindow(props: types.WindowProps): types.Window
 	--[[
@@ -1163,12 +1185,54 @@ export type KeySystem = {
     Close: (self: KeySystem) -> (),
 }
 
+--[[
+One HttpGuard finding. `layer` is `A` (spy artifact: the tool's own traces),
+`B` (baseline drift: a captured reference no longer matches) or `C`
+(heuristic: the reference looks hooked without needing a baseline). `id` is
+stable (`genv-spy-api`, `coregui-spy-window`, `spy-log-files`,
+`namecall-swapped`, `method-swapped`, `requestfn-swapped`,
+`namecall-lclosure`, `cfunc-lua-source`); `detail` is human text.
+]]
+export type HttpGuardSignal = {
+    id: string,
+    layer: string,
+    detail: string,
+}
+
+export type HttpGuardReport = {
+    clean: boolean,
+    executor: boolean,
+    captured: boolean,
+    httpSpy: boolean,
+    hooked: boolean,
+    signals: { HttpGuardSignal },
+}
+
+export type HttpGuardPolicy = "audit" | "warn" | "strict" | "off"
+
+--[[
+HTTP interception detection, public as `Astra.HttpGuard`. `capture`
+snapshots the pristine references (the entrypoint already calls it on load);
+`scan` reports; `check` enforces a policy (`strict` raises on any signal,
+unknown policies fail closed like it); `guardFetch` runs a fetch only when
+the policy allows it.
+]]
+export type HttpGuardService = {
+    capture: () -> boolean,
+    scan: () -> HttpGuardReport,
+    check: (policy: HttpGuardPolicy?) -> (boolean, HttpGuardReport),
+    guardFetch: (url: string, fetch: () -> any, policy: HttpGuardPolicy?) -> (boolean, any),
+    setDefaultPolicy: (policy: HttpGuardPolicy) -> HttpGuardPolicy,
+    getDefaultPolicy: () -> HttpGuardPolicy,
+}
+
 export type Astra = {
     CreateWindow: (self: Astra, props: WindowProps) -> Window,
     CreateKeySystem: (self: Astra, props: KeySystemProps) -> KeySystem,
     Icons: IconCatalog,
     Motion: MotionService,
     Performance: any?,
+    HttpGuard: HttpGuardService,
 }
 
 return {}
@@ -2161,6 +2225,7 @@ local locale = require(utilities.locale)
 local log = require(utilities.log)
 local haptic = require(utilities.HapticEngine)
 local filesystem = require(utilities.filesystem)
+local httpGuard = require(utilities.httpGuard)
 local pathUtil = require(utilities.path)
 local themes = require(script.Parent.Parent.themes)
 local Icons = require(script.Parent.Parent.icons)
@@ -2437,13 +2502,19 @@ function KeySystem.new(props)
     the network: each entry is treated as a raw URL and its trimmed body
     becomes the expected key. A URL that fails to fetch warns and is
     dropped — it can never match, so a dead link fails closed, not open.
+    The fetch is HttpGuard-strict for the same reason: under HTTP
+    interception the key body would leak to the spy's log and the response
+    could be spoofed, so a hit refuses the fetch and the key is dropped.
     ]]
     local grabFromSite = props.grabKeyFromSite or props.GrabKeyFromSite or false
     for _, key in keys do
         key = tostring(key)
         if grabFromSite then
             local ok, body = pcall(function()
-                return game:HttpGet(key)
+                local _, guarded = httpGuard.guardFetch(key, function()
+                    return game:HttpGet(key)
+                end, "strict")
+                return guarded
             end)
             if ok and typeof(body) == "string" and trim(body) ~= "" then
                 table.insert(self._expected, trim(body))
@@ -25725,7 +25796,10 @@ function assetResolver.getAssetContentFromUrl(
     end
 
     local content: string? = nil
-    local requestFn = networkUtil.getRequestFn()
+    -- Asset URLs are public CDN addresses, so interception here warns (via
+    -- HttpGuard) and falls back to the no-request-function path instead of
+    -- breaking the UI — unlike key fetches, which fail closed.
+    local requestFn = networkUtil.getGuardedRequestFn(nil, "warn")
     if not requestFn then
         logger.warn("No request function available to download asset content.")
     else
@@ -26892,6 +26966,619 @@ end
 return hardwarePerformance
 end)() end,
     [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
+--[[
+HttpGuard — HTTP interception (spy / hook) detection for Astra.
+
+HttpSpy-style tools work by hooking the exact functions Astra fetches with:
+`__namecall` on `game` (for `game:HttpGet` / `game:HttpPost` / `GetObjects`),
+the executor's `request` function (`(syn or http).request`, aliased over the
+global `request`), and the `game.HttpGet` / `game.HttpPost` closures directly.
+Once hooked, every URL Astra touches is logged to a file and a CoreGui window,
+and responses can be rewritten before Astra sees them (response spoofing).
+
+What this module can and cannot do (read before relying on it)
+--------------------------------------------------------------
+* CAN: detect the fingerprints such tools leave behind, and let Astra refuse
+  to fetch while they are present. Detection is layered so no single probe is
+  load-bearing (see below).
+* CANNOT: prevent a hook. `hookfunction` patches the closure itself, so code
+  running inside the executor cannot hide from it or remove it. Anything that
+  must be enforced (keys, purchases, permissions) needs a server — same trust
+  model as the signed loader: tamper *evidence*, not a trust root.
+
+Layers
+------
+* A — tool artifacts. Order-independent: they work even when the spy loaded
+  before Astra. `genv-spy-api` (a `getgenv().HttpSpy` table with the spy's API
+  shape), `coregui-spy-window` (a `HttpSpyGui` ScreenGui under CoreGui/gethui),
+  `spy-log-files` (`HttpSpy_*.txt` in the workspace listing).
+* B — baseline drift. `capture()` snapshots the pristine references (the
+  entrypoint calls it on load); `scan()` reports `namecall-swapped`,
+  `method-swapped` and `requestfn-swapped` when they no longer match. Blind
+  when the spy loaded first — that is what layers A and C are for.
+* C — baseline-free heuristics. `namecall-lclosure` (a pristine DataModel
+  `__namecall` is a C closure; a hooked one is an executor Lua closure) and
+  `cfunc-lua-source` (`debug.getinfo` no longer reports `[C]` for engine HTTP
+  functions). Positive signals only: anything unknown is skipped, never a hit.
+
+The whole scanner is gated on executor evidence (hook/introspection
+primitives). A spy cannot run without them, so plain Studio and bare Luau
+always scan clean — and every probe is pcall-wrapped, so `scan()` never
+raises. Policies: `audit` (report only), `warn` (report + `warn()`),
+`strict` (raise on any signal; unknown policies fail closed too), `off`.
+
+Enforcement points (strict where it matters, quiet everywhere else)
+-------------------------------------------------------------------
+* `loader.luau` runs an inline preflight before fetching the bundle or the
+  signature: a hit returns the quiet stub, like any other loader failure.
+* `components/keySystem.luau` guards each `grabKeyFromSite` fetch: a hit
+  drops the key exactly like a failed fetch (the gate fails closed, no
+  raise surfaces).
+* `utilities/assetResolver.luau` resolves its request function through
+  `network.getGuardedRequestFn` with `warn`: icon/CDN URLs are public by
+  design, so interception there warns and falls back instead of breaking.
+* Hosts that want strict-at-load call `Astra.HttpGuard.check("strict")`
+  before `CreateWindow`. It is not the entrypoint default on purpose: the
+  C-layer trips on *any* `__namecall` hook (admin tools hook it too), and a
+  UI library that refuses to coexist with those is a support burden.
+]]
+
+export type GuardPolicy = "audit" | "warn" | "strict" | "off"
+export type GuardSignal = {
+    id: string,
+    layer: string,
+    detail: string,
+}
+export type GuardReport = {
+    clean: boolean,
+    executor: boolean,
+    captured: boolean,
+    httpSpy: boolean,
+    hooked: boolean,
+    signals: { GuardSignal },
+}
+
+local HttpGuard = {}
+
+local DEFAULT_POLICY: GuardPolicy = "strict"
+
+-- Hook/introspection primitives whose presence proves an executor. Deliberately
+-- narrow: filesystem functions are NOT evidence (Astra's own test stubs define
+-- `writefile`/`listfiles`, and `getgenv` is stubbed too), and neither is
+-- `debug` (plain Luau ships it). HttpSpy itself cannot load without
+-- `hookfunction`/`hookmetamethod`/`newcclosure`, so anything it hooked trips
+-- this gate, while Studio, bare Luau and every stub harness stay out.
+local EVIDENCE_NAMES = {
+    "hookfunction",
+    "hookmetamethod",
+    "islclosure",
+    "iscclosure",
+    "newcclosure",
+    "getrawmetatable",
+    "getgc",
+    "checkcaller",
+    "getnamecallmethod",
+    "replaceclosure",
+}
+
+-- The `game` methods HttpSpy hooks (namecall table + direct closure hooks).
+local GAME_METHODS = { "HttpGet", "HttpGetAsync", "GetObjects", "HttpPost", "HttpPostAsync" }
+
+-- Request-function paths, same resolution order as `network.getRequestFn`.
+local REQUEST_PATHS = {
+    { "request" },
+    { "http_request" },
+    { "http", "request" },
+    { "syn", "request" },
+    { "fluxus", "request" },
+}
+
+-- `getgenv().HttpSpy` keys that make up the spy's API shape (layer A1 needs
+-- at least two so a stray user table named HttpSpy does not false-positive).
+local SPY_API_KEYS = { "OnRequest", "HookSynRequest", "BlockUrl", "ProxyHost", "ToggleGui", "SaveLogs" }
+
+type Baseline = {
+    namecall: any,
+    methods: { [string]: any },
+    requestFns: { [string]: any },
+}
+
+local baseline: Baseline? = nil
+
+--[[
+Live global environments, in lookup order. `getfenv(0)` is the live table on
+the luau CLI and on executors; `_G` is stale under the CLI (it locks `_G`)
+but live on Roblox and executors, where `getfenv` may not exist at all.
+Probing both keeps every runtime working.
+]]
+local function globalRoots(): { { [string]: any } }
+    local roots: { { [string]: any } } = {}
+    local getfenvFn: any = nil
+    pcall(function()
+        getfenvFn = getfenv
+    end)
+    if type(getfenvFn) == "function" then
+        local env: any = nil
+        local ok = pcall(function()
+            env = getfenvFn(0)
+        end)
+        if ok and type(env) == "table" then
+            roots[#roots + 1] = env
+        end
+    end
+    local g: any = nil
+    pcall(function()
+        g = _G
+    end)
+    if type(g) == "table" and g ~= roots[1] then
+        roots[#roots + 1] = g
+    end
+    return roots
+end
+
+local function globalValue(name: string): any
+    for _, root in globalRoots() do
+        local value: any = nil
+        local found = false
+        pcall(function()
+            value = root[name]
+            found = value ~= nil
+        end)
+        if found then
+            return value
+        end
+    end
+    return nil
+end
+
+local function resolvePath(path: { string }): any
+    for _, root in globalRoots() do
+        local current: any = root
+        local resolved = true
+        for _, key in path do
+            local nextValue: any = nil
+            local ok = pcall(function()
+                if type(current) == "table" then
+                    nextValue = current[key]
+                end
+            end)
+            if not ok then
+                resolved = false
+                break
+            end
+            current = nextValue
+            if current == nil then
+                resolved = false
+                break
+            end
+        end
+        if resolved then
+            return current
+        end
+    end
+    return nil
+end
+
+local function detectExecutor(): boolean
+    for _, name in EVIDENCE_NAMES do
+        if type(globalValue(name)) == "function" then
+            return true
+        end
+    end
+    return false
+end
+
+local function currentNamecall(): any
+    local gameRef = globalValue("game")
+    if gameRef == nil then
+        return nil
+    end
+    local getrawmetatable = globalValue("getrawmetatable")
+    if type(getrawmetatable) ~= "function" then
+        return nil
+    end
+    local mt: any = nil
+    local ok = pcall(function()
+        mt = getrawmetatable(gameRef)
+    end)
+    if not ok or type(mt) ~= "table" then
+        return nil
+    end
+    local namecall: any = nil
+    pcall(function()
+        namecall = mt.__namecall
+    end)
+    return namecall
+end
+
+local function emit(signals: { GuardSignal }, id: string, layer: string, detail: string)
+    signals[#signals + 1] = { id = id, layer = layer, detail = detail }
+end
+
+--[[
+Snapshot the pristine HTTP references. Called by the entrypoint on load; safe
+to call again, but re-capturing after a spy loads blinds layer B (layers A
+and C keep working). Returns false only when the environment could not be
+read at all.
+]]
+function HttpGuard.capture(): boolean
+    local ok = pcall(function()
+        local snap: Baseline = { namecall = nil, methods = {}, requestFns = {} }
+        snap.namecall = currentNamecall()
+        local gameRef = globalValue("game")
+        if gameRef ~= nil then
+            for _, method in GAME_METHODS do
+                local fn: any = nil
+                local readOk = pcall(function()
+                    fn = gameRef[method]
+                end)
+                if readOk and type(fn) == "function" then
+                    snap.methods[method] = fn
+                end
+            end
+        end
+        for _, path in REQUEST_PATHS do
+            local fn: any = nil
+            local readOk = pcall(function()
+                fn = resolvePath(path)
+            end)
+            if readOk and type(fn) == "function" then
+                snap.requestFns[table.concat(path, ".")] = fn
+            end
+        end
+        baseline = snap
+    end)
+    return ok and baseline ~= nil
+end
+
+local function probeGenvSpyApi(signals: { GuardSignal })
+    local getgenv = globalValue("getgenv")
+    if type(getgenv) ~= "function" then
+        return
+    end
+    local genv: any = nil
+    local ok = pcall(function()
+        genv = getgenv()
+    end)
+    if not ok or type(genv) ~= "table" then
+        return
+    end
+    local spy: any = nil
+    pcall(function()
+        spy = genv.HttpSpy
+    end)
+    if type(spy) ~= "table" then
+        return
+    end
+    local hits = 0
+    for _, key in SPY_API_KEYS do
+        local present = false
+        pcall(function()
+            present = spy[key] ~= nil
+        end)
+        if present then
+            hits = hits + 1
+        end
+    end
+    if hits >= 2 then
+        emit(signals, "genv-spy-api", "A", "getgenv().HttpSpy matches the HttpSpy API shape")
+    end
+end
+
+local function probeCoreGuiWindow(signals: { GuardSignal })
+    local gameRef = globalValue("game")
+    if gameRef == nil then
+        return
+    end
+    local roots: { any } = {}
+    local coreGui: any = nil
+    local svcOk = pcall(function()
+        coreGui = gameRef:GetService("CoreGui")
+    end)
+    if svcOk and coreGui ~= nil then
+        roots[#roots + 1] = coreGui
+    end
+    local gethui = globalValue("gethui")
+    if type(gethui) == "function" then
+        local hui: any = nil
+        local huiOk = pcall(function()
+            hui = gethui()
+        end)
+        if huiOk and hui ~= nil then
+            roots[#roots + 1] = hui
+        end
+    end
+    for _, root in roots do
+        local found: any = nil
+        local findOk = pcall(function()
+            local finder = root.FindFirstChild
+            if type(finder) == "function" then
+                found = finder(root, "HttpSpyGui", true)
+            end
+        end)
+        if findOk and found ~= nil then
+            local name: any = nil
+            local class: any = nil
+            pcall(function()
+                name = found.Name
+            end)
+            pcall(function()
+                class = found.ClassName
+            end)
+            if name == "HttpSpyGui" and (class == "ScreenGui" or class == nil) then
+                emit(signals, "coregui-spy-window", "A", "HttpSpyGui window is present")
+                return
+            end
+        end
+    end
+end
+
+local function probeSpyLogFiles(signals: { GuardSignal })
+    local listfiles = globalValue("listfiles")
+    if type(listfiles) ~= "function" then
+        return
+    end
+    for _, dir in { "", "." } do
+        local files: any = nil
+        local ok = pcall(function()
+            files = listfiles(dir)
+        end)
+        if ok and type(files) == "table" then
+            for _, path in files do
+                if
+                    type(path) == "string"
+                    and (
+                        path:match("HttpSpy_[^/\\]*%.txt$")
+                        or path:match("HttpSpy_log[^/\\]*%.txt$")
+                    )
+                then
+                    emit(signals, "spy-log-files", "A", "spy log file is present: " .. path)
+                    return
+                end
+            end
+        end
+    end
+end
+
+local function probeBaselineDrift(signals: { GuardSignal })
+    local snap = baseline
+    if snap == nil then
+        return
+    end
+    if snap.namecall ~= nil then
+        local current: any = nil
+        local ok = pcall(function()
+            current = currentNamecall()
+        end)
+        if ok and type(current) == "function" and not rawequal(current, snap.namecall) then
+            emit(signals, "namecall-swapped", "B", "game __namecall no longer matches the captured reference")
+        end
+    end
+    local gameRef = globalValue("game")
+    if gameRef ~= nil then
+        for _, method in GAME_METHODS do
+            local pristine = snap.methods[method]
+            if pristine ~= nil then
+                local current: any = nil
+                local ok = pcall(function()
+                    current = gameRef[method]
+                end)
+                if ok and type(current) == "function" and not rawequal(current, pristine) then
+                    emit(signals, "method-swapped", "B", "game." .. method .. " no longer matches the captured reference")
+                end
+            end
+        end
+    end
+    for _, path in REQUEST_PATHS do
+        local key = table.concat(path, ".")
+        local pristine = snap.requestFns[key]
+        if pristine ~= nil then
+            local current: any = nil
+            local ok = pcall(function()
+                current = resolvePath(path)
+            end)
+            if ok and type(current) == "function" and not rawequal(current, pristine) then
+                emit(signals, "requestfn-swapped", "B", key .. " no longer matches the captured reference")
+            end
+        end
+    end
+end
+
+local function probeNamecallClosure(signals: { GuardSignal })
+    local namecall: any = nil
+    local ok = pcall(function()
+        namecall = currentNamecall()
+    end)
+    if not ok or type(namecall) ~= "function" then
+        return
+    end
+    local islclosure = globalValue("islclosure")
+    if type(islclosure) == "function" then
+        local isLua = false
+        local checkOk = pcall(function()
+            isLua = islclosure(namecall) == true
+        end)
+        if checkOk and isLua then
+            emit(signals, "namecall-lclosure", "C", "game __namecall is a Lua closure (pristine is a C closure)")
+        end
+        return
+    end
+    local iscclosure = globalValue("iscclosure")
+    if type(iscclosure) == "function" then
+        local isC = true
+        local checkOk = pcall(function()
+            isC = iscclosure(namecall) ~= false
+        end)
+        if checkOk and not isC then
+            emit(signals, "namecall-lclosure", "C", "game __namecall is not a C closure")
+        end
+    end
+end
+
+local function probeCfuncSource(signals: { GuardSignal })
+    -- debug.getinfo exists on executors (stock Luau/Roblox omit it); when it
+    -- is absent there is nothing to compare, so the probe skips.
+    local debugLib = globalValue("debug")
+    if type(debugLib) ~= "table" then
+        return
+    end
+    local getinfo = debugLib.getinfo
+    if type(getinfo) ~= "function" then
+        return
+    end
+    local candidates: { { label: string, fn: (...any) -> any } } = {}
+    local gameRef = globalValue("game")
+    if gameRef ~= nil then
+        for _, method in GAME_METHODS do
+            local fn: any = nil
+            local ok = pcall(function()
+                fn = gameRef[method]
+            end)
+            if ok and type(fn) == "function" then
+                candidates[#candidates + 1] = { label = "game." .. method, fn = fn }
+            end
+        end
+    end
+    for _, path in REQUEST_PATHS do
+        local fn: any = nil
+        local ok = pcall(function()
+            fn = resolvePath(path)
+        end)
+        if ok and type(fn) == "function" then
+            candidates[#candidates + 1] = { label = table.concat(path, "."), fn = fn }
+        end
+    end
+    for _, candidate in candidates do
+        local label = candidate.label
+        local fn = candidate.fn
+        local info: any = nil
+        local ok = pcall(function()
+            info = getinfo(fn)
+        end)
+        if ok and type(info) == "table" and type(info.source) == "string" and info.source ~= "[C]" then
+            -- Engine HTTP entry points are C functions. A Lua chunk source here
+            -- means the reference was swapped for (or reports as) script code.
+            -- Some executors keep reporting `[C]` through `hookfunction`, so a
+            -- `[C]` source is *not* proof of clean — only a non-`[C]` source
+            -- is a signal.
+            emit(signals, "cfunc-lua-source", "C", label .. " reports a Lua source (" .. info.source .. ")")
+        end
+    end
+end
+
+--[[
+Run every probe and return the report. Never raises: each probe is isolated,
+unknowns are skipped, and without executor evidence the report is clean by
+construction (a spy cannot run where no hook primitive exists).
+]]
+function HttpGuard.scan(): GuardReport
+    local report: GuardReport = {
+        clean = true,
+        executor = false,
+        captured = baseline ~= nil,
+        httpSpy = false,
+        hooked = false,
+        signals = {},
+    }
+    local execOk, exec = pcall(detectExecutor)
+    report.executor = execOk and exec == true
+    if not report.executor then
+        return report
+    end
+    local probes = {
+        probeGenvSpyApi,
+        probeCoreGuiWindow,
+        probeSpyLogFiles,
+        probeBaselineDrift,
+        probeNamecallClosure,
+        probeCfuncSource,
+    }
+    for _, probe in probes do
+        pcall(probe, report.signals)
+    end
+    for _, signal in report.signals do
+        if signal.layer == "A" then
+            report.httpSpy = true
+        else
+            report.hooked = true
+        end
+    end
+    report.clean = #report.signals == 0
+    return report
+end
+
+--[[
+Enforce a policy against a fresh scan. Returns `true` when the environment is
+clean. Otherwise `audit` and `warn` return `false` (warn also `warn()`s every
+signal), while `strict` raises. Unknown policies fail closed like `strict`.
+`off` skips the scan and always returns `true`.
+]]
+function HttpGuard.check(policy: GuardPolicy?): (boolean, GuardReport)
+    local effective: string = policy or DEFAULT_POLICY
+    if effective == "off" then
+        return true, {
+            clean = true,
+            executor = false,
+            captured = baseline ~= nil,
+            httpSpy = false,
+            hooked = false,
+            signals = {},
+        }
+    end
+    local report = HttpGuard.scan()
+    if report.clean then
+        return true, report
+    end
+    if effective == "audit" then
+        return false, report
+    end
+    if effective == "warn" then
+        local warnFn = globalValue("warn")
+        if type(warnFn) == "function" then
+            for _, signal in report.signals do
+                pcall(warnFn, ("Astra HttpGuard [%s/%s]: %s"):format(signal.layer, signal.id, signal.detail))
+            end
+        end
+        return false, report
+    end
+    local parts: { string } = {}
+    for _, signal in report.signals do
+        parts[#parts + 1] = signal.layer .. "/" .. signal.id
+    end
+    error(("Astra: refusing to continue — HTTP interception detected (%s)"):format(table.concat(parts, ", ")), 0)
+    return false, report
+end
+
+--[[
+Run `fetch` only when the policy allows it. Returns `(true, result)` on a
+clean scan; on a hit, `audit`/`warn` return `(false, nil)` without calling
+`fetch`, and `strict` raises (callers that soft-fail wrap this in `pcall`,
+like the key system does).
+]]
+function HttpGuard.guardFetch(url: string, fetch: () -> any, policy: GuardPolicy?): (boolean, any)
+    local allowed = HttpGuard.check(policy)
+    if not allowed then
+        return false, nil
+    end
+    return true, fetch()
+end
+
+function HttpGuard.setDefaultPolicy(policy: GuardPolicy): GuardPolicy
+    if policy ~= "audit" and policy ~= "warn" and policy ~= "strict" and policy ~= "off" then
+        error(("Astra HttpGuard: invalid policy %q (want audit, warn, strict or off)"):format(tostring(policy)), 0)
+    end
+    DEFAULT_POLICY = policy
+    return DEFAULT_POLICY
+end
+
+function HttpGuard.getDefaultPolicy(): GuardPolicy
+    return DEFAULT_POLICY
+end
+
+return HttpGuard
+
+end)() end,
+    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
 -- Shared validation for required, single-letter key bindings.
 local keybind = {}
 
@@ -26911,7 +27598,7 @@ end
 return keybind
 
 end)() end,
-    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
+    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
 local layouts = {}
 
 local sidebarLayout = require(script.Parent.Parent.layouts.Sidebar)
@@ -27039,7 +27726,7 @@ end
 return layouts
 
 end)() end,
-    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
+    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local logger = require(script.Parent.log)
 
@@ -27138,7 +27825,7 @@ end
 return locale
 
 end)() end,
-    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
+    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
 --[[
 Lockable controls keep their value and callback intact while a lock source
 blocks user input. This mixin also stamps the public usage tag used by the
@@ -27369,7 +28056,7 @@ setmetatable(lockable, {
 return lockable
 
 end)() end,
-    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
+    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
 local log = {}
 
 type SuppressPredicate = () -> boolean
@@ -27425,7 +28112,7 @@ end
 return log
 
 end)() end,
-    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
+    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
 --[[
 Astra motion service.
 
@@ -27898,7 +28585,7 @@ end
 
 return motion
 end)() end,
-    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
+    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
 local function moveable<T>(dragState: T): T
     local target = dragState :: any
 
@@ -27934,7 +28621,9 @@ end
 return moveable
 
 end)() end,
-    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
+    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
+local HttpGuard = require(script.Parent.httpGuard)
+
 local network = {}
 network.__index = network
 
@@ -27949,10 +28638,28 @@ function network.getRequestFn(env: any?): RequestFn?
         or (env.fluxus and env.fluxus.request)
 end
 
+--[[
+Resolve the request function, refusing to hand it back while HTTP
+interception is detected. `warn` (the default) reports and returns nil so
+callers fall back to their no-request-function path; `strict` raises instead.
+`audit` returns nil silently, `off` skips the scan.
+]]
+function network.getGuardedRequestFn(env: any?, policy: HttpGuard.GuardPolicy?): RequestFn?
+    local fn = network.getRequestFn(env)
+    if fn == nil then
+        return nil
+    end
+    local allowed = HttpGuard.check(policy or "warn")
+    if not allowed then
+        return nil
+    end
+    return fn
+end
+
 return network
 
 end)() end,
-    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
+    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local motion = require(script.Parent.motion)
 local textService = coreState.textService
@@ -28312,7 +29019,7 @@ end
 return odometer
 
 end)() end,
-    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
+    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
 type OrderedElement = {
     main: GuiObject,
 }
@@ -28324,7 +29031,7 @@ end
 return ordering
 
 end)() end,
-    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
+    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
 local path = {}
 
 function path.join(base: string, suffix: string?): string
@@ -28375,7 +29082,7 @@ end
 return path
 
 end)() end,
-    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
+    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
 local persistence = {}
 
 local configPersistence = require(script.Parent.persistenceConfig)
@@ -28394,7 +29101,7 @@ persistence.loadSettings = settingsPersistence.loadSettings
 return persistence
 
 end)() end,
-    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
+    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local logger = require(script.Parent.log)
@@ -28692,7 +29399,7 @@ end
 return persistenceConfig
 
 end)() end,
-    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
+    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local pathUtil = require(script.Parent.path)
 
@@ -28736,7 +29443,7 @@ end
 return persistencePaths
 
 end)() end,
-    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
+    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local paths = require(script.Parent.persistencePaths)
@@ -28937,7 +29644,7 @@ end
 return persistenceSettings
 
 end)() end,
-    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
+    [117] = function()local wax,script,require=ImportGlobals(117)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 
 local persistenceWrite = {}
@@ -28965,7 +29672,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [117] = function()local wax,script,require=ImportGlobals(117)local ImportGlobals return (function(...)
+    [118] = function()local wax,script,require=ImportGlobals(118)local ImportGlobals return (function(...)
 local services = {}
 
 function services.getService(serviceName)
@@ -28976,7 +29683,7 @@ end
 return services
 
 end)() end,
-    [118] = function()local wax,script,require=ImportGlobals(118)local ImportGlobals return (function(...)
+    [119] = function()local wax,script,require=ImportGlobals(119)local ImportGlobals return (function(...)
 local layoutMetrics = require(script.Parent.layouts)
 local coreState = require(script.Parent.Parent.core.state)
 
@@ -29161,118 +29868,119 @@ end)() end,
 
 local LineOffsets = {
     [2] = 47,
-    [3] = 482,
-    [5] = 1195,
-    [6] = 1178,
-    [7] = 1350,
-    [8] = 1492,
-    [9] = 1743,
-    [10] = 2125,
-    [11] = 3495,
-    [12] = 3904,
-    [13] = 4253,
-    [14] = 4992,
-    [15] = 5330,
-    [16] = 5900,
-    [17] = 5963,
-    [18] = 6437,
-    [19] = 6783,
-    [20] = 6797,
-    [21] = 6897,
-    [22] = 7037,
-    [23] = 7578,
-    [24] = 7817,
-    [25] = 8139,
-    [26] = 8239,
-    [27] = 8293,
-    [28] = 8935,
-    [29] = 9183,
-    [30] = 9533,
-    [31] = 9980,
-    [32] = 6757,
-    [34] = 10914,
-    [35] = 11751,
-    [36] = 11840,
-    [37] = 12069,
-    [38] = 12490,
-    [39] = 12955,
-    [40] = 13112,
-    [41] = 13257,
-    [42] = 14875,
-    [43] = 15123,
-    [44] = 15363,
-    [45] = 15684,
-    [46] = 16130,
-    [47] = 16383,
-    [48] = 17463,
-    [49] = 18287,
-    [50] = 18373,
-    [51] = 18976,
-    [52] = 19818,
-    [53] = 20412,
-    [54] = 20993,
-    [55] = 21123,
-    [56] = 21262,
-    [58] = 21777,
-    [59] = 21803,
-    [60] = 21822,
-    [61] = 21854,
-    [62] = 21980,
-    [63] = 21994,
-    [64] = 22043,
-    [65] = 21752,
-    [66] = 22134,
-    [67] = 22450,
-    [68] = 22481,
-    [69] = 22123,
-    [70] = 22524,
-    [71] = 22544,
-    [72] = 22576,
-    [73] = 22506,
-    [74] = 22683,
-    [75] = 22751,
-    [77] = 22833,
-    [78] = 23000,
-    [79] = 23019,
-    [80] = 22818,
-    [81] = 23660,
-    [82] = 23706,
-    [83] = 23788,
-    [84] = 23983,
-    [85] = 24114,
-    [86] = 24217,
-    [87] = 24386,
-    [88] = 24726,
-    [89] = 23115,
-    [90] = 25370,
-    [91] = 25256,
-    [92] = 25509,
-    [93] = 25607,
-    [94] = 25785,
-    [95] = 25844,
-    [96] = 25874,
-    [97] = 26166,
-    [98] = 26215,
-    [99] = 26670,
-    [100] = 26688,
-    [101] = 26895,
-    [102] = 26915,
-    [103] = 27043,
-    [104] = 27142,
-    [105] = 27373,
-    [106] = 27429,
-    [107] = 27902,
-    [108] = 27938,
-    [109] = 27956,
-    [110] = 28316,
-    [111] = 28328,
-    [112] = 28379,
-    [113] = 28398,
-    [114] = 28696,
-    [115] = 28740,
-    [116] = 28941,
-    [117] = 28969,
-    [118] = 28980,
+    [3] = 504,
+    [5] = 1259,
+    [6] = 1242,
+    [7] = 1414,
+    [8] = 1556,
+    [9] = 1807,
+    [10] = 2189,
+    [11] = 3566,
+    [12] = 3975,
+    [13] = 4324,
+    [14] = 5063,
+    [15] = 5401,
+    [16] = 5971,
+    [17] = 6034,
+    [18] = 6508,
+    [19] = 6854,
+    [20] = 6868,
+    [21] = 6968,
+    [22] = 7108,
+    [23] = 7649,
+    [24] = 7888,
+    [25] = 8210,
+    [26] = 8310,
+    [27] = 8364,
+    [28] = 9006,
+    [29] = 9254,
+    [30] = 9604,
+    [31] = 10051,
+    [32] = 6828,
+    [34] = 10985,
+    [35] = 11822,
+    [36] = 11911,
+    [37] = 12140,
+    [38] = 12561,
+    [39] = 13026,
+    [40] = 13183,
+    [41] = 13328,
+    [42] = 14946,
+    [43] = 15194,
+    [44] = 15434,
+    [45] = 15755,
+    [46] = 16201,
+    [47] = 16454,
+    [48] = 17534,
+    [49] = 18358,
+    [50] = 18444,
+    [51] = 19047,
+    [52] = 19889,
+    [53] = 20483,
+    [54] = 21064,
+    [55] = 21194,
+    [56] = 21333,
+    [58] = 21848,
+    [59] = 21874,
+    [60] = 21893,
+    [61] = 21925,
+    [62] = 22051,
+    [63] = 22065,
+    [64] = 22114,
+    [65] = 21823,
+    [66] = 22205,
+    [67] = 22521,
+    [68] = 22552,
+    [69] = 22194,
+    [70] = 22595,
+    [71] = 22615,
+    [72] = 22647,
+    [73] = 22577,
+    [74] = 22754,
+    [75] = 22822,
+    [77] = 22904,
+    [78] = 23071,
+    [79] = 23090,
+    [80] = 22889,
+    [81] = 23731,
+    [82] = 23777,
+    [83] = 23859,
+    [84] = 24054,
+    [85] = 24185,
+    [86] = 24288,
+    [87] = 24457,
+    [88] = 24797,
+    [89] = 23186,
+    [90] = 25441,
+    [91] = 25327,
+    [92] = 25580,
+    [93] = 25678,
+    [94] = 25859,
+    [95] = 25918,
+    [96] = 25948,
+    [97] = 26240,
+    [98] = 26289,
+    [99] = 26744,
+    [100] = 26762,
+    [101] = 26969,
+    [102] = 27582,
+    [103] = 27602,
+    [104] = 27730,
+    [105] = 27829,
+    [106] = 28060,
+    [107] = 28116,
+    [108] = 28589,
+    [109] = 28625,
+    [110] = 28663,
+    [111] = 29023,
+    [112] = 29035,
+    [113] = 29086,
+    [114] = 29105,
+    [115] = 29403,
+    [116] = 29447,
+    [117] = 29648,
+    [118] = 29676,
+    [119] = 29687,
 }
 
 -- Misc AOT variable imports
@@ -29941,7 +30649,7 @@ local ObjectTree = {
                 },
             },
             {
-                119,
+                120,
                 1,
                 {
                     "utilities",
@@ -30014,123 +30722,130 @@ local ObjectTree = {
                         101,
                         2,
                         {
-                            "keybind",
+                            "httpGuard",
                         },
                     },
                     {
                         102,
                         2,
                         {
-                            "layouts",
+                            "keybind",
                         },
                     },
                     {
                         103,
                         2,
                         {
-                            "locale",
+                            "layouts",
                         },
                     },
                     {
                         104,
                         2,
                         {
-                            "lockable",
+                            "locale",
                         },
                     },
                     {
                         105,
                         2,
                         {
-                            "log",
+                            "lockable",
                         },
                     },
                     {
                         106,
                         2,
                         {
-                            "motion",
+                            "log",
                         },
                     },
                     {
                         107,
                         2,
                         {
-                            "moveable",
+                            "motion",
                         },
                     },
                     {
                         108,
                         2,
                         {
-                            "network",
+                            "moveable",
                         },
                     },
                     {
                         109,
                         2,
                         {
-                            "odometer",
+                            "network",
                         },
                     },
                     {
                         110,
                         2,
                         {
-                            "ordering",
+                            "odometer",
                         },
                     },
                     {
                         111,
                         2,
                         {
-                            "path",
+                            "ordering",
                         },
                     },
                     {
                         112,
                         2,
                         {
-                            "persistence",
+                            "path",
                         },
                     },
                     {
                         113,
                         2,
                         {
-                            "persistenceConfig",
+                            "persistence",
                         },
                     },
                     {
                         114,
                         2,
                         {
-                            "persistencePaths",
+                            "persistenceConfig",
                         },
                     },
                     {
                         115,
                         2,
                         {
-                            "persistenceSettings",
+                            "persistencePaths",
                         },
                     },
                     {
                         116,
                         2,
                         {
-                            "persistenceWrite",
+                            "persistenceSettings",
                         },
                     },
                     {
                         117,
                         2,
                         {
-                            "services",
+                            "persistenceWrite",
                         },
                     },
                     {
                         118,
+                        2,
+                        {
+                            "services",
+                        },
+                    },
+                    {
+                        119,
                         2,
                         {
                             "windowSizing",

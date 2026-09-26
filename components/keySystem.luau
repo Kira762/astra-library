@@ -37,6 +37,7 @@ local locale = require(utilities.locale)
 local log = require(utilities.log)
 local haptic = require(utilities.HapticEngine)
 local filesystem = require(utilities.filesystem)
+local httpGuard = require(utilities.httpGuard)
 local pathUtil = require(utilities.path)
 local themes = require(script.Parent.Parent.themes)
 local Icons = require(script.Parent.Parent.icons)
@@ -313,13 +314,19 @@ function KeySystem.new(props)
     the network: each entry is treated as a raw URL and its trimmed body
     becomes the expected key. A URL that fails to fetch warns and is
     dropped — it can never match, so a dead link fails closed, not open.
+    The fetch is HttpGuard-strict for the same reason: under HTTP
+    interception the key body would leak to the spy's log and the response
+    could be spoofed, so a hit refuses the fetch and the key is dropped.
     ]]
     local grabFromSite = props.grabKeyFromSite or props.GrabKeyFromSite or false
     for _, key in keys do
         key = tostring(key)
         if grabFromSite then
             local ok, body = pcall(function()
-                return game:HttpGet(key)
+                local _, guarded = httpGuard.guardFetch(key, function()
+                    return game:HttpGet(key)
+                end, "strict")
+                return guarded
             end)
             if ok and typeof(body) == "string" and trim(body) ~= "" then
                 table.insert(self._expected, trim(body))

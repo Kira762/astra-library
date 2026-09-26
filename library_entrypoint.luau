@@ -1,3 +1,13 @@
+--[[
+HttpGuard loads and captures first, before any other module runs: the
+baseline-drift layer compares against these references, so the earlier the
+snapshot, the smaller the window a spy has to load in between. Capture is
+silent and never raises; enforcement lives at the fetch points (the loader
+preflight, the key system) and in `Astra.HttpGuard.check` for hosts.
+]]
+local HttpGuard = require(script.Parent.utilities.httpGuard)
+HttpGuard.capture()
+
 local Core = require(script.Parent.core)
 local State = require(script.Parent.core.state)
 local Image = require(script.Parent.images.image)
@@ -69,6 +79,10 @@ export type Divider = types.Divider
 export type AboutCard = types.AboutCard
 export type Popup = types.Popup
 export type KeySystem = types.KeySystem
+export type HttpGuardSignal = types.HttpGuardSignal
+export type HttpGuardReport = types.HttpGuardReport
+export type HttpGuardPolicy = types.HttpGuardPolicy
+export type HttpGuardService = types.HttpGuardService
 export type Astra = types.Astra
 
 type WindowModule = { new: (types.WindowProps) -> types.Window }
@@ -206,6 +220,14 @@ Astra.Motion = Motion
 Astra.Core = Core
 Astra.Settings = Settings
 Astra.Performance = HardwarePerformance
+
+--[[
+HTTP interception detection (`utilities/httpGuard.luau`): `scan()` reports,
+`check(policy)` enforces (`audit` / `warn` / `strict` / `off`), `capture()`
+re-baselines, `guardFetch` wraps a fetch. Hosts that want strict-at-load call
+`Astra.HttpGuard.check("strict")` before `CreateWindow`.
+]]
+Astra.HttpGuard = HttpGuard
 
 function Astra:CreateWindow(props: types.WindowProps): types.Window
 	--[[

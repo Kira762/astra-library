@@ -19,6 +19,8 @@
 #      re-signed with a throwaway key            → stub   (needs node)
 #   9  degraded pin mode, honest second origin   → real
 #  10  degraded pin mode, wrong record           → stub
+#  11  valid bundle/sig, HttpSpy artifacts present → stub (preflight)
+#  12  same artifacts, SPY_PREFLIGHT="off" loader   → real (escape hatch)
 #
 # Case 8 is the only one that re-signs; it proves the bootstrap canary path
 # independently of the signature layer. Without node it is skipped (exit 0).
@@ -177,6 +179,10 @@ sed 's/local EXPECTED_BUNDLE_VERSION = "[^"]*"/local EXPECTED_BUNDLE_VERSION = "
 sed 's/local VERIFICATION_MODE = "signature"/local VERIFICATION_MODE = "pin"/' "$LOADER" |
 	sed 's|local SECONDARY_PIN_URL = ""|local SECONDARY_PIN_URL = "https://pin.example.test/record"|' 		> "$WORK/loader_pin.luau"
 
+# Spy-preflight escape hatch: identical loader with the scan disabled.
+sed 's/local SPY_PREFLIGHT = "strict"/local SPY_PREFLIGHT = "off"/' \
+	"$LOADER" > "$WORK/loader_spyoff.luau"
+
 # --- bundle / signature variants ------------------------------------------
 SIG_HEX="$(tr -d '[:space:]' < "$SIG")"
 # corrupt one hex digit of the signature (flip first char to its complement)
@@ -324,6 +330,81 @@ if command -v sha256sum >/dev/null 2>&1; then
 	fi
 else
 	echo "  skip  pin_match/pin_mismatch (sha256sum not available)"
+fi
+
+# 11/12 - spy preflight: HttpSpy artifacts (a hook primitive plus the
+# genv API table) served alongside a VALID bundle and signature. The strict
+# loader must refuse to fetch (quiet stub); the SPY_PREFLIGHT="off" variant
+# must load the real API (the documented escape hatch).
+SPY_PRELUDE="$WORK/spy_prelude.luau"
+cat > "$SPY_PRELUDE" <<'EOF'
+hookfunction = function(fn) return fn end
+getgenv = function()
+	return {
+		HttpSpy = {
+			OnRequest = {},
+			HookSynRequest = function() end,
+			BlockUrl = function() end,
+		},
+	}
+end
+EOF
+run_spy_case() {
+	name="$1"
+	expectation="$2"
+	loader_file="$3"
+	assembled="$WORK/case_$name.luau"
+	{
+		cat "$STUBS"
+		cat "$SPY_PRELUDE"
+		echo "HttpGet = function(__url)"
+		echo "	if tostring(__url):match(\"%.sig$\") then return \"$SIG_HEX\" end"
+		echo "	return $OPEN"
+		cat "$BUNDLE"
+		echo "$CLOSE"
+		echo "end"
+		echo "local __Astra = (function()"
+		cat "$loader_file"
+		echo "end)()"
+		cat <<ASSERTIONS
+local function expect(cond, message)
+	if not cond then
+		error("INTEGRITY FAIL [$name]: " .. tostring(message), 0)
+	end
+end
+expect(type(__Astra) == "table", "loader returned a table")
+ASSERTIONS
+		if [ "$expectation" = "real" ]; then
+			cat <<ASSERTIONS
+expect(type(__Astra.CreateWindow) == "function", "preflight off: real API loads despite artifacts")
+expect(type(__Astra.Core) == "table", "preflight off: Core present")
+ASSERTIONS
+		else
+			cat <<ASSERTIONS
+expect(type(__Astra.CreateWindow) == "table", "preflight: spy artifacts must yield the quiet stub")
+local spyOk = pcall(function()
+	__Astra:CreateWindow({ name = "x" })
+end)
+expect(spyOk, "stub must not raise")
+ASSERTIONS
+		fi
+		echo "print(\"case $name: ok\")"
+	} > "$assembled"
+	if "$LUAU_BIN" "$assembled" > "$WORK/case_$name.out" 2>&1 \
+		&& grep -q "case $name: ok" "$WORK/case_$name.out"; then
+		printf '  ok    %s\n' "$name"
+	else
+		echo "  FAIL  $name" >&2
+		sed 's/^/          /' "$WORK/case_$name.out" | tail -20 >&2
+		return 1
+	fi
+}
+if grep -q 'local SPY_PREFLIGHT = "off"' "$WORK/loader_spyoff.luau"; then
+	if run_spy_case spy_preflight stub "$LOADER"; then :; else failures=$((failures + 1)); fi
+	if run_spy_case spy_preflight_off real "$WORK/loader_spyoff.luau"; then :; else failures=$((failures + 1)); fi
+else
+	echo "  FAIL  spyoff loader variant not built" >&2
+	failures=$((failures + 1))
 fi
 
 echo ""

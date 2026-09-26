@@ -1,5 +1,47 @@
 # Changelog
 
+## Unreleased — HttpGuard: HttpSpy-style interception detection, strict where it matters
+
+Scripts running under an HTTP spy (HttpSpy and its forks hook `game:HttpGet`,
+the executor's `request` function and `__namecall`) leak every URL they fetch
+— key-allowlist bodies included — with no way to notice. Astra now detects
+the interception and refuses to feed it.
+
+- **`utilities/httpGuard.luau`** (new, public as `Astra.HttpGuard`) — three
+  detection layers: spy artifacts (the genv API table, the CoreGui window,
+  workspace log files), baseline drift against references captured at load,
+  and baseline-free heuristics (Lua-closure `__namecall`, non-`[C]` sources).
+  Everything sits behind an executor-evidence gate (hook primitives only),
+  every probe is isolated, and `scan()` never raises. `check(policy)` offers
+  `audit` / `warn` / `strict` (the default; unknown policies fail closed) /
+  `off`, and `guardFetch` wraps a fetch.
+- **`loader.luau`** — strict preflight before any fetch: a hit returns the
+  quiet stub exactly like a signature failure. `SPY_PREFLIGHT = "off"` is the
+  documented escape hatch; the probe set is exposed on the test internals.
+- **`components/keySystem.luau`** — `grabKeyFromSite` fetches are strict: a
+  hit drops the key exactly like a failed fetch, so the gate fails closed
+  instead of leaking the key body or accepting a spoofed one.
+- **`utilities/network.luau`, `utilities/assetResolver.luau`** — new
+  `getGuardedRequestFn` (default `warn`); asset downloads warn and fall back
+  rather than breaking the UI over public CDN URLs.
+- **`library_entrypoint.luau`, `Types.luau`** — the guard captures before any
+  other module loads and is public as `Astra.HttpGuard` (typed).
+  Strict-at-load is a host choice (`check("strict")` before `CreateWindow`),
+  not the default: the heuristics trip on any `__namecall` hook, and a UI
+  library should not refuse to coexist with admin tools unasked.
+- **`scripts/http_guard_test.luau`, `scripts/loader_integrity_test.sh`** — ten-phase
+  probe/policy/gate suite over a fake executor, plus loader cases 11 (spy
+  artifacts → stub) and 12 (preflight off → real).
+- **`USAGE.md`, `MODULES.md`, `skills/astra/references/window.md`** — the new
+  section and reference entries.
+- **`version-1.luau`, `version-1.luau.sig`, `loader.luau`, `README.md`** — the
+  bundle is regenerated and re-signed (`node scripts/sign_bundle.js`, dev key,
+  pinned `PUBLIC_KEY` synced) and the README checksum updated.
+
+Trust model, stated plainly: nothing running inside an executor can *prevent*
+a hook — HttpGuard is tamper evidence for your own deployments, not a trust
+root. Anything that must be enforced still needs a server.
+
 ## Unreleased — Autosaved configs now show up in the settings Configurations list
 
 With Auto Save on (the default, and the `AutoSave = true` a usage writes in

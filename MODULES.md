@@ -47,11 +47,19 @@ Shared runtime singletons:
   `Enum.Font.BuilderSans`) + `setFallbackFont(font)`; `fontChoice`
   (`"default"`/`"brand"`, initial value `constants.defaultFontChoice`, set
   via `setFontChoice`); `brandFont(weight)` / `brandFontPair()` — font
-  resolvers honoring the selection (and the platform's brand font
-  override): `"default"` resolves everything to the fallback family (the
-  original Roblox look), `"brand"` to `constants.fontAsset` — through
-  `fontManager`'s one-time download in secure mode.
-- Manager singletons: `fileSystemManager`, `assetResolver`, `fontManager`.
+  resolvers honoring the selection: `"default"` resolves everything to the
+  fallback family (the stock Roblox look), `"brand"` to
+  `constants.brandFontName` (Inter) through `Font.fromName`, cached per
+  weight and falling back to the fallback family where the catalogue cannot
+  answer. Both selections are neutral faces, and the pair is weight-stable:
+  body 400, titles 600 (`utilities/tokens.luau`). Secure mode never fetches
+  a face for the brand selection — it resolves to the fallback family.
+- Manager singletons: `fileSystemManager`, `assetResolver`, `fontManager`
+  (the font manager stays available to hosts; the brand face no longer
+  downloads through it).
+- `utilities/tokens.luau` — the design tokens (type scale, two weights, the
+  8pt spacing grid, icon sizes, reading measure, hairline, muted alphas);
+  see `DESIGN.md` for the rules they carry.
 
 ---
 
@@ -669,6 +677,7 @@ Per-element specifics:
 - `windowSizing.luau` — responsive size computation (desktop tiers around the
   600x420 default, min/max protected) plus the fixed mobile profile returned
   for touch-only phone-sized viewports (`isMobileViewport`).
+- `tokens.luau` — design tokens (type/spacing/icons/measure/hairline/alpha), the numbers `DESIGN.md` describes.
 - `enums.luau`, `ordering.luau`, `odometer.luau`, `fontManager.luau`, `functions.luau` (legacy shim), `path.luau` — small helpers.
 
 ---

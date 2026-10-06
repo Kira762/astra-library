@@ -22,8 +22,6 @@ local defaultLockLevels = {
 	Slider = 3,
 	Stepper = 3,
 	Button = 3,
-	AboutCard = 3,
-	ModePicker = 3,
 }
 
 local lockGroupLevels = {

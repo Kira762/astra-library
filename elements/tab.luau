@@ -16,11 +16,11 @@ local flagNames = require(script.Parent.Parent.functions.flagNames)
 local function customOrder(window, forgetState)
     for _, element in forgetState do
         if element.CancelCapture then element:CancelCapture() end
-        if window._elementLockModePicker == element then
-            window._elementLockModePicker = nil
+        if window._elementLockAllToggle == element then
+            window._elementLockAllToggle = nil
         end
         window:_unregisterLockableElement(element)
-        if element.__type == "Group" or element.__type == "CollapsibleGroup" or element.__type == "Isolated" then
+        if element.__type == "Group" or element.__type == "CollapsibleGroup" then
             customOrder(window, element.elements)
         else
             window:_unregisterControl(element)
@@ -470,10 +470,6 @@ function state:CreateStepper(props)
     return self:_register(require(script.Parent.stepper).new(self, props))
 end
 
-function state:CreateModePicker(props)
-    return self:_register(require(script.Parent.modePicker).new(self, props))
-end
-
 function state:CreateDropdown(a37)
     return self:_register(require(script.Parent.dropdown).new(self, a37))
 end
@@ -490,16 +486,8 @@ function state:CreateLink(a40)
     return self:_register(require(script.Parent.link).new(self, a40))
 end
 
-function state:CreateAboutCard(props)
-    return self:_register(require(script.Parent.aboutCard).new(self, props))
-end
-
 function state:CreateCollapsibleGroup(props)
     return self:_register(require(script.Parent.collapsibleGroup).new(self, props))
-end
-
-function state:CreateIsolated(props)
-    return self:_register(require(script.Parent.isolated).new(self, props))
 end
 
 function state:CreateGroup(a41)

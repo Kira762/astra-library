@@ -60,10 +60,10 @@ local lockScrimTransparency = 0.55
 local lockedTextTransparency = 0.55
 
 --[[
-The config flag of the built-in Element Lock Mode controller. It is shared
-because the controller's control is built lazily (Settings → Controls), so
-the persistence layer has to recognise the value while no control owns it:
-see `Window:_restoreUnowned` / `Window:_unownedConfigValues`.
+The config flag of the built-in element-lock control. It is shared because
+that control is built lazily (Settings → Controls) and owns no flag of its
+own, so the window writes the tier itself: see
+`Window:_restoreUnowned` / `Window:_unownedConfigValues`.
 ]]
 local elementLockModeFlag = "astra.elementLockMode"
 

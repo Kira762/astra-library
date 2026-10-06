@@ -31,15 +31,6 @@ local function containsUsage(value, tag)
 	return false
 end
 
-local function eqColor(color, r, g, b, message)
-	local actualR = math.floor(color.R * 255 + 0.5)
-	local actualG = math.floor(color.G * 255 + 0.5)
-	local actualB = math.floor(color.B * 255 + 0.5)
-	if actualR ~= r or actualG ~= g or actualB ~= b then
-		error(("GUARD FAIL: %s (got %d,%d,%d, want %d,%d,%d)"):format(message, actualR, actualG, actualB, r, g, b), 0)
-	end
-end
-
 -- Mirrors Window:_buildLockScrim's flow-layout probe: a GuiObject child of
 -- any of these joins the layout as an item, so a lock surface that hosts one
 -- would adopt the scrim and reflow its own content on every lock.
@@ -64,9 +55,9 @@ window:Show()
 TestPump(0.5)
 local tab = window:CreateTab({ name = "Guard" })
 
-local callbacks = { button = 0, toggle = 0, input = 0, dropdown = 0, about = 0 }
+local callbacks = { button = 0, toggle = 0, input = 0, dropdown = 0 }
 
--- 12 lockable + explicit Level 1 probe
+-- 9 lockable + explicit Level 1 probe
 local link = tab:CreateLink({
 	name = "Help Link",
 	id = "helpLink",
@@ -114,32 +105,10 @@ local advancedSlider = tab:CreateSlider({
 	range = { 0, 100 },
 	value = 40,
 })
-local customPicker = tab:CreateModePicker({
-	title = "Custom Picker",
-	id = "customPicker",
-	lockLevel = 3,
-	modes = { { label = "A" }, { label = "B" }, { label = "C" } },
-})
-local aboutCard = tab:CreateAboutCard({
-	name = "About",
-	rows = { { label = "Version", value = "1" } },
-	action = {
-		id = "aboutAction",
-		usage = "host:about-action",
-		name = "Open details",
-		callback = function() callbacks.about += 1 end,
-	},
-})
 local group = tab:CreateCollapsibleGroup({
 	name = "Expandable Group",
 	description = "Guard harness group.",
 	elements = {},
-})
-local isolated = tab:CreateIsolated({
-	name = "Changelog Container",
-	elements = {
-		{ type = "Changelog", name = "Updates", entries = { { title = "Test", changes = {} } } },
-	},
 })
 -- explicit Level 1 probe — only thing that should lock at Mode 1
 local minorToggle = tab:CreateToggle({
@@ -150,8 +119,7 @@ local minorToggle = tab:CreateToggle({
 	callback = function() end,
 })
 
--- non-lockable: 8
-local staticAbout = tab:CreateAboutCard({ name = "Static About", rows = {} })
+-- non-lockable: 7
 local inertButton = tab:CreateButton({ name = "No Action" })
 local text = tab:CreateText({ name = "Section Title", text = "Settings" })
 local divider = tab:CreateDivider({ text = "Static divider" })
@@ -166,8 +134,8 @@ local groupHeightBeforeLock = group.main.Size.Y.Offset
 -- ── A: lock registry + automatic tiers ──────────────────────────────────
 for _, element in {
 	link, input, dropdown, keybind, toggle, saveButton,
-	deleteButton, advancedSlider, customPicker, aboutCard,
-	group, isolated, minorToggle,
+	deleteButton, advancedSlider,
+	group, minorToggle,
 } do
 	expect(type(element.usageTag) == "string", element.__type .. " is tagged")
 	expect(containsUsage(element.usage, element.usageTag), element.__type .. " usage contains its lock tag " .. tostring(element.usageTag))
@@ -184,18 +152,14 @@ eq(toggle.lockLevel, 3, "Toggles default to important tier (3)")
 eq(saveButton.lockLevel, 3, "Buttons default to important tier (3)")
 eq(deleteButton.lockLevel, 4, "sensitive lockGroup maps to Level 4")
 eq(advancedSlider.lockLevel, 5, "explicit 5 deferred to Mode 5")
-eq(customPicker.lockLevel, 3, "ModePickers default to tier 3")
-eq(aboutCard.lockLevel, 3, "AboutCard actions default to tier 3")
 eq(group.lockLevel, 5, "CollapsibleGroups default to remaining tier (5)")
-eq(isolated.lockLevel, 5, "Isolated headers default to remaining tier (5)")
 eq(minorToggle.lockLevel, 1, "explicit lockLevel=1 honored")
 expect(containsUsage(link.usage, "host:documentation"), "existing usage preserved (host:documentation)")
 expect(containsUsage(link.usage, "analytics:read"), "existing usage preserved (analytics:read)")
 expect(containsUsage(input.usage, "host:profile"), "scalar usage preserved")
-expect(aboutCard.usageTag == "lockable:astra:aboutAction", "AboutCard action id carried onto callback element")
 
 -- ── B: non-lockable excluded ────────────────────────────────────────────
-for _, element in { staticAbout, text, divider, stat, inertButton, section, footer } do
+for _, element in { text, divider, stat, inertButton, section, footer } do
 	eq(element.usageTag, nil, element.__type .. " has no lock tag")
 	eq(element.lockUsage, nil, element.__type .. " has no lock metadata")
 	expect(element._isLockable ~= true, element.__type .. " is not lockable via _isLockable")
@@ -211,10 +175,10 @@ expect(not inertButton:IsLocked(), "Lock is no-op for non-functional button")
 window:SetElementLockMode(1)
 TestPump(0.1)
 expect(minorToggle:IsLocked(), "Mode 1 locks explicit Level 1")
-for _, element in { link, input, dropdown, keybind, toggle, saveButton, customPicker, aboutCard } do
+for _, element in { link, input, dropdown, keybind, toggle, saveButton } do
 	expect(not element:IsLocked(), element.elementId .. " must stay unlocked at Mode 1 (auto tier) — got locked")
 end
-for _, element in { deleteButton, advancedSlider, group, isolated } do
+for _, element in { deleteButton, advancedSlider, group } do
 	expect(not element:IsLocked(), element.elementId .. " must stay unlocked at Mode 1 (higher tier)")
 end
 
@@ -254,8 +218,8 @@ local function snapOf(frame) return frame and frame.__props and frame.__props or
 local allElements = {
 	button = saveButton, toggle = toggle, slider = advancedSlider,
 	inputEl = input, dropdownEl = dropdown, keybindEl = keybind,
-	linkEl = link, picker = customPicker, about = aboutCard,
-	groupEl = group, isolatedEl = isolated, statEl = stat,
+	linkEl = link,
+	groupEl = group, statEl = stat,
 	textEl = text, dividerEl = divider, sectionEl = section, footerEl = footer,
 }
 for key, element in pairs(allElements) do
@@ -373,7 +337,7 @@ for key, element in pairs(compactRows) do
 	expect(not element:IsLocked(), key .. " unlocks back at Mode 1")
 end
 
--- ── E: corner sync — header vs scrim (both containers) ──────────────────
+-- ── E: corner sync — header vs scrim (CollapsibleGroup) ─────────────────
 local function cornerOffsets(cornerInstance)
 	if not cornerInstance or not cornerInstance.__props then return nil end
 	-- corners are stored as individual radius keys on the UICorner instance props
@@ -419,106 +383,58 @@ local function assertCornerPair(element, label, wantExpanded)
 end
 assertCornerPair(group, "CollapsibleGroup", false)
 assertCornerPair(group, "CollapsibleGroup", true)
-assertCornerPair(isolated, "Isolated", false)
-assertCornerPair(isolated, "Isolated", true)
 -- leave collapsed
 group:_setExpanded(false, false)
-isolated:_setExpanded(false, false)
 TestPump(0.1)
 window:SetElementLockMode(1)
 TestPump(0.1)
 
--- ── F: controller exempt + locale-bound subtitle ─────────────────────────
+-- ── F: controller exempt + locale-bound title ───────────────────────────
 window:_buildSettingsUI()
 local controlsTab
 for _, t in ipairs(window._settingsTabs) do if t.name == "Controls" then controlsTab = t break end end
 expect(controlsTab ~= nil, "Controls settings tab exists")
 controlsTab:Select()
 TestPump(0.6)
-local controller = window._elementLockModePicker
-expect(controller ~= nil and controller.__type == "ModePicker", "built-in lock uses ModePicker")
-eq(#controller.modes, 5, "controller has five modes")
-eq(controller.minModes, 5, "controller cannot shrink below five")
-eq(controller.maxModes, 5, "controller cannot exceed five")
-for i, mode in ipairs(controller.modes) do
-	eq(mode.label, "Mode " .. tostring(i), "controller label " .. tostring(i))
-	expect(type(mode.description) == "string" and #mode.description > 0, "controller mode " .. tostring(i) .. " documents locked elements")
-end
-expect(not controller.allow_mode_add_remove, "controller modes fixed")
+local controller = window._elementLockAllToggle
+expect(controller ~= nil and controller.__type == "Toggle", "built-in lock uses a Toggle")
 eq(controller.usageTag, nil, "controller exempt from lockable usage")
 eq(controller.usage, nil, "controller cannot be in Mode 5 lock-all")
-eq(controller.flag, "astra.elementLockMode", "controller persists via flag")
-expect(window.controls[controller.flag] == controller, "controller in persistence")
-local added = controller:AddMode({ label = "Six" })
-local removed = controller:RemoveMode(5)
-expect(not added and not removed, "fixed controller rejects add/remove")
--- controller must stay unlocked even at Mode 5
-controller:Set(5, true)
+eq(controller.flag, nil, "the switch owns no flag — the tier is window state")
+eq(window.controls["astra.elementLockMode"], nil, "no control registers the tier's flag")
+-- controller must stay usable even at Mode 5
+controller:Set(true)
 TestPump(0.2)
+eq(window:GetElementLockMode(), 5, "switching the controller on selects Mode 5")
 expect(not controller:IsLocked(), "controller remains unlocked at Mode 5")
 eq(controller._isLockable, false, "controller _isLockable false")
 controller:Lock("must remain usable")
 expect(not controller:IsLocked(), "manual Lock cannot disable controller")
--- Mode 1 subtitle is unlocked wording and is a string, locale-bound
-controller:Set(1, true)
+-- off returns the page to Mode 1
+controller:Set(false)
 TestPump(0.2)
-eq(window:GetElementLockMode(), 1, "controller selects Mode 1")
-expect(type(controller.subtitle) == "string", "Mode 1 subtitle is string")
-expect(string.find(controller.subtitle, "Mode 1", 1, true) ~= nil, "Mode 1 subtitle mentions Mode 1")
-expect(string.find(controller.subtitle, "unlocked", 1, true) ~= nil, "Mode 1 subtitle documents unlocked default")
-expect(type(controller.subtitleLabel.Text) == "string", "controller subtitle Text is string (not token table)")
-eqColor(controller.fill.BackgroundColor3, 234, 242, 255, "Mode 1 uses lightest blue")
-controller:Set(2, true)
+eq(window:GetElementLockMode(), 1, "switching the controller off selects Mode 1")
+eq(controller.value, false, "controller UI stays synchronized")
+-- external mode changes drive the switch: on at 5, off below it
+window:SetElementLockMode(5)
 TestPump(0.2)
-eq(window:GetElementLockMode(), 2, "controller selects Mode 2")
-expect(string.find(controller.subtitle, "Input", 1, true) ~= nil, "Mode 2 subtitle describes locked inputs")
-controller:Set(3, true)
+eq(controller.value, true, "a host-driven Mode 5 turns the switch on")
+window:SetElementLockMode(2)
 TestPump(0.2)
-eq(window:GetElementLockMode(), 3, "controller selects Mode 3")
-expect(string.find(controller.subtitle, "Button", 1, true) ~= nil, "Mode 3 subtitle describes locked buttons/actions")
-controller:Set(4, true)
+eq(controller.value, false, "a host-driven mode below 5 parks the switch off")
+window:SetElementLockMode(5)
 TestPump(0.2)
-eq(window:GetElementLockMode(), 4, "controller selects Mode 4")
-expect(string.find(controller.subtitle, "sensitive", 1, true) ~= nil, "Mode 4 subtitle describes sensitive controls")
-controller:Set(5, true)
-TestPump(0.2)
-eq(window:GetElementLockMode(), 5, "controller selects Mode 5")
-eqColor(controller.fill.BackgroundColor3, 29, 63, 168, "Mode 5 uses darkest blue")
-expect(string.find(controller.subtitle, "Mode 5", 1, true) ~= nil, "Mode 5 subtitle obvious")
-expect(string.find(controller.subtitle, "Group", 1, true) ~= nil, "Mode 5 subtitle describes groups/containers")
-expect(type(controller.subtitleLabel.Text) == "string", "Mode 5 subtitle Text is string")
 expect(not controller:IsLocked(), "Mode 5 cannot lock its own controller")
 
--- regular ModePicker locale binding (the bug class)
-local localePicker = tab:CreateModePicker({
-	title = "Locale Picker",
-	id = "localePicker",
-	modes = { { label = "A" }, { label = "B" }, { label = "C" } },
-})
-TestPump(0.2)
-localePicker:SetSubtitle("Hello world")
-expect(type(localePicker.subtitle) == "string", "regular picker subtitle is string after SetSubtitle")
-expect(type(localePicker.subtitleLabel.Text) == "string", "regular picker subtitle Text is string")
--- locale update path: RegisterTranslations + SetLocale should re-resolve
-window:RegisterTranslations({ fr = { ["Hello world"] = "Bonjour le monde" } })
+-- locale binding (the bug class): a token table must never reach TextLabel.Text
+expect(type(controller.title.Text) == "string", "controller title Text is a string (not a token table)")
+window:RegisterTranslations({ fr = { ["Lock all controls"] = "Tout verrouiller" } })
 window:SetLocale("fr")
 TestPump(0.2)
-eq(localePicker.subtitleLabel.Text, "Bonjour le monde", "regular picker subtitle updates on locale change via _bindLocale")
--- also controller subtitle must be bound — change locale and verify still string
-expect(type(controller.subtitleLabel.Text) == "string", "controller subtitle Text stays string after locale switch")
+eq(controller.title.Text, "Tout verrouiller", "controller title re-resolves on locale change via _bindLocale")
+expect(type(controller.title.Text) == "string", "controller title stays a string after the locale switch")
 window:SetLocale("en")
 TestPump(0.2)
-
--- controller reset + mode sync
-controller:Set(5, true)
-TestPump(0.2)
-controller.resetButton.MouseButton1Click:Fire()
-TestPump(0.2)
-eq(window:GetElementLockMode(), 1, "visible reset button returns to Mode 1")
-controller:Set(2, true)
-TestPump(0.2)
-eq(window:GetElementLockMode(), 2, "controller can lower active mode")
-eq(controller.mode, 2, "controller UI stays synchronized")
 
 -- ── G: manual vs mode composition + late element ────────────────────────
 window:SetElementLockMode(2)

@@ -20,7 +20,6 @@ local constructors = {
     Switch = function(parent, props) return require(script.Parent.toggle).new(parent, props) end,
     Slider = function(parent, props) return require(script.Parent.slider).new(parent, props) end,
     Stepper = function(parent, props) return require(script.Parent.stepper).new(parent, props) end,
-    ModePicker = function(parent, props) return require(script.Parent.modePicker).new(parent, props) end,
     Dropdown = function(parent, props) return require(script.Parent.dropdown).new(parent, props) end,
     Keybind = function(parent, props) return require(script.Parent.keybind).new(parent, props) end,
     Input = function(parent, props) return require(script.Parent.input).new(parent, props) end,
@@ -62,7 +61,6 @@ local function validate(definitions, path, ancestors, depth)
         assert(type(spec) == "table", location .. " must be an element definition")
         local kind = spec.type or spec.Type
         assert(kind ~= "CollapsibleGroup", location .. ": CollapsibleGroups cannot be nested, including inside Groups")
-        assert(kind ~= "Isolated", location .. ": Isolated containers cannot be nested, including inside Groups")
         assert(constructors[kind], location .. ": unsupported element type " .. tostring(kind))
         if kind == "Group" then
             validate(spec.elements or {}, location .. ".elements", ancestors, depth + 1)

@@ -12,7 +12,7 @@ local ImportGlobals
 -- __recFP snapshots the environment when the MainModule closure starts,
 -- __checkFP re-snapshots after every module has loaded; a mismatch means
 -- something was replaced mid-load. Silent: failure returns a no-op stub.
-local ExpectedClosureCount = 114;
+local ExpectedClosureCount = 111;
 local __fp
 local function __snap()
     return table.concat({
@@ -81,23 +81,16 @@ export type TabProps = types.TabProps
 export type SectionProps = types.SectionProps
 export type GroupProps = types.GroupProps
 export type CollapsibleGroupProps = types.CollapsibleGroupProps
-export type IsolatedProps = types.IsolatedProps
-export type IsolatedElementProps = types.IsolatedElementProps
 export type CollapsibleElementProps = types.CollapsibleElementProps
 export type ButtonProps = types.ButtonProps
 export type ToggleProps = types.ToggleProps
 export type SliderProps = types.SliderProps
 export type StepperProps = types.StepperProps
-export type ModePickerProps = types.ModePickerProps
-export type ModeDefinition = types.ModeDefinition
 export type DropdownProps = types.DropdownProps
 export type InputProps = types.InputProps
 export type StatProps = types.StatProps
 export type TextProps = types.TextProps
 export type DividerProps = types.DividerProps
-export type AboutCardRow = types.AboutCardRow
-export type AboutCardAction = types.AboutCardAction
-export type AboutCardProps = types.AboutCardProps
 export type NotifyProps = types.NotifyProps
 export type PopupBox = types.PopupBox
 export type PopupOption = types.PopupOption
@@ -109,12 +102,10 @@ export type Window = types.Window
 export type Tab = types.Tab
 export type Group = types.Group
 export type CollapsibleGroup = types.CollapsibleGroup
-export type Isolated = types.Isolated
 export type Button = types.Button
 export type Toggle = types.Toggle
 export type Slider = types.Slider
 export type Stepper = types.Stepper
-export type ModePicker = types.ModePicker
 export type Dropdown = types.Dropdown
 export type Input = types.Input
 export type Stat = types.Stat
@@ -122,7 +113,6 @@ export type Section = types.Section
 export type TabSection = types.TabSection
 export type Text = types.Text
 export type Divider = types.Divider
-export type AboutCard = types.AboutCard
 export type Popup = types.Popup
 export type KeySystem = types.KeySystem
 export type HttpGuardSignal = types.HttpGuardSignal
@@ -612,22 +602,6 @@ export type CollapsibleGroupProps = LockableProps & {
     elements: { CollapsibleElementProps }?,
 }
 
---[[
-The Isolated changelog container only accepts Changelog definitions; any
-other child type errors at construction.
-]]
-export type IsolatedElementProps = {
-    type: "Changelog",
-    [string]: any,
-}
-
-export type IsolatedProps = LockableProps & {
-    name: string?,
-    subtitle: string?,
-    icon: (string | number)?,
-    elements: { IsolatedElementProps }?,
-}
-
 export type ButtonProps = LockableProps & {
     name: string?,
     icon: (string | number)?,
@@ -724,47 +698,6 @@ export type InputProps = LockableProps & {
     callback: ((value: string) -> ())?,
 }
 
-export type ModeDefinition = {
-    label: string?,
-    description: string?,
-    type: string?,           -- "default" | "toggle" | "dot" (descriptive)
-    dot_position: number?,   -- normalized to 1..n by dot order
-    onEnable: ((index: number, label: string) -> ())?,
-    optional: boolean?,      -- only optional modes can be removed at runtime
-    icon_color: (Color3 | { r: number?, g: number?, b: number?, a: number? })?,
-}
-
-export type ModePickerProps = LockableProps & {
-    left_icon: (string | number)?,
-    right_icon: (string | number)?,
-
-    title: string?,
-    subtitle: string?,
-
-    mode: number?,           -- initial mode, default 1
-    min_modes: number?,      -- clamped to a floor of 3
-    max_modes: number?,      -- clamped to a ceiling of 5
-    allow_mode_add_remove: boolean?,
-
-    title_color_same_as_left_icon: boolean?,
-    -- the subtitle always wears the default text colors; no props exist.
-    ui_color: string?,               -- "inherit" (default); anything else is ignored
-    slider_shape: string?,           -- "toggle_knob" (default, the only shape)
-    accent: string?,                 -- "theme" (default) | "left_icon"
-
-    left_icon_color: (Color3 | { r: number?, g: number?, b: number?, a: number? })?,
-    reset_on_right_icon_press: boolean?,
-
-    modes: { ModeDefinition } | { [number]: ModeDefinition },
-
-    flag: string?,
-    forgetState: boolean?,
-    callback: ((index: number, label: string) -> ())?,
-    onReset: ((picker: any) -> ())?,
-    -- Internal: keep the built-in element-lock controller outside its own lock tiers.
-    lockSystemController: boolean?,
-}
-
 export type StatProps = {
     name: string?,
     prefix: string?,
@@ -791,36 +724,6 @@ export type LinkProps = LockableProps & {
     link: string?,
     icon: (string | number)?,
     callback: ((link: string) -> ())?,
-}
-
---[[
-One compact data tile of an About card: a leading icon, a label and a value.
-Up to three tiles share one line; the count drives each tile's width.
-]]
-export type AboutCardRow = {
-    icon: (string | number)?,
-    label: string?,
-    value: (string | number)?,
-}
-
---[[
-The card's optional trailing band. It is the fourth block of the card — the
-one the data rows stop at three for — and it is the card's only tappable
-surface.
-]]
-export type AboutCardAction = LockableProps & {
-    icon: (string | number)?,
-    name: string?,
-    subtitle: string?,
-    callback: (() -> ())?,
-}
-
-export type AboutCardProps = LockableProps & {
-    name: string?,
-    subtitle: string?,
-    icon: (string | number)?,
-    rows: { AboutCardRow }?,
-    action: AboutCardAction?,
 }
 
 -- Exact title/content duplicates refresh an active card or coalesce in the queue.
@@ -896,18 +799,6 @@ export type Stepper = Moveable & Lockable & {
     CancelEditing: (self: Stepper) -> (),
 }
 
-export type ModePicker = Moveable & Lockable & {
-    mode: number,
-    modes: { ModeDefinition },
-    Set: (self: ModePicker, index: number, silent: boolean?) -> number,
-    Get: (self: ModePicker) -> (number, string),
-    Reset: (self: ModePicker) -> number,
-    AddMode: (self: ModePicker, mode: ModeDefinition) -> (boolean, string?),
-    RemoveMode: (self: ModePicker, index: number) -> (boolean, string?),
-    SetLeftIconColor: (self: ModePicker, color: Color3 | { r: number?, g: number?, b: number?, a: number? }) -> (),
-    SetSubtitle: (self: ModePicker, text: string?) -> (),
-}
-
 export type Dropdown = Moveable & Lockable & {
     value: { string },     Set: (self: Dropdown, value: string | { string }, skipCallback: boolean?) -> (),
     Refresh: (self: Dropdown, options: { string }) -> (),
@@ -981,13 +872,6 @@ export type Link = Moveable & Lockable & {
     IsConfirming: (self: Link) -> boolean,
 }
 
-export type AboutCard = Moveable & Lockable & {
-    SetTitle: (self: AboutCard, title: string) -> (),
-    SetSubtitle: (self: AboutCard, subtitle: string?) -> (),
-    SetIcon: (self: AboutCard, icon: (string | number)?) -> (),
-    SetRow: (self: AboutCard, index: number, row: AboutCardRow) -> (),
-}
-
 export type Popup = {
     Close: (self: Popup) -> (),
 }
@@ -999,7 +883,6 @@ export type Group = Moveable & {
     CreateKeybind: (self: Group, props: KeybindProps) -> Keybind?,
     CreateSlider: (self: Group, props: SliderProps) -> Slider,
     CreateStepper: (self: Group, props: StepperProps) -> Stepper,
-    CreateModePicker: (self: Group, props: ModePickerProps) -> ModePicker,
         CreateDropdown: (self: Group, props: DropdownProps) -> Dropdown?,
     CreateSection: (self: Group, props: SectionProps) -> Section?,
     CreateText: (self: Group, props: TextProps) -> Text?,
@@ -1013,20 +896,8 @@ export type CollapsibleGroup = Moveable & Lockable & {
     elements: { any },
 }
 
-export type Isolated = Moveable & Lockable & {
-    elements: { any },
-    Expand: (self: Isolated, animate: boolean?) -> (),
-    Collapse: (self: Isolated, animate: boolean?) -> (),
-    Toggle: (self: Isolated, animate: boolean?) -> (),
-    SetTitle: (self: Isolated, title: string) -> (),
-    SetSubtitle: (self: Isolated, subtitle: string?) -> (),
-    -- Left header icon only; the built-in right chevron has no setter.
-    SetIcon: (self: Isolated, icon: (string | number)?) -> (),
-}
-
 export type Tab = {
     CreateCollapsibleGroup: (self: Tab, props: CollapsibleGroupProps) -> CollapsibleGroup,
-    CreateIsolated: (self: Tab, props: IsolatedProps) -> Isolated,
     Select: (self: Tab, noAnimation: boolean?) -> (),
     Deselect: (self: Tab, noAnimation: boolean?) -> (),
     SetLocked: (self: Tab, locked: boolean) -> (),
@@ -1035,12 +906,10 @@ export type Tab = {
     CreateToggle: (self: Tab, props: ToggleProps) -> Toggle,
     CreateSlider: (self: Tab, props: SliderProps) -> Slider,
     CreateStepper: (self: Tab, props: StepperProps) -> Stepper,
-    CreateModePicker: (self: Tab, props: ModePickerProps) -> ModePicker,
     CreateDropdown: (self: Tab, props: DropdownProps) -> Dropdown,
     CreateKeybind: (self: Tab, props: KeybindProps) -> Keybind,
     CreateInput: (self: Tab, props: InputProps) -> Input,
     CreateLink: (self: Tab, props: LinkProps) -> Link,
-    CreateAboutCard: (self: Tab, props: AboutCardProps) -> AboutCard,
     CreateStat: (self: Tab, props: StatProps) -> Stat,
     CreateSection: (self: Tab, props: SectionProps) -> Section,
     CreateText: (self: Tab, props: TextProps) -> Text,
@@ -2280,8 +2149,8 @@ local linkIconSize = 14
 local linkIconGap = 6
 local noteMaxLines = 2
 --[[
-The links row hard-caps at three buttons — one line of equal faces, like
-the About card's tile row. The warn fires once when a host passes more.
+The links row hard-caps at three buttons — one line of equal faces. The
+warn fires once when a host passes more.
 ]]
 local maxLinks = 3
 
@@ -5081,11 +4950,11 @@ local defaultTransparency = 0.6
 local hoverTransparency = 0.2
 
 local function getElementText(element)
-    if element.__type == "Group" or element.__type == "CollapsibleGroup" or element.__type == "Isolated" then
+    if element.__type == "Group" or element.__type == "CollapsibleGroup" then
         local names = { element.name or "" }
         local function collectNames(group)
             for _, child in group.elements do
-                if child.__type == "Group" or child.__type == "CollapsibleGroup" or child.__type == "Isolated" then
+                if child.__type == "Group" or child.__type == "CollapsibleGroup" then
                     collectNames(child)
                 elseif child.name then
                     table.insert(names, child.name)
@@ -5162,7 +5031,7 @@ local function collectElements(window)
         local mainFrame = element.main
         table.insert(window._searchUnits, {
             unit = element,
-            homeExpanded = if element.__type == "CollapsibleGroup" or element.__type == "Isolated" then element._expanded else nil,
+            homeExpanded = if element.__type == "CollapsibleGroup" then element._expanded else nil,
             text = string.lower(getElementText(element)),
             homeParent = mainFrame.Parent,
             homeOrder = mainFrame.LayoutOrder,
@@ -5403,14 +5272,14 @@ local constants = require(utilities.constants)
 local locale = require(utilities.locale)
 local haptic = require(utilities.HapticEngine)
 local layouts = require(utilities.layouts)
-local shared = require(script.Parent.window.constants)
 
 local settingsComponent = {}
 
 --[[
-The About card's copy. The card itself is a reusable element — these are
-simply the values this build stamps into the Settings tab's card, so a
-release updates them here and nowhere else.
+The About page's copy. The page is built from ordinary elements (a section
+header, two text readouts and the repository link) — these are simply the
+values this build stamps into the Settings tab, so a release updates them
+here and nowhere else.
 ]]
 local aboutVersion = "1.4.0"
 local aboutAuthor = "Astra Team"
@@ -5446,20 +5315,15 @@ function settingsComponent.buildUI(window)
 
     local function buildAbout()
         --[[
-        The About page is kept deliberately short: one compact About card
-        (brand header plus two data tiles) and a single repository link —
-        the usage guide, releases and issues all live behind that link.
-        The version and author strings live at the top of this module.
+        The About page is kept deliberately short: one header, the version
+        and author readouts and a single repository link — the usage
+        guide, releases and issues all live behind that link. The version
+        and author strings live at the top of this module.
         ]]
-        about:CreateAboutCard({
-            name = "Astra",
-            subtitle = "UI Library for a better experience.",
-            icon = constants.icons.dot,
-            rows = {
-                { icon = "code", label = "Version", value = aboutVersion },
-                { icon = "user", label = "Author", value = aboutAuthor },
-            },
-        })
+        about:CreateSection({ name = "Astra", icon = constants.icons.dot })
+        about:CreateText({ name = "About", text = "UI Library for a better experience." })
+        about:CreateStat({ name = "Version", value = aboutVersion, letter = false })
+        about:CreateStat({ name = "Author", value = aboutAuthor, letter = false })
         about:CreateLink({
             name = "Repository", subtitle = "Docs, releases and issues", icon = "code",
             link = "https://github.com/Kira762/astra-version-1",
@@ -5485,53 +5349,23 @@ function settingsComponent.buildUI(window)
             end,
         })
 
-        -- A fixed five-stop controller. The ramp paints the active fill/icon
-        -- from pale blue at Mode 1 to deep blue at Mode 5; its own control is
-        -- deliberately exempt from the lock registry so it can always unlock
-        -- the rest of the page. Its flag is shared with the persistence layer
-        -- (`Window:_restoreUnowned`): this panel builds lazily on first open,
-        -- so a saved tier has to reach the window before this control exists.
-        local lockModeColors = {
-            { r = 234, g = 242, b = 255 }, -- #EAF2FF
-            { r = 201, g = 221, b = 255 }, -- #C9DDFF
-            { r = 147, g = 184, b = 255 }, -- #93B8FF
-            { r = 90, g = 134, b = 240 }, -- #5A86F0
-            { r = 29, g = 63, b = 168 }, -- #1D3FA8
-        }
-        local lockModeDescriptions = {
-            [1] = "all controls unlocked",
-            [2] = "inputs and selections locked (Links, Inputs, Dropdowns, Keybinds)",
-            [3] = "important actions locked (Buttons, Toggles, Sliders, Steppers, Mode Pickers)",
-            [4] = "sensitive controls locked (high-impact actions)",
-            [5] = "all lockable controls locked (Collapsible Groups, Isolated headers)",
-        }
-        local lockModes = {}
-        for index, color in ipairs(lockModeColors) do
-            table.insert(lockModes, {
-                label = "Mode " .. tostring(index),
-                description = lockModeDescriptions[index],
-                type = if index == 1 then "default" else "dot",
-                icon_color = color,
-            })
-        end
-        window._elementLockModePicker = general:CreateModePicker({
-            id = "astraElementLockMode",
-            title = "Element Lock Mode",
-            subtitle = "Higher modes restrict more interactive controls",
-            left_icon = "lock-keyhole",
-            right_icon = "rotate-ccw",
-            left_icon_color = lockModeColors[1],
-            title_color_same_as_left_icon = false,
-            accent = "left_icon",
-            mode = window:GetElementLockMode(),
-            min_modes = 5,
-            max_modes = 5,
-            allow_mode_add_remove = false,
-            reset_on_right_icon_press = true,
-            flag = shared.elementLockModeFlag,
-            forgetState = false,
+        --[[
+        One switch replaces the old five-stop ramp: on locks every
+        registered control (Mode 5), off returns to Mode 1. Its own control
+        is deliberately exempt from the lock registry so it can always
+        unlock the rest of the page, and it owns no flag — the tier is
+        window state, saved and restored by the window itself
+        (`Window:_restoreUnowned` / `Window:_unownedConfigValues`), because
+        this panel builds lazily on first open.
+        ]]
+        window._elementLockAllToggle = general:CreateToggle({
+            id = "astraElementLockAll",
+            name = "Lock all controls",
+            value = window:GetElementLockMode() >= 5,
             lockSystemController = true,
-            modes = lockModes,
+            callback = function(locked)
+                window:SetElementLockMode(if locked then 5 else 1)
+            end,
         })
 
         general:CreateCollapsibleGroup({
@@ -7027,10 +6861,10 @@ local lockScrimTransparency = 0.55
 local lockedTextTransparency = 0.55
 
 --[[
-The config flag of the built-in Element Lock Mode controller. It is shared
-because the controller's control is built lazily (Settings → Controls), so
-the persistence layer has to recognise the value while no control owns it:
-see `Window:_restoreUnowned` / `Window:_unownedConfigValues`.
+The config flag of the built-in element-lock control. It is shared because
+that control is built lazily (Settings → Controls) and owns no flag of its
+own, so the window writes the tier itself: see
+`Window:_restoreUnowned` / `Window:_unownedConfigValues`.
 ]]
 local elementLockModeFlag = "astra.elementLockMode"
 
@@ -7153,11 +6987,16 @@ function Window:_restoreLate(element)
     self._loading = wasLoading
 end
 
-function Window:_persist(element)
-    if not element.flag or element.forgetState or not self.configuration.autoSave or self._loading or self._saveScheduled then
+--[[
+Default-on autosave must not write a whole file for every slider tick, so
+every write request goes through one debounce. Window state that has no
+control of its own (the element-lock tier, whose switch sits in a lazily
+built settings panel) schedules through the same path.
+]]
+function Window:_scheduleSave()
+    if not self.configuration.autoSave or self._loading or self._saveScheduled then
         return
     end
-    -- Default-on autosave must not write a whole file for every slider tick.
     self._saveScheduled = true
     task.delay(0.25, function()
         self._saveScheduled = false
@@ -7165,6 +7004,13 @@ function Window:_persist(element)
             self:Save()
         end
     end)
+end
+
+function Window:_persist(element)
+    if not element.flag or element.forgetState then
+        return
+    end
+    self:_scheduleSave()
 end
 
 function Window:_unregisterControl(element)
@@ -7232,10 +7078,18 @@ function Window:SetElementLockMode(mode): number
         end
     end
 
-    local picker = self._elementLockModePicker
-    if picker and picker.mode ~= nextMode then
-        picker:Set(nextMode, true)
+    local toggle = self._elementLockAllToggle
+    if toggle and (toggle.value == true) ~= (nextMode >= 5) then
+        toggle:Set(nextMode >= 5, true)
     end
+    --[[
+    The tier is window state: it is written into the config through
+    `_unownedConfigValues` whenever no control owns its flag, so a change
+    made here (host code or the settings switch) is saved like any other
+    control edit. Restores run under the load guard, so this is a no-op
+    while a configuration is being applied.
+    ]]
+    self:_scheduleSave()
     return nextMode
 end
 
@@ -7243,12 +7097,12 @@ end
 `_restoreLate` restores a control that arrives after the configuration was
 loaded. This is the case it cannot reach: a persisted value whose control
 does not exist yet. The element-lock tier is exactly that, because its
-control is the Settings → Controls picker and settings panels build lazily
+control is the Settings → Controls switch and settings panels build lazily
 on first open — so a saved Mode 5 had nothing to restore into at startup.
-The page came up unlocked and only locked once the player opened that panel
-or nudged the picker, which read as the tier not being saved at all. The
-window therefore answers for the state it owns directly; a live control of
-the same flag wins and restores through the normal path instead.
+The page came up unlocked and only locked once the player opened that
+panel, which read as the tier not being saved at all. The window therefore
+answers for the state it owns directly; a live control of the same flag
+wins and restores through the normal path instead.
 ]]
 function Window:_restoreUnowned(values)
     if typeof(values) ~= "table" or self.controls[shared.elementLockModeFlag] then
@@ -7405,7 +7259,7 @@ function Window:_buildLockScrim(element)
         Parent = element.lockScrim,
     }, { CornerRadius = "ElementCornerRadius" })
 
-    -- The two header-based containers (CollapsibleGroup / Isolated) keep
+    -- The header-based container (CollapsibleGroup) keeps
     -- their lock surface on the header band, whose own corners flip
     -- between collapsed (all four) and expanded (top only) so the band
     -- squares off against the divider. The scrim must wear the same
@@ -7472,12 +7326,12 @@ function Window:_wireElementHover(element, options)
     local titleHoverKey = options.titleHoverKey or "ElementTextHoverColor"
 
     --[[
-    A title that wears a colour of its own cannot rest on a theme key. The
-    Mode Picker's title follows the left icon's RGB (and the selected mode
-    can override it), and the leave path below used to settle it back onto
+    A title that wears a colour of its own cannot rest on a theme key. An
+    element that paints its title from a prop (an icon's RGB, a per-mode
+    override) used to have the leave path below settle it back onto
     `titleRestKey` — so one pass of the pointer took the colour off the
-    title for good, and only the next mode change brought it back. An
-    element that owns its title colour answers `_titleRestColor()`; the
+    title for good, and only the next change brought it back. An element
+    that owns its title colour answers `_titleRestColor()`; the
     answer is read live on every event, so a mode, icon or theme change
     flows through without re-wiring. Nil (or no method) keeps the element
     on the theme language exactly as before. While an element owns the
@@ -9504,7 +9358,7 @@ function Window:_destroyTree()
     table.clear(self._lockableElements)
     table.clear(self._lockableElementSet)
     table.clear(self._lockableElementIds)
-    self._elementLockModePicker = nil
+    self._elementLockAllToggle = nil
     --[[
     overlayQueue.close already drained the queue into its safe resting
     shape (empty pending list, closed flag); wiping the table itself used
@@ -10983,843 +10837,6 @@ end
 end)() end,
     [34] = function()local wax,script,require=ImportGlobals(34)local ImportGlobals return (function(...)
 --[[
-CreateAboutCard: one card that carries an About page — a brand header, a
-row of data tiles and an optional trailing action band.
-
-The recipe is fixed and every string in it is host copy:
-
-  * header — a leading icon plus a title/subtitle stack,
-  * rows — one to three compact data tiles, each a leading icon with a
-    label above its value. Every tile shares one line evenly: the three-row
-    About recipe stays three-across instead of leaving its last tile alone
-    on a second line,
-  * action (optional) — a tappable band carrying an icon, a label, a
-    subtitle and the card's trailing chevron. It is the card's trailing
-    row, which is why the data rows stop at three: a fourth would be the
-    action itself.
-
-Every surface stays inside the shared theme tokens — the card is the
-standard element body, each tile and the action band use ElementSurface,
-and the nested badge uses that same control family — so the card themes
-itself like every other element instead of hard-coding a dark inset.
-]]
-
-local state = {}
-state.__index = state
-state.__type = "AboutCard"
-
-local utilities = script.Parent.Parent.utilities
-
-local image = require(script.Parent.Parent.images.image)
-local haptic = require(utilities.HapticEngine)
-local locale = require(utilities.locale)
-local lockable = require(utilities.lockable)
-local motion = require(utilities.motion)
-local moveable = require(utilities.moveable)
-
---[[
-The rows section is capped at three tiles so the compact status band keeps
-useful room for every label and value; the action remains its trailing row.
-]]
-local maxRows = 3
-
---[[
-Card metrics. The card keeps the library's 20px gutter. Data tiles are a
-deliberately compact 48px band: the smaller inset and badge leave enough
-copy room for three equal tiles on the normal card width without making the
-third row wrap below the first two.
-]]
-local gutter = 20
-local sectionGap = 14
-local headerIconSize = 38
-local headerIconGap = 14
-local headerTitleSize = 20
-local headerTitleHeight = 26
-local headerSubtitleSize = 14
-local headerSubtitleHeight = 18
-local headerLineGap = 2
-local tileHeight = 48
-local tileGap = 8
-local tilePad = 8
-local badgeSize = 28
-local badgeIconSize = 14
-local badgeGap = 8
-local tileLabelSize = 11
-local tileLabelHeight = 13
-local tileValueSize = 14
-local tileValueHeight = 17
-local tileLineGap = 1
-local tileTextHeight = tileLabelHeight + tileLineGap + tileValueHeight
-local actionHeight = 56
-local actionHeightSingle = 41
-local actionPad = 14
-local actionIconSize = 16
-local actionIconGap = 12
-local actionLabelSize = 16
-local actionLabelHeight = 19
-local actionSubtitleSize = 14
-local actionSubtitleHeight = 16
-local actionChevronSize = 16
-local actionChevronInset = 16
-
---[[
-Resting transparencies once the card has been revealed: the muted body
-lines match every other 14px line in the library, the trailing chevron
-matches the Isolated header's, and both step up while the pointer is over
-the action band.
-]]
-local restingMutedTransparency = 0.45
-local restingChevronTransparency = 0.4
-local hoveredChevronTransparency = 0.15
-
---[[
-What a tracked part rests at while the card is shown. Every tracked
-property is a transparency, so "hidden" is always 1 and only the shown
-value needs a rule. `background`, `stroke` and `muted` read the theme and
-the rest are literals.
-]]
-local restValue = {
-    background = function(self)
-        return self.window:_elementBackgroundTransparency(self)
-    end,
-    stroke = function(self)
-        return self.window:_elementStrokeTransparency(self, false)
-    end,
-    muted = function()
-        return restingMutedTransparency
-    end,
-    chevron = function()
-        return restingChevronTransparency
-    end,
-    icon = function()
-        return 0
-    end,
-    solid = function()
-        return 0
-    end,
-}
-
-local function read(properties, lower, upper)
-    local value = properties[lower]
-    if value == nil then
-        value = properties[upper]
-    end
-    return value
-end
-
---[[
-Text slots normalise through here: numbers are legal values (a version or
-a build number), and an empty string is treated as "no copy" so the slot
-that owns it can drop out of the layout instead of rendering a blank band.
-]]
-local function textOf(value)
-    if value == nil then
-        return nil
-    end
-    return tostring(value)
-end
-
-local function textOrNil(value)
-    local text = textOf(value)
-    if text == "" then
-        return nil
-    end
-    return text
-end
-
---[[
-A nested surface uses the theme's element fill, not the much darker window
-gradient. The surrounding stroke still separates each tile and action band
-from the card, while their colour stays in the same hierarchy as the rest
-of Astra's controls.
-]]
-local function insetSurface(window, frame)
-    window:Create("UICorner", { Parent = frame }, { CornerRadius = "ElementCornerRadius" })
-    return window:Create("UIStroke", { Transparency = 1, Parent = frame }, {
-        Color = "ElementStroke",
-        Transparency = "ElementStrokeTransparency",
-    })
-end
-
-function state.new(tab, props)
-    assert(tab, "Missing argument #1 (Tab expected)")
-    props = if type(props) == "table" then props else {}
-
-    local rows = read(props, "rows", "Rows")
-    if rows == nil then
-        rows = {}
-    end
-    assert(type(rows) == "table", "AboutCard.rows must be an array of rows")
-    if #rows > maxRows then
-        error(`Astra:CreateAboutCard — at most {maxRows} data rows are supported, got {#rows}`, 0)
-    end
-
-    local window = tab.window
-    local self = setmetatable({
-        tab = tab,
-        window = window,
-        name = textOrNil(read(props, "name", "Name")) or "About",
-        subtitle = textOrNil(read(props, "subtitle", "Subtitle")),
-        icon = window:ResolveIcon(read(props, "icon", "Icon")),
-        rows = {},
-        --[[
-        Every painted part of the card in one list (see `restValue`), so a
-        reveal is one loop and a part cannot be forgotten in only one of
-        the show and hide paths.
-        ]]
-        parts = {},
-        deriveFlagFromName = tab.deriveFlagFromName,
-        forgetState = props.forgetState or tab.forgetState,
-        _shown = false,
-    }, state)
-
-    local action = read(props, "action", "Action")
-    local actionCallback = if type(action) == "table" then read(action, "callback", "Callback") else nil
-    self:_build(rows, action)
-    lockable.register(self, props, {
-        enabled = type(actionCallback) == "function",
-        id = read(props, "id", "Id") or (if type(action) == "table" then read(action, "id", "Id") else nil),
-        usage = if type(action) == "table" then read(action, "usage", "Usage") else nil,
-        lockLevel = if type(action) == "table" then read(action, "lockLevel", "LockLevel") else nil,
-        lockGroup = if type(action) == "table" then read(action, "lockGroup", "LockGroup") else nil,
-    })
-
-    return self
-end
-
--- Track one painted part: `{ instance, property, rest kind }`.
-function state:_track(instance, property, kind)
-    table.insert(self.parts, { instance, property, kind })
-end
-
-function state:_rest(kind)
-    return restValue[kind](self)
-end
-
-function state:_paint(shown, animate)
-    for _, part in ipairs(self.parts) do
-        local value = if shown then self:_rest(part[3]) else 1
-        self.window:_reveal(part[1], { [part[2]] = value }, animate)
-    end
-end
-
-function state:_build(rows, action)
-    local window = self.window
-
-    self.main = window:Create("Frame", {
-        Name = self.name,
-        Size = UDim2.new(1, -20, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BorderSizePixel = 0,
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 1,
-        Parent = self.tab.tabPage,
-    }, { BackgroundTransparency = "ElementTransparency" })
-
-    self.stroke = window:StyleElementBody(self.main)
-
-    window:Create("UIPadding", {
-        PaddingTop = UDim.new(0, gutter),
-        PaddingBottom = UDim.new(0, gutter),
-        PaddingLeft = UDim.new(0, gutter),
-        PaddingRight = UDim.new(0, gutter),
-        Parent = self.main,
-    })
-
-    window:Create("UIListLayout", {
-        Padding = UDim.new(0, sectionGap),
-        FillDirection = Enum.FillDirection.Vertical,
-        HorizontalAlignment = Enum.HorizontalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = self.main,
-    })
-
-    self:_buildHeader()
-    self:_buildRows(rows)
-    if type(action) == "table" then
-        self:_buildAction(action)
-    end
-end
-
-function state:_buildHeader()
-    local window = self.window
-    local height = self:_headerHeight()
-
-    self.header = window:Create("Frame", {
-        Name = "Header",
-        Size = UDim2.new(1, 0, 0, height),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        LayoutOrder = 1,
-        Parent = self.main,
-    })
-
-    window:Create("UIListLayout", {
-        FillDirection = Enum.FillDirection.Horizontal,
-        Padding = UDim.new(0, headerIconGap),
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        HorizontalAlignment = Enum.HorizontalAlignment.Left,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = self.header,
-    })
-
-    --[[
-    The leading slot exists whether or not the card started with an icon,
-    so `SetIcon` can add one later instead of silently doing nothing.
-    Hidden, it is out of the list layout's flow.
-    ]]
-    self.iconLabel = window:Create("ImageLabel", {
-        Name = "Icon",
-        Image = self.icon or "",
-        Size = UDim2.fromOffset(headerIconSize, headerIconSize),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        LayoutOrder = 0,
-        Visible = self.icon ~= nil,
-        ImageTransparency = 1,
-        Parent = self.header,
-    }, { ImageColor3 = "ContentColor" })
-
-    self.headerText = window:Create("Frame", {
-        Name = "Text",
-        Size = UDim2.new(1, if self.icon then -(headerIconSize + headerIconGap) else 0, 0, height),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        LayoutOrder = 1,
-        Parent = self.header,
-    })
-
-    window:Create("UIListLayout", {
-        Padding = UDim.new(0, headerLineGap),
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = self.headerText,
-    })
-
-    self.title = window:Create("TextLabel", {
-        Name = "Title",
-        Text = locale.t(self.name),
-        Size = UDim2.new(1, 0, 0, headerTitleHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        TextSize = headerTitleSize,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        LayoutOrder = 1,
-        TextTransparency = 1,
-        Parent = self.headerText,
-    }, { TextColor3 = "TitlingColor", FontFace = "TitleFont" })
-    window:_bindLocale(self.title, "Text", self.name)
-
-    self.subtitleLabel = window:Create("TextLabel", {
-        Name = "Subtitle",
-        Text = locale.t(self.subtitle or ""),
-        Size = UDim2.new(1, 0, 0, headerSubtitleHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        TextSize = headerSubtitleSize,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        LayoutOrder = 2,
-        Visible = self.subtitle ~= nil,
-        TextTransparency = 1,
-        Parent = self.headerText,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
-    if self.subtitle then
-        window:_bindLocale(self.subtitleLabel, "Text", self.subtitle)
-    end
-    self:_track(self.subtitleLabel, "TextTransparency", "muted")
-end
-
-function state:_headerHeight()
-    return if self.subtitle then headerTitleHeight + headerLineGap + headerSubtitleHeight else headerTitleHeight
-end
-
---[[
-The header re-derives from the subtitle slot: adding or releasing the
-second line reflows the band and the text column from one place.
-]]
-function state:_applyHeaderMetrics()
-    local height = self:_headerHeight()
-    self.header.Size = UDim2.new(1, 0, 0, height)
-    self.headerText.Size = UDim2.new(1, if self.icon then -(headerIconSize + headerIconGap) else 0, 0, height)
-    self.subtitleLabel.Visible = self.subtitle ~= nil
-end
-
-function state:_buildRows(rows)
-    local window = self.window
-
-    --[[
-    The tiles are placed by `_layoutRows`, not by a list layout, so one to
-    three equal slices can account for their gaps without wrapping.
-    ]]
-    self.rowsHost = window:Create("Frame", {
-        Name = "Rows",
-        Size = UDim2.new(1, 0, 0, tileHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        LayoutOrder = 2,
-        Visible = #rows > 0,
-        Parent = self.main,
-    })
-
-    for index, row in ipairs(rows) do
-        self.rows[index] = self:_buildRow(index, row)
-    end
-    self:_layoutRows()
-    --[[
-    Scale-based slices follow resizes themselves; refreshing here also
-    keeps `_rowLines` and any runtime metric changes in sync.
-    ]]
-    window:ConnectFor(self, self.main:GetPropertyChangedSignal("AbsoluteSize"), function()
-        self:_layoutRows()
-    end)
-end
-
-function state:_buildRow(index, row)
-    local window = self.window
-    row = if type(row) == "table" then row else {}
-
-    local entry = {
-        icon = window:ResolveIcon(read(row, "icon", "Icon")),
-        label = textOf(read(row, "label", "Label")) or "",
-        value = textOf(read(row, "value", "Value")) or "",
-    }
-
-    entry.main = window:Create("Frame", {
-        Name = `Row{index}`,
-        Size = UDim2.fromOffset(0, tileHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        LayoutOrder = index,
-        Parent = self.rowsHost,
-    }, {
-        BackgroundColor3 = "ElementSurface",
-        BackgroundTransparency = "ElementTransparency",
-    })
-    entry.stroke = insetSurface(window, entry.main)
-
-    window:Create("UIPadding", {
-        PaddingTop = UDim.new(0, tilePad),
-        PaddingBottom = UDim.new(0, tilePad),
-        PaddingLeft = UDim.new(0, tilePad),
-        PaddingRight = UDim.new(0, tilePad),
-        Parent = entry.main,
-    })
-
-    window:Create("UIListLayout", {
-        FillDirection = Enum.FillDirection.Horizontal,
-        Padding = UDim.new(0, badgeGap),
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        HorizontalAlignment = Enum.HorizontalAlignment.Left,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = entry.main,
-    })
-
-    --[[
-    The badge is the small square the row's icon sits in. It carries the
-    content surface and the element stroke, so the mark reads as a chip on
-    the tile rather than as a floating glyph.
-    ]]
-    entry.badge = window:Create("Frame", {
-        Name = "Badge",
-        Size = UDim2.fromOffset(badgeSize, badgeSize),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        LayoutOrder = 0,
-        Parent = entry.main,
-    }, { BackgroundColor3 = "ElementSurface", BackgroundTransparency = "ElementTransparency" })
-    window:Create("UICorner", { Parent = entry.badge }, { CornerRadius = "ElementCornerRadius" })
-    entry.badgeStroke = window:Create("UIStroke", { Transparency = 1, Parent = entry.badge }, {
-        Color = "ElementStroke",
-        Transparency = "ElementStrokeTransparency",
-    })
-
-    entry.badgeIcon = window:Create("ImageLabel", {
-        Name = "Icon",
-        Image = entry.icon or "",
-        Size = UDim2.fromOffset(badgeIconSize, badgeIconSize),
-        Position = UDim2.fromScale(0.5, 0.5),
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        Visible = entry.icon ~= nil,
-        ImageTransparency = 1,
-        Parent = entry.badge,
-    }, { ImageColor3 = "ContentColor" })
-
-    entry.textColumn = window:Create("Frame", {
-        Name = "Text",
-        Size = UDim2.new(1, 0, 0, tileTextHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        LayoutOrder = 1,
-        Parent = entry.main,
-    })
-
-    window:Create("UIListLayout", {
-        Padding = UDim.new(0, tileLineGap),
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = entry.textColumn,
-    })
-
-    entry.labelLabel = window:Create("TextLabel", {
-        Name = "Label",
-        Text = locale.t(entry.label),
-        Size = UDim2.new(1, 0, 0, tileLabelHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        TextSize = tileLabelSize,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        LayoutOrder = 1,
-        TextTransparency = 1,
-        Parent = entry.textColumn,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
-    window:_bindLocale(entry.labelLabel, "Text", entry.label)
-
-    entry.valueLabel = window:Create("TextLabel", {
-        Name = "Value",
-        Text = entry.value,
-        Size = UDim2.new(1, 0, 0, tileValueHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        TextSize = tileValueSize,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        LayoutOrder = 2,
-        TextTransparency = 1,
-        Parent = entry.textColumn,
-    }, { TextColor3 = "TitlingColor", FontFace = "TitleFont" })
-
-    self:_track(entry.main, "BackgroundTransparency", "background")
-    self:_track(entry.stroke, "Transparency", "stroke")
-    self:_track(entry.badge, "BackgroundTransparency", "background")
-    self:_track(entry.badgeStroke, "Transparency", "stroke")
-    self:_track(entry.badgeIcon, "ImageTransparency", "icon")
-    self:_track(entry.labelLabel, "TextTransparency", "muted")
-    self:_track(entry.valueLabel, "TextTransparency", "solid")
-
-    self:_applyRowIcon(entry)
-
-    return entry
-end
-
---[[
-The tile's text column reserves exactly the badge plus its gap, so a row
-without an icon hands the whole tile to its label and value.
-]]
-function state:_applyRowIcon(entry)
-    local hasIcon = entry.icon ~= nil
-    entry.badge.Visible = hasIcon
-    image.assign(entry.badgeIcon, "Image", entry.icon or "")
-    entry.textColumn.Size = UDim2.new(1, if hasIcon then -(badgeSize + badgeGap) else 0, 0, tileTextHeight)
-end
-
---[[
-The tiles always occupy one compact line. Their equal slices make the
-Version / Build / Author recipe read as one three-part status row instead
-of a two-column grid with an oversized orphan below it. The first layout
-can run before Roblox has measured the card; scale-based width keeps that
-pass correct and automatically follows later window resizing without a
-minimum-width packing threshold.
-]]
-function state:_layoutRows()
-    local count = #self.rows
-    if count == 0 then
-        return
-    end
-
-    self._rowLines = { {} }
-    self.rowsHost.Size = UDim2.new(1, 0, 0, tileHeight)
-    local gapShare = tileGap * (count - 1) / count
-    for index, entry in ipairs(self.rows) do
-        table.insert(self._rowLines[1], index)
-        entry.main.Size = UDim2.new(1 / count, -gapShare, 0, tileHeight)
-        entry.main.Position = UDim2.new((index - 1) / count, tileGap * (index - 1) / count, 0, 0)
-    end
-end
-
-function state:_buildAction(action)
-    local window = self.window
-
-    self.action = {
-        name = textOf(read(action, "name", "Name")) or "",
-        subtitle = textOrNil(read(action, "subtitle", "Subtitle")),
-        icon = window:ResolveIcon(read(action, "icon", "Icon")),
-        callback = read(action, "callback", "Callback"),
-    }
-
-    local height = if self.action.subtitle then actionHeight else actionHeightSingle
-    local leading = actionPad + (if self.action.icon then actionIconSize + actionIconGap else 0)
-    local contentHeight = if self.action.subtitle
-        then actionLabelHeight + tileLineGap + actionSubtitleHeight
-        else actionLabelHeight
-
-    self.actionBand = window:Create("Frame", {
-        Name = "Action",
-        Size = UDim2.new(1, 0, 0, height),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        LayoutOrder = 4,
-        Parent = self.main,
-    }, {
-        BackgroundColor3 = "ElementSurface",
-        BackgroundTransparency = "ElementTransparency",
-    })
-    self.actionStroke = insetSurface(window, self.actionBand)
-
-    self.actionIcon = window:Create("ImageLabel", {
-        Name = "Icon",
-        Image = self.action.icon or "",
-        Size = UDim2.fromOffset(actionIconSize, actionIconSize),
-        Position = UDim2.new(0, actionPad, 0.5, 0),
-        AnchorPoint = Vector2.new(0, 0.5),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        Visible = self.action.icon ~= nil,
-        ImageTransparency = 1,
-        Parent = self.actionBand,
-    }, { ImageColor3 = "ContentColor" })
-
-    self.actionText = window:Create("Frame", {
-        Name = "Text",
-        Size = UDim2.new(1, -(leading + actionChevronInset + actionChevronSize + actionIconGap), 0, contentHeight),
-        Position = UDim2.new(0, leading, 0.5, 0),
-        AnchorPoint = Vector2.new(0, 0.5),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        Parent = self.actionBand,
-    })
-
-    window:Create("UIListLayout", {
-        Padding = UDim.new(0, tileLineGap),
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = self.actionText,
-    })
-
-    self.actionLabel = window:Create("TextLabel", {
-        Name = "Label",
-        Text = locale.t(self.action.name),
-        Size = UDim2.new(1, 0, 0, actionLabelHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        TextSize = actionLabelSize,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        LayoutOrder = 1,
-        TextTransparency = 1,
-        Parent = self.actionText,
-    }, { TextColor3 = "TitlingColor", FontFace = "TitleFont" })
-    window:_bindLocale(self.actionLabel, "Text", self.action.name)
-
-    self.actionSubtitle = window:Create("TextLabel", {
-        Name = "Subtitle",
-        Text = locale.t(self.action.subtitle or ""),
-        Size = UDim2.new(1, 0, 0, actionSubtitleHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        TextSize = actionSubtitleSize,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        LayoutOrder = 2,
-        Visible = self.action.subtitle ~= nil,
-        TextTransparency = 1,
-        Parent = self.actionText,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
-    if self.action.subtitle then
-        window:_bindLocale(self.actionSubtitle, "Text", self.action.subtitle)
-    end
-
-    --[[
-    The trailing chevron is part of the band, never changeable and never
-    removable, so no setter reaches it (the same rule the Isolated header
-    follows).
-    ]]
-    self.actionChevron = window:Create("ImageLabel", {
-        Name = "Chevron",
-        Image = window:ResolveIcon("chevron-right") or "",
-        Size = UDim2.fromOffset(actionChevronSize, actionChevronSize),
-        Position = UDim2.new(1, -actionChevronInset, 0.5, 0),
-        AnchorPoint = Vector2.new(1, 0.5),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        ImageTransparency = 1,
-        Parent = self.actionBand,
-    }, { ImageColor3 = "ContentColor" })
-
-    --[[
-    The tap target is the whole band, so tapping anywhere on it — not only
-    on the chevron — fires the action.
-    ]]
-    self.actionButton = window:Create("TextButton", {
-        Name = "Tap",
-        Text = "",
-        AutoButtonColor = false,
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        Size = UDim2.fromScale(1, 1),
-        ZIndex = 6,
-        Parent = self.actionBand,
-    })
-    -- If the action has a callback, lock only its tap surface; the card's
-    -- informational header and data rows remain fully readable.
-    self.lockSurface = self.actionButton
-
-    self:_track(self.actionBand, "BackgroundTransparency", "background")
-    self:_track(self.actionStroke, "Transparency", "stroke")
-    self:_track(self.actionIcon, "ImageTransparency", "icon")
-    self:_track(self.actionLabel, "TextTransparency", "solid")
-    self:_track(self.actionSubtitle, "TextTransparency", "muted")
-    self:_track(self.actionChevron, "ImageTransparency", "chevron")
-
-    window:ConnectFor(self, self.actionButton.MouseButton1Click, function()
-        self:_activate()
-    end)
-    self:_wireActionHover()
-end
-
-function state:_activate()
-    if self.locked or not self.window:_interactive() then
-        return
-    end
-    haptic.click()
-    if self.action.callback then
-        self.window:_runGuarded(self, self.action.callback)
-    end
-end
-
---[[
-The band is the card's interactive surface, so it carries the library's
-own hover language (Window:_wireElementHover's recipe) scoped to itself:
-the card stays still, the band's stroke, label and chevron answer. The
-theme keys are read live, so a runtime theme change still flows through.
-]]
-function state:_wireActionHover()
-    local window = self.window
-    local theme = window.theme
-
-    window:ConnectFor(self, self.actionButton.MouseEnter, function()
-        if not window:_interactive() then
-            return
-        end
-        motion.tween(self.actionStroke, {
-            Transparency = window:_elementStrokeTransparency(self, true),
-            Color = theme.ElementStrokeHover,
-        }, "snappy")
-        motion.tween(self.actionLabel, { TextColor3 = theme.ElementTextHoverColor }, "snappy")
-        motion.tween(self.actionChevron, { ImageTransparency = hoveredChevronTransparency }, "snappy")
-    end)
-
-    window:ConnectFor(self, self.actionButton.MouseLeave, function()
-        motion.tween(self.actionStroke, {
-            Transparency = window:_elementStrokeTransparency(self, false),
-            Color = theme.ElementStroke,
-        }, "snappy")
-        motion.tween(self.actionLabel, { TextColor3 = theme.TitlingColor }, "snappy")
-        motion.tween(self.actionChevron, { ImageTransparency = restingChevronTransparency }, "snappy")
-    end)
-end
-
-function state:_setShown(shown, animate)
-    self._shown = shown
-    if shown then
-        self.window:_revealCommon(self, animate)
-    else
-        self.window:_hideCommon(self, animate)
-    end
-    self:_paint(shown, animate)
-end
-
---[[
-A theme change re-reads every resting value the card paints with, exactly
-as a reveal does.
-]]
-function state:_refreshTheme()
-    self:_setShown(self._shown, false)
-end
-
---[[
-Public setters. The header icon slot mirrors the Isolated container's; the
-row setter rewrites one tile in place instead of rebuilding the row, so a live
-status card never re-measures its layout.
-]]
-function state:SetTitle(title)
-    self.name = textOf(title) or ""
-    self.window:_bindLocale(self.title, "Text", self.name)
-end
-
-function state:SetSubtitle(subtitle)
-    self.subtitle = textOrNil(subtitle)
-    if self.subtitle then
-        self.window:_bindLocale(self.subtitleLabel, "Text", self.subtitle)
-    else
-        self.subtitleLabel.Text = ""
-    end
-    self:_applyHeaderMetrics()
-end
-
-function state:SetIcon(icon)
-    self.icon = self.window:ResolveIcon(icon)
-    image.assign(self.iconLabel, "Image", self.icon or "")
-    self.iconLabel.Visible = self.icon ~= nil
-    self:_applyHeaderMetrics()
-    --[[
-    The icon slot is tracked, so it lands at its resting transparency for
-    whichever state the card is in right now.
-    ]]
-    self:_setShown(self._shown, false)
-end
-
-function state:SetRow(index, row)
-    local entry = self.rows[index]
-    assert(entry, `AboutCard:SetRow — no row at index {index}`)
-    row = if type(row) == "table" then row else {}
-
-    local changed = false
-
-    local label = read(row, "label", "Label")
-    if label ~= nil then
-        entry.label = textOf(label) or ""
-        self.window:_bindLocale(entry.labelLabel, "Text", entry.label)
-        changed = true
-    end
-
-    local value = read(row, "value", "Value")
-    if value ~= nil then
-        entry.value = textOf(value) or ""
-        entry.valueLabel.Text = entry.value
-        changed = true
-    end
-
-    local icon = read(row, "icon", "Icon")
-    if icon ~= nil then
-        entry.icon = self.window:ResolveIcon(icon)
-        self:_applyRowIcon(entry)
-        changed = true
-    end
-
-    --[[
-    Refresh the equal-slice row after an icon changes the text reservation;
-    copy is truncated inside its own compact tile rather than wrapping the
-    last tile onto another line.
-    ]]
-    if changed then
-        self:_layoutRows()
-        self:_setShown(self._shown, false)
-    end
-end
-
-moveable(state)
-lockable(state)
-
-return state
-
-end)() end,
-    [35] = function()local wax,script,require=ImportGlobals(35)local ImportGlobals return (function(...)
---[[
 Shared base card layout and styling for Astra UI elements.
 Handles standard background frame, theme strokes, hover overlay,
 content container, icon, and title label.
@@ -11907,7 +10924,7 @@ end
 return baseCard
 
 end)() end,
-    [36] = function()local wax,script,require=ImportGlobals(36)local ImportGlobals return (function(...)
+    [35] = function()local wax,script,require=ImportGlobals(35)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Button"
@@ -12136,7 +11153,7 @@ end
 return state
 
 end)() end,
-    [37] = function()local wax,script,require=ImportGlobals(37)local ImportGlobals return (function(...)
+    [36] = function()local wax,script,require=ImportGlobals(36)local ImportGlobals return (function(...)
 local Changelog = {}
 Changelog.__index = Changelog
 Changelog.__type = "Changelog"
@@ -12557,7 +11574,7 @@ moveable(Changelog)
 return Changelog
 
 end)() end,
-    [38] = function()local wax,script,require=ImportGlobals(38)local ImportGlobals return (function(...)
+    [37] = function()local wax,script,require=ImportGlobals(37)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local motion = require(utilities.motion)
 local locale = require(utilities.locale)
@@ -12580,7 +11597,6 @@ local constructors = {
     Switch = function(parent, props) return require(script.Parent.toggle).new(parent, props) end,
     Slider = function(parent, props) return require(script.Parent.slider).new(parent, props) end,
     Stepper = function(parent, props) return require(script.Parent.stepper).new(parent, props) end,
-    ModePicker = function(parent, props) return require(script.Parent.modePicker).new(parent, props) end,
     Dropdown = function(parent, props) return require(script.Parent.dropdown).new(parent, props) end,
     Keybind = function(parent, props) return require(script.Parent.keybind).new(parent, props) end,
     Input = function(parent, props) return require(script.Parent.input).new(parent, props) end,
@@ -12622,7 +11638,6 @@ local function validate(definitions, path, ancestors, depth)
         assert(type(spec) == "table", location .. " must be an element definition")
         local kind = spec.type or spec.Type
         assert(kind ~= "CollapsibleGroup", location .. ": CollapsibleGroups cannot be nested, including inside Groups")
-        assert(kind ~= "Isolated", location .. ": Isolated containers cannot be nested, including inside Groups")
         assert(constructors[kind], location .. ": unsupported element type " .. tostring(kind))
         if kind == "Group" then
             validate(spec.elements or {}, location .. ".elements", ancestors, depth + 1)
@@ -13022,7 +12037,7 @@ lockable(Collapsible)
 return Collapsible
 
 end)() end,
-    [39] = function()local wax,script,require=ImportGlobals(39)local ImportGlobals return (function(...)
+    [38] = function()local wax,script,require=ImportGlobals(38)local ImportGlobals return (function(...)
 --[[
 The in-card description line. An element created with a `description` prop
 grows its own card by the measured height of this line instead of spawning
@@ -13179,7 +12194,7 @@ end
 return description
 
 end)() end,
-    [40] = function()local wax,script,require=ImportGlobals(40)local ImportGlobals return (function(...)
+    [39] = function()local wax,script,require=ImportGlobals(39)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Divider"
@@ -13324,7 +12339,7 @@ constants(state)
 return state
 
 end)() end,
-    [41] = function()local wax,script,require=ImportGlobals(41)local ImportGlobals return (function(...)
+    [40] = function()local wax,script,require=ImportGlobals(40)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Dropdown"
@@ -14942,7 +13957,7 @@ multiSelect(state)
 return state
 
 end)() end,
-    [42] = function()local wax,script,require=ImportGlobals(42)local ImportGlobals return (function(...)
+    [41] = function()local wax,script,require=ImportGlobals(41)local ImportGlobals return (function(...)
 --[[
 Centred inline text-and-icon strip — the "Built with ⚡ Astra ♡" line.
 A Footer is an ordered run of text segments and inline icons that is
@@ -15190,7 +14205,7 @@ constants(state)
 return state
 
 end)() end,
-    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)
+    [42] = function()local wax,script,require=ImportGlobals(42)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Group"
@@ -15288,7 +14303,7 @@ function state:_add(a13, a14)
     local ownerTab = self.tab
     local contentsVisible = true
     while ownerTab.tab do
-        if (ownerTab.__type == "CollapsibleGroup" or ownerTab.__type == "Isolated") and not ownerTab._expanded then contentsVisible = false end
+        if ownerTab.__type == "CollapsibleGroup" and not ownerTab._expanded then contentsVisible = false end
         ownerTab = ownerTab.tab
     end
     if contentsVisible and not self.window.hidden and not self.window.minimised and self.window.selectedTab == ownerTab then
@@ -15347,9 +14362,6 @@ function state:CreateStepper(props)
     return self:_add("stepper", props)
 end
 
-function state:CreateModePicker(props)
-    return self:_add("modePicker", props)
-end
 function state:CreateKeybind(props)
     return self:_add("keybind", props)
 end
@@ -15430,7 +14442,7 @@ constants(state)
 return state
 
 end)() end,
-    [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)
+    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Input"
@@ -15751,453 +14763,7 @@ end
 return state
 
 end)() end,
-    [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
-local utilities = script.Parent.Parent.utilities
-local motion = require(utilities.motion)
-local locale = require(utilities.locale)
-local haptic = require(utilities.HapticEngine)
-local moveable = require(utilities.moveable)
-local lockable = require(utilities.lockable)
-local ordering = require(utilities.ordering)
-local image = require(script.Parent.Parent.images.image)
-
-local Isolated = {}
-Isolated.__index = Isolated
-Isolated.__type = "Isolated"
-
---[[
-The Isolated container is the Changelog's own home: a collapsed header
-card — icon, title/subtitle stack and the built-in expansion chevron —
-that reveals a body of release-history entries exactly the way a
-CollapsibleGroup reveals its controls. It is a strict container: the
-only accepted child definition is a Changelog, everything else errors
-at construction instead of rendering a control the container cannot
-lay out. The right-hand chevron is part of the container itself: it is
-always drawn, never changeable and never removable, so no setter for
-it exists on purpose.
-]]
-local GUARD_MESSAGE = "Astra:CreateIsolated — only Changelog elements can be placed inside Isolated"
-
-local function changelogConstructor(parent, props)
-    return require(script.Parent.changelog).new(parent, props)
-end
-
---[[
-Which corners of the header band carry the container's arcs. Open, the band
-is only the top of the card: its bottom edge is the straight divider, so the
-bottom corners must stay square or they would notch into the revealed body.
-Closed, the band *is* the whole card, so its bottom corners have to carry the
-container's bottom arcs exactly like its top ones carry the top.
-]]
-local bandCorners = {
-    expanded = { "TopLeftRadius", "TopRightRadius" },
-    collapsed = { "TopLeftRadius", "TopRightRadius", "BottomLeftRadius", "BottomRightRadius" },
-}
-
-local function validate(definitions, path)
-    assert(type(definitions) == "table", path .. " must be an array")
-    local count = 0
-    for key in pairs(definitions) do
-        assert(type(key) == "number" and key >= 1 and key % 1 == 0, path .. " must be an array")
-        count += 1
-    end
-    for index = 1, count do
-        local spec = definitions[index]
-        local kind = if type(spec) == "table" then spec.type or spec.Type else nil
-        --[[
-        One rule, one message: whatever is not a Changelog definition —
-        another control type, a nested container, a built element or a
-        non-table value — is rejected here, before any instance exists.
-        Level 0 keeps the message exact so hosts can match on it.
-        ]]
-        if kind ~= "Changelog" or (type(spec) == "table" and spec.elements ~= nil) then
-            error(GUARD_MESSAGE, 0)
-        end
-    end
-end
-
-local function read(properties, lower, upper)
-    local value = properties[lower]
-    if value == nil then
-        value = properties[upper]
-    end
-    return value
-end
-
-local function buildChildren(parent, definitions)
-    for _, spec in ipairs(definitions) do
-        local child = changelogConstructor(parent, spec)
-        child._collapsibleChild = true
-        table.insert(parent.elements, child)
-        ordering(child, #parent.elements * 10)
-        parent.window:_restoreLate(child)
-        parent.window:_constructionCheckpoint(false)
-    end
-end
-
-local function visit(elements, callback)
-    for _, child in ipairs(elements) do
-        callback(child)
-        if child.elements then visit(child.elements, callback) end
-    end
-end
-
-function Isolated.new(tab, props)
-    assert(tab and tab.__type == "Tab", "Isolated containers must be direct children of a Tab")
-    props = if type(props) == "table" then props else {}
-    validate(props.elements or {}, "Isolated.elements")
-    local self = setmetatable({
-        tab = tab, window = tab.window, elements = {}, connections = {},
-        name = tostring(read(props, "name", "Name") or read(props, "title", "Title") or "View Changelog"),
-        subtitle = read(props, "subtitle", "Subtitle"),
-        icon = tab.window:ResolveIcon(read(props, "icon", "Icon")),
-        deriveFlagFromName = tab.deriveFlagFromName,
-        forgetState = props.forgetState or tab.forgetState,
-        _expanded = false, _shown = false,
-    }, Isolated)
-    self.subtitle = if self.subtitle ~= nil and tostring(self.subtitle) ~= ""
-        then tostring(self.subtitle)
-        else nil
-    local w = self.window
-    --[[
-    Two-line header recipe, shared with the CollapsibleGroup's title plus
-    description band: the title keeps its 41px band and the muted 14px
-    subtitle rides the 20px band under it (41 -> 61). Without a subtitle
-    the header is the plain 41px band.
-    ]]
-    self.headerHeight = if self.subtitle then 61 else 41
-    local iconY = math.floor((self.headerHeight - 16) / 2)
-    --[[
-    One connected card, two surfaces: the header band rides the standard
-    element gradient, the revealed body sits on the darker window surface
-    and a 1px stroke-colored divider separates them.
-    ]]
-    self.bodyPad = 10
-    self.main = w:Create("Frame", {
-        Name = self.name, Size = UDim2.new(1, -20, 0, self.headerHeight),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 1, BorderSizePixel = 0,
-        ClipsDescendants = true, Parent = tab.tabPage,
-    }, { BackgroundTransparency = "ElementTransparency" })
-    w:Create("UIGradient", { Rotation = 270, Parent = self.main }, { Color = "ElementGradient" })
-    w:Create("UICorner", { Parent = self.main }, { CornerRadius = "ElementCornerRadius" })
-    self.stroke = w:Create("UIStroke", {
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Transparency = 1, Parent = self.main,
-    }, { Color = "ElementStroke", Transparency = "ElementStrokeTransparency" })
-    self.headerSurface = w:Create("Frame", {
-        Name = "HeaderSurface", Size = UDim2.new(1, 0, 0, self.headerHeight),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
-    }, { BackgroundTransparency = "ElementTransparency" })
-    w:Create("UIGradient", { Rotation = 270, Parent = self.headerSurface }, { Color = "ElementGradient" })
-    self.headerCorner = w:_roundCorners(self.headerSurface, { "TopLeftRadius", "TopRightRadius" }, "ElementCornerRadius")
-    self:_fitHeaderCorners()
-    self.divider = w:Create("Frame", {
-        Name = "HeaderDivider", Position = UDim2.fromOffset(0, self.headerHeight),
-        Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0,
-        BackgroundTransparency = 1, Visible = false, Parent = self.main,
-    }, { BackgroundColor3 = "ElementStroke", BackgroundTransparency = "ElementStrokeTransparency" })
-    self.header = w:Create("Frame", {
-        Name = "Header", Size = UDim2.new(1, 0, 0, self.headerHeight),
-        BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
-    })
-    self.hoverOverlay = w:CreateHoverOverlay(self.header)
-    --[[
-    Header metrics mirror the CollapsibleGroup header: 20px gutters, a 6px
-    icon gap, a 16px TitlingColor title and a 14px muted line under it.
-    The icon and the chevron sit vertically centred on whichever band the
-    header currently is, so the collapsed card reads as the reference:
-    icon, two-line stack, chevron.
-    ]]
-    local textX = if self.icon then 42 else 20
-    if self.icon then
-        self.iconLabel = w:Create("ImageLabel", {
-            Image = self.icon, Position = UDim2.fromOffset(20, iconY), Size = UDim2.fromOffset(16, 16),
-            BackgroundTransparency = 1, ImageTransparency = 1, Parent = self.header,
-        }, { ImageColor3 = "ContentColor" })
-    end
-    self.title = w:Create("TextLabel", {
-        Text = locale.t(self.name), Position = UDim2.fromOffset(textX, 0),
-        Size = UDim2.new(1, -(textX + 42), 0, 41), BackgroundTransparency = 1,
-        TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
-        TextTransparency = 1, Parent = self.header,
-    }, { TextColor3 = "TitlingColor", FontFace = "Font" })
-    w:_bindLocale(self.title, "Text", self.name)
-    --[[
-    The subtitle label always exists so SetSubtitle can fill it at
-    runtime; without a subtitle it carries empty text and the header
-    stays on the single-line band.
-    ]]
-    self.subtitleLabel = w:Create("TextLabel", {
-        Name = "Subtitle",
-        Text = locale.t(self.subtitle or ""), Position = UDim2.fromOffset(textX, 37),
-        Size = UDim2.new(1, -(textX + 20), 0, 18), BackgroundTransparency = 1,
-        TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
-        TextTransparency = 1, Parent = self.header,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
-    if self.subtitle then
-        w:_bindLocale(self.subtitleLabel, "Text", self.subtitle)
-    end
-    --[[
-    Built-in expansion affordance: always rendered, never changeable and
-    never removable. There is deliberately no setter that reaches it.
-    ]]
-    self.chevron = w:Create("ImageLabel", {
-        Image = w:ResolveIcon("chevron-right"), Position = UDim2.new(1, -36, 0, iconY),
-        Size = UDim2.fromOffset(16, 16), BackgroundTransparency = 1,
-        ImageTransparency = 1, Rotation = 0, Parent = self.header,
-    }, { ImageColor3 = "ContentColor" })
-    self.interact = w:Create("TextButton", {
-        Text = "", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
-        AutoButtonColor = false, ZIndex = 6, Parent = self.header,
-    })
-    self.bodyClip = w:Create("Frame", {
-        Name = "ContentsClip",
-        Position = UDim2.fromOffset(0, self.headerHeight + 1),
-        Size = UDim2.new(1, 0, 1, -(self.headerHeight + 1)),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 1, BorderSizePixel = 0,
-        ClipsDescendants = true, Visible = false, Parent = self.main,
-    }, { BackgroundTransparency = "ElementTransparency" })
-    w:Create("UIGradient", { Rotation = 270, Parent = self.bodyClip }, { Color = "WindowColor" })
-    w:_roundCorners(self.bodyClip, { "BottomLeftRadius", "BottomRightRadius" }, "ElementCornerRadius")
-    self.body = w:Create("Frame", {
-        Name = "Contents", Position = UDim2.fromOffset(0, self.bodyPad),
-        Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false, Parent = self.bodyClip,
-    })
-    self.tabPage = self.body
-    self.contentLayout = w:Create("UIListLayout", {
-        Padding = UDim.new(0, self.bodyPad), FillDirection = Enum.FillDirection.Vertical,
-        HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = self.body,
-    })
-    w:ConnectFor(self, self.contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-        self:_resize(true)
-    end)
-    --[[
-    Use the same primary-click signal as Astra's other full-row controls.
-    Some executor input bridges do not forward GuiButton.Activated, which
-    left an otherwise visible Isolated header unable to open. Roblox maps
-    touch taps to MouseButton1Click too, so the whole header stays usable on
-    both pointer and touch input without wiring two signals and double-firing.
-    ]]
-    w:ConnectFor(self, self.interact.MouseButton1Click, function()
-        if self.locked or not w:_interactive() then return end
-        haptic.click()
-        self:_setExpanded(not self._expanded, true)
-    end)
-    w:_wireElementHover(self, { target = self.header, titleRestKey = "TitlingColor" })
-    self.lockSurface = self.header
-    buildChildren(self, props.elements or {})
-    lockable.register(self, props)
-    return self
-end
-
---[[
-Collapsed, the band is the whole card — there is no body under it — so it
-has to carry the container's bottom arcs too, or its square bottom corners
-paint over the silhouette the stroke draws and the card reads as rounded at
-the top and uneven at the bottom. Expanded, the clipper below takes the
-bottom edge (it is flush with the container's floor and keeps the same
-radius token), so the band squares off against the straight divider.
-]]
-function Isolated:_fitHeaderCorners()
-    self.window:_setRoundedCorners(
-        self.headerCorner,
-        if self._expanded then bandCorners.expanded else bandCorners.collapsed,
-        "ElementCornerRadius"
-    )
-    if self.lockScrimCorner then
-        self.window:_setRoundedCorners(
-            self.lockScrimCorner,
-            if self._expanded then bandCorners.expanded else bandCorners.collapsed,
-            "ElementCornerRadius"
-        )
-    end
-end
-
---[[
-Every frame that derives its metrics from the header band — the band
-itself, the divider seam, the reveal mask, the centred icon/chevron row
-and the text stack — is re-derived here, so a runtime SetSubtitle that
-adds or releases the second line reflows the whole card from one place.
-]]
-function Isolated:_applyHeaderMetrics()
-    self.headerHeight = if self.subtitle then 61 else 41
-    local iconY = math.floor((self.headerHeight - 16) / 2)
-    local textX = if self.icon then 42 else 20
-    if self.iconLabel then
-        self.iconLabel.Position = UDim2.fromOffset(20, iconY)
-    end
-    self.title.Position = UDim2.fromOffset(textX, 0)
-    self.title.Size = UDim2.new(1, -(textX + 42), 0, 41)
-    self.subtitleLabel.Position = UDim2.fromOffset(textX, 37)
-    self.subtitleLabel.Size = UDim2.new(1, -(textX + 20), 0, 18)
-    self.chevron.Position = UDim2.new(1, -36, 0, iconY)
-    self.headerSurface.Size = UDim2.new(1, 0, 0, self.headerHeight)
-    self.header.Size = UDim2.new(1, 0, 0, self.headerHeight)
-    self.divider.Position = UDim2.fromOffset(0, self.headerHeight)
-    self.bodyClip.Position = UDim2.fromOffset(0, self.headerHeight + 1)
-    self.bodyClip.Size = UDim2.new(1, 0, 1, -(self.headerHeight + 1))
-end
-
-function Isolated:_resize(animate)
-    --[[
-    (The engine always reports an AbsoluteContentSize; the test harness
-    only stubs it once content is driven, so an unmeasured layout reads 0.)
-    ]]
-    local measured = self.contentLayout.AbsoluteContentSize
-    local contentHeight = if measured then measured.Y else 0
-    local height = self.headerHeight
-    if self._expanded then
-        --[[
-        divider + top pad + content + bottom pad: the container ends one
-        gutter under the last child card, the same inset its sides keep,
-        with no dead slack.
-        ]]
-        height += 1 + self.bodyPad + contentHeight + self.bodyPad
-    end
-    local size = UDim2.new(1, -20, 0, height)
-    self._resizeRevision = (self._resizeRevision or 0) + 1
-    local revision = self._resizeRevision
-    local function finish()
-        if self.window.unloaded or not self.main.Parent or self._resizeRevision ~= revision then
-            return
-        end
-        if not self._expanded then
-            self.body.Visible = false
-            self.bodyClip.Visible = false
-            self.divider.Visible = false
-        end
-        self:_fitHeaderCorners()
-    end
-    if animate and self._shown then
-        local mainTween = motion.tween(self.main, { Size = size }, "snappy", finish)
-        if not mainTween then finish() end
-    else
-        motion.cancel(self.main)
-        self.main.Size = size
-        finish()
-    end
-end
-
-function Isolated:_setExpanded(expanded, animate)
-    if self._expanded == expanded then return end
-    self._expanded = expanded
-    if expanded then
-        self:_fitHeaderCorners()
-        self.body.Visible = true
-        self.bodyClip.Visible = true
-        self.divider.Visible = true
-        for _, child in ipairs(self.elements) do child:_setShown(self._shown, false) end
-    end
-    local chevronProps = { Rotation = if expanded then 90 else 0 }
-    if animate then
-        motion.tween(self.chevron, chevronProps, "snappy")
-    else
-        motion.set(self.chevron, chevronProps)
-    end
-    self:_resize(animate)
-end
-
-function Isolated:_setShown(shown, animate)
-    self._shown = shown
-    local w = self.window
-    w:_reveal(self.main, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
-    w:_reveal(self.headerSurface, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
-    w:_reveal(self.bodyClip, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
-    w:_reveal(self.stroke, { Transparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
-    w:_reveal(self.divider, { BackgroundTransparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
-    w:_reveal(self.title, { TextTransparency = if shown then 0 else 1 }, animate)
-    w:_reveal(self.subtitleLabel, { TextTransparency = if shown then 0.45 else 1 }, animate)
-    w:_reveal(self.chevron, { ImageTransparency = if shown then 0.4 else 1 }, animate)
-    if self.iconLabel then w:_reveal(self.iconLabel, { ImageTransparency = if shown then 0 else 1 }, animate) end
-    if self._expanded then
-        for _, child in ipairs(self.elements) do child:_setShown(shown, animate) end
-    end
-    self:_resize(false)
-end
-
-function Isolated:_refreshTheme()
-    self:_setShown(self._shown, false)
-    for _, child in ipairs(self.elements) do
-        if child._refreshTheme then child:_refreshTheme() end
-    end
-end
-
-function Isolated:_moveElement(element, index)
-    local old = table.find(self.elements, element)
-    if not old then return end
-    table.remove(self.elements, old)
-    table.insert(self.elements, math.clamp(index, 1, #self.elements + 1), element)
-    for i, child in ipairs(self.elements) do ordering(child, i * 10) end
-end
-
---[[
-Public expansion API: the same CollapsibleGroup-style tween, addressable
-from the host instead of only from a header tap.
-]]
-function Isolated:Expand(animate)
-    self:_setExpanded(true, animate ~= false)
-end
-
-function Isolated:Collapse(animate)
-    self:_setExpanded(false, animate ~= false)
-end
-
-function Isolated:Toggle(animate)
-    self:_setExpanded(not self._expanded, animate ~= false)
-end
-
---[[
-The changeable header slots. The chevron is not among them: it is built
-into the container and no setter reaches it.
-]]
-function Isolated:SetTitle(title)
-    self.name = tostring(title)
-    self.window:_bindLocale(self.title, "Text", self.name)
-end
-
-function Isolated:SetSubtitle(subtitle)
-    local next = if subtitle ~= nil and tostring(subtitle) ~= "" then tostring(subtitle) else nil
-    self.subtitle = next
-    if next then
-        self.window:_bindLocale(self.subtitleLabel, "Text", next)
-    else
-        self.subtitleLabel.Text = ""
-    end
-    self:_applyHeaderMetrics()
-    self:_resize(self._shown)
-end
-
-function Isolated:SetIcon(icon)
-    local resolved = self.window:ResolveIcon(icon)
-    self.icon = resolved
-    if resolved then
-        if not self.iconLabel then
-            self.iconLabel = self.window:Create("ImageLabel", {
-                Image = resolved, Position = UDim2.fromOffset(20, math.floor((self.headerHeight - 16) / 2)),
-                Size = UDim2.fromOffset(16, 16),
-                BackgroundTransparency = 1, ImageTransparency = if self._shown then 0 else 1,
-                Parent = self.header,
-            }, { ImageColor3 = "ContentColor" })
-        else
-            image.assign(self.iconLabel, "Image", resolved)
-        end
-    elseif self.iconLabel then
-        self.window:DestroySubtree(self.iconLabel)
-        self.iconLabel = nil
-    end
-    self:_applyHeaderMetrics()
-end
-
-moveable(Isolated)
-lockable(Isolated)
-return Isolated
-
-end)() end,
-    [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
+    [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)
 --[[
 A compact, editable single-letter key control. The TextBox gives the
 control a real caret and lets a user replace the letter in place, while the
@@ -16450,7 +15016,7 @@ lockable(Keybind)
 return Keybind
 
 end)() end,
-    [47] = function()local wax,script,require=ImportGlobals(47)local ImportGlobals return (function(...)
+    [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
 --[[
 CreateLink: a card that carries a URL and copies it.
 
@@ -17530,831 +16096,7 @@ lockable(state)
 return state
 
 end)() end,
-    [48] = function()local wax,script,require=ImportGlobals(48)local ImportGlobals return (function(...)
-local state = {}
-state.__index = state
-state.__type = "ModePicker"
-
-local constants = script.Parent.Parent.utilities
-
-local ModePicker = require(constants.Parent.core.state)
-local locale = require(constants.locale)
-local haptic = require(constants.HapticEngine)
-local lockable = require(constants.lockable)
---[[
-The Mode Picker rides the shared motion vocabulary: the knob travels on
-`normal` (the same beat as a slider value change), a drag chase would need
-`fast` but the picker snaps instead of chasing, hover steps use `snappy`,
-and the reset/icon colour shifts drift on the delayed accent beat so a
-mode change reads as one gesture: knob first, colour after.
-]]
-local motion = require(constants.motion)
-local travel = "normal"
-local hover = "snappy"
-local accentBase = TweenInfo.new(0.6, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out, 0, false, 0.35)
-local function accentTween()
-	return motion.spec(accentBase)
-end
-
---[[
-One set of metrics, in one place. The track borrows the toggle's switch
-height and the knob is the toggle's own knob (26x18 pill, radius half its
-height), stretched onto a multi-stop track: the picker must read as the
-library's switch with more resting places, not as a foreign control.
-The knob keeps the toggle's clearance too — `knobGap` of track on every
-side it can see — which is what makes the two pills concentric at the end
-stops (the track's 11px cap and the knob's 9px cap share a centre) instead
-of the knob jamming flush against the track's silhouette. Dots sit on the
-track's centre line at the knob's centres, so the first and last stops park
-the knob exactly over them.
-]]
-local trackHeight = 22
-local trackRadius = UDim.new(0, trackHeight / 2)
-local knobWidth = 26
-local knobHeight = 18
-local knobRadius = UDim.new(0, knobHeight / 2)
-local dotSize = 4
-local knobGap = 2 -- the toggle's switchInset: clearance all the way round
-local stopInset = knobWidth / 2 + knobGap -- end stops keep the knob inside the track
-local sidePad = 14
-
-local titleY = 19
-local subtitleY = 37
-local headerCenter = 28
-local trackY = 62
-local baseHeight = 84
-
-local MIN_MODES = 3
-local MAX_MODES = 5
-
-local function colorFromTable(value, fallback)
-	if typeof(value) == "Color3" then
-		return value
-	end
-	if typeof(value) == "table" and value.r then
-		return Color3.fromRGB(value.r or 255, value.g or 255, value.b or 255)
-	end
-	return fallback
-end
-
---[[
-Modes arrive as a map (`[1] = {...}`) or an array; both normalize to a
-dot_position-sorted list so gaps or out-of-order positions in a config
-still lay out left to right.
-]]
-local function normalizeModes(raw)
-	local list = {}
-	if typeof(raw) == "table" then
-		for key, mode in pairs(raw) do
-			if typeof(mode) == "table" then
-				table.insert(list, {
-					label = tostring(mode.label or mode.Label or ("Mode " .. tostring(key))),
-					description = if mode.description ~= nil then tostring(mode.description)
-						elseif mode.Description ~= nil then tostring(mode.Description)
-						else nil,
-					type = mode.type or mode.Type or "dot",
-					dot_position = tonumber(mode.dot_position or mode.DotPosition or key) or #list + 1,
-					onEnable = mode.onEnable or mode.OnEnable,
-					optional = mode.optional or mode.Optional or false,
-					icon_color = mode.icon_color or mode.IconColor,
-				})
-			end
-		end
-	end
-	table.sort(list, function(a, b)
-		return a.dot_position < b.dot_position
-	end)
-	for index, mode in ipairs(list) do
-		mode.dot_position = index
-	end
-	return list
-end
-
-function state.new(tab, element)
-	element = if typeof(element) == "table" then element else {}
-
-	local rawModes = element.modes or element.Modes or {}
-	local modes = normalizeModes(rawModes)
-
-	local minModes = math.clamp(tonumber(element.min_modes or element.MinModes or MIN_MODES) or MIN_MODES, MIN_MODES, MAX_MODES)
-	local maxModes = math.clamp(tonumber(element.max_modes or element.MaxModes or MAX_MODES) or MAX_MODES, MIN_MODES, MAX_MODES)
-	if maxModes < minModes then
-		maxModes = minModes
-	end
-	if #modes < minModes or #modes > maxModes then
-		error(`Astra:CreateModePicker — modes must be between {minModes} and {maxModes}, got {#modes}`, 0)
-	end
-
-	local forgetState = element.forgetState
-	if forgetState == nil then
-		forgetState = element.ForgetState
-	end
-	if forgetState == nil then
-		forgetState = tab.forgetState
-	end
-	local titleText = tostring(element.title or element.Title or "Mode Picker")
-	local isLockSystemController = element.lockSystemController == true or element.LockSystemController == true
-
-	local self = setmetatable({
-		tab = assert(tab, "Missing argument #1 (Tab expected)"),
-		window = tab.window,
-		titleText = titleText,
-		subtitle = tostring(element.subtitle or element.Subtitle or ""),
-		forgetState = forgetState == true,
-		flag = element.flag
-			or element.Flag
-			or (
-				not forgetState and tab.deriveFlagFromName(titleText)
-				or nil
-			),
-		_lockSystemController = isLockSystemController,
-
-		left_icon = tab.window:ResolveIcon(element.left_icon or element.LeftIcon or "zap"),
-		right_icon = tab.window:ResolveIcon(element.right_icon or element.RightIcon or "rotate-ccw"),
-		left_icon_color = colorFromTable(element.left_icon_color or element.LeftIconColor, Color3.fromRGB(255, 255, 255)),
-		title_color_same_as_left_icon = (element.title_color_same_as_left_icon ~= false and element.TitleColorSameAsLeftIcon ~= false),
-		reset_on_right_icon_press = (element.reset_on_right_icon_press ~= false and element.ResetOnRightIconPress ~= false),
-		allow_mode_add_remove = (element.allow_mode_add_remove ~= false and element.AllowModeAddRemove ~= false),
-		accent = element.accent or element.Accent or "theme",
-
-		minModes = minModes,
-		maxModes = maxModes,
-		modes = modes,
-		configModes = table.clone(modes),
-		defaultMode = math.clamp(tonumber(element.mode or element.Mode or 1) or 1, 1, #modes),
-		onReset = element.onReset or element.OnReset,
-		callback = element.callback or element.Callback,
-
-		dots = {},
-	}, state)
-
-	self.name = self.titleText
-	self.mode = self.defaultMode
-
-	self.window:_registerControl(self)
-	self:_build()
-	self._serialize = function(picker)
-		return picker.mode
-	end
-	self._deserialize = function(picker, value)
-		picker:Set(value, true)
-	end
-	lockable.register(self, element, { exempt = isLockSystemController })
-	if isLockSystemController then
-		self:_syncLockSystemMode()
-	end
-
-	return self
-end
-
-function state:_build()
-	local window = self.window
-
-	self.main = window:Create("Frame", {
-		Size = UDim2.new(1, -20, 0, baseHeight),
-		BorderSizePixel = 0,
-		Name = "ModePicker",
-		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-		BackgroundTransparency = 1,
-		Parent = self.tab.tabPage,
-	}, { BackgroundTransparency = "ElementTransparency" })
-
-	self.stroke = window:StyleElementBody(self.main)
-	self.hoverOverlay = window:CreateHoverOverlay(self.main)
-
-	-- Header: display-only icon, centred title/subtitle stack, reset button.
-	self.iconLabel = window:Create("ImageLabel", {
-		Image = self.left_icon or "",
-		Visible = self.left_icon ~= nil,
-		Size = UDim2.fromOffset(18, 18),
-		Position = UDim2.new(0, sidePad + 4, 0, headerCenter),
-		AnchorPoint = Vector2.new(0, 0.5),
-		BorderSizePixel = 0,
-		BackgroundTransparency = 1,
-		ImageTransparency = 1,
-		ZIndex = 2,
-		Parent = self.main,
-	})
-	self.iconLabel.ImageColor3 = self:_iconColor()
-
-	self.title = window:Create("TextLabel", {
-		Text = locale.t(self.titleText),
-		Size = UDim2.new(1, -120, 0, 18),
-		Position = UDim2.new(0.5, 0, 0, titleY),
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		BorderSizePixel = 0,
-		BackgroundTransparency = 1,
-		TextSize = 16,
-		TextXAlignment = Enum.TextXAlignment.Center,
-		TextTruncate = Enum.TextTruncate.AtEnd,
-		TextTransparency = 1,
-		ZIndex = 2,
-		Parent = self.main,
-	}, self:_titleBinding())
-	self.title.TextColor3 = self:_titleColor()
-
-	self.subtitleLabel = window:Create("TextLabel", {
-		Text = locale.t(self.subtitle),
-		Visible = self.subtitle ~= "",
-		Size = UDim2.new(1, -120, 0, 14),
-		Position = UDim2.new(0.5, 0, 0, subtitleY),
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		BorderSizePixel = 0,
-		BackgroundTransparency = 1,
-		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Center,
-		TextTruncate = Enum.TextTruncate.AtEnd,
-		TextTransparency = 1,
-		ZIndex = 2,
-		Parent = self.main,
-	}, { TextColor3 = "ContentColor", FontFace = "Font" })
-
-	self.resetButton = window:Create("TextButton", {
-		Size = UDim2.fromOffset(26, 26),
-		Position = UDim2.new(1, -sidePad, 0, headerCenter),
-		AnchorPoint = Vector2.new(1, 0.5),
-		BorderSizePixel = 0,
-		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-		BackgroundTransparency = 1,
-		Text = "",
-		TextTransparency = 1,
-		ZIndex = 3,
-		Parent = self.main,
-	})
-	window:Create("UICorner", { CornerRadius = UDim.new(0, 8), Parent = self.resetButton })
-	self.resetGlyph = window:Create("ImageLabel", {
-		Image = self.right_icon or "",
-		Visible = self.right_icon ~= nil,
-		Size = UDim2.fromOffset(14, 14),
-		Position = UDim2.new(0.5, 0, 0.5, 0),
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		BorderSizePixel = 0,
-		BackgroundTransparency = 1,
-		ImageTransparency = 1,
-		Parent = self.resetButton,
-	}, { ImageColor3 = "ContentColor" })
-
-	window:ConnectFor(self, self.resetButton.MouseEnter, function()
-		if not window:_interactive() or self:IsLocked() then
-			return
-		end
-		motion.tween(self.resetButton, { BackgroundTransparency = 0.92 }, hover)
-	end)
-	window:ConnectFor(self, self.resetButton.MouseLeave, function()
-		motion.tween(self.resetButton, { BackgroundTransparency = 1 }, hover)
-	end)
-	window:ConnectFor(self, self.resetButton.MouseButton1Click, function()
-		if self:IsLocked() then
-			return
-		end
-		haptic.click()
-		if self.reset_on_right_icon_press then
-			self:Reset()
-		end
-	end)
-
-	self:_buildTrack()
-	self:_applyMode(self.mode, true)
-
-	window:_wireElementHover(self)
-end
-
-function state:_buildTrack()
-	local window = self.window
-
-	self.track = window:Create("Frame", {
-		Size = UDim2.new(1, -sidePad * 2, 0, trackHeight),
-		Position = UDim2.new(0, sidePad, 0, trackY),
-		AnchorPoint = Vector2.new(0, 0.5),
-		BorderSizePixel = 0,
-		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-		BackgroundTransparency = 1,
-		ZIndex = 2,
-		Parent = self.main,
-	}, { BackgroundColor3 = "SliderBackground" })
-	self.track.BackgroundColor3 = window.theme.SliderBackground
-	window:Create("UICorner", { CornerRadius = trackRadius, Parent = self.track })
-
-	--[[
-	The fill wears the knob's own pill: the same height, the same radius and
-	the same clearance inside the track. A full-height fill under a shorter
-	knob used to bleed accent above and below it and around its rounded
-	corners (the fill's 11px cap is a bigger arc than the knob's 9px), so
-	the knob read as half-painted at every stop.
-	]]
-	self.fill = window:Create("Frame", {
-		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, knobGap, 0.5, 0),
-		Size = UDim2.new(0, 0, 0, knobHeight),
-		BorderSizePixel = 0,
-		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-		ZIndex = 3,
-		Parent = self.track,
-	}, self:_fillBinding())
-	window:Create("UICorner", { CornerRadius = knobRadius, Parent = self.fill })
-	window:Create("UIGradient", {
-		Color = ColorSequence.new(Color3.new(0.72, 0.72, 0.72), Color3.new(1, 1, 1)),
-		Parent = self.fill,
-	})
-
-	-- Create applies explicit properties after theme bindings; paint the initial fill
-	-- explicitly so the first frame does not flash white.
-	self.fill.BackgroundColor3 = self:_accentColor()
-	self.fillGlow = window:CreateGlow(self.fill, self:_accentColor(), 20, 1)
-
-	self.knob = window:Create("Frame", {
-		Size = UDim2.fromOffset(knobWidth, knobHeight),
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0, stopInset, 0.5, 0),
-		BorderSizePixel = 0,
-		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-		BackgroundTransparency = 1,
-		ZIndex = 5,
-		Parent = self.track,
-	})
-	window:Create("UICorner", { CornerRadius = knobRadius, Parent = self.knob })
-	self.knobStroke = window:Create("UIStroke", {
-		Transparency = 1,
-		Color = Color3.fromRGB(255, 255, 255),
-		Parent = self.knob,
-	})
-	self.knobGlow = window:CreateGlow(self.knob, Color3.fromRGB(255, 255, 255), 10, 1)
-
-	self:_buildDots()
-
-	self.interact = window:Create("TextButton", {
-		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 1, 8),
-		Position = UDim2.new(0, 0, 0.5, 0),
-		AnchorPoint = Vector2.new(0, 0.5),
-		Text = "",
-		TextTransparency = 1,
-		ZIndex = 10,
-		Parent = self.track,
-	})
-
-	window:ConnectFor(self, self.interact.InputBegan, function(input)
-		if
-			not window:_interactive()
-			or self:IsLocked()
-			or not (
-				input.UserInputType == Enum.UserInputType.MouseButton1
-				or input.UserInputType == Enum.UserInputType.Touch
-			)
-		then
-			return
-		end
-		haptic.click()
-		self.dragging = true
-		self:_setHeld(true)
-		self:_updateFromMouse()
-
-		if self._dragConnection then
-			self._dragConnection:Disconnect()
-			self._dragConnection = nil
-		end
-		self._dragConnection = ModePicker.runService.RenderStepped:Connect(function()
-			if self.window.unloaded or not self.dragging then
-				if self._dragConnection then
-					self._dragConnection:Disconnect()
-					self._dragConnection = nil
-				end
-				return
-			end
-			self:_updateFromMouse()
-		end)
-	end)
-
-	window:ConnectFor(self, ModePicker.userInputService.InputEnded, function(input)
-		if
-			self.dragging
-			and (
-				input.UserInputType == Enum.UserInputType.MouseButton1
-				or input.UserInputType == Enum.UserInputType.Touch
-			)
-		then
-			self:_endDrag()
-		end
-	end)
-end
-
-function state:_buildDots()
-	local window = self.window
-	for _, dot in ipairs(self.dots) do
-		window:DestroySubtree(dot)
-	end
-	self.dots = {}
-
-	local count = #self.modes
-	for index = 1, count do
-		local fraction = if count > 1 then (index - 1) / (count - 1) else 0.5
-		local dot = window:Create("Frame", {
-			Size = UDim2.fromOffset(dotSize, dotSize),
-			Position = UDim2.new(fraction, stopInset - fraction * stopInset * 2, 0.5, 0),
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			BorderSizePixel = 0,
-			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-			BackgroundTransparency = 1,
-			ZIndex = 4,
-			Parent = self.track,
-		})
-		window:Create("UICorner", { CornerRadius = UDim.new(0, dotSize / 2), Parent = dot })
-		table.insert(self.dots, dot)
-	end
-	self:_paintDots()
-end
-
---[[
-The fill follows the accent source: the theme accent by default (the
-picker inherits the library's colours), or the left icon's RGB when the
-config asks for it, in which case mode icon colours retint the fill too.
-]]
-function state:_fillBinding()
-	if self.accent == "left_icon" then
-		return {}
-	end
-	return { BackgroundColor3 = "AccentColor" }
-end
-
-function state:_accentColor()
-	if self.accent == "left_icon" then
-		return self:_iconColor()
-	end
-	return self.window.theme.AccentColor
-end
-
-function state:_iconColor()
-	local mode = self.modes[self.mode]
-	local override = mode and mode.icon_color
-	if override then
-		return colorFromTable(override, self.left_icon_color)
-	end
-	return self.left_icon_color
-end
-
-function state:_titleColor()
-	if self.title_color_same_as_left_icon then
-		return self:_iconColor()
-	end
-	return self.window.theme.ContentColor
-end
-
---[[
-While the title wears the icon's colour it carries no TextColor3 theme
-binding — the window's own theme pass would paint a theme token over the
-mode's colour. With the icon link off the title rests on ContentColor like
-every other control title, so it binds to the token and a theme change
-flows through the window's pass as well as `_refreshTheme`.
-]]
-function state:_titleBinding()
-	if self.title_color_same_as_left_icon then
-		return { FontFace = "Font" }
-	end
-	return { TextColor3 = "ContentColor", FontFace = "Font" }
-end
-
---[[
-`Window:_wireElementHover` reads this on every pointer event: the title's
-rest colour belongs to the element (the icon's RGB, which the selected mode
-can override), so the hover wiring must not settle it back onto a theme
-token — that is what took the colour off the title after the first hover.
-Nil hands the title back to the theme language when the icon link is off.
-]]
-function state:_titleRestColor()
-	if self.title_color_same_as_left_icon then
-		return self:_titleColor()
-	end
-	return nil
-end
-
-function state:_paintDots()
-	local theme = self.window.theme
-	for index, dot in ipairs(self.dots) do
-		if index <= self.mode then
-			dot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-			dot.BackgroundTransparency = 0.15
-		else
-			dot.BackgroundColor3 = theme.ContentColor
-			dot.BackgroundTransparency = 0.6
-		end
-	end
-end
-
-function state:_stopFraction(index)
-	local count = #self.modes
-	if count <= 1 then
-		return 0.5
-	end
-	return (index - 1) / (count - 1)
-end
-
-function state:_knobPosition(fraction)
-	return UDim2.new(fraction, stopInset - fraction * stopInset * 2, 0.5, 0)
-end
-
-function state:_setHeld(held)
-	local target = held and 0.25 or 0.55
-	ModePicker.tweenService:Create(self.knobGlow, motion.spec("fast"), { Transparency = target }):Play()
-	ModePicker.tweenService:Create(self.knobStroke, motion.spec("fast"), { Transparency = held and 0.55 or 0.85 }):Play()
-end
-
-function state:_updateFromMouse()
-	local mouse = ModePicker.userInputService:GetMouseLocation()
-	local track = self.track.AbsolutePosition
-	local width = self.track.AbsoluteSize.X
-	if width <= 0 then
-		return
-	end
-	local usable = width - stopInset * 2
-	if usable <= 0 then
-		return
-	end
-	local fraction = math.clamp((mouse.X - track.X - stopInset) / usable, 0, 1)
-	local nearest = math.round(fraction * (#self.modes - 1)) + 1
-	if nearest ~= self.mode then
-		haptic.click()
-		self:Set(nearest)
-	end
-end
-
-function state:_endDrag()
-	self.dragging = false
-	self:_setHeld(false)
-	if self._dragConnection then
-		self._dragConnection:Disconnect()
-		self._dragConnection = nil
-	end
-	self.window:_persist(self)
-end
-
---[[
-One path for every mode change (drag, tap, Set, Reset): knob and fill
-travel on the shared beat, dots repaint, and the icon/title/fill colours
-drift if the mode carries an icon colour.
-]]
-function state:_applyMode(index, instant)
-	local fraction = self:_stopFraction(index)
-	local spec = if instant then nil else motion.spec(travel)
-
-	if spec then
-		ModePicker.tweenService:Create(self.knob, spec, { Position = self:_knobPosition(fraction) }):Play()
-	else
-		self.knob.Position = self:_knobPosition(fraction)
-	end
-	self:_renderFill(instant)
-	self:_paintDots()
-	self:_applyColors(instant)
-end
-
---[[
-The fill runs from the first stop's clearance to the knob's *trailing*
-edge, on the same scale/offset pair the dots and the knob use — so all
-four agree at every stop and at every track width without a resize
-handler, and the last stop fills the track end to end instead of leaving
-an unpainted tail behind the knob.
-]]
-function state:_fillSize(fraction)
-	return UDim2.new(fraction, stopInset - fraction * stopInset * 2 + knobWidth / 2 - knobGap, 0, knobHeight)
-end
-
-function state:_renderFill(instant)
-	local target = self:_fillSize(self:_stopFraction(self.mode))
-	if instant then
-		self.fill.Size = target
-		return
-	end
-	ModePicker.tweenService:Create(self.fill, motion.spec(travel), { Size = target }):Play()
-end
-
-function state:_applyColors(instant)
-	local icon = self:_iconColor()
-	local spec = if instant then nil else accentTween()
-	if spec then
-		ModePicker.tweenService:Create(self.iconLabel, spec, { ImageColor3 = icon }):Play()
-		if self.title_color_same_as_left_icon then
-			ModePicker.tweenService:Create(self.title, spec, { TextColor3 = icon }):Play()
-		end
-		if self.accent == "left_icon" then
-			ModePicker.tweenService:Create(self.fill, spec, { BackgroundColor3 = icon }):Play()
-			ModePicker.tweenService:Create(self.fillGlow, spec, { Color = icon }):Play()
-		end
-	else
-		self.iconLabel.ImageColor3 = icon
-		if self.title_color_same_as_left_icon then
-			self.title.TextColor3 = icon
-		end
-		if self.accent == "left_icon" then
-			self.fill.BackgroundColor3 = icon
-			self.fillGlow.Color = icon
-		end
-	end
-end
-
-local lockModeSubtitles = {
-	[1] = "Mode 1 — all controls unlocked",
-	[2] = "Mode 2 — inputs and selections locked (Links, Inputs, Dropdowns, Keybinds)",
-	[3] = "Mode 3 — important actions locked (Buttons, Toggles, Sliders, Steppers, Mode Pickers)",
-	[4] = "Mode 4 — sensitive controls locked (high-impact actions)",
-	[5] = "Mode 5 — all lockable controls locked (Collapsible Groups, Isolated headers)",
-}
-
-function state:_syncLockSystemMode()
-	if not self._lockSystemController then
-		return
-	end
-	self.window:SetElementLockMode(self.mode)
-	local modeDef = self.modes[self.mode]
-	local desc = modeDef and (modeDef.description or modeDef.Description)
-	if desc and desc ~= "" then
-		if string.find(desc, "^Mode %d") then
-			self:SetSubtitle(desc)
-		else
-			self:SetSubtitle(`Mode {self.mode} — {desc}`)
-		end
-	else
-		self:SetSubtitle(lockModeSubtitles[self.mode] or `Mode {self.mode}`)
-	end
-end
-
---[[
-Mode changes commit through here: clamp, animate, fire the mode's own
-onEnable plus the picker-level callback, and persist. `silent` skips
-callbacks for restore paths, but the built-in lock controller still applies
-the selected tier so restores and programmatic Set calls stay in sync.
-]]
-function state:Set(index, silent)
-	index = math.clamp(math.round(tonumber(index) or self.mode), 1, #self.modes)
-	local changed = index ~= self.mode
-	self.mode = index
-	self:_applyMode(index, false)
-	self:_syncLockSystemMode()
-
-	if changed and not silent then
-		local mode = self.modes[index]
-		if mode.onEnable then
-			self.window:_runGuarded(self, mode.onEnable, index, mode.label)
-		end
-		if self.callback then
-			self.window:_runGuarded(self, self.callback, index, mode.label)
-		end
-	end
-	if not silent then
-		self.window:_persist(self)
-	end
-	return self.mode
-end
-
-function state:Get()
-	return self.mode, self.modes[self.mode].label
-end
-
---[[
-Reset restores the original state: Mode 1, the configured mode set (any
-runtime additions/removals rolled back) and the configured icon colour,
-then hands the config its onReset hook.
-]]
-function state:Reset()
-	if #self.modes ~= #self.configModes then
-		self.modes = table.clone(self.configModes)
-		self:_buildDots()
-	end
-	self:Set(1, true)
-	self.window:_persist(self)
-	if self.onReset then
-		self.window:_runGuarded(self, self.onReset, self)
-	end
-	return self.mode
-end
-
-function state:AddMode(mode)
-	if not self.allow_mode_add_remove then
-		return false, "mode add/remove is disabled"
-	end
-	if #self.modes >= self.maxModes then
-		return false, `Astra:ModePicker — at most {self.maxModes} modes are supported, got {#self.modes + 1}`
-	end
-	local normalized = normalizeModes({ [#self.modes + 1] = mode })[1]
-	if not normalized then
-		return false, "Astra:ModePicker — AddMode expects a mode table"
-	end
-	table.insert(self.modes, normalized)
-	table.sort(self.modes, function(a, b)
-		return a.dot_position < b.dot_position
-	end)
-	for index, entry in ipairs(self.modes) do
-		entry.dot_position = index
-	end
-	self:_buildDots()
-	self:_applyMode(self.mode, true)
-	return true
-end
-
-function state:RemoveMode(index)
-	if not self.allow_mode_add_remove then
-		return false, "mode add/remove is disabled"
-	end
-	local mode = self.modes[index]
-	if not mode then
-		return false, "Astra:ModePicker — unknown mode index"
-	end
-	if #self.modes <= self.minModes then
-		return false, `Astra:ModePicker — at least {self.minModes} modes are required, got {#self.modes - 1}`
-	end
-	if not mode.optional then
-		return false, "Astra:ModePicker — only optional modes can be removed"
-	end
-	table.remove(self.modes, index)
-	for position, entry in ipairs(self.modes) do
-		entry.dot_position = position
-	end
-	self:_buildDots()
-	self:Set(math.min(self.mode, #self.modes), true)
-	return true
-end
-
-function state:SetLeftIconColor(color)
-	self.left_icon_color = colorFromTable(color, self.left_icon_color)
-	self:_applyColors(false)
-end
-
-function state:SetSubtitle(text)
-	self.subtitle = tostring(text or "")
-	self.window:_bindLocale(self.subtitleLabel, "Text", self.subtitle)
-	self.subtitleLabel.Visible = self.subtitle ~= ""
-end
-
-function state:_minWidth()
-	return sidePad * 2 + 120 + 26
-end
-
-function state:_setShown(show, animate)
-	local w = self.window
-	--[[
-	stroke, title, main and iconLabel are revealed by
-	_revealCommon/_hideCommon; this list carries only the picker's own
-	surfaces.
-	]]
-	local parts = {
-		{ self.subtitleLabel, { TextTransparency = 0.35 } },
-		{ self.resetGlyph, { ImageTransparency = 0.25 } },
-		{ self.track, { BackgroundTransparency = 0 } },
-		{ self.fill, { BackgroundTransparency = 0 } },
-		{ self.knob, { BackgroundTransparency = 0 } },
-		{ self.knobStroke, { Transparency = 0.85 } },
-	}
-	if show then
-		w:_revealCommon(self, animate)
-		for _, part in ipairs(parts) do
-			w:_reveal(part[1], part[2], animate, travel)
-		end
-		for index, dot in ipairs(self.dots) do
-			w:_reveal(dot, { BackgroundTransparency = if index <= self.mode then 0.15 else 0.6 }, animate, travel)
-		end
-		w:_reveal(self.fillGlow, { Transparency = math.max(0.55, w.theme.AccentGlow) }, animate, accentTween)
-		w:_reveal(self.knobGlow, { Transparency = 0.55 }, animate, accentTween)
-	else
-		w:_hideCommon(self, animate)
-		for _, part in ipairs(parts) do
-			local hidden = {}
-			for property in pairs(part[2]) do
-				hidden[property] = 1
-			end
-			w:_reveal(part[1], hidden, animate, travel)
-		end
-		for _, dot in ipairs(self.dots) do
-			w:_reveal(dot, { BackgroundTransparency = 1 }, animate, travel)
-		end
-		w:_reveal(self.fillGlow, { Transparency = 1 }, animate, accentTween)
-		w:_reveal(self.knobGlow, { Transparency = 1 }, animate, accentTween)
-	end
-end
-
-function state:_refreshTheme()
-	local t = self.window.theme
-	self:_paintDots()
-	if self.accent ~= "left_icon" then
-		self.fill.BackgroundColor3 = t.AccentColor
-		self.fillGlow.Color = t.AccentColor
-	else
-		self.fill.BackgroundColor3 = self:_iconColor()
-		self.fillGlow.Color = self:_iconColor()
-	end
-	if not self.title_color_same_as_left_icon then
-		self.title.TextColor3 = t.ContentColor
-	end
-	ModePicker.tweenService:Create(self.fillGlow, motion.spec("smooth"), {
-		Transparency = math.max(0.55, t.AccentGlow),
-	}):Play()
-end
-
-local moveable = require(constants.moveable)
-moveable(state)
-lockable(state)
-
-return state
-
-end)() end,
-    [49] = function()local wax,script,require=ImportGlobals(49)local ImportGlobals return (function(...)
+    [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Section"
@@ -18440,7 +16182,7 @@ constants(state)
 return state
 
 end)() end,
-    [50] = function()local wax,script,require=ImportGlobals(50)local ImportGlobals return (function(...)
+    [47] = function()local wax,script,require=ImportGlobals(47)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Slider"
@@ -19043,7 +16785,7 @@ end
 return state
 
 end)() end,
-    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
+    [48] = function()local wax,script,require=ImportGlobals(48)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Statistic"
@@ -19885,7 +17627,7 @@ name(state)
 return state
 
 end)() end,
-    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
+    [49] = function()local wax,script,require=ImportGlobals(49)local ImportGlobals return (function(...)
 --[[
 The Stepper ("Value Configuration") is the library's numeric counter row:
 an integrated pill capsule with a `[−]` button, a highlighted editable
@@ -20479,7 +18221,7 @@ lockable(state)
 return state
 
 end)() end,
-    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
+    [50] = function()local wax,script,require=ImportGlobals(50)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Tab"
@@ -20498,11 +18240,11 @@ local flagNames = require(script.Parent.Parent.functions.flagNames)
 local function customOrder(window, forgetState)
     for _, element in forgetState do
         if element.CancelCapture then element:CancelCapture() end
-        if window._elementLockModePicker == element then
-            window._elementLockModePicker = nil
+        if window._elementLockAllToggle == element then
+            window._elementLockAllToggle = nil
         end
         window:_unregisterLockableElement(element)
-        if element.__type == "Group" or element.__type == "CollapsibleGroup" or element.__type == "Isolated" then
+        if element.__type == "Group" or element.__type == "CollapsibleGroup" then
             customOrder(window, element.elements)
         else
             window:_unregisterControl(element)
@@ -20952,10 +18694,6 @@ function state:CreateStepper(props)
     return self:_register(require(script.Parent.stepper).new(self, props))
 end
 
-function state:CreateModePicker(props)
-    return self:_register(require(script.Parent.modePicker).new(self, props))
-end
-
 function state:CreateDropdown(a37)
     return self:_register(require(script.Parent.dropdown).new(self, a37))
 end
@@ -20972,16 +18710,8 @@ function state:CreateLink(a40)
     return self:_register(require(script.Parent.link).new(self, a40))
 end
 
-function state:CreateAboutCard(props)
-    return self:_register(require(script.Parent.aboutCard).new(self, props))
-end
-
 function state:CreateCollapsibleGroup(props)
     return self:_register(require(script.Parent.collapsibleGroup).new(self, props))
-end
-
-function state:CreateIsolated(props)
-    return self:_register(require(script.Parent.isolated).new(self, props))
 end
 
 function state:CreateGroup(a41)
@@ -21060,7 +18790,7 @@ end
 return state
 
 end)() end,
-    [54] = function()local wax,script,require=ImportGlobals(54)local ImportGlobals return (function(...)
+    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "TabSection"
@@ -21190,7 +18920,7 @@ end
 return state
 
 end)() end,
-    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
+    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Text"
@@ -21329,7 +19059,7 @@ constants(state)
 return state
 
 end)() end,
-    [56] = function()local wax,script,require=ImportGlobals(56)local ImportGlobals return (function(...)
+    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Toggle"
@@ -21819,7 +19549,7 @@ end
 return state
 
 end)() end,
-    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
+    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
 
 local managerModule = require(script.manager)
 local registryModule = require(script.registry)
@@ -21844,7 +19574,7 @@ end
 return settings
 
 end)() end,
-    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
+    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
 
 local appearance = {}
 
@@ -21870,7 +19600,7 @@ end
 return appearance
 
 end)() end,
-    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
+    [56] = function()local wax,script,require=ImportGlobals(56)local ImportGlobals return (function(...)
 local keybind = require(script.Parent.Parent.utilities.keybind)
 
 local behavior = {}
@@ -21889,7 +19619,7 @@ end
 return behavior
 
 end)() end,
-    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
+    [57] = function()local wax,script,require=ImportGlobals(57)local ImportGlobals return (function(...)
 local keybind = require(script.Parent.Parent.utilities.keybind)
 
 local defaults = {}
@@ -21921,7 +19651,7 @@ end
 return defaults
 
 end)() end,
-    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
+    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
 
 local registry = require(script.Parent.registry)
 local defaults = require(script.Parent.defaults)
@@ -22047,7 +19777,7 @@ end
 return SettingsManager
 
 end)() end,
-    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
+    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
 
 local performance = {}
 
@@ -22061,7 +19791,7 @@ end
 return performance
 
 end)() end,
-    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
+    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
 
 local settingsPersistence = require(script.Parent.Parent.utilities.persistenceSettings)
 local settingsCache = require(script.Parent.Parent.cache.persistenceCache)
@@ -22110,7 +19840,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
+    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
 
 local registry = {}
 
@@ -22190,7 +19920,7 @@ end
 return registry
 
 end)() end,
-    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
+    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
 
 local imageCache = require(script.moduleCache)
 
@@ -22201,7 +19931,7 @@ local moduleCache = {
 return moduleCache
 
 end)() end,
-    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
+    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
 local filesystem = require(script.Parent.Parent.utilities.filesystem)
 local path = require(script.Parent.Parent.utilities.path)
 local variables = require(script.Parent.Parent.core.state)
@@ -22517,7 +20247,7 @@ end
 return imageCache
 
 end)() end,
-    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
+    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
 
 local moduleCache = {}
 
@@ -22548,7 +20278,7 @@ end
 return moduleCache
 
 end)() end,
-    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
+    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
 
 local persistenceCache = {}
 
@@ -22573,7 +20303,7 @@ end
 return persistenceCache
 
 end)() end,
-    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
+    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
 
 local textMetrics = require(script.textMetrics)
 local colors = require(script.colors)
@@ -22591,7 +20321,7 @@ functions.contrastText = colors.contrastText
 return functions
 
 end)() end,
-    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
+    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
 local colors = {}
 
 function colors.contrastColor(color: Color3): Color3
@@ -22611,7 +20341,7 @@ end
 return colors
 
 end)() end,
-    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
+    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
 local flagNames = {}
 
 local offsetBasis = 2166136261
@@ -22643,7 +20373,7 @@ end
 return flagNames
 
 end)() end,
-    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
+    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
 local state = require(script.Parent.Parent.core.state)
 local textService = state.textService
 
@@ -22750,7 +20480,7 @@ end
 return textMetrics
 
 end)() end,
-    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
+    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local Sidebar = {}
@@ -22818,7 +20548,7 @@ end
 return Sidebar
 
 end)() end,
-    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
+    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local SidebarCollapsed = {}
@@ -22885,7 +20615,7 @@ end
 return SidebarCollapsed
 
 end)() end,
-    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
+    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
 
 local image = require(script.image)
 
@@ -22900,7 +20630,7 @@ local windowIcons = {
 return windowIcons
 
 end)() end,
-    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
+    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
 local imageCache = require(script.Parent.Parent.cache.imageCache)
 local variables = require(script.Parent.Parent.core.state)
 
@@ -23067,7 +20797,7 @@ end
 return image
 
 end)() end,
-    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
+    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
 --[[
 Single source of truth for Astra's window and Settings UI icons.
 Names are intentionally lowercase and case-sensitive. Custom assets resolve
@@ -23086,7 +20816,7 @@ return {
 }
 
 end)() end,
-    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
+    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
 
 local windowIcons = {}
 
@@ -23182,7 +20912,7 @@ end
 return windowIcons
 
 end)() end,
-    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
+    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
 --[[
 Icon resolver service.
 
@@ -23727,7 +21457,7 @@ end
 return icons
 
 end)() end,
-    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
+    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
 --[[
 feather icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -23773,7 +21503,7 @@ x-square x youtube zap-off zap zoom-in zoom-out
 )
 
 end)() end,
-    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
+    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
 --[[
 heroicons icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -23855,7 +21585,7 @@ wrench-screwdriver wrench-screwdriver_solid wrench wrench_solid x-circle x-circl
 )
 
 end)() end,
-    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
+    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
 --[[
 lucide icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -24050,7 +21780,7 @@ zodiac-sagittarius zodiac-scorpio zodiac-taurus zodiac-virgo zoom-in zoom-out
 )
 
 end)() end,
-    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
+    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
 --[[
 material icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -24181,7 +21911,7 @@ zoom_in zoom_out zoom_out_map
 )
 
 end)() end,
-    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
+    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
 --[[
 Lazy icon-pack builder.
 
@@ -24284,7 +22014,7 @@ end
 
 return PackBuilder
 end)() end,
-    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
+    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
 --[[
 phosphor icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -24453,7 +22183,7 @@ yin-yang youtube-logo
 )
 
 end)() end,
-    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
+    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
 --[[
 remix icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -24793,7 +22523,7 @@ zhihu-line zhipu-ai-fill zhipu-ai-line zoom-in-fill zoom-in-line zoom-out-fill z
 )
 
 end)() end,
-    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
+    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
 --[[
 tabler icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -25323,7 +23053,7 @@ zoom-out-area zoom-out zoom-pan zoom-question zoom-replace zoom-reset zoom-scan 
 )
 
 end)() end,
-    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
+    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
 --[[
 Theme resolution engine (themes/init.luau).
 
@@ -25437,7 +23167,7 @@ end
 return themes
 
 end)() end,
-    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
+    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
 local default = require(script.Parent.Parent.core.state)
 
 --[[
@@ -25576,7 +23306,7 @@ return {
 }
 
 end)() end,
-    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
+    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 
 local hapticService = {}
@@ -25674,7 +23404,7 @@ end
 return hapticService
 
 end)() end,
-    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
+    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
 local networkUtil = require(script.Parent.network)
 local logger = require(script.Parent.log)
 
@@ -25855,7 +23585,7 @@ end
 return assetResolver
 
 end)() end,
-    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
+    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
 local iconRegistry = require(script.Parent.Parent.images.windowIcons)
 local uiIcons = require(script.Parent.Parent.images.uiIcons)
 local constants = {}
@@ -25914,7 +23644,7 @@ constants.displayOrder = {
 return constants
 
 end)() end,
-    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
+    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
 local enums = {}
 
 function enums.itemFromValue(enumType, value)
@@ -25944,7 +23674,7 @@ end
 return enums
 
 end)() end,
-    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
+    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
 local serviceProvider = require(script.Parent.services)
 local filesystem = {}
 
@@ -26236,7 +23966,7 @@ end
 return filesystem
 
 end)() end,
-    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
+    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 local pathUtil = require(script.Parent.path)
 
@@ -26285,7 +24015,7 @@ end
 return filesystemManager
 
 end)() end,
-    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
+    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
 local fontManager = require(script.Parent.services)
 local a2 = fontManager.getService("HttpService")
 local a3 = fontManager.getService("RunService")
@@ -26740,7 +24470,7 @@ end
 return a16
 
 end)() end,
-    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
+    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
 
 local functions = {}
 
@@ -26758,7 +24488,7 @@ functions.contrastText = textMetrics.contrastText
 return functions
 
 end)() end,
-    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
+    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
 --[[
 Astra Hardware Performance Engine.
 
@@ -26965,7 +24695,7 @@ end
 
 return hardwarePerformance
 end)() end,
-    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
+    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
 --[[
 HttpGuard — HTTP interception (spy / hook) detection for Astra.
 
@@ -27578,7 +25308,7 @@ end
 return HttpGuard
 
 end)() end,
-    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
+    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
 -- Shared validation for required, single-letter key bindings.
 local keybind = {}
 
@@ -27598,7 +25328,7 @@ end
 return keybind
 
 end)() end,
-    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
+    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
 local layouts = {}
 
 local sidebarLayout = require(script.Parent.Parent.layouts.Sidebar)
@@ -27726,7 +25456,7 @@ end
 return layouts
 
 end)() end,
-    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
+    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local logger = require(script.Parent.log)
 
@@ -27825,7 +25555,7 @@ end
 return locale
 
 end)() end,
-    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
+    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
 --[[
 Lockable controls keep their value and callback intact while a lock source
 blocks user input. This mixin also stamps the public usage tag used by the
@@ -27850,8 +25580,6 @@ local defaultLockLevels = {
 	Slider = 3,
 	Stepper = 3,
 	Button = 3,
-	AboutCard = 3,
-	ModePicker = 3,
 }
 
 local lockGroupLevels = {
@@ -28056,7 +25784,7 @@ setmetatable(lockable, {
 return lockable
 
 end)() end,
-    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
+    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
 local log = {}
 
 type SuppressPredicate = () -> boolean
@@ -28112,7 +25840,7 @@ end
 return log
 
 end)() end,
-    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
+    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
 --[[
 Astra motion service.
 
@@ -28585,7 +26313,7 @@ end
 
 return motion
 end)() end,
-    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
+    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
 local function moveable<T>(dragState: T): T
     local target = dragState :: any
 
@@ -28621,7 +26349,7 @@ end
 return moveable
 
 end)() end,
-    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
+    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
 local HttpGuard = require(script.Parent.httpGuard)
 
 local network = {}
@@ -28659,7 +26387,7 @@ end
 return network
 
 end)() end,
-    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
+    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local motion = require(script.Parent.motion)
 local textService = coreState.textService
@@ -29019,7 +26747,7 @@ end
 return odometer
 
 end)() end,
-    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
+    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
 type OrderedElement = {
     main: GuiObject,
 }
@@ -29031,7 +26759,7 @@ end
 return ordering
 
 end)() end,
-    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
+    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
 local path = {}
 
 function path.join(base: string, suffix: string?): string
@@ -29082,7 +26810,7 @@ end
 return path
 
 end)() end,
-    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
+    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
 local persistence = {}
 
 local configPersistence = require(script.Parent.persistenceConfig)
@@ -29101,7 +26829,7 @@ persistence.loadSettings = settingsPersistence.loadSettings
 return persistence
 
 end)() end,
-    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
+    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local logger = require(script.Parent.log)
@@ -29319,11 +27047,11 @@ function persistenceConfig.load(window: ConfigWindow, loadName: unknown?): boole
 
     --[[
     Values whose control does not exist yet still have to land: the element
-    lock tier's control is the Settings → Controls picker, and settings
-    panels build lazily on first open, so without this a saved Mode 5 sat in
-    the file until the player opened that panel (or moved the picker). It
-    runs under the loading guard because locking a focused Input releases
-    its focus, and that commit must not schedule a write mid-load.
+    lock tier is window state (its switch sits in the Settings → Controls
+    panel, which builds lazily on first open), so without this a saved Mode
+    5 sat in the file until the player opened that panel. It runs under the
+    loading guard because locking a focused Input releases its focus, and
+    that commit must not schedule a write mid-load.
     ]]
     if typeof(window._restoreUnowned) == "function" then
         local wasLoadingUnowned = window._loading
@@ -29399,7 +27127,7 @@ end
 return persistenceConfig
 
 end)() end,
-    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
+    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local pathUtil = require(script.Parent.path)
 
@@ -29443,7 +27171,7 @@ end
 return persistencePaths
 
 end)() end,
-    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
+    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local paths = require(script.Parent.persistencePaths)
@@ -29644,7 +27372,7 @@ end
 return persistenceSettings
 
 end)() end,
-    [117] = function()local wax,script,require=ImportGlobals(117)local ImportGlobals return (function(...)
+    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 
 local persistenceWrite = {}
@@ -29672,7 +27400,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [118] = function()local wax,script,require=ImportGlobals(118)local ImportGlobals return (function(...)
+    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
 local services = {}
 
 function services.getService(serviceName)
@@ -29683,7 +27411,7 @@ end
 return services
 
 end)() end,
-    [119] = function()local wax,script,require=ImportGlobals(119)local ImportGlobals return (function(...)
+    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
 local layoutMetrics = require(script.Parent.layouts)
 local coreState = require(script.Parent.Parent.core.state)
 
@@ -29868,119 +27596,116 @@ end)() end,
 
 local LineOffsets = {
     [2] = 47,
-    [3] = 504,
-    [5] = 1259,
-    [6] = 1242,
-    [7] = 1414,
-    [8] = 1556,
-    [9] = 1807,
-    [10] = 2189,
-    [11] = 3566,
-    [12] = 3975,
-    [13] = 4324,
-    [14] = 5063,
-    [15] = 5401,
-    [16] = 5971,
-    [17] = 6034,
-    [18] = 6508,
-    [19] = 6854,
-    [20] = 6868,
-    [21] = 6968,
-    [22] = 7108,
-    [23] = 7649,
-    [24] = 7888,
-    [25] = 8210,
-    [26] = 8310,
-    [27] = 8364,
-    [28] = 9006,
-    [29] = 9254,
-    [30] = 9604,
-    [31] = 10051,
-    [32] = 6828,
-    [34] = 10985,
-    [35] = 11822,
-    [36] = 11911,
-    [37] = 12140,
-    [38] = 12561,
-    [39] = 13026,
-    [40] = 13183,
-    [41] = 13328,
-    [42] = 14946,
-    [43] = 15194,
-    [44] = 15434,
-    [45] = 15755,
-    [46] = 16201,
-    [47] = 16454,
-    [48] = 17534,
-    [49] = 18358,
-    [50] = 18444,
-    [51] = 19047,
-    [52] = 19889,
-    [53] = 20483,
-    [54] = 21064,
-    [55] = 21194,
-    [56] = 21333,
-    [58] = 21848,
-    [59] = 21874,
-    [60] = 21893,
-    [61] = 21925,
-    [62] = 22051,
-    [63] = 22065,
-    [64] = 22114,
-    [65] = 21823,
-    [66] = 22205,
-    [67] = 22521,
-    [68] = 22552,
-    [69] = 22194,
-    [70] = 22595,
-    [71] = 22615,
-    [72] = 22647,
-    [73] = 22577,
-    [74] = 22754,
-    [75] = 22822,
-    [77] = 22904,
-    [78] = 23071,
-    [79] = 23090,
-    [80] = 22889,
-    [81] = 23731,
-    [82] = 23777,
-    [83] = 23859,
-    [84] = 24054,
-    [85] = 24185,
-    [86] = 24288,
-    [87] = 24457,
-    [88] = 24797,
-    [89] = 23186,
-    [90] = 25441,
-    [91] = 25327,
-    [92] = 25580,
-    [93] = 25678,
-    [94] = 25859,
-    [95] = 25918,
-    [96] = 25948,
-    [97] = 26240,
-    [98] = 26289,
-    [99] = 26744,
-    [100] = 26762,
-    [101] = 26969,
-    [102] = 27582,
-    [103] = 27602,
-    [104] = 27730,
-    [105] = 27829,
-    [106] = 28060,
-    [107] = 28116,
-    [108] = 28589,
-    [109] = 28625,
-    [110] = 28663,
-    [111] = 29023,
-    [112] = 29035,
-    [113] = 29086,
-    [114] = 29105,
-    [115] = 29403,
-    [116] = 29447,
-    [117] = 29648,
-    [118] = 29676,
-    [119] = 29687,
+    [3] = 494,
+    [5] = 1128,
+    [6] = 1111,
+    [7] = 1283,
+    [8] = 1425,
+    [9] = 1676,
+    [10] = 2058,
+    [11] = 3435,
+    [12] = 3844,
+    [13] = 4193,
+    [14] = 4932,
+    [15] = 5270,
+    [16] = 5805,
+    [17] = 5868,
+    [18] = 6342,
+    [19] = 6688,
+    [20] = 6702,
+    [21] = 6802,
+    [22] = 6942,
+    [23] = 7503,
+    [24] = 7742,
+    [25] = 8064,
+    [26] = 8164,
+    [27] = 8218,
+    [28] = 8860,
+    [29] = 9108,
+    [30] = 9458,
+    [31] = 9905,
+    [32] = 6662,
+    [34] = 10839,
+    [35] = 10928,
+    [36] = 11157,
+    [37] = 11578,
+    [38] = 12041,
+    [39] = 12198,
+    [40] = 12343,
+    [41] = 13961,
+    [42] = 14209,
+    [43] = 14446,
+    [44] = 14767,
+    [45] = 15020,
+    [46] = 16100,
+    [47] = 16186,
+    [48] = 16789,
+    [49] = 17631,
+    [50] = 18225,
+    [51] = 18794,
+    [52] = 18924,
+    [53] = 19063,
+    [55] = 19578,
+    [56] = 19604,
+    [57] = 19623,
+    [58] = 19655,
+    [59] = 19781,
+    [60] = 19795,
+    [61] = 19844,
+    [62] = 19553,
+    [63] = 19935,
+    [64] = 20251,
+    [65] = 20282,
+    [66] = 19924,
+    [67] = 20325,
+    [68] = 20345,
+    [69] = 20377,
+    [70] = 20307,
+    [71] = 20484,
+    [72] = 20552,
+    [74] = 20634,
+    [75] = 20801,
+    [76] = 20820,
+    [77] = 20619,
+    [78] = 21461,
+    [79] = 21507,
+    [80] = 21589,
+    [81] = 21784,
+    [82] = 21915,
+    [83] = 22018,
+    [84] = 22187,
+    [85] = 22527,
+    [86] = 20916,
+    [87] = 23171,
+    [88] = 23057,
+    [89] = 23310,
+    [90] = 23408,
+    [91] = 23589,
+    [92] = 23648,
+    [93] = 23678,
+    [94] = 23970,
+    [95] = 24019,
+    [96] = 24474,
+    [97] = 24492,
+    [98] = 24699,
+    [99] = 25312,
+    [100] = 25332,
+    [101] = 25460,
+    [102] = 25559,
+    [103] = 25788,
+    [104] = 25844,
+    [105] = 26317,
+    [106] = 26353,
+    [107] = 26391,
+    [108] = 26751,
+    [109] = 26763,
+    [110] = 26814,
+    [111] = 26833,
+    [112] = 27131,
+    [113] = 27175,
+    [114] = 27376,
+    [115] = 27404,
+    [116] = 27415,
 }
 
 -- Misc AOT variable imports
@@ -30227,7 +27952,7 @@ local ObjectTree = {
                 },
             },
             {
-                57,
+                54,
                 1,
                 {
                     "elements",
@@ -30237,158 +27962,137 @@ local ObjectTree = {
                         34,
                         2,
                         {
-                            "aboutCard",
+                            "baseCard",
                         },
                     },
                     {
                         35,
                         2,
                         {
-                            "baseCard",
+                            "button",
                         },
                     },
                     {
                         36,
                         2,
                         {
-                            "button",
+                            "changelog",
                         },
                     },
                     {
                         37,
                         2,
                         {
-                            "changelog",
+                            "collapsibleGroup",
                         },
                     },
                     {
                         38,
                         2,
                         {
-                            "collapsibleGroup",
+                            "description",
                         },
                     },
                     {
                         39,
                         2,
                         {
-                            "description",
+                            "divider",
                         },
                     },
                     {
                         40,
                         2,
                         {
-                            "divider",
+                            "dropdown",
                         },
                     },
                     {
                         41,
                         2,
                         {
-                            "dropdown",
+                            "footer",
                         },
                     },
                     {
                         42,
                         2,
                         {
-                            "footer",
+                            "group",
                         },
                     },
                     {
                         43,
                         2,
                         {
-                            "group",
+                            "input",
                         },
                     },
                     {
                         44,
                         2,
                         {
-                            "input",
+                            "keybind",
                         },
                     },
                     {
                         45,
                         2,
                         {
-                            "isolated",
+                            "link",
                         },
                     },
                     {
                         46,
                         2,
                         {
-                            "keybind",
+                            "section",
                         },
                     },
                     {
                         47,
                         2,
                         {
-                            "link",
+                            "slider",
                         },
                     },
                     {
                         48,
                         2,
                         {
-                            "modePicker",
+                            "stat",
                         },
                     },
                     {
                         49,
                         2,
                         {
-                            "section",
+                            "stepper",
                         },
                     },
                     {
                         50,
                         2,
                         {
-                            "slider",
+                            "tab",
                         },
                     },
                     {
                         51,
                         2,
                         {
-                            "stat",
+                            "tabSection",
                         },
                     },
                     {
                         52,
                         2,
                         {
-                            "stepper",
-                        },
-                    },
-                    {
-                        53,
-                        2,
-                        {
-                            "tab",
-                        },
-                    },
-                    {
-                        54,
-                        2,
-                        {
-                            "tabSection",
-                        },
-                    },
-                    {
-                        55,
-                        2,
-                        {
                             "text",
                         },
                     },
                     {
-                        56,
+                        53,
                         2,
                         {
                             "toggle",
@@ -30397,56 +28101,56 @@ local ObjectTree = {
                 },
             },
             {
-                65,
+                62,
                 2,
                 {
                     "settings",
                 },
                 {
                     {
-                        58,
+                        55,
                         2,
                         {
                             "appearance",
                         },
                     },
                     {
-                        59,
+                        56,
                         2,
                         {
                             "behavior",
                         },
                     },
                     {
-                        60,
+                        57,
                         2,
                         {
                             "defaults",
                         },
                     },
                     {
-                        61,
+                        58,
                         2,
                         {
                             "manager",
                         },
                     },
                     {
-                        62,
+                        59,
                         2,
                         {
                             "performance",
                         },
                     },
                     {
-                        63,
+                        60,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        64,
+                        61,
                         2,
                         {
                             "registry",
@@ -30455,28 +28159,28 @@ local ObjectTree = {
                 },
             },
             {
-                69,
+                66,
                 2,
                 {
                     "cache",
                 },
                 {
                     {
-                        66,
+                        63,
                         2,
                         {
                             "imageCache",
                         },
                     },
                     {
-                        67,
+                        64,
                         2,
                         {
                             "moduleCache",
                         },
                     },
                     {
-                        68,
+                        65,
                         2,
                         {
                             "persistenceCache",
@@ -30485,28 +28189,28 @@ local ObjectTree = {
                 },
             },
             {
-                73,
+                70,
                 2,
                 {
                     "functions",
                 },
                 {
                     {
-                        70,
+                        67,
                         2,
                         {
                             "colors",
                         },
                     },
                     {
-                        71,
+                        68,
                         2,
                         {
                             "flagNames",
                         },
                     },
                     {
-                        72,
+                        69,
                         2,
                         {
                             "textMetrics",
@@ -30515,21 +28219,21 @@ local ObjectTree = {
                 },
             },
             {
-                76,
+                73,
                 1,
                 {
                     "layouts",
                 },
                 {
                     {
-                        74,
+                        71,
                         2,
                         {
                             "Sidebar",
                         },
                     },
                     {
-                        75,
+                        72,
                         2,
                         {
                             "SidebarCollapsed",
@@ -30538,28 +28242,28 @@ local ObjectTree = {
                 },
             },
             {
-                80,
+                77,
                 2,
                 {
                     "images",
                 },
                 {
                     {
-                        77,
+                        74,
                         2,
                         {
                             "image",
                         },
                     },
                     {
-                        78,
+                        75,
                         2,
                         {
                             "uiIcons",
                         },
                     },
                     {
-                        79,
+                        76,
                         2,
                         {
                             "windowIcons",
@@ -30568,63 +28272,63 @@ local ObjectTree = {
                 },
             },
             {
-                89,
+                86,
                 2,
                 {
                     "icons",
                 },
                 {
                     {
-                        81,
+                        78,
                         2,
                         {
                             "feather",
                         },
                     },
                     {
-                        82,
+                        79,
                         2,
                         {
                             "heroicons",
                         },
                     },
                     {
-                        83,
+                        80,
                         2,
                         {
                             "lucide",
                         },
                     },
                     {
-                        84,
+                        81,
                         2,
                         {
                             "material",
                         },
                     },
                     {
-                        85,
+                        82,
                         2,
                         {
                             "packBuilder",
                         },
                     },
                     {
-                        86,
+                        83,
                         2,
                         {
                             "phosphor",
                         },
                     },
                     {
-                        87,
+                        84,
                         2,
                         {
                             "remix",
                         },
                     },
                     {
-                        88,
+                        85,
                         2,
                         {
                             "tabler",
@@ -30633,14 +28337,14 @@ local ObjectTree = {
                 },
             },
             {
-                91,
+                88,
                 2,
                 {
                     "themes",
                 },
                 {
                     {
-                        90,
+                        87,
                         2,
                         {
                             "default",
@@ -30649,203 +28353,203 @@ local ObjectTree = {
                 },
             },
             {
-                120,
+                117,
                 1,
                 {
                     "utilities",
                 },
                 {
                     {
-                        92,
+                        89,
                         2,
                         {
                             "HapticEngine",
                         },
                     },
                     {
-                        93,
+                        90,
                         2,
                         {
                             "assetResolver",
                         },
                     },
                     {
-                        94,
+                        91,
                         2,
                         {
                             "constants",
                         },
                     },
                     {
-                        95,
+                        92,
                         2,
                         {
                             "enums",
                         },
                     },
                     {
-                        96,
+                        93,
                         2,
                         {
                             "filesystem",
                         },
                     },
                     {
-                        97,
+                        94,
                         2,
                         {
                             "filesystemManager",
                         },
                     },
                     {
-                        98,
+                        95,
                         2,
                         {
                             "fontManager",
                         },
                     },
                     {
-                        99,
+                        96,
                         2,
                         {
                             "functions",
                         },
                     },
                     {
-                        100,
+                        97,
                         2,
                         {
                             "hardwarePerformance",
                         },
                     },
                     {
-                        101,
+                        98,
                         2,
                         {
                             "httpGuard",
                         },
                     },
                     {
-                        102,
+                        99,
                         2,
                         {
                             "keybind",
                         },
                     },
                     {
-                        103,
+                        100,
                         2,
                         {
                             "layouts",
                         },
                     },
                     {
-                        104,
+                        101,
                         2,
                         {
                             "locale",
                         },
                     },
                     {
-                        105,
+                        102,
                         2,
                         {
                             "lockable",
                         },
                     },
                     {
-                        106,
+                        103,
                         2,
                         {
                             "log",
                         },
                     },
                     {
-                        107,
+                        104,
                         2,
                         {
                             "motion",
                         },
                     },
                     {
-                        108,
+                        105,
                         2,
                         {
                             "moveable",
                         },
                     },
                     {
-                        109,
+                        106,
                         2,
                         {
                             "network",
                         },
                     },
                     {
-                        110,
+                        107,
                         2,
                         {
                             "odometer",
                         },
                     },
                     {
-                        111,
+                        108,
                         2,
                         {
                             "ordering",
                         },
                     },
                     {
-                        112,
+                        109,
                         2,
                         {
                             "path",
                         },
                     },
                     {
-                        113,
+                        110,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        114,
+                        111,
                         2,
                         {
                             "persistenceConfig",
                         },
                     },
                     {
-                        115,
+                        112,
                         2,
                         {
                             "persistencePaths",
                         },
                     },
                     {
-                        116,
+                        113,
                         2,
                         {
                             "persistenceSettings",
                         },
                     },
                     {
-                        117,
+                        114,
                         2,
                         {
                             "persistenceWrite",
                         },
                     },
                     {
-                        118,
+                        115,
                         2,
                         {
                             "services",
                         },
                     },
                     {
-                        119,
+                        116,
                         2,
                         {
                             "windowSizing",

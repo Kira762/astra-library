@@ -25,7 +25,7 @@ Exported names (typed surface is `Types.luau`'s `Astra`): `CreateWindow`, `Icons
 `CreateWindow` side effects: enforces the anti-duplicate guard (persisted `antiWindowDuplicate` setting, per-window opt-out via `settings.antiWindowDuplicate`; generation token + live-window list so rapid overlapping constructions still collapse to one window), in secure mode preloads window images (`Image.preload` → failure `Notify`) and swaps in the brand fonts via `ChangeTheme({ Font, TitleFont })` once the entrance has landed (a theme pass over every instance the window owns is not something to spend while the window is still arriving; `FONT_SETTLE_BUDGET` bounds the wait so a window that never shows still gets its font), then auto-`Show()`s the window on the next frame (a `task.defer` plus one heartbeat, so a script's first synchronous `CreateTab` calls land before the shell appears; remaining constructors stream in behind it in small budget-limited batches until the build goes quiet, and an explicit `Hide()` before that tick cancels it via `_autoShowCancelled`). The two secure-mode branches (optional-icon preload, brand-font swap) run as sibling threads under one guard.
 
 ### `example.client.luau`
-Usage example (not minified). Loads the published bundle and opens it through the standalone key gate: `Astra:CreateKeySystem` shows the card first (demo key `ASTRA-STUDIO-2026`, `saveKey` remembering it at `Astra/keys/Astra-Example.txt`) and the whole studio builds inside its `onSuccess` as `buildStudio(unlockedKey)`; `keyGate`, `window`, `overview` and the build-quiet seam `studioReady` are file-scope locals so `scripts/example_test.luau` can drive the gate through `_submit` (wrong key first, padded right key second) and wait for the streamed build before asserting. The studio then creates twelve purpose-based tabs: Overview (About Card, guide Text, an activity Changelog every other tab writes to, Links, Isolated history, Footer), Player (Humanoid edits, JumpRequest hook, respawn Keybind), Combat (roster Dropdown with Refresh/Add/Remove, simulated-engagement Stats), Visuals (Lighting and Camera writes, ColorCorrection/BlurEffect), World (coordinate Inputs, teleport, waypoints), Live Stats (Heartbeat sampler through `window:Connect`, hardware report), Elements (every handle: Set, Add/Remove/Refresh, Capture, MoveTo*, Lock), All Elements (visual smoke-test of every constructor), Steppers (pure UI test of the Stepper element — no callbacks, no wiring), Configs (`Save`/`Load`/`DeleteConfig`/`ListConfigs`/`GetPath`/`Flags`), Window (`ChangeTheme`, corner tokens, `Astra.Motion`, visibility, overlays, `ShowTooltip`, `Unload`) and a locked Premium tab that Window unlocks. Roblox services are resolved through a nil-safe helper block at the top, so the same file runs in an executor, in Studio and under `scripts/example_test.luau`. It ends with `overview:Select()` followed by the `studioReady` flip; all information lives on the first tab. The skill starter stays a smaller three-tab version.
+Usage example (not minified). Loads the published bundle and opens it through the standalone key gate: `Astra:CreateKeySystem` shows the card first (demo key `ASTRA-STUDIO-2026`, `saveKey` remembering it at `Astra/keys/Astra-Example.txt`) and the whole studio builds inside its `onSuccess` as `buildStudio(unlockedKey)`; `keyGate`, `window`, `overview` and the build-quiet seam `studioReady` are file-scope locals so `scripts/example_test.luau` can drive the gate through `_submit` (wrong key first, padded right key second) and wait for the streamed build before asserting. The studio then creates twelve purpose-based tabs: Overview (header and guide Text, an activity Changelog every other tab writes to, Links, collapsible release history, Footer), Player (Humanoid edits, JumpRequest hook, respawn Keybind), Combat (roster Dropdown with Refresh/Add/Remove, simulated-engagement Stats), Visuals (Lighting and Camera writes, ColorCorrection/BlurEffect), World (coordinate Inputs, teleport, waypoints), Live Stats (Heartbeat sampler through `window:Connect`, hardware report), Elements (every handle: Set, Add/Remove/Refresh, Capture, MoveTo*, Lock), All Elements (visual smoke-test of every constructor), Steppers (pure UI test of the Stepper element — no callbacks, no wiring), Configs (`Save`/`Load`/`DeleteConfig`/`ListConfigs`/`GetPath`/`Flags`), Window (`ChangeTheme`, corner tokens, `Astra.Motion`, visibility, overlays, `ShowTooltip`, `Unload`) and a locked Premium tab that Window unlocks. Roblox services are resolved through a nil-safe helper block at the top, so the same file runs in an executor, in Studio and under `scripts/example_test.luau`. It ends with `overview:Select()` followed by the `studioReady` flip; all information lives on the first tab. The skill starter stays a smaller three-tab version.
 
 ---
 
@@ -145,7 +145,7 @@ its anchored resting spot, and by `ToggleMinimise`'s expand),
 
 ### `components/settings.luau`
 Dedicated settings component providing lazy UI generation for Overview, Controls, Appearance and Persistence, in that order:
-- `buildUI(window)` — reuses `rfSettings` as the first Overview shell and adds the other three. Overview renders a compact About Card (Version and Author) and one copyable Repository link.
+- `buildUI(window)` — reuses `rfSettings` as the first Overview shell and adds the other three. Overview renders a section header with the Version and Author readouts and one copyable Repository link.
 - Controls uses `elements/keybind` for the menu letter (callback converts the uppercase string to a KeyCode), an unlock-cursor Toggle and Window Behavior. There is no typed-key parser or mouse/unbound menu option.
 - Appearance owns the standalone Font and layout Dropdowns and a standalone Haptics toggle (the "Animation speed" picker was removed; the library plays at its built-in motion). Persistence owns configuration toggles and save/load/delete controls; its saved-configurations list is live (`OnConfigsChanged` + a reopen hook), so autosaved configs appear without a manual Save. No built-in Collapsible Group contains only one element.
 - `buildContent(window, tab)` — lazily constructs controls within a given settings tab upon first selection.
@@ -371,25 +371,11 @@ Per-element specifics:
   its bottom-anchored rows ride up by the extra (`_descriptionExtra`), so nothing
   renders below the card. The Stat is the element that attaches the line and the
   Collapsible Group header carries its own variant; Button, Toggle, Slider,
-  Stepper, Dropdown, Input, Mode Picker, About Card and Link no longer accept
-  the prop and ignore it silently.
+  Stepper, Dropdown, Input and Link no longer accept the prop and ignore
+  it silently.
 - `tab.luau` — tab class: `tabPage` (ScrollingFrame), `_register(element)` pipeline into `window.controls[flag]`, selector button visuals. `CreateChangelog` builds a regular changelog element wherever declared. Locked tabs (`locked` prop / `SetLocked(bool)`): the flag gates `Select` (no-op), the row tap (short "This tab is locked" notification instead), and hover; `_applyVisual` raises the row's content transparency while locked (copy of the shared state table, never a mutation of it); `SetLocked(true)` on the open tab clears `window.selectedTab` and selects the first unlocked non-neglect tab with same-rail preference (the `Remove` fallback rule), hiding the tab's elements and marking `_elementsPending` when no fallback exists. Selection is split in two: the public `Select(instant)` is the host's call and is skipped while `window._userNavigated` is set and the host build has not settled (`window._hostBuildSettled`, set by the entrypoint once construction is quiet), so a host's closing `tab:Select()` cannot pull the user off a tab they tapped mid-build; `_select(instant)` does the actual work and is what the row tap (which sets `_userNavigated`), the Settings action (`components/settings.luau` `toggleSettingsMode`), the lock/remove fallbacks and the first-tab auto-select in `Window:CreateTab` (skipped once the user has navigated) call.
 - `group.luau`, `section.luau`, `tabSection.luau` — container classes with UIListLayout locals.
 - `changelog.luau` — release-history element (`__type = "Changelog"`): normalizes `ChangelogEntry`/`ChangelogChange` props, maps symbols (`+`/`-`/`~`, or words like "added"/"removed"/"changed") to green/red/amber, fades entries in, supports `Set`/`Refresh`/`Add(entry, prepend?)`/`Clear`. Renders as a regular standalone element; supports `Set`/`Refresh`/`Add`/`Clear` and move/lock API.
-- `isolated.luau` — the Isolated changelog container (`__type = "Isolated"`): a
-  CollapsibleGroup-style expandable card whose header carries a changeable left
-  icon, a title/subtitle stack and the built-in, never-changeable right chevron.
-  Strict container: child definitions must be Changelogs — anything else errors
-  at construction with
-  `Astra:CreateIsolated — only Changelog elements can be placed inside Isolated`
-  (level 0, exact message). Public `Expand`/`Collapse`/`Toggle` drive the shared
-  expansion tween beside the header tap; `SetTitle`/`SetSubtitle`/`SetIcon`
-  rewrite the changeable slots at runtime (`SetSubtitle(nil)` returns the header
-  to the single-line band, `SetIcon(nil)` releases the icon gutter; none of them
-  reach the chevron). Reuses the collapsible surface recipe: element-gradient
-  header band with state-flipping corner ownership, 1px divider, window-surface
-  body clipper. Search indexes its children, tab removal traverses them, and
-  moveable/lockable apply to the container.
 - `link.luau` — a card that carries a URL: icon, title, subtitle and a fixed
   trailing copy control. The link is a hidden value (stored on the element, never
   rendered), and the control copies it, swaps in the confirmation glyph for two
@@ -406,65 +392,6 @@ Per-element specifics:
   mouse-wheel step, so a deliberate scroll is never eaten. A quiet press opens no
   window. Full card for a tab or a column Group, compact row for
   a horizontal one.
-- `aboutCard.luau` — the About card (`__type = "AboutCard"`): one container with
-  three blocks — a header (leading icon plus a title/subtitle stack), a row of one
-  to three data tiles (each a badge icon with a label above its value), and an
-  optional action band (icon, label, subtitle, the
-  built-in trailing chevron and one full-band tap target). Surfaces reuse the
-  shared nesting recipe: the card is the standard element body, a tile and the
-  band use the regular `ElementSurface` fill with the element corner and stroke
-  (`insetSurface`) instead of the darker window gradient, and a badge stays in
-  the same control-surface family. `_layoutRows` keeps all one to three tiles on
-  one compact 48px line and gives each an equal scale-based slice after its 8px
-  gaps, so the Version / Build / Author recipe remains three-across rather than
-  leaving Author alone on a second line. The scale geometry follows window
-  resizing directly and `SetRow` refreshes it after an icon reservation changes;
-  unusually long copy truncates inside its tile instead of changing the card's
-  structure. A fourth row errors at construction with
-  `Astra:CreateAboutCard — at most 3 data rows are supported, got N` because the
-  action band is the card's trailing row. A row without an icon drops its badge
-  and hands the tile to its text (`_applyRowIcon`), and a card without rows
-  or action leaves those blocks out of the list layout; the `description`
-  paragraph is gone and a passed `description` prop is ignored. Reveal and
-  theme passes run over one tracked part list (`parts`, each `{ instance,
-  property, rest kind }` with the rest values in `restValue`), so a hidden card
-  takes every label, glyph and stroke out together and a theme change re-reads
-  them all. Setters: `SetTitle`/`SetSubtitle` (which reopens or closes the header
-  band), `SetIcon` and `SetRow(index, row)`; moveable/lockable
-  apply, locking disables the action band. The Settings → About tab is the
-  reference instance, built from `components/settings.luau`'s `aboutVersion`,
-  `aboutBuild` and `aboutAuthor`.
-- `modePicker.luau` — the Mode Picker (`__type = "ModePicker"`): a multi-stop
-  slider card with a display-only left icon, a centred title/subtitle stack and
-  a reset button. Modes normalize from a map or array into a dot_position-sorted
-  list of 3..5 (`min_modes`/`max_modes` clamp to that window; construction
-  outside it errors `Astra:CreateModePicker — modes must be between N and M,
-  got K`). The track borrows the toggle's switch height, the toggle's knob
-  (26x18 pill) and the toggle's 2px clearance: stops inset by the knob's half
-  width plus that gap, so the track's 11px cap and the knob's 9px cap are
-  concentric at both ends and the knob never jams flush against the track's
-  silhouette, with one 4px dot per stop at the knob's centre. The fill wears the
-  knob's own pill (same height, same radius, same inset) and runs from the first
-  stop to the knob's *trailing* edge through the same scale/offset pair the dots
-  use, so no resize handler is needed, no accent bleeds around the knob's corners
-  and the last stop fills the track end to end. `left_icon_color` (Color3 or
-  `{r,g,b,a}`) paints the icon and, with `title_color_same_as_left_icon`, the
-  title; per-mode `icon_color` overrides drift in on the delayed accent beat when
-  a mode enables. While that link holds the title carries no `TextColor3` theme
-  binding and answers `_titleRestColor()` for `Window:_wireElementHover`, so
-  neither a theme pass nor a hover cycle settles it back onto a theme token; with
-  the link off it binds to `ContentColor` like every other control title.
-  `accent = "left_icon"` also retints fill and fill glow, otherwise both stay
-  theme-bound like every other element. Drag and tap snap live through
-  `HapticEngine.click()` per crossed stop; each mode's `onEnable` and the
-  picker's `callback` fire through `_runGuarded`. The right icon resets to
-  Mode 1, rolls runtime `AddMode`/`RemoveMode` back to the configured set and
-  hands the config its `onReset`. `AddMode`/`RemoveMode` enforce the 3..5
-  window and the `optional` flag; `allow_mode_add_remove = false` closes both.
-  The picker renders no description line: a `description` passed on the picker
-  or on a mode is ignored. Tab, column Group and declarative
-  Collapsible Groups all construct it; row Groups warn and skip it like every
-  non-compact element.
 - `divider.luau`, `stat.luau`, `text.luau` — display and interaction elements.
 - `footer.luau` — the centred inline text-and-icon strip ("Built with ⚡ Astra ♡"):
   an ordered run of `{ text }` / `{ icon }` segments under one centring list
@@ -675,7 +602,6 @@ Per-element specifics:
 | `check_syntax.sh` | Compiles every published file (modular tree, `example.client.luau`, `version-1.luau`). A syntax error in a loadstring'd bundle is invisible to the user — it only shows up as `attempt to call a nil value` at line 1 of the executor's chunk — so this is the gate that catches it here. |
 | `sidebar_tab_sizing_test.sh`, `smoke_test_bundle.sh` | Rail sizing (name-driven width, cap, restore) and a bundle smoke run; also the collapsed rail: rows are icon-only (title hidden, content centred, no expanded padding) whether they were collapsed in place, rebuilt by a layout switch, or created while the rail was already icon-only, and a capped title re-constrains after that rebuild. |
 | `collapsible_group_test.sh` | Collapsible groups: every declarative element type, state/callbacks, the connected-card geometry and surface recipe, and the corner treatment (band's top arcs matching the container, body clipper's bottom arcs). |
-| `isolated_test.sh` | Isolated changelog container: two-line header recipe with repo-pack icon and built-in chevron, the Changelog-only guard (exact message), runtime `SetTitle`/`SetSubtitle`/`SetIcon` reflow, and the CollapsibleGroup-style expansion/lock/instant-motion behaviour. |
 | `instance_budget_test.sh` | Per-element instance ceilings plus a realistic-page budget — the frame-time proxy guard. |
 | `odometer_test.sh` | Odometer readout: lazy row materialisation, and the resting row still showing the value's digit through plain/wrap/roll-down transitions. |
 | `dropdown_rows_test.sh` | Dropdown option rows: none (and no search bar) while closed whatever the list length, one per option in order on open plus the bar once, the rendered selected/unselected state and corner tiers, reopening reusing the rows, edits and picks made while closed, and the search filter. |
@@ -683,11 +609,10 @@ Per-element specifics:
 | `tab_elements_test.sh` | Tab elements: only the selected tab is walked on a show/hide, a tab opened later shows its elements in the same frame and state, the search shows every tab it renders, and a late element shows with its tab. |
 | `startup_navigation_test.sh` | Staged-startup navigation: a row tap and the Settings action made while the host build is still streaming survive the host's closing `tab:Select()` (selection and on-screen page); a first main tab created after the user opened Settings does not auto-select itself; after the build settles, host `Select`/`Navigate` and row taps apply; with no user tap, the host's startup selection still applies. |
 | `tab_lock_test.sh` | Locked tabs: the preserved flag + badge (always hidden during the UI pause) and auto-select skipping a locked first tab; tap → notification with no selection; hover leaves the locked row dimmed; `Navigate`/`Select` guards; `SetLocked(false)` re-enables; locking the open tab moves the selection to a same-rail fallback; search excludes locked tabs' elements; locking every remaining tab clears the selection and hides content, and unlocking restores it; retained badge geometry with no layout reserve, full title slots, and hidden badges after collapse/rebuild. |
-| `elements_lock_test.sh` | Elements Lock System: per-window usage tags and stable IDs, existing usage merge, functional-only registration, default and explicit lock tiers, cumulative Mode 1–5 behavior, manual-lock composition, guarded callbacks, preserved input/draft/selection/layout, expanded-dropdown lock behavior, late controls, and the persistent five-mode built-in controller with its Mode 5 reset path. |
-| `lock_mode_persistence_test.sh` | Element Lock Mode round trip: the chosen tier is written to the config, the next execution locks the page from it before Settings is ever opened (its control builds lazily), the lazily built controller agrees with the live tier and then owns the flag, a config saved without that panel still carries a host-driven tier, and a lowered tier leaves no stale locks. |
+| `elements_lock_test.sh` | Elements Lock System: per-window usage tags and stable IDs, existing usage merge, functional-only registration, default and explicit lock tiers, cumulative Mode 1–5 behavior, manual-lock composition, guarded callbacks, preserved input/draft/selection/layout, expanded-dropdown lock behavior, late controls, and the built-in Settings lock-all switch (exempt, unflagged, always able to release the page). |
+| `lock_mode_persistence_test.sh` | Element Lock Mode round trip: the chosen tier is written to the config, the next execution locks the page from it before Settings is ever opened (its switch builds lazily), the lazily built switch agrees with the live tier, a config saved without that panel still carries a host-driven tier, and a lowered tier leaves no stale locks. |
 | `image_cache_folder_test.sh` | Workspace folders: configs stay under `Astra/config`, Astra never creates a root `ImageCache`, an empty executor `ImageCache` created by `getcustomasset` is discarded, and a non-empty one is left alone. |
 | `toggle_switch_test.sh` | Switch geometry: one set of metrics, mirrored resting states, equal clearance, the sheen under the knob, and the animated positions matching the built ones. |
-| `mode_picker_test.sh` | Mode Picker: the 3..5 mode window, snap/Set/callback order and clamping, dot rebuilds on add/remove, the knob's stop scales, reset semantics, the absence of a description line, the title wearing the icon's RGB — and keeping it through a hover cycle and a per-mode `icon_color` — plus the track geometry: the knob's clearance inside the track's pill at both end stops, the fill wearing the knob's own pill and reaching its trailing edge, the last stop leaving no unpainted tail, and the end dots still at the knob's centres. |
 | `input_field_test.sh` | Field-box corners: the Input field rounds with the theme's `ElementCornerRadius` as a theme binding (pixel radius, never a capsule scale), re-stated on a theme switch, and shared with its element card. |
 | `corner_scale_test.sh` | The corner scale: the three nested tiers (12px shell, 8px elements, 32px folds) and which surface wears which, the round-by-nature controls deriving a half-height pill from their own metrics (switch track/knob/sheen, slider track/fill/handle, drag pill), the dropdown's row tiers read from the panel that clips them, a `ChangeTheme` reaching every bound surface, the corners that stay square on purpose (the elements band's top edge), and a sweep that fails if any painted surface in the tree is left with an all-zero corner. |
 | `keybind_input_test.sh` | Dedicated A–Z capture: required value, validation, focus handling, cancellation, current-key suppression, groups, flags, lock/removal/unload and settings validation. |

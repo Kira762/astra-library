@@ -49,7 +49,7 @@ machines only ever need the gitignored throwaway dev key).
 Current release checksum:
 
 ```
-sha256(version-1.luau) = 4b765d6379e9895a8869436fa6a2e3c5c9241ecb237d84b487d470fc44666e45
+sha256(version-1.luau) = 2238989b44ddcfd639c90b5f0f86de362601d3bc87770f00c66d196b7dd8d939
 ```
 
 (`node scripts/sign_bundle.js --verify` prints the live digest whenever the
@@ -72,7 +72,7 @@ degraded option (`VERIFICATION_MODE = "pin"`) and is never selected silently.
 | Area | Highlights |
 |---|---|
 | Window | Sidebar / collapsed-sidebar layouts, minimise-to-capsule, draggable, notifications, modal popups, search, per-window settings. |
-| Elements | Section, Text, Footer (centred text + inline icons), Button, Toggle (and `Switch` alias), Slider, Dropdown (single + multi-select, searchable), Input, Keybind (editable required A–Z field), Stat, Link (hidden URL with a copy control), About Card (brand header, up to three data rows and an optional action band), Divider, Group, Collapsible Group, Changelog, Isolated (changelog-only collapsible container). |
+| Elements | Section, Text, Footer (centred text + inline icons), Button, Toggle (and `Switch` alias), Slider, Stepper, Dropdown (single + multi-select, searchable), Input, Keybind (editable required A–Z field), Stat, Link (hidden URL with a copy control), Divider, Group, Collapsible Group, Changelog. |
 | State | Flags with built-in auto save/load, named configs, `forgetState` opt-out, writable-storage persistence. |
 | Look | The default palette plus custom theme tables, seven icon packs (lucide, material, tabler, phosphor, heroicons, feather, remix), a `custom_asset/` folder override and a three-tier corner scale — 12px shell, 8px elements, pill folds — with round-by-nature controls (switch, slider, drag pill) deriving their own half-height radii. |
 | Motion | One motion service behind every transition, driven by the user's animation-speed setting. |

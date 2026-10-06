@@ -20,7 +20,7 @@ Same for `headerCorner` metrics on header-based containers.
 - A lock surface (`lockSurface` or `main`) never hosts a flow layout. Layout-managed surfaces keep their flow on an **inner full-size content frame** (`Window:_buildCompactRow`'s `Content` frame), and the scrim stacks absolutely beside it.
 - `Window:_buildLockScrim` warns at lock time if a surface violates this; `scripts/guard_invariants_test.luau` (section D) asserts every lockable's scrim parents to a layout-free surface, and section D2 pins the compact-row shape (content frame hosts the flow, row hosts the scrim) across Mode 5.
 
-The guard (`scripts/guard_invariants_test.luau`) snapshots `Position/Size/Parent` for **16 elements** — Button, Toggle, Slider, Input, Dropdown, Keybind, Link, ModePicker, AboutCard, CollapsibleGroup, Isolated, Stat, Text, Divider, Section, Footer — and asserts equality across `SetElementLockMode(1)` ↔ `SetElementLockMode(5)`. Lockables also assert the scrim exists as an overlay:
+The guard (`scripts/guard_invariants_test.luau`) snapshots `Position/Size/Parent` for **13 elements** — Button, Toggle, Slider, Input, Dropdown, Keybind, Link, CollapsibleGroup, Stat, Text, Divider, Section, Footer — and asserts equality across `SetElementLockMode(1)` ↔ `SetElementLockMode(5)`. Lockables also assert the scrim exists as an overlay:
 
 ```
 element.lockScrim.Visible == true at Mode 5 (after snap)
@@ -29,13 +29,13 @@ element.lockScrim.Parent == element.lockSurface or element.main
 element.main.Visible == true    (never hidden by lock)
 ```
 
-For `AboutCard` with `AutomaticSize.Y` (`Size.Y.Offset == 0`), the `Size > 0` check is wrong — compare snapshots instead.
+For a card with `AutomaticSize.Y` (`Size.Y.Offset == 0`), the `Size > 0` check is wrong — compare snapshots instead.
 
 Why it matters: every element is a card in a scrolling list. Moving one card on a mode change reflows siblings.
 
 ## Corner sync — header-based containers
 
-`CollapsibleGroup` and `Isolated` are two-surface cards. The **header band** carries the top corners; the body clipper carries the bottom. The constants are in each element:
+`CollapsibleGroup` is a two-surface card. The **header band** carries the top corners; the body clipper carries the bottom. The constants are in each element:
 
 ```lua
 local bandCorners = {
@@ -53,17 +53,15 @@ _expanded == false → header 8,8 and scrim 8,8
 
 Without the mirror, a locked, expanded header showed rounded bottom arcs over a straight `divider` line.
 
-Isolated's body accepts only `Changelog` children, but its header/corner contract is identical to CollapsibleGroup's.
-
 Verify with:
 
 ```sh
 sh scripts/guard_invariants_test.sh   # asserts per-corner TopLeftRadius/TopRightRadius/BottomLeftRadius/BottomRightRadius offsets 8 vs 0
 ```
 
-## Track / knob / fill geometry — slider & mode picker
+## Track / knob / fill geometry — slider
 
-One metric set (from `elements/modePicker.luau` / `elements/slider.luau`), shared between toggle and picker so they read as the same switch with more stops:
+One metric set (from `elements/slider.luau`), shared with the toggle's switch so the two read as the same control:
 
 ```
 trackHeight = 22, trackRadius = 11
@@ -83,17 +81,15 @@ Rules:
 Verified in both element and guard:
 
 ```sh
-sh scripts/mode_picker_test.sh       # M10: knob clearance at ends + above/below, fill height/radius/inset, trailing edge, end-dot centres
 sh scripts/slider_travel_test.sh     # slider knob travel and value reach the ends
 ```
 
 ## When to touch this
 
-Any change to `components/window/constants.luau` (`ElementCornerRadius`, `zIndex.elementLock`), `components/window/theme.luau:_setRoundedCorners`, `components/window/elements.luau:_buildLockScrim` / `_setElementLocked`, `components/window/tabs.luau:_buildCompactRow` (the content frame that keeps lock surfaces layout-free), `elements/collapsibleGroup.luau` / `isolated.luau` header band, or `elements/modePicker.luau` / `slider.luau` track metrics must be followed by:
+Any change to `components/window/constants.luau` (`ElementCornerRadius`, `zIndex.elementLock`), `components/window/theme.luau:_setRoundedCorners`, `components/window/elements.luau:_buildLockScrim` / `_setElementLocked`, `components/window/tabs.luau:_buildCompactRow` (the content frame that keeps lock surfaces layout-free), `elements/collapsibleGroup.luau` header band, or `elements/slider.luau` track metrics must be followed by:
 
 ```sh
 node scripts/generate_bundle.js
 sh scripts/guard_invariants_test.sh
-sh scripts/mode_picker_test.sh
 sh scripts/collapsible_group_test.sh
 ```

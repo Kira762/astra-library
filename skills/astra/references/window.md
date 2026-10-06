@@ -135,8 +135,8 @@ previous tab. User code does not build these tabs.
 
 | Tab | Contents |
 |---|---|
-| **Overview** | First tab: About Card, resource Links and Footer. |
-| **Controls** | Five-mode Element Lock controller, required single-letter A–Z Keybind, unlock cursor, Window Behavior and reset positions. |
+| **Overview** | First tab: library header with the version and author readouts, resource Links and Footer. |
+| **Controls** | The **Lock all controls** switch (Mode 5 vs Mode 1), required single-letter A–Z Keybind, unlock cursor, Window Behavior and reset positions. |
 | **Appearance** | Standalone Bar Layout and Haptics (the animation-speed picker was removed). |
 | **Persistence** | Auto Save / Auto Load, configurations Dropdown, name Input and Save/Load/Delete. |
 

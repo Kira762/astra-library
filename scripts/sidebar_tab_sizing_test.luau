@@ -297,8 +297,8 @@ expect(
 
 -- T9d: every settings tab opens with its full content on its own page.
 local expectedSettingsContent = {
-    -- Kept deliberately lean: About card + Repository link.
-    Overview = 2,
+    -- Kept deliberately lean: header, version/author readouts, Repository link.
+    Overview = 5,
     -- Toggle Keybind, Unlock cursor, Element Lock Mode, Window Behavior group.
     Controls = 4,
     -- Font, Bar Layout, Haptics (no section headers).

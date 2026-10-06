@@ -3,14 +3,14 @@ local constants = require(utilities.constants)
 local locale = require(utilities.locale)
 local haptic = require(utilities.HapticEngine)
 local layouts = require(utilities.layouts)
-local shared = require(script.Parent.window.constants)
 
 local settingsComponent = {}
 
 --[[
-The About card's copy. The card itself is a reusable element — these are
-simply the values this build stamps into the Settings tab's card, so a
-release updates them here and nowhere else.
+The About page's copy. The page is built from ordinary elements (a section
+header, two text readouts and the repository link) — these are simply the
+values this build stamps into the Settings tab, so a release updates them
+here and nowhere else.
 ]]
 local aboutVersion = "1.4.0"
 local aboutAuthor = "Astra Team"
@@ -46,20 +46,15 @@ function settingsComponent.buildUI(window)
 
     local function buildAbout()
         --[[
-        The About page is kept deliberately short: one compact About card
-        (brand header plus two data tiles) and a single repository link —
-        the usage guide, releases and issues all live behind that link.
-        The version and author strings live at the top of this module.
+        The About page is kept deliberately short: one header, the version
+        and author readouts and a single repository link — the usage
+        guide, releases and issues all live behind that link. The version
+        and author strings live at the top of this module.
         ]]
-        about:CreateAboutCard({
-            name = "Astra",
-            subtitle = "UI Library for a better experience.",
-            icon = constants.icons.dot,
-            rows = {
-                { icon = "code", label = "Version", value = aboutVersion },
-                { icon = "user", label = "Author", value = aboutAuthor },
-            },
-        })
+        about:CreateSection({ name = "Astra", icon = constants.icons.dot })
+        about:CreateText({ name = "About", text = "UI Library for a better experience." })
+        about:CreateStat({ name = "Version", value = aboutVersion, letter = false })
+        about:CreateStat({ name = "Author", value = aboutAuthor, letter = false })
         about:CreateLink({
             name = "Repository", subtitle = "Docs, releases and issues", icon = "code",
             link = "https://github.com/Kira762/astra-version-1",
@@ -85,53 +80,23 @@ function settingsComponent.buildUI(window)
             end,
         })
 
-        -- A fixed five-stop controller. The ramp paints the active fill/icon
-        -- from pale blue at Mode 1 to deep blue at Mode 5; its own control is
-        -- deliberately exempt from the lock registry so it can always unlock
-        -- the rest of the page. Its flag is shared with the persistence layer
-        -- (`Window:_restoreUnowned`): this panel builds lazily on first open,
-        -- so a saved tier has to reach the window before this control exists.
-        local lockModeColors = {
-            { r = 234, g = 242, b = 255 }, -- #EAF2FF
-            { r = 201, g = 221, b = 255 }, -- #C9DDFF
-            { r = 147, g = 184, b = 255 }, -- #93B8FF
-            { r = 90, g = 134, b = 240 }, -- #5A86F0
-            { r = 29, g = 63, b = 168 }, -- #1D3FA8
-        }
-        local lockModeDescriptions = {
-            [1] = "all controls unlocked",
-            [2] = "inputs and selections locked (Links, Inputs, Dropdowns, Keybinds)",
-            [3] = "important actions locked (Buttons, Toggles, Sliders, Steppers, Mode Pickers)",
-            [4] = "sensitive controls locked (high-impact actions)",
-            [5] = "all lockable controls locked (Collapsible Groups, Isolated headers)",
-        }
-        local lockModes = {}
-        for index, color in ipairs(lockModeColors) do
-            table.insert(lockModes, {
-                label = "Mode " .. tostring(index),
-                description = lockModeDescriptions[index],
-                type = if index == 1 then "default" else "dot",
-                icon_color = color,
-            })
-        end
-        window._elementLockModePicker = general:CreateModePicker({
-            id = "astraElementLockMode",
-            title = "Element Lock Mode",
-            subtitle = "Higher modes restrict more interactive controls",
-            left_icon = "lock-keyhole",
-            right_icon = "rotate-ccw",
-            left_icon_color = lockModeColors[1],
-            title_color_same_as_left_icon = false,
-            accent = "left_icon",
-            mode = window:GetElementLockMode(),
-            min_modes = 5,
-            max_modes = 5,
-            allow_mode_add_remove = false,
-            reset_on_right_icon_press = true,
-            flag = shared.elementLockModeFlag,
-            forgetState = false,
+        --[[
+        One switch replaces the old five-stop ramp: on locks every
+        registered control (Mode 5), off returns to Mode 1. Its own control
+        is deliberately exempt from the lock registry so it can always
+        unlock the rest of the page, and it owns no flag — the tier is
+        window state, saved and restored by the window itself
+        (`Window:_restoreUnowned` / `Window:_unownedConfigValues`), because
+        this panel builds lazily on first open.
+        ]]
+        window._elementLockAllToggle = general:CreateToggle({
+            id = "astraElementLockAll",
+            name = "Lock all controls",
+            value = window:GetElementLockMode() >= 5,
             lockSystemController = true,
-            modes = lockModes,
+            callback = function(locked)
+                window:SetElementLockMode(if locked then 5 else 1)
+            end,
         })
 
         general:CreateCollapsibleGroup({

@@ -146,22 +146,3 @@ sh scripts/<feature>_test.sh                # per-feature runtime tests
 (`luau-compile`, or `luau --compile`) in `PATH`, `/tmp` or `/usr/local/bin`; without
 it the gate reports "not checked" (exit 2) rather than passing silently. A behaviour
 change is only complete once `CHANGELOG.md` and the docs that describe it are updated.
-
-## Third-party skills in this checkout
-
-The following are installed locally for agents working in this repository
-(canonical copies in `.agents/skills/`, symlinked into `.claude/skills/`). They are
-not published from this repository — they keep their upstream authorship and can be
-refreshed with `npx skills update`:
-
-| Skill | Source | Why it is here |
-|---|---|---|
-| `frontend-design` | [anthropics/skills](https://github.com/anthropics/skills) | Visual-design judgement for element, theme and layout work. |
-| `skill-creator` | [anthropics/skills](https://github.com/anthropics/skills) | Authoring and refining the `astra` skill itself. |
-| `diagnosing-bugs` | [mattpocock/skills](https://github.com/mattpocock/skills) | Reproduce-then-fix discipline for the bug entries in the changelog. |
-| `codebase-design` | [mattpocock/skills](https://github.com/mattpocock/skills) | Architecture decisions across the modular tree. |
-| `web-design-guidelines` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | Web interface guidelines — accessibility, focus states, motion, copy — for any web-facing work. |
-| `vercel-react-best-practices` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | React and Next.js performance patterns for any web-facing work. |
-| `writing-guidelines` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | Prose quality for the usage guide and the docs pages. |
-| `doc-coauthoring` | [anthropics/skills](https://github.com/anthropics/skills) | A structured workflow for writing and revising long-form docs such as USAGE.md. |
-| `find-skills` | [vercel-labs/skills](https://github.com/vercel-labs/skills) | Discovering more skills when a task needs one. |

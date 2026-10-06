@@ -17,7 +17,7 @@ is a crash. Instances in Astra are created via `window:Create(...)` /
 
 Scope: the modular tree only.
 
-- Hidden/vendored directories (.git, .tools, .agents, ...) are skipped.
+- Hidden/vendored directories (.git, .tools, ...) are skipped.
 - `version-1.luau` is skipped on purpose: the bundle inlines every module
   into one file, so a per-file holder set leaks across module scopes and
   false-flags unrelated same-name locals (e.g. footer's `local image = ...

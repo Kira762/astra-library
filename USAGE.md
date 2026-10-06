@@ -537,6 +537,21 @@ everywhere else, and a scroll made between taps is left alone.
 ### About card
 ```lua
 local changelogPanel -- assign below with tab:CreateIsolated(...)
+```lua
+-- Flat page: one header, plain prose, a hairline row.
+tab:CreatePageHeader({
+    name = "Overview",
+    meta = { "v1.4.0", "13 tabs", "Astra Team" },  -- joined with " · "
+    body = "Optional prose, capped at the reading measure.",
+})
+tab:CreateText({ name = "Start here", text = "Plain prose, no card.", plain = true })
+tab:CreateDivider()
+tab:CreateIsolated({ name = "Release history", subtitle = "Library milestones", plain = true, elements = { ... } })
+```
+
+`plain = true` is the surface switch shared by these elements: the element keeps
+its geometry and behaviour but draws no card. The rules are `DESIGN.md`.
+
 local card = tab:CreateAboutCard({
     name = "Astra",                                  -- header title
     subtitle = "UI Library for a better experience.", -- muted line under it

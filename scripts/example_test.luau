@@ -84,7 +84,10 @@ for _, tab in window._settingsTabs do
     TestPump(0.5)
     scan(tab.elements, tab == window.rfSettings)
 end
-assert(window.rfSettings.name == "Overview" and window.rfSettings.elements[1].__type == "AboutCard", "Settings information is first")
+assert(
+    window.rfSettings.name == "Overview" and window.rfSettings.elements[1].__type == "PageHeader",
+    "Settings information is first, and it is the flat page header rather than a brand card"
+)
 local appearance
 for _, tab in window._settingsTabs do if tab.name == "Appearance" then appearance = tab end end
 local layout

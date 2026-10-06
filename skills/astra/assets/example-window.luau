@@ -22,35 +22,21 @@ local actions = window:CreateTab({ name = "Actions", icon = "play" })
 local preferences = window:CreateTab({ name = "Preferences", icon = "sliders-horizontal" })
 local releaseHistory
 
-overview:CreateAboutCard({
-    name = "Astra",
-    subtitle = "A small studio for every element.",
-    icon = 80387863064905,
-    rows = {
-        { icon = "code", label = "Version", value = "1.4.0" },
-        { icon = "package", label = "Build", value = "2026.09.21" },
-        { icon = "user", label = "Author", value = "Astra Team" },
-    },
-    action = {
-        icon = "file-text",
-        name = "Release history",
-        subtitle = "Explore the changes behind this studio",
-        callback = function()
-            if not releaseHistory then return end
-            overview:Select()
-            releaseHistory:Expand()
-            task.defer(function()
-                if not releaseHistory.main.Parent then return end
-                local page = overview.tabPage
-                local top = page.CanvasPosition.Y + releaseHistory.main.AbsolutePosition.Y - page.AbsolutePosition.Y
-                page.CanvasPosition = Vector2.new(0, math.max(0, top - 10))
-            end)
-        end,
-    },
+--[[
+One surface per view: the page opens with a flat header — title plus one
+muted metadata line — instead of a branding card, because the window header
+already carries the name, the icon and the subtitle (see DESIGN.md).
+]]
+overview:CreatePageHeader({
+    name = "Overview",
+    meta = { "v1.4.0", "Build 2026.09.21", "Astra Team" },
+    body = "A small studio for every element: actions, preferences and the release history below.",
 })
+
 overview:CreateSection({ name = "Start here" })
 overview:CreateText({
     name = "Your quick tour",
+    plain = true,
     text = "Actions demonstrates buttons, compact groups, statistics and feedback. Preferences covers switches, ranges, choices, text and letter-only key capture. The gear opens library settings; its Overview always comes first.",
 })
 overview:CreateDivider({ text = "Resources" })
@@ -72,8 +58,9 @@ overview:CreateChangelog({
         } },
     },
 })
+overview:CreateDivider()
 releaseHistory = overview:CreateIsolated({
-    name = "Release history", subtitle = "Earlier library milestones", icon = "history",
+    name = "Release history", subtitle = "Earlier library milestones", icon = "history", plain = true,
     elements = {
         { type = "Changelog", name = "Earlier releases", entries = {
             { version = "1.4.0", date = "2026.09.12", changes = {

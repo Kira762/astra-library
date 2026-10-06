@@ -46,19 +46,18 @@ function settingsComponent.buildUI(window)
 
     local function buildAbout()
         --[[
-        The About page is kept deliberately short: one compact About card
-        (brand header plus two data tiles) and a single repository link —
+        The Overview page is kept deliberately short and flat: a page header
+        (one title, one muted metadata line) plus a single repository link —
         the usage guide, releases and issues all live behind that link.
-        The version and author strings live at the top of this module.
+        There is no brand block here on purpose: the window header already
+        carries the logo, the name and the subtitle, and repeating them in
+        the content area is the duplication the flat page removes. The
+        version and author strings live at the top of this module.
         ]]
-        about:CreateAboutCard({
-            name = "Astra",
-            subtitle = "UI Library for a better experience.",
-            icon = constants.icons.dot,
-            rows = {
-                { icon = "code", label = "Version", value = aboutVersion },
-                { icon = "user", label = "Author", value = aboutAuthor },
-            },
+        about:CreatePageHeader({
+            name = "Overview",
+            meta = { "v" .. aboutVersion, aboutAuthor },
+            body = "Controls, appearance and persistence live in the tabs beside this one. The repository below carries the docs, releases and issues.",
         })
         about:CreateLink({
             name = "Repository", subtitle = "Docs, releases and issues", icon = "code",
@@ -192,9 +191,14 @@ function settingsComponent.buildUI(window)
         "Animation speed" setting is gone: the library plays at its
         built-in motion (the normal language, faster — never instant).
         ]]
-        local fontLabels = { default = "Default", brand = "Astra" }
-        local fontOptions = { "Default", "Astra" }
-        local fontChoices = { Default = "default", Astra = "brand" }
+        --[[
+        Both choices are neutral UI faces: the stock family and the
+        catalogue family the brand option resolves to. The labels name the
+        faces rather than the library, so a host knows what it is picking.
+        ]]
+        local fontLabels = { default = "System", brand = constants.brandFontName }
+        local fontOptions = { "System", constants.brandFontName }
+        local fontChoices = { System = "default", [constants.brandFontName] = "brand" }
 
         appearance:CreateDropdown({
             name = "Font",

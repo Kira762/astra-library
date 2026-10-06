@@ -5,6 +5,7 @@ local haptic = require(utilities.HapticEngine)
 local moveable = require(utilities.moveable)
 local lockable = require(utilities.lockable)
 local ordering = require(utilities.ordering)
+local tokens = require(utilities.tokens)
 local image = require(script.Parent.Parent.images.image)
 
 local Isolated = {}
@@ -99,45 +100,76 @@ function Isolated.new(tab, props)
         icon = tab.window:ResolveIcon(read(props, "icon", "Icon")),
         deriveFlagFromName = tab.deriveFlagFromName,
         forgetState = props.forgetState or tab.forgetState,
+        --[[
+        `plain = true` drops the card around the container: the row sits on
+        the page band with a hairline above it, and the revealed body keeps
+        no surface of its own. The expansion contract is untouched.
+        ]]
+        plain = read(props, "plain", "Plain") == true,
         _expanded = false, _shown = false,
     }, Isolated)
+    self._plain = self.plain
     self.subtitle = if self.subtitle ~= nil and tostring(self.subtitle) ~= ""
         then tostring(self.subtitle)
         else nil
     local w = self.window
     --[[
     Two-line header recipe, shared with the CollapsibleGroup's title plus
-    description band: the title keeps its 41px band and the muted 14px
-    subtitle rides the 20px band under it (41 -> 61). Without a subtitle
-    the header is the plain 41px band.
+    description band: the title keeps its single-line band and the muted
+    14px subtitle rides a 20px band under it. The carded container uses the
+    library's 41px band; the plain row uses the 36px nav-row band and the
+    standalone icon size, so a flat page reads as one rhythm.
     ]]
-    self.headerHeight = if self.subtitle then 61 else 41
-    local iconY = math.floor((self.headerHeight - 16) / 2)
+    self.singleHeight = if self.plain then tokens.row.height else 41
+    self.inset = if self.plain then tokens.space.lg else 20
+    self.iconSize = if self.plain then tokens.icon.standalone else 16
+    self.iconGap = if self.plain then tokens.space.sm else 6
+    self.trailing = if self.plain then 40 else 42
+    self.headerHeight = self.singleHeight + (if self.subtitle then 20 else 0)
+    local iconY = math.floor((self.headerHeight - self.iconSize) / 2)
     --[[
-    One connected card, two surfaces: the header band rides the standard
-    element gradient, the revealed body sits on the darker window surface
-    and a 1px stroke-colored divider separates them.
+    Carded: one connected card, two surfaces — the header band rides the
+    standard element gradient, the revealed body sits on the darker window
+    surface and a 1px stroke-colored divider separates them. Plain: the row
+    owns no surface at all and a hairline rule sits above it (the surface
+    rule — see utilities/tokens.luau), so the same body/divider geometry
+    simply paints nothing.
     ]]
-    self.bodyPad = 10
+    self.bodyPad = tokens.space.md
     self.main = w:Create("Frame", {
         Name = self.name, Size = UDim2.new(1, -20, 0, self.headerHeight),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BackgroundTransparency = 1, BorderSizePixel = 0,
         ClipsDescendants = true, Parent = tab.tabPage,
     }, { BackgroundTransparency = "ElementTransparency" })
-    w:Create("UIGradient", { Rotation = 270, Parent = self.main }, { Color = "ElementGradient" })
-    w:Create("UICorner", { Parent = self.main }, { CornerRadius = "ElementCornerRadius" })
-    self.stroke = w:Create("UIStroke", {
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Transparency = 1, Parent = self.main,
-    }, { Color = "ElementStroke", Transparency = "ElementStrokeTransparency" })
+    if self.plain then
+        --[[
+        The separating hairline. It rides the container so it moves and
+        fades with the row it belongs to, and it is the only line a plain
+        row draws.
+        ]]
+        self.rule = w:Create("Frame", {
+            Name = "Rule", Position = UDim2.fromOffset(0, 0),
+            Size = UDim2.new(1, 0, 0, tokens.hairline.thickness),
+            BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
+        }, { BackgroundColor3 = "ElementStroke" })
+    else
+        w:Create("UIGradient", { Rotation = 270, Parent = self.main }, { Color = "ElementGradient" })
+        w:Create("UICorner", { Parent = self.main }, { CornerRadius = "ElementCornerRadius" })
+        self.stroke = w:Create("UIStroke", {
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Transparency = 1, Parent = self.main,
+        }, { Color = "ElementStroke", Transparency = "ElementStrokeTransparency" })
+    end
     self.headerSurface = w:Create("Frame", {
         Name = "HeaderSurface", Size = UDim2.new(1, 0, 0, self.headerHeight),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
     }, { BackgroundTransparency = "ElementTransparency" })
-    w:Create("UIGradient", { Rotation = 270, Parent = self.headerSurface }, { Color = "ElementGradient" })
-    self.headerCorner = w:_roundCorners(self.headerSurface, { "TopLeftRadius", "TopRightRadius" }, "ElementCornerRadius")
-    self:_fitHeaderCorners()
+    if not self.plain then
+        w:Create("UIGradient", { Rotation = 270, Parent = self.headerSurface }, { Color = "ElementGradient" })
+        self.headerCorner = w:_roundCorners(self.headerSurface, { "TopLeftRadius", "TopRightRadius" }, "ElementCornerRadius")
+        self:_fitHeaderCorners()
+    end
     self.divider = w:Create("Frame", {
         Name = "HeaderDivider", Position = UDim2.fromOffset(0, self.headerHeight),
         Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0,
@@ -155,19 +187,20 @@ function Isolated.new(tab, props)
     header currently is, so the collapsed card reads as the reference:
     icon, two-line stack, chevron.
     ]]
-    local textX = if self.icon then 42 else 20
+    local textX = if self.icon then self.inset + self.iconSize + self.iconGap else self.inset
     if self.icon then
         self.iconLabel = w:Create("ImageLabel", {
-            Image = self.icon, Position = UDim2.fromOffset(20, iconY), Size = UDim2.fromOffset(16, 16),
+            Image = self.icon, Position = UDim2.fromOffset(self.inset, iconY),
+            Size = UDim2.fromOffset(self.iconSize, self.iconSize),
             BackgroundTransparency = 1, ImageTransparency = 1, Parent = self.header,
         }, { ImageColor3 = "ContentColor" })
     end
     self.title = w:Create("TextLabel", {
         Text = locale.t(self.name), Position = UDim2.fromOffset(textX, 0),
-        Size = UDim2.new(1, -(textX + 42), 0, 41), BackgroundTransparency = 1,
-        TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+        Size = UDim2.new(1, -(textX + self.trailing), 0, self.singleHeight), BackgroundTransparency = 1,
+        TextSize = tokens.text.title, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
         TextTransparency = 1, Parent = self.header,
-    }, { TextColor3 = "TitlingColor", FontFace = "Font" })
+    }, { TextColor3 = "TitlingColor", FontFace = "TitleFont" })
     w:_bindLocale(self.title, "Text", self.name)
     --[[
     The subtitle label always exists so SetSubtitle can fill it at
@@ -176,9 +209,9 @@ function Isolated.new(tab, props)
     ]]
     self.subtitleLabel = w:Create("TextLabel", {
         Name = "Subtitle",
-        Text = locale.t(self.subtitle or ""), Position = UDim2.fromOffset(textX, 37),
-        Size = UDim2.new(1, -(textX + 20), 0, 18), BackgroundTransparency = 1,
-        TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+        Text = locale.t(self.subtitle or ""), Position = UDim2.fromOffset(textX, self.singleHeight - 4),
+        Size = UDim2.new(1, -(textX + self.inset), 0, tokens.lineHeight.body), BackgroundTransparency = 1,
+        TextSize = tokens.text.body, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
         TextTransparency = 1, Parent = self.header,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
     if self.subtitle then
@@ -205,8 +238,10 @@ function Isolated.new(tab, props)
         BackgroundTransparency = 1, BorderSizePixel = 0,
         ClipsDescendants = true, Visible = false, Parent = self.main,
     }, { BackgroundTransparency = "ElementTransparency" })
-    w:Create("UIGradient", { Rotation = 270, Parent = self.bodyClip }, { Color = "WindowColor" })
-    w:_roundCorners(self.bodyClip, { "BottomLeftRadius", "BottomRightRadius" }, "ElementCornerRadius")
+    if not self.plain then
+        w:Create("UIGradient", { Rotation = 270, Parent = self.bodyClip }, { Color = "WindowColor" })
+        w:_roundCorners(self.bodyClip, { "BottomLeftRadius", "BottomRightRadius" }, "ElementCornerRadius")
+    end
     self.body = w:Create("Frame", {
         Name = "Contents", Position = UDim2.fromOffset(0, self.bodyPad),
         Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
@@ -233,7 +268,24 @@ function Isolated.new(tab, props)
         haptic.click()
         self:_setExpanded(not self._expanded, true)
     end)
-    w:_wireElementHover(self, { target = self.header, titleRestKey = "TitlingColor" })
+    if self.plain then
+        --[[
+        A plain row has no stroke for the shared hover recipe to move, so
+        the row's own language is the subtle fill plus the title lift —
+        the same feedback a nav row gives.
+        ]]
+        w:ConnectFor(self, self.interact.MouseEnter, function()
+            if not w:_interactive() then return end
+            motion.tween(self.hoverOverlay, { BackgroundTransparency = 0.97 }, "snappy")
+            motion.tween(self.title, { TextColor3 = w.theme.ElementTextHoverColor }, "snappy")
+        end)
+        w:ConnectFor(self, self.interact.MouseLeave, function()
+            motion.tween(self.hoverOverlay, { BackgroundTransparency = 1 }, "snappy")
+            motion.tween(self.title, { TextColor3 = w.theme.TitlingColor }, "snappy")
+        end)
+    else
+        w:_wireElementHover(self, { target = self.header, titleRestKey = "TitlingColor" })
+    end
     self.lockSurface = self.header
     buildChildren(self, props.elements or {})
     lockable.register(self, props)
@@ -249,6 +301,13 @@ bottom edge (it is flush with the container's floor and keeps the same
 radius token), so the band squares off against the straight divider.
 ]]
 function Isolated:_fitHeaderCorners()
+    --[[
+    A plain row carries no corner of its own (no surface to round), so the
+    sync is a no-op there rather than a source of nil writes.
+    ]]
+    if not self.headerCorner then
+        return
+    end
     self.window:_setRoundedCorners(
         self.headerCorner,
         if self._expanded then bandCorners.expanded else bandCorners.collapsed,
@@ -270,17 +329,17 @@ and the text stack — is re-derived here, so a runtime SetSubtitle that
 adds or releases the second line reflows the whole card from one place.
 ]]
 function Isolated:_applyHeaderMetrics()
-    self.headerHeight = if self.subtitle then 61 else 41
-    local iconY = math.floor((self.headerHeight - 16) / 2)
-    local textX = if self.icon then 42 else 20
+    self.headerHeight = self.singleHeight + (if self.subtitle then 20 else 0)
+    local iconY = math.floor((self.headerHeight - self.iconSize) / 2)
+    local textX = if self.icon then self.inset + self.iconSize + self.iconGap else self.inset
     if self.iconLabel then
-        self.iconLabel.Position = UDim2.fromOffset(20, iconY)
+        self.iconLabel.Position = UDim2.fromOffset(self.inset, iconY)
     end
     self.title.Position = UDim2.fromOffset(textX, 0)
-    self.title.Size = UDim2.new(1, -(textX + 42), 0, 41)
-    self.subtitleLabel.Position = UDim2.fromOffset(textX, 37)
-    self.subtitleLabel.Size = UDim2.new(1, -(textX + 20), 0, 18)
-    self.chevron.Position = UDim2.new(1, -36, 0, iconY)
+    self.title.Size = UDim2.new(1, -(textX + self.trailing), 0, self.singleHeight)
+    self.subtitleLabel.Position = UDim2.fromOffset(textX, self.singleHeight - 4)
+    self.subtitleLabel.Size = UDim2.new(1, -(textX + self.inset), 0, tokens.lineHeight.body)
+    self.chevron.Position = UDim2.new(1, -(self.inset + self.iconSize), 0, iconY)
     self.headerSurface.Size = UDim2.new(1, 0, 0, self.headerHeight)
     self.header.Size = UDim2.new(1, 0, 0, self.headerHeight)
     self.divider.Position = UDim2.fromOffset(0, self.headerHeight)
@@ -350,11 +409,24 @@ end
 function Isolated:_setShown(shown, animate)
     self._shown = shown
     local w = self.window
-    w:_reveal(self.main, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
-    w:_reveal(self.headerSurface, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
-    w:_reveal(self.bodyClip, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
-    w:_reveal(self.stroke, { Transparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
-    w:_reveal(self.divider, { BackgroundTransparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
+    --[[
+    Resting alphas, per surface kind. A plain row rests fully transparent
+    everywhere it has no surface (main, header band, body clipper) and
+    draws its two hairlines — the rule above it and the header/body seam —
+    at the hairline alpha instead of the card stroke's.
+    ]]
+    local surface = if self.plain then 1 else (w.theme.ElementTransparency or 0)
+    local seam = if self.plain then tokens.hairline.transparency else w.theme.ElementStrokeTransparency
+    w:_reveal(self.main, { BackgroundTransparency = if shown then surface else 1 }, animate)
+    w:_reveal(self.headerSurface, { BackgroundTransparency = if shown then surface else 1 }, animate)
+    w:_reveal(self.bodyClip, { BackgroundTransparency = if shown then surface else 1 }, animate)
+    if self.stroke then
+        w:_reveal(self.stroke, { Transparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
+    end
+    if self.rule then
+        w:_reveal(self.rule, { BackgroundTransparency = if shown then tokens.hairline.transparency else 1 }, animate)
+    end
+    w:_reveal(self.divider, { BackgroundTransparency = if shown then seam else 1 }, animate)
     w:_reveal(self.title, { TextTransparency = if shown then 0 else 1 }, animate)
     w:_reveal(self.subtitleLabel, { TextTransparency = if shown then 0.45 else 1 }, animate)
     w:_reveal(self.chevron, { ImageTransparency = if shown then 0.4 else 1 }, animate)
@@ -423,8 +495,9 @@ function Isolated:SetIcon(icon)
     if resolved then
         if not self.iconLabel then
             self.iconLabel = self.window:Create("ImageLabel", {
-                Image = resolved, Position = UDim2.fromOffset(20, math.floor((self.headerHeight - 16) / 2)),
-                Size = UDim2.fromOffset(16, 16),
+                Image = resolved,
+                Position = UDim2.fromOffset(self.inset, math.floor((self.headerHeight - self.iconSize) / 2)),
+                Size = UDim2.fromOffset(self.iconSize, self.iconSize),
                 BackgroundTransparency = 1, ImageTransparency = if self._shown then 0 else 1,
                 Parent = self.header,
             }, { ImageColor3 = "ContentColor" })

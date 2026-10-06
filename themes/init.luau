@@ -17,6 +17,7 @@ This file IS the `themes` ModuleScript (init.luau semantics): the
 local themesFolder = script
 local variables = require(script.Parent.core.state)
 local log = require(script.Parent.utilities.log)
+local tokens = require(script.Parent.utilities.tokens)
 
 local themes = {}
 
@@ -99,10 +100,10 @@ function themes.resolve(value)
 
 	local userTable = if typeof(value) == "table" then value else nil
     if not (userTable and (userTable.Font or userTable.font)) then
-        resolved.Font = variables.brandFont(Enum.FontWeight.Medium)
+        resolved.Font = variables.brandFont(tokens.weight.regular)
     end
     if not (userTable and (userTable.TitleFont or userTable.titleFont)) then
-        resolved.TitleFont = variables.brandFont(Enum.FontWeight.SemiBold)
+        resolved.TitleFont = variables.brandFont(tokens.weight.strong)
     end
 
     return resolved

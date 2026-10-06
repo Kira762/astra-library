@@ -163,7 +163,6 @@ function state:_bindSelector()
         end
         if self.window.selectedTab ~= self then
             self:_applyVisual("hover", page)
-            self:_spinGradients()
         end
     end))
     table.insert(self.connections, self.window:Connect(self.topbarItemInteract.MouseLeave, function()
@@ -207,28 +206,12 @@ function state:_applyVisual(a19, a20)
         ]]
         a21 = {
             background = a21.background,
-            stroke = a21.stroke,
             content = math.max(a21.content, 0.7),
-            shadow = a21.shadow,
+            accent = a21.accent,
         }
     end
 
     icon.applyVisual(self, a21, a20)
-end
-
-function state:_spinGradients()
-    if self.neglectSelector then
-        return
-    end
-
-    --[[
-    Only the stroke gradient still rides the row: its fill is now the
-    solid ElementSurface token (see components/tabSelector), so the hover
-    spin effect lives on the stroke alone.
-    ]]
-    for _, a23 in { self.topbarItemStrokeGradient } do
-        a23.Rotation = 90 - 360         Tab.tweenService:Create(a23, motion.spec("spin"), { Rotation = 90 }):Play()
-    end
 end
 
 --[[
@@ -444,6 +427,10 @@ end
 
 function state:CreateText(a31)
     return self:_register(require(script.Parent.text).new(self, a31))
+end
+
+function state:CreatePageHeader(props)
+    return self:_register(require(script.Parent.pageHeader).new(self, props))
 end
 
 function state:CreateFooter(props)

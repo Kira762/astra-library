@@ -4,9 +4,19 @@ state.__type = "Text"
 
 local constants = require(script.Parent.Parent.utilities.moveable)
 local Text = require(script.Parent.Parent.utilities.locale)
+local tokens = require(script.Parent.Parent.utilities.tokens)
 
 -- Resting transparency of body text shown by this control.
-local restingTextTransparency = 0.45
+local restingTextTransparency = tokens.alpha.muted
+
+--[[
+Card geometry. A carded Text block keeps the library's gutter and a 12px
+inner padding (the 8pt grid's middle step); a plain block keeps the gutter
+but no padding box and no surface at all — its heading and prose simply sit
+on the page band, which is what makes a section read as content rather than
+as another nested card.
+]]
+local cardPad = tokens.space.md
 
 function state.new(tab, element)
     element = if typeof(element) == "table" then element else {}
@@ -16,10 +26,17 @@ function state.new(tab, element)
         window = tab.window,
         name = tostring(element.name or element.Name or ""),
         text = tostring(element.text or element.Text or ""),
+        --[[
+        `plain = true` drops the card: no fill, no stroke, no padding box.
+        The prose measure still applies, so a plain paragraph keeps a
+        readable line length on a wide window.
+        ]]
+        plain = element.plain == true or element.Plain == true,
+        _plain = element.plain == true or element.Plain == true,
     }, state)
 
             self.main = self.window:Create("Frame", {
-        Size = UDim2.new(1, -20, 0, 0),
+        Size = UDim2.new(1, -(tokens.pageInset * 2), 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         BorderSizePixel = 0,
         Name = if self.name ~= "" then self.name else "Text",
@@ -29,16 +46,20 @@ function state.new(tab, element)
         Parent = self.tab.tabPage,
     }, { BackgroundTransparency = "ElementTransparency" })
 
-    self.stroke = self.window:StyleElementBody(self.main)
+    if not self.plain then
+        self.stroke = self.window:StyleElementBody(self.main)
+    end
 
-    self.window:Create("UIPadding", {
-        PaddingTop = UDim.new(0, 14),
-        PaddingBottom = UDim.new(0, 14),
-        PaddingLeft = UDim.new(0, 20),
-        PaddingRight = UDim.new(0, 20),
+    if not self.plain then
+        self.window:Create("UIPadding", {
+            PaddingTop = UDim.new(0, cardPad),
+            PaddingBottom = UDim.new(0, cardPad),
+            PaddingLeft = UDim.new(0, cardPad),
+            PaddingRight = UDim.new(0, cardPad),
 
-        Parent = self.main,
-    })
+            Parent = self.main,
+        })
+    end
 
     self.window:Create("UIListLayout", {
         Padding = UDim.new(0, 6),
@@ -74,14 +95,14 @@ function state.new(tab, element)
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         RichText = true,
-        TextSize = 16,
+        TextSize = tokens.text.title,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
         LayoutOrder = 1,
 
                 TextTransparency = 1,
         Parent = self.titleRow,
-    }, { TextColor3 = "TitlingColor", FontFace = "Font" })
+    }, { TextColor3 = "TitlingColor", FontFace = "TitleFont" })
 
     self.body = self.window:Create("TextLabel", {
         Text = Text.t(self.text),
@@ -90,7 +111,7 @@ function state.new(tab, element)
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         RichText = true,
-        TextSize = 14,
+        TextSize = tokens.text.body,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
         LayoutOrder = 2,
@@ -98,6 +119,16 @@ function state.new(tab, element)
                 TextTransparency = 1,
         Parent = self.main,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
+
+    --[[
+    The reading measure. AutomaticSize grows the line count; the constraint
+    caps the line length, so prose stops widening at about 65 characters
+    however wide the window gets.
+    ]]
+    self.window:Create("UISizeConstraint", {
+        MaxSize = Vector2.new(tokens.measure.prose, 1e6),
+        Parent = self.body,
+    })
 
     self:_applyPresence()
 

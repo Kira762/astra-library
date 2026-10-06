@@ -406,6 +406,15 @@ Per-element specifics:
   mouse-wheel step, so a deliberate scroll is never eaten. A quiet press opens no
   window. Full card for a tab or a column Group, compact row for
   a horizontal one.
+- `pageHeader.luau` — the flat page header (`__type = "PageHeader"`,
+  `Tab:CreatePageHeader`): a 20/600 title, one muted 12px metadata line (`meta`
+  joins a table with " · ") and an optional 14px prose paragraph held to the
+  reading measure by a `UISizeConstraint`. It owns no surface — no gradient, no
+  corner, no stroke, no padding box — because the page band is its background;
+  it sets the internal `_plain` flag so no reveal can paint a card onto it. No
+  icon slot on purpose: the window header carries the brand. Live setters
+  (`SetTitle`, `SetMeta`, `SetBody`) re-bind the locale and drop their line out
+  of the layout when the copy is cleared.
 - `aboutCard.luau` — the About card (`__type = "AboutCard"`): one container with
   three blocks — a header (leading icon plus a title/subtitle stack), a row of one
   to three data tiles (each a badge icon with a label above its value), and an

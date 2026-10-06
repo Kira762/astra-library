@@ -331,10 +331,34 @@ card:SetRow(1, { icon = "box", label = "Version", value = "1.5.0" })
 - Supports the move API and `Lock()`/`Unlock()`/`IsLocked()`; a locked card fires
   no action.
 
+## Page header (tab only)
+
+```lua
+local head = tab:CreatePageHeader({
+    name = "Overview",
+    meta = { "v1.4.0", "13 tabs", "Astra Team" },   -- or a plain string
+    body = "Optional prose, capped at the reading measure.",
+})
+head:SetTitle("Overview"), head:SetMeta({ "v1.4.1" }), head:SetBody(nil)
+```
+
+Flat by design: no fill, no stroke, no padding box and no icon slot, because
+the window header already carries the brand. The title is 20px at weight 600,
+`meta` is one muted 12px line (a table joins with " · ", an empty value drops
+the line out of the layout) and `body` is 14px prose held to ~65 characters by
+a `UISizeConstraint`. Use `CreateDivider` or whitespace to separate it from the
+rest of the page.
+
+`plain = true` is the shared surface switch for information: `CreateText`
+(heading plus prose instead of a card) and `CreateIsolated` (a 36/56px quiet
+row with a 1px hairline above it, expansion unchanged) both accept it. See
+`DESIGN.md` for the one-surface-per-view rule.
+
 ## Text, Section, Divider
 
 ```lua
 local x = tab:CreateText({ name = "Title", text = "Body text" })
+local prose = tab:CreateText({ name = "Start here", text = "Plain prose.", plain = true })
 x:Set("New body")
 x:SetTitle("New title")
 

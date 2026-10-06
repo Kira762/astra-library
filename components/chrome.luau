@@ -3,6 +3,7 @@ local state = require(utilities.Parent.core.state)
 local motion = require(utilities.motion)
 local fs = require(utilities.filesystem)
 local constants = require(utilities.constants)
+local tokens = require(utilities.tokens)
 local locale = require(utilities.locale)
 local haptic = require(utilities.HapticEngine)
 
@@ -56,7 +57,7 @@ function chrome.buildCollapsedFace(window)
         Text = window.showName,
         Size = UDim2.new(1, 0, 0, 16),
         BackgroundTransparency = 1,
-        FontFace = state.brandFont(Enum.FontWeight.Medium),
+        FontFace = state.brandFont(tokens.weight.strong),
         RichText = true,
         TextSize = 16,
         TextWrapped = true,
@@ -72,7 +73,7 @@ function chrome.buildCollapsedFace(window)
         Text = locale.t("Tap to show"),
         Size = UDim2.new(1, 0, 0, 14),
         BackgroundTransparency = 1,
-        FontFace = state.brandFont(Enum.FontWeight.Medium),
+        FontFace = state.brandFont(tokens.weight.regular),
         TextSize = 14,
         TextXAlignment = Enum.TextXAlignment.Left,
         LayoutOrder = 2,

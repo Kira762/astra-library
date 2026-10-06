@@ -239,6 +239,15 @@ function Window:CreateHoverOverlay(parent)
 end
 
 function Window:_elementBackgroundTransparency(element)
+    --[[
+    A plain element owns no surface by design: the page band is its
+    background. It keeps the flag so a reveal can never paint a card onto
+    it (`Window:_revealCommon` writes this value to `main`, and the theme's
+    ElementTransparency is opaque).
+    ]]
+    if element and element._plain then
+        return 1
+    end
     if element and element._collapsibleChild then
         return self.theme.CollapsibleChildElementTransparency or 0.75
     end
@@ -246,6 +255,14 @@ function Window:_elementBackgroundTransparency(element)
 end
 
 function Window:_elementStrokeTransparency(element, hover)
+    --[[
+    Same contract as the background above: a plain element has no outline
+    to reveal or to lift on hover, so every path reads it as fully
+    transparent instead of falling through to the card stroke's alpha.
+    ]]
+    if element and element._plain then
+        return 1
+    end
     if element and element._collapsibleChild then
         if hover then
             return self.theme.CollapsibleChildElementStrokeHoverTransparency

@@ -62,18 +62,19 @@ end
 
 -- Layout constants (utilities/layouts.luau, mode "sidebar")
 local RAIL_COLLAPSED = 64
-local ROW_INSET2 = 30 -- rowInset * 2
-local ROW_PADDING2 = 20 -- rowPadding * 2
-local ROW_ICON = 20
-local ROW_SPACING = 6
-local ROW_HEIGHT = 38
+local ROW_INSET2 = 24 -- rowInset * 2
+local ROW_PADDING2 = 24 -- rowPadding * 2
+local ROW_ICON = 16
+local ROW_SPACING = 8
+local ROW_HEIGHT = 36
+local ROW_LABEL = 14
 
 -- Window is 600 wide at the 1920x1080 test viewport (windowSizing fit).
 local WINDOW_WIDE = 600
 local RAIL_CAP = math.floor(WINDOW_WIDE * 0.5) -- the window's available-space cap
 
 local function textW(text)
-	return math.ceil(#text * 16 * 0.6)
+	return math.ceil(#text * ROW_LABEL * 0.6)
 end
 
 local function naturalRow(name, hasIcon)

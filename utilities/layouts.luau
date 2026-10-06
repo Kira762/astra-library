@@ -30,6 +30,9 @@ export type Layout = {
     rowPadding: number?,
     rowContentSpacing: number?,
     rowIconSize: number?,
+    rowLabelSize: number?,
+    rowAccentWidth: number?,
+    rowAccentHeight: number?,
     cardTransparency: number?,
     cardStrokeRotation: number?,
     cardStrokeTransparency: NumberSequence?,
@@ -47,19 +50,28 @@ layouts.sidebar = {
     railCollapsedWidth = 64,
     railCollapseBelow = 520,
 
-    rowHeight = 38,
+    rowHeight = 36,
     --[[
-    The rail's rows are inset `rowInset` from the rail's edges, so they
-    read as chips rather than as full-bleed bands — and a chip wants the
-    element-card radius, the tier one step inside the shell's own arc.
+    A nav row is a quiet row: icon plus label on the rail's own surface, no
+    outline and no shadow. Hover is a subtle fill, selection is a fill plus
+    the 3px accent bar on the row's leading edge — which is why a row still
+    carries the element-card radius: the fill needs a shape to sit in.
     ]]
     rowCornerRadius = 8,
     rowSpacing = 4,
-    railPadding = 17,
-    rowInset = 15,
-    rowPadding = 10,
-    rowContentSpacing = 6,
-    rowIconSize = 20,
+    railPadding = 16,
+    rowInset = 12,
+    rowPadding = 12,
+    rowContentSpacing = 8,
+    rowIconSize = 16,
+    --[[
+    The row label's size is a layout value, not a literal inside the row
+    builder: the rail's responsive width measures the very same number, so
+    changing the scale moves the measurement with it.
+    ]]
+    rowLabelSize = 14,
+    rowAccentWidth = 3,
+    rowAccentHeight = 16,
 
     pageDirection = Enum.FillDirection.Vertical,
 

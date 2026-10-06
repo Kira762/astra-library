@@ -1,5 +1,8 @@
-local iconRegistry = require(script.Parent.Parent.images.windowIcons)
-local uiIcons = require(script.Parent.Parent.images.uiIcons)
+--[[
+Astra's own glyphs (close, minimise, settings, ...). Not the icon-pack
+catalog — that is `icons/`, and a host never resolves these by name.
+]]
+local windowIcons = require(script.Parent.Parent.windowIcons)
 local constants = {}
 
 --[[
@@ -13,8 +16,8 @@ window setting (Settings → Appearance → Font), switchable mid-session.
 constants.defaultFontChoice = "default" -- "default" | "brand"
 constants.fontAsset = "rbxassetid://12187375716"
 
-constants.icons = iconRegistry.ids
-constants.uiIcons = uiIcons
+constants.icons = windowIcons.ids
+constants.uiIcons = windowIcons.names
 
 constants.accent = {
     on = Color3.fromRGB(23, 153, 110),

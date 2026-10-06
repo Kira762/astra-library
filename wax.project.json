@@ -12,6 +12,7 @@
     "functions": { "$path": "functions" },
     "layouts": { "$path": "layouts" },
     "images": { "$path": "images" },
+    "windowIcons": { "$path": "windowIcons" },
     "icons": { "$path": "icons" },
     "themes": { "$path": "themes" },
     "utilities": { "$path": "utilities" },

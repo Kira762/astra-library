@@ -523,6 +523,13 @@ function state.new(tab, a49)
 
         local a73 = {
             name = a65,
+            --[[
+            The search filter lowercases every row's name on every keystroke.
+            Cache the lowered form once, when the row is built: a 500-name
+            player list used to allocate 500 lowercased strings (and run 500
+            `string.lower` calls) for each character typed.
+            ]]
+            lowered = string.lower(a65),
             frame = a66,
             interact = a69,
             title = a72,
@@ -831,21 +838,49 @@ function state:_collapseSearch()
     self:_resizeToOptions()
 end
 
+--[[
+The rows the filter is currently showing.
+
+Filtering, corner rounding and the select-all row all need exactly this set,
+and they used to each walk every row to build it: four passes over
+`_optionFrames` (and two throwaway tables) on every keystroke. Compute it once
+and hand it down. Callers that do not already have it in hand call this
+themselves, so the saving is invisible from the outside.
+]]
+function state:_visibleFrames(): { OptionFrame }
+    local frames = {}
+    for _, option in self._optionFrames do
+        if option.frame.Visible then
+            table.insert(frames, option)
+        end
+    end
+    return frames
+end
+
 function state:_applyFilter(a78)
-    a78 = string.lower(a78 or "")
-    local a79 = 0
-    for _, a80 in self._optionFrames do
-        local a81 = a78 == "" or string.find(string.lower(a80.name), a78, 1, true) ~= nil
-        a80.frame.Visible = a81
-        if a81 then
-            a79 += 1
+    local query = string.lower(a78 or "")
+
+    --[[
+    One pass sets each row's visibility and collects the survivors: the
+    filter used to walk every row to filter, then walk again to round the
+    corners, then walk again (twice) for the select-all checkbox and the
+    panel height. Rows carry a pre-lowercased name, so matching is a
+    `string.find` and no longer allocates a lowercased copy per row per
+    keystroke.
+    ]]
+    local visible = {}
+    for _, option in self._optionFrames do
+        local matches = query == "" or string.find(option.lowered, query, 1, true) ~= nil
+        option.frame.Visible = matches
+        if matches then
+            table.insert(visible, option)
         end
     end
 
-            self.emptyLabel.Visible = a79 == 0 and a78 ~= ""
-    self:_updateCorners()
-    self:_syncActions()
-    self:_resizeToOptions()
+    self.emptyLabel.Visible = #visible == 0 and query ~= ""
+    self:_updateCorners(visible)
+    self:_syncActions(visible)
+    self:_resizeToOptions(#visible)
     self:_syncScrollHint()
 end
 
@@ -861,14 +896,18 @@ function state:_syncScrollHint()
     motion.tween(self.list, { ScrollBarImageTransparency = if a84 then a34 else 1 }, a29)
 end
 
-function state:_visibleOptions(): { string }
-    local a85 = {}
-    for _, a86 in self._optionFrames do
-        if a86.frame.Visible then
-            table.insert(a85, a86.name)
-        end
+--[=[
+The names of the rows the filter is showing. `visible` is the frame list
+`_visibleFrames()` (or `_applyFilter`) already built; without it the list is
+built here, so callers outside the filter path are unchanged.
+]=]
+function state:_visibleOptions(visible): { string }
+    local names = {}
+    local frames = visible or self:_visibleFrames()
+    for _, option in frames do
+        table.insert(names, option.name)
     end
-    return a85
+    return names
 end
 
 --[[
@@ -1056,7 +1095,8 @@ function state:_buildActions()
         if self:IsLocked() or not self.window:_interactive() or not self._isOpen then
             return
         end
-        self:_toggleVisibleSelection()
+        -- One visible set for the whole toggle instead of one per helper.
+        self:_toggleVisibleSelection(self:_visibleFrames())
         self:_afterBulkChange()
     end)
     self.window:ConnectFor(self, self.clear.MouseButton1Click, function()
@@ -1075,19 +1115,19 @@ The options a bulk action applies to: what the list shows right now. Rows
 are materialised on the first open, and until then no filter can be on
 (the bar does not exist yet), so the whole option list is what is shown.
 ]]
-function state:_actionOptions(): { string }
+function state:_actionOptions(visible): { string }
     if #self._optionFrames == 0 then
         return self.options
     end
-    return self:_visibleOptions()
+    return self:_visibleOptions(visible)
 end
 
 --[[
 On when every visible option is selected. A filter that matches nothing
 leaves the box off: there is nothing there to select.
 ]]
-function state:_visibleSelection(): boolean
-    local names = self:_actionOptions()
+function state:_visibleSelection(visible): boolean
+    local names = self:_actionOptions(visible)
     if #names == 0 then
         return false
     end
@@ -1099,20 +1139,20 @@ function state:_visibleSelection(): boolean
     return true
 end
 
-function state:_toggleVisibleSelection()
-    if self:_visibleSelection() then
-        self:_clearVisibleSelection()
+function state:_toggleVisibleSelection(visible)
+    if self:_visibleSelection(visible) then
+        self:_clearVisibleSelection(visible)
         return
     end
-    for _, name in self:_actionOptions() do
+    for _, name in self:_actionOptions(visible) do
         if not table.find(self.value, name) then
             table.insert(self.value, name)
         end
     end
 end
 
-function state:_clearVisibleSelection()
-    local names = self:_actionOptions()
+function state:_clearVisibleSelection(visible)
+    local names = self:_actionOptions(visible)
     for index = #self.value, 1, -1 do
         if table.find(names, self.value[index]) then
             table.remove(self.value, index)
@@ -1130,12 +1170,12 @@ than replaying the same two tweens per character.
 An unchecked box keeps its hover brightness: a click that empties it while
 the pointer is still on it must not drop it to the idle dim.
 ]]
-function state:_syncActions()
+function state:_syncActions(visible)
     if not self.selectAllCheck then
         return
     end
 
-    local checked = self:_visibleSelection()
+    local checked = self:_visibleSelection(visible)
     local outline = if checked
         then actionStrokeChecked
         elseif self._selectAllHovered then actionStrokeHover
@@ -1165,22 +1205,19 @@ function state:_afterBulkChange()
     options.click()
 end
 
-function state:_resizeToOptions()
+function state:_resizeToOptions(visibleCount)
     if not self._isOpen then
         return
     end
-    motion.tween(self.main, { Size = UDim2.new(1, -20, 0, self:_openHeight()) }, a35)
+    motion.tween(self.main, { Size = UDim2.new(1, -20, 0, self:_openHeight(visibleCount)) }, a35)
 end
 
-function state:_updateCorners()
+function state:_updateCorners(visible)
     local rowOuter, rowInner = rowTiers(self.window)
 
-    local a97 = {}
-    for _, a98 in self._optionFrames do
-        if a98.frame.Visible then
-            table.insert(a97, a98)
-        end
-    end
+    -- `visible` is the filtered set `_applyFilter` already walked; this
+    -- function used to re-walk every row to build the same list.
+    local a97 = visible or self:_visibleFrames()
 
     for i, a99 in a97 do
         local a100 = if i == 1 then rowOuter else rowInner
@@ -1205,11 +1242,17 @@ function state:_pageHeight(): number
     return value.pageHeight(a106 and a106.Y.Offset, self.window.layout.mode)
 end
 
-function state:_openHeight()
-    local n = 0
-    for _, a107 in self._optionFrames do
-        if a107.frame.Visible then
-            n += 1
+--[=[
+`visibleCount` is the number of rows the filter left showing, when the caller
+already knows it; without it the rows are counted here.
+]=]
+function state:_openHeight(visibleCount)
+    local n = visibleCount or 0
+    if not visibleCount then
+        for _, a107 in self._optionFrames do
+            if a107.frame.Visible then
+                n += 1
+            end
         end
     end
 
@@ -1421,6 +1464,9 @@ end
 
 function state:_rebindOption(a132, a133, a134)
     a132.name = a133
+    -- Keep the cached lowercase form in step with the name: the filter
+    -- matches against it and would otherwise silently match the old text.
+    a132.lowered = string.lower(a133)
     a132.title.Text = a133
     a132.frame.LayoutOrder = a134
 end

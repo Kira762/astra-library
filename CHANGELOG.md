@@ -1,5 +1,156 @@
 # Changelog
 
+## 2026-10-07 — a dropdown's search filter walks its rows once instead of five times
+
+Typing in a dropdown's search is the one input path whose cost scales with
+the host's data — a player list of a few hundred names is ordinary, and every
+keystroke used to pay for it five times over.
+
+Before, one `_applyFilter` call walked `_optionFrames` to set each row's
+visibility, then again to round the surviving rows' corners, then again to
+collect the visible names for the select-all checkbox and again to test them,
+then again to count the rows for the panel height — five passes and two
+throwaway tables, plus a `string.lower` of every row's name on every call
+(500 lowercased strings allocated per character typed on a 500-name list).
+
+Now one pass sets visibility and collects the survivors, and that list is
+handed to everything that needs it. Each row caches its lowercased name when
+it is built, so matching is a `string.find` with no allocation.
+
+Measured with the repository's own stub harness (Luau CLI 0.640, virtual
+time; median of three runs of 150 filter applications, **not** an engine FPS
+measurement):
+
+| Options | Before | After | |
+| --- | --- | --- | --- |
+| 200 | 0.295 ms / keystroke | 0.246 ms | within noise |
+| 1,000 | 2.954 ms | 1.696 ms | **1.7× faster** |
+| 3,000 | 10.640 ms | 5.063 ms | **2.1× faster** |
+
+10.6 ms per keystroke is most of a 60 fps frame spent filtering; 5.1 ms is
+not. Below ~300 options the difference is not measurable, which is the
+honest shape of this change: it matters for big lists and is invisible on
+small ones.
+
+- **`elements/dropdown.luau`** — `_applyFilter` is the single filtering pass.
+  `_visibleFrames()` collects the survivors; `_updateCorners(visible)`,
+  `_syncActions(visible)` → `_visibleSelection(visible)` →
+  `_actionOptions(visible)` → `_visibleOptions(visible)` and
+  `_resizeToOptions(count)` → `_openHeight(count)` all accept the set the
+  caller already has and fall back to building it, so every caller outside
+  the filter path is unchanged. Option rows carry a `lowered` field, set in
+  `_buildOption` and kept in step by `_rebindOption` — a stale one would
+  make a renamed row keep matching its old name.
+- **`scripts/dropdown_filter_test.{luau,sh}`** (new) — pins what the
+  shortcuts could break: case-insensitive matching in both directions, a row
+  renamed by `Refresh` filtering on its **new** name, the select-all
+  checkbox answering for the filtered set rather than the whole option list,
+  `Clear` leaving the hidden selection alone, the panel height tracking the
+  visible row count, and clearing the query restoring every row and the
+  original height. Verified as a real test: deleting the `lowered` refresh in
+  `_rebindOption` makes it fail.
+
+## 2026-10-07 — the published bundle stops carrying its comments, and built-in window icons get their own folder
+
+Two changes, both behaviour-preserving. The first cuts what a `loadstring`
+has to fetch and parse by **26.9%** (1,100,346 → 804,679 bytes); the second
+makes the library's own glyphs a first-class folder instead of three files
+hiding inside the remote-image pipeline.
+
+**No public API changed.** `Astra.Icons`, `Icons.resolve`, the element
+constructors and every documented behaviour are exactly as they were; the
+full gate is green (50/50 runtime suites, 116 files compile).
+
+### The bundle is published stripped
+
+`version-1.luau` is the thing every user downloads. 29.4% of it was comments
+and indentation — text the Luau parser has to read and throw away, on the
+critical path of every single load. `scripts/strip_luau.js` removes both
+while preserving the line structure **exactly**: a block comment is replaced
+by the newlines it spanned instead of by nothing, and indentation is dropped
+in place rather than joined onto the previous line.
+
+That constraint is what makes it safe for a signed artifact. The bundle's
+`LineOffsets[refId]` table maps a closure's first bundle line back to line 1
+of its virtual module, and the wax runtime turns an error into
+`Astra.utilities.locale:15: ...` from it. Move a line and every traceback a
+user pastes into an issue silently points somewhere else; strip without
+moving lines and the mapping is untouched. Verified end to end: a probe
+error planted at `utilities/locale.luau` line 15 reports the identical
+`MainModule:1366: PROBE_BOOM` from the stripped and unstripped builds.
+
+- **`scripts/strip_luau.js`** (new) — a Luau-aware lexer walk. Everything is
+  copied through except comments and indentation; strings are copied byte for
+  byte, including Luau interpolated `` `...{expr}...` `` (which nest, and
+  which a naive `--`-scanner corrupts — that bug was found this way), and
+  `--!` compiler directives are kept because they are configuration, not
+  decoration. It throws rather than return output whose line count moved.
+- **`scripts/strip_equivalence_test.sh`** (new, in `check_all.sh` as step
+  6/7) — compiles every published module with `luau-compile --binary` before
+  and after stripping and requires the two blobs to be **byte-identical**.
+  Bytecode is the whole program, so this catches every class of stripper bug
+  at once instead of trusting the eye.
+- **`scripts/generate_bundle.js`** — strips each module as it is embedded.
+  `--no-strip` (or `ASTRA_BUNDLE_NO_STRIP=1`) emits a readable build for
+  debugging; the generator says which one it wrote.
+- **`scripts/check_syntax.sh`, `scripts/check_all.sh`** — the syntax gate
+  runs before the bundle-freshness step now, because the freshness step
+  rewrites `version-1.luau` and a broken tree would otherwise be reported as
+  a stale bundle first.
+
+### Built-in window icons move out of `images/`
+
+`images/` held three unrelated things: the remote image pipeline
+(`image.luau`), the rbxassetid registry for the glyphs Astra draws itself
+(`windowIcons.luau`) and the name map for those glyphs (`uiIcons.luau`) —
+and its `init.luau` returned the *pipeline* from a variable named
+`windowIcons`. Adding a built-in glyph meant editing the remote-image
+folder, and `icons/` (the seven-pack catalog hosts query) was one character
+away from it.
+
+- **`windowIcons/`** (new) — `init.luau` is the registry (`ids`, `files`,
+  `roles`, `names` plus `manifest()`, `roleForId()`, `roleList()`);
+  `icons.luau` holds the asset ids, the fallback PNG filenames and the
+  human-readable roles; `names.luau` holds the request strings handed to
+  `icons.resolve`. The two modules moved as-is, so `git log --follow` still
+  reads through the rename.
+- **`cache/imageCache.luau`, `utilities/constants.luau`** — now require
+  `windowIcons`. `constants.icons` and `constants.uiIcons` are unchanged, so
+  the ten call sites across `components/` and `settings/` are untouched.
+- **`images/init.luau`** — stopped calling the pipeline `windowIcons`.
+- **`default.project.json`, `wax.project.json`,
+  `scripts/generate_bundle.js`, `scripts/check_dangling_refs.py`,
+  `scripts/check_syntax.sh`** — the new folder is in the Rojo/wax trees, the
+  bundle tree, the published-file list and the path checker's known
+  top-level directories.
+- **Docs** — `MODULES.md` (new `## windowIcons/` section, images section
+  corrected), `README.md` (layout, development block, live checksum),
+  `assets/README.md`, `assets/window-icons/README.md`,
+  `skills/astra/references/repo-workflow.md`.
+
+### Signing
+
+`version-1.luau.sig` pins the exact bundle bytes, so every regeneration
+invalidates it. This branch is signed with a **gitignored throwaway dev key**
+(`scripts/dev_signing_key.pem`) because the production key only exists as the
+`SIGNING_KEY` Actions secret; `loader.luau`'s `PUBLIC_KEY` was re-synced to
+that dev key by `scripts/sign_bundle.js`. **CI re-signs with the production
+key when this lands on `main`** — until then, do not ship this `loader.luau`
+as a release. The previous public key was
+`29e4f604da9e4134f0959207485de3cefddc1f6696257d79db74de7015d85956`.
+
+### Considered and deliberately not done
+
+- **Indexing `Window.themeProperties` by theme key** so a partial
+  `ChangeTheme` (the brand-font pass sends only `Font`/`TitleFont`) visits
+  just the affected bindings. Real, but it adds a second structure that must
+  stay in sync with the first across `Window:Create` and both teardown paths
+  — and a desync shows up as instances that silently keep the old theme. Not
+  worth it for a walk of ~700 entries that happens on a user action.
+- **Minifying identifier names.** The 26.9% is comments and indentation;
+  renaming locals would have broken the public API's `export type` surface
+  and every `self.x` field the tests read, for a few percent more.
+
 ## Unreleased — Mode Picker removed; the lock controller is a toggle
 
 The Mode Picker is gone. `tab:CreateModePicker` / `group:CreateModePicker` and

@@ -2,7 +2,7 @@ local filesystem = require(script.Parent.Parent.utilities.filesystem)
 local path = require(script.Parent.Parent.utilities.path)
 local variables = require(script.Parent.Parent.core.state)
 local constants = require(script.Parent.Parent.utilities.constants)
-local windowIcons = require(script.Parent.Parent.images.windowIcons)
+local windowIcons = require(script.Parent.Parent.windowIcons)
 
 export type RewriteMap = { [number]: string }
 export type CacheSettledCallback = (failed: number, failedRoles: { string }) -> ()

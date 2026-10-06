@@ -63,7 +63,7 @@ compile_one() {
 }
 
 FILES=""
-for dir in core components elements settings cache functions layouts images icons themes utilities; do
+for dir in core components elements settings cache functions layouts images windowIcons icons themes utilities; do
 	if [ -d "$dir" ]; then
 		FILES="$FILES $(find "$dir" -name '*.luau' | sort)"
 	fi

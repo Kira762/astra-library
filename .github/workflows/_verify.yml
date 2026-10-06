@@ -1,0 +1,117 @@
+# Reusable verification gate for the published artifacts.
+#
+# This used to be one inlined job inside "Sign bundle", which meant the
+# release pipeline had no way to run it: a tag could publish bytes that had
+# never been through the integrity matrix. Factoring it into a workflow_call
+# template (the same shape DeepGEMM uses for its wheel builds) lets both the
+# push/PR gate and the tag-driven release call the identical steps, with the
+# release passing the tag as `ref` so it verifies the tree it is about to
+# publish rather than whatever main happens to be.
+#
+# Outputs the version and the bundle digest so callers can name assets and
+# write release notes without recomputing them.
+name: ~Verify bundle template
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to verify. Empty means the triggering ref."
+        required: false
+        type: string
+        default: ""
+      tag:
+        description: "Tag to cross-check against ASTRA_VERSION, e.g. v1.0.0."
+        required: false
+        type: string
+        default: ""
+      runs-on:
+        description: "Runner to verify on."
+        required: false
+        type: string
+        default: ubuntu-latest
+    outputs:
+      version:
+        description: "ASTRA_VERSION at the verified ref."
+        value: ${{ jobs.verify.outputs.version }}
+      digest:
+        description: "sha256(version-1.luau) at the verified ref."
+        value: ${{ jobs.verify.outputs.digest }}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash -e -u -o pipefail {0}
+
+jobs:
+  verify:
+    name: Verify artifacts
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.facts.outputs.version }}
+      digest: ${{ steps.facts.outputs.digest }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Luau CLI (same family the local gates use)
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/luau.zip" \
+            https://github.com/luau-lang/luau/releases/latest/download/luau-ubuntu.zip
+          unzip -q "$RUNNER_TEMP/luau.zip" -d "$RUNNER_TEMP/luau-bin"
+          sudo install -m 755 "$RUNNER_TEMP/luau-bin/luau" /usr/local/bin/luau
+          if [ -f "$RUNNER_TEMP/luau-bin/luau-compile" ]; then
+            sudo install -m 755 "$RUNNER_TEMP/luau-bin/luau-compile" /usr/local/bin/luau-compile
+          fi
+
+      # Runs first: if the version story does not add up there is no point
+      # spending fifteen minutes proving the bytes compile.
+      - name: Release consistency
+        # Passed through the environment rather than interpolated into the
+        # script body, so a tag name can never become shell.
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [ -n "$TAG" ]; then
+            sh scripts/check_release_consistency.sh --tag "$TAG"
+          else
+            sh scripts/check_release_consistency.sh
+          fi
+
+      - name: Signature digest check
+        run: node scripts/sign_bundle.js --verify
+
+      - name: Syntax gate
+        run: sh scripts/check_syntax.sh
+
+      - name: Loader crypto vectors
+        run: sh scripts/loader_crypto_test.sh
+
+      - name: Loader integrity matrix
+        run: sh scripts/loader_integrity_test.sh
+
+      - name: Publish the verified facts
+        id: facts
+        run: |
+          version="$(tr -d ' \t\n\r' <ASTRA_VERSION)"
+          digest="$(node scripts/sign_bundle.js --print-digest | tr -d ' \n\r')"
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+          echo "digest=$digest" >>"$GITHUB_OUTPUT"
+          {
+            echo "### Verified \`$version\`"
+            echo ""
+            echo '```'
+            echo "sha256(version-1.luau)  $digest"
+            echo "signed record           ASTRA-BUNDLE-V1|$version|$digest"
+            echo '```'
+          } >>"$GITHUB_STEP_SUMMARY"

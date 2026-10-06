@@ -38,7 +38,7 @@ GENERATED_FILES = {"version-1.luau"}
 TOP_LEVEL_DIRS = {
     "core", "components", "elements", "settings", "cache", "functions",
     "layouts", "images", "icons", "themes", "utilities", "scripts",
-    "skills", "assets",
+    "skills", "assets", "docs",
 }
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_./\-]*")

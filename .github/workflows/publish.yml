@@ -1,0 +1,175 @@
+# Publish a release when a v* tag is pushed.
+#
+# Why this exists: the documented one-liner loads loader.luau and
+# version-1.luau from `main`, which is a moving target. Anyone who wants a
+# build that cannot change under them — or who needs to prove which bytes
+# they shipped against — had nothing to point at, because the repository has
+# never cut a release. A tag now produces an immutable copy of the exact
+# verified artifacts, with the checksum and the signed record printed
+# alongside them.
+#
+# Shape borrowed from DeepGEMM's publish.yml: a tag creates the release, the
+# verification template runs against the tagged tree, and only then are the
+# artifacts attached. Deviations are deliberate — this uses `on: push.tags`
+# (the `tags:` filter is silently ignored under `on: create`) and the `gh`
+# CLI instead of the archived actions/create-release and
+# actions/upload-release-asset actions.
+#
+#   git tag v1.0.1 && git push origin v1.0.1
+name: Publish release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing v* tag to publish, e.g. v1.0.0"
+        required: true
+        type: string
+      draft:
+        description: "Create the release as a draft"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Resolve the tag once so every later job agrees on what is being released.
+  setup_release:
+    name: Resolve tag
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - name: Resolve the tag being published
+        id: resolve
+        # Both candidate tags arrive through the environment, never
+        # interpolated into the script body: a tag name is attacker-shaped
+        # input the moment anyone with push access is compromised.
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -eu
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            tag="$INPUT_TAG"
+          else
+            tag="${GITHUB_REF#refs/tags/}"
+          fi
+          case "$tag" in
+            v[0-9]*) ;;
+            *) echo "refusing to publish '$tag': expected a v<MAJOR.MINOR.PATCH> tag" >&2; exit 1 ;;
+          esac
+          echo "tag=$tag" >>"$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >>"$GITHUB_OUTPUT"
+          echo "Publishing $tag"
+
+  # The same gate the push/PR workflow runs, pointed at the tagged tree. The
+  # tag is passed through so the consistency check can refuse a tag that
+  # disagrees with ASTRA_VERSION — v1.1.0 can only ever carry a bundle that
+  # calls itself 1.1.0.
+  verify:
+    needs: setup_release
+    uses: ./.github/workflows/_verify.yml
+    with:
+      ref: ${{ needs.setup_release.outputs.tag }}
+      tag: ${{ needs.setup_release.outputs.tag }}
+
+  publish_release:
+    name: Create release
+    needs: [setup_release, verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the tagged tree
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup_release.outputs.tag }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Everything a consumer needs to pin to, plus the means to check it:
+      # the bundle, its detached signature, the loader that verifies them,
+      # and a SHA256SUMS they can run sha256sum -c against.
+      - name: Stage release assets
+        id: stage
+        run: |
+          set -eu
+          mkdir -p dist
+          cp version-1.luau version-1.luau.sig loader.luau ASTRA_VERSION dist/
+          ( cd dist && sha256sum version-1.luau version-1.luau.sig loader.luau >SHA256SUMS )
+          cat dist/SHA256SUMS
+
+          # Read both from the tagged tree rather than from the tag name.
+          # They are already proven equal — verify ran with --tag — so taking
+          # them from the files keeps the record identical to the one the
+          # signature actually covers.
+          version="$(tr -d ' \t\n\r' <ASTRA_VERSION)"
+          digest="$(node scripts/sign_bundle.js --print-digest | tr -d ' \n\r')"
+          printf 'ASTRA-BUNDLE-V1|%s|%s\n' "$version" "$digest" >dist/SIGNED_RECORD
+          echo "digest=$digest" >>"$GITHUB_OUTPUT"
+
+      - name: Build the release notes
+        run: |
+          set -eu
+          sh scripts/release.sh --notes >"$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+
+      - name: Create the release and attach the verified artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.setup_release.outputs.tag }}
+          DRAFT: ${{ github.event_name == 'workflow_dispatch' && inputs.draft }}
+        run: |
+          set -eu
+          args=""
+          if [ "$DRAFT" = "true" ]; then
+            args="--draft"
+          fi
+          # A hyphen in the tag means a prerelease: v1.1.0-rc.1 must not
+          # become the "latest" release people are pointed at.
+          case "$TAG" in
+            *-*) args="$args --prerelease" ;;
+          esac
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "release $TAG already exists — updating notes and assets"
+            gh release edit "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
+            gh release upload "$TAG" dist/* --clobber
+          else
+            # shellcheck disable=SC2086  # $args is a deliberate word split
+            gh release create "$TAG" dist/* \
+              --title "Astra $TAG" \
+              --notes-file "$RUNNER_TEMP/notes.md" \
+              --verify-tag \
+              $args
+          fi
+
+      - name: Summarise
+        env:
+          TAG: ${{ needs.setup_release.outputs.tag }}
+          DIGEST: ${{ steps.stage.outputs.digest }}
+        run: |
+          {
+            echo "## Published \`$TAG\`"
+            echo ""
+            echo "| Asset | Purpose |"
+            echo "|---|---|"
+            echo "| \`version-1.luau\` | the signed bundle |"
+            echo "| \`version-1.luau.sig\` | detached Ed25519 signature |"
+            echo "| \`loader.luau\` | the verifying loader published at this tag |"
+            echo "| \`SHA256SUMS\` | \`sha256sum -c SHA256SUMS\` |"
+            echo "| \`SIGNED_RECORD\` | the exact string the signature covers |"
+            echo ""
+            echo "\`sha256(version-1.luau) = $DIGEST\`"
+          } >>"$GITHUB_STEP_SUMMARY"

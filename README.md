@@ -8,7 +8,35 @@ steppers, dropdowns, inputs, letter-only keybinds, stats, text, dividers, groups
 collapsible groups and changelog — with built-in settings, themes, icon packs,
 saved configs and staged startup.
 
+## News
+
+- **Unreleased** — tag-driven releases with a single verification gate both CI
+  pipelines call; HttpGuard detects HttpSpy-style interception and fails
+  closed; the Stepper and Mode Picker elements; five cumulative Elements Lock
+  Modes; autosaved configs listed in settings; motion is built-in and the
+  Animation speed setting is gone.
+    - Every entry, with the reasoning: [CHANGELOG.md](CHANGELOG.md).
+- 2026-09-23 — Signed loader channel: Ed25519-verified bundle delivery with
+  silent fail-closed stubs.
+    - Also: Default font selection, and five Link copy-tap fixes.
+- 2026-09-22 — New standalone key gate `Astra:CreateKeySystem`, and the example
+  became a ten-tab studio where every control does something.
+    - Also: the instance-field and dangling-reference static gates.
+- 2026-09-21 — Hardware-adaptive performance engine, single-UI architecture and
+  aesthetic motion.
+    - Also: the three-tier corner scale, letter-only key capture, the About card.
+
 ## Use the library
+
+### Requirements
+
+- A Roblox executor that provides `loadstring` — plain Studio does not, so use
+  the Rojo/ModuleScript path there instead
+- `HttpService` requests enabled, with `raw.githubusercontent.com` reachable
+- Nothing to install, build or vendor: the loader fetches, verifies and runs the
+  bundle at runtime
+
+### Loading
 
 The official one-liner loads through the verifying loader:
 
@@ -27,11 +55,19 @@ tab:CreateButton({
 tab:Select()
 ```
 
-Two things have to be right: the runtime must provide `loadstring` (executors do,
-plain Studio does not) and `HttpService` requests must be enabled. In Studio/Rojo
-the same library is a ModuleScript — `require(game:GetService("ReplicatedStorage").Astra)`.
-Always load the published artifacts from the repository root; the modular folders
-are the bundle's source, not a runtime entry point.
+In Studio/Rojo the same library is a ModuleScript —
+`require(game:GetService("ReplicatedStorage").Astra)`. Always load the published
+artifacts from the repository root; the modular folders are the bundle's source,
+not a runtime entry point.
+
+### Pin to a release
+
+`main` moves, so the one-liner above picks up fixes without anyone changing
+anything. When you need a build that cannot change under you, use a tagged
+release instead: every `v*` tag publishes the exact verified artifacts —
+`version-1.luau`, `version-1.luau.sig` and `loader.luau`, plus a `SHA256SUMS`
+and the signed record — as assets you can vendor or check against. See
+[docs/release-process.md](docs/release-process.md).
 
 ## Integrity and verification
 
@@ -110,6 +146,7 @@ skills/astra/
 | [MODULES.md](MODULES.md) | Module-by-module reference, including the meaning of minified locals. |
 | [CHANGELOG.md](CHANGELOG.md) | Dated entries explaining each behaviour change. |
 | [PERFORMANCE_CHANGES.md](PERFORMANCE_CHANGES.md) | Startup and instance-budget work with measured numbers. |
+| [docs/release-process.md](docs/release-process.md) | What a version binds together, how a release is cut and verified, what a tag publishes, and how to pin to it. |
 | [assets/icons/README.md](assets/icons/README.md) | Visual icon catalog with copyable names across all seven packs. |
 | [example.client.luau](example.client.luau) | Key-gated ten-tab working studio: every element plus live character, lighting, teleport, sampler, persistence, theme and window controls, built inside `CreateKeySystem`'s `onSuccess` (demo key `ASTRA-STUDIO-2026`). |
 | [changelog.example.luau](changelog.example.luau) | Host-side changelog data file consumed by the Changelog element. |
@@ -124,7 +161,8 @@ core/ components/         runtime, window shell, overlays, settings UI
 elements/                 one module per element plus tab/group/section
 settings/ themes/ icons/  settings registry, the default palette, icon packs
 utilities/                motion, persistence, icons, locale, layouts, diagnostics
-scripts/                  bundle generator, static checkers, runtime tests
+scripts/                  bundle generator, static checkers, release flow, runtime tests
+docs/                     long-form process documentation
 skills/astra/             the published Agent Skill
 ```
 
@@ -133,14 +171,30 @@ skills/astra/             the published Agent Skill
 ```sh
 node scripts/generate_bundle.js             # regenerate version-1.luau from the tree
 sh scripts/install_luau.sh                 # build the Luau toolchain into .tools/bin (once)
-sh scripts/check_all.sh                    # requires + field refs + dangling refs + bundle + syntax + tests
+sh scripts/check_all.sh                    # requires + field refs + dangling refs + bundle + release + syntax + tests
 sh scripts/check_syntax.sh                  # compile every published .luau file
 python3 scripts/check_requires.py           # require paths and cycles
 python3 scripts/check_instance_fields.py    # no custom fields written on Instances
 python3 scripts/check_dangling_refs.py      # .luau/.md paths must exist in the repo
+sh scripts/check_release_consistency.sh     # version, digest, signature and README agree
 sh scripts/smoke_test_bundle.sh             # runtime smoke test of the bundle
 sh scripts/<feature>_test.sh                # per-feature runtime tests
 ```
+
+## Releasing
+
+```sh
+sh scripts/release.sh --version 1.1.0 --stamp   # bump, regenerate, sign, resync, preflight
+sh scripts/check_all.sh                          # full gate
+# commit, push, merge to main (CI re-signs with the production key)
+git tag v1.1.0 && git push origin v1.1.0         # the tag is what publishes
+```
+
+The tag starts `.github/workflows/publish.yml`, which re-runs the same
+verification gate against the tagged tree — refusing a tag that disagrees with
+`ASTRA_VERSION` — and then creates the GitHub release with the signed artifacts
+attached. Full detail, including the failure modes and what each version claim
+binds, is in [docs/release-process.md](docs/release-process.md).
 
 `check_syntax.sh` and the runtime tests need the [Luau CLI](https://github.com/luau-lang/luau/releases)
 (`luau-compile`, or `luau --compile`) in `PATH`, `/tmp` or `/usr/local/bin`; without

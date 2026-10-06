@@ -9,6 +9,9 @@
 # Obfuscation (build spec #5) happens outside CI: everything here runs on the
 # pre-obfuscation loader.luau artifact, which is the same file contributors
 # test.
+#
+# The verification steps themselves live in _verify.yml so that the release
+# pipeline (publish.yml) runs the identical gate against the tagged tree.
 name: Sign bundle
 
 on:
@@ -19,63 +22,42 @@ on:
       - "version-1.luau.sig"
       - "loader.luau"
       - "ASTRA_VERSION"
+      - "README.md"
       - "scripts/sign_bundle.js"
+      - "scripts/check_release_consistency.sh"
+      - "scripts/release.sh"
       - "scripts/loader_integrity_test.sh"
       - "scripts/loader_crypto_test.sh"
       - "scripts/check_syntax.sh"
+      - ".github/workflows/sign-bundle.yml"
+      - ".github/workflows/_verify.yml"
   pull_request:
     paths:
       - "version-1.luau"
       - "version-1.luau.sig"
       - "loader.luau"
       - "ASTRA_VERSION"
+      - "README.md"
       - "scripts/sign_bundle.js"
+      - "scripts/check_release_consistency.sh"
+      - "scripts/release.sh"
       - "scripts/loader_integrity_test.sh"
       - "scripts/loader_crypto_test.sh"
       - "scripts/check_syntax.sh"
+      - ".github/workflows/sign-bundle.yml"
+      - ".github/workflows/_verify.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  # Always runs: digest consistency, syntax gate, crypto vectors, and the
-  # end-to-end integrity matrix (tamper / missing / wrong key / stale version /
-  # fetch failure / canary trip → silent stub; valid → real API).
+  # Always runs: version/digest/README/tag consistency, signature digest,
+  # syntax gate, crypto vectors, and the end-to-end integrity matrix (tamper /
+  # missing / wrong key / stale version / fetch failure / canary trip → silent
+  # stub; valid → real API).
   verify:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Check out the repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - name: Install Luau CLI (same family the local gates use)
-        run: |
-          set -eu
-          curl -fsSL -o "$RUNNER_TEMP/luau.zip" \
-            https://github.com/luau-lang/luau/releases/latest/download/luau-ubuntu.zip
-          unzip -q "$RUNNER_TEMP/luau.zip" -d "$RUNNER_TEMP/luau-bin"
-          sudo install -m 755 "$RUNNER_TEMP/luau-bin/luau" /usr/local/bin/luau
-          if [ -f "$RUNNER_TEMP/luau-bin/luau-compile" ]; then
-            sudo install -m 755 "$RUNNER_TEMP/luau-bin/luau-compile" /usr/local/bin/luau-compile
-          fi
-
-      - name: Signature digest check
-        run: node scripts/sign_bundle.js --verify
-
-      - name: Syntax gate
-        run: sh scripts/check_syntax.sh
-
-      - name: Loader crypto vectors
-        run: sh scripts/loader_crypto_test.sh
-
-      - name: Loader integrity matrix
-        run: sh scripts/loader_integrity_test.sh
+    uses: ./.github/workflows/_verify.yml
 
   # Runs only for pushes to main, and only signs when the SIGNING_KEY secret
   # exists. No secret → verify and stop; the workflow never fails a repo that
@@ -120,3 +102,9 @@ jobs:
           git add version-1.luau.sig loader.luau
           git commit -m "chore: sign version-1.luau [skip ci]"
           git push
+
+      # Signing rewrites loader.luau's PUBLIC_KEY pin, so the pin, the
+      # signature and the checksum the README publishes have to be re-checked
+      # against each other once the production key has been applied.
+      - name: Re-check consistency after signing
+        run: sh scripts/check_release_consistency.sh

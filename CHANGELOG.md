@@ -1,5 +1,49 @@
 # Changelog
 
+## Unreleased — Tag-driven releases: one verification gate, reusable by CI
+
+The documented one-liner loads `loader.luau` and `version-1.luau` from `main`,
+which is a moving target, and the repository had never cut a release — so
+nobody could pin to a build that cannot change under them, and nothing held
+the five places that state a version against each other. `ASTRA_VERSION`, the
+loader's `EXPECTED_BUNDLE_VERSION` pin, the detached signature, the checksum
+the README tells users to trust and the git tag could all drift in silence.
+
+- **`scripts/check_release_consistency.sh`** (new) — makes the bundle digest
+  the single source of truth and holds everything else against it: version
+  shape, node vs. `sha256sum` cross-check, the loader version pin, a 64-hex
+  `PUBLIC_KEY`, a 128-hex signature, the README's published checksum, the
+  Ed25519 signature itself, and (with `--tag`) that the tag equals
+  `v$ASTRA_VERSION`. Exit 2 when node is missing, so it reports "not checked"
+  rather than passing silently.
+- **`scripts/release.sh`** (new) — the release flow in one command: bump
+  `ASTRA_VERSION`, optionally stamp the leading `## Unreleased` entries as
+  `## YYYY-MM-DD (vX.Y.Z)`, regenerate the bundle, sign it, rewrite the README
+  checksum from the digest it just computed, then refuse to finish unless the
+  consistency gate agrees. `--notes` prints the release body; it reads the
+  leading unreleased entries, or this version's stamped ones on a tag build.
+  Warns when it is about to sign with the gitignored dev key.
+- **`.github/workflows/_verify.yml`** (new) — the verification steps, which
+  used to be inlined in Sign bundle and therefore unreachable from a release,
+  factored into a `workflow_call` template that takes a `ref` and a `tag` and
+  outputs the version and digest.
+- **`.github/workflows/publish.yml`** (new) — pushing a `v*` tag resolves and
+  validates the tag, runs `_verify.yml` against the tagged tree, then creates
+  the GitHub release with `version-1.luau`, `version-1.luau.sig`,
+  `loader.luau`, `ASTRA_VERSION`, `SHA256SUMS` and `SIGNED_RECORD` attached.
+  `-` in a tag means prerelease; re-running updates an existing release;
+  `workflow_dispatch` publishes an existing tag as a draft.
+- **`.github/workflows/sign-bundle.yml`** — now calls `_verify.yml` instead of
+  carrying its own copy, watches `README.md` and the new scripts, and
+  re-checks consistency after signing with the production key.
+- **`scripts/check_all.sh`** — seven sections instead of six; release
+  consistency runs between the bundle freshness check and the syntax gate.
+- **`scripts/check_dangling_refs.py`** — `docs/` is a known top-level
+  directory, so paths into it are validated like any other.
+- **`docs/release-process.md`** (new), **`README.md`** — the process doc, plus
+  a News section, a Requirements list, how to pin to a release, and a
+  Releasing section in the README.
+
 ## Unreleased — HttpGuard: HttpSpy-style interception detection, strict where it matters
 
 Scripts running under an HTTP spy (HttpSpy and its forks hook `game:HttpGet`,

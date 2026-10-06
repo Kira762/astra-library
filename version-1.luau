@@ -12,7 +12,7 @@ local ImportGlobals
 -- __recFP snapshots the environment when the MainModule closure starts,
 -- __checkFP re-snapshots after every module has loaded; a mismatch means
 -- something was replaced mid-load. Silent: failure returns a no-op stub.
-local ExpectedClosureCount = 116;
+local ExpectedClosureCount = 114;
 local __fp
 local function __snap()
     return table.concat({
@@ -94,7 +94,6 @@ export type DropdownProps = types.DropdownProps
 export type InputProps = types.InputProps
 export type StatProps = types.StatProps
 export type TextProps = types.TextProps
-export type PageHeaderProps = types.PageHeaderProps
 export type DividerProps = types.DividerProps
 export type AboutCardRow = types.AboutCardRow
 export type AboutCardAction = types.AboutCardAction
@@ -122,7 +121,6 @@ export type Stat = types.Stat
 export type Section = types.Section
 export type TabSection = types.TabSection
 export type Text = types.Text
-export type PageHeader = types.PageHeader
 export type Divider = types.Divider
 export type AboutCard = types.AboutCard
 export type Popup = types.Popup
@@ -571,17 +569,6 @@ export type SectionProps = {
     icon: (string | number)?,
 }
 
---[[
-The flat page header. `meta` is one muted line (a table is joined with " · ")
-and `body` is the optional prose paragraph, capped at the reading measure.
-No icon: the window header owns the brand.
-]]
-export type PageHeaderProps = {
-    name: string?,
-    meta: (string | { string })?,
-    body: string?,
-}
-
 export type TextProps = {
     name: string?,     text: string?,
 }
@@ -961,15 +948,6 @@ export type Text = Moveable & {
     SetTitle: (self: Text, title: string) -> (),
 }
 
-export type PageHeader = Moveable & {
-    name: string,
-    meta: string?,
-    body: string?,
-    SetTitle: (self: PageHeader, title: string) -> (),
-    SetMeta: (self: PageHeader, meta: (string | { string })?) -> (),
-    SetBody: (self: PageHeader, body: string?) -> (),
-}
-
 export type Footer = Moveable & {
     -- The normalised run: ordered `{ kind = "text" | "icon", value }` entries.
     parts: { FooterPart },
@@ -1065,7 +1043,6 @@ export type Tab = {
     CreateAboutCard: (self: Tab, props: AboutCardProps) -> AboutCard,
     CreateStat: (self: Tab, props: StatProps) -> Stat,
     CreateSection: (self: Tab, props: SectionProps) -> Section,
-    CreatePageHeader: (self: Tab, props: PageHeaderProps) -> PageHeader,
     CreateText: (self: Tab, props: TextProps) -> Text,
     CreateFooter: (self: Tab, props: FooterProps?) -> Footer,
     CreateChangelog: (self: Tab, props: ChangelogProps) -> Changelog,
@@ -1285,7 +1262,6 @@ local log = require(script.Parent.Parent.utilities.log)
 local fileSystemManager = require(script.Parent.Parent.utilities.filesystemManager)
 local assetResolver = require(script.Parent.Parent.utilities.assetResolver)
 local fontManager = require(script.Parent.Parent.utilities.fontManager)
-local tokens = require(script.Parent.Parent.utilities.tokens)
 
 type FileSystemManager = fileSystemManager.FileSystemManager
 type AssetResolver = assetResolver.AssetResolver
@@ -1366,8 +1342,9 @@ state.fallbackFont = Font.fromEnum(Enum.Font.BuilderSans)
 
 --[[
 Live font selection behind the Font/TitleFont theme keys: "default"
-(stock fallback family) or "brand" (constants.brandFontName). Library-wide
-like the motion profile, since theme resolution reads it on every resolve.
+(stock fallback family — the original Roblox look) or "brand"
+(constants.fontAsset). Library-wide like the motion profile, since
+theme resolution reads it on every resolve.
 ]]
 state.fontChoice = constants.defaultFontChoice
 
@@ -1396,47 +1373,11 @@ function state.setFallbackFont(font: Enum.Font | Font)
 	end
 end
 
---[[
-The two weights the interface uses, and the only two: body copy and labels
-rest on `regular`, titles and the page heading on `strong`. Both are read
-from the design tokens so a weight can never be introduced element by
-element (see utilities/tokens.luau).
-]]
-local regularWeight = tokens.weight.regular
-local strongWeight = tokens.weight.strong
-
---[[
-The neutral UI face behind the `brand` selection (Settings → Appearance →
-Font). Resolved through the stock font catalogue by family name and cached
-per weight: a host that never selects it never pays for it, and where the
-catalogue cannot answer the library keeps the stock fallback family instead
-of rendering nothing.
-]]
-local brandFaces = {}
-local function brandFace(weight: Enum.FontWeight?): Font
-	local key = tostring(weight)
-	local cached = brandFaces[key]
-	if cached then
-		return cached
-	end
-	local resolved
-	local ok, font = pcall(function()
-		return Font.fromName(constants.brandFontName, weight)
-	end)
-	if ok and typeof(font) == "Font" then
-		resolved = font
-	else
-		resolved = Font.new(state.fallbackFont.Family, weight)
-	end
-	brandFaces[key] = resolved
-	return resolved
-end
-
 function state.brandFont(weight: Enum.FontWeight?): Font
 	if state.secureMode or state.fontChoice ~= "brand" then
 		return Font.new(state.fallbackFont.Family, weight)
 	end
-	return brandFace(weight)
+	return Font.new(constants.fontAsset, weight)
 end
 
 function state.setFontChoice(choice: string)
@@ -1444,21 +1385,26 @@ function state.setFontChoice(choice: string)
 end
 
 --[[
-The pair the theme keys and the runtime font switch apply: body weight
-first, title weight second. Both selections are neutral UI faces — the
-stock family, or the catalogue family named in constants — so the pair
-differs only by its letterforms, never by its weight scale.
+The Medium/SemiBold pair the theme keys and the runtime font switch
+apply. Yields only in secure mode with the brand selected — the font
+manager downloads the family once — and falls back to the stock pair
+when the brand cannot resolve.
 ]]
 function state.brandFontPair(): (Font, Font)
 	if state.fontChoice == "brand" then
-		local bodyFont = brandFace(regularWeight)
-		local titleFont = brandFace(strongWeight)
-		if bodyFont and titleFont then
-			return bodyFont, titleFont
+		if state.secureMode then
+			local mediumFont = state.fontManager:loadFont(constants.fontAsset, Enum.FontWeight.Medium)
+			local semiBoldFont = state.fontManager:loadFont(constants.fontAsset, Enum.FontWeight.SemiBold)
+			if mediumFont and semiBoldFont then
+				return mediumFont, semiBoldFont
+			end
+		else
+			local family = constants.fontAsset
+			return Font.new(family, Enum.FontWeight.Medium), Font.new(family, Enum.FontWeight.SemiBold)
 		end
 	end
 	local family = state.fallbackFont.Family
-	return Font.new(family, regularWeight), Font.new(family, strongWeight)
+	return Font.new(family, Enum.FontWeight.Medium), Font.new(family, Enum.FontWeight.SemiBold)
 end
 
 return state
@@ -1612,7 +1558,6 @@ local state = require(utilities.Parent.core.state)
 local motion = require(utilities.motion)
 local fs = require(utilities.filesystem)
 local constants = require(utilities.constants)
-local tokens = require(utilities.tokens)
 local locale = require(utilities.locale)
 local haptic = require(utilities.HapticEngine)
 
@@ -1666,7 +1611,7 @@ function chrome.buildCollapsedFace(window)
         Text = window.showName,
         Size = UDim2.new(1, 0, 0, 16),
         BackgroundTransparency = 1,
-        FontFace = state.brandFont(tokens.weight.strong),
+        FontFace = state.brandFont(Enum.FontWeight.Medium),
         RichText = true,
         TextSize = 16,
         TextWrapped = true,
@@ -1682,7 +1627,7 @@ function chrome.buildCollapsedFace(window)
         Text = locale.t("Tap to show"),
         Size = UDim2.new(1, 0, 0, 14),
         BackgroundTransparency = 1,
-        FontFace = state.brandFont(tokens.weight.regular),
+        FontFace = state.brandFont(Enum.FontWeight.Medium),
         TextSize = 14,
         TextXAlignment = Enum.TextXAlignment.Left,
         LayoutOrder = 2,
@@ -5120,7 +5065,6 @@ local state = require(utilities.Parent.core.state)
 local motion = require(utilities.motion)
 local constants = require(utilities.constants)
 local locale = require(utilities.locale)
-local tokens = require(utilities.tokens)
 local actionComponent = require(script.Parent.action)
 
 local search = {}
@@ -5350,7 +5294,7 @@ function search.buildContent(window)
     window.searchEmpty = window:Create("TextLabel", {
         Name = "NoResults",
         Text = locale.t("No results"),
-        FontFace = state.brandFont(tokens.weight.regular),
+        FontFace = state.brandFont(Enum.FontWeight.Medium),
         TextSize = 15,
         TextTransparency = 0.6,
         BackgroundTransparency = 1,
@@ -5502,18 +5446,19 @@ function settingsComponent.buildUI(window)
 
     local function buildAbout()
         --[[
-        The Overview page is kept deliberately short and flat: a page header
-        (one title, one muted metadata line) plus a single repository link —
+        The About page is kept deliberately short: one compact About card
+        (brand header plus two data tiles) and a single repository link —
         the usage guide, releases and issues all live behind that link.
-        There is no brand block here on purpose: the window header already
-        carries the logo, the name and the subtitle, and repeating them in
-        the content area is the duplication the flat page removes. The
-        version and author strings live at the top of this module.
+        The version and author strings live at the top of this module.
         ]]
-        about:CreatePageHeader({
-            name = "Overview",
-            meta = { "v" .. aboutVersion, aboutAuthor },
-            body = "Controls, appearance and persistence live in the tabs beside this one. The repository below carries the docs, releases and issues.",
+        about:CreateAboutCard({
+            name = "Astra",
+            subtitle = "UI Library for a better experience.",
+            icon = constants.icons.dot,
+            rows = {
+                { icon = "code", label = "Version", value = aboutVersion },
+                { icon = "user", label = "Author", value = aboutAuthor },
+            },
         })
         about:CreateLink({
             name = "Repository", subtitle = "Docs, releases and issues", icon = "code",
@@ -5647,14 +5592,9 @@ function settingsComponent.buildUI(window)
         "Animation speed" setting is gone: the library plays at its
         built-in motion (the normal language, faster — never instant).
         ]]
-        --[[
-        Both choices are neutral UI faces: the stock family and the
-        catalogue family the brand option resolves to. The labels name the
-        faces rather than the library, so a host knows what it is picking.
-        ]]
-        local fontLabels = { default = "System", brand = constants.brandFontName }
-        local fontOptions = { "System", constants.brandFontName }
-        local fontChoices = { System = "default", [constants.brandFontName] = "brand" }
+        local fontLabels = { default = "Default", brand = "Astra" }
+        local fontOptions = { "Default", "Astra" }
+        local fontChoices = { Default = "default", Astra = "brand" }
 
         appearance:CreateDropdown({
             name = "Font",
@@ -6096,7 +6036,6 @@ local state = require(utilities.Parent.core.state)
 local motion = require(utilities.motion)
 local functions = require(script.Parent.Parent.functions)
 local locale = require(utilities.locale)
-local tokens = require(utilities.tokens)
 
 local tabSelector = {}
 
@@ -6116,30 +6055,35 @@ local function getInitial(str: string?): string
 end
 
 --[[
-Row colour contract — a nav row is a quiet row.
-
-There is no outline and no shadow on a row, in any state: the rail's own
-surface is the row's resting look, so the eye reads a list of names instead
-of a stack of boxes. State is carried by fill and by the accent bar:
-
-  * resting   — the rail's surface, muted content,
-  * hover     — a subtle fill (one step off the rail, never a card),
-  * selected  — the elements-area fill (ElementSurface, opaque, so the open
-                row continues into the content it opens) plus the 3px accent
-                bar on the leading edge,
-  * hidden    — everything faded out for a reveal.
-
-`accent` is the bar's own alpha, so a fade of the row fades the bar with it
-instead of switching it on and off at a different time.
+Row colour contract: the row's base is ElementSurface — the same theme
+token the elements area is painted with — so the selected row (opaque)
+reads as a continuation of the content it opens. Unselected rows go
+fully transparent and fall back to the rail's SidebarSurface underneath,
+i.e. the tab-area shade; hover changes only the outline and content.
+(The old TabBackground gradient tinted every row off both bands,
+which is why the rail used to bleed into the topbar.)
 ]]
 tabSelector.states = {
     sidebar = {
-        selected = { background = 0, content = 0, accent = 0 },
-        hover = { background = 0.88, content = 0.25, accent = 1 },
-        unselected = { background = 1, content = 0.5, accent = 1 },
-        hidden = { background = 1, content = 1, accent = 1 },
+        selected = { background = 0, stroke = 0.5, content = 0, shadow = 0.8 },
+        hover = { background = 1, stroke = 0.8, content = 0.3, shadow = 1 },
+        unselected = { background = 1, stroke = 0.8, content = 0.5, shadow = 1 },
+        hidden = { background = 1, stroke = 1, content = 1, shadow = 1 },
     },
 }
+
+local function buildGradients(tab, item, stroke)
+    --[[
+    Only the stroke keeps its gradient: the row's own fill is now the
+    solid ElementSurface token (bound on topbarItem below), so a
+    background gradient would tint the selected row off the elements
+    area it is meant to connect to.
+    ]]
+    tab.topbarItemStrokeGradient = tab.window:Create("UIGradient", {
+        Rotation = 90,
+        Parent = stroke,
+    }, { Color = { "TabStroke", functions.toColorSequence } })
+end
 
 --[[
 Trailing lock badge: a small glyph pinned to the row's right edge,
@@ -6192,10 +6136,10 @@ local function buildContent(tab, layout, iconSize, useInitial)
     if tab.name then
         tab.topbarItemTitle = tab.window:Create("TextLabel", {
             Text = locale.t(tab.name),
-            Size = UDim2.fromOffset(0, tokens.lineHeight.body),
+            Size = UDim2.fromOffset(0, 16),
             BorderSizePixel = 0,
             BackgroundTransparency = 1,
-            TextSize = layout.rowLabelSize,
+            TextSize = 16,
             AutomaticSize = Enum.AutomaticSize.XY,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextWrapped = true,
@@ -6257,28 +6201,24 @@ local function buildSidebarStyle(tab, layout)
         Parent = tab.topbarItem,
     })
 
-    --[[
-    The selection bar: a 3px pill on the row's leading edge, drawn from the
-    accent token. It is the row's only flourish — the row itself has no
-    outline and no shadow — and it rides the row's visual state (see
-    `states`), so selection, hover and a reveal fade it in step with the
-    label instead of toggling it separately. It is parented to the row
-    rather than the row's content, exactly like the lock badge, because
-    the content container is layout-managed and a bar in that flow would
-    take a slot beside the icon.
-    ]]
-    tab.topbarAccent = tab.window:Create("Frame", {
-        Name = "Accent",
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 0, 0.5, 0),
-        Size = UDim2.fromOffset(layout.rowAccentWidth, layout.rowAccentHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
+    tab.topbarItemStroke = tab.window:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        Color = Color3.fromRGB(255, 255, 255),
+        Transparency = 1,
         Parent = tab.topbarItem,
-    }, { BackgroundColor3 = "AccentColor" })
-    tab.window:Create("UICorner", {
-        Parent = tab.topbarAccent,
-    }, { CornerRadius = "PillCornerRadius" })
+    })
+
+    buildGradients(tab, tab.topbarItem, tab.topbarItemStroke)
+
+    tab.topbarItemShadow = tab.window:Create("UIShadow", {
+        BlurRadius = UDim.new(0, 20),
+        Color = Color3.fromRGB(255, 255, 255),
+        Offset = UDim2.new(0, 0, 0, -15),
+        Spread = UDim2.new(0, 10, 0, -30),
+        ZIndex = -1,
+        Transparency = 1,
+        Parent = tab.topbarItem,
+    })
 
     tab.topbarItemContainer = tab.window:Create("Frame", {
         Size = UDim2.new(1, -layout.rowPadding, 0, 24),
@@ -6363,7 +6303,7 @@ local function rowNaturalWidth(tab, window, layout)
         end
     end
     if tab.name then
-        width += functions.textWidth(window.theme.Font, layout.rowLabelSize, locale.resolve(tab.name))
+        width += functions.textWidth(window.theme.Font, 16, locale.resolve(tab.name))
     end
     if tabSelector.lockUIEnabled and tab.locked then
         --[[
@@ -6431,7 +6371,7 @@ function tabSelector.relayoutSidebarRows(window, layout, railWidth)
                 end
                 if
                     slot >= 24
-                    and functions.textWidth(window.theme.Font, layout.rowLabelSize, locale.resolve(tab.name)) > slot
+                    and functions.textWidth(window.theme.Font, 16, locale.resolve(tab.name)) > slot
                 then
                     --[[
                     Capped: hold the label inside the row; its existing
@@ -6521,15 +6461,8 @@ end
 function tabSelector.applyVisual(tab, visualState, tweenInfo)
     local targets = {
         [tab.topbarItem] = { BackgroundTransparency = visualState.background },
+        [tab.topbarItemStroke] = { Transparency = visualState.stroke },
     }
-
-    --[[
-    The accent bar is part of the row's state, not a separate hint: it is
-    visible only where a row is selected (see `states`).
-    ]]
-    if tab.topbarAccent and visualState.accent then
-        targets[tab.topbarAccent] = { BackgroundTransparency = visualState.accent }
-    end
 
     if tab.topbarItemIcon then
         targets[tab.topbarItemIcon] = { ImageTransparency = visualState.content }
@@ -6547,6 +6480,9 @@ function tabSelector.applyVisual(tab, visualState, tweenInfo)
         reads as disabled at once.
         ]]
         targets[tab.topbarItemLock] = { ImageTransparency = visualState.content }
+    end
+    if tab.topbarItemShadow and visualState.shadow then
+        targets[tab.topbarItemShadow] = { Transparency = visualState.shadow }
     end
 
     for instance, properties in targets do
@@ -8437,7 +8373,6 @@ local log = require(utilities.log)
 local motion = require(utilities.motion)
 local overlayQueue = require(script.Parent.Parent.overlayQueue)
 local search = require(script.Parent.Parent.search)
-local tokens = require(utilities.tokens)
 local state = require(utilities.Parent.core.state)
 local hardwarePerformance = require(utilities.hardwarePerformance)
 
@@ -8735,7 +8670,7 @@ function Window.new(props)
     if self.name then
         self.title = self:Create("TextLabel", {
                         Text = locale.t(self.name),
-            FontFace = state.brandFont(tokens.weight.strong),
+            FontFace = state.brandFont(Enum.FontWeight.Medium),
 
             Size = UDim2.fromOffset(50, 20),
             AutomaticSize = Enum.AutomaticSize.X,
@@ -9907,15 +9842,6 @@ function Window:CreateHoverOverlay(parent)
 end
 
 function Window:_elementBackgroundTransparency(element)
-    --[[
-    A plain element owns no surface by design: the page band is its
-    background. It keeps the flag so a reveal can never paint a card onto
-    it (`Window:_revealCommon` writes this value to `main`, and the theme's
-    ElementTransparency is opaque).
-    ]]
-    if element and element._plain then
-        return 1
-    end
     if element and element._collapsibleChild then
         return self.theme.CollapsibleChildElementTransparency or 0.75
     end
@@ -9923,14 +9849,6 @@ function Window:_elementBackgroundTransparency(element)
 end
 
 function Window:_elementStrokeTransparency(element, hover)
-    --[[
-    Same contract as the background above: a plain element has no outline
-    to reveal or to lift on hover, so every path reads it as fully
-    transparent instead of falling through to the card stroke's alpha.
-    ]]
-    if element and element._plain then
-        return 1
-    end
     if element and element._collapsibleChild then
         if hover then
             return self.theme.CollapsibleChildElementStrokeHoverTransparency
@@ -15841,7 +15759,6 @@ local haptic = require(utilities.HapticEngine)
 local moveable = require(utilities.moveable)
 local lockable = require(utilities.lockable)
 local ordering = require(utilities.ordering)
-local tokens = require(utilities.tokens)
 local image = require(script.Parent.Parent.images.image)
 
 local Isolated = {}
@@ -15936,76 +15853,45 @@ function Isolated.new(tab, props)
         icon = tab.window:ResolveIcon(read(props, "icon", "Icon")),
         deriveFlagFromName = tab.deriveFlagFromName,
         forgetState = props.forgetState or tab.forgetState,
-        --[[
-        `plain = true` drops the card around the container: the row sits on
-        the page band with a hairline above it, and the revealed body keeps
-        no surface of its own. The expansion contract is untouched.
-        ]]
-        plain = read(props, "plain", "Plain") == true,
         _expanded = false, _shown = false,
     }, Isolated)
-    self._plain = self.plain
     self.subtitle = if self.subtitle ~= nil and tostring(self.subtitle) ~= ""
         then tostring(self.subtitle)
         else nil
     local w = self.window
     --[[
     Two-line header recipe, shared with the CollapsibleGroup's title plus
-    description band: the title keeps its single-line band and the muted
-    14px subtitle rides a 20px band under it. The carded container uses the
-    library's 41px band; the plain row uses the 36px nav-row band and the
-    standalone icon size, so a flat page reads as one rhythm.
+    description band: the title keeps its 41px band and the muted 14px
+    subtitle rides the 20px band under it (41 -> 61). Without a subtitle
+    the header is the plain 41px band.
     ]]
-    self.singleHeight = if self.plain then tokens.row.height else 41
-    self.inset = if self.plain then tokens.space.lg else 20
-    self.iconSize = if self.plain then tokens.icon.standalone else 16
-    self.iconGap = if self.plain then tokens.space.sm else 6
-    self.trailing = if self.plain then 40 else 42
-    self.headerHeight = self.singleHeight + (if self.subtitle then 20 else 0)
-    local iconY = math.floor((self.headerHeight - self.iconSize) / 2)
+    self.headerHeight = if self.subtitle then 61 else 41
+    local iconY = math.floor((self.headerHeight - 16) / 2)
     --[[
-    Carded: one connected card, two surfaces — the header band rides the
-    standard element gradient, the revealed body sits on the darker window
-    surface and a 1px stroke-colored divider separates them. Plain: the row
-    owns no surface at all and a hairline rule sits above it (the surface
-    rule — see utilities/tokens.luau), so the same body/divider geometry
-    simply paints nothing.
+    One connected card, two surfaces: the header band rides the standard
+    element gradient, the revealed body sits on the darker window surface
+    and a 1px stroke-colored divider separates them.
     ]]
-    self.bodyPad = tokens.space.md
+    self.bodyPad = 10
     self.main = w:Create("Frame", {
         Name = self.name, Size = UDim2.new(1, -20, 0, self.headerHeight),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BackgroundTransparency = 1, BorderSizePixel = 0,
         ClipsDescendants = true, Parent = tab.tabPage,
     }, { BackgroundTransparency = "ElementTransparency" })
-    if self.plain then
-        --[[
-        The separating hairline. It rides the container so it moves and
-        fades with the row it belongs to, and it is the only line a plain
-        row draws.
-        ]]
-        self.rule = w:Create("Frame", {
-            Name = "Rule", Position = UDim2.fromOffset(0, 0),
-            Size = UDim2.new(1, 0, 0, tokens.hairline.thickness),
-            BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
-        }, { BackgroundColor3 = "ElementStroke" })
-    else
-        w:Create("UIGradient", { Rotation = 270, Parent = self.main }, { Color = "ElementGradient" })
-        w:Create("UICorner", { Parent = self.main }, { CornerRadius = "ElementCornerRadius" })
-        self.stroke = w:Create("UIStroke", {
-            ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Transparency = 1, Parent = self.main,
-        }, { Color = "ElementStroke", Transparency = "ElementStrokeTransparency" })
-    end
+    w:Create("UIGradient", { Rotation = 270, Parent = self.main }, { Color = "ElementGradient" })
+    w:Create("UICorner", { Parent = self.main }, { CornerRadius = "ElementCornerRadius" })
+    self.stroke = w:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Transparency = 1, Parent = self.main,
+    }, { Color = "ElementStroke", Transparency = "ElementStrokeTransparency" })
     self.headerSurface = w:Create("Frame", {
         Name = "HeaderSurface", Size = UDim2.new(1, 0, 0, self.headerHeight),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
     }, { BackgroundTransparency = "ElementTransparency" })
-    if not self.plain then
-        w:Create("UIGradient", { Rotation = 270, Parent = self.headerSurface }, { Color = "ElementGradient" })
-        self.headerCorner = w:_roundCorners(self.headerSurface, { "TopLeftRadius", "TopRightRadius" }, "ElementCornerRadius")
-        self:_fitHeaderCorners()
-    end
+    w:Create("UIGradient", { Rotation = 270, Parent = self.headerSurface }, { Color = "ElementGradient" })
+    self.headerCorner = w:_roundCorners(self.headerSurface, { "TopLeftRadius", "TopRightRadius" }, "ElementCornerRadius")
+    self:_fitHeaderCorners()
     self.divider = w:Create("Frame", {
         Name = "HeaderDivider", Position = UDim2.fromOffset(0, self.headerHeight),
         Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0,
@@ -16023,20 +15909,19 @@ function Isolated.new(tab, props)
     header currently is, so the collapsed card reads as the reference:
     icon, two-line stack, chevron.
     ]]
-    local textX = if self.icon then self.inset + self.iconSize + self.iconGap else self.inset
+    local textX = if self.icon then 42 else 20
     if self.icon then
         self.iconLabel = w:Create("ImageLabel", {
-            Image = self.icon, Position = UDim2.fromOffset(self.inset, iconY),
-            Size = UDim2.fromOffset(self.iconSize, self.iconSize),
+            Image = self.icon, Position = UDim2.fromOffset(20, iconY), Size = UDim2.fromOffset(16, 16),
             BackgroundTransparency = 1, ImageTransparency = 1, Parent = self.header,
         }, { ImageColor3 = "ContentColor" })
     end
     self.title = w:Create("TextLabel", {
         Text = locale.t(self.name), Position = UDim2.fromOffset(textX, 0),
-        Size = UDim2.new(1, -(textX + self.trailing), 0, self.singleHeight), BackgroundTransparency = 1,
-        TextSize = tokens.text.title, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+        Size = UDim2.new(1, -(textX + 42), 0, 41), BackgroundTransparency = 1,
+        TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
         TextTransparency = 1, Parent = self.header,
-    }, { TextColor3 = "TitlingColor", FontFace = "TitleFont" })
+    }, { TextColor3 = "TitlingColor", FontFace = "Font" })
     w:_bindLocale(self.title, "Text", self.name)
     --[[
     The subtitle label always exists so SetSubtitle can fill it at
@@ -16045,9 +15930,9 @@ function Isolated.new(tab, props)
     ]]
     self.subtitleLabel = w:Create("TextLabel", {
         Name = "Subtitle",
-        Text = locale.t(self.subtitle or ""), Position = UDim2.fromOffset(textX, self.singleHeight - 4),
-        Size = UDim2.new(1, -(textX + self.inset), 0, tokens.lineHeight.body), BackgroundTransparency = 1,
-        TextSize = tokens.text.body, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+        Text = locale.t(self.subtitle or ""), Position = UDim2.fromOffset(textX, 37),
+        Size = UDim2.new(1, -(textX + 20), 0, 18), BackgroundTransparency = 1,
+        TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
         TextTransparency = 1, Parent = self.header,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
     if self.subtitle then
@@ -16074,10 +15959,8 @@ function Isolated.new(tab, props)
         BackgroundTransparency = 1, BorderSizePixel = 0,
         ClipsDescendants = true, Visible = false, Parent = self.main,
     }, { BackgroundTransparency = "ElementTransparency" })
-    if not self.plain then
-        w:Create("UIGradient", { Rotation = 270, Parent = self.bodyClip }, { Color = "WindowColor" })
-        w:_roundCorners(self.bodyClip, { "BottomLeftRadius", "BottomRightRadius" }, "ElementCornerRadius")
-    end
+    w:Create("UIGradient", { Rotation = 270, Parent = self.bodyClip }, { Color = "WindowColor" })
+    w:_roundCorners(self.bodyClip, { "BottomLeftRadius", "BottomRightRadius" }, "ElementCornerRadius")
     self.body = w:Create("Frame", {
         Name = "Contents", Position = UDim2.fromOffset(0, self.bodyPad),
         Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
@@ -16104,24 +15987,7 @@ function Isolated.new(tab, props)
         haptic.click()
         self:_setExpanded(not self._expanded, true)
     end)
-    if self.plain then
-        --[[
-        A plain row has no stroke for the shared hover recipe to move, so
-        the row's own language is the subtle fill plus the title lift —
-        the same feedback a nav row gives.
-        ]]
-        w:ConnectFor(self, self.interact.MouseEnter, function()
-            if not w:_interactive() then return end
-            motion.tween(self.hoverOverlay, { BackgroundTransparency = 0.97 }, "snappy")
-            motion.tween(self.title, { TextColor3 = w.theme.ElementTextHoverColor }, "snappy")
-        end)
-        w:ConnectFor(self, self.interact.MouseLeave, function()
-            motion.tween(self.hoverOverlay, { BackgroundTransparency = 1 }, "snappy")
-            motion.tween(self.title, { TextColor3 = w.theme.TitlingColor }, "snappy")
-        end)
-    else
-        w:_wireElementHover(self, { target = self.header, titleRestKey = "TitlingColor" })
-    end
+    w:_wireElementHover(self, { target = self.header, titleRestKey = "TitlingColor" })
     self.lockSurface = self.header
     buildChildren(self, props.elements or {})
     lockable.register(self, props)
@@ -16137,13 +16003,6 @@ bottom edge (it is flush with the container's floor and keeps the same
 radius token), so the band squares off against the straight divider.
 ]]
 function Isolated:_fitHeaderCorners()
-    --[[
-    A plain row carries no corner of its own (no surface to round), so the
-    sync is a no-op there rather than a source of nil writes.
-    ]]
-    if not self.headerCorner then
-        return
-    end
     self.window:_setRoundedCorners(
         self.headerCorner,
         if self._expanded then bandCorners.expanded else bandCorners.collapsed,
@@ -16165,17 +16024,17 @@ and the text stack — is re-derived here, so a runtime SetSubtitle that
 adds or releases the second line reflows the whole card from one place.
 ]]
 function Isolated:_applyHeaderMetrics()
-    self.headerHeight = self.singleHeight + (if self.subtitle then 20 else 0)
-    local iconY = math.floor((self.headerHeight - self.iconSize) / 2)
-    local textX = if self.icon then self.inset + self.iconSize + self.iconGap else self.inset
+    self.headerHeight = if self.subtitle then 61 else 41
+    local iconY = math.floor((self.headerHeight - 16) / 2)
+    local textX = if self.icon then 42 else 20
     if self.iconLabel then
-        self.iconLabel.Position = UDim2.fromOffset(self.inset, iconY)
+        self.iconLabel.Position = UDim2.fromOffset(20, iconY)
     end
     self.title.Position = UDim2.fromOffset(textX, 0)
-    self.title.Size = UDim2.new(1, -(textX + self.trailing), 0, self.singleHeight)
-    self.subtitleLabel.Position = UDim2.fromOffset(textX, self.singleHeight - 4)
-    self.subtitleLabel.Size = UDim2.new(1, -(textX + self.inset), 0, tokens.lineHeight.body)
-    self.chevron.Position = UDim2.new(1, -(self.inset + self.iconSize), 0, iconY)
+    self.title.Size = UDim2.new(1, -(textX + 42), 0, 41)
+    self.subtitleLabel.Position = UDim2.fromOffset(textX, 37)
+    self.subtitleLabel.Size = UDim2.new(1, -(textX + 20), 0, 18)
+    self.chevron.Position = UDim2.new(1, -36, 0, iconY)
     self.headerSurface.Size = UDim2.new(1, 0, 0, self.headerHeight)
     self.header.Size = UDim2.new(1, 0, 0, self.headerHeight)
     self.divider.Position = UDim2.fromOffset(0, self.headerHeight)
@@ -16245,24 +16104,11 @@ end
 function Isolated:_setShown(shown, animate)
     self._shown = shown
     local w = self.window
-    --[[
-    Resting alphas, per surface kind. A plain row rests fully transparent
-    everywhere it has no surface (main, header band, body clipper) and
-    draws its two hairlines — the rule above it and the header/body seam —
-    at the hairline alpha instead of the card stroke's.
-    ]]
-    local surface = if self.plain then 1 else (w.theme.ElementTransparency or 0)
-    local seam = if self.plain then tokens.hairline.transparency else w.theme.ElementStrokeTransparency
-    w:_reveal(self.main, { BackgroundTransparency = if shown then surface else 1 }, animate)
-    w:_reveal(self.headerSurface, { BackgroundTransparency = if shown then surface else 1 }, animate)
-    w:_reveal(self.bodyClip, { BackgroundTransparency = if shown then surface else 1 }, animate)
-    if self.stroke then
-        w:_reveal(self.stroke, { Transparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
-    end
-    if self.rule then
-        w:_reveal(self.rule, { BackgroundTransparency = if shown then tokens.hairline.transparency else 1 }, animate)
-    end
-    w:_reveal(self.divider, { BackgroundTransparency = if shown then seam else 1 }, animate)
+    w:_reveal(self.main, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
+    w:_reveal(self.headerSurface, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
+    w:_reveal(self.bodyClip, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
+    w:_reveal(self.stroke, { Transparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
+    w:_reveal(self.divider, { BackgroundTransparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
     w:_reveal(self.title, { TextTransparency = if shown then 0 else 1 }, animate)
     w:_reveal(self.subtitleLabel, { TextTransparency = if shown then 0.45 else 1 }, animate)
     w:_reveal(self.chevron, { ImageTransparency = if shown then 0.4 else 1 }, animate)
@@ -16331,9 +16177,8 @@ function Isolated:SetIcon(icon)
     if resolved then
         if not self.iconLabel then
             self.iconLabel = self.window:Create("ImageLabel", {
-                Image = resolved,
-                Position = UDim2.fromOffset(self.inset, math.floor((self.headerHeight - self.iconSize) / 2)),
-                Size = UDim2.fromOffset(self.iconSize, self.iconSize),
+                Image = resolved, Position = UDim2.fromOffset(20, math.floor((self.headerHeight - 16) / 2)),
+                Size = UDim2.fromOffset(16, 16),
                 BackgroundTransparency = 1, ImageTransparency = if self._shown then 0 else 1,
                 Parent = self.header,
             }, { ImageColor3 = "ContentColor" })
@@ -18510,282 +18355,12 @@ return state
 
 end)() end,
     [49] = function()local wax,script,require=ImportGlobals(49)local ImportGlobals return (function(...)
---[[
-CreatePageHeader: the flat header a page opens with — a title, an optional
-muted metadata line and an optional prose paragraph.
-
-It is deliberately not a card. The surface rule is one surface per view: the
-page already sits on the elements band, so the header adds no fill, no stroke
-and no padding box of its own — sections below it separate with whitespace or
-a hairline (see `CreateDivider`) rather than with another nested box.
-Everything here is text:
-
-  * title — the page's single heading, tokens.text.pageTitle at the strong
-            weight, the only 20px line on the page,
-  * meta  — one muted caption line (tokens.text.caption at tokens.alpha.meta).
-            A table is joined with " · ", so a host can hand over
-            `{ "1.4.0", "13 tabs", "Astra Team" }` and get the single quiet
-            line the old stat tiles spelled out as three boxes,
-  * body  — an optional paragraph at tokens.text.body, wrapped at
-            tokens.measure.prose (about 65 characters), so the reading column
-            stops widening when the window does.
-
-There is no icon slot and no setter for one: the window header already carries
-the brand, and repeating it on the page is the duplication this element exists
-to remove. Title, meta and body are all live (`SetTitle`, `SetMeta`,
-`SetBody`) and locale-bound like every other line in the library.
-]]
-
-local state = {}
-state.__index = state
-state.__type = "PageHeader"
-
-local utilities = script.Parent.Parent.utilities
-
-local locale = require(utilities.locale)
-local moveable = require(utilities.moveable)
-local tokens = require(utilities.tokens)
-
---[[
-Page inset: the same `1, -20` width recipe every element keeps, so the
-header's title starts on the same left edge as the cards below it even though
-the header itself has no card to sit in.
-]]
-local pageInset = tokens.pageInset
-
---[[
-Line spacing, on the grid's small steps. The list runs on a half step (4) so
-the title and its metadata line read as one block; the paragraph rides its own
-block whose 8px top padding the list's 4 completes to a full 12 — one clear
-step between the metadata line and the prose, and the same 12 the library uses
-between any two sections that are separated by whitespace instead of a rule.
-]]
-local lineGap = tokens.space.half
-local paragraphPad = tokens.space.sm
-
-local function read(properties, lower, upper)
-    local value = properties[lower]
-    if value == nil then
-        value = properties[upper]
-    end
-    return value
-end
-
-local function textOrNil(value)
-    if value == nil then
-        return nil
-    end
-    local text = tostring(value)
-    if text == "" then
-        return nil
-    end
-    return text
-end
-
---[[
-The metadata line. A string is used as given; an array is joined with the
-middot the old three-tile row implied. Nil — or an array with nothing in it —
-means the page has no metadata, and the line drops out of the layout entirely
-instead of leaving an empty band behind.
-]]
-local function metaText(value)
-    if type(value) == "table" then
-        local parts = {}
-        for _, part in ipairs(value) do
-            local text = textOrNil(part)
-            if text then
-                table.insert(parts, text)
-            end
-        end
-        if #parts == 0 then
-            return nil
-        end
-        return table.concat(parts, " · ")
-    end
-    return textOrNil(value)
-end
-
-function state.new(tab, props)
-    assert(tab, "Missing argument #1 (Tab expected)")
-    props = if type(props) == "table" then props else {}
-
-    local self = setmetatable({
-        tab = tab,
-        window = tab.window,
-        name = textOrNil(read(props, "name", "Name")) or textOrNil(read(props, "title", "Title")) or "",
-        meta = metaText(read(props, "meta", "Meta")),
-        body = textOrNil(read(props, "body", "Body")) or textOrNil(read(props, "text", "Text")),
-        deriveFlagFromName = tab.deriveFlagFromName,
-        forgetState = props.forgetState or tab.forgetState,
-    }, state)
-
-    self:_build()
-    return self
-end
-
-function state:_build()
-    local window = self.window
-
-    self.main = window:Create("Frame", {
-        Name = if self.name ~= "" then self.name else "PageHeader",
-        Size = UDim2.new(1, -(pageInset * 2), 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        Parent = self.tab.tabPage,
-    })
-
-    window:Create("UIListLayout", {
-        Padding = UDim.new(0, lineGap),
-        FillDirection = Enum.FillDirection.Vertical,
-        VerticalAlignment = Enum.VerticalAlignment.Top,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = self.main,
-    })
-
-    --[[
-    Both text lines grow with their wrapped content: a long title or a long
-    metadata line re-measures instead of clipping, which is the truncation
-    ("Astra…") the carded header used to produce when its boxes were sized
-    for one line of copy.
-    ]]
-    self.title = window:Create("TextLabel", {
-        Name = "Title",
-        Text = locale.t(self.name),
-        Size = UDim2.new(1, 0, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        TextSize = tokens.text.pageTitle,
-        TextWrapped = true,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextTransparency = 1,
-        LayoutOrder = 1,
-        Parent = self.main,
-    }, { TextColor3 = "TitlingColor", FontFace = "TitleFont" })
-    window:_bindLocale(self.title, "Text", self.name)
-
-    self.metaLabel = window:Create("TextLabel", {
-        Name = "Meta",
-        Text = locale.t(self.meta or ""),
-        Size = UDim2.new(1, 0, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        TextSize = tokens.text.caption,
-        TextWrapped = true,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextTransparency = 1,
-        Visible = self.meta ~= nil,
-        LayoutOrder = 2,
-        Parent = self.main,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
-    if self.meta then
-        window:_bindLocale(self.metaLabel, "Text", self.meta)
-    end
-
-    --[[
-    The paragraph's own block. It exists only to carry the 12px step above the
-    prose: a UIListLayout has one padding for the whole list, so a single item
-    that wants a larger gap brings its own.
-    ]]
-    self.bodyBlock = window:Create("Frame", {
-        Name = "Body",
-        Size = UDim2.new(1, 0, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        Visible = self.body ~= nil,
-        LayoutOrder = 3,
-        Parent = self.main,
-    })
-    window:Create("UIPadding", {
-        PaddingTop = UDim.new(0, paragraphPad),
-        Parent = self.bodyBlock,
-    })
-
-    self.bodyLabel = window:Create("TextLabel", {
-        Name = "Text",
-        Text = locale.t(self.body or ""),
-        Size = UDim2.new(1, 0, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        TextSize = tokens.text.body,
-        TextWrapped = true,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextTransparency = 1,
-        Parent = self.bodyBlock,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
-    --[[
-    The prose measure. AutomaticSize grows the line count; the constraint caps
-    the line length, so a wider window adds words to a line and never
-    characters to it.
-    ]]
-    window:Create("UISizeConstraint", {
-        MaxSize = Vector2.new(tokens.measure.prose, 1e6),
-        Parent = self.bodyLabel,
-    })
-    if self.body then
-        window:_bindLocale(self.bodyLabel, "Text", self.body)
-    end
-end
-
---[[
-A plain header owns no surface, so a reveal touches text only: the title lands
-at full strength and the metadata line and paragraph settle at their own muted
-resting alphas — the two tiers every other muted line in the library uses.
-]]
-function state:_setShown(shown, animate)
-    local window = self.window
-    window:_reveal(self.title, { TextTransparency = if shown then 0 else 1 }, animate)
-    window:_reveal(self.metaLabel, { TextTransparency = if shown then tokens.alpha.meta else 1 }, animate)
-    window:_reveal(self.bodyLabel, { TextTransparency = if shown then tokens.alpha.muted else 1 }, animate)
-end
-
---[[
-Public setters. Each re-binds the locale, so a language change still retypes
-the line, and each keeps its line in step with the copy instead of leaving a
-blank band behind.
-]]
-function state:SetTitle(title)
-    self.name = textOrNil(title) or ""
-    self.window:_bindLocale(self.title, "Text", self.name)
-end
-
-function state:SetMeta(meta)
-    self.meta = metaText(meta)
-    if self.meta then
-        self.window:_bindLocale(self.metaLabel, "Text", self.meta)
-    else
-        self.metaLabel.Text = ""
-    end
-    self.metaLabel.Visible = self.meta ~= nil
-end
-
-function state:SetBody(body)
-    self.body = textOrNil(body)
-    if self.body then
-        self.window:_bindLocale(self.bodyLabel, "Text", self.body)
-    else
-        self.bodyLabel.Text = ""
-    end
-    self.bodyBlock.Visible = self.body ~= nil
-end
-
-moveable(state)
-
-return state
-
-end)() end,
-    [50] = function()local wax,script,require=ImportGlobals(50)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Section"
 
 local constants = require(script.Parent.Parent.utilities.moveable)
 local Section = require(script.Parent.Parent.utilities.locale)
-local tokens = require(script.Parent.Parent.utilities.tokens)
 
 function state.new(tab, element)
     element = if typeof(element) == "table" then element else {}
@@ -18797,16 +18372,10 @@ function state.new(tab, element)
         icon = tab.window:ResolveIcon(element.icon or element.Icon),
     }, state)
 
-    --[[
-    A section label is the quietest heading a page has: 13px, muted, inset a
-    little deeper than the cards under it. Its top step is a full grid step
-    (16) when something sits above it, so sections separate with whitespace
-    instead of with a box.
-    ]]
-    local props = if #self.tab.elements == 0 then 0 else tokens.space.lg
+    local props = if #self.tab.elements == 0 then 0 else 13
 
     self.main = self.window:Create("Frame", {
-        Size = UDim2.new(1, -40, 0, tokens.lineHeight.label + props),
+        Size = UDim2.new(1, -40, 0, 20 + props),
         BorderSizePixel = 0,
         Name = self.name,
         BackgroundTransparency = 1,
@@ -18831,7 +18400,7 @@ function state.new(tab, element)
     if self.icon then
         self.iconLabel = self.window:Create("ImageLabel", {
             Image = self.icon,
-            Size = UDim2.fromOffset(tokens.icon.inline, tokens.icon.inline),
+            Size = UDim2.fromOffset(16, 16),
             BorderSizePixel = 0,
             BackgroundTransparency = 1,
 
@@ -18843,10 +18412,10 @@ function state.new(tab, element)
     self.title = self.window:Create("TextLabel", {
         Text = Section.t(self.name),
 
-        Size = UDim2.new(1, if self.icon then -22 else 0, 0, tokens.lineHeight.label),
+        Size = UDim2.new(1, if self.icon then -22 else 0, 0, 16),
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
-        TextSize = tokens.text.label,
+        TextSize = 15,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextTruncate = Enum.TextTruncate.AtEnd,
         LayoutOrder = 1,
@@ -18860,7 +18429,7 @@ end
 
 function state:_setShown(name, icon)
     local w = self.window
-    w:_reveal(self.title, { TextTransparency = if name then tokens.alpha.meta else 1 }, icon)
+    w:_reveal(self.title, { TextTransparency = if name then 0.6 else 1 }, icon)
     if self.iconLabel then
         w:_reveal(self.iconLabel, { ImageTransparency = if name then 0.65 else 1 }, icon)
     end
@@ -18871,7 +18440,7 @@ constants(state)
 return state
 
 end)() end,
-    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
+    [50] = function()local wax,script,require=ImportGlobals(50)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Slider"
@@ -19474,7 +19043,7 @@ end
 return state
 
 end)() end,
-    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
+    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Statistic"
@@ -20316,7 +19885,7 @@ name(state)
 return state
 
 end)() end,
-    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
+    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
 --[[
 The Stepper ("Value Configuration") is the library's numeric counter row:
 an integrated pill capsule with a `[−]` button, a highlighted editable
@@ -20910,7 +20479,7 @@ lockable(state)
 return state
 
 end)() end,
-    [54] = function()local wax,script,require=ImportGlobals(54)local ImportGlobals return (function(...)
+    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Tab"
@@ -21076,6 +20645,7 @@ function state:_bindSelector()
         end
         if self.window.selectedTab ~= self then
             self:_applyVisual("hover", page)
+            self:_spinGradients()
         end
     end))
     table.insert(self.connections, self.window:Connect(self.topbarItemInteract.MouseLeave, function()
@@ -21119,12 +20689,28 @@ function state:_applyVisual(a19, a20)
         ]]
         a21 = {
             background = a21.background,
+            stroke = a21.stroke,
             content = math.max(a21.content, 0.7),
-            accent = a21.accent,
+            shadow = a21.shadow,
         }
     end
 
     icon.applyVisual(self, a21, a20)
+end
+
+function state:_spinGradients()
+    if self.neglectSelector then
+        return
+    end
+
+    --[[
+    Only the stroke gradient still rides the row: its fill is now the
+    solid ElementSurface token (see components/tabSelector), so the hover
+    spin effect lives on the stroke alone.
+    ]]
+    for _, a23 in { self.topbarItemStrokeGradient } do
+        a23.Rotation = 90 - 360         Tab.tweenService:Create(a23, motion.spec("spin"), { Rotation = 90 }):Play()
+    end
 end
 
 --[[
@@ -21342,10 +20928,6 @@ function state:CreateText(a31)
     return self:_register(require(script.Parent.text).new(self, a31))
 end
 
-function state:CreatePageHeader(props)
-    return self:_register(require(script.Parent.pageHeader).new(self, props))
-end
-
 function state:CreateFooter(props)
     return self:_register(require(script.Parent.footer).new(self, props))
 end
@@ -21478,7 +21060,7 @@ end
 return state
 
 end)() end,
-    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
+    [54] = function()local wax,script,require=ImportGlobals(54)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "TabSection"
@@ -21608,26 +21190,16 @@ end
 return state
 
 end)() end,
-    [56] = function()local wax,script,require=ImportGlobals(56)local ImportGlobals return (function(...)
+    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Text"
 
 local constants = require(script.Parent.Parent.utilities.moveable)
 local Text = require(script.Parent.Parent.utilities.locale)
-local tokens = require(script.Parent.Parent.utilities.tokens)
 
 -- Resting transparency of body text shown by this control.
-local restingTextTransparency = tokens.alpha.muted
-
---[[
-Card geometry. A carded Text block keeps the library's gutter and a 12px
-inner padding (the 8pt grid's middle step); a plain block keeps the gutter
-but no padding box and no surface at all — its heading and prose simply sit
-on the page band, which is what makes a section read as content rather than
-as another nested card.
-]]
-local cardPad = tokens.space.md
+local restingTextTransparency = 0.45
 
 function state.new(tab, element)
     element = if typeof(element) == "table" then element else {}
@@ -21637,17 +21209,10 @@ function state.new(tab, element)
         window = tab.window,
         name = tostring(element.name or element.Name or ""),
         text = tostring(element.text or element.Text or ""),
-        --[[
-        `plain = true` drops the card: no fill, no stroke, no padding box.
-        The prose measure still applies, so a plain paragraph keeps a
-        readable line length on a wide window.
-        ]]
-        plain = element.plain == true or element.Plain == true,
-        _plain = element.plain == true or element.Plain == true,
     }, state)
 
             self.main = self.window:Create("Frame", {
-        Size = UDim2.new(1, -(tokens.pageInset * 2), 0, 0),
+        Size = UDim2.new(1, -20, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         BorderSizePixel = 0,
         Name = if self.name ~= "" then self.name else "Text",
@@ -21657,20 +21222,16 @@ function state.new(tab, element)
         Parent = self.tab.tabPage,
     }, { BackgroundTransparency = "ElementTransparency" })
 
-    if not self.plain then
-        self.stroke = self.window:StyleElementBody(self.main)
-    end
+    self.stroke = self.window:StyleElementBody(self.main)
 
-    if not self.plain then
-        self.window:Create("UIPadding", {
-            PaddingTop = UDim.new(0, cardPad),
-            PaddingBottom = UDim.new(0, cardPad),
-            PaddingLeft = UDim.new(0, cardPad),
-            PaddingRight = UDim.new(0, cardPad),
+    self.window:Create("UIPadding", {
+        PaddingTop = UDim.new(0, 14),
+        PaddingBottom = UDim.new(0, 14),
+        PaddingLeft = UDim.new(0, 20),
+        PaddingRight = UDim.new(0, 20),
 
-            Parent = self.main,
-        })
-    end
+        Parent = self.main,
+    })
 
     self.window:Create("UIListLayout", {
         Padding = UDim.new(0, 6),
@@ -21706,14 +21267,14 @@ function state.new(tab, element)
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         RichText = true,
-        TextSize = tokens.text.title,
+        TextSize = 16,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
         LayoutOrder = 1,
 
                 TextTransparency = 1,
         Parent = self.titleRow,
-    }, { TextColor3 = "TitlingColor", FontFace = "TitleFont" })
+    }, { TextColor3 = "TitlingColor", FontFace = "Font" })
 
     self.body = self.window:Create("TextLabel", {
         Text = Text.t(self.text),
@@ -21722,7 +21283,7 @@ function state.new(tab, element)
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         RichText = true,
-        TextSize = tokens.text.body,
+        TextSize = 14,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
         LayoutOrder = 2,
@@ -21730,16 +21291,6 @@ function state.new(tab, element)
                 TextTransparency = 1,
         Parent = self.main,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
-
-    --[[
-    The reading measure. AutomaticSize grows the line count; the constraint
-    caps the line length, so prose stops widening at about 65 characters
-    however wide the window gets.
-    ]]
-    self.window:Create("UISizeConstraint", {
-        MaxSize = Vector2.new(tokens.measure.prose, 1e6),
-        Parent = self.body,
-    })
 
     self:_applyPresence()
 
@@ -21778,7 +21329,7 @@ constants(state)
 return state
 
 end)() end,
-    [57] = function()local wax,script,require=ImportGlobals(57)local ImportGlobals return (function(...)
+    [56] = function()local wax,script,require=ImportGlobals(56)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Toggle"
@@ -22268,7 +21819,7 @@ end
 return state
 
 end)() end,
-    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
+    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
 
 local managerModule = require(script.manager)
 local registryModule = require(script.registry)
@@ -22293,7 +21844,7 @@ end
 return settings
 
 end)() end,
-    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
+    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
 
 local appearance = {}
 
@@ -22319,7 +21870,7 @@ end
 return appearance
 
 end)() end,
-    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
+    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
 local keybind = require(script.Parent.Parent.utilities.keybind)
 
 local behavior = {}
@@ -22338,7 +21889,7 @@ end
 return behavior
 
 end)() end,
-    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
+    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
 local keybind = require(script.Parent.Parent.utilities.keybind)
 
 local defaults = {}
@@ -22370,7 +21921,7 @@ end
 return defaults
 
 end)() end,
-    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
+    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
 
 local registry = require(script.Parent.registry)
 local defaults = require(script.Parent.defaults)
@@ -22496,7 +22047,7 @@ end
 return SettingsManager
 
 end)() end,
-    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
+    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
 
 local performance = {}
 
@@ -22510,7 +22061,7 @@ end
 return performance
 
 end)() end,
-    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
+    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
 
 local settingsPersistence = require(script.Parent.Parent.utilities.persistenceSettings)
 local settingsCache = require(script.Parent.Parent.cache.persistenceCache)
@@ -22559,7 +22110,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
+    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
 
 local registry = {}
 
@@ -22619,7 +22170,7 @@ registry.definitions = {
         key = "fontChoice",
         kind = "enum",
         domain = "appearance",
-        description = "Text font: the stock system family, or the neutral catalogue family (Inter).",
+        description = "Text font: default (the original Roblox look) or brand (Astra's custom family).",
     },
 }
 
@@ -22639,7 +22190,7 @@ end
 return registry
 
 end)() end,
-    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
+    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
 
 local imageCache = require(script.moduleCache)
 
@@ -22650,7 +22201,7 @@ local moduleCache = {
 return moduleCache
 
 end)() end,
-    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
+    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
 local filesystem = require(script.Parent.Parent.utilities.filesystem)
 local path = require(script.Parent.Parent.utilities.path)
 local variables = require(script.Parent.Parent.core.state)
@@ -22966,7 +22517,7 @@ end
 return imageCache
 
 end)() end,
-    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
+    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
 
 local moduleCache = {}
 
@@ -22997,7 +22548,7 @@ end
 return moduleCache
 
 end)() end,
-    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
+    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
 
 local persistenceCache = {}
 
@@ -23022,7 +22573,7 @@ end
 return persistenceCache
 
 end)() end,
-    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
+    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
 
 local textMetrics = require(script.textMetrics)
 local colors = require(script.colors)
@@ -23040,7 +22591,7 @@ functions.contrastText = colors.contrastText
 return functions
 
 end)() end,
-    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
+    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
 local colors = {}
 
 function colors.contrastColor(color: Color3): Color3
@@ -23060,7 +22611,7 @@ end
 return colors
 
 end)() end,
-    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
+    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
 local flagNames = {}
 
 local offsetBasis = 2166136261
@@ -23092,7 +22643,7 @@ end
 return flagNames
 
 end)() end,
-    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
+    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
 local state = require(script.Parent.Parent.core.state)
 local textService = state.textService
 
@@ -23199,7 +22750,7 @@ end
 return textMetrics
 
 end)() end,
-    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
+    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local Sidebar = {}
@@ -23267,7 +22818,7 @@ end
 return Sidebar
 
 end)() end,
-    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
+    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local SidebarCollapsed = {}
@@ -23334,7 +22885,7 @@ end
 return SidebarCollapsed
 
 end)() end,
-    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
+    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
 
 local image = require(script.image)
 
@@ -23349,7 +22900,7 @@ local windowIcons = {
 return windowIcons
 
 end)() end,
-    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
+    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
 local imageCache = require(script.Parent.Parent.cache.imageCache)
 local variables = require(script.Parent.Parent.core.state)
 
@@ -23516,7 +23067,7 @@ end
 return image
 
 end)() end,
-    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
+    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
 --[[
 Single source of truth for Astra's window and Settings UI icons.
 Names are intentionally lowercase and case-sensitive. Custom assets resolve
@@ -23535,7 +23086,7 @@ return {
 }
 
 end)() end,
-    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
+    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
 
 local windowIcons = {}
 
@@ -23631,7 +23182,7 @@ end
 return windowIcons
 
 end)() end,
-    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
+    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
 --[[
 Icon resolver service.
 
@@ -24176,7 +23727,7 @@ end
 return icons
 
 end)() end,
-    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
+    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
 --[[
 feather icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -24222,7 +23773,7 @@ x-square x youtube zap-off zap zoom-in zoom-out
 )
 
 end)() end,
-    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
+    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
 --[[
 heroicons icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -24304,7 +23855,7 @@ wrench-screwdriver wrench-screwdriver_solid wrench wrench_solid x-circle x-circl
 )
 
 end)() end,
-    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
+    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
 --[[
 lucide icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -24499,7 +24050,7 @@ zodiac-sagittarius zodiac-scorpio zodiac-taurus zodiac-virgo zoom-in zoom-out
 )
 
 end)() end,
-    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
+    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
 --[[
 material icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -24630,7 +24181,7 @@ zoom_in zoom_out zoom_out_map
 )
 
 end)() end,
-    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
+    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
 --[[
 Lazy icon-pack builder.
 
@@ -24733,7 +24284,7 @@ end
 
 return PackBuilder
 end)() end,
-    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
+    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
 --[[
 phosphor icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -24902,7 +24453,7 @@ yin-yang youtube-logo
 )
 
 end)() end,
-    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
+    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
 --[[
 remix icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -25242,7 +24793,7 @@ zhihu-line zhipu-ai-fill zhipu-ai-line zoom-in-fill zoom-in-line zoom-out-fill z
 )
 
 end)() end,
-    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
+    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
 --[[
 tabler icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -25772,7 +25323,7 @@ zoom-out-area zoom-out zoom-pan zoom-question zoom-replace zoom-reset zoom-scan 
 )
 
 end)() end,
-    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
+    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
 --[[
 Theme resolution engine (themes/init.luau).
 
@@ -25792,7 +25343,6 @@ This file IS the `themes` ModuleScript (init.luau semantics): the
 local themesFolder = script
 local variables = require(script.Parent.core.state)
 local log = require(script.Parent.utilities.log)
-local tokens = require(script.Parent.utilities.tokens)
 
 local themes = {}
 
@@ -25875,10 +25425,10 @@ function themes.resolve(value)
 
 	local userTable = if typeof(value) == "table" then value else nil
     if not (userTable and (userTable.Font or userTable.font)) then
-        resolved.Font = variables.brandFont(tokens.weight.regular)
+        resolved.Font = variables.brandFont(Enum.FontWeight.Medium)
     end
     if not (userTable and (userTable.TitleFont or userTable.titleFont)) then
-        resolved.TitleFont = variables.brandFont(tokens.weight.strong)
+        resolved.TitleFont = variables.brandFont(Enum.FontWeight.SemiBold)
     end
 
     return resolved
@@ -25887,9 +25437,8 @@ end
 return themes
 
 end)() end,
-    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
+    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
 local default = require(script.Parent.Parent.core.state)
-local tokens = require(script.Parent.Parent.utilities.tokens)
 
 --[[
 Astra's default palette. The shared keys below are the historical set
@@ -25983,13 +25532,8 @@ return {
     SliderProgress = ColorSequence.new(Color3.fromRGB(0, 170, 127), Color3.fromRGB(0, 134, 98)),
     SliderStroke = Color3.fromRGB(255, 255, 255),
     ActionColor = Color3.fromRGB(255, 255, 255),
-    --[[
-    Two weights, from the design tokens: titles carry the strong weight,
-    every other text surface the regular one. `Font` is the body face, so
-    it is what most of the interface reads in.
-    ]]
-    TitleFont = default.brandFont(tokens.weight.strong),
-    Font = default.brandFont(tokens.weight.regular),
+    TitleFont = default.brandFont(Enum.FontWeight.SemiBold),
+    Font = default.brandFont(Enum.FontWeight.Medium),
     ContentColor = Color3.fromRGB(255, 255, 255),
     LiveAnimation = false,
     DarkToggleOverlay = true,
@@ -26032,7 +25576,7 @@ return {
 }
 
 end)() end,
-    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
+    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 
 local hapticService = {}
@@ -26130,7 +25674,7 @@ end
 return hapticService
 
 end)() end,
-    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
+    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
 local networkUtil = require(script.Parent.network)
 local logger = require(script.Parent.log)
 
@@ -26311,28 +25855,21 @@ end
 return assetResolver
 
 end)() end,
-    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
+    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
 local iconRegistry = require(script.Parent.Parent.images.windowIcons)
 local uiIcons = require(script.Parent.Parent.images.uiIcons)
 local constants = {}
 
 --[[
-Font selection. Both choices are neutral UI faces:
-
-  * `default` renders every text surface with the stock fallback family
-    (state.fallbackFont, Enum.Font.BuilderSans),
-  * `brand` uses the catalogue family named below, resolved by name
-    through `Font.fromName` and falling back to the stock family where the
-    catalogue cannot answer.
-
-This value is only the initial choice: the live selection is the persisted
-`fontChoice` window setting (Settings → Appearance → Font), switchable
-mid-session. The hand-drawn Finger Paint family this option used to carry
-is gone — the interface is set in a neutral face, and emphasis comes from
-weight and colour rather than from a display font.
+Font selection. `default` renders every text surface with the stock
+fallback font — the original Roblox look (state.fallbackFont,
+Enum.Font.BuilderSans) — while `brand` uses the custom family below
+(Finger Paint, rbxassetid://12187375716). This value is only the
+initial choice: the live selection is the persisted `fontChoice`
+window setting (Settings → Appearance → Font), switchable mid-session.
 ]]
 constants.defaultFontChoice = "default" -- "default" | "brand"
-constants.brandFontName = "Inter"
+constants.fontAsset = "rbxassetid://12187375716"
 
 constants.icons = iconRegistry.ids
 constants.uiIcons = uiIcons
@@ -26377,7 +25914,7 @@ constants.displayOrder = {
 return constants
 
 end)() end,
-    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
+    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
 local enums = {}
 
 function enums.itemFromValue(enumType, value)
@@ -26407,7 +25944,7 @@ end
 return enums
 
 end)() end,
-    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
+    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
 local serviceProvider = require(script.Parent.services)
 local filesystem = {}
 
@@ -26699,7 +26236,7 @@ end
 return filesystem
 
 end)() end,
-    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
+    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 local pathUtil = require(script.Parent.path)
 
@@ -26748,7 +26285,7 @@ end
 return filesystemManager
 
 end)() end,
-    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
+    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
 local fontManager = require(script.Parent.services)
 local a2 = fontManager.getService("HttpService")
 local a3 = fontManager.getService("RunService")
@@ -27203,7 +26740,7 @@ end
 return a16
 
 end)() end,
-    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
+    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
 
 local functions = {}
 
@@ -27221,7 +26758,7 @@ functions.contrastText = textMetrics.contrastText
 return functions
 
 end)() end,
-    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
+    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
 --[[
 Astra Hardware Performance Engine.
 
@@ -27428,7 +26965,7 @@ end
 
 return hardwarePerformance
 end)() end,
-    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
+    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
 --[[
 HttpGuard — HTTP interception (spy / hook) detection for Astra.
 
@@ -28041,7 +27578,7 @@ end
 return HttpGuard
 
 end)() end,
-    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
+    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
 -- Shared validation for required, single-letter key bindings.
 local keybind = {}
 
@@ -28061,7 +27598,7 @@ end
 return keybind
 
 end)() end,
-    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
+    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
 local layouts = {}
 
 local sidebarLayout = require(script.Parent.Parent.layouts.Sidebar)
@@ -28094,9 +27631,6 @@ export type Layout = {
     rowPadding: number?,
     rowContentSpacing: number?,
     rowIconSize: number?,
-    rowLabelSize: number?,
-    rowAccentWidth: number?,
-    rowAccentHeight: number?,
     cardTransparency: number?,
     cardStrokeRotation: number?,
     cardStrokeTransparency: NumberSequence?,
@@ -28114,28 +27648,19 @@ layouts.sidebar = {
     railCollapsedWidth = 64,
     railCollapseBelow = 520,
 
-    rowHeight = 36,
+    rowHeight = 38,
     --[[
-    A nav row is a quiet row: icon plus label on the rail's own surface, no
-    outline and no shadow. Hover is a subtle fill, selection is a fill plus
-    the 3px accent bar on the row's leading edge — which is why a row still
-    carries the element-card radius: the fill needs a shape to sit in.
+    The rail's rows are inset `rowInset` from the rail's edges, so they
+    read as chips rather than as full-bleed bands — and a chip wants the
+    element-card radius, the tier one step inside the shell's own arc.
     ]]
     rowCornerRadius = 8,
     rowSpacing = 4,
-    railPadding = 16,
-    rowInset = 12,
-    rowPadding = 12,
-    rowContentSpacing = 8,
-    rowIconSize = 16,
-    --[[
-    The row label's size is a layout value, not a literal inside the row
-    builder: the rail's responsive width measures the very same number, so
-    changing the scale moves the measurement with it.
-    ]]
-    rowLabelSize = 14,
-    rowAccentWidth = 3,
-    rowAccentHeight = 16,
+    railPadding = 17,
+    rowInset = 15,
+    rowPadding = 10,
+    rowContentSpacing = 6,
+    rowIconSize = 20,
 
     pageDirection = Enum.FillDirection.Vertical,
 
@@ -28201,7 +27726,7 @@ end
 return layouts
 
 end)() end,
-    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
+    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local logger = require(script.Parent.log)
 
@@ -28300,7 +27825,7 @@ end
 return locale
 
 end)() end,
-    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
+    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
 --[[
 Lockable controls keep their value and callback intact while a lock source
 blocks user input. This mixin also stamps the public usage tag used by the
@@ -28531,7 +28056,7 @@ setmetatable(lockable, {
 return lockable
 
 end)() end,
-    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
+    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
 local log = {}
 
 type SuppressPredicate = () -> boolean
@@ -28587,7 +28112,7 @@ end
 return log
 
 end)() end,
-    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
+    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
 --[[
 Astra motion service.
 
@@ -29060,7 +28585,7 @@ end
 
 return motion
 end)() end,
-    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
+    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
 local function moveable<T>(dragState: T): T
     local target = dragState :: any
 
@@ -29096,7 +28621,7 @@ end
 return moveable
 
 end)() end,
-    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
+    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
 local HttpGuard = require(script.Parent.httpGuard)
 
 local network = {}
@@ -29134,7 +28659,7 @@ end
 return network
 
 end)() end,
-    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
+    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local motion = require(script.Parent.motion)
 local textService = coreState.textService
@@ -29494,7 +29019,7 @@ end
 return odometer
 
 end)() end,
-    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
+    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
 type OrderedElement = {
     main: GuiObject,
 }
@@ -29506,7 +29031,7 @@ end
 return ordering
 
 end)() end,
-    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
+    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
 local path = {}
 
 function path.join(base: string, suffix: string?): string
@@ -29557,7 +29082,7 @@ end
 return path
 
 end)() end,
-    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
+    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
 local persistence = {}
 
 local configPersistence = require(script.Parent.persistenceConfig)
@@ -29576,7 +29101,7 @@ persistence.loadSettings = settingsPersistence.loadSettings
 return persistence
 
 end)() end,
-    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
+    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local logger = require(script.Parent.log)
@@ -29874,7 +29399,7 @@ end
 return persistenceConfig
 
 end)() end,
-    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
+    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local pathUtil = require(script.Parent.path)
 
@@ -29918,7 +29443,7 @@ end
 return persistencePaths
 
 end)() end,
-    [117] = function()local wax,script,require=ImportGlobals(117)local ImportGlobals return (function(...)
+    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local paths = require(script.Parent.persistencePaths)
@@ -30119,7 +29644,7 @@ end
 return persistenceSettings
 
 end)() end,
-    [118] = function()local wax,script,require=ImportGlobals(118)local ImportGlobals return (function(...)
+    [117] = function()local wax,script,require=ImportGlobals(117)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 
 local persistenceWrite = {}
@@ -30147,7 +29672,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [119] = function()local wax,script,require=ImportGlobals(119)local ImportGlobals return (function(...)
+    [118] = function()local wax,script,require=ImportGlobals(118)local ImportGlobals return (function(...)
 local services = {}
 
 function services.getService(serviceName)
@@ -30158,132 +29683,7 @@ end
 return services
 
 end)() end,
-    [120] = function()local wax,script,require=ImportGlobals(120)local ImportGlobals return (function(...)
---[[
-Design tokens — the numbers behind Astra's type, spacing, icon and surface
-rules, in one place so no element invents a scale of its own.
-
-  * type      five sizes (12 / 13 / 14 / 16 / 20) and two weights (400 / 600),
-  * lineHeight  the band each size sits in when a row fixes its height,
-  * space     the 8pt grid (8 / 12 / 16 / 24) plus a 4px half-step for the
-              gap between an icon and its label inside one row,
-  * icon      16px inside a nav row or inline with text, 20px standing alone,
-  * measure   the prose column cap — roughly 65 characters at body size,
-  * hairline  the 1px separator: thickness and resting alpha,
-  * row       the standard nav row height.
-
-The rule these tokens exist to serve is the surface rule: a view has one
-surface. Sections separate with whitespace or a hairline, never with a nested
-box, so an element that carries information owns no card and an element that
-carries a control keeps exactly one.
-]]
-
-local tokens = {}
-
---[[
-Type scale. Five steps, used as roles rather than as decoration:
-  caption   metadata lines and section labels (uppercased)
-  label     compact secondary labels
-  body      body copy, nav labels, descriptions
-  title     card and row titles
-  pageTitle the single heading a page opens with
-]]
-tokens.text = {
-    caption = 12,
-    label = 13,
-    body = 14,
-    title = 16,
-    pageTitle = 20,
-}
-
---[[
-The band a size sits in when its row fixes a height (a TextSize alone leaves
-the engine to lay the line out, which is where half-pixel wobble comes from).
-]]
-tokens.lineHeight = {
-    caption = 15,
-    label = 16,
-    body = 18,
-    title = 19,
-    pageTitle = 24,
-}
-
---[[
-Two weights only. Body copy and labels rest on `regular`, titles and the page
-heading on `strong`; nothing in between, so emphasis reads as contrast instead
-of as five shades of bold.
-]]
-tokens.weight = {
-    regular = Enum.FontWeight.Regular,
-    strong = Enum.FontWeight.SemiBold,
-}
-
---[[
-The 8pt grid. `half` (4px) exists for one job only — the gap between an icon
-and the label beside it inside a single row — and is not a structural step.
-]]
-tokens.space = {
-    half = 4,
-    sm = 8,
-    md = 12,
-    lg = 16,
-    xl = 24,
-}
-
---[[
-Icon sizes. `nav` is the sidebar row glyph, `inline` a glyph sitting in a line
-of text, `standalone` a glyph that carries a row or a page on its own.
-]]
-tokens.icon = {
-    nav = 16,
-    inline = 16,
-    standalone = 20,
-}
-
---[[
-Prose measure. At body size and the stock family this is about 65 characters —
-the point past which a line stops being comfortable to read, so a paragraph
-stops widening there even when the window does.
-]]
-tokens.measure = {
-    prose = 468,
-}
-
---[[
-The hairline. One pixel, drawn from the theme's stroke colour at
-`transparency`, and the only separator a view is allowed to add.
-]]
-tokens.hairline = {
-    thickness = 1,
-    transparency = 0.82,
-}
-
--- Standard nav row height (the 36–40px band the rail is tuned around).
-tokens.row = {
-    height = 36,
-}
-
---[[
-Page inset: what an element's `1, -20` width offset means — 10px of page on
-each side. Card padding is a separate, larger step (`space.md`); this is the
-margin the page itself keeps.
-]]
-tokens.pageInset = 10
-
---[[
-Alpha ladder for muted copy: one step for a metadata line, one for a label
-that is quiet but still legible, and one for a disabled control.
-]]
-tokens.alpha = {
-    meta = 0.55,
-    muted = 0.45,
-    disabled = 0.65,
-}
-
-return tokens
-
-end)() end,
-    [121] = function()local wax,script,require=ImportGlobals(121)local ImportGlobals return (function(...)
+    [119] = function()local wax,script,require=ImportGlobals(119)local ImportGlobals return (function(...)
 local layoutMetrics = require(script.Parent.layouts)
 local coreState = require(script.Parent.Parent.core.state)
 
@@ -30468,121 +29868,119 @@ end)() end,
 
 local LineOffsets = {
     [2] = 47,
-    [3] = 506,
-    [5] = 1282,
-    [6] = 1265,
-    [7] = 1468,
-    [8] = 1610,
-    [9] = 1862,
-    [10] = 2244,
-    [11] = 3621,
-    [12] = 4030,
-    [13] = 4379,
-    [14] = 5118,
-    [15] = 5457,
-    [16] = 6031,
-    [17] = 6094,
-    [18] = 6572,
-    [19] = 6918,
-    [20] = 6932,
-    [21] = 7032,
-    [22] = 7172,
-    [23] = 7713,
-    [24] = 7952,
-    [25] = 8274,
-    [26] = 8374,
-    [27] = 8428,
-    [28] = 9071,
-    [29] = 9319,
-    [30] = 9669,
-    [31] = 10133,
-    [32] = 6892,
-    [34] = 11067,
-    [35] = 11904,
-    [36] = 11993,
-    [37] = 12222,
-    [38] = 12643,
-    [39] = 13108,
-    [40] = 13265,
-    [41] = 13410,
-    [42] = 15028,
-    [43] = 15276,
-    [44] = 15516,
-    [45] = 15837,
-    [46] = 16356,
-    [47] = 16609,
-    [48] = 17689,
-    [49] = 18513,
-    [50] = 18782,
-    [51] = 18875,
-    [52] = 19478,
-    [53] = 20320,
-    [54] = 20914,
-    [55] = 21482,
-    [56] = 21612,
-    [57] = 21782,
-    [59] = 22297,
-    [60] = 22323,
-    [61] = 22342,
-    [62] = 22374,
-    [63] = 22500,
-    [64] = 22514,
-    [65] = 22563,
-    [66] = 22272,
-    [67] = 22654,
-    [68] = 22970,
-    [69] = 23001,
-    [70] = 22643,
-    [71] = 23044,
-    [72] = 23064,
-    [73] = 23096,
-    [74] = 23026,
-    [75] = 23203,
-    [76] = 23271,
-    [78] = 23353,
-    [79] = 23520,
-    [80] = 23539,
-    [81] = 23338,
-    [82] = 24180,
-    [83] = 24226,
-    [84] = 24308,
-    [85] = 24503,
-    [86] = 24634,
-    [87] = 24737,
-    [88] = 24906,
-    [89] = 25246,
-    [90] = 23635,
-    [91] = 25891,
-    [92] = 25776,
-    [93] = 26036,
-    [94] = 26134,
-    [95] = 26315,
-    [96] = 26381,
-    [97] = 26411,
-    [98] = 26703,
-    [99] = 26752,
-    [100] = 27207,
-    [101] = 27225,
-    [102] = 27432,
-    [103] = 28045,
-    [104] = 28065,
-    [105] = 28205,
-    [106] = 28304,
-    [107] = 28535,
-    [108] = 28591,
-    [109] = 29064,
-    [110] = 29100,
-    [111] = 29138,
-    [112] = 29498,
-    [113] = 29510,
-    [114] = 29561,
-    [115] = 29580,
-    [116] = 29878,
-    [117] = 29922,
-    [118] = 30123,
-    [119] = 30151,
-    [120] = 30162,
-    [121] = 30287,
+    [3] = 504,
+    [5] = 1259,
+    [6] = 1242,
+    [7] = 1414,
+    [8] = 1556,
+    [9] = 1807,
+    [10] = 2189,
+    [11] = 3566,
+    [12] = 3975,
+    [13] = 4324,
+    [14] = 5063,
+    [15] = 5401,
+    [16] = 5971,
+    [17] = 6034,
+    [18] = 6508,
+    [19] = 6854,
+    [20] = 6868,
+    [21] = 6968,
+    [22] = 7108,
+    [23] = 7649,
+    [24] = 7888,
+    [25] = 8210,
+    [26] = 8310,
+    [27] = 8364,
+    [28] = 9006,
+    [29] = 9254,
+    [30] = 9604,
+    [31] = 10051,
+    [32] = 6828,
+    [34] = 10985,
+    [35] = 11822,
+    [36] = 11911,
+    [37] = 12140,
+    [38] = 12561,
+    [39] = 13026,
+    [40] = 13183,
+    [41] = 13328,
+    [42] = 14946,
+    [43] = 15194,
+    [44] = 15434,
+    [45] = 15755,
+    [46] = 16201,
+    [47] = 16454,
+    [48] = 17534,
+    [49] = 18358,
+    [50] = 18444,
+    [51] = 19047,
+    [52] = 19889,
+    [53] = 20483,
+    [54] = 21064,
+    [55] = 21194,
+    [56] = 21333,
+    [58] = 21848,
+    [59] = 21874,
+    [60] = 21893,
+    [61] = 21925,
+    [62] = 22051,
+    [63] = 22065,
+    [64] = 22114,
+    [65] = 21823,
+    [66] = 22205,
+    [67] = 22521,
+    [68] = 22552,
+    [69] = 22194,
+    [70] = 22595,
+    [71] = 22615,
+    [72] = 22647,
+    [73] = 22577,
+    [74] = 22754,
+    [75] = 22822,
+    [77] = 22904,
+    [78] = 23071,
+    [79] = 23090,
+    [80] = 22889,
+    [81] = 23731,
+    [82] = 23777,
+    [83] = 23859,
+    [84] = 24054,
+    [85] = 24185,
+    [86] = 24288,
+    [87] = 24457,
+    [88] = 24797,
+    [89] = 23186,
+    [90] = 25441,
+    [91] = 25327,
+    [92] = 25580,
+    [93] = 25678,
+    [94] = 25859,
+    [95] = 25918,
+    [96] = 25948,
+    [97] = 26240,
+    [98] = 26289,
+    [99] = 26744,
+    [100] = 26762,
+    [101] = 26969,
+    [102] = 27582,
+    [103] = 27602,
+    [104] = 27730,
+    [105] = 27829,
+    [106] = 28060,
+    [107] = 28116,
+    [108] = 28589,
+    [109] = 28625,
+    [110] = 28663,
+    [111] = 29023,
+    [112] = 29035,
+    [113] = 29086,
+    [114] = 29105,
+    [115] = 29403,
+    [116] = 29447,
+    [117] = 29648,
+    [118] = 29676,
+    [119] = 29687,
 }
 
 -- Misc AOT variable imports
@@ -30829,7 +30227,7 @@ local ObjectTree = {
                 },
             },
             {
-                58,
+                57,
                 1,
                 {
                     "elements",
@@ -30944,60 +30342,53 @@ local ObjectTree = {
                         49,
                         2,
                         {
-                            "pageHeader",
+                            "section",
                         },
                     },
                     {
                         50,
                         2,
                         {
-                            "section",
+                            "slider",
                         },
                     },
                     {
                         51,
                         2,
                         {
-                            "slider",
+                            "stat",
                         },
                     },
                     {
                         52,
                         2,
                         {
-                            "stat",
+                            "stepper",
                         },
                     },
                     {
                         53,
                         2,
                         {
-                            "stepper",
+                            "tab",
                         },
                     },
                     {
                         54,
                         2,
                         {
-                            "tab",
+                            "tabSection",
                         },
                     },
                     {
                         55,
                         2,
                         {
-                            "tabSection",
-                        },
-                    },
-                    {
-                        56,
-                        2,
-                        {
                             "text",
                         },
                     },
                     {
-                        57,
+                        56,
                         2,
                         {
                             "toggle",
@@ -31006,56 +30397,56 @@ local ObjectTree = {
                 },
             },
             {
-                66,
+                65,
                 2,
                 {
                     "settings",
                 },
                 {
                     {
-                        59,
+                        58,
                         2,
                         {
                             "appearance",
                         },
                     },
                     {
-                        60,
+                        59,
                         2,
                         {
                             "behavior",
                         },
                     },
                     {
-                        61,
+                        60,
                         2,
                         {
                             "defaults",
                         },
                     },
                     {
-                        62,
+                        61,
                         2,
                         {
                             "manager",
                         },
                     },
                     {
-                        63,
+                        62,
                         2,
                         {
                             "performance",
                         },
                     },
                     {
-                        64,
+                        63,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        65,
+                        64,
                         2,
                         {
                             "registry",
@@ -31064,28 +30455,28 @@ local ObjectTree = {
                 },
             },
             {
-                70,
+                69,
                 2,
                 {
                     "cache",
                 },
                 {
                     {
-                        67,
+                        66,
                         2,
                         {
                             "imageCache",
                         },
                     },
                     {
-                        68,
+                        67,
                         2,
                         {
                             "moduleCache",
                         },
                     },
                     {
-                        69,
+                        68,
                         2,
                         {
                             "persistenceCache",
@@ -31094,28 +30485,28 @@ local ObjectTree = {
                 },
             },
             {
-                74,
+                73,
                 2,
                 {
                     "functions",
                 },
                 {
                     {
-                        71,
+                        70,
                         2,
                         {
                             "colors",
                         },
                     },
                     {
-                        72,
+                        71,
                         2,
                         {
                             "flagNames",
                         },
                     },
                     {
-                        73,
+                        72,
                         2,
                         {
                             "textMetrics",
@@ -31124,21 +30515,21 @@ local ObjectTree = {
                 },
             },
             {
-                77,
+                76,
                 1,
                 {
                     "layouts",
                 },
                 {
                     {
-                        75,
+                        74,
                         2,
                         {
                             "Sidebar",
                         },
                     },
                     {
-                        76,
+                        75,
                         2,
                         {
                             "SidebarCollapsed",
@@ -31147,28 +30538,28 @@ local ObjectTree = {
                 },
             },
             {
-                81,
+                80,
                 2,
                 {
                     "images",
                 },
                 {
                     {
-                        78,
+                        77,
                         2,
                         {
                             "image",
                         },
                     },
                     {
-                        79,
+                        78,
                         2,
                         {
                             "uiIcons",
                         },
                     },
                     {
-                        80,
+                        79,
                         2,
                         {
                             "windowIcons",
@@ -31177,63 +30568,63 @@ local ObjectTree = {
                 },
             },
             {
-                90,
+                89,
                 2,
                 {
                     "icons",
                 },
                 {
                     {
-                        82,
+                        81,
                         2,
                         {
                             "feather",
                         },
                     },
                     {
-                        83,
+                        82,
                         2,
                         {
                             "heroicons",
                         },
                     },
                     {
-                        84,
+                        83,
                         2,
                         {
                             "lucide",
                         },
                     },
                     {
-                        85,
+                        84,
                         2,
                         {
                             "material",
                         },
                     },
                     {
-                        86,
+                        85,
                         2,
                         {
                             "packBuilder",
                         },
                     },
                     {
-                        87,
+                        86,
                         2,
                         {
                             "phosphor",
                         },
                     },
                     {
-                        88,
+                        87,
                         2,
                         {
                             "remix",
                         },
                     },
                     {
-                        89,
+                        88,
                         2,
                         {
                             "tabler",
@@ -31242,14 +30633,14 @@ local ObjectTree = {
                 },
             },
             {
-                92,
+                91,
                 2,
                 {
                     "themes",
                 },
                 {
                     {
-                        91,
+                        90,
                         2,
                         {
                             "default",
@@ -31258,210 +30649,203 @@ local ObjectTree = {
                 },
             },
             {
-                122,
+                120,
                 1,
                 {
                     "utilities",
                 },
                 {
                     {
-                        93,
+                        92,
                         2,
                         {
                             "HapticEngine",
                         },
                     },
                     {
-                        94,
+                        93,
                         2,
                         {
                             "assetResolver",
                         },
                     },
                     {
-                        95,
+                        94,
                         2,
                         {
                             "constants",
                         },
                     },
                     {
-                        96,
+                        95,
                         2,
                         {
                             "enums",
                         },
                     },
                     {
-                        97,
+                        96,
                         2,
                         {
                             "filesystem",
                         },
                     },
                     {
-                        98,
+                        97,
                         2,
                         {
                             "filesystemManager",
                         },
                     },
                     {
-                        99,
+                        98,
                         2,
                         {
                             "fontManager",
                         },
                     },
                     {
-                        100,
+                        99,
                         2,
                         {
                             "functions",
                         },
                     },
                     {
-                        101,
+                        100,
                         2,
                         {
                             "hardwarePerformance",
                         },
                     },
                     {
-                        102,
+                        101,
                         2,
                         {
                             "httpGuard",
                         },
                     },
                     {
-                        103,
+                        102,
                         2,
                         {
                             "keybind",
                         },
                     },
                     {
-                        104,
+                        103,
                         2,
                         {
                             "layouts",
                         },
                     },
                     {
-                        105,
+                        104,
                         2,
                         {
                             "locale",
                         },
                     },
                     {
-                        106,
+                        105,
                         2,
                         {
                             "lockable",
                         },
                     },
                     {
-                        107,
+                        106,
                         2,
                         {
                             "log",
                         },
                     },
                     {
-                        108,
+                        107,
                         2,
                         {
                             "motion",
                         },
                     },
                     {
-                        109,
+                        108,
                         2,
                         {
                             "moveable",
                         },
                     },
                     {
-                        110,
+                        109,
                         2,
                         {
                             "network",
                         },
                     },
                     {
-                        111,
+                        110,
                         2,
                         {
                             "odometer",
                         },
                     },
                     {
-                        112,
+                        111,
                         2,
                         {
                             "ordering",
                         },
                     },
                     {
-                        113,
+                        112,
                         2,
                         {
                             "path",
                         },
                     },
                     {
-                        114,
+                        113,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        115,
+                        114,
                         2,
                         {
                             "persistenceConfig",
                         },
                     },
                     {
-                        116,
+                        115,
                         2,
                         {
                             "persistencePaths",
                         },
                     },
                     {
-                        117,
+                        116,
                         2,
                         {
                             "persistenceSettings",
                         },
                     },
                     {
-                        118,
+                        117,
                         2,
                         {
                             "persistenceWrite",
                         },
                     },
                     {
-                        119,
+                        118,
                         2,
                         {
                             "services",
                         },
                     },
                     {
-                        120,
-                        2,
-                        {
-                            "tokens",
-                        },
-                    },
-                    {
-                        121,
+                        119,
                         2,
                         {
                             "windowSizing",

@@ -91,7 +91,7 @@ local railCorner = findChild(window.sidebar, "UICorner")
 expect(railCorner ~= nil, "the tab rail carries a UICorner")
 expect(railCorner.BottomLeftRadius.Offset == roundness.Offset, "the rail's bottom-left corner mirrors the window corner")
 
--- ===== S4: a nav row is a quiet row — fill and accent bar, no box =====
+-- ===== S4: the selected row IS the elements-area colour =====
 local tabA = window:CreateTab({ name = "Alpha" })
 local tabB = window:CreateTab({ name = "Beta" })
 tabB:Select()
@@ -101,27 +101,20 @@ local rowA, rowB = tabA.topbarItem, tabB.topbarItem
 expect(rowB.BackgroundColor3 == window.theme.ElementSurface, "the selected row is painted with the elements-area colour")
 expect(rowB.BackgroundTransparency == 0, "the selected row is opaque (it continues the content band)")
 expect(rowA.BackgroundTransparency == 1, "the unselected row falls back to the rail's own shade")
---[[
-The outline and the highlight shadow are gone in every state: a row is a
-quiet row, so the rail reads as a list of names rather than a stack of
-boxes (state lives on the fill and the accent bar).
-]]
-expect(findChild(rowA, "UIStroke") == nil and findChild(rowB, "UIStroke") == nil, "a nav row carries no outline")
-expect(findChild(rowA, "UIShadow") == nil and findChild(rowB, "UIShadow") == nil, "a nav row carries no shadow")
-expect(tabA.topbarAccent ~= nil and tabB.topbarAccent ~= nil, "every nav row owns an accent bar")
-expect(tabB.topbarAccent.BackgroundTransparency == 0, "the selected row shows its accent bar")
-expect(tabA.topbarAccent.BackgroundTransparency == 1, "an unselected row hides its accent bar")
+expect(tabA.topbarItemStroke.Transparency == 0.8, "unselected row keeps its outline")
+expect(tabB.topbarItemStroke.Transparency == 0.5, "selected row keeps its existing outline")
+expect(tabB.topbarItemShadow.Transparency == 0.8, "selected highlight shadow is unchanged")
 tabA.topbarItemInteract.MouseEnter:Fire()
 TestPump(0.3)
-expect(rowA.BackgroundTransparency > 0 and rowA.BackgroundTransparency < 1, "hover paints a subtle fill, never a card")
-expect(tabA.topbarAccent.BackgroundTransparency == 1, "hover alone does not raise the accent bar")
+expect(rowA.BackgroundTransparency == 1, "hover cannot highlight an unselected row")
+expect(tabA.topbarItemStroke.Transparency < 1, "hover keeps the outline")
+expect(tabA.topbarItemShadow.Transparency == 1, "unselected hover has no shadow highlight")
 tabA.topbarItemInteract.MouseLeave:Fire()
 tabA:Select()
 TestPump(0.3)
-expect(rowA.BackgroundTransparency == 0, "new selection gains its fill")
-expect(tabA.topbarAccent.BackgroundTransparency == 0, "new selection gains its accent bar")
-expect(rowB.BackgroundTransparency == 1, "old selection loses its fill")
-expect(tabB.topbarAccent.BackgroundTransparency == 1, "old selection loses its accent bar")
+expect(rowA.BackgroundTransparency == 0, "new selection gains its highlight")
+expect(rowB.BackgroundTransparency == 1, "old selection loses its highlight")
+expect(tabB.topbarItemStroke.Transparency == 0.8, "old selection keeps its outline")
 tabB:Select()
 TestPump(0.3)
 expect(findChild(rowB, "UIGradient") == nil, "no background gradient tints the row off the content colour")

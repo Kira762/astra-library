@@ -132,7 +132,6 @@ Stepper, Dropdown, Input, ModePicker, AboutCard and Link ignore the prop.
 | `CreateStepper({ name, min, max, step, value, flag, callback })` | `[−] [value] [+]` capsule; one tap is one clamped `step`, `min` defaults to 0, `max` optional | `:Set(value)`, `:Get()`, `:Increment()`, `:Decrement()` |
 | `CreateDropdown({ name, options, value, multiSelect, placeholder, flag, callback })` | multi-select value is a table | `:Refresh(options)`, `:Add(option)`, `:Remove(option)` |
 | `CreateInput({ name, value, placeholder, numeric, clearOnFocus, flag, callback })` | text field, `callback(text)` | `:Set(text)` |
-| `CreatePageHeader({ name, meta, body })` | flat page header: a 20/600 title, one muted 12px metadata line (`meta` may be a string or a table, joined with " · ") and an optional 14px prose paragraph capped at the reading measure — no card and no icon slot | `:SetTitle(name)`, `:SetMeta(meta?)`, `:SetBody(text?)` |
 | `CreateLink({ name, subtitle, link, icon, callback })` | card carrying a hidden URL; the trailing control copies it and swaps in a check mark for two seconds — the link is never rendered | `:Set(link)`, `:SetLink(link)`, `:SetTitle(name)`, `:SetSubtitle(text)`, `:SetIcon(icon)`, `:Copy()`, `:IsConfirming()` |
 | `CreateAboutCard({ name, subtitle, icon, rows = { { icon, label, value } }, action = { icon, name, subtitle, callback } })` | one card: branded header, **1–3** compact icon tiles kept on one equal-width line, and an optional tappable action band (a fourth row errors) | `:SetTitle(name)`, `:SetSubtitle(text?)`, `:SetIcon(icon)`, `:SetRow(index, row)` |
 | `CreateStat({ name, value, prefix, suffix, display, compact, letter, changeMode, changeBaseline })` | readout card; a string `value` shows one letter unless `letter = false`, which reads the whole value | `:Set(value)`, `:SetText(text)`, `:ResetBaseline(n)` |
@@ -140,17 +139,6 @@ Stepper, Dropdown, Input, ModePicker, AboutCard and Link ignore the prop.
 | `CreateDivider({ text, line, spacing })` | rule between controls | — |
 | `CreateGroup({ direction = "row" \| "column" })` | horizontal row by default | nesting via `Create…` |
 `CreateAboutCard` is tab-only, like `CreateIsolated` and `CreateChangelog`.
-
-### One surface per view
-
-A view has one surface. Informational composition is **flat**: use
-`CreatePageHeader` for the page's heading block, `CreateText({ plain = true })`
-for prose, `CreateIsolated({ plain = true })` for a hairline-separated row, and
-`CreateSection` for labels (13px, muted). Only controls keep a card. Sections
-separate with whitespace or a 1px hairline — never with a nested box. Type,
-spacing, icon and colour rules are `DESIGN.md`, and the numbers behind them are
-`utilities/tokens.luau` (12/13/14/16/20 at weights 400/600; spacing 8/12/16/24
-plus a 4px half-step; icons 16 nav/inline, 20 standalone).
 
 Tab-only declarative container: `tab:CreateCollapsibleGroup({ name, icon, description, elements = { ... } })`
 where each child is `{ type = "Toggle" | "Button" | "Slider" | "Dropdown" | "Input" | "Link" | "Switch" | "Stat" | "Section" | "Text" | "Footer" | "Divider" | "Group" | "Changelog", ...same props }`.

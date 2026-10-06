@@ -101,22 +101,29 @@ local function buildStudio(unlockedKey)
     overview = window:CreateTab({ name = "Overview", icon = "house" })
     local releaseHistory
 
-    --[[
-    One surface per view. The page opens with a flat header — the title and
-    one muted metadata line — instead of a hero card, so nothing repeats the
-    brand the window header already carries. The three data tiles are gone:
-    version, tab count and author are one caption line, and the paragraph
-    below is plain prose rather than a card (see utilities/tokens.luau and
-    DESIGN.md for the rule).
-    ]]
-    overview:CreatePageHeader({
-        name = "Overview",
-        meta = { "v1.4.0", "13 tabs", "Astra Team" },
+    overview:CreateAboutCard({
+        name = "Astra",
+        subtitle = "A live testbed for the whole API.",
+        icon = 80387863064905,
+        rows = {
+            { icon = "code", label = "Version", value = "1.4.0" },
+            { icon = "layers", label = "Tabs", value = "13" },
+            { icon = "user", label = "Author", value = "Astra Team" },
+        },
+        action = {
+            icon = "file-text",
+            name = "Release history",
+            callback = function()
+                overview:Select()
+                if releaseHistory then
+                    releaseHistory:Expand()
+                end
+            end,
+        },
     })
 
     overview:CreateText({
         name = "Start here",
-        plain = true,
         text = "Every tab drives something real: Player edits the character, Live Stats samples the frame loop, Elements drives every handle, Steppers is a pure UI test (no callbacks). New Elements collects the newest APIs in one place.",
     })
 
@@ -160,16 +167,10 @@ local function buildStudio(unlockedKey)
         end,
     })
 
-    --[[
-    A plain row: the milestones sit behind one quiet line with a hairline
-    above it, not inside another card. Expansion, the chevron and the
-    lockable behaviour are unchanged.
-    ]]
     releaseHistory = overview:CreateIsolated({
         name = "Release history",
         subtitle = "Library milestones",
         icon = "history",
-        plain = true,
         elements = {
             { type = "Changelog", name = "Recent releases", entries = {
                 { version = "1.4.0", date = "2026-09-12", changes = {

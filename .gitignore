@@ -10,10 +10,3 @@ node_modules/
 # Throwaway local signing key (auto-created by scripts/sign_bundle.js).
 # The production key only ever exists as the SIGNING_KEY Actions secret.
 scripts/dev_signing_key.pem
-
-# Python bytecode from the repo's check scripts (scripts/*.py).
-__pycache__/
-*.pyc
-
-# Local design-review mocks (review/*.html) — working artifacts, not shipped.
-review/

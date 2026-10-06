@@ -224,9 +224,9 @@ local premiumTab = w3:CreateTab({ name = "Premium", icon = "star", locked = true
 TestPump(0.3)
 
 --[[
-Stub text metrics: ceil(#text * 14 * 0.6), so "Premium" is 59px wide and
-the row measures 24 (padding) + 24 (icon + gap) + 59 = 107,
-i.e. a 131px rail with the row insets. Hidden badges reserve nothing.
+Stub text metrics: ceil(#text * 16 * 0.6), so "Premium" is 68px wide and
+the row measures 20 (padding) + 26 (icon + gap) + 68 = 114,
+i.e. a 144px rail with the row insets. Hidden badges reserve nothing.
 ]]
 local badge = premiumTab.topbarItemLock
 expect(badge, "L10 locked tab builds a lock badge")
@@ -239,7 +239,7 @@ eq(badge.Position.Y.Scale, 0.5, "L10 badge position is row-relative (Y)")
 eq(badge.Position.Y.Offset, 0, "L10 badge carries no vertical offset")
 eq(badge.Size.X.Offset, 13, "L10 badge is small (13px wide)")
 eq(badge.Size.Y.Offset, 13, "L10 badge is small (13px tall)")
-eq(w3.sidebar.Size.X.Offset, 131, "L10 rail reserves no space for the hidden badge")
+eq(w3.sidebar.Size.X.Offset, 144, "L10 rail reserves no space for the hidden badge")
 near(premiumTab.topbarItemTitle.TextTransparency, 0.7, 0.05, "L10 locked title holds the gated floor")
 near(betaTab.topbarItemTitle.TextTransparency, 0.5, 0.05, "L10 adding a locked tab does not brighten the other rows")
 
@@ -247,25 +247,25 @@ near(betaTab.topbarItemTitle.TextTransparency, 0.5, 0.05, "L10 adding a locked t
 premiumTab:SetLocked(false)
 TestPump(0.3)
 eq(premiumTab.topbarItemLock.Visible, false, "L10 badge hidden after unlock")
-eq(w3.sidebar.Size.X.Offset, 131, "L10 unlocking keeps the same rail width")
+eq(w3.sidebar.Size.X.Offset, 144, "L10 unlocking keeps the same rail width")
 premiumTab:SetLocked(true)
 TestPump(0.3)
-eq(w3.sidebar.Size.X.Offset, 131, "L10 locking keeps the same rail width")
+eq(w3.sidebar.Size.X.Offset, 144, "L10 locking keeps the same rail width")
 near(premiumTab.topbarItemTitle.TextTransparency, 0.7, 0.05, "L10 the re-locked row keeps the gated floor")
 
 --[[
 A long locked name wraps clear of the badge: at the 300px cap the slot is
-276 - 24 - 24 = 228, while the short rows stay unconstrained.
+270 - 20 - 26 - 19 = 224, while the short rows stay unconstrained.
 ]]
 local longLocked = w3:CreateTab({ name = "ThisLockedNameIsLongEnoughToCapTheRail", icon = "star", locked = true })
 TestPump(0.3)
 eq(w3.sidebar.Size.X.Offset, 300, "L10 very long locked name caps the rail")
 eq(longLocked.topbarItemTitle.AutomaticSize, Enum.AutomaticSize.Y, "L10 capped locked title wraps")
-eq(longLocked.topbarItemTitle.Size.X.Offset, 228, "L10 capped locked title holds the full title slot")
+eq(longLocked.topbarItemTitle.Size.X.Offset, 224, "L10 capped locked title holds the full title slot")
 eq(premiumTab.topbarItemTitle.AutomaticSize, Enum.AutomaticSize.XY, "L10 short locked title stays unconstrained")
 longLocked:Remove()
 TestPump(0.2)
-eq(w3.sidebar.Size.X.Offset, 131, "L10 removing the long row restores the content-fitted rail")
+eq(w3.sidebar.Size.X.Offset, 144, "L10 removing the long row restores the content-fitted rail")
 
 -- The collapsed tile has no trailing room: the badge keeps the corner seat.
 TestViewport.set(500, 700)
@@ -280,7 +280,7 @@ eq(badge.Position.Y.Scale, 0, "L10 collapsed badge keeps the corner seat (Y scal
 eq(badge.Position.Y.Offset, 11, "L10 collapsed badge keeps the corner seat (Y offset)")
 TestViewport.set(1920, 1080)
 TestPump(0.2)
-eq(w3.sidebar.Size.X.Offset, 131, "L10 wide viewport restores the content-fitted rail")
+eq(w3.sidebar.Size.X.Offset, 144, "L10 wide viewport restores the content-fitted rail")
 eq(badge.AnchorPoint.X, 1, "L10 badge returns to the trailing seat")
 eq(badge.Position.X.Offset, -w3.layout.rowPadding, "L10 badge returns to the row padding")
 near(betaTab.topbarItemTitle.TextTransparency, 0.5, 0.05, "L10 restore keeps the unselected wash")

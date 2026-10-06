@@ -3,22 +3,15 @@ local uiIcons = require(script.Parent.Parent.images.uiIcons)
 local constants = {}
 
 --[[
-Font selection. Both choices are neutral UI faces:
-
-  * `default` renders every text surface with the stock fallback family
-    (state.fallbackFont, Enum.Font.BuilderSans),
-  * `brand` uses the catalogue family named below, resolved by name
-    through `Font.fromName` and falling back to the stock family where the
-    catalogue cannot answer.
-
-This value is only the initial choice: the live selection is the persisted
-`fontChoice` window setting (Settings → Appearance → Font), switchable
-mid-session. The hand-drawn Finger Paint family this option used to carry
-is gone — the interface is set in a neutral face, and emphasis comes from
-weight and colour rather than from a display font.
+Font selection. `default` renders every text surface with the stock
+fallback font — the original Roblox look (state.fallbackFont,
+Enum.Font.BuilderSans) — while `brand` uses the custom family below
+(Finger Paint, rbxassetid://12187375716). This value is only the
+initial choice: the live selection is the persisted `fontChoice`
+window setting (Settings → Appearance → Font), switchable mid-session.
 ]]
 constants.defaultFontChoice = "default" -- "default" | "brand"
-constants.brandFontName = "Inter"
+constants.fontAsset = "rbxassetid://12187375716"
 
 constants.icons = iconRegistry.ids
 constants.uiIcons = uiIcons

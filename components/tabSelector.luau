@@ -3,7 +3,6 @@ local state = require(utilities.Parent.core.state)
 local motion = require(utilities.motion)
 local functions = require(script.Parent.Parent.functions)
 local locale = require(utilities.locale)
-local tokens = require(utilities.tokens)
 
 local tabSelector = {}
 
@@ -23,30 +22,35 @@ local function getInitial(str: string?): string
 end
 
 --[[
-Row colour contract — a nav row is a quiet row.
-
-There is no outline and no shadow on a row, in any state: the rail's own
-surface is the row's resting look, so the eye reads a list of names instead
-of a stack of boxes. State is carried by fill and by the accent bar:
-
-  * resting   — the rail's surface, muted content,
-  * hover     — a subtle fill (one step off the rail, never a card),
-  * selected  — the elements-area fill (ElementSurface, opaque, so the open
-                row continues into the content it opens) plus the 3px accent
-                bar on the leading edge,
-  * hidden    — everything faded out for a reveal.
-
-`accent` is the bar's own alpha, so a fade of the row fades the bar with it
-instead of switching it on and off at a different time.
+Row colour contract: the row's base is ElementSurface — the same theme
+token the elements area is painted with — so the selected row (opaque)
+reads as a continuation of the content it opens. Unselected rows go
+fully transparent and fall back to the rail's SidebarSurface underneath,
+i.e. the tab-area shade; hover changes only the outline and content.
+(The old TabBackground gradient tinted every row off both bands,
+which is why the rail used to bleed into the topbar.)
 ]]
 tabSelector.states = {
     sidebar = {
-        selected = { background = 0, content = 0, accent = 0 },
-        hover = { background = 0.88, content = 0.25, accent = 1 },
-        unselected = { background = 1, content = 0.5, accent = 1 },
-        hidden = { background = 1, content = 1, accent = 1 },
+        selected = { background = 0, stroke = 0.5, content = 0, shadow = 0.8 },
+        hover = { background = 1, stroke = 0.8, content = 0.3, shadow = 1 },
+        unselected = { background = 1, stroke = 0.8, content = 0.5, shadow = 1 },
+        hidden = { background = 1, stroke = 1, content = 1, shadow = 1 },
     },
 }
+
+local function buildGradients(tab, item, stroke)
+    --[[
+    Only the stroke keeps its gradient: the row's own fill is now the
+    solid ElementSurface token (bound on topbarItem below), so a
+    background gradient would tint the selected row off the elements
+    area it is meant to connect to.
+    ]]
+    tab.topbarItemStrokeGradient = tab.window:Create("UIGradient", {
+        Rotation = 90,
+        Parent = stroke,
+    }, { Color = { "TabStroke", functions.toColorSequence } })
+end
 
 --[[
 Trailing lock badge: a small glyph pinned to the row's right edge,
@@ -99,10 +103,10 @@ local function buildContent(tab, layout, iconSize, useInitial)
     if tab.name then
         tab.topbarItemTitle = tab.window:Create("TextLabel", {
             Text = locale.t(tab.name),
-            Size = UDim2.fromOffset(0, tokens.lineHeight.body),
+            Size = UDim2.fromOffset(0, 16),
             BorderSizePixel = 0,
             BackgroundTransparency = 1,
-            TextSize = layout.rowLabelSize,
+            TextSize = 16,
             AutomaticSize = Enum.AutomaticSize.XY,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextWrapped = true,
@@ -164,28 +168,24 @@ local function buildSidebarStyle(tab, layout)
         Parent = tab.topbarItem,
     })
 
-    --[[
-    The selection bar: a 3px pill on the row's leading edge, drawn from the
-    accent token. It is the row's only flourish — the row itself has no
-    outline and no shadow — and it rides the row's visual state (see
-    `states`), so selection, hover and a reveal fade it in step with the
-    label instead of toggling it separately. It is parented to the row
-    rather than the row's content, exactly like the lock badge, because
-    the content container is layout-managed and a bar in that flow would
-    take a slot beside the icon.
-    ]]
-    tab.topbarAccent = tab.window:Create("Frame", {
-        Name = "Accent",
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 0, 0.5, 0),
-        Size = UDim2.fromOffset(layout.rowAccentWidth, layout.rowAccentHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
+    tab.topbarItemStroke = tab.window:Create("UIStroke", {
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        Color = Color3.fromRGB(255, 255, 255),
+        Transparency = 1,
         Parent = tab.topbarItem,
-    }, { BackgroundColor3 = "AccentColor" })
-    tab.window:Create("UICorner", {
-        Parent = tab.topbarAccent,
-    }, { CornerRadius = "PillCornerRadius" })
+    })
+
+    buildGradients(tab, tab.topbarItem, tab.topbarItemStroke)
+
+    tab.topbarItemShadow = tab.window:Create("UIShadow", {
+        BlurRadius = UDim.new(0, 20),
+        Color = Color3.fromRGB(255, 255, 255),
+        Offset = UDim2.new(0, 0, 0, -15),
+        Spread = UDim2.new(0, 10, 0, -30),
+        ZIndex = -1,
+        Transparency = 1,
+        Parent = tab.topbarItem,
+    })
 
     tab.topbarItemContainer = tab.window:Create("Frame", {
         Size = UDim2.new(1, -layout.rowPadding, 0, 24),
@@ -270,7 +270,7 @@ local function rowNaturalWidth(tab, window, layout)
         end
     end
     if tab.name then
-        width += functions.textWidth(window.theme.Font, layout.rowLabelSize, locale.resolve(tab.name))
+        width += functions.textWidth(window.theme.Font, 16, locale.resolve(tab.name))
     end
     if tabSelector.lockUIEnabled and tab.locked then
         --[[
@@ -338,7 +338,7 @@ function tabSelector.relayoutSidebarRows(window, layout, railWidth)
                 end
                 if
                     slot >= 24
-                    and functions.textWidth(window.theme.Font, layout.rowLabelSize, locale.resolve(tab.name)) > slot
+                    and functions.textWidth(window.theme.Font, 16, locale.resolve(tab.name)) > slot
                 then
                     --[[
                     Capped: hold the label inside the row; its existing
@@ -428,15 +428,8 @@ end
 function tabSelector.applyVisual(tab, visualState, tweenInfo)
     local targets = {
         [tab.topbarItem] = { BackgroundTransparency = visualState.background },
+        [tab.topbarItemStroke] = { Transparency = visualState.stroke },
     }
-
-    --[[
-    The accent bar is part of the row's state, not a separate hint: it is
-    visible only where a row is selected (see `states`).
-    ]]
-    if tab.topbarAccent and visualState.accent then
-        targets[tab.topbarAccent] = { BackgroundTransparency = visualState.accent }
-    end
 
     if tab.topbarItemIcon then
         targets[tab.topbarItemIcon] = { ImageTransparency = visualState.content }
@@ -454,6 +447,9 @@ function tabSelector.applyVisual(tab, visualState, tweenInfo)
         reads as disabled at once.
         ]]
         targets[tab.topbarItemLock] = { ImageTransparency = visualState.content }
+    end
+    if tab.topbarItemShadow and visualState.shadow then
+        targets[tab.topbarItemShadow] = { Transparency = visualState.shadow }
     end
 
     for instance, properties in targets do

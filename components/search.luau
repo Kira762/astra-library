@@ -3,7 +3,6 @@ local state = require(utilities.Parent.core.state)
 local motion = require(utilities.motion)
 local constants = require(utilities.constants)
 local locale = require(utilities.locale)
-local tokens = require(utilities.tokens)
 local actionComponent = require(script.Parent.action)
 
 local search = {}
@@ -233,7 +232,7 @@ function search.buildContent(window)
     window.searchEmpty = window:Create("TextLabel", {
         Name = "NoResults",
         Text = locale.t("No results"),
-        FontFace = state.brandFont(tokens.weight.regular),
+        FontFace = state.brandFont(Enum.FontWeight.Medium),
         TextSize = 15,
         TextTransparency = 0.6,
         BackgroundTransparency = 1,

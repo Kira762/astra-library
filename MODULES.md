@@ -47,19 +47,11 @@ Shared runtime singletons:
   `Enum.Font.BuilderSans`) + `setFallbackFont(font)`; `fontChoice`
   (`"default"`/`"brand"`, initial value `constants.defaultFontChoice`, set
   via `setFontChoice`); `brandFont(weight)` / `brandFontPair()` — font
-  resolvers honoring the selection: `"default"` resolves everything to the
-  fallback family (the stock Roblox look), `"brand"` to
-  `constants.brandFontName` (Inter) through `Font.fromName`, cached per
-  weight and falling back to the fallback family where the catalogue cannot
-  answer. Both selections are neutral faces, and the pair is weight-stable:
-  body 400, titles 600 (`utilities/tokens.luau`). Secure mode never fetches
-  a face for the brand selection — it resolves to the fallback family.
-- Manager singletons: `fileSystemManager`, `assetResolver`, `fontManager`
-  (the font manager stays available to hosts; the brand face no longer
-  downloads through it).
-- `utilities/tokens.luau` — the design tokens (type scale, two weights, the
-  8pt spacing grid, icon sizes, reading measure, hairline, muted alphas);
-  see `DESIGN.md` for the rules they carry.
+  resolvers honoring the selection (and the platform's brand font
+  override): `"default"` resolves everything to the fallback family (the
+  original Roblox look), `"brand"` to `constants.fontAsset` — through
+  `fontManager`'s one-time download in secure mode.
+- Manager singletons: `fileSystemManager`, `assetResolver`, `fontManager`.
 
 ---
 
@@ -414,15 +406,6 @@ Per-element specifics:
   mouse-wheel step, so a deliberate scroll is never eaten. A quiet press opens no
   window. Full card for a tab or a column Group, compact row for
   a horizontal one.
-- `pageHeader.luau` — the flat page header (`__type = "PageHeader"`,
-  `Tab:CreatePageHeader`): a 20/600 title, one muted 12px metadata line (`meta`
-  joins a table with " · ") and an optional 14px prose paragraph held to the
-  reading measure by a `UISizeConstraint`. It owns no surface — no gradient, no
-  corner, no stroke, no padding box — because the page band is its background;
-  it sets the internal `_plain` flag so no reveal can paint a card onto it. No
-  icon slot on purpose: the window header carries the brand. Live setters
-  (`SetTitle`, `SetMeta`, `SetBody`) re-bind the locale and drop their line out
-  of the layout when the copy is cleared.
 - `aboutCard.luau` — the About card (`__type = "AboutCard"`): one container with
   three blocks — a header (leading icon plus a title/subtitle stack), a row of one
   to three data tiles (each a badge icon with a label above its value), and an
@@ -677,7 +660,6 @@ Per-element specifics:
 - `windowSizing.luau` — responsive size computation (desktop tiers around the
   600x420 default, min/max protected) plus the fixed mobile profile returned
   for touch-only phone-sized viewports (`isMobileViewport`).
-- `tokens.luau` — design tokens (type/spacing/icons/measure/hairline/alpha), the numbers `DESIGN.md` describes.
 - `enums.luau`, `ordering.luau`, `odometer.luau`, `fontManager.luau`, `functions.luau` (legacy shim), `path.luau` — small helpers.
 
 ---

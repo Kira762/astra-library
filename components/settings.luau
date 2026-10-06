@@ -8,9 +8,10 @@ local shared = require(script.Parent.window.constants)
 local settingsComponent = {}
 
 --[[
-The About card's copy. The card itself is a reusable element — these are
-simply the values this build stamps into the Settings tab's card, so a
-release updates them here and nowhere else.
+The About page's copy. The page is built from ordinary elements (a section
+header, two text readouts and the repository link) — these are simply the
+values this build stamps into the Settings tab, so a release updates them
+here and nowhere else.
 ]]
 local aboutVersion = "1.4.0"
 local aboutAuthor = "Astra Team"
@@ -46,20 +47,15 @@ function settingsComponent.buildUI(window)
 
     local function buildAbout()
         --[[
-        The About page is kept deliberately short: one compact About card
-        (brand header plus two data tiles) and a single repository link —
-        the usage guide, releases and issues all live behind that link.
-        The version and author strings live at the top of this module.
+        The About page is kept deliberately short: one header, the version
+        and author readouts and a single repository link — the usage
+        guide, releases and issues all live behind that link. The version
+        and author strings live at the top of this module.
         ]]
-        about:CreateAboutCard({
-            name = "Astra",
-            subtitle = "UI Library for a better experience.",
-            icon = constants.icons.dot,
-            rows = {
-                { icon = "code", label = "Version", value = aboutVersion },
-                { icon = "user", label = "Author", value = aboutAuthor },
-            },
-        })
+        about:CreateSection({ name = "Astra", icon = constants.icons.dot })
+        about:CreateText({ name = "About", text = "UI Library for a better experience." })
+        about:CreateStat({ name = "Version", value = aboutVersion, letter = false })
+        about:CreateStat({ name = "Author", value = aboutAuthor, letter = false })
         about:CreateLink({
             name = "Repository", subtitle = "Docs, releases and issues", icon = "code",
             link = "https://github.com/Kira762/astra-version-1",
@@ -103,7 +99,7 @@ function settingsComponent.buildUI(window)
             [2] = "inputs and selections locked (Links, Inputs, Dropdowns, Keybinds)",
             [3] = "important actions locked (Buttons, Toggles, Sliders, Steppers, Mode Pickers)",
             [4] = "sensitive controls locked (high-impact actions)",
-            [5] = "all lockable controls locked (Collapsible Groups, Isolated headers)",
+            [5] = "all lockable controls locked (Collapsible Groups)",
         }
         local lockModes = {}
         for index, color in ipairs(lockModeColors) do

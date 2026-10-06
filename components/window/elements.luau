@@ -298,7 +298,7 @@ function Window:_buildLockScrim(element)
         Parent = element.lockScrim,
     }, { CornerRadius = "ElementCornerRadius" })
 
-    -- The two header-based containers (CollapsibleGroup / Isolated) keep
+    -- The header-based container (CollapsibleGroup) keeps
     -- their lock surface on the header band, whose own corners flip
     -- between collapsed (all four) and expanded (top only) so the band
     -- squares off against the divider. The scrim must wear the same

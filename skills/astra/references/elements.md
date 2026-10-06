@@ -25,9 +25,10 @@ cannot be opened (the lock badge UI is temporarily hidden; tap raises a
 notification, search skips its elements, `Select`/`Navigate` bail). Only
 `tab:SetLocked(false)` unlocks it.
 
-Tab constructors: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateStepper`, `CreateDropdown`,
-`CreateInput`, `CreateLink`, `CreateStat`, `CreateSection`, `CreateText`,
-`CreateFooter`, `CreateDivider`, `CreateGroup`, `CreateCollapsibleGroup`, and `CreateIsolated`.
+Tab constructors: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateStepper`,
+`CreateModePicker`, `CreateDropdown`, `CreateKeybind`, `CreateInput`, `CreateLink`,
+`CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`,
+`CreateChangelog`, `CreateGroup` and `CreateCollapsibleGroup`.
 
 ## Group
 
@@ -40,10 +41,11 @@ local col = row:CreateGroup({ direction = "column" })    -- stacked column
 col:CreateToggle({ name = "Left 1" })
 ```
 
-Group constructors are the Tab list **minus** `CreateCollapsibleGroup`. A row keeps
-its compact layout when its children support it; the declarative builder inside a
-Collapsible Group falls back to a column when a child is non-compact, so no element
-is silently dropped.
+Group constructors are the Tab list **minus** `CreateCollapsibleGroup`,
+`CreateInput` and `CreateChangelog`. A row keeps its compact layout when its
+children support it; the declarative builder inside a Collapsible Group falls
+back to a column when a child is non-compact, so no element is silently
+dropped.
 
 ## Collapsible Group (tab only)
 
@@ -63,7 +65,8 @@ tab:CreateCollapsibleGroup({
 ```
 
 - Supported `type` values: `Button`, `Toggle`, `Switch` (alias of Toggle), `Slider`,
-  `Dropdown`, `Input`, `Link`, `Stat`, `Section`, `Text`, `Footer`, `Divider`, `Group`, `Changelog`.
+  `Stepper`, `ModePicker`, `Dropdown`, `Keybind`, `Input`, `Link`, `Stat`, `Section`,
+  `Text`, `Footer`, `Divider`, `Group`, `Changelog`.
   Each entry uses exactly the same props as its `Create…` method and renders as a regular child.
 - `elements` may be omitted for an empty header. Every group starts **collapsed**;
   there is no `expanded` prop.
@@ -73,42 +76,6 @@ tab:CreateCollapsibleGroup({
 - Controls are built (and saved flags applied) while collapsed, so values survive
   open/close; closing cancels an uncommitted input edit and closes open dropdowns.
 - Child handles are exposed in the container's `elements` array, in definition order.
-
-## Isolated (tab only, Changelog-only container)
-
-A CollapsibleGroup-style expandable card dedicated to release history: header
-with a left icon, a title/subtitle stack and the built-in right chevron; the
-revealed body only ever holds Changelog elements.
-
-```lua
-local panel = tab:CreateIsolated({
-    name = "View Changelog",                     -- title line (changeable)
-    subtitle = "See what's new in this version", -- muted line (changeable)
-    icon = "file-text",                          -- left icon (changeable)
-    elements = {                                 -- ONLY Changelog definitions
-        { type = "Changelog", name = "Release history", entries = {
-            { version = "1.2.0", date = "2025-06-14", changes = {
-                { symbol = "+", text = "Added Isolated changelog container" },
-            } },
-        } },
-    },
-})
-
-panel:Expand()  panel:Collapse()  panel:Toggle()   -- same tween as CollapsibleGroup
-panel:SetTitle("Release Notes")
-panel:SetSubtitle("v1.2.0 is live")  -- nil clears the line and shrinks the header
-panel:SetIcon("scroll-text")         -- left icon only; nil releases the gutter
-```
-
-- Any non-Changelog child errors at construction, before any UI exists:
-  `Astra:CreateIsolated — only Changelog elements can be placed inside Isolated`.
-  Isolated containers also cannot nest inside Collapsible Groups.
-- The right chevron is built in: always rendered, rotates with the expansion
-  state, never changeable or removable — no setter reaches it.
-- Starts collapsed; search indexes child names and expands matches; the
-  move/lock API applies to the container; child handles live in `elements`.
-- `:MoveTo`, `:MoveToTop`, `:MoveToBottom`, `:MoveUp`, `:MoveDown`, `:Lock`,
-  `:Unlock` work on the container.
 
 ## Button
 
@@ -280,56 +247,6 @@ link:IsConfirming()                   -- true while the check mark is showing
   success.
 - Works standalone, in a Group (row or column) and as a declarative
   `{ type = "Link", ... }` child.
-
-## About card (tab only)
-
-```lua
-local changelogPanel -- assign below with tab:CreateIsolated(...)
-local card = tab:CreateAboutCard({
-    name = "Astra",                                   -- header title
-    subtitle = "UI Library for a better experience.", -- muted line under it
-    icon = 80387863064905,                            -- pack name or asset id
-    rows = {                                          -- 1 to 3 rows
-        { icon = "code",    label = "Version", value = "1.4.0" },
-        { icon = "package", label = "Build",   value = "2026.09.12" },
-        { icon = "user",    label = "Author",  value = "Astra Team" },
-    },
-    action = {                                        -- optional trailing band
-        icon = "file-text",
-        name = "View Changelog",
-        subtitle = "See what's new in this version",
-        callback = function()
-            if changelogPanel then changelogPanel:Expand() end
-        end,                                         -- fires on a tap of the band
-    },
-})
-
-card:SetTitle("Release notes")
-card:SetSubtitle(nil)                 -- "" / nil drops the header to one band
-card:SetIcon("sparkles")              -- nil removes the leading mark
-card:SetRow(1, { icon = "box", label = "Version", value = "1.5.0" })
-```
-
-- Three blocks in one card: header (icon, title, subtitle), the data rows and
-  the optional action band. `description` is ignored — the paragraph block
-  has been removed.
-- `rows` takes **1 to 3** entries. All entries stay on one compact 48px line and
-  split it evenly from left to right, so Version / Build / Author renders as
-  three columns rather than two columns plus an orphan below. On an unusually
-  narrow window, long copy truncates inside its tile instead of wrapping the
-  tile. A fourth row errors at construction:
-  `Astra:CreateAboutCard — at most 3 data rows are supported, got N` — the action
-  band is the card's trailing row.
-- Optional parts drop out of the layout instead of rendering blank: a row without
-  `icon` loses its badge, and a card without `rows` or `action` simply has one
-  block fewer.
-- The action band is the card's only tappable surface: a tap (anywhere on the
-  band, not only the chevron) fires `callback` once, with a haptic click. The
-  trailing chevron itself is fixed and has no setter.
-- `SetRow(index, row)` addresses a row the card already has, rewrites only the
-  fields given, and errors for an index it does not have.
-- Supports the move API and `Lock()`/`Unlock()`/`IsLocked()`; a locked card fires
-  no action.
 
 ## Text, Section, Divider
 

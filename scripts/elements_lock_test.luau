@@ -57,7 +57,7 @@ window:Show()
 TestPump(0.5)
 local tab = window:CreateTab({ name = "Controls" })
 
-local callbacks = { button = 0, toggle = 0, input = 0, dropdown = 0, about = 0 }
+local callbacks = { button = 0, toggle = 0, input = 0, dropdown = 0 }
 local link = tab:CreateLink({
 	name = "Help Link",
 	id = "helpLink",
@@ -119,29 +119,10 @@ local customPicker = tab:CreateModePicker({
 	lockLevel = 3,
 	modes = { { label = "A" }, { label = "B" }, { label = "C" } },
 })
-local aboutCard = tab:CreateAboutCard({
-	name = "About",
-	rows = { { label = "Version", value = "1" } },
-	action = {
-		id = "aboutAction",
-		usage = "host:about-action",
-		name = "Open details",
-		callback = function()
-			callbacks.about += 1
-		end,
-	},
-})
-local staticAbout = tab:CreateAboutCard({ name = "Static About", rows = {} })
 local group = tab:CreateCollapsibleGroup({
 	name = "Expandable Group",
 	description = "Click to expand without losing the values inside.",
 	elements = {},
-})
-local isolated = tab:CreateIsolated({
-	name = "Changelog Container",
-	elements = {
-		{ type = "Changelog", name = "Updates", entries = { { title = "Test", changes = {} } } },
-	},
 })
 local inertButton = tab:CreateButton({ name = "No Action" })
 local text = tab:CreateText({ name = "Section Title", text = "Settings" })
@@ -164,9 +145,7 @@ for _, element in {
 	deleteButton,
 	advancedSlider,
 	customPicker,
-	aboutCard,
 	group,
-	isolated,
 	duplicateInputA,
 	duplicateInputB,
 } do
@@ -186,18 +165,15 @@ eq(saveButton.lockLevel, 3, "Buttons default to the important-actions tier")
 eq(deleteButton.lockLevel, 4, "sensitive lockGroup maps to Level 4")
 eq(advancedSlider.lockLevel, 5, "explicit levels can defer a control to Mode 5")
 eq(customPicker.lockLevel, 3, "Mode Pickers default to the important-actions tier")
-eq(aboutCard.lockLevel, 3, "About Card actions default to the important-actions tier")
 eq(group.lockLevel, 5, "Collapsible Groups default to the remaining tier")
-eq(isolated.lockLevel, 5, "Isolated changelog headers default to the remaining tier")
 expect(containsUsage(link.usage, "host:documentation"), "existing usage value is preserved")
 expect(containsUsage(link.usage, "analytics:read"), "all existing usage values are preserved")
 expect(containsUsage(input.usage, "host:profile"), "existing scalar usage is preserved")
 eq(duplicateInputA.elementId, "duplicate", "generated ids begin with a normalized name")
 eq(duplicateInputB.elementId, "duplicate2", "duplicate generated ids stay unique per window")
-expect(aboutCard.usageTag == "lockable:astra:aboutAction", "About Card action id and usage are carried onto its callback element")
 
 -- Static elements and buttons without real actions stay out of the registry.
-for _, element in { staticAbout, text, divider, stat, inertButton } do
+for _, element in { text, divider, stat, inertButton } do
 	eq(element.usageTag, nil, element.__type .. " has no lock tag")
 	eq(element.lockUsage, nil, element.__type .. " has no lock metadata")
 end
@@ -313,17 +289,6 @@ window:SetElementLockMode(2)
 saveButton.interact.MouseButton1Click:Fire()
 TestPump(0.1)
 eq(callbacks.button, buttonCallsBefore + 1, "the same callback works after unlocking")
-
-window:SetElementLockMode(3)
-local aboutCallback = aboutCard.action.callback
-aboutCard.actionButton.MouseButton1Click:Fire()
-TestPump(0.1)
-eq(callbacks.about, 0, "a locked About Card action cannot fire")
-eq(aboutCard.action.callback, aboutCallback, "About Card action callback remains attached")
-window:SetElementLockMode(2)
-aboutCard.actionButton.MouseButton1Click:Fire()
-TestPump(0.1)
-eq(callbacks.about, 1, "unlocking restores the About Card action callback")
 
 -- Manual locks compose with mode locks instead of being erased by mode changes.
 window:SetElementLockMode(2)

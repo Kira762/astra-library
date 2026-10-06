@@ -54,14 +54,14 @@ for _, element in allElementsTab.elements do
     end
     allElementNames[kind] = visibleName
 end
-for _, kind in { "Section", "Text", "Button", "Toggle", "Slider", "Stepper", "Dropdown", "Input", "Keybind", "Stat", "Link", "AboutCard", "Footer", "Changelog", "Divider", "Group", "CollapsibleGroup", "ModePicker", "Isolated" } do
+for _, kind in { "Section", "Text", "Button", "Toggle", "Slider", "Stepper", "Dropdown", "Input", "Keybind", "Stat", "Link", "Footer", "Changelog", "Divider", "Group", "CollapsibleGroup", "ModePicker" } do
     assert(allElementNames[kind] == kind, "All Elements names its " .. kind .. " entry correctly")
 end
 local types = {}
 local function scan(elements, informationOnlyHere)
     for _, element in elements do
         types[if element.__type == "Statistic" then "Stat" else element.__type] = true
-        if element.__type == "AboutCard" or element.__type == "Changelog" or element.__type == "Link" or element.__type == "Footer" then
+        if element.__type == "Changelog" or element.__type == "Link" or element.__type == "Footer" then
             assert(informationOnlyHere, "Information belongs in the first tab")
         end
         if element.__type == "CollapsibleGroup" then
@@ -75,7 +75,7 @@ for _, tab in userTabs do
     TestPump(0.5)
     scan(tab.elements, tab == overview or tab.name == "All Elements")
 end
-for _, kind in { "AboutCard", "Section", "Text", "Stat", "Divider", "Link", "Changelog", "Isolated", "Footer", "Button", "Group", "CollapsibleGroup", "Input", "Keybind", "Toggle", "Stepper", "Slider", "Dropdown" } do
+for _, kind in { "Section", "Text", "Stat", "Divider", "Link", "Changelog", "Footer", "Button", "Group", "CollapsibleGroup", "Input", "Keybind", "Toggle", "Stepper", "Slider", "Dropdown" } do
     assert(types[kind], "Demo exercises " .. kind)
 end
 window:_buildSettingsUI()
@@ -84,7 +84,7 @@ for _, tab in window._settingsTabs do
     TestPump(0.5)
     scan(tab.elements, tab == window.rfSettings)
 end
-assert(window.rfSettings.name == "Overview" and window.rfSettings.elements[1].__type == "AboutCard", "Settings information is first")
+assert(window.rfSettings.name == "Overview" and window.rfSettings.elements[1].__type == "Section", "Settings information is first")
 local appearance
 for _, tab in window._settingsTabs do if tab.name == "Appearance" then appearance = tab end end
 local layout

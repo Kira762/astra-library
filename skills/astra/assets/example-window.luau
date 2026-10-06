@@ -22,31 +22,25 @@ local actions = window:CreateTab({ name = "Actions", icon = "play" })
 local preferences = window:CreateTab({ name = "Preferences", icon = "sliders-horizontal" })
 local releaseHistory
 
-overview:CreateAboutCard({
-    name = "Astra",
-    subtitle = "A small studio for every element.",
-    icon = 80387863064905,
-    rows = {
-        { icon = "code", label = "Version", value = "1.4.0" },
-        { icon = "package", label = "Build", value = "2026.09.21" },
-        { icon = "user", label = "Author", value = "Astra Team" },
-    },
-    action = {
-        icon = "file-text",
-        name = "Release history",
-        subtitle = "Explore the changes behind this studio",
-        callback = function()
-            if not releaseHistory then return end
-            overview:Select()
-            releaseHistory:Expand()
-            task.defer(function()
-                if not releaseHistory.main.Parent then return end
-                local page = overview.tabPage
-                local top = page.CanvasPosition.Y + releaseHistory.main.AbsolutePosition.Y - page.AbsolutePosition.Y
-                page.CanvasPosition = Vector2.new(0, math.max(0, top - 10))
-            end)
-        end,
-    },
+overview:CreateSection({ name = "Astra", icon = 80387863064905 })
+overview:CreateText({
+    name = "A small studio for every element.",
+    text = "Version 1.4.0 · build 2026.09.21 · by Astra Team.",
+})
+overview:CreateButton({
+    name = "Release history",
+    icon = "file-text",
+    callback = function()
+        if not releaseHistory then return end
+        overview:Select()
+        releaseHistory:Expand()
+        task.defer(function()
+            if not releaseHistory.main.Parent then return end
+            local page = overview.tabPage
+            local top = page.CanvasPosition.Y + releaseHistory.main.AbsolutePosition.Y - page.AbsolutePosition.Y
+            page.CanvasPosition = Vector2.new(0, math.max(0, top - 10))
+        end)
+    end,
 })
 overview:CreateSection({ name = "Start here" })
 overview:CreateText({
@@ -72,15 +66,17 @@ overview:CreateChangelog({
         } },
     },
 })
-releaseHistory = overview:CreateIsolated({
-    name = "Release history", subtitle = "Earlier library milestones", icon = "history",
+releaseHistory = overview:CreateCollapsibleGroup({
+    name = "Release history", description = "Earlier library milestones", icon = "history",
     elements = {
-        { type = "Changelog", name = "Earlier releases", entries = {
+        { type = "Changelog", name = "Recent releases", entries = {
             { version = "1.4.0", date = "2026.09.12", changes = {
-                { symbol = "+", text = "About cards, links and richer grouped controls." },
+                { symbol = "+", text = "Links, changelogs and richer grouped controls." },
             } },
+        } },
+        { type = "Changelog", name = "Earlier releases", entries = {
             { version = "1.2.0", title = "Structured content", changes = {
-                { symbol = "+", text = "Isolated changelog containers and collapsible groups." },
+                { symbol = "+", text = "Collapsible groups and structured content blocks." },
             } },
         } },
     },
@@ -158,15 +154,6 @@ allElements:CreateInput({ name = "Input", icon = "text-cursor-input", value = "I
 allElements:CreateKeybind({ name = "Keybind", icon = "keyboard", value = "K" })
 allElements:CreateStat({ name = "Stat", value = 42 })
 allElements:CreateLink({ name = "Link", subtitle = "Copy this URL", icon = "link", link = "https://github.com/Kira762/astra-version-1" })
-allElements:CreateAboutCard({
-    name = "AboutCard", subtitle = "AboutCard", icon = "info",
-    rows = {
-        { icon = "code", label = "Version", value = "1.4.0" },
-        { icon = "package", label = "Build", value = "All elements" },
-        { icon = "user", label = "Author", value = "Astra Team" },
-    },
-    action = { icon = "file-text", name = "AboutCard action" },
-})
 allElements:CreateFooter({ parts = { { text = "Footer" }, { icon = "zap" } } })
 allElements:CreateChangelog({ name = "Changelog", entries = { { version = "Demo", title = "Changelog", changes = { { symbol = "+", text = "Changelog" } } } } })
 allElements:CreateDivider({ text = "Divider" })
@@ -186,10 +173,6 @@ allElements:CreateModePicker({
         { label = "Two", type = "dot" },
         { label = "Three", type = "dot" },
     },
-})
-allElements:CreateIsolated({
-    name = "Isolated", subtitle = "Isolated", icon = "archive",
-    elements = { { type = "Changelog", name = "Changelog", entries = { { version = "Demo", title = "Isolated", changes = { { symbol = "+", text = "Isolated" } } } } } },
 })
 
 overview:Select()

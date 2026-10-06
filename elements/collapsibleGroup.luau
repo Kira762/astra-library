@@ -62,7 +62,6 @@ local function validate(definitions, path, ancestors, depth)
         assert(type(spec) == "table", location .. " must be an element definition")
         local kind = spec.type or spec.Type
         assert(kind ~= "CollapsibleGroup", location .. ": CollapsibleGroups cannot be nested, including inside Groups")
-        assert(kind ~= "Isolated", location .. ": Isolated containers cannot be nested, including inside Groups")
         assert(constructors[kind], location .. ": unsupported element type " .. tostring(kind))
         if kind == "Group" then
             validate(spec.elements or {}, location .. ".elements", ancestors, depth + 1)

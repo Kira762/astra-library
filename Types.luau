@@ -109,22 +109,6 @@ export type CollapsibleGroupProps = LockableProps & {
     elements: { CollapsibleElementProps }?,
 }
 
---[[
-The Isolated changelog container only accepts Changelog definitions; any
-other child type errors at construction.
-]]
-export type IsolatedElementProps = {
-    type: "Changelog",
-    [string]: any,
-}
-
-export type IsolatedProps = LockableProps & {
-    name: string?,
-    subtitle: string?,
-    icon: (string | number)?,
-    elements: { IsolatedElementProps }?,
-}
-
 export type ButtonProps = LockableProps & {
     name: string?,
     icon: (string | number)?,
@@ -290,36 +274,6 @@ export type LinkProps = LockableProps & {
     callback: ((link: string) -> ())?,
 }
 
---[[
-One compact data tile of an About card: a leading icon, a label and a value.
-Up to three tiles share one line; the count drives each tile's width.
-]]
-export type AboutCardRow = {
-    icon: (string | number)?,
-    label: string?,
-    value: (string | number)?,
-}
-
---[[
-The card's optional trailing band. It is the fourth block of the card — the
-one the data rows stop at three for — and it is the card's only tappable
-surface.
-]]
-export type AboutCardAction = LockableProps & {
-    icon: (string | number)?,
-    name: string?,
-    subtitle: string?,
-    callback: (() -> ())?,
-}
-
-export type AboutCardProps = LockableProps & {
-    name: string?,
-    subtitle: string?,
-    icon: (string | number)?,
-    rows: { AboutCardRow }?,
-    action: AboutCardAction?,
-}
-
 -- Exact title/content duplicates refresh an active card or coalesce in the queue.
 export type NotifyProps = {
     title: string?,
@@ -478,13 +432,6 @@ export type Link = Moveable & Lockable & {
     IsConfirming: (self: Link) -> boolean,
 }
 
-export type AboutCard = Moveable & Lockable & {
-    SetTitle: (self: AboutCard, title: string) -> (),
-    SetSubtitle: (self: AboutCard, subtitle: string?) -> (),
-    SetIcon: (self: AboutCard, icon: (string | number)?) -> (),
-    SetRow: (self: AboutCard, index: number, row: AboutCardRow) -> (),
-}
-
 export type Popup = {
     Close: (self: Popup) -> (),
 }
@@ -510,20 +457,8 @@ export type CollapsibleGroup = Moveable & Lockable & {
     elements: { any },
 }
 
-export type Isolated = Moveable & Lockable & {
-    elements: { any },
-    Expand: (self: Isolated, animate: boolean?) -> (),
-    Collapse: (self: Isolated, animate: boolean?) -> (),
-    Toggle: (self: Isolated, animate: boolean?) -> (),
-    SetTitle: (self: Isolated, title: string) -> (),
-    SetSubtitle: (self: Isolated, subtitle: string?) -> (),
-    -- Left header icon only; the built-in right chevron has no setter.
-    SetIcon: (self: Isolated, icon: (string | number)?) -> (),
-}
-
 export type Tab = {
     CreateCollapsibleGroup: (self: Tab, props: CollapsibleGroupProps) -> CollapsibleGroup,
-    CreateIsolated: (self: Tab, props: IsolatedProps) -> Isolated,
     Select: (self: Tab, noAnimation: boolean?) -> (),
     Deselect: (self: Tab, noAnimation: boolean?) -> (),
     SetLocked: (self: Tab, locked: boolean) -> (),
@@ -537,7 +472,6 @@ export type Tab = {
     CreateKeybind: (self: Tab, props: KeybindProps) -> Keybind,
     CreateInput: (self: Tab, props: InputProps) -> Input,
     CreateLink: (self: Tab, props: LinkProps) -> Link,
-    CreateAboutCard: (self: Tab, props: AboutCardProps) -> AboutCard,
     CreateStat: (self: Tab, props: StatProps) -> Stat,
     CreateSection: (self: Tab, props: SectionProps) -> Section,
     CreateText: (self: Tab, props: TextProps) -> Text,

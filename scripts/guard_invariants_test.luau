@@ -64,9 +64,9 @@ window:Show()
 TestPump(0.5)
 local tab = window:CreateTab({ name = "Guard" })
 
-local callbacks = { button = 0, toggle = 0, input = 0, dropdown = 0, about = 0 }
+local callbacks = { button = 0, toggle = 0, input = 0, dropdown = 0 }
 
--- 12 lockable + explicit Level 1 probe
+-- 10 lockable + explicit Level 1 probe
 local link = tab:CreateLink({
 	name = "Help Link",
 	id = "helpLink",
@@ -120,26 +120,10 @@ local customPicker = tab:CreateModePicker({
 	lockLevel = 3,
 	modes = { { label = "A" }, { label = "B" }, { label = "C" } },
 })
-local aboutCard = tab:CreateAboutCard({
-	name = "About",
-	rows = { { label = "Version", value = "1" } },
-	action = {
-		id = "aboutAction",
-		usage = "host:about-action",
-		name = "Open details",
-		callback = function() callbacks.about += 1 end,
-	},
-})
 local group = tab:CreateCollapsibleGroup({
 	name = "Expandable Group",
 	description = "Guard harness group.",
 	elements = {},
-})
-local isolated = tab:CreateIsolated({
-	name = "Changelog Container",
-	elements = {
-		{ type = "Changelog", name = "Updates", entries = { { title = "Test", changes = {} } } },
-	},
 })
 -- explicit Level 1 probe — only thing that should lock at Mode 1
 local minorToggle = tab:CreateToggle({
@@ -150,8 +134,7 @@ local minorToggle = tab:CreateToggle({
 	callback = function() end,
 })
 
--- non-lockable: 8
-local staticAbout = tab:CreateAboutCard({ name = "Static About", rows = {} })
+-- non-lockable: 7
 local inertButton = tab:CreateButton({ name = "No Action" })
 local text = tab:CreateText({ name = "Section Title", text = "Settings" })
 local divider = tab:CreateDivider({ text = "Static divider" })
@@ -166,8 +149,8 @@ local groupHeightBeforeLock = group.main.Size.Y.Offset
 -- ── A: lock registry + automatic tiers ──────────────────────────────────
 for _, element in {
 	link, input, dropdown, keybind, toggle, saveButton,
-	deleteButton, advancedSlider, customPicker, aboutCard,
-	group, isolated, minorToggle,
+	deleteButton, advancedSlider, customPicker,
+	group, minorToggle,
 } do
 	expect(type(element.usageTag) == "string", element.__type .. " is tagged")
 	expect(containsUsage(element.usage, element.usageTag), element.__type .. " usage contains its lock tag " .. tostring(element.usageTag))
@@ -185,17 +168,14 @@ eq(saveButton.lockLevel, 3, "Buttons default to important tier (3)")
 eq(deleteButton.lockLevel, 4, "sensitive lockGroup maps to Level 4")
 eq(advancedSlider.lockLevel, 5, "explicit 5 deferred to Mode 5")
 eq(customPicker.lockLevel, 3, "ModePickers default to tier 3")
-eq(aboutCard.lockLevel, 3, "AboutCard actions default to tier 3")
 eq(group.lockLevel, 5, "CollapsibleGroups default to remaining tier (5)")
-eq(isolated.lockLevel, 5, "Isolated headers default to remaining tier (5)")
 eq(minorToggle.lockLevel, 1, "explicit lockLevel=1 honored")
 expect(containsUsage(link.usage, "host:documentation"), "existing usage preserved (host:documentation)")
 expect(containsUsage(link.usage, "analytics:read"), "existing usage preserved (analytics:read)")
 expect(containsUsage(input.usage, "host:profile"), "scalar usage preserved")
-expect(aboutCard.usageTag == "lockable:astra:aboutAction", "AboutCard action id carried onto callback element")
 
 -- ── B: non-lockable excluded ────────────────────────────────────────────
-for _, element in { staticAbout, text, divider, stat, inertButton, section, footer } do
+for _, element in { text, divider, stat, inertButton, section, footer } do
 	eq(element.usageTag, nil, element.__type .. " has no lock tag")
 	eq(element.lockUsage, nil, element.__type .. " has no lock metadata")
 	expect(element._isLockable ~= true, element.__type .. " is not lockable via _isLockable")
@@ -211,10 +191,10 @@ expect(not inertButton:IsLocked(), "Lock is no-op for non-functional button")
 window:SetElementLockMode(1)
 TestPump(0.1)
 expect(minorToggle:IsLocked(), "Mode 1 locks explicit Level 1")
-for _, element in { link, input, dropdown, keybind, toggle, saveButton, customPicker, aboutCard } do
+for _, element in { link, input, dropdown, keybind, toggle, saveButton, customPicker } do
 	expect(not element:IsLocked(), element.elementId .. " must stay unlocked at Mode 1 (auto tier) — got locked")
 end
-for _, element in { deleteButton, advancedSlider, group, isolated } do
+for _, element in { deleteButton, advancedSlider, group } do
 	expect(not element:IsLocked(), element.elementId .. " must stay unlocked at Mode 1 (higher tier)")
 end
 
@@ -254,8 +234,8 @@ local function snapOf(frame) return frame and frame.__props and frame.__props or
 local allElements = {
 	button = saveButton, toggle = toggle, slider = advancedSlider,
 	inputEl = input, dropdownEl = dropdown, keybindEl = keybind,
-	linkEl = link, picker = customPicker, about = aboutCard,
-	groupEl = group, isolatedEl = isolated, statEl = stat,
+	linkEl = link, picker = customPicker,
+	groupEl = group, statEl = stat,
 	textEl = text, dividerEl = divider, sectionEl = section, footerEl = footer,
 }
 for key, element in pairs(allElements) do
@@ -373,7 +353,7 @@ for key, element in pairs(compactRows) do
 	expect(not element:IsLocked(), key .. " unlocks back at Mode 1")
 end
 
--- ── E: corner sync — header vs scrim (both containers) ──────────────────
+-- ── E: corner sync — header vs scrim (CollapsibleGroup) ─────────────────
 local function cornerOffsets(cornerInstance)
 	if not cornerInstance or not cornerInstance.__props then return nil end
 	-- corners are stored as individual radius keys on the UICorner instance props
@@ -419,11 +399,8 @@ local function assertCornerPair(element, label, wantExpanded)
 end
 assertCornerPair(group, "CollapsibleGroup", false)
 assertCornerPair(group, "CollapsibleGroup", true)
-assertCornerPair(isolated, "Isolated", false)
-assertCornerPair(isolated, "Isolated", true)
 -- leave collapsed
 group:_setExpanded(false, false)
-isolated:_setExpanded(false, false)
 TestPump(0.1)
 window:SetElementLockMode(1)
 TestPump(0.1)

@@ -1,5 +1,50 @@
 # Changelog
 
+## Unreleased — About Card and Isolated removed
+
+Two elements are gone from the library: `AboutCard` (`tab:CreateAboutCard`)
+and `Isolated` (`tab:CreateIsolated`). Everything they did is expressible with
+the elements that remain — a Section plus Stats for a brand block, and a
+Collapsible Group holding Changelog children for a collapsible release
+history — so the two bespoke containers were carrying more surface than they
+returned. This is a **breaking change**: a script that calls either
+constructor now fails with `attempt to call a nil value`.
+
+- **`elements/aboutCard.luau`, `elements/isolated.luau`** — deleted.
+- **`elements/tab.luau`** — `CreateAboutCard` and `CreateIsolated` removed;
+  teardown, search and the group reveal path no longer branch on the
+  `Isolated` type.
+- **`components/search.luau`** — container text collection and the
+  expand/restore pass cover Groups and Collapsible Groups only.
+- **`elements/collapsibleGroup.luau`, `elements/group.luau`** — the "Isolated
+  cannot nest" guard and the collapsed-parent visibility check drop their
+  `Isolated` arms.
+- **`utilities/lockable.luau`** — `AboutCard` leaves the default tier table
+  (level 3). Mode 5's subtitle now reads "...(Collapsible Groups)".
+- **`components/settings.luau`** — the Settings → Overview page is built from
+  a Section, a Text line and two `letter = false` Stats (Version, Author)
+  instead of one About Card; `aboutVersion` / `aboutAuthor` still drive it.
+- **`Types.luau`, `library_entrypoint.luau`** — `AboutCardProps`,
+  `AboutCardRow`, `AboutCardAction`, `AboutCard`, `IsolatedProps`,
+  `IsolatedElementProps`, `Isolated` and the two Tab methods are removed.
+- **`example.client.luau`, `skills/astra/assets/example-window.luau`** — the
+  Overview header is a Section + Text + Button, and the release history is a
+  Collapsible Group with two Changelog children (kept multi-child so the
+  "never wrap a lone element" rule still holds).
+- **Tests** — `scripts/about_card_test.{luau,sh}` and
+  `scripts/isolated_test.{luau,sh}` deleted; `elements_lock_test`,
+  `guard_invariants_test` (10 lockable / 7 non-lockable / 14 placed
+  elements), `example_test` and `inline_description_test` updated.
+- **Docs** — `README.md`, `USAGE.md`, `MODULES.md`,
+  `skills/astra/SKILL.md`, `skills/astra/references/elements.md`,
+  `skills/astra-guard/SKILL.md` and the two `skills/astra-guard/references`
+  files updated; the Collapsible Group `type` list in the references now
+  includes `Stepper`, `ModePicker` and `Keybind`, which the builder already
+  supported.
+- **`version-1.luau`, `version-1.luau.sig`, `loader.luau`, `README.md`** — the
+  bundle is regenerated and re-signed (`node scripts/sign_bundle.js`, dev key,
+  pinned `PUBLIC_KEY` synced) and the README checksum updated.
+
 ## Unreleased — HttpGuard: HttpSpy-style interception detection, strict where it matters
 
 Scripts running under an HTTP spy (HttpSpy and its forks hook `game:HttpGet`,

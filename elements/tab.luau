@@ -20,7 +20,7 @@ local function customOrder(window, forgetState)
             window._elementLockModePicker = nil
         end
         window:_unregisterLockableElement(element)
-        if element.__type == "Group" or element.__type == "CollapsibleGroup" or element.__type == "Isolated" then
+        if element.__type == "Group" or element.__type == "CollapsibleGroup" then
             customOrder(window, element.elements)
         else
             window:_unregisterControl(element)
@@ -490,16 +490,8 @@ function state:CreateLink(a40)
     return self:_register(require(script.Parent.link).new(self, a40))
 end
 
-function state:CreateAboutCard(props)
-    return self:_register(require(script.Parent.aboutCard).new(self, props))
-end
-
 function state:CreateCollapsibleGroup(props)
     return self:_register(require(script.Parent.collapsibleGroup).new(self, props))
-end
-
-function state:CreateIsolated(props)
-    return self:_register(require(script.Parent.isolated).new(self, props))
 end
 
 function state:CreateGroup(a41)

@@ -92,8 +92,8 @@ local linkIconSize = 14
 local linkIconGap = 6
 local noteMaxLines = 2
 --[[
-The links row hard-caps at three buttons — one line of equal faces, like
-the About card's tile row. The warn fires once when a host passes more.
+The links row hard-caps at three buttons — one line of equal faces. The
+warn fires once when a host passes more.
 ]]
 local maxLinks = 3
 

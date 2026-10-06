@@ -14,14 +14,13 @@ local defaultLockLevels = {
   Slider = 3,
   Stepper = 3,
   Button = 3,
-  AboutCard = 3,
   ModePicker = 3,
 }
 -- fallback for anything not listed:
 return defaultLockLevels[element.__type] or 5
 ```
 
-Group tiers: `components/window/elements.luau` + `elements/collapsibleGroup.luau` / `isolated.luau` default to `5` (the `remaining` tier) unless overridden.
+Group tiers: `components/window/elements.luau` + `elements/collapsibleGroup.luau` default to `5` (the `remaining` tier) unless overridden.
 
 There is intentionally **no entry at `1`**. Level 1 is reserved for explicit opt-in only.
 
@@ -44,9 +43,9 @@ Accepted as `lockLevel` (number 1–5, clamped/rounded) or `lockGroup` (string, 
 ```
 Mode 1 — nothing automatic (only explicit Level 1). Subtitle: "Mode 1 — all controls unlocked"
 Mode 2 — Level 1–2              (inputs, links, dropdowns, keybinds). Subtitle: "Mode 2 — inputs and selections locked (Links, Inputs, Dropdowns, Keybinds)"
-Mode 3 — Level 1–3              + Toggles, Sliders, Steppers, Buttons, ModePickers, AboutCard actions. Subtitle: "Mode 3 — important actions locked (Buttons, Toggles, Sliders, Steppers, Mode Pickers)"
+Mode 3 — Level 1–3              + Toggles, Sliders, Steppers, Buttons, ModePickers. Subtitle: "Mode 3 — important actions locked (Buttons, Toggles, Sliders, Steppers, Mode Pickers)"
 Mode 4 — Level 1–4              + sensitive / advanced. Subtitle: "Mode 4 — sensitive controls locked (high-impact actions)"
-Mode 5 — Level 1–5              = every registered lockable control. Subtitle: "Mode 5 — all lockable controls locked (Collapsible Groups, Isolated headers)"
+Mode 5 — Level 1–5              = every registered lockable control. Subtitle: "Mode 5 — all lockable controls locked (Collapsible Groups)"
 ```
 
 Lowering the mode unlocks only tiers above it. Raising it never unlocks. `Window:SetElementLockMode` / `GetElementLockMode` clamp to 1–5.
@@ -55,7 +54,6 @@ Lowering the mode unlocks only tiers above it. Raising it never unlocks. `Window
 
 - **Who registers.** Only functional controls call `lockable.register` after building their UI. Each registered element gets `lockable:astra:<elementId>` (`elementId` normalized from `id`/`Id`/`elementId`/`ElementId` or the display name, deduped per window). `element.usage` merges the existing `usage` prop with the lock tag.
 - **Who does not.** Static presentation elements (`Text`, `Stat`, `Divider`, `Section`, `Footer`, `Changelog`, `Group`) and Buttons without a real callback never register — `usageTag == nil` and `_isLockable ~= true`. They are never affected by mode changes.
-- **AboutCard special case.** The card itself is static; when it carries an `action = { callback }`, the action's `id`/`usage` is carried onto the card (`aboutAction` etc.) and the card becomes lockable at `3`. Without an action it stays non-lockable.
 - **Duplicate ids.** Same normalized name → suffix `2, 3, ...` per window (`duplicate`, `duplicate2`).
 
 ## Controller exemption

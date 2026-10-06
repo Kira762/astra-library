@@ -9,10 +9,10 @@ of it, one line: 41 -> 61). The card grows by the measured wrapped-line
 height and the element's own UI keeps the space it always had, so the line
 can never cover the controls or the card's edge.
 
-Button, Toggle, Slider, Dropdown, Input, Mode Picker, About Card and Link
-no longer accept the prop: a `description` passed to one of them is
-ignored — no line, no growth, base geometry exactly as if the prop had
-never been there.
+Button, Toggle, Slider, Dropdown, Input, Mode Picker and Link no longer
+accept the prop: a `description` passed to one of them is ignored — no
+line, no growth, base geometry exactly as if the prop had never been
+there.
 
 Expected behavior under test:
   * D1 the tab page holds nothing but element cards (no standalone row
@@ -174,11 +174,6 @@ local picker = more:CreateModePicker({
 		{ label = "Balanced", type = "dot", description = "Third mode." },
 	},
 })
-local about = more:CreateAboutCard({
-	name = "About",
-	subtitle = "The card",
-	description = "A paragraph the card no longer renders.",
-})
 local link = more:CreateLink({ name = "Docs", link = "https://example.com", description = "Ignored helper line." })
 local undescribed = tab:CreateToggle({ name = "No description" })
 local group = more:CreateCollapsibleGroup({
@@ -206,7 +201,6 @@ local cards = {
 	[dropdown.main] = true,
 	[input.main] = true,
 	[picker.main] = true,
-	[about.main] = true,
 	[link.main] = true,
 	[undescribed.main] = true,
 	[group.main] = true,
@@ -226,7 +220,7 @@ eq(stat.descriptionLabel.Text, "Per second.", "D2 the line shows the description
 eq(stat.descriptionLabel.TextSize, 14, "D2 the line uses the 14px in-UI description size")
 eq(stat.descriptionLabel.TextWrapped, true, "D2 the line wraps")
 
--- ===== D3: a passed description prop is inert on the eight elements ========
+-- ===== D3: a passed description prop is inert on the seven elements ========
 eq(toggle.descriptionLabel, nil, "D3 a described toggle carries no label")
 near(toggle.main.Size.Y.Offset, 41, "D3 a described toggle keeps its 41px card")
 local toggleTitle = rectOf(toggle.container, toggle.main.AbsoluteSize)
@@ -248,8 +242,6 @@ local inputField = rectOf(input.box, input.main.AbsoluteSize)
 near(inputField.y + inputField.h / 2, 20.5, "D3 the input's field box keeps the base region")
 near(picker.main.Size.Y.Offset, 84, "D3 a described picker keeps its 84px card")
 eq(picker.descriptionLabel, nil, "D3 a described picker carries no label")
-eq(about.descriptionLabel, nil, "D3 a described About card carries no paragraph label")
-expect(about.SetDescription == nil, "D3 the About card exposes no SetDescription any more")
 near(link.main.Size.Y.Offset, 43, "D3 a described link keeps its single-line 43px card")
 eq(link.descriptionLabel, nil, "D3 a described link carries no label")
 

@@ -202,9 +202,9 @@ build, and the auto-select of a first tab you create late, are skipped — the
 player stays where they tapped. Once your build has gone quiet (two frames
 with no construction), `Select` and `Navigate` always apply again.
 
-Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateStepper`, `CreateDropdown`, `CreateInput`, `CreateLink`, `CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateGroup`, and optional `CreateCollapsibleGroup` and `CreateIsolated`.
+Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateStepper`, `CreateModePicker`, `CreateDropdown`, `CreateKeybind`, `CreateInput`, `CreateLink`, `CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateChangelog`, `CreateGroup` and `CreateCollapsibleGroup`.
 
-Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateStepper`, `CreateDropdown`, `CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateLink`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
+Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateStepper`, `CreateModePicker`, `CreateDropdown`, `CreateKeybind`, `CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateLink`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
 
 Selected tabs retain their outline and highlight. Unselected tabs retain an
 outline but have no fill/shadow highlight, including on hover.
@@ -268,7 +268,7 @@ functional element. The blue mode ramp and subtitle identify the active mode, wi
 descriptions specifying which element types each mode locks (e.g. Mode 2 locks
 Links, Inputs, Dropdowns, and Keybinds; Mode 3 locks Buttons, Toggles, Sliders,
 and Mode Pickers; Mode 4 locks sensitive actions; Mode 5 locks all remaining
-lockable controls including Collapsible Groups and Isolated headers). The
+lockable controls including Collapsible Groups). The
 picker itself is exempt, so its reset button remains usable in Mode 5. Hosts can
 also reset/unlock externally with `window:SetElementLockMode(1)` or inspect the
 current tier with `window:GetElementLockMode()`.
@@ -297,9 +297,9 @@ tier; `lockGroup` is an alternative string shorthand:
 | --- | --- | --- |
 | 1 | `minor`, `low`, `noncritical` | _None_ — only controls with an explicit `lockLevel = 1` / `lockGroup = "minor"` |
 | 2 | `standard`, `input`, `selection` | Link, Input, Dropdown, Keybind |
-| 3 | `action`, `important` | Button, Toggle, Slider, About Card actions, Mode Picker |
+| 3 | `action`, `important` | Button, Toggle, Slider, Stepper, Mode Picker |
 | 4 | `advanced`, `sensitive`, `highimpact` | No default type; use for sensitive actions such as deleting a configuration |
-| 5 | `remaining`, `all` | Other lockable controls, including Collapsible Group and Isolated headers |
+| 5 | `remaining`, `all` | Other lockable controls, including Collapsible Group headers |
 
 ```lua
 local exportButton = tab:CreateButton({
@@ -321,8 +321,8 @@ explicitly host-managed tooltip.
 
 The in-card `description` line is a Stat recipe now (the Collapsible Group
 header carries its own variant of it). `Button`, `Toggle`, `Slider`, `Dropdown`,
-`Input`, `ModePicker`, `AboutCard`, and `Link` no longer accept the prop: a
-`description` passed to one of them is ignored — no line, no card growth.
+`Input`, `ModePicker` and `Link` no longer accept the prop: a `description`
+passed to one of them is ignored — no line, no card growth.
 
 ### Button
 ```lua
@@ -534,56 +534,6 @@ tab page's canvas for as long as it is held, so the card stays exactly where it
 is instead of dragging down and springing back. The page scrolls normally
 everywhere else, and a scroll made between taps is left alone.
 
-### About card
-```lua
-local changelogPanel -- assign below with tab:CreateIsolated(...)
-local card = tab:CreateAboutCard({
-    name = "Astra",                                  -- header title
-    subtitle = "UI Library for a better experience.", -- muted line under it
-    icon = 80387863064905,                           -- leading mark (name or asset id)
-    rows = {                                         -- 1 to 3 data rows
-        { icon = "code",    label = "Version", value = "1.4.0" },
-        { icon = "package", label = "Build",   value = "2026.09.12" },
-        { icon = "user",    label = "Author",  value = "Astra Team" },
-    },
-    action = {                                       -- optional trailing band
-        icon = "file-text",
-        name = "View Changelog",
-        subtitle = "See what's new in this version",
-        callback = function()
-            if changelogPanel then changelogPanel:Expand() end
-        end,
-    },
-})
-```
-
-One card with three blocks: a header (icon, title, subtitle), a row of data
-tiles (each a leading icon, a label and a value), and an optional action band
-that is the card's only tappable surface.
-
-All data tiles share one compact 48px line, split evenly from left to right. The
-standard Version / Build / Author recipe therefore stays three-across instead
-of placing Author alone on a second line; on an unusually narrow window a long
-value truncates inside its own tile rather than changing the card's structure.
-Tiles and the action band use the regular `ElementSurface` fill, not the darker
-window gradient, so they remain consistent with the rest of the controls. A
-fourth row errors at construction
-(`Astra:CreateAboutCard — at most 3 data rows are supported, got 4`) because the
-action band is the card's trailing row. A row without `icon`, or a card without
-`rows`/`action`, simply leaves those parts out of the layout. The card accepts no
-`description`: the prop is ignored.
-
-```lua
-card:SetTitle("Release notes")        -- header title
-card:SetSubtitle(nil)                 -- drop the second line (header closes to one band)
-card:SetIcon("sparkles")              -- leading mark (nil removes it)
-card:SetRow(1, { icon = "box", label = "Version", value = "1.5.0" })  -- rewrite one row in place
-```
-
-`SetRow` addresses a row the card already has and only touches the fields it is
-given. The card supports the move and lock API; locking it disables the action
-band.
-
 ### Text / Divider / Group
 ```lua
 local x = tab:CreateText({ name = "Title", text = "Body text" })
@@ -658,7 +608,7 @@ The settings tabs are:
 
 | Tab | Contents |
 |---|---|
-| **Overview** | First tab: library About Card, copyable repository and guide Links, and a Footer. |
+| **Overview** | First tab: library version and author readouts, copyable repository and guide Links, and a Footer. |
 | **Controls** | Required A–Z menu Keybind, unlock-cursor toggle, and Window Behavior (duplicate protection, keep on screen, draggable capsule, reset positions). |
 | **Appearance** | Standalone Font and Bar Layout Dropdowns and a standalone Haptics toggle. |
 | **Persistence** | Auto Save / Auto Load toggles; saved-configurations Dropdown + name Input + Save/Load/Delete actions. |
@@ -929,7 +879,7 @@ window:SetTranslator(function(source, localeId) return ... end)
 
 ### Full example
 
-See `example.client.luau` — a ten-tab studio that loads the bundle with the one-line loader above, opens behind `Astra:CreateKeySystem` (the demo key `ASTRA-STUDIO-2026` shows the full gate → `onSuccess` flow, saved and replayed on the next join), and builds every element type (including ordinary and Collapsible Groups, Isolated and Changelog) end to end, with each control wired to something real: character and lighting edits, teleporting, a Heartbeat-driven performance sampler, the persistence API, and the theme/motion/window methods.
+See `example.client.luau` — a ten-tab studio that loads the bundle with the one-line loader above, opens behind `Astra:CreateKeySystem` (the demo key `ASTRA-STUDIO-2026` shows the full gate → `onSuccess` flow, saved and replayed on the next join), and builds every element type (including ordinary and Collapsible Groups and Changelog) end to end, with each control wired to something real: character and lighting edits, teleporting, a Heartbeat-driven performance sampler, the persistence API, and the theme/motion/window methods.
 
 ---
 
@@ -1076,66 +1026,3 @@ are rejected before creating any UI.
 - `MoveTo`, `MoveToTop`, `MoveToBottom`, `MoveUp`, `MoveDown`, `Lock`, and `Unlock`
   work on the container. Created child handles are also available in its
   `elements` array, in definition order, just like an ordinary Group.
-
-### Isolated (changelog container)
-
-`tab:CreateIsolated` is the Changelog's own container: a collapsed header card —
-left icon, title/subtitle stack and the built-in expansion chevron — that
-reveals a body of release-history entries with exactly the Collapsible Group
-tween. It is a strict container: **only Changelog elements work inside it**.
-
-```lua
-local changelogPanel = tab:CreateIsolated({
-    name = "View Changelog",                     -- title line (changeable)
-    subtitle = "See what's new in this version", -- muted line (changeable)
-    icon = "file-text",                          -- left icon (changeable)
-    elements = {                                 -- ONLY Changelog definitions
-        {
-            type = "Changelog",
-            name = "Release history",
-            entries = {
-                {
-                    version = "1.2.0",
-                    date = "2025-06-14",
-                    changes = {
-                        { symbol = "+", text = "Added Isolated changelog container" },
-                        { symbol = "~", text = "Chevron now rotates when expanded" },
-                    },
-                },
-            },
-        },
-    },
-})
-
---[[ RUNTIME METHODS ]]
-changelogPanel:Expand()                            -- open (CollapsibleGroup-style tween)
-changelogPanel:Collapse()                          -- close
-changelogPanel:Toggle()                            -- open / close
-changelogPanel:SetTitle("Release Notes")           -- changeable
-changelogPanel:SetSubtitle("v1.2.0 is live")       -- changeable; nil clears the line
-changelogPanel:SetIcon("scroll-text")              -- changeable (left icon only)
--- No setter exists for the right-side chevron: it is built in and fixed.
-```
-
-- **Guard:** any non-Changelog child definition — another control type, a
-  nested container, a built element or a non-table value — errors at
-  construction with
-  `Astra:CreateIsolated — only Changelog elements can be placed inside Isolated`,
-  before any UI exists. Isolated containers cannot nest inside Collapsible
-  Groups either, and, like Collapsible Groups, are created directly on a tab.
-- **Built-in chevron:** the right-facing expansion glyph is always rendered,
-  rotates with the expansion state, and is never changeable or removable —
-  the container exposes no setter that reaches it. `SetIcon` only ever
-  touches the left icon slot.
-- **Header:** the title rides the standard 41px band; a subtitle adds the muted
-  14px line under it (61px band), and clearing the subtitle at runtime returns
-  the card to the single-line band. Icon and chevron stay vertically centred on
-  whichever band the header is.
-- Everything else behaves like a Collapsible Group: search indexes the child
-  names and expands matching containers, `MoveTo`/`Lock`/`Unlock` work, child
-  handles live in `elements` in definition order, and collapsed children keep
-  their state without rerunning callbacks.
-- Controls are built in startup batches even while collapsed, so saved flags
-  are usable before the first expansion. The optional feature adds
-  no container instances unless you explicitly create one.
-ly create one.

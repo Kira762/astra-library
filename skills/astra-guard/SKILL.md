@@ -15,7 +15,7 @@ It is the **complement** to `skills/astra` (the build/edit skill). That skill te
 
 ## When to use
 
-- Any edit to `utilities/lockable.luau`, `components/window/elements.luau`, `elements/*.luau` (especially `modePicker.luau`, `collapsibleGroup.luau`, `isolated.luau`, `slider.luau`, `button.luau`, `link.luau`), `utilities/locale.luau`, or `components/window/theme.luau`.
+- Any edit to `utilities/lockable.luau`, `components/window/elements.luau`, `elements/*.luau` (especially `modePicker.luau`, `collapsibleGroup.luau`, `slider.luau`, `button.luau`, `link.luau`), `utilities/locale.luau`, or `components/window/theme.luau`.
 - Before pushing a branch that touches element construction, lock, locale binding, or corner/theme code.
 - When `scripts/check_all.sh` is red on `elements_lock_test`, `guard_invariants_test`, `mode_picker_test`, or `slider_travel_test`.
 
@@ -26,7 +26,7 @@ Read the three references for the full spec; the short rules are:
 ### 1. Lock tiers — `references/lock-tiers.md`
 
 - **No automatic Level 1.** `defaultLockLevels` has no entry `=1`; fallback is `5`. Explicit `=1` still works via `lockLevel=1` or `lockGroup="minor"/"low"/"noncritical"`.
-- **Standard mapping:** Link/Input/Dropdown/Keybind = `2`, Toggle/Slider/Button/ModePicker/AboutCard(with action) = `3`, Groups default `5`, `sensitive`/`advanced`/`highimpact` = `4`. Documented in `utilities/lockable.luau`.
+- **Standard mapping:** Link/Input/Dropdown/Keybind = `2`, Toggle/Slider/Button/Stepper/ModePicker = `3`, Groups default `5`, `sensitive`/`advanced`/`highimpact` = `4`. Documented in `utilities/lockable.luau`.
 - **Cumulative modes:** Mode N locks every element with `lockLevel <= N`. Mode 5 locks all registered lockable elements. Lowering the mode unlocks only the tier above it.
 - **Registry:** Only functional controls register (`lockable.register` via `utilities/lockable.luau`). Static elements and callback-free Buttons never get `lockable:astra:<id>` / `_isLockable`.
 
@@ -38,8 +38,8 @@ Read the three references for the full spec; the short rules are:
 
 ### 3. Layout & geometry — `references/layout-geometry.md`
 
-- **Placement preserved:** `main.Position / Size / Parent` (and `headerCorner` metrics) are identical before vs after `SetElementLockMode(5)` for every element on the page — 16 elements in the guard harness. The scrim is an overlay (`Visible` + `ZIndex 60`), never a re-parent or resize.
-- **Corner sync:** CollapsibleGroup and Isolated headers flip corners: `collapsed → 8,8` (all four), `expanded → 8,0` (top only). Their `lockScrimCorner` mirrors `headerCorner` — expanded shows a straight divider, not rounded bottom arcs.
+- **Placement preserved:** `main.Position / Size / Parent` (and `headerCorner` metrics) are identical before vs after `SetElementLockMode(5)` for every element on the page — 14 elements in the guard harness. The scrim is an overlay (`Visible` + `ZIndex 60`), never a re-parent or resize.
+- **Corner sync:** CollapsibleGroup headers flip corners: `collapsed → 8,8` (all four), `expanded → 8,0` (top only). Their `lockScrimCorner` mirrors `headerCorner` — expanded shows a straight divider, not rounded bottom arcs.
 - **Track geometry (slider/mode-picker):** knob clearance `knobGap = 2` on all sides, fill is the knob's pill (`knobHeight`/`knobRadius` + `knobGap` inset), running to the knob's trailing edge, so last stop fills end-to-end and no accent bleeds above/below the knob.
 
 ## How to use
@@ -63,10 +63,10 @@ Read the three references for the full spec; the short rules are:
 
 `scripts/guard_invariants_test.luau` (run via `scripts/guard_invariants_test.sh`) builds one tab with every lockable and non-lockable element, then asserts:
 
-- 12 lockable types have correct `lockLevel` and `usageTag = lockable:astra:<id>` present in `usage`; 8 non-lockable have `usageTag=nil` and `_isLockable~=true`
+- 10 lockable types have correct `lockLevel` and `usageTag = lockable:astra:<id>` present in `usage`; 7 non-lockable have `usageTag=nil` and `_isLockable~=true`
 - Mode 1 locks only explicit `=1`; Mode 2/3/4/5 are cumulative; late element inherits current mode; manual `Lock`/`Unlock` compose and `Unlock` cannot bypass a mode lock
-- Placement invariant (`Position/Size/Parent`) for 16 elements across `SetElementLockMode(5)`
-- Header `lockScrimCorner` mirrors `headerCorner` for `8,0` vs `8,8` in both expanded and collapsed states for CollapsibleGroup and Isolated
+- Placement invariant (`Position/Size/Parent`) for 14 elements across `SetElementLockMode(5)`
+- Header `lockScrimCorner` mirrors `headerCorner` for `8,0` vs `8,8` in both expanded and collapsed states for CollapsibleGroup
 - Controller `_elementLockModePicker` is exempt (`_isLockable=false`, `IsLocked()=false` at Mode 5), subtitle is a string and locale-bound (regular `ModePicker:SetSubtitle` also)
 - Sliding: locked Toggle/Dropdown/Input/Button guard callbacks and preserve values; open dropdown stays open under its scrim
 

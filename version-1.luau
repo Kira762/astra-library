@@ -12,7 +12,7 @@ local ImportGlobals
 -- __recFP snapshots the environment when the MainModule closure starts,
 -- __checkFP re-snapshots after every module has loaded; a mismatch means
 -- something was replaced mid-load. Silent: failure returns a no-op stub.
-local ExpectedClosureCount = 114;
+local ExpectedClosureCount = 112;
 local __fp
 local function __snap()
     return table.concat({
@@ -81,8 +81,6 @@ export type TabProps = types.TabProps
 export type SectionProps = types.SectionProps
 export type GroupProps = types.GroupProps
 export type CollapsibleGroupProps = types.CollapsibleGroupProps
-export type IsolatedProps = types.IsolatedProps
-export type IsolatedElementProps = types.IsolatedElementProps
 export type CollapsibleElementProps = types.CollapsibleElementProps
 export type ButtonProps = types.ButtonProps
 export type ToggleProps = types.ToggleProps
@@ -95,9 +93,6 @@ export type InputProps = types.InputProps
 export type StatProps = types.StatProps
 export type TextProps = types.TextProps
 export type DividerProps = types.DividerProps
-export type AboutCardRow = types.AboutCardRow
-export type AboutCardAction = types.AboutCardAction
-export type AboutCardProps = types.AboutCardProps
 export type NotifyProps = types.NotifyProps
 export type PopupBox = types.PopupBox
 export type PopupOption = types.PopupOption
@@ -109,7 +104,6 @@ export type Window = types.Window
 export type Tab = types.Tab
 export type Group = types.Group
 export type CollapsibleGroup = types.CollapsibleGroup
-export type Isolated = types.Isolated
 export type Button = types.Button
 export type Toggle = types.Toggle
 export type Slider = types.Slider
@@ -122,7 +116,6 @@ export type Section = types.Section
 export type TabSection = types.TabSection
 export type Text = types.Text
 export type Divider = types.Divider
-export type AboutCard = types.AboutCard
 export type Popup = types.Popup
 export type KeySystem = types.KeySystem
 export type HttpGuardSignal = types.HttpGuardSignal
@@ -612,22 +605,6 @@ export type CollapsibleGroupProps = LockableProps & {
     elements: { CollapsibleElementProps }?,
 }
 
---[[
-The Isolated changelog container only accepts Changelog definitions; any
-other child type errors at construction.
-]]
-export type IsolatedElementProps = {
-    type: "Changelog",
-    [string]: any,
-}
-
-export type IsolatedProps = LockableProps & {
-    name: string?,
-    subtitle: string?,
-    icon: (string | number)?,
-    elements: { IsolatedElementProps }?,
-}
-
 export type ButtonProps = LockableProps & {
     name: string?,
     icon: (string | number)?,
@@ -793,36 +770,6 @@ export type LinkProps = LockableProps & {
     callback: ((link: string) -> ())?,
 }
 
---[[
-One compact data tile of an About card: a leading icon, a label and a value.
-Up to three tiles share one line; the count drives each tile's width.
-]]
-export type AboutCardRow = {
-    icon: (string | number)?,
-    label: string?,
-    value: (string | number)?,
-}
-
---[[
-The card's optional trailing band. It is the fourth block of the card — the
-one the data rows stop at three for — and it is the card's only tappable
-surface.
-]]
-export type AboutCardAction = LockableProps & {
-    icon: (string | number)?,
-    name: string?,
-    subtitle: string?,
-    callback: (() -> ())?,
-}
-
-export type AboutCardProps = LockableProps & {
-    name: string?,
-    subtitle: string?,
-    icon: (string | number)?,
-    rows: { AboutCardRow }?,
-    action: AboutCardAction?,
-}
-
 -- Exact title/content duplicates refresh an active card or coalesce in the queue.
 export type NotifyProps = {
     title: string?,
@@ -981,13 +928,6 @@ export type Link = Moveable & Lockable & {
     IsConfirming: (self: Link) -> boolean,
 }
 
-export type AboutCard = Moveable & Lockable & {
-    SetTitle: (self: AboutCard, title: string) -> (),
-    SetSubtitle: (self: AboutCard, subtitle: string?) -> (),
-    SetIcon: (self: AboutCard, icon: (string | number)?) -> (),
-    SetRow: (self: AboutCard, index: number, row: AboutCardRow) -> (),
-}
-
 export type Popup = {
     Close: (self: Popup) -> (),
 }
@@ -1013,20 +953,8 @@ export type CollapsibleGroup = Moveable & Lockable & {
     elements: { any },
 }
 
-export type Isolated = Moveable & Lockable & {
-    elements: { any },
-    Expand: (self: Isolated, animate: boolean?) -> (),
-    Collapse: (self: Isolated, animate: boolean?) -> (),
-    Toggle: (self: Isolated, animate: boolean?) -> (),
-    SetTitle: (self: Isolated, title: string) -> (),
-    SetSubtitle: (self: Isolated, subtitle: string?) -> (),
-    -- Left header icon only; the built-in right chevron has no setter.
-    SetIcon: (self: Isolated, icon: (string | number)?) -> (),
-}
-
 export type Tab = {
     CreateCollapsibleGroup: (self: Tab, props: CollapsibleGroupProps) -> CollapsibleGroup,
-    CreateIsolated: (self: Tab, props: IsolatedProps) -> Isolated,
     Select: (self: Tab, noAnimation: boolean?) -> (),
     Deselect: (self: Tab, noAnimation: boolean?) -> (),
     SetLocked: (self: Tab, locked: boolean) -> (),
@@ -1040,7 +968,6 @@ export type Tab = {
     CreateKeybind: (self: Tab, props: KeybindProps) -> Keybind,
     CreateInput: (self: Tab, props: InputProps) -> Input,
     CreateLink: (self: Tab, props: LinkProps) -> Link,
-    CreateAboutCard: (self: Tab, props: AboutCardProps) -> AboutCard,
     CreateStat: (self: Tab, props: StatProps) -> Stat,
     CreateSection: (self: Tab, props: SectionProps) -> Section,
     CreateText: (self: Tab, props: TextProps) -> Text,
@@ -2280,8 +2207,8 @@ local linkIconSize = 14
 local linkIconGap = 6
 local noteMaxLines = 2
 --[[
-The links row hard-caps at three buttons — one line of equal faces, like
-the About card's tile row. The warn fires once when a host passes more.
+The links row hard-caps at three buttons — one line of equal faces. The
+warn fires once when a host passes more.
 ]]
 local maxLinks = 3
 
@@ -5081,11 +5008,11 @@ local defaultTransparency = 0.6
 local hoverTransparency = 0.2
 
 local function getElementText(element)
-    if element.__type == "Group" or element.__type == "CollapsibleGroup" or element.__type == "Isolated" then
+    if element.__type == "Group" or element.__type == "CollapsibleGroup" then
         local names = { element.name or "" }
         local function collectNames(group)
             for _, child in group.elements do
-                if child.__type == "Group" or child.__type == "CollapsibleGroup" or child.__type == "Isolated" then
+                if child.__type == "Group" or child.__type == "CollapsibleGroup" then
                     collectNames(child)
                 elseif child.name then
                     table.insert(names, child.name)
@@ -5162,7 +5089,7 @@ local function collectElements(window)
         local mainFrame = element.main
         table.insert(window._searchUnits, {
             unit = element,
-            homeExpanded = if element.__type == "CollapsibleGroup" or element.__type == "Isolated" then element._expanded else nil,
+            homeExpanded = if element.__type == "CollapsibleGroup" then element._expanded else nil,
             text = string.lower(getElementText(element)),
             homeParent = mainFrame.Parent,
             homeOrder = mainFrame.LayoutOrder,
@@ -5408,9 +5335,10 @@ local shared = require(script.Parent.window.constants)
 local settingsComponent = {}
 
 --[[
-The About card's copy. The card itself is a reusable element — these are
-simply the values this build stamps into the Settings tab's card, so a
-release updates them here and nowhere else.
+The About page's copy. The page is built from ordinary elements (a section
+header, two text readouts and the repository link) — these are simply the
+values this build stamps into the Settings tab, so a release updates them
+here and nowhere else.
 ]]
 local aboutVersion = "1.4.0"
 local aboutAuthor = "Astra Team"
@@ -5446,20 +5374,15 @@ function settingsComponent.buildUI(window)
 
     local function buildAbout()
         --[[
-        The About page is kept deliberately short: one compact About card
-        (brand header plus two data tiles) and a single repository link —
-        the usage guide, releases and issues all live behind that link.
-        The version and author strings live at the top of this module.
+        The About page is kept deliberately short: one header, the version
+        and author readouts and a single repository link — the usage
+        guide, releases and issues all live behind that link. The version
+        and author strings live at the top of this module.
         ]]
-        about:CreateAboutCard({
-            name = "Astra",
-            subtitle = "UI Library for a better experience.",
-            icon = constants.icons.dot,
-            rows = {
-                { icon = "code", label = "Version", value = aboutVersion },
-                { icon = "user", label = "Author", value = aboutAuthor },
-            },
-        })
+        about:CreateSection({ name = "Astra", icon = constants.icons.dot })
+        about:CreateText({ name = "About", text = "UI Library for a better experience." })
+        about:CreateStat({ name = "Version", value = aboutVersion, letter = false })
+        about:CreateStat({ name = "Author", value = aboutAuthor, letter = false })
         about:CreateLink({
             name = "Repository", subtitle = "Docs, releases and issues", icon = "code",
             link = "https://github.com/Kira762/astra-version-1",
@@ -5503,7 +5426,7 @@ function settingsComponent.buildUI(window)
             [2] = "inputs and selections locked (Links, Inputs, Dropdowns, Keybinds)",
             [3] = "important actions locked (Buttons, Toggles, Sliders, Steppers, Mode Pickers)",
             [4] = "sensitive controls locked (high-impact actions)",
-            [5] = "all lockable controls locked (Collapsible Groups, Isolated headers)",
+            [5] = "all lockable controls locked (Collapsible Groups)",
         }
         local lockModes = {}
         for index, color in ipairs(lockModeColors) do
@@ -7405,7 +7328,7 @@ function Window:_buildLockScrim(element)
         Parent = element.lockScrim,
     }, { CornerRadius = "ElementCornerRadius" })
 
-    -- The two header-based containers (CollapsibleGroup / Isolated) keep
+    -- The header-based container (CollapsibleGroup) keeps
     -- their lock surface on the header band, whose own corners flip
     -- between collapsed (all four) and expanded (top only) so the band
     -- squares off against the divider. The scrim must wear the same
@@ -10983,843 +10906,6 @@ end
 end)() end,
     [34] = function()local wax,script,require=ImportGlobals(34)local ImportGlobals return (function(...)
 --[[
-CreateAboutCard: one card that carries an About page — a brand header, a
-row of data tiles and an optional trailing action band.
-
-The recipe is fixed and every string in it is host copy:
-
-  * header — a leading icon plus a title/subtitle stack,
-  * rows — one to three compact data tiles, each a leading icon with a
-    label above its value. Every tile shares one line evenly: the three-row
-    About recipe stays three-across instead of leaving its last tile alone
-    on a second line,
-  * action (optional) — a tappable band carrying an icon, a label, a
-    subtitle and the card's trailing chevron. It is the card's trailing
-    row, which is why the data rows stop at three: a fourth would be the
-    action itself.
-
-Every surface stays inside the shared theme tokens — the card is the
-standard element body, each tile and the action band use ElementSurface,
-and the nested badge uses that same control family — so the card themes
-itself like every other element instead of hard-coding a dark inset.
-]]
-
-local state = {}
-state.__index = state
-state.__type = "AboutCard"
-
-local utilities = script.Parent.Parent.utilities
-
-local image = require(script.Parent.Parent.images.image)
-local haptic = require(utilities.HapticEngine)
-local locale = require(utilities.locale)
-local lockable = require(utilities.lockable)
-local motion = require(utilities.motion)
-local moveable = require(utilities.moveable)
-
---[[
-The rows section is capped at three tiles so the compact status band keeps
-useful room for every label and value; the action remains its trailing row.
-]]
-local maxRows = 3
-
---[[
-Card metrics. The card keeps the library's 20px gutter. Data tiles are a
-deliberately compact 48px band: the smaller inset and badge leave enough
-copy room for three equal tiles on the normal card width without making the
-third row wrap below the first two.
-]]
-local gutter = 20
-local sectionGap = 14
-local headerIconSize = 38
-local headerIconGap = 14
-local headerTitleSize = 20
-local headerTitleHeight = 26
-local headerSubtitleSize = 14
-local headerSubtitleHeight = 18
-local headerLineGap = 2
-local tileHeight = 48
-local tileGap = 8
-local tilePad = 8
-local badgeSize = 28
-local badgeIconSize = 14
-local badgeGap = 8
-local tileLabelSize = 11
-local tileLabelHeight = 13
-local tileValueSize = 14
-local tileValueHeight = 17
-local tileLineGap = 1
-local tileTextHeight = tileLabelHeight + tileLineGap + tileValueHeight
-local actionHeight = 56
-local actionHeightSingle = 41
-local actionPad = 14
-local actionIconSize = 16
-local actionIconGap = 12
-local actionLabelSize = 16
-local actionLabelHeight = 19
-local actionSubtitleSize = 14
-local actionSubtitleHeight = 16
-local actionChevronSize = 16
-local actionChevronInset = 16
-
---[[
-Resting transparencies once the card has been revealed: the muted body
-lines match every other 14px line in the library, the trailing chevron
-matches the Isolated header's, and both step up while the pointer is over
-the action band.
-]]
-local restingMutedTransparency = 0.45
-local restingChevronTransparency = 0.4
-local hoveredChevronTransparency = 0.15
-
---[[
-What a tracked part rests at while the card is shown. Every tracked
-property is a transparency, so "hidden" is always 1 and only the shown
-value needs a rule. `background`, `stroke` and `muted` read the theme and
-the rest are literals.
-]]
-local restValue = {
-    background = function(self)
-        return self.window:_elementBackgroundTransparency(self)
-    end,
-    stroke = function(self)
-        return self.window:_elementStrokeTransparency(self, false)
-    end,
-    muted = function()
-        return restingMutedTransparency
-    end,
-    chevron = function()
-        return restingChevronTransparency
-    end,
-    icon = function()
-        return 0
-    end,
-    solid = function()
-        return 0
-    end,
-}
-
-local function read(properties, lower, upper)
-    local value = properties[lower]
-    if value == nil then
-        value = properties[upper]
-    end
-    return value
-end
-
---[[
-Text slots normalise through here: numbers are legal values (a version or
-a build number), and an empty string is treated as "no copy" so the slot
-that owns it can drop out of the layout instead of rendering a blank band.
-]]
-local function textOf(value)
-    if value == nil then
-        return nil
-    end
-    return tostring(value)
-end
-
-local function textOrNil(value)
-    local text = textOf(value)
-    if text == "" then
-        return nil
-    end
-    return text
-end
-
---[[
-A nested surface uses the theme's element fill, not the much darker window
-gradient. The surrounding stroke still separates each tile and action band
-from the card, while their colour stays in the same hierarchy as the rest
-of Astra's controls.
-]]
-local function insetSurface(window, frame)
-    window:Create("UICorner", { Parent = frame }, { CornerRadius = "ElementCornerRadius" })
-    return window:Create("UIStroke", { Transparency = 1, Parent = frame }, {
-        Color = "ElementStroke",
-        Transparency = "ElementStrokeTransparency",
-    })
-end
-
-function state.new(tab, props)
-    assert(tab, "Missing argument #1 (Tab expected)")
-    props = if type(props) == "table" then props else {}
-
-    local rows = read(props, "rows", "Rows")
-    if rows == nil then
-        rows = {}
-    end
-    assert(type(rows) == "table", "AboutCard.rows must be an array of rows")
-    if #rows > maxRows then
-        error(`Astra:CreateAboutCard — at most {maxRows} data rows are supported, got {#rows}`, 0)
-    end
-
-    local window = tab.window
-    local self = setmetatable({
-        tab = tab,
-        window = window,
-        name = textOrNil(read(props, "name", "Name")) or "About",
-        subtitle = textOrNil(read(props, "subtitle", "Subtitle")),
-        icon = window:ResolveIcon(read(props, "icon", "Icon")),
-        rows = {},
-        --[[
-        Every painted part of the card in one list (see `restValue`), so a
-        reveal is one loop and a part cannot be forgotten in only one of
-        the show and hide paths.
-        ]]
-        parts = {},
-        deriveFlagFromName = tab.deriveFlagFromName,
-        forgetState = props.forgetState or tab.forgetState,
-        _shown = false,
-    }, state)
-
-    local action = read(props, "action", "Action")
-    local actionCallback = if type(action) == "table" then read(action, "callback", "Callback") else nil
-    self:_build(rows, action)
-    lockable.register(self, props, {
-        enabled = type(actionCallback) == "function",
-        id = read(props, "id", "Id") or (if type(action) == "table" then read(action, "id", "Id") else nil),
-        usage = if type(action) == "table" then read(action, "usage", "Usage") else nil,
-        lockLevel = if type(action) == "table" then read(action, "lockLevel", "LockLevel") else nil,
-        lockGroup = if type(action) == "table" then read(action, "lockGroup", "LockGroup") else nil,
-    })
-
-    return self
-end
-
--- Track one painted part: `{ instance, property, rest kind }`.
-function state:_track(instance, property, kind)
-    table.insert(self.parts, { instance, property, kind })
-end
-
-function state:_rest(kind)
-    return restValue[kind](self)
-end
-
-function state:_paint(shown, animate)
-    for _, part in ipairs(self.parts) do
-        local value = if shown then self:_rest(part[3]) else 1
-        self.window:_reveal(part[1], { [part[2]] = value }, animate)
-    end
-end
-
-function state:_build(rows, action)
-    local window = self.window
-
-    self.main = window:Create("Frame", {
-        Name = self.name,
-        Size = UDim2.new(1, -20, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BorderSizePixel = 0,
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 1,
-        Parent = self.tab.tabPage,
-    }, { BackgroundTransparency = "ElementTransparency" })
-
-    self.stroke = window:StyleElementBody(self.main)
-
-    window:Create("UIPadding", {
-        PaddingTop = UDim.new(0, gutter),
-        PaddingBottom = UDim.new(0, gutter),
-        PaddingLeft = UDim.new(0, gutter),
-        PaddingRight = UDim.new(0, gutter),
-        Parent = self.main,
-    })
-
-    window:Create("UIListLayout", {
-        Padding = UDim.new(0, sectionGap),
-        FillDirection = Enum.FillDirection.Vertical,
-        HorizontalAlignment = Enum.HorizontalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = self.main,
-    })
-
-    self:_buildHeader()
-    self:_buildRows(rows)
-    if type(action) == "table" then
-        self:_buildAction(action)
-    end
-end
-
-function state:_buildHeader()
-    local window = self.window
-    local height = self:_headerHeight()
-
-    self.header = window:Create("Frame", {
-        Name = "Header",
-        Size = UDim2.new(1, 0, 0, height),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        LayoutOrder = 1,
-        Parent = self.main,
-    })
-
-    window:Create("UIListLayout", {
-        FillDirection = Enum.FillDirection.Horizontal,
-        Padding = UDim.new(0, headerIconGap),
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        HorizontalAlignment = Enum.HorizontalAlignment.Left,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = self.header,
-    })
-
-    --[[
-    The leading slot exists whether or not the card started with an icon,
-    so `SetIcon` can add one later instead of silently doing nothing.
-    Hidden, it is out of the list layout's flow.
-    ]]
-    self.iconLabel = window:Create("ImageLabel", {
-        Name = "Icon",
-        Image = self.icon or "",
-        Size = UDim2.fromOffset(headerIconSize, headerIconSize),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        LayoutOrder = 0,
-        Visible = self.icon ~= nil,
-        ImageTransparency = 1,
-        Parent = self.header,
-    }, { ImageColor3 = "ContentColor" })
-
-    self.headerText = window:Create("Frame", {
-        Name = "Text",
-        Size = UDim2.new(1, if self.icon then -(headerIconSize + headerIconGap) else 0, 0, height),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        LayoutOrder = 1,
-        Parent = self.header,
-    })
-
-    window:Create("UIListLayout", {
-        Padding = UDim.new(0, headerLineGap),
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = self.headerText,
-    })
-
-    self.title = window:Create("TextLabel", {
-        Name = "Title",
-        Text = locale.t(self.name),
-        Size = UDim2.new(1, 0, 0, headerTitleHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        TextSize = headerTitleSize,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        LayoutOrder = 1,
-        TextTransparency = 1,
-        Parent = self.headerText,
-    }, { TextColor3 = "TitlingColor", FontFace = "TitleFont" })
-    window:_bindLocale(self.title, "Text", self.name)
-
-    self.subtitleLabel = window:Create("TextLabel", {
-        Name = "Subtitle",
-        Text = locale.t(self.subtitle or ""),
-        Size = UDim2.new(1, 0, 0, headerSubtitleHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        TextSize = headerSubtitleSize,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        LayoutOrder = 2,
-        Visible = self.subtitle ~= nil,
-        TextTransparency = 1,
-        Parent = self.headerText,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
-    if self.subtitle then
-        window:_bindLocale(self.subtitleLabel, "Text", self.subtitle)
-    end
-    self:_track(self.subtitleLabel, "TextTransparency", "muted")
-end
-
-function state:_headerHeight()
-    return if self.subtitle then headerTitleHeight + headerLineGap + headerSubtitleHeight else headerTitleHeight
-end
-
---[[
-The header re-derives from the subtitle slot: adding or releasing the
-second line reflows the band and the text column from one place.
-]]
-function state:_applyHeaderMetrics()
-    local height = self:_headerHeight()
-    self.header.Size = UDim2.new(1, 0, 0, height)
-    self.headerText.Size = UDim2.new(1, if self.icon then -(headerIconSize + headerIconGap) else 0, 0, height)
-    self.subtitleLabel.Visible = self.subtitle ~= nil
-end
-
-function state:_buildRows(rows)
-    local window = self.window
-
-    --[[
-    The tiles are placed by `_layoutRows`, not by a list layout, so one to
-    three equal slices can account for their gaps without wrapping.
-    ]]
-    self.rowsHost = window:Create("Frame", {
-        Name = "Rows",
-        Size = UDim2.new(1, 0, 0, tileHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        LayoutOrder = 2,
-        Visible = #rows > 0,
-        Parent = self.main,
-    })
-
-    for index, row in ipairs(rows) do
-        self.rows[index] = self:_buildRow(index, row)
-    end
-    self:_layoutRows()
-    --[[
-    Scale-based slices follow resizes themselves; refreshing here also
-    keeps `_rowLines` and any runtime metric changes in sync.
-    ]]
-    window:ConnectFor(self, self.main:GetPropertyChangedSignal("AbsoluteSize"), function()
-        self:_layoutRows()
-    end)
-end
-
-function state:_buildRow(index, row)
-    local window = self.window
-    row = if type(row) == "table" then row else {}
-
-    local entry = {
-        icon = window:ResolveIcon(read(row, "icon", "Icon")),
-        label = textOf(read(row, "label", "Label")) or "",
-        value = textOf(read(row, "value", "Value")) or "",
-    }
-
-    entry.main = window:Create("Frame", {
-        Name = `Row{index}`,
-        Size = UDim2.fromOffset(0, tileHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        LayoutOrder = index,
-        Parent = self.rowsHost,
-    }, {
-        BackgroundColor3 = "ElementSurface",
-        BackgroundTransparency = "ElementTransparency",
-    })
-    entry.stroke = insetSurface(window, entry.main)
-
-    window:Create("UIPadding", {
-        PaddingTop = UDim.new(0, tilePad),
-        PaddingBottom = UDim.new(0, tilePad),
-        PaddingLeft = UDim.new(0, tilePad),
-        PaddingRight = UDim.new(0, tilePad),
-        Parent = entry.main,
-    })
-
-    window:Create("UIListLayout", {
-        FillDirection = Enum.FillDirection.Horizontal,
-        Padding = UDim.new(0, badgeGap),
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        HorizontalAlignment = Enum.HorizontalAlignment.Left,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = entry.main,
-    })
-
-    --[[
-    The badge is the small square the row's icon sits in. It carries the
-    content surface and the element stroke, so the mark reads as a chip on
-    the tile rather than as a floating glyph.
-    ]]
-    entry.badge = window:Create("Frame", {
-        Name = "Badge",
-        Size = UDim2.fromOffset(badgeSize, badgeSize),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        LayoutOrder = 0,
-        Parent = entry.main,
-    }, { BackgroundColor3 = "ElementSurface", BackgroundTransparency = "ElementTransparency" })
-    window:Create("UICorner", { Parent = entry.badge }, { CornerRadius = "ElementCornerRadius" })
-    entry.badgeStroke = window:Create("UIStroke", { Transparency = 1, Parent = entry.badge }, {
-        Color = "ElementStroke",
-        Transparency = "ElementStrokeTransparency",
-    })
-
-    entry.badgeIcon = window:Create("ImageLabel", {
-        Name = "Icon",
-        Image = entry.icon or "",
-        Size = UDim2.fromOffset(badgeIconSize, badgeIconSize),
-        Position = UDim2.fromScale(0.5, 0.5),
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        Visible = entry.icon ~= nil,
-        ImageTransparency = 1,
-        Parent = entry.badge,
-    }, { ImageColor3 = "ContentColor" })
-
-    entry.textColumn = window:Create("Frame", {
-        Name = "Text",
-        Size = UDim2.new(1, 0, 0, tileTextHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        LayoutOrder = 1,
-        Parent = entry.main,
-    })
-
-    window:Create("UIListLayout", {
-        Padding = UDim.new(0, tileLineGap),
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = entry.textColumn,
-    })
-
-    entry.labelLabel = window:Create("TextLabel", {
-        Name = "Label",
-        Text = locale.t(entry.label),
-        Size = UDim2.new(1, 0, 0, tileLabelHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        TextSize = tileLabelSize,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        LayoutOrder = 1,
-        TextTransparency = 1,
-        Parent = entry.textColumn,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
-    window:_bindLocale(entry.labelLabel, "Text", entry.label)
-
-    entry.valueLabel = window:Create("TextLabel", {
-        Name = "Value",
-        Text = entry.value,
-        Size = UDim2.new(1, 0, 0, tileValueHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        TextSize = tileValueSize,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        LayoutOrder = 2,
-        TextTransparency = 1,
-        Parent = entry.textColumn,
-    }, { TextColor3 = "TitlingColor", FontFace = "TitleFont" })
-
-    self:_track(entry.main, "BackgroundTransparency", "background")
-    self:_track(entry.stroke, "Transparency", "stroke")
-    self:_track(entry.badge, "BackgroundTransparency", "background")
-    self:_track(entry.badgeStroke, "Transparency", "stroke")
-    self:_track(entry.badgeIcon, "ImageTransparency", "icon")
-    self:_track(entry.labelLabel, "TextTransparency", "muted")
-    self:_track(entry.valueLabel, "TextTransparency", "solid")
-
-    self:_applyRowIcon(entry)
-
-    return entry
-end
-
---[[
-The tile's text column reserves exactly the badge plus its gap, so a row
-without an icon hands the whole tile to its label and value.
-]]
-function state:_applyRowIcon(entry)
-    local hasIcon = entry.icon ~= nil
-    entry.badge.Visible = hasIcon
-    image.assign(entry.badgeIcon, "Image", entry.icon or "")
-    entry.textColumn.Size = UDim2.new(1, if hasIcon then -(badgeSize + badgeGap) else 0, 0, tileTextHeight)
-end
-
---[[
-The tiles always occupy one compact line. Their equal slices make the
-Version / Build / Author recipe read as one three-part status row instead
-of a two-column grid with an oversized orphan below it. The first layout
-can run before Roblox has measured the card; scale-based width keeps that
-pass correct and automatically follows later window resizing without a
-minimum-width packing threshold.
-]]
-function state:_layoutRows()
-    local count = #self.rows
-    if count == 0 then
-        return
-    end
-
-    self._rowLines = { {} }
-    self.rowsHost.Size = UDim2.new(1, 0, 0, tileHeight)
-    local gapShare = tileGap * (count - 1) / count
-    for index, entry in ipairs(self.rows) do
-        table.insert(self._rowLines[1], index)
-        entry.main.Size = UDim2.new(1 / count, -gapShare, 0, tileHeight)
-        entry.main.Position = UDim2.new((index - 1) / count, tileGap * (index - 1) / count, 0, 0)
-    end
-end
-
-function state:_buildAction(action)
-    local window = self.window
-
-    self.action = {
-        name = textOf(read(action, "name", "Name")) or "",
-        subtitle = textOrNil(read(action, "subtitle", "Subtitle")),
-        icon = window:ResolveIcon(read(action, "icon", "Icon")),
-        callback = read(action, "callback", "Callback"),
-    }
-
-    local height = if self.action.subtitle then actionHeight else actionHeightSingle
-    local leading = actionPad + (if self.action.icon then actionIconSize + actionIconGap else 0)
-    local contentHeight = if self.action.subtitle
-        then actionLabelHeight + tileLineGap + actionSubtitleHeight
-        else actionLabelHeight
-
-    self.actionBand = window:Create("Frame", {
-        Name = "Action",
-        Size = UDim2.new(1, 0, 0, height),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        LayoutOrder = 4,
-        Parent = self.main,
-    }, {
-        BackgroundColor3 = "ElementSurface",
-        BackgroundTransparency = "ElementTransparency",
-    })
-    self.actionStroke = insetSurface(window, self.actionBand)
-
-    self.actionIcon = window:Create("ImageLabel", {
-        Name = "Icon",
-        Image = self.action.icon or "",
-        Size = UDim2.fromOffset(actionIconSize, actionIconSize),
-        Position = UDim2.new(0, actionPad, 0.5, 0),
-        AnchorPoint = Vector2.new(0, 0.5),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        Visible = self.action.icon ~= nil,
-        ImageTransparency = 1,
-        Parent = self.actionBand,
-    }, { ImageColor3 = "ContentColor" })
-
-    self.actionText = window:Create("Frame", {
-        Name = "Text",
-        Size = UDim2.new(1, -(leading + actionChevronInset + actionChevronSize + actionIconGap), 0, contentHeight),
-        Position = UDim2.new(0, leading, 0.5, 0),
-        AnchorPoint = Vector2.new(0, 0.5),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        Parent = self.actionBand,
-    })
-
-    window:Create("UIListLayout", {
-        Padding = UDim.new(0, tileLineGap),
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = self.actionText,
-    })
-
-    self.actionLabel = window:Create("TextLabel", {
-        Name = "Label",
-        Text = locale.t(self.action.name),
-        Size = UDim2.new(1, 0, 0, actionLabelHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        TextSize = actionLabelSize,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        LayoutOrder = 1,
-        TextTransparency = 1,
-        Parent = self.actionText,
-    }, { TextColor3 = "TitlingColor", FontFace = "TitleFont" })
-    window:_bindLocale(self.actionLabel, "Text", self.action.name)
-
-    self.actionSubtitle = window:Create("TextLabel", {
-        Name = "Subtitle",
-        Text = locale.t(self.action.subtitle or ""),
-        Size = UDim2.new(1, 0, 0, actionSubtitleHeight),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        TextSize = actionSubtitleSize,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-        LayoutOrder = 2,
-        Visible = self.action.subtitle ~= nil,
-        TextTransparency = 1,
-        Parent = self.actionText,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
-    if self.action.subtitle then
-        window:_bindLocale(self.actionSubtitle, "Text", self.action.subtitle)
-    end
-
-    --[[
-    The trailing chevron is part of the band, never changeable and never
-    removable, so no setter reaches it (the same rule the Isolated header
-    follows).
-    ]]
-    self.actionChevron = window:Create("ImageLabel", {
-        Name = "Chevron",
-        Image = window:ResolveIcon("chevron-right") or "",
-        Size = UDim2.fromOffset(actionChevronSize, actionChevronSize),
-        Position = UDim2.new(1, -actionChevronInset, 0.5, 0),
-        AnchorPoint = Vector2.new(1, 0.5),
-        BorderSizePixel = 0,
-        BackgroundTransparency = 1,
-        ImageTransparency = 1,
-        Parent = self.actionBand,
-    }, { ImageColor3 = "ContentColor" })
-
-    --[[
-    The tap target is the whole band, so tapping anywhere on it — not only
-    on the chevron — fires the action.
-    ]]
-    self.actionButton = window:Create("TextButton", {
-        Name = "Tap",
-        Text = "",
-        AutoButtonColor = false,
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        Size = UDim2.fromScale(1, 1),
-        ZIndex = 6,
-        Parent = self.actionBand,
-    })
-    -- If the action has a callback, lock only its tap surface; the card's
-    -- informational header and data rows remain fully readable.
-    self.lockSurface = self.actionButton
-
-    self:_track(self.actionBand, "BackgroundTransparency", "background")
-    self:_track(self.actionStroke, "Transparency", "stroke")
-    self:_track(self.actionIcon, "ImageTransparency", "icon")
-    self:_track(self.actionLabel, "TextTransparency", "solid")
-    self:_track(self.actionSubtitle, "TextTransparency", "muted")
-    self:_track(self.actionChevron, "ImageTransparency", "chevron")
-
-    window:ConnectFor(self, self.actionButton.MouseButton1Click, function()
-        self:_activate()
-    end)
-    self:_wireActionHover()
-end
-
-function state:_activate()
-    if self.locked or not self.window:_interactive() then
-        return
-    end
-    haptic.click()
-    if self.action.callback then
-        self.window:_runGuarded(self, self.action.callback)
-    end
-end
-
---[[
-The band is the card's interactive surface, so it carries the library's
-own hover language (Window:_wireElementHover's recipe) scoped to itself:
-the card stays still, the band's stroke, label and chevron answer. The
-theme keys are read live, so a runtime theme change still flows through.
-]]
-function state:_wireActionHover()
-    local window = self.window
-    local theme = window.theme
-
-    window:ConnectFor(self, self.actionButton.MouseEnter, function()
-        if not window:_interactive() then
-            return
-        end
-        motion.tween(self.actionStroke, {
-            Transparency = window:_elementStrokeTransparency(self, true),
-            Color = theme.ElementStrokeHover,
-        }, "snappy")
-        motion.tween(self.actionLabel, { TextColor3 = theme.ElementTextHoverColor }, "snappy")
-        motion.tween(self.actionChevron, { ImageTransparency = hoveredChevronTransparency }, "snappy")
-    end)
-
-    window:ConnectFor(self, self.actionButton.MouseLeave, function()
-        motion.tween(self.actionStroke, {
-            Transparency = window:_elementStrokeTransparency(self, false),
-            Color = theme.ElementStroke,
-        }, "snappy")
-        motion.tween(self.actionLabel, { TextColor3 = theme.TitlingColor }, "snappy")
-        motion.tween(self.actionChevron, { ImageTransparency = restingChevronTransparency }, "snappy")
-    end)
-end
-
-function state:_setShown(shown, animate)
-    self._shown = shown
-    if shown then
-        self.window:_revealCommon(self, animate)
-    else
-        self.window:_hideCommon(self, animate)
-    end
-    self:_paint(shown, animate)
-end
-
---[[
-A theme change re-reads every resting value the card paints with, exactly
-as a reveal does.
-]]
-function state:_refreshTheme()
-    self:_setShown(self._shown, false)
-end
-
---[[
-Public setters. The header icon slot mirrors the Isolated container's; the
-row setter rewrites one tile in place instead of rebuilding the row, so a live
-status card never re-measures its layout.
-]]
-function state:SetTitle(title)
-    self.name = textOf(title) or ""
-    self.window:_bindLocale(self.title, "Text", self.name)
-end
-
-function state:SetSubtitle(subtitle)
-    self.subtitle = textOrNil(subtitle)
-    if self.subtitle then
-        self.window:_bindLocale(self.subtitleLabel, "Text", self.subtitle)
-    else
-        self.subtitleLabel.Text = ""
-    end
-    self:_applyHeaderMetrics()
-end
-
-function state:SetIcon(icon)
-    self.icon = self.window:ResolveIcon(icon)
-    image.assign(self.iconLabel, "Image", self.icon or "")
-    self.iconLabel.Visible = self.icon ~= nil
-    self:_applyHeaderMetrics()
-    --[[
-    The icon slot is tracked, so it lands at its resting transparency for
-    whichever state the card is in right now.
-    ]]
-    self:_setShown(self._shown, false)
-end
-
-function state:SetRow(index, row)
-    local entry = self.rows[index]
-    assert(entry, `AboutCard:SetRow — no row at index {index}`)
-    row = if type(row) == "table" then row else {}
-
-    local changed = false
-
-    local label = read(row, "label", "Label")
-    if label ~= nil then
-        entry.label = textOf(label) or ""
-        self.window:_bindLocale(entry.labelLabel, "Text", entry.label)
-        changed = true
-    end
-
-    local value = read(row, "value", "Value")
-    if value ~= nil then
-        entry.value = textOf(value) or ""
-        entry.valueLabel.Text = entry.value
-        changed = true
-    end
-
-    local icon = read(row, "icon", "Icon")
-    if icon ~= nil then
-        entry.icon = self.window:ResolveIcon(icon)
-        self:_applyRowIcon(entry)
-        changed = true
-    end
-
-    --[[
-    Refresh the equal-slice row after an icon changes the text reservation;
-    copy is truncated inside its own compact tile rather than wrapping the
-    last tile onto another line.
-    ]]
-    if changed then
-        self:_layoutRows()
-        self:_setShown(self._shown, false)
-    end
-end
-
-moveable(state)
-lockable(state)
-
-return state
-
-end)() end,
-    [35] = function()local wax,script,require=ImportGlobals(35)local ImportGlobals return (function(...)
---[[
 Shared base card layout and styling for Astra UI elements.
 Handles standard background frame, theme strokes, hover overlay,
 content container, icon, and title label.
@@ -11907,7 +10993,7 @@ end
 return baseCard
 
 end)() end,
-    [36] = function()local wax,script,require=ImportGlobals(36)local ImportGlobals return (function(...)
+    [35] = function()local wax,script,require=ImportGlobals(35)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Button"
@@ -12136,7 +11222,7 @@ end
 return state
 
 end)() end,
-    [37] = function()local wax,script,require=ImportGlobals(37)local ImportGlobals return (function(...)
+    [36] = function()local wax,script,require=ImportGlobals(36)local ImportGlobals return (function(...)
 local Changelog = {}
 Changelog.__index = Changelog
 Changelog.__type = "Changelog"
@@ -12557,7 +11643,7 @@ moveable(Changelog)
 return Changelog
 
 end)() end,
-    [38] = function()local wax,script,require=ImportGlobals(38)local ImportGlobals return (function(...)
+    [37] = function()local wax,script,require=ImportGlobals(37)local ImportGlobals return (function(...)
 local utilities = script.Parent.Parent.utilities
 local motion = require(utilities.motion)
 local locale = require(utilities.locale)
@@ -12622,7 +11708,6 @@ local function validate(definitions, path, ancestors, depth)
         assert(type(spec) == "table", location .. " must be an element definition")
         local kind = spec.type or spec.Type
         assert(kind ~= "CollapsibleGroup", location .. ": CollapsibleGroups cannot be nested, including inside Groups")
-        assert(kind ~= "Isolated", location .. ": Isolated containers cannot be nested, including inside Groups")
         assert(constructors[kind], location .. ": unsupported element type " .. tostring(kind))
         if kind == "Group" then
             validate(spec.elements or {}, location .. ".elements", ancestors, depth + 1)
@@ -13022,7 +12107,7 @@ lockable(Collapsible)
 return Collapsible
 
 end)() end,
-    [39] = function()local wax,script,require=ImportGlobals(39)local ImportGlobals return (function(...)
+    [38] = function()local wax,script,require=ImportGlobals(38)local ImportGlobals return (function(...)
 --[[
 The in-card description line. An element created with a `description` prop
 grows its own card by the measured height of this line instead of spawning
@@ -13179,7 +12264,7 @@ end
 return description
 
 end)() end,
-    [40] = function()local wax,script,require=ImportGlobals(40)local ImportGlobals return (function(...)
+    [39] = function()local wax,script,require=ImportGlobals(39)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Divider"
@@ -13324,7 +12409,7 @@ constants(state)
 return state
 
 end)() end,
-    [41] = function()local wax,script,require=ImportGlobals(41)local ImportGlobals return (function(...)
+    [40] = function()local wax,script,require=ImportGlobals(40)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Dropdown"
@@ -14942,7 +14027,7 @@ multiSelect(state)
 return state
 
 end)() end,
-    [42] = function()local wax,script,require=ImportGlobals(42)local ImportGlobals return (function(...)
+    [41] = function()local wax,script,require=ImportGlobals(41)local ImportGlobals return (function(...)
 --[[
 Centred inline text-and-icon strip — the "Built with ⚡ Astra ♡" line.
 A Footer is an ordered run of text segments and inline icons that is
@@ -15190,7 +14275,7 @@ constants(state)
 return state
 
 end)() end,
-    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)
+    [42] = function()local wax,script,require=ImportGlobals(42)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Group"
@@ -15288,7 +14373,7 @@ function state:_add(a13, a14)
     local ownerTab = self.tab
     local contentsVisible = true
     while ownerTab.tab do
-        if (ownerTab.__type == "CollapsibleGroup" or ownerTab.__type == "Isolated") and not ownerTab._expanded then contentsVisible = false end
+        if ownerTab.__type == "CollapsibleGroup" and not ownerTab._expanded then contentsVisible = false end
         ownerTab = ownerTab.tab
     end
     if contentsVisible and not self.window.hidden and not self.window.minimised and self.window.selectedTab == ownerTab then
@@ -15430,7 +14515,7 @@ constants(state)
 return state
 
 end)() end,
-    [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)
+    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Input"
@@ -15751,453 +14836,7 @@ end
 return state
 
 end)() end,
-    [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
-local utilities = script.Parent.Parent.utilities
-local motion = require(utilities.motion)
-local locale = require(utilities.locale)
-local haptic = require(utilities.HapticEngine)
-local moveable = require(utilities.moveable)
-local lockable = require(utilities.lockable)
-local ordering = require(utilities.ordering)
-local image = require(script.Parent.Parent.images.image)
-
-local Isolated = {}
-Isolated.__index = Isolated
-Isolated.__type = "Isolated"
-
---[[
-The Isolated container is the Changelog's own home: a collapsed header
-card — icon, title/subtitle stack and the built-in expansion chevron —
-that reveals a body of release-history entries exactly the way a
-CollapsibleGroup reveals its controls. It is a strict container: the
-only accepted child definition is a Changelog, everything else errors
-at construction instead of rendering a control the container cannot
-lay out. The right-hand chevron is part of the container itself: it is
-always drawn, never changeable and never removable, so no setter for
-it exists on purpose.
-]]
-local GUARD_MESSAGE = "Astra:CreateIsolated — only Changelog elements can be placed inside Isolated"
-
-local function changelogConstructor(parent, props)
-    return require(script.Parent.changelog).new(parent, props)
-end
-
---[[
-Which corners of the header band carry the container's arcs. Open, the band
-is only the top of the card: its bottom edge is the straight divider, so the
-bottom corners must stay square or they would notch into the revealed body.
-Closed, the band *is* the whole card, so its bottom corners have to carry the
-container's bottom arcs exactly like its top ones carry the top.
-]]
-local bandCorners = {
-    expanded = { "TopLeftRadius", "TopRightRadius" },
-    collapsed = { "TopLeftRadius", "TopRightRadius", "BottomLeftRadius", "BottomRightRadius" },
-}
-
-local function validate(definitions, path)
-    assert(type(definitions) == "table", path .. " must be an array")
-    local count = 0
-    for key in pairs(definitions) do
-        assert(type(key) == "number" and key >= 1 and key % 1 == 0, path .. " must be an array")
-        count += 1
-    end
-    for index = 1, count do
-        local spec = definitions[index]
-        local kind = if type(spec) == "table" then spec.type or spec.Type else nil
-        --[[
-        One rule, one message: whatever is not a Changelog definition —
-        another control type, a nested container, a built element or a
-        non-table value — is rejected here, before any instance exists.
-        Level 0 keeps the message exact so hosts can match on it.
-        ]]
-        if kind ~= "Changelog" or (type(spec) == "table" and spec.elements ~= nil) then
-            error(GUARD_MESSAGE, 0)
-        end
-    end
-end
-
-local function read(properties, lower, upper)
-    local value = properties[lower]
-    if value == nil then
-        value = properties[upper]
-    end
-    return value
-end
-
-local function buildChildren(parent, definitions)
-    for _, spec in ipairs(definitions) do
-        local child = changelogConstructor(parent, spec)
-        child._collapsibleChild = true
-        table.insert(parent.elements, child)
-        ordering(child, #parent.elements * 10)
-        parent.window:_restoreLate(child)
-        parent.window:_constructionCheckpoint(false)
-    end
-end
-
-local function visit(elements, callback)
-    for _, child in ipairs(elements) do
-        callback(child)
-        if child.elements then visit(child.elements, callback) end
-    end
-end
-
-function Isolated.new(tab, props)
-    assert(tab and tab.__type == "Tab", "Isolated containers must be direct children of a Tab")
-    props = if type(props) == "table" then props else {}
-    validate(props.elements or {}, "Isolated.elements")
-    local self = setmetatable({
-        tab = tab, window = tab.window, elements = {}, connections = {},
-        name = tostring(read(props, "name", "Name") or read(props, "title", "Title") or "View Changelog"),
-        subtitle = read(props, "subtitle", "Subtitle"),
-        icon = tab.window:ResolveIcon(read(props, "icon", "Icon")),
-        deriveFlagFromName = tab.deriveFlagFromName,
-        forgetState = props.forgetState or tab.forgetState,
-        _expanded = false, _shown = false,
-    }, Isolated)
-    self.subtitle = if self.subtitle ~= nil and tostring(self.subtitle) ~= ""
-        then tostring(self.subtitle)
-        else nil
-    local w = self.window
-    --[[
-    Two-line header recipe, shared with the CollapsibleGroup's title plus
-    description band: the title keeps its 41px band and the muted 14px
-    subtitle rides the 20px band under it (41 -> 61). Without a subtitle
-    the header is the plain 41px band.
-    ]]
-    self.headerHeight = if self.subtitle then 61 else 41
-    local iconY = math.floor((self.headerHeight - 16) / 2)
-    --[[
-    One connected card, two surfaces: the header band rides the standard
-    element gradient, the revealed body sits on the darker window surface
-    and a 1px stroke-colored divider separates them.
-    ]]
-    self.bodyPad = 10
-    self.main = w:Create("Frame", {
-        Name = self.name, Size = UDim2.new(1, -20, 0, self.headerHeight),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 1, BorderSizePixel = 0,
-        ClipsDescendants = true, Parent = tab.tabPage,
-    }, { BackgroundTransparency = "ElementTransparency" })
-    w:Create("UIGradient", { Rotation = 270, Parent = self.main }, { Color = "ElementGradient" })
-    w:Create("UICorner", { Parent = self.main }, { CornerRadius = "ElementCornerRadius" })
-    self.stroke = w:Create("UIStroke", {
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Transparency = 1, Parent = self.main,
-    }, { Color = "ElementStroke", Transparency = "ElementStrokeTransparency" })
-    self.headerSurface = w:Create("Frame", {
-        Name = "HeaderSurface", Size = UDim2.new(1, 0, 0, self.headerHeight),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
-    }, { BackgroundTransparency = "ElementTransparency" })
-    w:Create("UIGradient", { Rotation = 270, Parent = self.headerSurface }, { Color = "ElementGradient" })
-    self.headerCorner = w:_roundCorners(self.headerSurface, { "TopLeftRadius", "TopRightRadius" }, "ElementCornerRadius")
-    self:_fitHeaderCorners()
-    self.divider = w:Create("Frame", {
-        Name = "HeaderDivider", Position = UDim2.fromOffset(0, self.headerHeight),
-        Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0,
-        BackgroundTransparency = 1, Visible = false, Parent = self.main,
-    }, { BackgroundColor3 = "ElementStroke", BackgroundTransparency = "ElementStrokeTransparency" })
-    self.header = w:Create("Frame", {
-        Name = "Header", Size = UDim2.new(1, 0, 0, self.headerHeight),
-        BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
-    })
-    self.hoverOverlay = w:CreateHoverOverlay(self.header)
-    --[[
-    Header metrics mirror the CollapsibleGroup header: 20px gutters, a 6px
-    icon gap, a 16px TitlingColor title and a 14px muted line under it.
-    The icon and the chevron sit vertically centred on whichever band the
-    header currently is, so the collapsed card reads as the reference:
-    icon, two-line stack, chevron.
-    ]]
-    local textX = if self.icon then 42 else 20
-    if self.icon then
-        self.iconLabel = w:Create("ImageLabel", {
-            Image = self.icon, Position = UDim2.fromOffset(20, iconY), Size = UDim2.fromOffset(16, 16),
-            BackgroundTransparency = 1, ImageTransparency = 1, Parent = self.header,
-        }, { ImageColor3 = "ContentColor" })
-    end
-    self.title = w:Create("TextLabel", {
-        Text = locale.t(self.name), Position = UDim2.fromOffset(textX, 0),
-        Size = UDim2.new(1, -(textX + 42), 0, 41), BackgroundTransparency = 1,
-        TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
-        TextTransparency = 1, Parent = self.header,
-    }, { TextColor3 = "TitlingColor", FontFace = "Font" })
-    w:_bindLocale(self.title, "Text", self.name)
-    --[[
-    The subtitle label always exists so SetSubtitle can fill it at
-    runtime; without a subtitle it carries empty text and the header
-    stays on the single-line band.
-    ]]
-    self.subtitleLabel = w:Create("TextLabel", {
-        Name = "Subtitle",
-        Text = locale.t(self.subtitle or ""), Position = UDim2.fromOffset(textX, 37),
-        Size = UDim2.new(1, -(textX + 20), 0, 18), BackgroundTransparency = 1,
-        TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
-        TextTransparency = 1, Parent = self.header,
-    }, { TextColor3 = "ContentColor", FontFace = "Font" })
-    if self.subtitle then
-        w:_bindLocale(self.subtitleLabel, "Text", self.subtitle)
-    end
-    --[[
-    Built-in expansion affordance: always rendered, never changeable and
-    never removable. There is deliberately no setter that reaches it.
-    ]]
-    self.chevron = w:Create("ImageLabel", {
-        Image = w:ResolveIcon("chevron-right"), Position = UDim2.new(1, -36, 0, iconY),
-        Size = UDim2.fromOffset(16, 16), BackgroundTransparency = 1,
-        ImageTransparency = 1, Rotation = 0, Parent = self.header,
-    }, { ImageColor3 = "ContentColor" })
-    self.interact = w:Create("TextButton", {
-        Text = "", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
-        AutoButtonColor = false, ZIndex = 6, Parent = self.header,
-    })
-    self.bodyClip = w:Create("Frame", {
-        Name = "ContentsClip",
-        Position = UDim2.fromOffset(0, self.headerHeight + 1),
-        Size = UDim2.new(1, 0, 1, -(self.headerHeight + 1)),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 1, BorderSizePixel = 0,
-        ClipsDescendants = true, Visible = false, Parent = self.main,
-    }, { BackgroundTransparency = "ElementTransparency" })
-    w:Create("UIGradient", { Rotation = 270, Parent = self.bodyClip }, { Color = "WindowColor" })
-    w:_roundCorners(self.bodyClip, { "BottomLeftRadius", "BottomRightRadius" }, "ElementCornerRadius")
-    self.body = w:Create("Frame", {
-        Name = "Contents", Position = UDim2.fromOffset(0, self.bodyPad),
-        Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false, Parent = self.bodyClip,
-    })
-    self.tabPage = self.body
-    self.contentLayout = w:Create("UIListLayout", {
-        Padding = UDim.new(0, self.bodyPad), FillDirection = Enum.FillDirection.Vertical,
-        HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = self.body,
-    })
-    w:ConnectFor(self, self.contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-        self:_resize(true)
-    end)
-    --[[
-    Use the same primary-click signal as Astra's other full-row controls.
-    Some executor input bridges do not forward GuiButton.Activated, which
-    left an otherwise visible Isolated header unable to open. Roblox maps
-    touch taps to MouseButton1Click too, so the whole header stays usable on
-    both pointer and touch input without wiring two signals and double-firing.
-    ]]
-    w:ConnectFor(self, self.interact.MouseButton1Click, function()
-        if self.locked or not w:_interactive() then return end
-        haptic.click()
-        self:_setExpanded(not self._expanded, true)
-    end)
-    w:_wireElementHover(self, { target = self.header, titleRestKey = "TitlingColor" })
-    self.lockSurface = self.header
-    buildChildren(self, props.elements or {})
-    lockable.register(self, props)
-    return self
-end
-
---[[
-Collapsed, the band is the whole card — there is no body under it — so it
-has to carry the container's bottom arcs too, or its square bottom corners
-paint over the silhouette the stroke draws and the card reads as rounded at
-the top and uneven at the bottom. Expanded, the clipper below takes the
-bottom edge (it is flush with the container's floor and keeps the same
-radius token), so the band squares off against the straight divider.
-]]
-function Isolated:_fitHeaderCorners()
-    self.window:_setRoundedCorners(
-        self.headerCorner,
-        if self._expanded then bandCorners.expanded else bandCorners.collapsed,
-        "ElementCornerRadius"
-    )
-    if self.lockScrimCorner then
-        self.window:_setRoundedCorners(
-            self.lockScrimCorner,
-            if self._expanded then bandCorners.expanded else bandCorners.collapsed,
-            "ElementCornerRadius"
-        )
-    end
-end
-
---[[
-Every frame that derives its metrics from the header band — the band
-itself, the divider seam, the reveal mask, the centred icon/chevron row
-and the text stack — is re-derived here, so a runtime SetSubtitle that
-adds or releases the second line reflows the whole card from one place.
-]]
-function Isolated:_applyHeaderMetrics()
-    self.headerHeight = if self.subtitle then 61 else 41
-    local iconY = math.floor((self.headerHeight - 16) / 2)
-    local textX = if self.icon then 42 else 20
-    if self.iconLabel then
-        self.iconLabel.Position = UDim2.fromOffset(20, iconY)
-    end
-    self.title.Position = UDim2.fromOffset(textX, 0)
-    self.title.Size = UDim2.new(1, -(textX + 42), 0, 41)
-    self.subtitleLabel.Position = UDim2.fromOffset(textX, 37)
-    self.subtitleLabel.Size = UDim2.new(1, -(textX + 20), 0, 18)
-    self.chevron.Position = UDim2.new(1, -36, 0, iconY)
-    self.headerSurface.Size = UDim2.new(1, 0, 0, self.headerHeight)
-    self.header.Size = UDim2.new(1, 0, 0, self.headerHeight)
-    self.divider.Position = UDim2.fromOffset(0, self.headerHeight)
-    self.bodyClip.Position = UDim2.fromOffset(0, self.headerHeight + 1)
-    self.bodyClip.Size = UDim2.new(1, 0, 1, -(self.headerHeight + 1))
-end
-
-function Isolated:_resize(animate)
-    --[[
-    (The engine always reports an AbsoluteContentSize; the test harness
-    only stubs it once content is driven, so an unmeasured layout reads 0.)
-    ]]
-    local measured = self.contentLayout.AbsoluteContentSize
-    local contentHeight = if measured then measured.Y else 0
-    local height = self.headerHeight
-    if self._expanded then
-        --[[
-        divider + top pad + content + bottom pad: the container ends one
-        gutter under the last child card, the same inset its sides keep,
-        with no dead slack.
-        ]]
-        height += 1 + self.bodyPad + contentHeight + self.bodyPad
-    end
-    local size = UDim2.new(1, -20, 0, height)
-    self._resizeRevision = (self._resizeRevision or 0) + 1
-    local revision = self._resizeRevision
-    local function finish()
-        if self.window.unloaded or not self.main.Parent or self._resizeRevision ~= revision then
-            return
-        end
-        if not self._expanded then
-            self.body.Visible = false
-            self.bodyClip.Visible = false
-            self.divider.Visible = false
-        end
-        self:_fitHeaderCorners()
-    end
-    if animate and self._shown then
-        local mainTween = motion.tween(self.main, { Size = size }, "snappy", finish)
-        if not mainTween then finish() end
-    else
-        motion.cancel(self.main)
-        self.main.Size = size
-        finish()
-    end
-end
-
-function Isolated:_setExpanded(expanded, animate)
-    if self._expanded == expanded then return end
-    self._expanded = expanded
-    if expanded then
-        self:_fitHeaderCorners()
-        self.body.Visible = true
-        self.bodyClip.Visible = true
-        self.divider.Visible = true
-        for _, child in ipairs(self.elements) do child:_setShown(self._shown, false) end
-    end
-    local chevronProps = { Rotation = if expanded then 90 else 0 }
-    if animate then
-        motion.tween(self.chevron, chevronProps, "snappy")
-    else
-        motion.set(self.chevron, chevronProps)
-    end
-    self:_resize(animate)
-end
-
-function Isolated:_setShown(shown, animate)
-    self._shown = shown
-    local w = self.window
-    w:_reveal(self.main, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
-    w:_reveal(self.headerSurface, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
-    w:_reveal(self.bodyClip, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
-    w:_reveal(self.stroke, { Transparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
-    w:_reveal(self.divider, { BackgroundTransparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
-    w:_reveal(self.title, { TextTransparency = if shown then 0 else 1 }, animate)
-    w:_reveal(self.subtitleLabel, { TextTransparency = if shown then 0.45 else 1 }, animate)
-    w:_reveal(self.chevron, { ImageTransparency = if shown then 0.4 else 1 }, animate)
-    if self.iconLabel then w:_reveal(self.iconLabel, { ImageTransparency = if shown then 0 else 1 }, animate) end
-    if self._expanded then
-        for _, child in ipairs(self.elements) do child:_setShown(shown, animate) end
-    end
-    self:_resize(false)
-end
-
-function Isolated:_refreshTheme()
-    self:_setShown(self._shown, false)
-    for _, child in ipairs(self.elements) do
-        if child._refreshTheme then child:_refreshTheme() end
-    end
-end
-
-function Isolated:_moveElement(element, index)
-    local old = table.find(self.elements, element)
-    if not old then return end
-    table.remove(self.elements, old)
-    table.insert(self.elements, math.clamp(index, 1, #self.elements + 1), element)
-    for i, child in ipairs(self.elements) do ordering(child, i * 10) end
-end
-
---[[
-Public expansion API: the same CollapsibleGroup-style tween, addressable
-from the host instead of only from a header tap.
-]]
-function Isolated:Expand(animate)
-    self:_setExpanded(true, animate ~= false)
-end
-
-function Isolated:Collapse(animate)
-    self:_setExpanded(false, animate ~= false)
-end
-
-function Isolated:Toggle(animate)
-    self:_setExpanded(not self._expanded, animate ~= false)
-end
-
---[[
-The changeable header slots. The chevron is not among them: it is built
-into the container and no setter reaches it.
-]]
-function Isolated:SetTitle(title)
-    self.name = tostring(title)
-    self.window:_bindLocale(self.title, "Text", self.name)
-end
-
-function Isolated:SetSubtitle(subtitle)
-    local next = if subtitle ~= nil and tostring(subtitle) ~= "" then tostring(subtitle) else nil
-    self.subtitle = next
-    if next then
-        self.window:_bindLocale(self.subtitleLabel, "Text", next)
-    else
-        self.subtitleLabel.Text = ""
-    end
-    self:_applyHeaderMetrics()
-    self:_resize(self._shown)
-end
-
-function Isolated:SetIcon(icon)
-    local resolved = self.window:ResolveIcon(icon)
-    self.icon = resolved
-    if resolved then
-        if not self.iconLabel then
-            self.iconLabel = self.window:Create("ImageLabel", {
-                Image = resolved, Position = UDim2.fromOffset(20, math.floor((self.headerHeight - 16) / 2)),
-                Size = UDim2.fromOffset(16, 16),
-                BackgroundTransparency = 1, ImageTransparency = if self._shown then 0 else 1,
-                Parent = self.header,
-            }, { ImageColor3 = "ContentColor" })
-        else
-            image.assign(self.iconLabel, "Image", resolved)
-        end
-    elseif self.iconLabel then
-        self.window:DestroySubtree(self.iconLabel)
-        self.iconLabel = nil
-    end
-    self:_applyHeaderMetrics()
-end
-
-moveable(Isolated)
-lockable(Isolated)
-return Isolated
-
-end)() end,
-    [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
+    [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)
 --[[
 A compact, editable single-letter key control. The TextBox gives the
 control a real caret and lets a user replace the letter in place, while the
@@ -16450,7 +15089,7 @@ lockable(Keybind)
 return Keybind
 
 end)() end,
-    [47] = function()local wax,script,require=ImportGlobals(47)local ImportGlobals return (function(...)
+    [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
 --[[
 CreateLink: a card that carries a URL and copies it.
 
@@ -17530,7 +16169,7 @@ lockable(state)
 return state
 
 end)() end,
-    [48] = function()local wax,script,require=ImportGlobals(48)local ImportGlobals return (function(...)
+    [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "ModePicker"
@@ -18155,7 +16794,7 @@ local lockModeSubtitles = {
 	[2] = "Mode 2 — inputs and selections locked (Links, Inputs, Dropdowns, Keybinds)",
 	[3] = "Mode 3 — important actions locked (Buttons, Toggles, Sliders, Steppers, Mode Pickers)",
 	[4] = "Mode 4 — sensitive controls locked (high-impact actions)",
-	[5] = "Mode 5 — all lockable controls locked (Collapsible Groups, Isolated headers)",
+	[5] = "Mode 5 — all lockable controls locked (Collapsible Groups)",
 }
 
 function state:_syncLockSystemMode()
@@ -18354,7 +16993,7 @@ lockable(state)
 return state
 
 end)() end,
-    [49] = function()local wax,script,require=ImportGlobals(49)local ImportGlobals return (function(...)
+    [47] = function()local wax,script,require=ImportGlobals(47)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Section"
@@ -18440,7 +17079,7 @@ constants(state)
 return state
 
 end)() end,
-    [50] = function()local wax,script,require=ImportGlobals(50)local ImportGlobals return (function(...)
+    [48] = function()local wax,script,require=ImportGlobals(48)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Slider"
@@ -19043,7 +17682,7 @@ end
 return state
 
 end)() end,
-    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
+    [49] = function()local wax,script,require=ImportGlobals(49)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Statistic"
@@ -19885,7 +18524,7 @@ name(state)
 return state
 
 end)() end,
-    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
+    [50] = function()local wax,script,require=ImportGlobals(50)local ImportGlobals return (function(...)
 --[[
 The Stepper ("Value Configuration") is the library's numeric counter row:
 an integrated pill capsule with a `[−]` button, a highlighted editable
@@ -20479,7 +19118,7 @@ lockable(state)
 return state
 
 end)() end,
-    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
+    [51] = function()local wax,script,require=ImportGlobals(51)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Tab"
@@ -20502,7 +19141,7 @@ local function customOrder(window, forgetState)
             window._elementLockModePicker = nil
         end
         window:_unregisterLockableElement(element)
-        if element.__type == "Group" or element.__type == "CollapsibleGroup" or element.__type == "Isolated" then
+        if element.__type == "Group" or element.__type == "CollapsibleGroup" then
             customOrder(window, element.elements)
         else
             window:_unregisterControl(element)
@@ -20972,16 +19611,8 @@ function state:CreateLink(a40)
     return self:_register(require(script.Parent.link).new(self, a40))
 end
 
-function state:CreateAboutCard(props)
-    return self:_register(require(script.Parent.aboutCard).new(self, props))
-end
-
 function state:CreateCollapsibleGroup(props)
     return self:_register(require(script.Parent.collapsibleGroup).new(self, props))
-end
-
-function state:CreateIsolated(props)
-    return self:_register(require(script.Parent.isolated).new(self, props))
 end
 
 function state:CreateGroup(a41)
@@ -21060,7 +19691,7 @@ end
 return state
 
 end)() end,
-    [54] = function()local wax,script,require=ImportGlobals(54)local ImportGlobals return (function(...)
+    [52] = function()local wax,script,require=ImportGlobals(52)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "TabSection"
@@ -21190,7 +19821,7 @@ end
 return state
 
 end)() end,
-    [55] = function()local wax,script,require=ImportGlobals(55)local ImportGlobals return (function(...)
+    [53] = function()local wax,script,require=ImportGlobals(53)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Text"
@@ -21329,7 +19960,7 @@ constants(state)
 return state
 
 end)() end,
-    [56] = function()local wax,script,require=ImportGlobals(56)local ImportGlobals return (function(...)
+    [54] = function()local wax,script,require=ImportGlobals(54)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Toggle"
@@ -21819,7 +20450,7 @@ end
 return state
 
 end)() end,
-    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
+    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
 
 local managerModule = require(script.manager)
 local registryModule = require(script.registry)
@@ -21844,7 +20475,7 @@ end
 return settings
 
 end)() end,
-    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
+    [56] = function()local wax,script,require=ImportGlobals(56)local ImportGlobals return (function(...)
 
 local appearance = {}
 
@@ -21870,7 +20501,7 @@ end
 return appearance
 
 end)() end,
-    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
+    [57] = function()local wax,script,require=ImportGlobals(57)local ImportGlobals return (function(...)
 local keybind = require(script.Parent.Parent.utilities.keybind)
 
 local behavior = {}
@@ -21889,7 +20520,7 @@ end
 return behavior
 
 end)() end,
-    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
+    [58] = function()local wax,script,require=ImportGlobals(58)local ImportGlobals return (function(...)
 local keybind = require(script.Parent.Parent.utilities.keybind)
 
 local defaults = {}
@@ -21921,7 +20552,7 @@ end
 return defaults
 
 end)() end,
-    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
+    [59] = function()local wax,script,require=ImportGlobals(59)local ImportGlobals return (function(...)
 
 local registry = require(script.Parent.registry)
 local defaults = require(script.Parent.defaults)
@@ -22047,7 +20678,7 @@ end
 return SettingsManager
 
 end)() end,
-    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
+    [60] = function()local wax,script,require=ImportGlobals(60)local ImportGlobals return (function(...)
 
 local performance = {}
 
@@ -22061,7 +20692,7 @@ end
 return performance
 
 end)() end,
-    [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
+    [61] = function()local wax,script,require=ImportGlobals(61)local ImportGlobals return (function(...)
 
 local settingsPersistence = require(script.Parent.Parent.utilities.persistenceSettings)
 local settingsCache = require(script.Parent.Parent.cache.persistenceCache)
@@ -22110,7 +20741,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
+    [62] = function()local wax,script,require=ImportGlobals(62)local ImportGlobals return (function(...)
 
 local registry = {}
 
@@ -22190,7 +20821,7 @@ end
 return registry
 
 end)() end,
-    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
+    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
 
 local imageCache = require(script.moduleCache)
 
@@ -22201,7 +20832,7 @@ local moduleCache = {
 return moduleCache
 
 end)() end,
-    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
+    [64] = function()local wax,script,require=ImportGlobals(64)local ImportGlobals return (function(...)
 local filesystem = require(script.Parent.Parent.utilities.filesystem)
 local path = require(script.Parent.Parent.utilities.path)
 local variables = require(script.Parent.Parent.core.state)
@@ -22517,7 +21148,7 @@ end
 return imageCache
 
 end)() end,
-    [67] = function()local wax,script,require=ImportGlobals(67)local ImportGlobals return (function(...)
+    [65] = function()local wax,script,require=ImportGlobals(65)local ImportGlobals return (function(...)
 
 local moduleCache = {}
 
@@ -22548,7 +21179,7 @@ end
 return moduleCache
 
 end)() end,
-    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
+    [66] = function()local wax,script,require=ImportGlobals(66)local ImportGlobals return (function(...)
 
 local persistenceCache = {}
 
@@ -22573,7 +21204,7 @@ end
 return persistenceCache
 
 end)() end,
-    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
+    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
 
 local textMetrics = require(script.textMetrics)
 local colors = require(script.colors)
@@ -22591,7 +21222,7 @@ functions.contrastText = colors.contrastText
 return functions
 
 end)() end,
-    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
+    [68] = function()local wax,script,require=ImportGlobals(68)local ImportGlobals return (function(...)
 local colors = {}
 
 function colors.contrastColor(color: Color3): Color3
@@ -22611,7 +21242,7 @@ end
 return colors
 
 end)() end,
-    [71] = function()local wax,script,require=ImportGlobals(71)local ImportGlobals return (function(...)
+    [69] = function()local wax,script,require=ImportGlobals(69)local ImportGlobals return (function(...)
 local flagNames = {}
 
 local offsetBasis = 2166136261
@@ -22643,7 +21274,7 @@ end
 return flagNames
 
 end)() end,
-    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
+    [70] = function()local wax,script,require=ImportGlobals(70)local ImportGlobals return (function(...)
 local state = require(script.Parent.Parent.core.state)
 local textService = state.textService
 
@@ -22750,7 +21381,7 @@ end
 return textMetrics
 
 end)() end,
-    [74] = function()local wax,script,require=ImportGlobals(74)local ImportGlobals return (function(...)
+    [72] = function()local wax,script,require=ImportGlobals(72)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local Sidebar = {}
@@ -22818,7 +21449,7 @@ end
 return Sidebar
 
 end)() end,
-    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
+    [73] = function()local wax,script,require=ImportGlobals(73)local ImportGlobals return (function(...)
 local sidebar = require(script.Parent.Parent.components.sidebar)
 
 local SidebarCollapsed = {}
@@ -22885,7 +21516,7 @@ end
 return SidebarCollapsed
 
 end)() end,
-    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
+    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
 
 local image = require(script.image)
 
@@ -22900,7 +21531,7 @@ local windowIcons = {
 return windowIcons
 
 end)() end,
-    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
+    [75] = function()local wax,script,require=ImportGlobals(75)local ImportGlobals return (function(...)
 local imageCache = require(script.Parent.Parent.cache.imageCache)
 local variables = require(script.Parent.Parent.core.state)
 
@@ -23067,7 +21698,7 @@ end
 return image
 
 end)() end,
-    [78] = function()local wax,script,require=ImportGlobals(78)local ImportGlobals return (function(...)
+    [76] = function()local wax,script,require=ImportGlobals(76)local ImportGlobals return (function(...)
 --[[
 Single source of truth for Astra's window and Settings UI icons.
 Names are intentionally lowercase and case-sensitive. Custom assets resolve
@@ -23086,7 +21717,7 @@ return {
 }
 
 end)() end,
-    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
+    [77] = function()local wax,script,require=ImportGlobals(77)local ImportGlobals return (function(...)
 
 local windowIcons = {}
 
@@ -23182,7 +21813,7 @@ end
 return windowIcons
 
 end)() end,
-    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
+    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
 --[[
 Icon resolver service.
 
@@ -23727,7 +22358,7 @@ end
 return icons
 
 end)() end,
-    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
+    [79] = function()local wax,script,require=ImportGlobals(79)local ImportGlobals return (function(...)
 --[[
 feather icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -23773,7 +22404,7 @@ x-square x youtube zap-off zap zoom-in zoom-out
 )
 
 end)() end,
-    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
+    [80] = function()local wax,script,require=ImportGlobals(80)local ImportGlobals return (function(...)
 --[[
 heroicons icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -23855,7 +22486,7 @@ wrench-screwdriver wrench-screwdriver_solid wrench wrench_solid x-circle x-circl
 )
 
 end)() end,
-    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
+    [81] = function()local wax,script,require=ImportGlobals(81)local ImportGlobals return (function(...)
 --[[
 lucide icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -24050,7 +22681,7 @@ zodiac-sagittarius zodiac-scorpio zodiac-taurus zodiac-virgo zoom-in zoom-out
 )
 
 end)() end,
-    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
+    [82] = function()local wax,script,require=ImportGlobals(82)local ImportGlobals return (function(...)
 --[[
 material icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -24181,7 +22812,7 @@ zoom_in zoom_out zoom_out_map
 )
 
 end)() end,
-    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
+    [83] = function()local wax,script,require=ImportGlobals(83)local ImportGlobals return (function(...)
 --[[
 Lazy icon-pack builder.
 
@@ -24284,7 +22915,7 @@ end
 
 return PackBuilder
 end)() end,
-    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
+    [84] = function()local wax,script,require=ImportGlobals(84)local ImportGlobals return (function(...)
 --[[
 phosphor icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -24453,7 +23084,7 @@ yin-yang youtube-logo
 )
 
 end)() end,
-    [87] = function()local wax,script,require=ImportGlobals(87)local ImportGlobals return (function(...)
+    [85] = function()local wax,script,require=ImportGlobals(85)local ImportGlobals return (function(...)
 --[[
 remix icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -24793,7 +23424,7 @@ zhihu-line zhipu-ai-fill zhipu-ai-line zoom-in-fill zoom-in-line zoom-out-fill z
 )
 
 end)() end,
-    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
+    [86] = function()local wax,script,require=ImportGlobals(86)local ImportGlobals return (function(...)
 --[[
 tabler icon pack.
 Compact catalog: names only. PNG URLs are derived on demand by
@@ -25323,7 +23954,7 @@ zoom-out-area zoom-out zoom-pan zoom-question zoom-replace zoom-reset zoom-scan 
 )
 
 end)() end,
-    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
+    [89] = function()local wax,script,require=ImportGlobals(89)local ImportGlobals return (function(...)
 --[[
 Theme resolution engine (themes/init.luau).
 
@@ -25437,7 +24068,7 @@ end
 return themes
 
 end)() end,
-    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
+    [88] = function()local wax,script,require=ImportGlobals(88)local ImportGlobals return (function(...)
 local default = require(script.Parent.Parent.core.state)
 
 --[[
@@ -25576,7 +24207,7 @@ return {
 }
 
 end)() end,
-    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
+    [90] = function()local wax,script,require=ImportGlobals(90)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 
 local hapticService = {}
@@ -25674,7 +24305,7 @@ end
 return hapticService
 
 end)() end,
-    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
+    [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
 local networkUtil = require(script.Parent.network)
 local logger = require(script.Parent.log)
 
@@ -25855,7 +24486,7 @@ end
 return assetResolver
 
 end)() end,
-    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
+    [92] = function()local wax,script,require=ImportGlobals(92)local ImportGlobals return (function(...)
 local iconRegistry = require(script.Parent.Parent.images.windowIcons)
 local uiIcons = require(script.Parent.Parent.images.uiIcons)
 local constants = {}
@@ -25914,7 +24545,7 @@ constants.displayOrder = {
 return constants
 
 end)() end,
-    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
+    [93] = function()local wax,script,require=ImportGlobals(93)local ImportGlobals return (function(...)
 local enums = {}
 
 function enums.itemFromValue(enumType, value)
@@ -25944,7 +24575,7 @@ end
 return enums
 
 end)() end,
-    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
+    [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
 local serviceProvider = require(script.Parent.services)
 local filesystem = {}
 
@@ -26236,7 +24867,7 @@ end
 return filesystem
 
 end)() end,
-    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
+    [95] = function()local wax,script,require=ImportGlobals(95)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 local pathUtil = require(script.Parent.path)
 
@@ -26285,7 +24916,7 @@ end
 return filesystemManager
 
 end)() end,
-    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
+    [96] = function()local wax,script,require=ImportGlobals(96)local ImportGlobals return (function(...)
 local fontManager = require(script.Parent.services)
 local a2 = fontManager.getService("HttpService")
 local a3 = fontManager.getService("RunService")
@@ -26740,7 +25371,7 @@ end
 return a16
 
 end)() end,
-    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
+    [97] = function()local wax,script,require=ImportGlobals(97)local ImportGlobals return (function(...)
 
 local functions = {}
 
@@ -26758,7 +25389,7 @@ functions.contrastText = textMetrics.contrastText
 return functions
 
 end)() end,
-    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
+    [98] = function()local wax,script,require=ImportGlobals(98)local ImportGlobals return (function(...)
 --[[
 Astra Hardware Performance Engine.
 
@@ -26965,7 +25596,7 @@ end
 
 return hardwarePerformance
 end)() end,
-    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
+    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
 --[[
 HttpGuard — HTTP interception (spy / hook) detection for Astra.
 
@@ -27578,7 +26209,7 @@ end
 return HttpGuard
 
 end)() end,
-    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
+    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
 -- Shared validation for required, single-letter key bindings.
 local keybind = {}
 
@@ -27598,7 +26229,7 @@ end
 return keybind
 
 end)() end,
-    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
+    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
 local layouts = {}
 
 local sidebarLayout = require(script.Parent.Parent.layouts.Sidebar)
@@ -27726,7 +26357,7 @@ end
 return layouts
 
 end)() end,
-    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
+    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local logger = require(script.Parent.log)
 
@@ -27825,7 +26456,7 @@ end
 return locale
 
 end)() end,
-    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
+    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
 --[[
 Lockable controls keep their value and callback intact while a lock source
 blocks user input. This mixin also stamps the public usage tag used by the
@@ -27850,7 +26481,6 @@ local defaultLockLevels = {
 	Slider = 3,
 	Stepper = 3,
 	Button = 3,
-	AboutCard = 3,
 	ModePicker = 3,
 }
 
@@ -28056,7 +26686,7 @@ setmetatable(lockable, {
 return lockable
 
 end)() end,
-    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
+    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
 local log = {}
 
 type SuppressPredicate = () -> boolean
@@ -28112,7 +26742,7 @@ end
 return log
 
 end)() end,
-    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
+    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
 --[[
 Astra motion service.
 
@@ -28585,7 +27215,7 @@ end
 
 return motion
 end)() end,
-    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
+    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
 local function moveable<T>(dragState: T): T
     local target = dragState :: any
 
@@ -28621,7 +27251,7 @@ end
 return moveable
 
 end)() end,
-    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
+    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
 local HttpGuard = require(script.Parent.httpGuard)
 
 local network = {}
@@ -28659,7 +27289,7 @@ end
 return network
 
 end)() end,
-    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
+    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local motion = require(script.Parent.motion)
 local textService = coreState.textService
@@ -29019,7 +27649,7 @@ end
 return odometer
 
 end)() end,
-    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
+    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
 type OrderedElement = {
     main: GuiObject,
 }
@@ -29031,7 +27661,7 @@ end
 return ordering
 
 end)() end,
-    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
+    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
 local path = {}
 
 function path.join(base: string, suffix: string?): string
@@ -29082,7 +27712,7 @@ end
 return path
 
 end)() end,
-    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
+    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
 local persistence = {}
 
 local configPersistence = require(script.Parent.persistenceConfig)
@@ -29101,7 +27731,7 @@ persistence.loadSettings = settingsPersistence.loadSettings
 return persistence
 
 end)() end,
-    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
+    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local logger = require(script.Parent.log)
@@ -29399,7 +28029,7 @@ end
 return persistenceConfig
 
 end)() end,
-    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
+    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local pathUtil = require(script.Parent.path)
 
@@ -29443,7 +28073,7 @@ end
 return persistencePaths
 
 end)() end,
-    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
+    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local paths = require(script.Parent.persistencePaths)
@@ -29644,7 +28274,7 @@ end
 return persistenceSettings
 
 end)() end,
-    [117] = function()local wax,script,require=ImportGlobals(117)local ImportGlobals return (function(...)
+    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 
 local persistenceWrite = {}
@@ -29672,7 +28302,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [118] = function()local wax,script,require=ImportGlobals(118)local ImportGlobals return (function(...)
+    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
 local services = {}
 
 function services.getService(serviceName)
@@ -29683,7 +28313,7 @@ end
 return services
 
 end)() end,
-    [119] = function()local wax,script,require=ImportGlobals(119)local ImportGlobals return (function(...)
+    [117] = function()local wax,script,require=ImportGlobals(117)local ImportGlobals return (function(...)
 local layoutMetrics = require(script.Parent.layouts)
 local coreState = require(script.Parent.Parent.core.state)
 
@@ -29868,119 +28498,117 @@ end)() end,
 
 local LineOffsets = {
     [2] = 47,
-    [3] = 504,
-    [5] = 1259,
-    [6] = 1242,
-    [7] = 1414,
-    [8] = 1556,
-    [9] = 1807,
-    [10] = 2189,
-    [11] = 3566,
-    [12] = 3975,
-    [13] = 4324,
-    [14] = 5063,
-    [15] = 5401,
-    [16] = 5971,
-    [17] = 6034,
-    [18] = 6508,
-    [19] = 6854,
-    [20] = 6868,
-    [21] = 6968,
-    [22] = 7108,
-    [23] = 7649,
-    [24] = 7888,
-    [25] = 8210,
-    [26] = 8310,
-    [27] = 8364,
-    [28] = 9006,
-    [29] = 9254,
-    [30] = 9604,
-    [31] = 10051,
-    [32] = 6828,
-    [34] = 10985,
-    [35] = 11822,
-    [36] = 11911,
-    [37] = 12140,
-    [38] = 12561,
-    [39] = 13026,
-    [40] = 13183,
-    [41] = 13328,
-    [42] = 14946,
-    [43] = 15194,
-    [44] = 15434,
-    [45] = 15755,
-    [46] = 16201,
-    [47] = 16454,
-    [48] = 17534,
-    [49] = 18358,
-    [50] = 18444,
-    [51] = 19047,
-    [52] = 19889,
-    [53] = 20483,
-    [54] = 21064,
-    [55] = 21194,
-    [56] = 21333,
-    [58] = 21848,
-    [59] = 21874,
-    [60] = 21893,
-    [61] = 21925,
-    [62] = 22051,
-    [63] = 22065,
-    [64] = 22114,
-    [65] = 21823,
-    [66] = 22205,
-    [67] = 22521,
-    [68] = 22552,
-    [69] = 22194,
-    [70] = 22595,
-    [71] = 22615,
-    [72] = 22647,
-    [73] = 22577,
-    [74] = 22754,
-    [75] = 22822,
-    [77] = 22904,
-    [78] = 23071,
-    [79] = 23090,
-    [80] = 22889,
-    [81] = 23731,
-    [82] = 23777,
-    [83] = 23859,
-    [84] = 24054,
-    [85] = 24185,
-    [86] = 24288,
-    [87] = 24457,
-    [88] = 24797,
-    [89] = 23186,
-    [90] = 25441,
-    [91] = 25327,
-    [92] = 25580,
-    [93] = 25678,
-    [94] = 25859,
-    [95] = 25918,
-    [96] = 25948,
-    [97] = 26240,
-    [98] = 26289,
-    [99] = 26744,
-    [100] = 26762,
-    [101] = 26969,
-    [102] = 27582,
-    [103] = 27602,
-    [104] = 27730,
-    [105] = 27829,
-    [106] = 28060,
-    [107] = 28116,
-    [108] = 28589,
-    [109] = 28625,
-    [110] = 28663,
-    [111] = 29023,
-    [112] = 29035,
-    [113] = 29086,
-    [114] = 29105,
-    [115] = 29403,
-    [116] = 29447,
-    [117] = 29648,
-    [118] = 29676,
-    [119] = 29687,
+    [3] = 497,
+    [5] = 1186,
+    [6] = 1169,
+    [7] = 1341,
+    [8] = 1483,
+    [9] = 1734,
+    [10] = 2116,
+    [11] = 3493,
+    [12] = 3902,
+    [13] = 4251,
+    [14] = 4990,
+    [15] = 5328,
+    [16] = 5894,
+    [17] = 5957,
+    [18] = 6431,
+    [19] = 6777,
+    [20] = 6791,
+    [21] = 6891,
+    [22] = 7031,
+    [23] = 7572,
+    [24] = 7811,
+    [25] = 8133,
+    [26] = 8233,
+    [27] = 8287,
+    [28] = 8929,
+    [29] = 9177,
+    [30] = 9527,
+    [31] = 9974,
+    [32] = 6751,
+    [34] = 10908,
+    [35] = 10997,
+    [36] = 11226,
+    [37] = 11647,
+    [38] = 12111,
+    [39] = 12268,
+    [40] = 12413,
+    [41] = 14031,
+    [42] = 14279,
+    [43] = 14519,
+    [44] = 14840,
+    [45] = 15093,
+    [46] = 16173,
+    [47] = 16997,
+    [48] = 17083,
+    [49] = 17686,
+    [50] = 18528,
+    [51] = 19122,
+    [52] = 19695,
+    [53] = 19825,
+    [54] = 19964,
+    [56] = 20479,
+    [57] = 20505,
+    [58] = 20524,
+    [59] = 20556,
+    [60] = 20682,
+    [61] = 20696,
+    [62] = 20745,
+    [63] = 20454,
+    [64] = 20836,
+    [65] = 21152,
+    [66] = 21183,
+    [67] = 20825,
+    [68] = 21226,
+    [69] = 21246,
+    [70] = 21278,
+    [71] = 21208,
+    [72] = 21385,
+    [73] = 21453,
+    [75] = 21535,
+    [76] = 21702,
+    [77] = 21721,
+    [78] = 21520,
+    [79] = 22362,
+    [80] = 22408,
+    [81] = 22490,
+    [82] = 22685,
+    [83] = 22816,
+    [84] = 22919,
+    [85] = 23088,
+    [86] = 23428,
+    [87] = 21817,
+    [88] = 24072,
+    [89] = 23958,
+    [90] = 24211,
+    [91] = 24309,
+    [92] = 24490,
+    [93] = 24549,
+    [94] = 24579,
+    [95] = 24871,
+    [96] = 24920,
+    [97] = 25375,
+    [98] = 25393,
+    [99] = 25600,
+    [100] = 26213,
+    [101] = 26233,
+    [102] = 26361,
+    [103] = 26460,
+    [104] = 26690,
+    [105] = 26746,
+    [106] = 27219,
+    [107] = 27255,
+    [108] = 27293,
+    [109] = 27653,
+    [110] = 27665,
+    [111] = 27716,
+    [112] = 27735,
+    [113] = 28033,
+    [114] = 28077,
+    [115] = 28278,
+    [116] = 28306,
+    [117] = 28317,
 }
 
 -- Misc AOT variable imports
@@ -30227,7 +28855,7 @@ local ObjectTree = {
                 },
             },
             {
-                57,
+                55,
                 1,
                 {
                     "elements",
@@ -30237,158 +28865,144 @@ local ObjectTree = {
                         34,
                         2,
                         {
-                            "aboutCard",
+                            "baseCard",
                         },
                     },
                     {
                         35,
                         2,
                         {
-                            "baseCard",
+                            "button",
                         },
                     },
                     {
                         36,
                         2,
                         {
-                            "button",
+                            "changelog",
                         },
                     },
                     {
                         37,
                         2,
                         {
-                            "changelog",
+                            "collapsibleGroup",
                         },
                     },
                     {
                         38,
                         2,
                         {
-                            "collapsibleGroup",
+                            "description",
                         },
                     },
                     {
                         39,
                         2,
                         {
-                            "description",
+                            "divider",
                         },
                     },
                     {
                         40,
                         2,
                         {
-                            "divider",
+                            "dropdown",
                         },
                     },
                     {
                         41,
                         2,
                         {
-                            "dropdown",
+                            "footer",
                         },
                     },
                     {
                         42,
                         2,
                         {
-                            "footer",
+                            "group",
                         },
                     },
                     {
                         43,
                         2,
                         {
-                            "group",
+                            "input",
                         },
                     },
                     {
                         44,
                         2,
                         {
-                            "input",
+                            "keybind",
                         },
                     },
                     {
                         45,
                         2,
                         {
-                            "isolated",
+                            "link",
                         },
                     },
                     {
                         46,
                         2,
                         {
-                            "keybind",
+                            "modePicker",
                         },
                     },
                     {
                         47,
                         2,
                         {
-                            "link",
+                            "section",
                         },
                     },
                     {
                         48,
                         2,
                         {
-                            "modePicker",
+                            "slider",
                         },
                     },
                     {
                         49,
                         2,
                         {
-                            "section",
+                            "stat",
                         },
                     },
                     {
                         50,
                         2,
                         {
-                            "slider",
+                            "stepper",
                         },
                     },
                     {
                         51,
                         2,
                         {
-                            "stat",
+                            "tab",
                         },
                     },
                     {
                         52,
                         2,
                         {
-                            "stepper",
+                            "tabSection",
                         },
                     },
                     {
                         53,
                         2,
                         {
-                            "tab",
-                        },
-                    },
-                    {
-                        54,
-                        2,
-                        {
-                            "tabSection",
-                        },
-                    },
-                    {
-                        55,
-                        2,
-                        {
                             "text",
                         },
                     },
                     {
-                        56,
+                        54,
                         2,
                         {
                             "toggle",
@@ -30397,56 +29011,56 @@ local ObjectTree = {
                 },
             },
             {
-                65,
+                63,
                 2,
                 {
                     "settings",
                 },
                 {
                     {
-                        58,
+                        56,
                         2,
                         {
                             "appearance",
                         },
                     },
                     {
-                        59,
+                        57,
                         2,
                         {
                             "behavior",
                         },
                     },
                     {
-                        60,
+                        58,
                         2,
                         {
                             "defaults",
                         },
                     },
                     {
-                        61,
+                        59,
                         2,
                         {
                             "manager",
                         },
                     },
                     {
-                        62,
+                        60,
                         2,
                         {
                             "performance",
                         },
                     },
                     {
-                        63,
+                        61,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        64,
+                        62,
                         2,
                         {
                             "registry",
@@ -30455,28 +29069,28 @@ local ObjectTree = {
                 },
             },
             {
-                69,
+                67,
                 2,
                 {
                     "cache",
                 },
                 {
                     {
-                        66,
+                        64,
                         2,
                         {
                             "imageCache",
                         },
                     },
                     {
-                        67,
+                        65,
                         2,
                         {
                             "moduleCache",
                         },
                     },
                     {
-                        68,
+                        66,
                         2,
                         {
                             "persistenceCache",
@@ -30485,28 +29099,28 @@ local ObjectTree = {
                 },
             },
             {
-                73,
+                71,
                 2,
                 {
                     "functions",
                 },
                 {
                     {
-                        70,
+                        68,
                         2,
                         {
                             "colors",
                         },
                     },
                     {
-                        71,
+                        69,
                         2,
                         {
                             "flagNames",
                         },
                     },
                     {
-                        72,
+                        70,
                         2,
                         {
                             "textMetrics",
@@ -30515,21 +29129,21 @@ local ObjectTree = {
                 },
             },
             {
-                76,
+                74,
                 1,
                 {
                     "layouts",
                 },
                 {
                     {
-                        74,
+                        72,
                         2,
                         {
                             "Sidebar",
                         },
                     },
                     {
-                        75,
+                        73,
                         2,
                         {
                             "SidebarCollapsed",
@@ -30538,28 +29152,28 @@ local ObjectTree = {
                 },
             },
             {
-                80,
+                78,
                 2,
                 {
                     "images",
                 },
                 {
                     {
-                        77,
+                        75,
                         2,
                         {
                             "image",
                         },
                     },
                     {
-                        78,
+                        76,
                         2,
                         {
                             "uiIcons",
                         },
                     },
                     {
-                        79,
+                        77,
                         2,
                         {
                             "windowIcons",
@@ -30568,63 +29182,63 @@ local ObjectTree = {
                 },
             },
             {
-                89,
+                87,
                 2,
                 {
                     "icons",
                 },
                 {
                     {
-                        81,
+                        79,
                         2,
                         {
                             "feather",
                         },
                     },
                     {
-                        82,
+                        80,
                         2,
                         {
                             "heroicons",
                         },
                     },
                     {
-                        83,
+                        81,
                         2,
                         {
                             "lucide",
                         },
                     },
                     {
-                        84,
+                        82,
                         2,
                         {
                             "material",
                         },
                     },
                     {
-                        85,
+                        83,
                         2,
                         {
                             "packBuilder",
                         },
                     },
                     {
-                        86,
+                        84,
                         2,
                         {
                             "phosphor",
                         },
                     },
                     {
-                        87,
+                        85,
                         2,
                         {
                             "remix",
                         },
                     },
                     {
-                        88,
+                        86,
                         2,
                         {
                             "tabler",
@@ -30633,14 +29247,14 @@ local ObjectTree = {
                 },
             },
             {
-                91,
+                89,
                 2,
                 {
                     "themes",
                 },
                 {
                     {
-                        90,
+                        88,
                         2,
                         {
                             "default",
@@ -30649,203 +29263,203 @@ local ObjectTree = {
                 },
             },
             {
-                120,
+                118,
                 1,
                 {
                     "utilities",
                 },
                 {
                     {
-                        92,
+                        90,
                         2,
                         {
                             "HapticEngine",
                         },
                     },
                     {
-                        93,
+                        91,
                         2,
                         {
                             "assetResolver",
                         },
                     },
                     {
-                        94,
+                        92,
                         2,
                         {
                             "constants",
                         },
                     },
                     {
-                        95,
+                        93,
                         2,
                         {
                             "enums",
                         },
                     },
                     {
-                        96,
+                        94,
                         2,
                         {
                             "filesystem",
                         },
                     },
                     {
-                        97,
+                        95,
                         2,
                         {
                             "filesystemManager",
                         },
                     },
                     {
-                        98,
+                        96,
                         2,
                         {
                             "fontManager",
                         },
                     },
                     {
-                        99,
+                        97,
                         2,
                         {
                             "functions",
                         },
                     },
                     {
-                        100,
+                        98,
                         2,
                         {
                             "hardwarePerformance",
                         },
                     },
                     {
-                        101,
+                        99,
                         2,
                         {
                             "httpGuard",
                         },
                     },
                     {
-                        102,
+                        100,
                         2,
                         {
                             "keybind",
                         },
                     },
                     {
-                        103,
+                        101,
                         2,
                         {
                             "layouts",
                         },
                     },
                     {
-                        104,
+                        102,
                         2,
                         {
                             "locale",
                         },
                     },
                     {
-                        105,
+                        103,
                         2,
                         {
                             "lockable",
                         },
                     },
                     {
-                        106,
+                        104,
                         2,
                         {
                             "log",
                         },
                     },
                     {
-                        107,
+                        105,
                         2,
                         {
                             "motion",
                         },
                     },
                     {
-                        108,
+                        106,
                         2,
                         {
                             "moveable",
                         },
                     },
                     {
-                        109,
+                        107,
                         2,
                         {
                             "network",
                         },
                     },
                     {
-                        110,
+                        108,
                         2,
                         {
                             "odometer",
                         },
                     },
                     {
-                        111,
+                        109,
                         2,
                         {
                             "ordering",
                         },
                     },
                     {
-                        112,
+                        110,
                         2,
                         {
                             "path",
                         },
                     },
                     {
-                        113,
+                        111,
                         2,
                         {
                             "persistence",
                         },
                     },
                     {
-                        114,
+                        112,
                         2,
                         {
                             "persistenceConfig",
                         },
                     },
                     {
-                        115,
+                        113,
                         2,
                         {
                             "persistencePaths",
                         },
                     },
                     {
-                        116,
+                        114,
                         2,
                         {
                             "persistenceSettings",
                         },
                     },
                     {
-                        117,
+                        115,
                         2,
                         {
                             "persistenceWrite",
                         },
                     },
                     {
-                        118,
+                        116,
                         2,
                         {
                             "services",
                         },
                     },
                     {
-                        119,
+                        117,
                         2,
                         {
                             "windowSizing",

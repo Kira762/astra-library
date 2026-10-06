@@ -1,59 +1,5 @@
 # Changelog
 
-## Unreleased — Flat pages: one surface per view, quiet nav rows, one type scale
-
-The interface stopped stacking boxes. A page now opens with content instead of
-a branding card, informational sections sit directly on the page band, and the
-sidebar rows are quiet rows rather than outlined chips. The rules live in
-`DESIGN.md` and the numbers in `utilities/tokens.luau`.
-
-- **`utilities/tokens.luau`** (new) — the design tokens: five type sizes
-  (12/13/14/16/20), two weights (400/600), the 8pt spacing grid (8/12/16/24)
-  plus a 4px half-step, icon sizes (16 nav/inline, 20 standalone), the reading
-  measure (468px ≈ 65 characters), the hairline rule and the muted alpha
-  ladder. Elements read these instead of inventing sizes.
-- **`elements/pageHeader.luau`** (new, `Tab:CreatePageHeader`) — the flat page
-  header: a 20/600 title, one muted 12px metadata line (a table joins with
-  " · ") and an optional 14px prose paragraph capped at the reading measure.
-  No card, no icon slot: the window header owns the brand.
-- **`elements/text.luau`** — `plain = true`: no fill, no stroke, no padding
-  box, heading at 16/600 (TitleFont), prose capped at the reading measure.
-  Carded Text now pads its card at 12px (was 20) and titles on `TitleFont`.
-- **`elements/isolated.luau`** — `plain = true`: the container becomes a quiet
-  row (36px band, 20px leading icon, 16/600 title) with a 1px hairline above it
-  and no surface at all; the body clipper keeps no fill either. Expansion,
-  locking, the chevron and the Changelog-only child rule are unchanged.
-- **`elements/section.luau`** — section labels are the quietest heading: 13px,
-  muted (`tokens.alpha.meta`), on a 16px top step.
-- **`components/tabSelector.luau`, `utilities/layouts.luau`** — nav rows are
-  quiet rows: no UIStroke, no UIShadow, no gradient. Resting is the rail's
-  surface, hover a subtle fill, selection the elements-area fill plus a 3px
-  accent bar on the leading edge. Row height 38 → 36, insets 15/10 → 12/12,
-  icon gap 6 → 8, nav icon 20 → 16, label 16 → 14 (read from
-  `layout.rowLabelSize`, so the responsive rail measures what it renders).
-  The stroke-gradient hover spin is gone with the outline.
-- **`elements/tab.luau`** — `CreatePageHeader`; the locked-row state copy and
-  the gradient-spin path dropped with the row outline.
-- **`components/window/theme.luau`** — plain elements are a declared contract:
-  `_plain` pins background and stroke transparency at 1, so no reveal or hover
-  path can paint a card onto an element that owns no surface.
-- **Typography** — the hand-drawn Finger Paint family is gone. `default` stays
-  the stock family (BuilderSans); `brand` is now the neutral catalogue family
-  `Inter` (`Font.fromName`, falling back to the stock family where the
-  catalogue cannot answer) and the Settings dropdown reads `System` / `Inter`.
-  `Font` is now weight 400 and `TitleFont` 600 (was 500/600); window title,
-  collapsed-capsule title, search copy and card titles follow the pair.
-- **`components/settings.luau`, `example.client.luau`** — both Overview pages
-  are rebuilt flat: page header + one metadata line, plain prose, and Release
-  history as a hairline + plain row. The About card, the three stat tiles, the
-  hero brand block and the duplicated Astra/tagline copy are gone from the
-  content area (the `CreateAboutCard` element itself is untouched and remains
-  available to hosts).
-- **Tests** — `scripts/page_header_test.{sh,luau}` (new) pins the flat
-  composition, the plain variants and the quiet nav rows; the sidebar, surface
-  hierarchy, tab-lock, isolated and example suites were updated to the new
-  metrics and the new row contract.
-
 ## Unreleased — HttpGuard: HttpSpy-style interception detection, strict where it matters
 
 Scripts running under an HTTP spy (HttpSpy and its forks hook `game:HttpGet`,

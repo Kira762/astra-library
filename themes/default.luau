@@ -1,5 +1,4 @@
 local default = require(script.Parent.Parent.core.state)
-local tokens = require(script.Parent.Parent.utilities.tokens)
 
 --[[
 Astra's default palette. The shared keys below are the historical set
@@ -93,13 +92,8 @@ return {
     SliderProgress = ColorSequence.new(Color3.fromRGB(0, 170, 127), Color3.fromRGB(0, 134, 98)),
     SliderStroke = Color3.fromRGB(255, 255, 255),
     ActionColor = Color3.fromRGB(255, 255, 255),
-    --[[
-    Two weights, from the design tokens: titles carry the strong weight,
-    every other text surface the regular one. `Font` is the body face, so
-    it is what most of the interface reads in.
-    ]]
-    TitleFont = default.brandFont(tokens.weight.strong),
-    Font = default.brandFont(tokens.weight.regular),
+    TitleFont = default.brandFont(Enum.FontWeight.SemiBold),
+    Font = default.brandFont(Enum.FontWeight.Medium),
     ContentColor = Color3.fromRGB(255, 255, 255),
     LiveAnimation = false,
     DarkToggleOverlay = true,

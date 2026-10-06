@@ -10,7 +10,6 @@ local log = require(utilities.log)
 local motion = require(utilities.motion)
 local overlayQueue = require(script.Parent.Parent.overlayQueue)
 local search = require(script.Parent.Parent.search)
-local tokens = require(utilities.tokens)
 local state = require(utilities.Parent.core.state)
 local hardwarePerformance = require(utilities.hardwarePerformance)
 
@@ -308,7 +307,7 @@ function Window.new(props)
     if self.name then
         self.title = self:Create("TextLabel", {
                         Text = locale.t(self.name),
-            FontFace = state.brandFont(tokens.weight.strong),
+            FontFace = state.brandFont(Enum.FontWeight.Medium),
 
             Size = UDim2.fromOffset(50, 20),
             AutomaticSize = Enum.AutomaticSize.X,

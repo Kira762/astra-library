@@ -66,17 +66,6 @@ export type SectionProps = {
     icon: (string | number)?,
 }
 
---[[
-The flat page header. `meta` is one muted line (a table is joined with " · ")
-and `body` is the optional prose paragraph, capped at the reading measure.
-No icon: the window header owns the brand.
-]]
-export type PageHeaderProps = {
-    name: string?,
-    meta: (string | { string })?,
-    body: string?,
-}
-
 export type TextProps = {
     name: string?,     text: string?,
 }
@@ -456,15 +445,6 @@ export type Text = Moveable & {
     SetTitle: (self: Text, title: string) -> (),
 }
 
-export type PageHeader = Moveable & {
-    name: string,
-    meta: string?,
-    body: string?,
-    SetTitle: (self: PageHeader, title: string) -> (),
-    SetMeta: (self: PageHeader, meta: (string | { string })?) -> (),
-    SetBody: (self: PageHeader, body: string?) -> (),
-}
-
 export type Footer = Moveable & {
     -- The normalised run: ordered `{ kind = "text" | "icon", value }` entries.
     parts: { FooterPart },
@@ -560,7 +540,6 @@ export type Tab = {
     CreateAboutCard: (self: Tab, props: AboutCardProps) -> AboutCard,
     CreateStat: (self: Tab, props: StatProps) -> Stat,
     CreateSection: (self: Tab, props: SectionProps) -> Section,
-    CreatePageHeader: (self: Tab, props: PageHeaderProps) -> PageHeader,
     CreateText: (self: Tab, props: TextProps) -> Text,
     CreateFooter: (self: Tab, props: FooterProps?) -> Footer,
     CreateChangelog: (self: Tab, props: ChangelogProps) -> Changelog,

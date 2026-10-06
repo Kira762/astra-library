@@ -4,7 +4,6 @@ local log = require(script.Parent.Parent.utilities.log)
 local fileSystemManager = require(script.Parent.Parent.utilities.filesystemManager)
 local assetResolver = require(script.Parent.Parent.utilities.assetResolver)
 local fontManager = require(script.Parent.Parent.utilities.fontManager)
-local tokens = require(script.Parent.Parent.utilities.tokens)
 
 type FileSystemManager = fileSystemManager.FileSystemManager
 type AssetResolver = assetResolver.AssetResolver
@@ -85,8 +84,9 @@ state.fallbackFont = Font.fromEnum(Enum.Font.BuilderSans)
 
 --[[
 Live font selection behind the Font/TitleFont theme keys: "default"
-(stock fallback family) or "brand" (constants.brandFontName). Library-wide
-like the motion profile, since theme resolution reads it on every resolve.
+(stock fallback family — the original Roblox look) or "brand"
+(constants.fontAsset). Library-wide like the motion profile, since
+theme resolution reads it on every resolve.
 ]]
 state.fontChoice = constants.defaultFontChoice
 
@@ -115,47 +115,11 @@ function state.setFallbackFont(font: Enum.Font | Font)
 	end
 end
 
---[[
-The two weights the interface uses, and the only two: body copy and labels
-rest on `regular`, titles and the page heading on `strong`. Both are read
-from the design tokens so a weight can never be introduced element by
-element (see utilities/tokens.luau).
-]]
-local regularWeight = tokens.weight.regular
-local strongWeight = tokens.weight.strong
-
---[[
-The neutral UI face behind the `brand` selection (Settings → Appearance →
-Font). Resolved through the stock font catalogue by family name and cached
-per weight: a host that never selects it never pays for it, and where the
-catalogue cannot answer the library keeps the stock fallback family instead
-of rendering nothing.
-]]
-local brandFaces = {}
-local function brandFace(weight: Enum.FontWeight?): Font
-	local key = tostring(weight)
-	local cached = brandFaces[key]
-	if cached then
-		return cached
-	end
-	local resolved
-	local ok, font = pcall(function()
-		return Font.fromName(constants.brandFontName, weight)
-	end)
-	if ok and typeof(font) == "Font" then
-		resolved = font
-	else
-		resolved = Font.new(state.fallbackFont.Family, weight)
-	end
-	brandFaces[key] = resolved
-	return resolved
-end
-
 function state.brandFont(weight: Enum.FontWeight?): Font
 	if state.secureMode or state.fontChoice ~= "brand" then
 		return Font.new(state.fallbackFont.Family, weight)
 	end
-	return brandFace(weight)
+	return Font.new(constants.fontAsset, weight)
 end
 
 function state.setFontChoice(choice: string)
@@ -163,21 +127,26 @@ function state.setFontChoice(choice: string)
 end
 
 --[[
-The pair the theme keys and the runtime font switch apply: body weight
-first, title weight second. Both selections are neutral UI faces — the
-stock family, or the catalogue family named in constants — so the pair
-differs only by its letterforms, never by its weight scale.
+The Medium/SemiBold pair the theme keys and the runtime font switch
+apply. Yields only in secure mode with the brand selected — the font
+manager downloads the family once — and falls back to the stock pair
+when the brand cannot resolve.
 ]]
 function state.brandFontPair(): (Font, Font)
 	if state.fontChoice == "brand" then
-		local bodyFont = brandFace(regularWeight)
-		local titleFont = brandFace(strongWeight)
-		if bodyFont and titleFont then
-			return bodyFont, titleFont
+		if state.secureMode then
+			local mediumFont = state.fontManager:loadFont(constants.fontAsset, Enum.FontWeight.Medium)
+			local semiBoldFont = state.fontManager:loadFont(constants.fontAsset, Enum.FontWeight.SemiBold)
+			if mediumFont and semiBoldFont then
+				return mediumFont, semiBoldFont
+			end
+		else
+			local family = constants.fontAsset
+			return Font.new(family, Enum.FontWeight.Medium), Font.new(family, Enum.FontWeight.SemiBold)
 		end
 	end
 	local family = state.fallbackFont.Family
-	return Font.new(family, regularWeight), Font.new(family, strongWeight)
+	return Font.new(family, Enum.FontWeight.Medium), Font.new(family, Enum.FontWeight.SemiBold)
 end
 
 return state

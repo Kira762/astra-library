@@ -26,9 +26,9 @@ notification, search skips its elements, `Select`/`Navigate` bail). Only
 `tab:SetLocked(false)` unlocks it.
 
 Tab constructors: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateStepper`,
-`CreateModePicker`, `CreateDropdown`, `CreateKeybind`, `CreateInput`, `CreateLink`,
-`CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`,
-`CreateChangelog`, `CreateGroup` and `CreateCollapsibleGroup`.
+`CreateDropdown`, `CreateKeybind`, `CreateInput`, `CreateLink`, `CreateStat`,
+`CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateChangelog`,
+`CreateGroup` and `CreateCollapsibleGroup`.
 
 ## Group
 
@@ -65,8 +65,8 @@ tab:CreateCollapsibleGroup({
 ```
 
 - Supported `type` values: `Button`, `Toggle`, `Switch` (alias of Toggle), `Slider`,
-  `Stepper`, `ModePicker`, `Dropdown`, `Keybind`, `Input`, `Link`, `Stat`, `Section`,
-  `Text`, `Footer`, `Divider`, `Group`, `Changelog`.
+  `Stepper`, `Dropdown`, `Keybind`, `Input`, `Link`, `Stat`, `Section`, `Text`,
+  `Footer`, `Divider`, `Group`, `Changelog`.
   Each entry uses exactly the same props as its `Create…` method and renders as a regular child.
 - `elements` may be omitted for an empty header. Every group starts **collapsed**;
   there is no `expanded` prop.
@@ -316,10 +316,11 @@ and Buttons without callbacks are excluded. Supply `id`/`elementId` for a stable
 ID and `lockLevel = 1..5` or `lockGroup` (`minor`, `standard`, `action`,
 `sensitive`, `all`) to override the automatic tier.
 
-Built-in Settings → Controls has a fixed, cumulative five-mode controller:
-Mode 1 locks level 1 (no default members — only an explicit `lockLevel = 1` /
-`lockGroup = "minor"` locks here), each higher mode adds its level, and Mode 5
-locks every registered control. Its own reset button remains usable; external
-code can use `window:SetElementLockMode(1..5)` and `window:GetElementLockMode()`.
-Manual locks compose with mode locks, and this client-side gate is not a
-security boundary.
+Locks run on a fixed, cumulative five-mode ladder: Mode 1 locks level 1 (no
+default members — only an explicit `lockLevel = 1` / `lockGroup = "minor"` locks
+here), each higher mode adds its level, and Mode 5 locks every registered
+control. Built-in Settings → Controls exposes the two ends of that ladder as one
+**Lock all controls** switch: on is Mode 5, off is Mode 1. The switch is exempt,
+so it always stays usable; external code can use `window:SetElementLockMode(1..5)`
+and `window:GetElementLockMode()` to reach any rung. Manual locks compose with
+mode locks, and this client-side gate is not a security boundary.

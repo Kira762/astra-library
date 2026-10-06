@@ -46,11 +46,16 @@ function Window:_restoreLate(element)
     self._loading = wasLoading
 end
 
-function Window:_persist(element)
-    if not element.flag or element.forgetState or not self.configuration.autoSave or self._loading or self._saveScheduled then
+--[[
+Default-on autosave must not write a whole file for every slider tick, so
+every write request goes through one debounce. Window state that has no
+control of its own (the element-lock tier, whose switch sits in a lazily
+built settings panel) schedules through the same path.
+]]
+function Window:_scheduleSave()
+    if not self.configuration.autoSave or self._loading or self._saveScheduled then
         return
     end
-    -- Default-on autosave must not write a whole file for every slider tick.
     self._saveScheduled = true
     task.delay(0.25, function()
         self._saveScheduled = false
@@ -58,6 +63,13 @@ function Window:_persist(element)
             self:Save()
         end
     end)
+end
+
+function Window:_persist(element)
+    if not element.flag or element.forgetState then
+        return
+    end
+    self:_scheduleSave()
 end
 
 function Window:_unregisterControl(element)
@@ -125,10 +137,18 @@ function Window:SetElementLockMode(mode): number
         end
     end
 
-    local picker = self._elementLockModePicker
-    if picker and picker.mode ~= nextMode then
-        picker:Set(nextMode, true)
+    local toggle = self._elementLockAllToggle
+    if toggle and (toggle.value == true) ~= (nextMode >= 5) then
+        toggle:Set(nextMode >= 5, true)
     end
+    --[[
+    The tier is window state: it is written into the config through
+    `_unownedConfigValues` whenever no control owns its flag, so a change
+    made here (host code or the settings switch) is saved like any other
+    control edit. Restores run under the load guard, so this is a no-op
+    while a configuration is being applied.
+    ]]
+    self:_scheduleSave()
     return nextMode
 end
 
@@ -136,12 +156,12 @@ end
 `_restoreLate` restores a control that arrives after the configuration was
 loaded. This is the case it cannot reach: a persisted value whose control
 does not exist yet. The element-lock tier is exactly that, because its
-control is the Settings → Controls picker and settings panels build lazily
+control is the Settings → Controls switch and settings panels build lazily
 on first open — so a saved Mode 5 had nothing to restore into at startup.
-The page came up unlocked and only locked once the player opened that panel
-or nudged the picker, which read as the tier not being saved at all. The
-window therefore answers for the state it owns directly; a live control of
-the same flag wins and restores through the normal path instead.
+The page came up unlocked and only locked once the player opened that
+panel, which read as the tier not being saved at all. The window therefore
+answers for the state it owns directly; a live control of the same flag
+wins and restores through the normal path instead.
 ]]
 function Window:_restoreUnowned(values)
     if typeof(values) ~= "table" or self.controls[shared.elementLockModeFlag] then
@@ -365,12 +385,12 @@ function Window:_wireElementHover(element, options)
     local titleHoverKey = options.titleHoverKey or "ElementTextHoverColor"
 
     --[[
-    A title that wears a colour of its own cannot rest on a theme key. The
-    Mode Picker's title follows the left icon's RGB (and the selected mode
-    can override it), and the leave path below used to settle it back onto
+    A title that wears a colour of its own cannot rest on a theme key. An
+    element that paints its title from a prop (an icon's RGB, a per-mode
+    override) used to have the leave path below settle it back onto
     `titleRestKey` — so one pass of the pointer took the colour off the
-    title for good, and only the next mode change brought it back. An
-    element that owns its title colour answers `_titleRestColor()`; the
+    title for good, and only the next change brought it back. An element
+    that owns its title colour answers `_titleRestColor()`; the
     answer is read live on every event, so a mode, icon or theme change
     flows through without re-wiring. Nil (or no method) keeps the element
     on the theme language exactly as before. While an element owns the

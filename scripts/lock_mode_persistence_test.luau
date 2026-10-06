@@ -1,12 +1,13 @@
 --[[
 Runtime coverage for the Element Lock Mode's round trip through the config.
 
-The controller's control is the Settings → Controls picker, and settings
-panels build lazily on first open — so the saved tier has to reach the
-window on load even while no control owns its flag. These cases pin that:
-the tier is written, it locks the page on the next execution before
-Settings is ever opened, the lazily built picker agrees with it, and a
-config saved without that panel still carries the tier.
+The tier is window state — its control is the Settings → Controls switch,
+which builds lazily on first open and owns no flag of its own — so the
+saved tier has to reach the window on load even while no control exists to
+own it. These cases pin that: the tier is written, it locks the page on the
+next execution before Settings is ever opened, the lazily built switch
+agrees with it, and a config saved without that panel still carries the
+tier.
 ]]
 
 local function expect(condition, message)
@@ -55,21 +56,22 @@ local function openControls(window)
 		if settingsTab.name == "Controls" then
 			settingsTab:Select()
 			TestPump(0.6)
-			return window._elementLockModePicker
+			return window._elementLockAllToggle
 		end
 	end
 	error("built-in Controls settings tab is missing")
 end
 
--- L1: the player picks Mode 5 and the tier lands in the config file.
+-- L1: the player flips the lock-all switch and the tier lands in the config file.
 local window, controls = build()
 window:Show()
 TestPump(0.6)
 local controller = openControls(window)
-expect(controller ~= nil and controller.__type == "ModePicker", "L1 the built-in controller exists")
-controller:Set(5)
+expect(controller ~= nil and controller.__type == "Toggle", "L1 the built-in switch exists")
+controller:Set(true)
 TestPump(0.8)
-eq(window:GetElementLockMode(), 5, "L1 the controller selects Mode 5")
+eq(window:GetElementLockMode(), 5, "L1 the switch selects Mode 5")
+eq(controller.value, true, "L1 the switch reads back as on")
 expect(controls.toggle:IsLocked(), "L1 Mode 5 locks a toggle in the same session")
 eq(savedTier(window), 5, "L1 the tier is written to the config")
 window:Unload()
@@ -83,15 +85,14 @@ eq(window:GetElementLockMode(), 5, "L2 the saved tier is live on the next execut
 expect(controls.toggle:IsLocked(), "L2 a level 3 control is locked before Settings is opened")
 expect(controls.link:IsLocked(), "L2 a level 2 control is locked before Settings is opened")
 expect(controls.group:IsLocked(), "L2 a level 5 header is locked before Settings is opened")
-eq(window._elementLockModePicker, nil, "L2 the settings panel is still unbuilt at this point")
+eq(window._elementLockAllToggle, nil, "L2 the settings panel is still unbuilt at this point")
 
 -- L3: opening Settings afterwards agrees with the tier instead of resetting it.
 controller = openControls(window)
-eq(controller.mode, 5, "L3 the lazily built picker shows the saved mode")
-eq(window:GetElementLockMode(), 5, "L3 building the picker keeps the tier")
-expect(controls.toggle:IsLocked(), "L3 the controls stay locked after the picker is built")
-eq(controller.flag, "astra.elementLockMode", "L3 the controller keeps the shared flag")
-expect(window.controls[controller.flag] == controller, "L3 the built picker owns the flag")
+eq(controller.value, true, "L3 the lazily built switch shows the saved mode")
+eq(window:GetElementLockMode(), 5, "L3 building the switch keeps the tier")
+expect(controls.toggle:IsLocked(), "L3 the controls stay locked after the switch is built")
+eq(window.controls["astra.elementLockMode"], nil, "L3 the tier stays window state, not a flagged control")
 window:Unload()
 TestPump(0.6)
 
@@ -120,9 +121,9 @@ window, controls = build()
 window:Show()
 TestPump(0.6)
 controller = openControls(window)
-controller:Set(1)
+controller:Set(false)
 TestPump(0.8)
-eq(savedTier(window), 1, "L5 Mode 1 overwrites the stored tier")
+eq(savedTier(window), 1, "L5 switching off overwrites the stored tier")
 window:Unload()
 TestPump(0.6)
 
@@ -135,4 +136,4 @@ expect(not controls.group:IsLocked(), "L5 no stale header lock survives the re-e
 window:Unload()
 TestPump(0.6)
 
-print("LOCK MODE PERSISTENCE: tier written, applied on the next execution, picker sync and Mode 1 reset passed")
+print("LOCK MODE PERSISTENCE: tier written, applied on the next execution, switch sync and Mode 1 reset passed")

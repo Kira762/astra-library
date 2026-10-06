@@ -54,7 +54,7 @@ for _, element in allElementsTab.elements do
     end
     allElementNames[kind] = visibleName
 end
-for _, kind in { "Section", "Text", "Button", "Toggle", "Slider", "Stepper", "Dropdown", "Input", "Keybind", "Stat", "Link", "Footer", "Changelog", "Divider", "Group", "CollapsibleGroup", "ModePicker" } do
+for _, kind in { "Section", "Text", "Button", "Toggle", "Slider", "Stepper", "Dropdown", "Input", "Keybind", "Stat", "Link", "Footer", "Changelog", "Divider", "Group", "CollapsibleGroup" } do
     assert(allElementNames[kind] == kind, "All Elements names its " .. kind .. " entry correctly")
 end
 local types = {}

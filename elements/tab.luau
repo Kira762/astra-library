@@ -16,8 +16,8 @@ local flagNames = require(script.Parent.Parent.functions.flagNames)
 local function customOrder(window, forgetState)
     for _, element in forgetState do
         if element.CancelCapture then element:CancelCapture() end
-        if window._elementLockModePicker == element then
-            window._elementLockModePicker = nil
+        if window._elementLockAllToggle == element then
+            window._elementLockAllToggle = nil
         end
         window:_unregisterLockableElement(element)
         if element.__type == "Group" or element.__type == "CollapsibleGroup" then
@@ -468,10 +468,6 @@ end
 
 function state:CreateStepper(props)
     return self:_register(require(script.Parent.stepper).new(self, props))
-end
-
-function state:CreateModePicker(props)
-    return self:_register(require(script.Parent.modePicker).new(self, props))
 end
 
 function state:CreateDropdown(a37)

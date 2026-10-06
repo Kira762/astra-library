@@ -1,11 +1,14 @@
-# SPEC — Mode Picker (superseded by the shipped element)
+# SPEC — Mode Picker (removed from the library)
 
-**Status:** SUPERSEDED 2026-09-23. This draft proposed a three-part "core picker set"
+**Status:** REMOVED 2026-10-06. This draft proposed a three-part "core picker set"
 (a discrete-stop slider element, a radio-card group element, and a colorway system).
-The approved implementation instead shipped a single self-contained element,
-`elements/modePicker.luau` (`ModePicker`), built to the config contract below and
-covered by `scripts/mode_picker_test.luau` + `.sh`. Design notes that still apply
-live in `MODULES.md` (elements section) and `USAGE.md` (Mode Picker section).
+The approved implementation instead shipped a single self-contained element in
+the elements folder (`ModePicker`), built to the config contract below and
+covered by a dedicated runtime test. **That element has since been
+removed from Astra** — the built-in element-lock control it was serving is a plain
+**Lock all controls** toggle now (`components/settings.luau`), and nothing in the
+tree references the picker any more. This file is kept only as the record of why the
+contract looked the way it did; it is not a plan and describes no shipped code.
 
 ## What shipped
 

@@ -1,6 +1,6 @@
 ---
 name: astra
-description: "Build and edit Roblox UIs and executor GUI hubs with Astra v1, the Luau UI library loaded as one bundle (version-1.luau) through loadstring plus game:HttpGet. Use for Astra:CreateWindow scripts and everything they build — windows, tabs, groups and elements (Button, Toggle, Slider, Stepper, Mode Picker, Dropdown, Input, Keybind, Stat, Text, Section, Link, Footer, Divider, Group, Collapsible Group, Changelog), flags, saved configs, themes, icons, motion, notifications, popups and localisation. Also use when changing the Astra repository itself (modular tree, generated bundle, syntax gate, runtime tests)."
+description: "Build and edit Roblox UIs and executor GUI hubs with Astra v1, the Luau UI library loaded as one bundle (version-1.luau) through loadstring plus game:HttpGet. Use for Astra:CreateWindow scripts and everything they build — windows, tabs, groups and elements (Button, Toggle, Slider, Stepper, Dropdown, Input, Keybind, Stat, Text, Section, Link, Footer, Divider, Group, Collapsible Group, Changelog), flags, saved configs, themes, icons, motion, notifications, popups and localisation. Also use when changing the Astra repository itself (modular tree, generated bundle, syntax gate, runtime tests)."
 ---
 
 # Astra v1
@@ -119,7 +119,7 @@ The first tab opens on its own and layout is a user setting (**Settings → Appe
 
 `flag`, `icon` and `name` are accepted almost everywhere; `description` is a helper
 line on `CreateCollapsibleGroup` and `CreateStat` only — Button, Toggle, Slider,
-Stepper, Dropdown, Input, ModePicker and Link ignore the prop.
+Stepper, Dropdown, Input and Link ignore the prop.
 
 | Create on Tab / Group | Key props | Handle methods |
 |---|---|---|
@@ -139,7 +139,7 @@ Stepper, Dropdown, Input, ModePicker and Link ignore the prop.
 | `CreateGroup({ direction = "row" \| "column" })` | horizontal row by default | nesting via `Create…` |
 
 `CreateChangelog` is tab-only. Tab-only declarative container: `tab:CreateCollapsibleGroup({ name, icon, description, elements = { ... } })`
-where each child is `{ type = "Toggle" | "Switch" | "Button" | "Slider" | "Stepper" | "ModePicker" | "Dropdown" | "Keybind" | "Input" | "Link" | "Stat" | "Section" | "Text" | "Footer" | "Divider" | "Group" | "Changelog", ...same props }`.
+where each child is `{ type = "Toggle" | "Switch" | "Button" | "Slider" | "Stepper" | "Dropdown" | "Keybind" | "Input" | "Link" | "Stat" | "Section" | "Text" | "Footer" | "Divider" | "Group" | "Changelog", ...same props }`.
 Groups may nest inside it; collapsible groups never nest, and every collapsible
 starts collapsed. `Changelog` renders as a regular element wherever it is declared.
 

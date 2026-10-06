@@ -202,9 +202,9 @@ build, and the auto-select of a first tab you create late, are skipped — the
 player stays where they tapped. Once your build has gone quiet (two frames
 with no construction), `Select` and `Navigate` always apply again.
 
-Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateStepper`, `CreateModePicker`, `CreateDropdown`, `CreateKeybind`, `CreateInput`, `CreateLink`, `CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateChangelog`, `CreateGroup` and `CreateCollapsibleGroup`.
+Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateStepper`, `CreateDropdown`, `CreateKeybind`, `CreateInput`, `CreateLink`, `CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateChangelog`, `CreateGroup` and `CreateCollapsibleGroup`.
 
-Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateStepper`, `CreateModePicker`, `CreateDropdown`, `CreateKeybind`, `CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateLink`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
+Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateStepper`, `CreateDropdown`, `CreateKeybind`, `CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateLink`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
 
 Selected tabs retain their outline and highlight. Unselected tabs retain an
 outline but have no fill/shadow highlight, including on hover.
@@ -260,24 +260,24 @@ Every element supports `Moveable` (`:MoveTo`, `:MoveToTop`, `:MoveToBottom`, `:M
 
 #### Element Lock Modes
 
-The built-in **Settings → Controls → Element Lock Mode** picker has five fixed,
-cumulative modes. Mode 1 leaves automatically tiered controls unlocked (only an
-explicit `lockLevel = 1` / `lockGroup = "minor"` would lock at this tier); each
-higher mode keeps those locks and adds another tier; Mode 5 locks every lockable
-functional element. The blue mode ramp and subtitle identify the active mode, with
-descriptions specifying which element types each mode locks (e.g. Mode 2 locks
-Links, Inputs, Dropdowns, and Keybinds; Mode 3 locks Buttons, Toggles, Sliders,
-and Mode Pickers; Mode 4 locks sensitive actions; Mode 5 locks all remaining
-lockable controls including Collapsible Groups). The
-picker itself is exempt, so its reset button remains usable in Mode 5. Hosts can
-also reset/unlock externally with `window:SetElementLockMode(1)` or inspect the
-current tier with `window:GetElementLockMode()`.
+Element locks run on five fixed, cumulative modes. Mode 1 leaves automatically
+tiered controls unlocked (only an explicit `lockLevel = 1` / `lockGroup = "minor"`
+would lock at this tier); each higher mode keeps those locks and adds another
+tier; Mode 5 locks every lockable functional element (e.g. Mode 2 locks Links,
+Inputs, Dropdowns and Keybinds; Mode 3 locks Buttons, Toggles, Sliders and
+Steppers; Mode 4 locks sensitive actions; Mode 5 locks all remaining lockable
+controls including Collapsible Groups). **Settings → Controls → Lock all
+controls** is one switch for the two ends of that ladder: on is Mode 5, off is
+Mode 1. The switch is exempt, so it always stays usable. Hosts set any rung
+directly with `window:SetElementLockMode(1..5)` and inspect it with
+`window:GetElementLockMode()`.
 
 The active tier is part of the saved configuration (flag
 `astra.elementLockMode`), so the next run comes back on the same mode and locks
 its controls straight away — the Settings panel does not have to be opened
 first, and a tier set through `window:SetElementLockMode` is saved even when
-that panel was never built.
+that panel was never built. The switch owns no flag of its own: the window
+writes the tier itself, and the switch reads it back when the panel is built.
 
 Modes are an interaction gate, not a reset: locks preserve values, selections,
 callbacks and layout. They show a disabled scrim and block user input/callbacks;
@@ -297,7 +297,7 @@ tier; `lockGroup` is an alternative string shorthand:
 | --- | --- | --- |
 | 1 | `minor`, `low`, `noncritical` | _None_ — only controls with an explicit `lockLevel = 1` / `lockGroup = "minor"` |
 | 2 | `standard`, `input`, `selection` | Link, Input, Dropdown, Keybind |
-| 3 | `action`, `important` | Button, Toggle, Slider, Stepper, Mode Picker |
+| 3 | `action`, `important` | Button, Toggle, Slider, Stepper |
 | 4 | `advanced`, `sensitive`, `highimpact` | No default type; use for sensitive actions such as deleting a configuration |
 | 5 | `remaining`, `all` | Other lockable controls, including Collapsible Group headers |
 
@@ -321,8 +321,8 @@ explicitly host-managed tooltip.
 
 The in-card `description` line is a Stat recipe now (the Collapsible Group
 header carries its own variant of it). `Button`, `Toggle`, `Slider`, `Dropdown`,
-`Input`, `ModePicker` and `Link` no longer accept the prop: a `description`
-passed to one of them is ignored — no line, no card growth.
+`Input` and `Link` no longer accept the prop: a `description` passed to one of
+them is ignored — no line, no card growth.
 
 ### Button
 ```lua
@@ -391,41 +391,6 @@ move/lock methods and a leading
 `icon`; the stepper joins the Slider's lock tier (Mode 3). Available on
 tabs, row/column Groups, and declarative Collapsible Groups using
 `type = "Stepper"`.
-
-### Mode Picker
-Multi-stop slider with a display-only left icon, a centred title/subtitle
-stack and a reset button. Modes are always between 3 and 5; the knob is the
-toggle's own knob, snapped to one dot per mode.
-```lua
-local m = tab:CreateModePicker({
-    title = "Mode Picker", subtitle = "GPT-5.6 Sol",
-    left_icon = "zap", right_icon = "rotate-ccw",
-    left_icon_color = { r = 77, g = 163, b = 255, a = 255 },
-    title_color_same_as_left_icon = true,   -- title wears the icon's RGB
-    accent = "theme",                       -- or "left_icon"
-    mode = 1, min_modes = 3, max_modes = 5,
-    allow_mode_add_remove = true,
-    reset_on_right_icon_press = true,       -- reset returns to Mode 1
-    modes = {
-        { label = "Normal", type = "default" },
-        { label = "Fast",    type = "dot"    },
-        { label = "Max",     type = "dot",    optional = true,
-          icon_color = Color3.fromRGB(236, 72, 153),
-          onEnable = function(index, label) end },
-    },
-    callback = function(index, label) end,
-    onReset = function(picker) end,
-})
-m:Set(2)                 -- snap to the second dot
-m:Get()                  -- index, label
-m:Reset()                -- Mode 1 + configured mode set + configured icon color
-m:AddMode({ label = "Extra", optional = true })   -- capped at max_modes (5)
-m:RemoveMode(4)          -- optional modes only, floored at min_modes (3)
-m:SetLeftIconColor(Color3.fromRGB(34, 197, 94))
-```
-The picker renders no description line — a `description` passed on the
-picker or on a mode is ignored. The subtitle always wears the default text
-colors — no color props exist.
 
 ### Dropdown
 ```lua
@@ -609,7 +574,7 @@ The settings tabs are:
 | Tab | Contents |
 |---|---|
 | **Overview** | First tab: library version and author readouts, copyable repository and guide Links, and a Footer. |
-| **Controls** | Required A–Z menu Keybind, unlock-cursor toggle, and Window Behavior (duplicate protection, keep on screen, draggable capsule, reset positions). |
+| **Controls** | Required A–Z menu Keybind, unlock-cursor toggle, the **Lock all controls** switch (Mode 5 / Mode 1) and Window Behavior (duplicate protection, keep on screen, draggable capsule, reset positions). |
 | **Appearance** | Standalone Font and Bar Layout Dropdowns and a standalone Haptics toggle. |
 | **Persistence** | Auto Save / Auto Load toggles; saved-configurations Dropdown + name Input + Save/Load/Delete actions. |
 

@@ -215,11 +215,11 @@ function persistenceConfig.load(window: ConfigWindow, loadName: unknown?): boole
 
     --[[
     Values whose control does not exist yet still have to land: the element
-    lock tier's control is the Settings → Controls picker, and settings
-    panels build lazily on first open, so without this a saved Mode 5 sat in
-    the file until the player opened that panel (or moved the picker). It
-    runs under the loading guard because locking a focused Input releases
-    its focus, and that commit must not schedule a write mid-load.
+    lock tier is window state (its switch sits in the Settings → Controls
+    panel, which builds lazily on first open), so without this a saved Mode
+    5 sat in the file until the player opened that panel. It runs under the
+    loading guard because locking a focused Input releases its focus, and
+    that commit must not schedule a write mid-load.
     ]]
     if typeof(window._restoreUnowned) == "function" then
         local wasLoadingUnowned = window._loading

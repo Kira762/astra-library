@@ -154,9 +154,6 @@ function state:CreateStepper(props)
     return self:_add("stepper", props)
 end
 
-function state:CreateModePicker(props)
-    return self:_add("modePicker", props)
-end
 function state:CreateKeybind(props)
     return self:_add("keybind", props)
 end

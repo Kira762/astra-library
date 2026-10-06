@@ -1035,31 +1035,6 @@ local function buildStudio(unlockedKey)
         },
     })
 
-    lab:CreateDivider({ text = "Mode Picker" })
-
-    local demoModePicker = lab:CreateModePicker({
-        title = "Mode Picker",
-        subtitle = "Astra demo",
-        left_icon = "zap",
-        right_icon = "rotate-ccw",
-        flag = "demo.lab.modePicker",
-        modes = {
-            { label = "Normal", type = "default" },
-            { label = "Fast", type = "dot" },
-            { label = "Balanced", type = "dot" },
-        },
-        callback = function(index, label)
-            demoText:Set("Mode: " .. label .. " (" .. tostring(index) .. ").")
-        end,
-        onReset = function()
-            demoText:Set("Mode picker reset.")
-        end,
-    })
-
-    local modeActions = lab:CreateGroup({ direction = "row" })
-    modeActions:CreateButton({ name = "Mode 2", icon = "arrow-right", callback = function() demoModePicker:Set(2) end })
-    modeActions:CreateButton({ name = "Reset", icon = "rotate-ccw", callback = function() demoModePicker:Reset() end })
-
     -- 9. All Elements — one tab with every public element constructor.
     -- The visible names intentionally match the element names so this tab is
     -- also a quick visual smoke test when a new build is loaded.
@@ -1105,14 +1080,6 @@ local function buildStudio(unlockedKey)
         elements = {
             { type = "Text", name = "Text", text = "CollapsibleGroup contents" },
             { type = "Button", name = "Button" },
-        },
-    })
-    allElements:CreateModePicker({
-        title = "ModePicker", subtitle = "ModePicker", left_icon = "zap", right_icon = "rotate-ccw",
-        modes = {
-            { label = "One", type = "default" },
-            { label = "Two", type = "dot" },
-            { label = "Three", type = "dot" },
         },
     })
 

@@ -2,8 +2,9 @@
 Runtime coverage for the cumulative Elements Lock System.
 
 The test pins automatic usage metadata, the five cumulative tiers, state and
-callback preservation, input guards, late element registration, the built-in
-five-mode controller, its fixed color ramp and its Mode 5 escape path.
+callback preservation, input guards, late element registration and the
+built-in Settings lock-all switch — exempt, unflagged and always able to
+release the page again.
 ]]
 
 local function expect(condition, message)
@@ -29,26 +30,6 @@ local function containsUsage(value, tag)
 		return table.find(value, tag) ~= nil
 	end
 	return false
-end
-
-local function eqColor(color, r, g, b, message)
-	local actualR = math.floor(color.R * 255 + 0.5)
-	local actualG = math.floor(color.G * 255 + 0.5)
-	local actualB = math.floor(color.B * 255 + 0.5)
-	if actualR ~= r or actualG ~= g or actualB ~= b then
-		error(
-			("ELEMENT LOCK FAIL: %s (got %d,%d,%d, want %d,%d,%d)"):format(
-				message,
-				actualR,
-				actualG,
-				actualB,
-				r,
-				g,
-				b
-			),
-			0
-		)
-	end
 end
 
 local window = Astra:CreateWindow({ name = "Element Lock Test" })
@@ -113,12 +94,6 @@ local advancedSlider = tab:CreateSlider({
 	range = { 0, 100 },
 	value = 40,
 })
-local customPicker = tab:CreateModePicker({
-	title = "Custom Picker",
-	id = "customPicker",
-	lockLevel = 3,
-	modes = { { label = "A" }, { label = "B" }, { label = "C" } },
-})
 local group = tab:CreateCollapsibleGroup({
 	name = "Expandable Group",
 	description = "Click to expand without losing the values inside.",
@@ -144,7 +119,6 @@ for _, element in {
 	saveButton,
 	deleteButton,
 	advancedSlider,
-	customPicker,
 	group,
 	duplicateInputA,
 	duplicateInputB,
@@ -164,7 +138,6 @@ eq(toggle.lockLevel, 3, "Toggles default to the important-actions tier")
 eq(saveButton.lockLevel, 3, "Buttons default to the important-actions tier")
 eq(deleteButton.lockLevel, 4, "sensitive lockGroup maps to Level 4")
 eq(advancedSlider.lockLevel, 5, "explicit levels can defer a control to Mode 5")
-eq(customPicker.lockLevel, 3, "Mode Pickers default to the important-actions tier")
 eq(group.lockLevel, 5, "Collapsible Groups default to the remaining tier")
 expect(containsUsage(link.usage, "host:documentation"), "existing usage value is preserved")
 expect(containsUsage(link.usage, "analytics:read"), "all existing usage values are preserved")
@@ -321,57 +294,40 @@ end
 expect(controlsTab ~= nil, "built-in Controls settings tab exists")
 controlsTab:Select()
 TestPump(0.6)
-local controller = window._elementLockModePicker
-expect(controller ~= nil and controller.__type == "ModePicker", "built-in lock system uses the ModePicker element")
-eq(#controller.modes, 5, "controller has exactly five modes")
-eq(controller.minModes, 5, "controller cannot shrink below five modes")
-eq(controller.maxModes, 5, "controller cannot exceed five modes")
-for index, mode in ipairs(controller.modes) do
-	eq(mode.label, "Mode " .. tostring(index), "controller label at index " .. tostring(index))
-	expect(type(mode.description) == "string" and #mode.description > 0, "mode " .. tostring(index) .. " has description")
-end
-expect(not controller.allow_mode_add_remove, "controller modes are fixed")
-expect(not controller:IsLocked(), "Mode Picker controller remains unlocked in Mode 5")
-eq(controller.usageTag, nil, "the controller is exempt from lockable usage metadata")
-eq(controller.usage, nil, "the controller cannot be included in Mode 5's lock-all set")
-eq(controller.flag, "astra.elementLockMode", "controller mode persists with the config")
-expect(window.controls[controller.flag] == controller, "controller joins config persistence")
-local added = controller:AddMode({ label = "Six" })
-local removed = controller:RemoveMode(5)
-expect(not added and not removed, "fixed controller rejects add/remove")
+local controller = window._elementLockAllToggle
+expect(controller ~= nil and controller.__type == "Toggle", "built-in lock system uses a Toggle")
+expect(not controller:IsLocked(), "the lock-all switch remains unlocked in Mode 5")
+eq(controller.usageTag, nil, "the switch is exempt from lockable usage metadata")
+eq(controller.usage, nil, "the switch cannot be included in Mode 5's lock-all set")
+eq(controller.flag, nil, "the switch owns no flag — the tier is stored as window state")
+eq(window.controls["astra.elementLockMode"], nil, "no control registers the tier's config flag")
 
-controller:Set(1, true)
+controller:Set(false)
 TestPump(0.2)
-eq(window:GetElementLockMode(), 1, "controller selects Mode 1")
-eqColor(controller.fill.BackgroundColor3, 234, 242, 255, "Mode 1 uses the lightest blue")
-controller:Set(5, true)
+eq(window:GetElementLockMode(), 1, "switching off selects Mode 1")
+controller:Set(true)
 TestPump(0.2)
-eq(window:GetElementLockMode(), 5, "controller selects Mode 5")
-eqColor(controller.fill.BackgroundColor3, 29, 63, 168, "Mode 5 uses the darkest blue")
-expect(string.find(controller.subtitle, "Mode 5", 1, true) ~= nil, "subtitle makes the active mode obvious")
-expect(not controller:IsLocked(), "Mode 5 cannot lock its own mode controller")
+eq(window:GetElementLockMode(), 5, "switching on selects Mode 5")
 for _, element in ipairs(window._lockableElements) do
 	if element.usageTag then
 		expect(element:IsLocked(), "Mode 5 locks every tagged element after settings build: " .. element.usageTag)
 	end
 end
+expect(not controller:IsLocked(), "Mode 5 cannot lock its own switch")
 controller:Lock("must remain usable")
-expect(not controller:IsLocked(), "manual Lock cannot disable the system controller")
-controller.resetButton.MouseButton1Click:Fire()
+expect(not controller:IsLocked(), "manual Lock cannot disable the system switch")
+controller:Set(false)
 TestPump(0.2)
-eq(window:GetElementLockMode(), 1, "the visible Mode 5 reset button returns to Mode 1")
-controller:Set(2, true)
+eq(window:GetElementLockMode(), 1, "the unlocked switch can always lower the active mode")
+eq(controller.value, false, "switch UI stays synchronized with the window mode")
+window:SetElementLockMode(5)
 TestPump(0.2)
-eq(window:GetElementLockMode(), 2, "the unlocked controller can always lower the active mode")
-eq(controller.mode, 2, "controller UI remains synchronized with the window mode")
-window:SetElementLockMode(4)
-TestPump(0.2)
-eq(controller.mode, 4, "external admin mode changes synchronize the built-in controller")
+eq(controller.value, true, "external admin mode changes synchronize the switch")
 window:SetElementLockMode(2)
-eq(controller.mode, 2, "external admin can lower the controller mode again")
+eq(controller.value, false, "a mode below 5 parks the switch off")
 
 window:Unload()
 TestPump(0.5)
-eq(window._elementLockModePicker, nil, "window teardown releases the built-in controller reference")
+eq(window._elementLockAllToggle, nil, "window teardown releases the built-in switch reference")
 eq(window:SetElementLockMode(3), 3, "mode API remains safe after teardown")
 print("ELEMENT LOCK: usage metadata, cumulative modes, guarded input, state preservation and controller passed")

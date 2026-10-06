@@ -166,13 +166,5 @@ allElements:CreateCollapsibleGroup({
         { type = "Button", name = "Button" },
     },
 })
-allElements:CreateModePicker({
-    title = "ModePicker", subtitle = "ModePicker", left_icon = "zap", right_icon = "rotate-ccw",
-    modes = {
-        { label = "One", type = "default" },
-        { label = "Two", type = "dot" },
-        { label = "Three", type = "dot" },
-    },
-})
 
 overview:Select()

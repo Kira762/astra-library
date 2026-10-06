@@ -1,5 +1,49 @@
 # Changelog
 
+## Unreleased — Mode Picker removed; the lock controller is a toggle
+
+The Mode Picker is gone. `tab:CreateModePicker` / `group:CreateModePicker` and
+the declarative `type = "ModePicker"` no longer exist, and the built-in
+Element Lock control in Settings → Controls has stopped being the five-stop
+ramp that element existed to serve: it is one **Lock all controls** toggle
+now, switching the window between Mode 1 (unlocked) and Mode 5 (every
+registered control locked).
+
+- **`elements/modePicker.luau`, `scripts/mode_picker_test.{luau,sh}`** —
+  deleted; **`SPEC_PICKER_SET.md`** is re-marked as describing removed code.
+- **`elements/tab.luau`, `elements/group.luau`,
+  `elements/collapsibleGroup.luau`** — `CreateModePicker` and the declarative
+  constructor are gone.
+- **`utilities/lockable.luau`, `Types.luau`, `library_entrypoint.luau`** —
+  the `ModePicker = 3` default tier and the `ModePicker` /
+  `ModePickerProps` / `ModeDefinition` types are removed.
+- **`components/settings.luau`** — the control is
+  `general:CreateToggle({ name = "Lock all controls", lockSystemController = true })`
+  on the same `window._elementLockAllToggle` handle: on → Mode 5, off → Mode 1.
+  It owns **no flag**, so the tier stays window state and is written and read
+  by `Window:_unownedConfigValues` / `Window:_restoreUnowned` — saved configs
+  keep the numeric tier, so existing files still restore.
+- **`components/window/elements.luau`** — `SetElementLockMode` syncs the switch
+  (`on` at Mode 5, `off` below it) and the debounced autosave moves into
+  `Window:_scheduleSave()`, which `_persist` and every tier change share, so a
+  flip (or a host-driven `SetElementLockMode`) lands in the config like any
+  other control edit.
+- **`elements/tab.luau`, `components/window/teardown.luau`** — the controller
+  reference is renamed from `_elementLockModePicker` to
+  `_elementLockAllToggle`.
+- **Tests** — `elements_lock_test`, `guard_invariants_test` (9 lockable / 7
+  static / 13 placed elements) and `lock_mode_persistence_test` drive the
+  switch; the guard's locale case now pins the controller's **title** (a
+  string, and re-resolved on `SetLocale`). `inline_description_test`,
+  `example_test`, `example.client.luau` and the skill starter drop the
+  element.
+- **Docs** — `README.md`, `USAGE.md`, `MODULES.md`,
+  `skills/astra/SKILL.md`, `skills/astra/references/{elements,window}.md` and
+  the three `skills/astra-guard` references updated.
+- **`version-1.luau`, `version-1.luau.sig`, `loader.luau`, `README.md`** — the
+  bundle is regenerated and re-signed (`node scripts/sign_bundle.js`, dev key,
+  pinned `PUBLIC_KEY` synced) and the README checksum updated.
+
 ## Unreleased — About Card and Isolated removed
 
 Two elements are gone from the library: `AboutCard` (`tab:CreateAboutCard`)

@@ -7594,7 +7594,7 @@ local errorTween = "snappy"
 motion.tween(flashTarget, { BackgroundColor3 = self.theme.ErrorColor }, errorTween)
 motion.tween(element.stroke, { Color = self.theme.ErrorStrokeColor }, errorTween)
 if element.title then
-element.title.Text = locale.resolve("Error, log recorded in console.")
+element.title.Text = locale.resolve("Error: callback failed, see console")
 end
 
 task.wait(1)

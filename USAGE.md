@@ -576,6 +576,13 @@ log:Clear()
 
 Symbols: `+` added (green), `-` removed (red), `~` changed (amber); words `"added"`/`"removed"`/`"changed"` map to the same colours. Keep the history in its own file (see `changelog.example.luau`) and require it into the element props. The element supports `MoveTo`, `Lock`, etc. like other elements.
 
+Surface: the changelog card wears the element outline, and each release sits in it
+as a recess (the window's own surface, no outline of its own) rather than a second
+framed box — so the history reads as one bounded block however many entries it
+holds. There is no prop for this: entries are separated by the panel gap, and the
+typography carries the hierarchy (version in the title colour, date and metadata
+in the placeholder tier).
+
 ### Built-in Settings (window only)
 
 Every window ships a built-in Settings group (gear action in the topbar). Clicking the gear switches into settings mode — only the settings tabs are shown — and clicking it again returns to the previous tab. It's window-scoped: it edits this window's own behaviour, stored per-window — not global.

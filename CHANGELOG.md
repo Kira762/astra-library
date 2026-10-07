@@ -1,5 +1,52 @@
 # Changelog
 
+## 2026-10-07 — Changelog entries read as a recess, not as a second frame
+
+The Changelog drew `StyleElementBody` on its own card and `StyleElementPanel` on
+*every entry*: the same `ElementGradient` fill and the same lit outline, at the
+same strength, one inside the other. A release list of N entries therefore drew
+N+1 outlines around surfaces of one colour — the nesting cost a line per level
+and said nothing, because the inner card never read as a level. (Inside a
+Collapsible Group it was just as loud: `CollapsibleChildElementStrokeTransparency`
+is 0 too.) The version line already carries the hierarchy through type and
+colour — `TitlingColor` heading, `PlaceholderColor` date and metadata at 0.55 —
+so the entry's frame was the third thing saying what the typography said.
+
+The library's rule is one lit line per element, with the levels inside it read as
+surface: that is how a Collapsible Group paints its body clip with `WindowColor`,
+and how the sidebar rows were quieted the other day. The entry cards now follow
+the same idiom.
+
+- **`elements/changelog.luau`** — an entry card keeps its `UICorner` at
+  `ElementCornerRadius` (same corner family as the card it sits in) and swaps the
+  panel's `ElementGradient` for a `WindowColor` gradient — a theme binding, so a
+  host palette re-derives it — and carries **no `UIStroke`**. It is revealed at
+  `ElementTransparency` (opaque, like the body clip) rather than on the element's
+  own surface tier, so the recess still reads when the changelog is nested in a
+  Collapsible Group, where the card behind it is itself stepped down. The
+  element's own lit line is unchanged. `StyleElementPanel` is deliberately left
+  alone: a panel that *floats* over other content — a Dropdown's list, a popup
+  box — needs the edge a nested entry does not, and keeps it. No prop changes;
+  there is nothing for a host to opt into or out of.
+- **`scripts/changelog_entry_surface_test.luau`, `.sh`** (new) — pins that an
+  entry card carries no stroke while the changelog's own stroke stays at the
+  element tier, that the entry's fill is the `WindowColor` binding (and
+  re-derives on a theme change), that it rounds with `ElementCornerRadius`, that
+  hide/Show moves the entries with the element, and that a Dropdown's floating
+  panel keeps its lit lip.
+- **`MODULES.md`, `USAGE.md`** — record the nested-surface contract.
+- **`version-1.luau`** — regenerated and re-signed; the README checksum,
+  `version-1.luau.sig` and `loader.luau` public-key pin are in sync.
+
+### Signing
+
+As with the two entries below: no production `SIGNING_KEY` is configured in this
+workspace and the previous throwaway dev key is not kept between checkouts, so the
+bundle was signed with a freshly generated gitignored dev key and the
+`loader.luau` public-key pin was synced to it. CI replaces the development signature with the production
+key when it publishes — publishing without that re-sign leaves the one-line
+loader failing closed to its silent no-op stub.
+
 ## 2026-10-07 — a tab's reveal always finishes the tab
 
 The example's **Controls** tab could open with the rows under the `Fields`

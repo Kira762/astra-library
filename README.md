@@ -49,7 +49,7 @@ machines only ever need the gitignored throwaway dev key).
 Current release checksum:
 
 ```
-sha256(version-1.luau) = df3a5688c36232cc7e5a92254ee0151696e7fdd09bff6975039b3526091dfeba
+sha256(version-1.luau) = 831306426e97185e5143cb6923103f4696a80cc492d61f5f009b260148fdaccb
 ```
 
 (`node scripts/sign_bundle.js --verify` prints the live digest whenever the
@@ -111,7 +111,7 @@ skills/astra/
 | [CHANGELOG.md](CHANGELOG.md) | Dated entries explaining each behaviour change. |
 | [PERFORMANCE_CHANGES.md](PERFORMANCE_CHANGES.md) | Startup and instance-budget work with measured numbers. |
 | [assets/icons/README.md](assets/icons/README.md) | Visual icon catalog with copyable names across all seven packs. |
-| [example.client.luau](example.client.luau) | Key-gated ten-tab working studio: every element plus live character, lighting, teleport, sampler, persistence, theme and window controls, built inside `CreateKeySystem`'s `onSuccess` (demo key `ASTRA-STUDIO-2026`). |
+| [example.client.luau](example.client.luau) | Key-gated three-tab UI tour: every element laid out in row Groups and a Collapsible Group, with no callbacks and no game wiring, built inside `CreateKeySystem`'s `onSuccess` (demo key `ASTRA-STUDIO-2026`). |
 | [changelog.example.luau](changelog.example.luau) | Host-side changelog data file consumed by the Changelog element. |
 
 ## Repository layout

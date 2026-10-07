@@ -32,30 +32,35 @@ local userTabs = {}
 for _, tab in window.tabs do
     if not tab._isSettingsTab then table.insert(userTabs, tab) end
 end
-assert(#userTabs == 13, "Demo has thirteen purpose-based tabs, including New Elements, All Elements and Steppers")
-local allElementsTab
+local tabNames = {}
 for _, tab in userTabs do
-    if tab.name == "All Elements" then
-        allElementsTab = tab
-        break
-    end
+    table.insert(tabNames, tab.name)
 end
-assert(allElementsTab ~= nil, "Demo includes the All Elements tab")
-local allElementNames = {}
-for _, element in allElementsTab.elements do
-    local kind = if element.__type == "Statistic" then "Stat" else element.__type
-    local visibleName = element.name
-    if kind == "Footer" then
-        visibleName = element.parts[1] and element.parts[1].value
-    elseif kind == "Divider" then
-        visibleName = element.text
-    elseif kind == "Group" then
-        visibleName = element.elements[1] and element.elements[1].name
+assert(
+    table.concat(tabNames, ", ") == "Overview, Controls, Layout",
+    "Demo is three tabs, information first: Overview, Controls, Layout (got " .. table.concat(tabNames, ", ") .. ")"
+)
+--[[
+Every tab after the information tab lays its controls out in Groups: a row
+Group with two or more children, directly on the tab or folded inside a
+Collapsible Group.
+]]
+local function countGroups(elements)
+    local count = 0
+    for _, element in elements do
+        if element.__type == "Group" and #element.elements > 1 then
+            count += 1
+        end
+        if element.elements then
+            count += countGroups(element.elements)
+        end
     end
-    allElementNames[kind] = visibleName
+    return count
 end
-for _, kind in { "Section", "Text", "Button", "Toggle", "Slider", "Stepper", "Dropdown", "Input", "Keybind", "Stat", "Link", "Footer", "Changelog", "Divider", "Group", "CollapsibleGroup" } do
-    assert(allElementNames[kind] == kind, "All Elements names its " .. kind .. " entry correctly")
+for _, tab in userTabs do
+    if tab ~= overview then
+        assert(countGroups(tab.elements) >= 1, tab.name .. " lays its controls out in Groups")
+    end
 end
 local types = {}
 local function scan(elements, informationOnlyHere)
@@ -73,7 +78,7 @@ end
 for _, tab in userTabs do
     tab:Select()
     TestPump(0.5)
-    scan(tab.elements, tab == overview or tab.name == "All Elements")
+    scan(tab.elements, tab == overview)
 end
 for _, kind in { "Section", "Text", "Stat", "Divider", "Link", "Changelog", "Footer", "Button", "Group", "CollapsibleGroup", "Input", "Keybind", "Toggle", "Stepper", "Slider", "Dropdown" } do
     assert(types[kind], "Demo exercises " .. kind)
@@ -90,4 +95,4 @@ for _, tab in window._settingsTabs do if tab.name == "Appearance" then appearanc
 local layout
 for _, element in appearance.elements do if element.name == "Bar Layout" then layout = element end end
 assert(layout and layout.__type == "Dropdown", "Layout is a standalone setting, not a one-child fold")
-print("EXAMPLE: all elements, information-first tabs, purpose-based settings and multi-child folds passed")
+print("EXAMPLE: three UI-only tabs, grouped controls, every element, information-first tabs, purpose-based settings and multi-child folds passed")

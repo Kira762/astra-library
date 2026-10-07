@@ -215,7 +215,9 @@ export type StatProps = {
     Show the value as a single letter badge (no icon) instead of the numeric
     readouts; text values use this automatically unless set to false, in
     which case the whole value reads out as a text readout (no odometer, no
-    change readout) that Set / SetText / ResetBaseline all write to.
+    change readout) that Set / SetText / ResetBaseline all write to. A
+    compact card — a Stat inside a row Group — draws no badge at all: the
+    value reads out through the row card's own readout there.
     ]]
     letter: boolean?,
     changeMode: string?,     changeBaseline: string?,     numberEasing: boolean?,

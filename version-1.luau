@@ -715,6 +715,8 @@ display: string?, compact: boolean?,
 
 
 
+
+
 letter: boolean?,
 changeMode: string?, changeBaseline: string?, numberEasing: boolean?,
 }
@@ -5911,16 +5913,91 @@ end
 
 
 
+
+
+
+
+
+
+
+
 tabSelector.states = {
 sidebar = {
-selected = { background = 0, stroke = 0.5, content = 0, shadow = 0.8 },
-hover = { background = 1, stroke = 0.8, content = 0.3, shadow = 1 },
-unselected = { background = 1, stroke = 0.8, content = 0.5, shadow = 1 },
-hidden = { background = 1, stroke = 1, content = 1, shadow = 1 },
+selected = { background = 0, stroke = 0.5, content = 0, shadow = 0.8, edge = 0 },
+hover = { background = 1, stroke = 0.65, content = 0.3, shadow = 1, edge = 0.28 },
+unselected = { background = 1, stroke = 0.8, content = 0.5, shadow = 1, edge = 0.55 },
+hidden = { background = 1, stroke = 1, content = 1, shadow = 1, edge = 1 },
 },
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+local shadeCache = {}
+
+local function rowStroke(theme, edge)
+local stroke = theme.TabStroke
+
+
+
+
+
+
+
+local keypoints = if type(stroke) == "table" then stroke.Keypoints else nil
+if not edge or edge <= 0 or type(keypoints) ~= "table" then
+return stroke
+end
+local surface = theme.SidebarSurface or theme.ElementSurface or keypoints[1].Value
+local cached = shadeCache[edge]
+if cached and cached.stroke == stroke and cached.surface == surface then
+return cached.shade
+end
+local shade = keypoints[1].Value:Lerp(surface, math.min(edge, 1))
+local points = {}
+for _, point in keypoints do
+table.insert(points, ColorSequenceKeypoint.new(point.Time, shade))
+end
+local sequence = ColorSequence.new(points)
+shadeCache[edge] = { stroke = stroke, surface = surface, shade = sequence }
+return sequence
+end
+
+
+
+
+
+
+function tabSelector.rowEdge(tab)
+if tab._rowEdge ~= nil then
+return tab._rowEdge
+end
+return tabSelector.states.sidebar.unselected.edge
+end
+
 local function buildGradients(tab, item, stroke)
+
+
+
+
+
+
 
 
 
@@ -5930,7 +6007,14 @@ local function buildGradients(tab, item, stroke)
 tab.topbarItemStrokeGradient = tab.window:Create("UIGradient", {
 Rotation = 90,
 Parent = stroke,
-}, { Color = { "TabStroke", functions.toColorSequence } })
+}, {
+Color = {
+"TabStroke",
+function()
+return rowStroke(tab.window.theme, tabSelector.rowEdge(tab))
+end,
+},
+})
 end
 
 
@@ -6307,10 +6391,39 @@ end
 end
 
 function tabSelector.applyVisual(tab, visualState, tweenInfo)
+
+
+
+
+
+tab._rowEdge = visualState.edge or 0
+
 local targets = {
 [tab.topbarItem] = { BackgroundTransparency = visualState.background },
+
+
 [tab.topbarItemStroke] = { Transparency = visualState.stroke },
 }
+
+
+
+
+
+
+
+local gradient = tab.topbarItemStrokeGradient
+if gradient then
+local shade = rowStroke(tab.window.theme, tab._rowEdge)
+local current = gradient.Color
+local tweenable = type(shade) == "table" and type(shade.Keypoints) == "table"
+and type(current) == "table" and type(current.Keypoints) == "table"
+and #current.Keypoints == #shade.Keypoints
+if tweenable then
+targets[gradient] = { Color = shade }
+else
+gradient.Color = shade
+end
+end
 
 if tab.topbarItemIcon then
 targets[tab.topbarItemIcon] = { ImageTransparency = visualState.content }
@@ -17469,11 +17582,15 @@ function state:Set(a51)
 
 
 
+
 if self.letter then
 self.value = a51
 self._hasValue = a51 ~= nil
 if self.letterGlyph then
 self.letterGlyph.Text = glyphText(a51, self.name)
+else
+
+self:_writeTextReadout()
 end
 return
 end
@@ -17544,6 +17661,9 @@ self.value = a62
 self._hasValue = a62 ~= nil
 if self.letterGlyph then
 self.letterGlyph.Text = glyphText(a62, self.name)
+else
+
+self:_writeTextReadout()
 end
 return
 end
@@ -17586,9 +17706,15 @@ end
 
 
 
+
+
+
+
 function state:_writeTextReadout()
 if self.textLabel then
 self.textLabel.Text = self:_formatValue(self.value)
+elseif self.readoutOdo then
+self.readoutOdo:snap(self:_formatValue(self.value))
 end
 end
 
@@ -17614,20 +17740,14 @@ end
 function state:_setShown(a66, a67)
 local w = self.window
 
-if self.letter then
-if a66 then
-w:_revealCommon(self, a67)
-w:_reveal(self.gradientContainer, { BackgroundTransparency = 0 }, a67)
-w:_reveal(self.glow, { Transparency = 0.82 }, a67)
-w:_reveal(self.letterGlyph, { TextTransparency = 0 }, a67)
-else
-w:_hideCommon(self, a67)
-w:_reveal(self.gradientContainer, { BackgroundTransparency = 1 }, a67)
-w:_reveal(self.glow, { Transparency = 1 }, a67)
-w:_reveal(self.letterGlyph, { TextTransparency = 1 }, a67)
-end
-return
-end
+
+
+
+
+
+
+
+
 
 if self.compact then
 w:_reveal(
@@ -17646,6 +17766,25 @@ if self.readoutOdo then
 self.readoutOdo:reveal(if a66 then 0 else 1, a67)
 else
 w:_reveal(self.textLabel, { TextTransparency = if a66 then 0 else 1 }, a67)
+end
+return
+end
+
+
+
+
+
+if self.letter then
+if a66 then
+w:_revealCommon(self, a67)
+w:_reveal(self.gradientContainer, { BackgroundTransparency = 0 }, a67)
+w:_reveal(self.glow, { Transparency = 0.82 }, a67)
+w:_reveal(self.letterGlyph, { TextTransparency = 0 }, a67)
+else
+w:_hideCommon(self, a67)
+w:_reveal(self.gradientContainer, { BackgroundTransparency = 1 }, a67)
+w:_reveal(self.glow, { Transparency = 1 }, a67)
+w:_reveal(self.letterGlyph, { TextTransparency = 1 }, a67)
 end
 return
 end
@@ -18489,11 +18628,13 @@ if self.locked then
 
 
 
+
 a21 = {
 background = a21.background,
 stroke = a21.stroke,
 content = math.max(a21.content, 0.7),
 shadow = a21.shadow,
+edge = a21.edge,
 }
 end
 
@@ -27727,116 +27868,116 @@ end)() end,
 local LineOffsets = {
     [2] = 52,
     [3] = 499,
-    [5] = 1133,
-    [6] = 1116,
-    [7] = 1288,
-    [8] = 1430,
-    [9] = 1681,
-    [10] = 2063,
-    [11] = 3440,
-    [12] = 3849,
-    [13] = 4198,
-    [14] = 4937,
-    [15] = 5275,
-    [16] = 5819,
-    [17] = 5882,
-    [18] = 6356,
-    [19] = 6702,
-    [20] = 6716,
-    [21] = 6816,
-    [22] = 6956,
-    [23] = 7517,
-    [24] = 7756,
-    [25] = 8078,
-    [26] = 8178,
-    [27] = 8232,
-    [28] = 8874,
-    [29] = 9122,
-    [30] = 9472,
-    [31] = 9919,
-    [32] = 6676,
-    [34] = 10853,
-    [35] = 10942,
-    [36] = 11171,
-    [37] = 11592,
-    [38] = 12055,
-    [39] = 12212,
-    [40] = 12357,
-    [41] = 14021,
-    [42] = 14269,
-    [43] = 14506,
-    [44] = 14827,
-    [45] = 15080,
-    [46] = 16160,
-    [47] = 16246,
-    [48] = 16849,
-    [49] = 17691,
-    [50] = 18285,
-    [51] = 18854,
-    [52] = 18984,
-    [53] = 19123,
-    [55] = 19638,
-    [56] = 19664,
-    [57] = 19683,
-    [58] = 19715,
-    [59] = 19841,
-    [60] = 19855,
-    [61] = 19904,
-    [62] = 19613,
-    [63] = 19995,
-    [64] = 20311,
-    [65] = 20342,
-    [66] = 19984,
-    [67] = 20385,
-    [68] = 20405,
-    [69] = 20437,
-    [70] = 20367,
-    [71] = 20544,
-    [72] = 20612,
-    [74] = 20702,
-    [75] = 20679,
-    [76] = 20922,
-    [77] = 21018,
-    [78] = 20869,
-    [79] = 21588,
-    [80] = 21634,
-    [81] = 21716,
-    [82] = 21911,
-    [83] = 22042,
-    [84] = 22145,
-    [85] = 22314,
-    [86] = 22654,
-    [87] = 21043,
-    [88] = 23298,
-    [89] = 23184,
-    [90] = 23437,
-    [91] = 23535,
-    [92] = 23716,
-    [93] = 23778,
-    [94] = 23808,
-    [95] = 24100,
-    [96] = 24149,
-    [97] = 24604,
-    [98] = 24622,
-    [99] = 24829,
-    [100] = 25442,
-    [101] = 25462,
-    [102] = 25590,
-    [103] = 25689,
-    [104] = 25918,
-    [105] = 25974,
-    [106] = 26447,
-    [107] = 26483,
-    [108] = 26521,
-    [109] = 26881,
-    [110] = 26893,
-    [111] = 26944,
-    [112] = 26963,
-    [113] = 27261,
-    [114] = 27305,
-    [115] = 27506,
-    [116] = 27534,
-    [117] = 27545,
+    [5] = 1135,
+    [6] = 1118,
+    [7] = 1290,
+    [8] = 1432,
+    [9] = 1683,
+    [10] = 2065,
+    [11] = 3442,
+    [12] = 3851,
+    [13] = 4200,
+    [14] = 4939,
+    [15] = 5277,
+    [16] = 5821,
+    [17] = 5884,
+    [18] = 6469,
+    [19] = 6815,
+    [20] = 6829,
+    [21] = 6929,
+    [22] = 7069,
+    [23] = 7630,
+    [24] = 7869,
+    [25] = 8191,
+    [26] = 8291,
+    [27] = 8345,
+    [28] = 8987,
+    [29] = 9235,
+    [30] = 9585,
+    [31] = 10032,
+    [32] = 6789,
+    [34] = 10966,
+    [35] = 11055,
+    [36] = 11284,
+    [37] = 11705,
+    [38] = 12168,
+    [39] = 12325,
+    [40] = 12470,
+    [41] = 14134,
+    [42] = 14382,
+    [43] = 14619,
+    [44] = 14940,
+    [45] = 15193,
+    [46] = 16273,
+    [47] = 16359,
+    [48] = 16962,
+    [49] = 17830,
+    [50] = 18424,
+    [51] = 18995,
+    [52] = 19125,
+    [53] = 19264,
+    [55] = 19779,
+    [56] = 19805,
+    [57] = 19824,
+    [58] = 19856,
+    [59] = 19982,
+    [60] = 19996,
+    [61] = 20045,
+    [62] = 19754,
+    [63] = 20136,
+    [64] = 20452,
+    [65] = 20483,
+    [66] = 20125,
+    [67] = 20526,
+    [68] = 20546,
+    [69] = 20578,
+    [70] = 20508,
+    [71] = 20685,
+    [72] = 20753,
+    [74] = 20843,
+    [75] = 20820,
+    [76] = 21063,
+    [77] = 21159,
+    [78] = 21010,
+    [79] = 21729,
+    [80] = 21775,
+    [81] = 21857,
+    [82] = 22052,
+    [83] = 22183,
+    [84] = 22286,
+    [85] = 22455,
+    [86] = 22795,
+    [87] = 21184,
+    [88] = 23439,
+    [89] = 23325,
+    [90] = 23578,
+    [91] = 23676,
+    [92] = 23857,
+    [93] = 23919,
+    [94] = 23949,
+    [95] = 24241,
+    [96] = 24290,
+    [97] = 24745,
+    [98] = 24763,
+    [99] = 24970,
+    [100] = 25583,
+    [101] = 25603,
+    [102] = 25731,
+    [103] = 25830,
+    [104] = 26059,
+    [105] = 26115,
+    [106] = 26588,
+    [107] = 26624,
+    [108] = 26662,
+    [109] = 27022,
+    [110] = 27034,
+    [111] = 27085,
+    [112] = 27104,
+    [113] = 27402,
+    [114] = 27446,
+    [115] = 27647,
+    [116] = 27675,
+    [117] = 27686,
 }
 
 -- Misc AOT variable imports

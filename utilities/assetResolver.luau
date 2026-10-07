@@ -1,5 +1,4 @@
 local networkUtil = require(script.Parent.network)
-local logger = require(script.Parent.log)
 
 export type AssetId = number | string
 export type AssetDownloadUrl = string
@@ -149,8 +148,6 @@ function assetResolver.getAssetContentFromUrl(
                 end
                 cache[cacheKey] = responseBody
             end
-        elseif not forced then
-            logger.warn("Failed to download asset content for url: " .. tostring(url))
         end
     end
 
@@ -168,8 +165,7 @@ end
 
 function assetResolver.getAssetContentFromId(self: AssetResolver, id: AssetId, forcedRefresh: boolean?): string?
     local resolvedId = self:resolve(id)
-        if not resolvedId or type(resolvedId) ~= "number" then
-        logger.warn("Invalid asset id: " .. tostring(resolvedId))
+    if not resolvedId or type(resolvedId) ~= "number" then
         return nil
     end
 

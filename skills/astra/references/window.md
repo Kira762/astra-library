@@ -79,7 +79,7 @@ Astra:CreateKeySystem({
     title = "My Hub",
     subtitle = "Key System",
     note = "Get your key at example.com, then paste it below.",
-    keys = { "KEY-1" },          -- string or list; no keys warns + passes through
+    keys = { "KEY-1" },          -- string or list; no keys passes through
     grabKeyFromSite = false,     -- entries are raw URLs whose body is the key
     saveKey = true,              -- a matching Astra/keys/<fileName>.txt skips the UI
     fileName = "MyHub",          -- defaults to title
@@ -148,7 +148,7 @@ multiple related controls.
 ## Themes
 
 The built-in palette is `default`. Pass a partial table to overlay keys on it;
-an unknown name warns and falls back to default.
+an unknown name falls back to default.
 
 ```lua
 window:ChangeTheme("default")
@@ -179,7 +179,7 @@ Astra.Icons.refreshCustom()           -- re-read custom_asset/
   The first pack containing a bare name wins; the search is lazy, so a lucide name
   reads one pack.
 - Lookups are exact and case-sensitive: `Home`, `HOME` and `Lucide:house` do not
-  match `house`. An unknown pack warns once and resolves to nothing instead of
+  match `house`. An unknown pack resolves to nothing instead of
   substituting a pack.
 - Values already usable as-is (`number`, `rbxassetid://`, `rbxasset://`,
   `rbxthumb://`, `http(s)://`) pass through, and an unresolved value comes back
@@ -222,7 +222,6 @@ local ok, report = Astra.HttpGuard.check("strict")   -- audit | warn | strict | 
 local report = Astra.HttpGuard.scan()                 -- never raises
 local proceed, body = Astra.HttpGuard.guardFetch(url, function() return game:HttpGet(url) end, "strict")
 Astra.HttpGuard.setDefaultPolicy("audit")
-Astra.HttpGuard.setDiagnostics(true)                  -- developer triage only
 ```
 
 Detects HttpSpy-style HTTP interception in three layers (spy artifacts,
@@ -234,12 +233,11 @@ carry stable `id`s (`genv-spy-api`, `coregui-spy-window`, `spy-log-files`,
 human `detail`. Already enforced: the loader preflights strict before
 fetching (quiet stub on a hit, `SPY_PREFLIGHT = "off"` to disable),
 `grabKeyFromSite` fetches are guarded (a hit drops the key silently, gate
-fails closed), asset downloads fall back without a word. Nothing prints:
-findings travel in the returned report, and `setDiagnostics(true)` is the
-developer-only switch for the `warn` policy's console lines. Not the
-entrypoint default: call `check("strict")` before `CreateWindow` for
-strict-at-load (`strict` raises — the one policy that speaks, because the
-caller asked it to).
+fails closed), asset downloads fall back without a word. Nothing prints,
+anywhere in the library: findings travel in the returned report, and the only
+console output Astra produces is a raised error. Not the entrypoint default:
+call `check("strict")` before `CreateWindow` for strict-at-load (`strict`
+raises — the one policy that speaks, because the caller asked it to).
 
 ## Localisation
 

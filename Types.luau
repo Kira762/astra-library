@@ -595,10 +595,9 @@ snapshots the pristine references (the entrypoint already calls it on load);
 unknown policies fail closed like it); `guardFetch` runs a fetch only when
 the policy allows it.
 
-Silent by contract: no policy prints in a shipped build, because the console
-is a channel whoever hooked HTTP can read — the findings travel in the
-report `scan`/`check` return. `setDiagnostics(true)` turns the `warn`
-policy's console lines back on for local triage (off by default).
+Silent by contract: no policy prints anything, because the console is a
+channel whoever hooked HTTP can read — the findings travel in the report
+`scan`/`check` return.
 ]]
 export type HttpGuardService = {
     capture: () -> boolean,
@@ -607,8 +606,6 @@ export type HttpGuardService = {
     guardFetch: (url: string, fetch: () -> any, policy: HttpGuardPolicy?) -> (boolean, any),
     setDefaultPolicy: (policy: HttpGuardPolicy) -> HttpGuardPolicy,
     getDefaultPolicy: () -> HttpGuardPolicy,
-    setDiagnostics: (enabled: boolean) -> boolean,
-    getDiagnostics: () -> boolean,
 }
 
 export type Astra = {

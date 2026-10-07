@@ -22,13 +22,13 @@ Expected behavior under test:
        hidden link into a notification (title "Link copied", content =
        the URL, exact duplicates replace), the note stays plain text and
        never changes,
-  * K10 no keys configured passes through with a warning,
+  * K10 no keys configured passes through silently,
   * K11 a second gate retires the first (no stacking),
   * K12 Escape closes a dismissable gate and fires onClose,
   * K13 the links prop builds 0-3 equal buttons whose faces show name
        (never the URL) plus a glyph rendered through the executor image
        pipeline, each copies its own link, past three drops with
-       a warning, and the row grows the card,
+       it is dropped, and the row grows the card,
   * K14 props.icon is ignored: the header always wears Sirius, rendered
        through the same pipeline (a second gate with no icon prop shows
        the identical mark).

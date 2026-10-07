@@ -3,7 +3,6 @@ state.__index = state
 state.__type = "TabSection"
 
 local constants = require(script.Parent.Parent.utilities.locale)
-local TabSection = require(script.Parent.Parent.utilities.log)
 
 local tab = 20
 
@@ -30,10 +29,7 @@ function state.new(window, element)
     }, state)
 
     if window.layout.mode ~= "sidebar" then
-        if not window._warnedTabSection then
-            window._warnedTabSection = true
-            TabSection.warn("Astra: Window:CreateSection needs the sidebar layout; it does nothing on the top strip.")
-        end
+        -- Sections are a sidebar idea; on the top strip the call is inert.
         self.inert = true
         return self
     end

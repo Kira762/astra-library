@@ -1,6 +1,5 @@
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
-local logger = require(script.Parent.log)
 local pathUtil = require(script.Parent.path)
 local paths = require(script.Parent.persistencePaths)
 local writer = require(script.Parent.persistenceWrite)
@@ -43,7 +42,6 @@ end
 function persistenceConfig.save(window: ConfigWindow, saveName: unknown?): boolean
     local saveFolder, savePath = persistenceConfig.getPath(window, saveName)
     if not saveFolder or not savePath then
-        logger.warn("Astra: configuration name '" .. tostring(saveName) .. "' has no usable characters")
         return false
     end
 
@@ -62,8 +60,6 @@ function persistenceConfig.save(window: ConfigWindow, saveName: unknown?): boole
         end)
         if ok then
             payload[controlFlag] = serialized
-        else
-            logger.warn("Astra: Failed to serialize flag '" .. tostring(controlFlag) .. "' - " .. tostring(serialized))
         end
     end
 
@@ -95,7 +91,6 @@ function persistenceConfig.save(window: ConfigWindow, saveName: unknown?): boole
 
     local encodeOk, encoded = pcall(coreState.httpService.JSONEncode, coreState.httpService, payload)
     if not encodeOk then
-        logger.warn("Astra: Failed to encode configuration - " .. tostring(encoded))
         return false
     end
 
@@ -104,7 +99,6 @@ function persistenceConfig.save(window: ConfigWindow, saveName: unknown?): boole
     end)
 
     if not ok then
-        logger.warn("Astra: Failed to save configuration - " .. tostring(writeErr))
         return false
     end
 
@@ -123,7 +117,6 @@ local function readFile(sourcePath: string): ({ [string]: unknown }?, string?)
 
     local readOk, raw = pcall(fs.readfile, sourcePath)
     if not readOk or type(raw) ~= "string" then
-        logger.warn("Astra: Failed to read configuration file")
         return nil, nil
     end
 
@@ -150,7 +143,6 @@ end
 function persistenceConfig.load(window: ConfigWindow, loadName: unknown?): boolean
     local loadFolder, loadPath = persistenceConfig.getPath(window, loadName)
     if not loadFolder or not loadPath then
-        logger.warn("Astra: configuration name '" .. tostring(loadName) .. "' has no usable characters")
         return false
     end
 
@@ -170,7 +162,6 @@ function persistenceConfig.load(window: ConfigWindow, loadName: unknown?): boole
 
     if not restored then
         if rawFallback then
-            logger.warn("Astra: Configuration file has an invalid format, backing up and resetting")
             local backupPath = backupPathFor(loadPath)
             pcall(function()
                 fs.ensureDir(loadFolder)
@@ -184,7 +175,7 @@ function persistenceConfig.load(window: ConfigWindow, loadName: unknown?): boole
     local values = restored :: { [string]: unknown }
     local wasLoading = window._loading
     window._loading = true
-    local applyOk, applyErr = pcall(function()
+    pcall(function()
         local appliedCount = 0
         for loadedFlag, loadedControl in window.controls do
             --[[
@@ -206,9 +197,6 @@ function persistenceConfig.load(window: ConfigWindow, loadName: unknown?): boole
         end
     end)
     window._loading = wasLoading
-    if not applyOk then
-        logger.warn("Astra: Failed to apply configuration - " .. tostring(applyErr))
-    end
 
                 window._loadedConfig = values
     window._loadedConfigPath = loadPath
@@ -235,7 +223,7 @@ function persistenceConfig.applyTo(target: PersistedControl, controlValue: unkno
     if controlValue == nil and not target._canBeNil then
         return
     end
-    local ok, setErr = pcall(function()
+    local ok = pcall(function()
         local deserializer = target._deserialize
         if deserializer then
             deserializer(target, controlValue)
@@ -243,9 +231,6 @@ function persistenceConfig.applyTo(target: PersistedControl, controlValue: unkno
             target:Set(controlValue)
         end
     end)
-    if not ok then
-        logger.warn("Astra: Failed to restore flag '" .. tostring(target.flag) .. "' - " .. tostring(setErr))
-    end
 end
 
 function persistenceConfig.list(window: ConfigWindow): { string }

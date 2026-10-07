@@ -1,6 +1,5 @@
 local services = require(script.Parent.Parent.utilities.services)
 local constants = require(script.Parent.Parent.utilities.constants)
-local log = require(script.Parent.Parent.utilities.log)
 local fileSystemManager = require(script.Parent.Parent.utilities.filesystemManager)
 local assetResolver = require(script.Parent.Parent.utilities.assetResolver)
 local fontManager = require(script.Parent.Parent.utilities.fontManager)
@@ -75,10 +74,6 @@ state.guiContainer = (function(): Instance
 	end
 	return state.coreGui
 end)()
-
-log.setSecureModeSource(function()
-	return state.secureMode
-end)
 
 state.fallbackFont = Font.fromEnum(Enum.Font.BuilderSans)
 

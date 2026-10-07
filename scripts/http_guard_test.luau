@@ -3,8 +3,8 @@ HttpGuard suite: every probe trips on its artifact and stays quiet without
 it, policies enforce (`strict` raises, `warn`/`audit` deny, `off` skips) with
 nothing on the console — a tripped scan is indistinguishable from a clean one
 unless the caller reads the report — and the executor gate keeps non-executor
-environments clean. `setDiagnostics(true)` is the only way to make the guard
-speak, and the suite proves that too.
+environments clean. The library prints nothing at all; the suite asserts that
+against the global warn/print for the guard and for the asset path.
 
 Runs against the generated bundle with scripts/http_guard_stubs.luau
 providing the fake executor. Each phase restores what it mutates so phases
@@ -84,10 +84,9 @@ local strictOk = pcall(function()
 end)
 eq(strictOk, false, "strict check raises under a spy")
 
--- Silence is the contract: a tripped scan must not write to the console,
--- because whoever hooked HTTP reads it too. Capture warn/print and assert
--- both stay empty for every policy, then that the diagnostics switch (and
--- only the diagnostics switch) turns the lines back on.
+-- Silence is the contract: the library never writes to the console, so a
+-- tripped scan leaves no trace for the tool that tripped it to read. Capture
+-- the global warn/print and assert both stay empty for every policy.
 local warns = {}
 local prints = {}
 local realWarn = warn
@@ -103,44 +102,32 @@ local function resetConsole()
     table.clear(prints)
 end
 
-eq(guard.getDiagnostics(), false, "diagnostics are off by default")
 local warnOk, warnReport = guard.check("warn")
 eq(warnOk, false, "warn check returns false under a spy")
 eq(warnReport.clean, false, "warn check returns the tripped report")
-eq(#warns, 0, "warn check prints nothing while diagnostics are off")
+eq(#warns, 0, "warn check warns about nothing")
+eq(#prints, 0, "warn check prints nothing")
 
 local auditSilent = guard.check("audit")
 eq(auditSilent, false, "audit check returns false under a spy")
 eq(#warns, 0, "audit check prints nothing")
 
 guard.scan()
-eq(#warns, 0, "scan prints nothing")
+eq(#warns, 0, "scan warns about nothing")
+eq(#prints, 0, "scan prints nothing")
 
 local denied, deniedBody = guard.guardFetch("https://example.test/key", function()
     return "body"
 end, "warn")
 eq(denied, false, "guardFetch denies under a spy")
 eq(deniedBody, nil, "a denied guardFetch returns nil")
-eq(#warns, 0, "a denied guardFetch prints nothing")
+eq(#warns, 0, "a denied guardFetch warns about nothing")
+eq(#prints, 0, "a denied guardFetch prints nothing")
 
 pcall(function()
     guard.check("strict")
 end)
-eq(#warns, 0, "strict prints nothing while diagnostics are off")
-
-eq(guard.setDiagnostics(true), true, "setDiagnostics returns the new value")
-eq(guard.getDiagnostics(), true, "getDiagnostics reads the switch back")
-local loudOk, _ = guard.check("warn")
-eq(loudOk, false, "diagnostics do not change enforcement")
-expect(#warns >= 1, "diagnostics turn the warn() lines back on")
-expect(
-    tostring(warns[1]):find("Astra HttpGuard", 1, true) ~= nil,
-    "the diagnostic line names the guard"
-)
-eq(guard.setDiagnostics(false), false, "setDiagnostics turns back off")
-resetConsole()
-guard.check("warn")
-eq(#warns, 0, "diagnostics off again means silence again")
+eq(#warns, 0, "strict prints nothing either")
 
 -- The library's own fetch points are silent too. Drive the asset resolver with
 -- a request function the source probe reads as C (an executor's would be):
@@ -164,7 +151,8 @@ eq(
     "a guarded asset download falls back to nil"
 )
 eq(#fetched, 0, "a guarded asset download never reaches the request function")
-eq(#warns, 0, "a guarded asset download prints nothing")
+eq(#warns, 0, "a guarded asset download warns about nothing")
+eq(#prints, 0, "a guarded asset download prints nothing")
 
 -- Now the same call on a clean environment: it must go through, and still
 -- say nothing (a download that succeeds has nothing to report).
@@ -176,7 +164,8 @@ eq(
     "a clean asset download returns the body"
 )
 eq(#fetched, 1, "a clean asset download reaches the request function")
-eq(#warns, 0, "a clean asset download prints nothing")
+eq(#warns, 0, "a clean asset download warns about nothing")
+eq(#prints, 0, "a clean asset download prints nothing")
 
 -- Restore phase 2's state for the assertions that follow it.
 genv.HttpSpy = { OnRequest = {}, BlockUrl = function() end }

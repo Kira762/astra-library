@@ -8,7 +8,6 @@ local state = require(utilities.Parent.core.state)
 local functions = require(script.Parent.Parent.functions)
 local constants = require(utilities.constants)
 local locale = require(utilities.locale)
-local log = require(utilities.log)
 local haptic = require(utilities.HapticEngine)
 
 --[[
@@ -610,9 +609,13 @@ function Popup:_buildButton(footerFrame, option, index)
             if callback then
                 task.spawn(function()
                     local ok, err = pcall(callback)
+                    -- A callback that threw is a real error, and a real
+                    -- error is the only thing this library prints.
                     if not ok then
-                        log.warn("Astra: popup button '" .. text .. "' callback errored:")
-                        log.print(err)
+                        error(
+                            "Astra: popup button '" .. text .. "' callback errored: " .. tostring(err),
+                            0
+                        )
                     end
                 end)
             end

@@ -619,7 +619,7 @@ There is no sub-tab API: these tabs are built by the window itself
 
 The built-in palette is `"default"`. Pass a partial table to `ChangeTheme` (or
 to `CreateWindow`'s `theme` prop) to overlay keys on that palette. An unknown
-name warns and falls back to default.
+name falls back to default.
 
 ```lua
 window:ChangeTheme("default")
@@ -683,8 +683,8 @@ name costs one pack. `Astra.Icons.loaded()` tells you which packs a session has 
 order: if that pack has no such icon the request resolves to nothing (and `resolve`
 hands back the value it was given). Names, pack names and the `pack:` prefix are
 matched exactly as written; `Home`, `HOME` and `Lucide:house` are not `home`, and no
-lookup is lowercased, corrected or fuzzed. An unknown pack name warns once per pack
-and answers nothing, rather than substituting a pack you did not ask for.
+lookup is lowercased, corrected or fuzzed. An unknown pack name resolves to
+nothing, rather than substituting a pack you did not ask for.
 
 **All-pack window lookup.** `window:ResolveIcon(name)` searches every pack, just
 like `Astra.Icons.resolve`. `ResolveIcon(name, pack)` and `pack:name` still select
@@ -741,14 +741,14 @@ Astra:CreateKeySystem({
 
 | Prop | Default | Meaning |
 |---|---|---|
-| `keys` | (none) | One key or a list. Blank entries are dropped; with no keys left the gate warns and passes through so a misconfigured loader never bricks. |
-| `grabKeyFromSite` | `false` | Treat each entry as a raw URL and fetch the expected key from its trimmed body, once, up front. A URL that fails to fetch warns and can never match. |
+| `keys` | (none) | One key or a list. Blank entries are dropped; with no keys left the gate passes through so a misconfigured loader never bricks. |
+| `grabKeyFromSite` | `false` | Treat each entry as a raw URL and fetch the expected key from its trimmed body, once, up front. A URL that fails to fetch can never match and is dropped without a word. |
 | `saveKey` | `true` | Persist a passing key to `Astra/keys/<fileName>.txt`. |
 | `fileName` | `title` | Key file name (sanitised, `.txt` appended). |
 | `note` | `"Enter your key to continue."` | Instruction line, up to two lines — longer notes truncate instead of growing the card, so keep it under ~110 characters. Always plain text: it is never a copy target. |
 | `placeholder` | `"Enter key"` | Field placeholder. |
-| `links` | (none) | 0–3 buttons in a row under the note. Each entry `{ name, icon?, link }` shows icon + name on its face — the URL itself never renders there. The `icon` accepts anything the [Icons](#icons) catalog accepts (a bare name, `pack:name`, an asset id, or a `custom_asset/` file) and renders through the same image pipeline as window icons, so the usage example's glyphs are yours to restyle. Pressing copies the link to the clipboard and confirms through a notification whose content *is* the copied link. An entry with no usable `link` is skipped with a warning; past three entries warn and drop from the tail. |
-| `getKeyUrl` | (none) | Legacy sugar: prepends a leading **Get Key** link button carrying this URL (icon + name, copy on press, exactly like a `links` entry). The note itself stays plain. If three explicit `links` already fill the row, the last one makes room (warns). |
+| `links` | (none) | 0–3 buttons in a row under the note. Each entry `{ name, icon?, link }` shows icon + name on its face — the URL itself never renders there. The `icon` accepts anything the [Icons](#icons) catalog accepts (a bare name, `pack:name`, an asset id, or a `custom_asset/` file) and renders through the same image pipeline as window icons, so the usage example's glyphs are yours to restyle. Pressing copies the link to the clipboard and confirms through a notification whose content *is* the copied link. An entry with no usable `link` is skipped; past three entries drop from the tail. |
+| `getKeyUrl` | (none) | Legacy sugar: prepends a leading **Get Key** link button carrying this URL (icon + name, copy on press, exactly like a `links` entry). The note itself stays plain. If three explicit `links` already fill the row, the last one makes room. |
 | `maxAttempts` | (none) | Wrong-submit budget. Exhausting it locks the gate permanently and fires `onMaxAttempts` — the host decides what that means (Rayfield kicks the player; Astra delegates). |
 | `dismissable` | `true` | Show the close button and answer Escape. The backdrop never dismisses. `false` builds neither. |
 | `theme` | default palette | The same value `CreateWindow` accepts (name or table), resolved once and baked in. |
@@ -786,21 +786,22 @@ local ok, report = Astra.HttpGuard.check("strict")  -- raises on any signal
 -- report: { clean, executor, captured, httpSpy, hooked, signals = { { id, layer, detail } } }
 ```
 
-Policies: `audit` (report only), `warn` (deny; `audit` plus the diagnostic
-line), `strict` (raise; the default), `off` (skip). Detection runs in three
+Policies: `audit` (report only), `warn` (deny; identical to `audit` in
+everything observable), `strict` (raise; the default), `off` (skip). Detection runs in three
 layers — spy artifacts (the tool's window, log files, API table), baseline
 drift against references captured at load, and baseline-free heuristics — all
 gated on executor evidence, so Studio and plain Luau always scan clean and
 `scan()` never raises.
 
-**Nothing the guard decides is printed.** A denial has to look like a fetch
-that never happened, because the console is a channel whoever hooked HTTP is
-reading too: a line like `Astra HttpGuard [C/cfunc-lua-source]: …` tells them
-exactly which fingerprint to scrub next. Findings reach you through the report
+**Nothing is printed.** A denial has to look like a fetch that never
+happened, because the console is a channel whoever hooked HTTP is reading
+too: a line like `Astra HttpGuard [C/cfunc-lua-source]: …` tells them exactly
+which fingerprint to scrub next. Findings reach you through the report
 `check`/`scan` return, and `guardFetch` reports by returning `(false, nil)`.
-`Astra.HttpGuard.setDiagnostics(true)` turns the `warn` policy's console lines
-back on for local triage — off by default, and a build you ship should keep it
-that way.
+That is the whole library's rule, not just the guard's: Astra writes nothing
+to the console — the only thing it still emits is a raised error, so a
+callback that throws surfaces with a traceback and everything recoverable
+stays quiet.
 
 Enforcement is already wired where it matters: the signed loader refuses to
 fetch under interception (quiet stub, like any other failure; setting

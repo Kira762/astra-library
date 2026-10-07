@@ -17,7 +17,7 @@ local ImportGlobals
 -- __recFP snapshots the environment when the MainModule closure starts,
 -- __checkFP re-snapshots after every module has loaded; a mismatch means
 -- something was replaced mid-load. Silent: failure returns a no-op stub.
-local ExpectedClosureCount = 112;
+local ExpectedClosureCount = 111;
 local __fp
 local function __snap()
     return table.concat({
@@ -261,7 +261,6 @@ Astra.Motion = Motion
 Astra.Core = Core
 Astra.Settings = Settings
 Astra.Performance = HardwarePerformance
-
 
 
 
@@ -1101,7 +1100,6 @@ export type HttpGuardPolicy = "audit" | "warn" | "strict" | "off"
 
 
 
-
 export type HttpGuardService = {
 capture: () -> boolean,
 scan: () -> HttpGuardReport,
@@ -1109,8 +1107,6 @@ check: (policy: HttpGuardPolicy?) -> (boolean, HttpGuardReport),
 guardFetch: (url: string, fetch: () -> any, policy: HttpGuardPolicy?) -> (boolean, any),
 setDefaultPolicy: (policy: HttpGuardPolicy) -> HttpGuardPolicy,
 getDefaultPolicy: () -> HttpGuardPolicy,
-setDiagnostics: (enabled: boolean) -> boolean,
-getDiagnostics: () -> boolean,
 }
 
 export type Astra = {
@@ -1145,7 +1141,6 @@ end)() end,
     [5] = function()local wax,script,require=ImportGlobals(5)local ImportGlobals return (function(...)
 local services = require(script.Parent.Parent.utilities.services)
 local constants = require(script.Parent.Parent.utilities.constants)
-local log = require(script.Parent.Parent.utilities.log)
 local fileSystemManager = require(script.Parent.Parent.utilities.filesystemManager)
 local assetResolver = require(script.Parent.Parent.utilities.assetResolver)
 local fontManager = require(script.Parent.Parent.utilities.fontManager)
@@ -1220,10 +1215,6 @@ end
 end
 return state.coreGui
 end)()
-
-log.setSecureModeSource(function()
-return state.secureMode
-end)
 
 state.fallbackFont = Font.fromEnum(Enum.Font.BuilderSans)
 
@@ -1305,7 +1296,6 @@ Action.__type = "Action"
 local utilities = script.Parent.Parent.utilities
 
 local state = require(utilities.Parent.core.state)
-local log = require(utilities.log)
 local haptic = require(utilities.HapticEngine)
 local motion = require(utilities.motion)
 
@@ -1400,13 +1390,18 @@ self.window:Connect(self.interact.MouseButton1Click, function()
 haptic.click()
 task.spawn(function()
 local ok, err = pcall(self.callback)
-if not ok then
-log.warn(
-`Astra encountered an error, with the callback for a {self.__type} component named '{self.name}':`
-)
-log.print(err)
-end
 idleTransparency()
+
+
+
+
+
+if not ok then
+error(
+`Astra: the callback for {self.__type} '{self.name}' errored: {tostring(err)}`,
+0
+)
+end
 end)
 end)
 
@@ -2109,7 +2104,6 @@ local state = require(utilities.Parent.core.state)
 local functions = require(script.Parent.Parent.functions)
 local constants = require(utilities.constants)
 local locale = require(utilities.locale)
-local log = require(utilities.log)
 local haptic = require(utilities.HapticEngine)
 local filesystem = require(utilities.filesystem)
 local httpGuard = require(utilities.httpGuard)
@@ -2293,7 +2287,9 @@ for _, entry in raw do
 if typeof(entry) == "table" then
 local link = entry.link or entry.Link or entry.url or entry.Url
 if type(link) ~= "string" or trim(link) == "" then
-log.warn("Astra: a key system link button was skipped — it has no `link` URL.")
+
+
+continue
 else
 local name = entry.name or entry.Name
 if type(name) ~= "string" or trim(name) == "" then
@@ -2314,7 +2310,7 @@ table.insert(collected, 1, { name = "Get Key", icon = "copy", link = getKeyUrl }
 end
 
 if #collected > maxLinks then
-log.warn("Astra: key system shows at most " .. maxLinks .. " link buttons — extra entries were dropped.")
+
 while #collected > maxLinks do
 table.remove(collected)
 end
@@ -2396,7 +2392,6 @@ _linkInteracts = {},
 
 
 
-
 local grabFromSite = props.grabKeyFromSite or props.GrabKeyFromSite or false
 for _, key in keys do
 key = tostring(key)
@@ -2406,14 +2401,8 @@ return httpGuard.guardFetch(key, function()
 return game:HttpGet(key)
 end, "warn")
 end)
-if ok and allowed then
-if typeof(body) == "string" and trim(body) ~= "" then
+if ok and allowed and typeof(body) == "string" and trim(body) ~= "" then
 table.insert(self._expected, trim(body))
-else
-log.warn("Astra: key system could not fetch a key from " .. key)
-end
-elseif not ok then
-log.warn("Astra: key system could not fetch a key from " .. key)
 end
 elseif trim(key) ~= "" then
 table.insert(self._expected, trim(key))
@@ -2425,8 +2414,8 @@ end
 
 
 
+
 if #self._expected == 0 then
-log.warn("Astra: key system has no keys to check against, passing through.")
 self.passed = true
 self.closed = true
 self:_runCallback(self.onSuccess, "")
@@ -2478,9 +2467,13 @@ end
 local args = { ... }
 task.spawn(function()
 local ok, err = pcall(callback, table.unpack(args))
+
+
+
+
+
 if not ok then
-log.warn("Astra: key system callback errored:")
-log.print(err)
+error("Astra: key system callback errored: " .. tostring(err), 0)
 end
 end)
 end
@@ -3134,7 +3127,7 @@ return
 end
 local writer = clipboardWriter()
 if not writer then
-log.warn("Astra: no clipboard API was found in this environment, so the key gate cannot copy its link.")
+
 return
 end
 local ok = pcall(writer, link.link)
@@ -3900,7 +3893,6 @@ end)() end,
 local utilities = script.Parent.Parent.utilities
 
 local motion = require(utilities.motion)
-local log = require(utilities.log)
 
 local OverlayQueue = {}
 
@@ -4087,7 +4079,15 @@ end
 local entry = table.remove(queue.pending, 1)
 local ok, err = pcall(entry.build, release)
 if not ok then
-log.warn("Astra: an overlay failed to open - " .. tostring(err))
+
+
+
+
+
+
+task.spawn(function()
+error("Astra: an overlay failed to open - " .. tostring(err), 0)
+end)
 released = true
 end
 
@@ -4225,7 +4225,6 @@ local state = require(utilities.Parent.core.state)
 local functions = require(script.Parent.Parent.functions)
 local constants = require(utilities.constants)
 local locale = require(utilities.locale)
-local log = require(utilities.log)
 local haptic = require(utilities.HapticEngine)
 
 
@@ -4827,9 +4826,13 @@ motion.tween(buttonStroke, { Transparency = 1 }, buttonHoverTween)
 if callback then
 task.spawn(function()
 local ok, err = pcall(callback)
+
+
 if not ok then
-log.warn("Astra: popup button '" .. text .. "' callback errored:")
-log.print(err)
+error(
+"Astra: popup button '" .. text .. "' callback errored: " .. tostring(err),
+0
+)
 end
 end)
 end
@@ -7141,7 +7144,6 @@ end)() end,
 local utilities = script.Parent.Parent.Parent.utilities
 local constants = require(utilities.constants)
 local locale = require(utilities.locale)
-local log = require(utilities.log)
 local motion = require(utilities.motion)
 local persistence = require(utilities.persistence)
 local state = require(utilities.Parent.core.state)
@@ -7426,19 +7428,7 @@ end
 
 
 
-for _, child in ipairs(parent:GetChildren()) do
-if
-child:IsA("UIListLayout")
-or child:IsA("UIGridLayout")
-or child:IsA("UITableLayout")
-or child:IsA("UIPageLayout")
-then
-log.warn(
-`Astra: {element.__type} '{element.name}' lock surface hosts a {child.ClassName}; the lock scrim will join its layout and shift the content when locked. Move the layout onto an inner content frame.`
-)
-break
-end
-end
+
 element.lockScrim = self:Create("TextButton", {
 Name = "ElementLock",
 Active = true,
@@ -7607,11 +7597,6 @@ if element.title then
 element.title.Text = locale.resolve("Error, log recorded in console.")
 end
 
-log.warn(
-`Astra encountered an error, with the callback for a {element.__type} component named '{element.name}':`
-)
-log.print(err)
-
 task.wait(1)
 
 if element.title then
@@ -7628,6 +7613,17 @@ element.stroke,
 "emphasized"
 )
 element._errored = false
+
+
+
+
+
+
+
+error(
+`Astra: the callback for {element.__type} '{element.name}' errored: {tostring(err)}`,
+0
+)
 end)
 end
 
@@ -8426,7 +8422,6 @@ local haptic = require(utilities.HapticEngine)
 local icons = require(script.Parent.Parent.Parent.icons)
 local layouts = require(utilities.layouts)
 local locale = require(utilities.locale)
-local log = require(utilities.log)
 local motion = require(utilities.motion)
 local overlayQueue = require(script.Parent.Parent.overlayQueue)
 local search = require(script.Parent.Parent.search)
@@ -8532,7 +8527,8 @@ end,
 __newindex = function(_, key, value)
 local control = self.controls[key]
 if not control then
-log.warn("Astra: no flag '" .. tostring(key) .. "' to set")
+
+
 return
 end
 control:Set(value)
@@ -14512,7 +14508,6 @@ state.__index = state
 state.__type = "Group"
 
 local constants = require(script.Parent.Parent.utilities.moveable)
-local Group = require(script.Parent.Parent.utilities.log)
 local tab = require(script.Parent.Parent.utilities.ordering)
 
 local props = 8
@@ -14583,9 +14578,9 @@ if a13 == "switch" then
 a13 = "toggle"
 end
 if self.compact and not direction[a13] then
-Group.warn(
-`Astra: a row only holds compact elements (button/toggle/stat/slider/stepper), ignoring '{a13}'. Use a column for it.`
-)
+
+
+
 return nil
 end
 
@@ -15348,7 +15343,6 @@ local image = require(script.Parent.Parent.images.image)
 local haptic = require(utilities.HapticEngine)
 local locale = require(utilities.locale)
 local lockable = require(utilities.lockable)
-local log = require(utilities.log)
 local moveable = require(utilities.moveable)
 
 
@@ -15425,22 +15419,6 @@ local checkCandidates = {
 "check-circle",
 "badge-check",
 }
-
-
-
-
-
-
-
-local warned = {}
-
-local function warnOnce(key: string, message: string)
-if warned[key] then
-return
-end
-warned[key] = true
-log.warn(message)
-end
 
 local function environment(): any
 
@@ -16238,11 +16216,6 @@ end
 
 
 function state:_reportUnavailable()
-warnOnce(
-"clipboard",
-"Astra: no clipboard API was found in this environment, so a Link card cannot copy its URL (looked for setclipboard, toclipboard, setrbxclipboard, Clipboard and StudioService)."
-)
-
 self.window:Notify({
 title = locale.resolve("Copy failed"),
 content = locale.resolve("This environment has no clipboard API."),
@@ -16256,13 +16229,7 @@ end
 
 
 
-
 function state:_reportNothingToCopy()
-warnOnce(
-"empty",
-"Astra: a Link card has no link to copy (its `link` prop is empty), so its copy control has nothing to put on the clipboard."
-)
-
 self.window:Notify({
 title = locale.resolve("Nothing to copy"),
 content = locale.resolve("This link card has no URL."),
@@ -17101,7 +17068,6 @@ local name = require(constants.moveable)
 local value = require(constants.constants)
 local description = require(script.Parent.description)
 local prefix = require(constants.locale)
-local suffix = require(constants.log)
 
 local element = value.statAccents
 
@@ -19125,7 +19091,6 @@ state.__index = state
 state.__type = "TabSection"
 
 local constants = require(script.Parent.Parent.utilities.locale)
-local TabSection = require(script.Parent.Parent.utilities.log)
 
 local tab = 20
 
@@ -19152,10 +19117,7 @@ icon = window:ResolveIcon(element.icon or element.Icon),
 }, state)
 
 if window.layout.mode ~= "sidebar" then
-if not window._warnedTabSection then
-window._warnedTabSection = true
-TabSection.warn("Astra: Window:CreateSection needs the sidebar layout; it does nothing on the top strip.")
-end
+
 self.inert = true
 return self
 end
@@ -20310,9 +20272,33 @@ local pngMagic = "\137PNG\r\n\26\n"
 local remoteRewrites: { [string]: string } = {}
 local remotePending: { [string]: { RemoteCallback } } = {}
 
+
+
+
+
+
+
+local function environment(): any?
+local getfenvFn: any = nil
+pcall(function()
+getfenvFn = getfenv
+end)
+if type(getfenvFn) == "function" then
+local ok, env = pcall(getfenvFn)
+if ok and type(env) == "table" then
+return env
+end
+end
+local g: any = nil
+pcall(function()
+g = _G
+end)
+return if type(g) == "table" then g else nil
+end
+
 local function importCustomAsset(filePath: string): string?
-local env = getfenv()
-if type(env.getcustomasset) ~= "function" then
+local env = environment()
+if env == nil or type(env.getcustomasset) ~= "function" then
 return nil
 end
 local ok, uri = pcall(env.getcustomasset, filePath)
@@ -20324,7 +20310,8 @@ return nil
 end
 
 local function cacheFile(filePath: string, url: string): string?
-if type(getfenv().getcustomasset) ~= "function" or typeof(filesystem.isfile) ~= "function" then
+local env = environment()
+if env == nil or type(env.getcustomasset) ~= "function" or typeof(filesystem.isfile) ~= "function" then
 return nil
 end
 if not filesystem.isfile(filePath) then
@@ -20350,8 +20337,8 @@ return path.join(cacheFolder, "icon_" .. tostring(hash) .. ".png")
 end
 
 function imageCache.remote(url: string, onReady: RemoteCallback?): string
-local env = getfenv()
-if type(env.getcustomasset) ~= "function" or typeof(filesystem.isfile) ~= "function" then
+local env = environment()
+if env == nil or type(env.getcustomasset) ~= "function" or typeof(filesystem.isfile) ~= "function" then
 if onReady then
 task.defer(onReady, nil)
 end
@@ -20462,8 +20449,8 @@ local pendingAvatars: { [number]: { AvatarCallback } } = {}
 local failedAvatars: { [number]: boolean } = {}
 
 function imageCache.preload(onSettled: PreloadCallback?): (boolean, number)
-local env = getfenv()
-if type(env.getcustomasset) ~= "function" or typeof(filesystem.isfile) ~= "function" then
+local env = environment()
+if env == nil or type(env.getcustomasset) ~= "function" or typeof(filesystem.isfile) ~= "function" then
 if onSettled then
 task.defer(onSettled, manifestSize, windowIcons.roleList())
 end
@@ -21478,22 +21465,8 @@ end
 
 
 
-local warnedPacks: { [string]: boolean } = {}
 
-local function report(message: string)
-local env = environment()
-if type(env.warn) == "function" then
-pcall(env.warn, message)
-end
-end
 
-local function warnUnknownPack(pack: string, request: string)
-if warnedPacks[pack] then
-return
-end
-warnedPacks[pack] = true
-report(`[Icons] Unknown icon pack "{pack}" in "{request}": pack names are case-sensitive ({table.concat(PACK_ORDER, ", ")})`)
-end
 
 
 
@@ -21700,7 +21673,6 @@ end
 local qualifiedPack, qualifiedName = splitRequest(name)
 if qualifiedPack ~= nil then
 if not packLoaders[qualifiedPack] then
-warnUnknownPack(qualifiedPack, name)
 return nil
 end
 if qualifiedName == "" then
@@ -21710,7 +21682,6 @@ return findInPack(qualifiedPack, qualifiedName)
 end
 if pack ~= nil then
 if type(pack) ~= "string" or not packLoaders[pack] then
-warnUnknownPack(tostring(pack), name)
 return nil
 end
 return findInPack(pack, name)
@@ -21737,7 +21708,6 @@ end
 local qualifiedPack, qualifiedName = splitRequest(value)
 if qualifiedPack ~= nil then
 if not packLoaders[qualifiedPack] then
-warnUnknownPack(qualifiedPack, value)
 return nil
 end
 if qualifiedName == "" then
@@ -21755,7 +21725,6 @@ if pack ~= nil then
 
 
 if type(pack) ~= "string" or not packLoaders[pack] then
-warnUnknownPack(tostring(pack), value)
 return nil
 end
 return prefixed(findInPack(pack, value))
@@ -23468,7 +23437,6 @@ end)() end,
 
 local themesFolder = script
 local variables = require(script.Parent.core.state)
-local log = require(script.Parent.utilities.log)
 
 local themes = {}
 
@@ -23524,13 +23492,11 @@ local function themeOverrides(value)
 if typeof(value) == "table" then
 return value
 elseif typeof(value) == "string" then
+
 local named = themesFolder:FindFirstChild(string.lower(value))
 if named then
 return require(named)
 end
-log.warn("Astra: unknown theme '" .. value .. "', using default")
-elseif value ~= nil then
-log.warn("Astra: invalid theme (expected a built-in name or a theme table), using default")
 end
 return require(themesFolder["default"])
 end
@@ -23802,7 +23768,6 @@ return hapticService
 end)() end,
     [91] = function()local wax,script,require=ImportGlobals(91)local ImportGlobals return (function(...)
 local networkUtil = require(script.Parent.network)
-local logger = require(script.Parent.log)
 
 export type AssetId = number | string
 export type AssetDownloadUrl = string
@@ -23952,8 +23917,6 @@ end
 end
 cache[cacheKey] = responseBody
 end
-elseif not forced then
-logger.warn("Failed to download asset content for url: " .. tostring(url))
 end
 end
 
@@ -23972,7 +23935,6 @@ end
 function assetResolver.getAssetContentFromId(self: AssetResolver, id: AssetId, forcedRefresh: boolean?): string?
 local resolvedId = self:resolve(id)
 if not resolvedId or type(resolvedId) ~= "number" then
-logger.warn("Invalid asset id: " .. tostring(resolvedId))
 return nil
 end
 
@@ -24422,7 +24384,6 @@ local a2 = fontManager.getService("HttpService")
 local a3 = fontManager.getService("RunService")
 local a4 = require(script.Parent.filesystem)
 local a5 = require(script.Parent.assetResolver)
-local a6 = require(script.Parent.log)
 local a7 = require(script.Parent.path)
 
 local function a8(a9: unknown): string?
@@ -24432,7 +24393,6 @@ end)
 if a10 and type(a11) == "string" then
 return a11
 else
-a6.warn("Failed to encode JSON:", a11)
 return nil
 end
 end
@@ -24444,7 +24404,6 @@ end)
 if a14 then
 return a15
 else
-a6.warn("Failed to decode JSON:", a15)
 return nil
 end
 end
@@ -24626,7 +24585,6 @@ end
 local a50: string? = nil
 local a51 = false
 if a3:IsStudio() and self._debug then
-a6.warn("Font manifest loading is not supported in Studio. Using default font manifest for testing.")
 a50 =
 '{"name":"Inter","faces":[{"name":"Thin","weight":100,"style":"normal","assetId":"rbxassetid://12187277209"},{"name":"Extra Light","weight":200,"style":"normal","assetId":"rbxassetid://12187293441"},{"name":"Light","weight":300,"style":"normal","assetId":"rbxassetid://12187268450"},{"name":"Regular","weight":400,"style":"normal","assetId":"rbxassetid://12187266066"},{"name":"Medium","weight":500,"style":"normal","assetId":"rbxassetid://12187336822"},{"name":"Semi Bold","weight":600,"style":"normal","assetId":"rbxassetid://12187254443"},{"name":"Bold","weight":700,"style":"normal","assetId":"rbxassetid://12187275575"},{"name":"Extra Bold","weight":800,"style":"normal","assetId":"rbxassetid://12187267750"},{"name":"Black","weight":900,"style":"normal","assetId":"rbxassetid://12187359223"}]}'
 elseif a4.isfile(a49) then
@@ -24641,23 +24599,11 @@ if a50 then
 local ok, a54 = pcall(a12, a50)
 if ok and a54 then
 a53 = a17(a54)
-else
-if self._debug then
-a6.warn(
-"Failed to parse font manifest for font id: "
-.. tostring(a45)
-.. ". Error: "
-.. tostring(a54)
-)
-end
 end
 else
 return self.defaultOptions.fallbackFont
 end
 if not a53 then
-if self._debug then
-a6.warn("Font manifest is nil for font id: " .. tostring(a45))
-end
 pcall(a4.delfile, a49)
 return self.defaultOptions.fallbackFont
 end
@@ -24685,14 +24631,6 @@ then self.assetResolver:getAssetContentFromId(a61, false)
 else nil
 if not a62 or not a22(a62) then
 a56 = false
-if self._debug then
-a6.warn(
-"Font face content is missing or not a font for font id: "
-.. tostring(a45)
-.. ", face: "
-.. a57.name
-)
-end
 continue
 end
 pcall(a4.writefile, a58, a62)
@@ -24701,14 +24639,8 @@ local ok, a63 = pcall(a25.getcustomasset, a58)
 a4.discardExecutorImageCache()
 if ok and type(a63) == "string" then
 a53.faces[i].assetId = a63
-if self._debug then
-a6.print("Loaded font face for id: " .. tostring(a45) .. ", face: " .. a57.name)
-end
 else
 a56 = false
-if self._debug then
-a6.warn("Failed to load font face for id: " .. tostring(a45) .. ", face: " .. a57.name)
-end
 end
 end
 if not a56 then
@@ -24722,16 +24654,10 @@ end
 local a65, a66 = pcall(a25.getcustomasset, a55 .. "/manifest.json")
 a4.discardExecutorImageCache()
 if not a65 or not a66 then
-if self._debug then
-a6.warn("Failed to load font manifest for id: " .. tostring(a45))
-end
 return self.defaultOptions.fallbackFont
 end
 local ok, a67 = pcall(Font.new, a66 :: any, a46, a47)
 if not ok or not a67 then
-if self._debug then
-a6.warn("Failed to load font for id: " .. tostring(a45))
-end
 return self.defaultOptions.fallbackFont
 end
 
@@ -24745,9 +24671,6 @@ variants = {
 [a48] = a67,
 },
 }
-if self._debug then
-a6.print("Cached font for id: " .. tostring(a45))
-end
 end
 return a67
 end
@@ -24772,7 +24695,6 @@ local a75 = a26(a73, a74)
 local a76 = self.assetResolver:resolve(id)
 local a77 = a29(a76)
 if not a77 then
-a6.warn("Invalid font id: " .. tostring(id))
 return self.defaultOptions.fallbackFont
 end
 local a78 = self.fontCache
@@ -24781,9 +24703,6 @@ local a79 = a78[a77]
 if a79 then
 local a80 = a79.variants and a79.variants[a75]
 if a80 then
-if self._debug then
-a6.print("Loaded font from cache for id: " .. tostring(a77))
-end
 return a80
 end
 
@@ -24791,14 +24710,8 @@ local ok, a81 = pcall(Font.new, a79.customId :: any, a73, a74)
 if ok and a81 then
 a79.variants = a79.variants or {}
 a79.variants[a75] = a81
-if self._debug then
-a6.print("Loaded font variant from cache for id: " .. tostring(a77))
-end
 return a81
 else
-if self._debug then
-a6.warn("Failed to load font from cache for id: " .. tostring(a77))
-end
 a78[a77] = nil
 return self.defaultOptions.fallbackFont
 end
@@ -24806,10 +24719,6 @@ end
 end
 
 if not a71 then
-if self._debug then
-a6.warn("Font loading without saving to disk can be detected by Anti-cheats.")
-end
-
 return self.defaultOptions.fallbackFont
 end
 
@@ -24852,9 +24761,6 @@ local a90 = self.fontCache
 if a90 then
 local a91 = a90[a89]
 if a91 then
-if self._debug then
-a6.print("Resolved font for id: " .. tostring(a89))
-end
 for _, a92 in pairs(a91.variants or {}) do
 return a92
 end
@@ -25164,8 +25070,6 @@ end)() end,
 
 
 
-
-
 export type GuardPolicy = "audit" | "warn" | "strict" | "off"
 export type GuardSignal = {
 id: string,
@@ -25184,15 +25088,6 @@ signals: { GuardSignal },
 local HttpGuard = {}
 
 local DEFAULT_POLICY: GuardPolicy = "strict"
-
-
-
-
-
-
-
-
-local DIAGNOSTICS = false
 
 
 
@@ -25664,25 +25559,6 @@ end
 
 
 
-local function emitDiagnostics(signals: { GuardSignal })
-if not DIAGNOSTICS then
-return
-end
-local warnFn = globalValue("warn")
-if type(warnFn) ~= "function" then
-return
-end
-for _, signal in signals do
-pcall(warnFn, ("Astra HttpGuard [%s/%s]: %s"):format(signal.layer, signal.id, signal.detail))
-end
-end
-
-
-
-
-
-
-
 
 function HttpGuard.check(policy: GuardPolicy?): (boolean, GuardReport)
 local effective: string = policy or DEFAULT_POLICY
@@ -25704,30 +25580,14 @@ if effective == "audit" then
 return false, report
 end
 if effective == "warn" then
-emitDiagnostics(report.signals)
 return false, report
 end
-emitDiagnostics(report.signals)
 local parts: { string } = {}
 for _, signal in report.signals do
 parts[#parts + 1] = signal.layer .. "/" .. signal.id
 end
 error(("Astra: refusing to continue — HTTP interception detected (%s)"):format(table.concat(parts, ", ")), 0)
 return false, report
-end
-
-
-
-
-
-
-function HttpGuard.setDiagnostics(enabled: boolean): boolean
-DIAGNOSTICS = enabled == true
-return DIAGNOSTICS
-end
-
-function HttpGuard.getDiagnostics(): boolean
-return DIAGNOSTICS
 end
 
 
@@ -25909,7 +25769,6 @@ return layouts
 end)() end,
     [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
-local logger = require(script.Parent.log)
 
 local locale = {}
 
@@ -25980,10 +25839,10 @@ target = {}
 locale.strings[id] = target
 end
 for sourceKey, sourceText in entryTable do
+
+
 if type(sourceKey) == "string" and type(sourceText) == "string" then
 target[sourceKey] = sourceText
-else
-logger.warn(`Astra: skipping a '{id}' translation, entries must be string to string.`)
 end
 end
 end
@@ -26236,62 +26095,6 @@ return lockable
 
 end)() end,
     [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
-local log = {}
-
-type SuppressPredicate = () -> boolean
-
-local function defaultSecureModePredicate(): boolean
-if typeof(getgenv) ~= "function" then
-return false
-end
-local ok, secureModeSource = pcall(function()
-return getgenv().ASTRA_SECURE
-end)
-return ok and secureModeSource == true
-end
-
-local secureModePredicate: SuppressPredicate = defaultSecureModePredicate
-local suppressPredicate: SuppressPredicate? = nil
-
-function log.setSecureModeSource(source: SuppressPredicate?)
-secureModePredicate = if type(source) == "function" then source else defaultSecureModePredicate
-end
-
-function log.setSuppressPredicate(predicate: SuppressPredicate?)
-suppressPredicate = if type(predicate) == "function" then predicate else nil
-end
-
-local function shouldSuppress(): boolean
-if suppressPredicate and suppressPredicate() then
-return true
-end
-return secureModePredicate()
-end
-
-function log.warn(...)
-if shouldSuppress() then
-return
-end
-
-
-
-
-if typeof(warn) == "function" then
-warn(...)
-end
-end
-
-function log.print(...)
-if shouldSuppress() then
-return
-end
-print(...)
-end
-
-return log
-
-end)() end,
-    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
 
 
 
@@ -26764,7 +26567,7 @@ end
 
 return motion
 end)() end,
-    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
+    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
 local function moveable<T>(dragState: T): T
 local target = dragState :: any
 
@@ -26800,7 +26603,7 @@ end
 return moveable
 
 end)() end,
-    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
+    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
 local HttpGuard = require(script.Parent.httpGuard)
 
 local network = {}
@@ -26808,8 +26611,37 @@ network.__index = network
 
 export type RequestFn = (...any) -> any
 
+
+
+
+
+
+
+
+
+local function environment(): any?
+local getfenvFn: any = nil
+pcall(function()
+getfenvFn = getfenv
+end)
+if type(getfenvFn) == "function" then
+local ok, env = pcall(getfenvFn)
+if ok and type(env) == "table" then
+return env
+end
+end
+local g: any = nil
+pcall(function()
+g = _G
+end)
+return if type(g) == "table" then g else nil
+end
+
 function network.getRequestFn(env: any?): RequestFn?
-env = env or getfenv()
+env = env or environment()
+if type(env) ~= "table" then
+return nil
+end
 return env.request
 or env.http_request
 or (env.http and env.http.request)
@@ -26840,7 +26672,7 @@ end
 return network
 
 end)() end,
-    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
+    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local motion = require(script.Parent.motion)
 local textService = coreState.textService
@@ -27200,7 +27032,7 @@ end
 return odometer
 
 end)() end,
-    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
+    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
 type OrderedElement = {
 main: GuiObject,
 }
@@ -27212,7 +27044,7 @@ end
 return ordering
 
 end)() end,
-    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
+    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
 local path = {}
 
 function path.join(base: string, suffix: string?): string
@@ -27263,7 +27095,7 @@ end
 return path
 
 end)() end,
-    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
+    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
 local persistence = {}
 
 local configPersistence = require(script.Parent.persistenceConfig)
@@ -27282,10 +27114,9 @@ persistence.loadSettings = settingsPersistence.loadSettings
 return persistence
 
 end)() end,
-    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
+    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
-local logger = require(script.Parent.log)
 local pathUtil = require(script.Parent.path)
 local paths = require(script.Parent.persistencePaths)
 local writer = require(script.Parent.persistenceWrite)
@@ -27328,7 +27159,6 @@ end
 function persistenceConfig.save(window: ConfigWindow, saveName: unknown?): boolean
 local saveFolder, savePath = persistenceConfig.getPath(window, saveName)
 if not saveFolder or not savePath then
-logger.warn("Astra: configuration name '" .. tostring(saveName) .. "' has no usable characters")
 return false
 end
 
@@ -27347,8 +27177,6 @@ return control.value
 end)
 if ok then
 payload[controlFlag] = serialized
-else
-logger.warn("Astra: Failed to serialize flag '" .. tostring(controlFlag) .. "' - " .. tostring(serialized))
 end
 end
 
@@ -27380,7 +27208,6 @@ end
 
 local encodeOk, encoded = pcall(coreState.httpService.JSONEncode, coreState.httpService, payload)
 if not encodeOk then
-logger.warn("Astra: Failed to encode configuration - " .. tostring(encoded))
 return false
 end
 
@@ -27389,7 +27216,6 @@ writer.write(saveFolder, savePath, encoded)
 end)
 
 if not ok then
-logger.warn("Astra: Failed to save configuration - " .. tostring(writeErr))
 return false
 end
 
@@ -27408,7 +27234,6 @@ end
 
 local readOk, raw = pcall(fs.readfile, sourcePath)
 if not readOk or type(raw) ~= "string" then
-logger.warn("Astra: Failed to read configuration file")
 return nil, nil
 end
 
@@ -27435,7 +27260,6 @@ end
 function persistenceConfig.load(window: ConfigWindow, loadName: unknown?): boolean
 local loadFolder, loadPath = persistenceConfig.getPath(window, loadName)
 if not loadFolder or not loadPath then
-logger.warn("Astra: configuration name '" .. tostring(loadName) .. "' has no usable characters")
 return false
 end
 
@@ -27455,7 +27279,6 @@ end
 
 if not restored then
 if rawFallback then
-logger.warn("Astra: Configuration file has an invalid format, backing up and resetting")
 local backupPath = backupPathFor(loadPath)
 pcall(function()
 fs.ensureDir(loadFolder)
@@ -27469,7 +27292,7 @@ end
 local values = restored :: { [string]: unknown }
 local wasLoading = window._loading
 window._loading = true
-local applyOk, applyErr = pcall(function()
+pcall(function()
 local appliedCount = 0
 for loadedFlag, loadedControl in window.controls do
 
@@ -27491,9 +27314,6 @@ end
 end
 end)
 window._loading = wasLoading
-if not applyOk then
-logger.warn("Astra: Failed to apply configuration - " .. tostring(applyErr))
-end
 
 window._loadedConfig = values
 window._loadedConfigPath = loadPath
@@ -27520,7 +27340,7 @@ function persistenceConfig.applyTo(target: PersistedControl, controlValue: unkno
 if controlValue == nil and not target._canBeNil then
 return
 end
-local ok, setErr = pcall(function()
+local ok = pcall(function()
 local deserializer = target._deserialize
 if deserializer then
 deserializer(target, controlValue)
@@ -27528,9 +27348,6 @@ else
 target:Set(controlValue)
 end
 end)
-if not ok then
-logger.warn("Astra: Failed to restore flag '" .. tostring(target.flag) .. "' - " .. tostring(setErr))
-end
 end
 
 function persistenceConfig.list(window: ConfigWindow): { string }
@@ -27580,7 +27397,7 @@ end
 return persistenceConfig
 
 end)() end,
-    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
+    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local pathUtil = require(script.Parent.path)
 
@@ -27624,7 +27441,7 @@ end
 return persistencePaths
 
 end)() end,
-    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
+    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local paths = require(script.Parent.persistencePaths)
@@ -27825,7 +27642,7 @@ end
 return persistenceSettings
 
 end)() end,
-    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
+    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 
 local persistenceWrite = {}
@@ -27853,7 +27670,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
+    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
 local services = {}
 
 function services.getService(serviceName)
@@ -27864,7 +27681,7 @@ end
 return services
 
 end)() end,
-    [117] = function()local wax,script,require=ImportGlobals(117)local ImportGlobals return (function(...)
+    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
 local layoutMetrics = require(script.Parent.layouts)
 local coreState = require(script.Parent.Parent.core.state)
 
@@ -28049,117 +27866,116 @@ end)() end,
 
 local LineOffsets = {
     [2] = 52,
-    [3] = 503,
-    [5] = 1146,
-    [6] = 1129,
-    [7] = 1301,
-    [8] = 1443,
-    [9] = 1694,
-    [10] = 2076,
-    [11] = 3460,
-    [12] = 3869,
+    [3] = 502,
+    [5] = 1142,
+    [6] = 1125,
+    [7] = 1292,
+    [8] = 1438,
+    [9] = 1689,
+    [10] = 2071,
+    [11] = 3453,
+    [12] = 3862,
     [13] = 4218,
-    [14] = 4957,
-    [15] = 5349,
-    [16] = 5893,
-    [17] = 5956,
-    [18] = 6541,
-    [19] = 6887,
-    [20] = 6901,
-    [21] = 7001,
-    [22] = 7141,
-    [23] = 7702,
-    [24] = 7945,
-    [25] = 8267,
-    [26] = 8367,
-    [27] = 8421,
-    [28] = 9063,
-    [29] = 9311,
-    [30] = 9661,
-    [31] = 10108,
-    [32] = 6861,
-    [34] = 11072,
-    [35] = 11161,
-    [36] = 11390,
-    [37] = 11833,
-    [38] = 12296,
-    [39] = 12453,
-    [40] = 12598,
-    [41] = 14262,
-    [42] = 14510,
-    [43] = 14747,
-    [44] = 15068,
-    [45] = 15321,
-    [46] = 16401,
-    [47] = 16487,
-    [48] = 17090,
-    [49] = 17958,
-    [50] = 18552,
-    [51] = 19123,
-    [52] = 19253,
-    [53] = 19392,
-    [55] = 19907,
-    [56] = 19933,
-    [57] = 19952,
-    [58] = 19984,
-    [59] = 20110,
-    [60] = 20124,
-    [61] = 20173,
-    [62] = 19882,
-    [63] = 20264,
-    [64] = 20580,
-    [65] = 20611,
-    [66] = 20253,
-    [67] = 20654,
-    [68] = 20674,
-    [69] = 20706,
-    [70] = 20636,
-    [71] = 20813,
-    [72] = 20881,
-    [74] = 20971,
-    [75] = 20948,
-    [76] = 21191,
-    [77] = 21287,
-    [78] = 21138,
-    [79] = 21857,
-    [80] = 21903,
-    [81] = 21985,
-    [82] = 22180,
-    [83] = 22311,
-    [84] = 22414,
-    [85] = 22583,
-    [86] = 22923,
-    [87] = 21312,
-    [88] = 23567,
-    [89] = 23453,
-    [90] = 23706,
-    [91] = 23804,
-    [92] = 23987,
-    [93] = 24049,
-    [94] = 24079,
-    [95] = 24371,
-    [96] = 24420,
-    [97] = 24875,
-    [98] = 24893,
-    [99] = 25100,
-    [100] = 25763,
-    [101] = 25783,
-    [102] = 25911,
-    [103] = 26010,
-    [104] = 26239,
-    [105] = 26295,
-    [106] = 26768,
-    [107] = 26804,
-    [108] = 26844,
-    [109] = 27204,
-    [110] = 27216,
-    [111] = 27267,
-    [112] = 27286,
-    [113] = 27584,
-    [114] = 27628,
-    [115] = 27829,
-    [116] = 27857,
-    [117] = 27868,
+    [14] = 4960,
+    [15] = 5352,
+    [16] = 5896,
+    [17] = 5959,
+    [18] = 6544,
+    [19] = 6890,
+    [20] = 6904,
+    [21] = 7004,
+    [22] = 7144,
+    [23] = 7698,
+    [24] = 7941,
+    [25] = 8263,
+    [26] = 8363,
+    [27] = 8417,
+    [28] = 9059,
+    [29] = 9307,
+    [30] = 9657,
+    [31] = 10104,
+    [32] = 6864,
+    [34] = 11068,
+    [35] = 11157,
+    [36] = 11386,
+    [37] = 11829,
+    [38] = 12292,
+    [39] = 12449,
+    [40] = 12594,
+    [41] = 14258,
+    [42] = 14506,
+    [43] = 14742,
+    [44] = 15063,
+    [45] = 15316,
+    [46] = 16368,
+    [47] = 16454,
+    [48] = 17057,
+    [49] = 17924,
+    [50] = 18518,
+    [51] = 19089,
+    [52] = 19215,
+    [53] = 19354,
+    [55] = 19869,
+    [56] = 19895,
+    [57] = 19914,
+    [58] = 19946,
+    [59] = 20072,
+    [60] = 20086,
+    [61] = 20135,
+    [62] = 19844,
+    [63] = 20226,
+    [64] = 20567,
+    [65] = 20598,
+    [66] = 20215,
+    [67] = 20641,
+    [68] = 20661,
+    [69] = 20693,
+    [70] = 20623,
+    [71] = 20800,
+    [72] = 20868,
+    [74] = 20958,
+    [75] = 20935,
+    [76] = 21178,
+    [77] = 21274,
+    [78] = 21125,
+    [79] = 21826,
+    [80] = 21872,
+    [81] = 21954,
+    [82] = 22149,
+    [83] = 22280,
+    [84] = 22383,
+    [85] = 22552,
+    [86] = 22892,
+    [87] = 21299,
+    [88] = 23533,
+    [89] = 23422,
+    [90] = 23672,
+    [91] = 23770,
+    [92] = 23949,
+    [93] = 24011,
+    [94] = 24041,
+    [95] = 24333,
+    [96] = 24382,
+    [97] = 24781,
+    [98] = 24799,
+    [99] = 25006,
+    [100] = 25623,
+    [101] = 25643,
+    [102] = 25771,
+    [103] = 25869,
+    [104] = 26098,
+    [105] = 26571,
+    [106] = 26607,
+    [107] = 26676,
+    [108] = 27036,
+    [109] = 27048,
+    [110] = 27099,
+    [111] = 27118,
+    [112] = 27401,
+    [113] = 27445,
+    [114] = 27646,
+    [115] = 27674,
+    [116] = 27685,
 }
 
 -- Misc AOT variable imports
@@ -28816,7 +28632,7 @@ local ObjectTree = {
                 },
             },
             {
-                118,
+                117,
                 1,
                 {
                     "utilities",
@@ -28924,95 +28740,88 @@ local ObjectTree = {
                         104,
                         2,
                         {
-                            "log",
+                            "motion",
                         },
                     },
                     {
                         105,
                         2,
                         {
-                            "motion",
+                            "moveable",
                         },
                     },
                     {
                         106,
                         2,
                         {
-                            "moveable",
+                            "network",
                         },
                     },
                     {
                         107,
                         2,
                         {
-                            "network",
+                            "odometer",
                         },
                     },
                     {
                         108,
                         2,
                         {
-                            "odometer",
+                            "ordering",
                         },
                     },
                     {
                         109,
                         2,
                         {
-                            "ordering",
+                            "path",
                         },
                     },
                     {
                         110,
                         2,
                         {
-                            "path",
+                            "persistence",
                         },
                     },
                     {
                         111,
                         2,
                         {
-                            "persistence",
+                            "persistenceConfig",
                         },
                     },
                     {
                         112,
                         2,
                         {
-                            "persistenceConfig",
+                            "persistencePaths",
                         },
                     },
                     {
                         113,
                         2,
                         {
-                            "persistencePaths",
+                            "persistenceSettings",
                         },
                     },
                     {
                         114,
                         2,
                         {
-                            "persistenceSettings",
+                            "persistenceWrite",
                         },
                     },
                     {
                         115,
                         2,
                         {
-                            "persistenceWrite",
-                        },
-                    },
-                    {
-                        116,
-                        2,
-                        {
                             "services",
                         },
                     },
                     {
-                        117,
+                        116,
                         2,
                         {
                             "windowSizing",

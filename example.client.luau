@@ -123,9 +123,7 @@ keyGate = Astra:CreateKeySystem({
     maxAttempts = 5,
     onSuccess = buildStudio,
     onClose = function()
-        print("[Astra] Key gate dismissed.")
     end,
     onMaxAttempts = function()
-        print("[Astra] Key gate locked after five wrong keys.")
     end,
 })

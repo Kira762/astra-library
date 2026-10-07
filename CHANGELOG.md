@@ -1,48 +1,57 @@
 # Changelog
 
-## 2026-10-07 — HttpGuard goes quiet: the console is not a report channel
+## 2026-10-07 — the library prints nothing: a real error is the only output
 
-The guard shipped loud. `warn` printed one `Astra HttpGuard [<layer>/<id>]: …`
-line per signal, and `assetResolver` added `No request function available to
-download asset content.` whenever the guard had just withheld the request
-function. Read by the person the guard exists to frustrate, that output is a
-to-do list: it names the fingerprint that tripped (`cfunc-lua-source`,
-`namecall-swapped`, …) and confirms the interception was spotted at all. A
-guard whose denial announces itself is a spare part — the point is that a
-hooked environment and a plain one look the same from the outside.
+Scripts under an HTTP spy were seeing the guard narrate itself — one
+`Astra HttpGuard [<layer>/<id>]: …` line per signal, plus
+`No request function available to download asset content.` when the guard had
+just withheld the request function — and the rest of the library was no
+quieter: a warn/print wrapper every module routed through, font debug prints,
+unknown-pack notes, key-fetch notices, persistence failures. Read by whoever
+is driving the hook, a line naming a signal is a to-do list: it says which
+fingerprint to scrub next and confirms the interception was spotted at all.
+The answer is not a quieter log level; it is no log level. Astra now writes
+nothing to the console, anywhere — the one thing it still produces is a real
+error, raised.
 
-- **`utilities/httpGuard.luau`** — the module no longer writes to the console
-  in a shipped build. `warn` denies exactly like `audit`; the `warn()` lines
-  now sit behind `setDiagnostics(true)` (off by default, read back by
-  `getDiagnostics()`), a developer switch for local triage. Findings keep
-  travelling in the report `scan()` / `check()` return, and `guardFetch`
-  keeps reporting through `(false, nil)`. `strict` is unchanged — it still
-  raises, because a raise is what a host asked for when it picked that
-  policy.
-- **`utilities/assetResolver.luau`, `utilities/network.luau`** — a missing
-  request function is no longer logged; the icon or image simply does not
-  load. Under a hook, the guard is what removed it, and the line told the
-  hook which URLs never reached the wire.
-- **`components/keySystem.luau`** — a guard denial drops the key in silence.
-  The old path announced `Astra: key system could not fetch a key from <url>`
-  — the guard withheld the request and the warning then printed the URL it
-  had withheld. Genuine fetch failures still warn; the denial is visible only
-  to a host that reads `Astra.HttpGuard` itself.
-- **`Types.luau`, `library_entrypoint.luau`, `USAGE.md`, `MODULES.md`,
-  `skills/astra/references/window.md`** — the silence rule is documented
-  where the guard is, and `setDiagnostics` / `getDiagnostics` are typed.
-- **`scripts/http_guard_test.luau`** — the suite asserts the silence: a
-  tripped scan writes nothing to `warn` or `print` under every policy, and
-  `setDiagnostics(true)` brings the lines back.
+- **`utilities/log.luau`** (deleted) and its fifteen requirers. The
+  warn/print wrapper is gone along with every call site: the asset
+  resolver's download notices, the font manager's debug prints and failure
+  notes, the persistence layer's save/load/apply failures, the locale's
+  skipped-entry note, the theme fallback notices, the icon resolver's
+  unknown-pack warning, the key system's fetch/passthrough/link notes, the
+  compact-row and top-strip usage warnings, the lock-surface layout warning,
+  the unknown-flag note and the link card's warn-once pairs. A recoverable
+  condition is now handled, silently. Secure mode still drops the brand font
+  and blocks icon preload; there is no logging left for it to suppress.
+- **`utilities/httpGuard.luau`** — no policy prints. `warn` denies exactly
+  like `audit`, findings travel only in the report `scan()` / `check()`
+  return, and `guardFetch` reports through `(false, nil)`. `strict` is the
+  one line that stays: a host that selects it asked for a visible failure,
+  and a raised error is exactly what this library is still allowed to emit.
+- **Callback errors surface as errors.** A control callback
+  (`components/action.luau`), an element callback (`Window:_runGuarded`), a
+  popup button, a key-system callback and an overlay build that throws now
+  raise on the callback's own thread — after its UI reset, so the red flash,
+  the restored title, the button's resting state and the queue's next-card
+  cadence are unchanged. Each used to print a two-line warn/print pair.
+- **`utilities/network.luau`, `cache/imageCache.luau`** — environment
+  lookups are pcall'd with a `_G` fallback. A sandbox that ships a throwing
+  `getfenv` used to take the asset download and notification paths down; the
+  link suite's broken-`getfenv` case had been passing only because the
+  overlay queue swallowed the failure into a warning. Both now answer "no
+  request function" and keep going.
+- **`elements/stat.luau`** — a dead `require(constants.log)` removed before
+  it could break every build that renders a Stat.
+- **Docs** — `USAGE.md`, `MODULES.md`, `ANALYSIS.md`, the `astra` and
+  `astra-guard` skill references, and the code comments no longer promise
+  warnings; `log.luau` is out of the module list.
+- **`scripts/http_guard_test.luau`, `scripts/icons_test.luau`** — the suites
+  assert the silence: a tripped scan, a denied fetch and an unknown icon pack
+  write nothing to the global `warn` or `print`.
 - **`version-1.luau`, `version-1.luau.sig`, `loader.luau`, `README.md`** —
   the bundle is regenerated and re-signed (`node scripts/sign_bundle.js`, dev
   key, pinned `PUBLIC_KEY` synced) and the README checksum updated.
-
-One line stays loud on purpose: `check("strict")` still raises with the
-signal list. A host that selects `strict` is asking for a visible failure —
-use `audit`/`warn` (or read the second return value) for a refusal that
-leaves no trace.
-
 ## 2026-10-07 — Changelog entries read as a recess, not as a second frame
 
 The Changelog drew `StyleElementBody` on its own card and `StyleElementPanel` on

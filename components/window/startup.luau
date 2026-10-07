@@ -6,7 +6,6 @@ local haptic = require(utilities.HapticEngine)
 local icons = require(script.Parent.Parent.Parent.icons)
 local layouts = require(utilities.layouts)
 local locale = require(utilities.locale)
-local log = require(utilities.log)
 local motion = require(utilities.motion)
 local overlayQueue = require(script.Parent.Parent.overlayQueue)
 local search = require(script.Parent.Parent.search)
@@ -112,7 +111,8 @@ function Window.new(props)
         __newindex = function(_, key, value)
             local control = self.controls[key]
             if not control then
-                log.warn("Astra: no flag '" .. tostring(key) .. "' to set")
+                -- Unknown flag: writing it is a no-op. Nothing is printed;
+                -- the library's only output is a real error.
                 return
             end
             control:Set(value)

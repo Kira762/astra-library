@@ -5,8 +5,37 @@ network.__index = network
 
 export type RequestFn = (...any) -> any
 
+--[[
+The caller's environment, or nil when it cannot be read. `getfenv` is
+neither guaranteed to exist nor guaranteed to work: a sandbox that ships a
+throwing one must not take down the paths that look for a request function
+(asset downloads, a notification's icon), so the probe is pcall'd and `_G`
+is the fallback — the same shape `utilities/httpGuard.luau` uses to find
+live globals.
+]]
+local function environment(): any?
+    local getfenvFn: any = nil
+    pcall(function()
+        getfenvFn = getfenv
+    end)
+    if type(getfenvFn) == "function" then
+        local ok, env = pcall(getfenvFn)
+        if ok and type(env) == "table" then
+            return env
+        end
+    end
+    local g: any = nil
+    pcall(function()
+        g = _G
+    end)
+    return if type(g) == "table" then g else nil
+end
+
 function network.getRequestFn(env: any?): RequestFn?
-    env = env or getfenv()
+    env = env or environment()
+    if type(env) ~= "table" then
+        return nil
+    end
     return env.request
         or env.http_request
         or (env.http and env.http.request)

@@ -218,8 +218,7 @@ re-baselines, `guardFetch` wraps a fetch. Silence is part of the contract —
 a finding reaches the caller through the returned report and never the
 console, because whoever hooked HTTP is reading that console — so a denial
 is indistinguishable from a fetch that never happened. Hosts that want
-strict-at-load call `Astra.HttpGuard.check("strict")` before `CreateWindow`;
-`setDiagnostics(true)` is the developer-only console switch.
+strict-at-load call `Astra.HttpGuard.check("strict")` before `CreateWindow`.
 ]]
 Astra.HttpGuard = HttpGuard
 

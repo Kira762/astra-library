@@ -36,19 +36,17 @@ Layers
 The whole scanner is gated on executor evidence (hook/introspection
 primitives). A spy cannot run without them, so plain Studio and bare Luau
 always scan clean — and every probe is pcall-wrapped, so `scan()` never
-raises. Policies: `audit` (report only), `warn` (deny; `audit` plus the
-optional diagnostic line), `strict` (raise on any signal; unknown policies
-fail closed too), `off`.
+raises. Policies: `audit` (report only), `warn` (deny; identical to
+`audit` in every way that is observable), `strict` (raise on any signal;
+unknown policies fail closed too), `off`.
 
 Silence
 -------
-Nothing here writes to the console in a shipped build. The console is a
-channel whoever is driving the hook can read, so a line naming a signal is
-a description of what to hide next: a denial has to be indistinguishable
-from a load that never happened. Findings travel in the report that
-`scan()` / `check()` return, and `guardFetch` reports by returning
-`(false, nil)`. `setDiagnostics(true)` restores the old `warn()` chatter
-for local triage; it is off by default and meant to stay off.
+Nothing here writes to the console, ever. The console is a channel whoever
+is driving the hook can read, so a line naming a signal is a description
+of what to hide next: a denial has to be indistinguishable from a load
+that never happened. Findings travel in the report that `scan()` /
+`check()` return, and `guardFetch` reports by returning `(false, nil)`.
 
 Enforcement points (strict where it matters, quiet everywhere else)
 -------------------------------------------------------------------
@@ -85,15 +83,6 @@ export type GuardReport = {
 local HttpGuard = {}
 
 local DEFAULT_POLICY: GuardPolicy = "strict"
-
---[[
-Console diagnostics, off by default. See the "Silence" note above: the
-guard's findings are for the caller's eyes, never for the console, because
-whoever hooked HTTP is reading that console too. `setDiagnostics(true)` is
-a developer switch for local triage — flip it while debugging, never ship
-it on.
-]]
-local DIAGNOSTICS = false
 
 -- Hook/introspection primitives whose presence proves an executor. Deliberately
 -- narrow: filesystem functions are NOT evidence (Astra's own test stubs define
@@ -561,29 +550,10 @@ function HttpGuard.scan(): GuardReport
 end
 
 --[[
-Whisper the signals to the console. Only ever called while `DIAGNOSTICS` is
-on: the default path returns through `check`'s second value instead, so a
-denial leaves no trace for the tool that caused it to read.
-]]
-local function emitDiagnostics(signals: { GuardSignal })
-    if not DIAGNOSTICS then
-        return
-    end
-    local warnFn = globalValue("warn")
-    if type(warnFn) ~= "function" then
-        return
-    end
-    for _, signal in signals do
-        pcall(warnFn, ("Astra HttpGuard [%s/%s]: %s"):format(signal.layer, signal.id, signal.detail))
-    end
-end
-
---[[
 Enforce a policy against a fresh scan. Returns `true` when the environment is
-clean. Otherwise `audit` and `warn` both return `false` with no console
-output (`warn` prints only in diagnostic builds — see `setDiagnostics`),
-while `strict` raises. Unknown policies fail closed like `strict`. `off`
-skips the scan and always returns `true`.
+clean. Otherwise `audit` and `warn` return `false` with nothing on the
+console, while `strict` raises. Unknown policies fail closed like `strict`.
+`off` skips the scan and always returns `true`.
 ]]
 function HttpGuard.check(policy: GuardPolicy?): (boolean, GuardReport)
     local effective: string = policy or DEFAULT_POLICY
@@ -605,30 +575,14 @@ function HttpGuard.check(policy: GuardPolicy?): (boolean, GuardReport)
         return false, report
     end
     if effective == "warn" then
-        emitDiagnostics(report.signals)
         return false, report
     end
-    emitDiagnostics(report.signals)
     local parts: { string } = {}
     for _, signal in report.signals do
         parts[#parts + 1] = signal.layer .. "/" .. signal.id
     end
     error(("Astra: refusing to continue — HTTP interception detected (%s)"):format(table.concat(parts, ", ")), 0)
     return false, report
-end
-
---[[
-Turn the guard's console chatter on or off (off is the shipped default; see
-the module header). Returns the new value. Purely a developer convenience:
-detection, policies and returns are identical either way.
-]]
-function HttpGuard.setDiagnostics(enabled: boolean): boolean
-    DIAGNOSTICS = enabled == true
-    return DIAGNOSTICS
-end
-
-function HttpGuard.getDiagnostics(): boolean
-    return DIAGNOSTICS
 end
 
 --[[

@@ -322,7 +322,7 @@ other prop routed through the shared image pipeline (`image.assign`, like
 theme is `themes.resolve` baked once at creation, and `Close` tracks every
 connection itself. `new` normalises `keys` (string or list, blanks dropped), optionally
 fetches remote keys up front (`grabKeyFromSite`, dead links fail closed),
-passes through on an empty key list (with a warning) or a matching
+passes through on an empty key list or a matching
 `Astra/keys/<fileName>.txt` file, and otherwise builds the 400px card
 (viewport-clamped, never under 280px) with the forced Sirius header
 (`props.icon` is ignored; `custom_asset/sirius.png` still wins as the
@@ -624,7 +624,6 @@ needs to exist.
 - `HapticEngine.luau` — vibration wrappers guarded by service availability.
 - `moveable.luau` — drag/reordering mixin.
 - `lockable.luau` — Lockable API plus stable `lockable:astra:<elementId>` usage tags, functional-control registration and automatic level/group resolution for the cumulative five-mode lock system.
-- `log.luau` — warn/error/log with Astra prefix.
 - `locale.luau` — translation table + `SetTranslator` support.
 - `filesystem.luau`, `filesystemManager.luau` — RobloxFS abstraction (isFolder/WriteFile wrappers, secure-mode aware). `discardEmptyFolder` / `discardExecutorImageCache` remove a workspace-root `ImageCache` leftover some executors mkdir on `getcustomasset` when that folder has no children; Astra's own image files stay under `Astra/assets`, never under `Astra/config`.
 - `assetResolver.luau`, `network.luau`, `services.luau` — platform layer (HTTP fetch with retries, service singletons).
@@ -639,9 +638,8 @@ needs to exist.
   only; filesystem functions are stubbed in tests so they never count).
   Silent by contract — a denial is indistinguishable from a fetch that never
   happened, since the console is a channel the hooked script reads too;
-  findings travel in the report `scan()` / `check()` return and
-  `setDiagnostics(true)` (off by default) is the developer-only console
-  switch. Strict where it matters: the loader preflights before fetching
+  findings travel in the report `scan()` / `check()` return. Strict where it
+  matters: the loader preflights before fetching
   (quiet stub on a hit, `SPY_PREFLIGHT` escape hatch), `keySystem`
   `grabKeyFromSite` fetches refuse-and-drop without a word,
   `network.getGuardedRequestFn` (default `warn`) backs `assetResolver`'s
@@ -689,7 +687,7 @@ needs to exist.
 | `example_test.sh` | Runs the real local demo; covers the one-word `Astra` window/key-gate title, three-tab contract, Group-based layout, every element, information-first tabs and no single-child Collapsible Groups in the demo/settings, and statically guards the example against game wiring (it must stay UI-only). |
 | `slider_travel_test.sh` | Slider knob travel: the capsule's centre stays half a knob inside each track end (resting, held and after release), so it never overlaps the track end or card edge at max/min, and the fill ends at the knob's centre. |
 | `stepper_value_test.sh` | Stepper values: the `0` default, per-click `±step` with the display following, the `0` floor (a `(−)` tap there is a no-op with no callback), the optional `max` ceiling, typed commits clamping into range and unparseable text restoring the old value, the callback firing only on real changes, an inert `description` prop (no helper line, no card growth), the field's stroke being the pill's own `SurfaceStroke` (tightened by focus, restored on leave), and the title block and pill cluster sharing one centre line. |
-| `icons_test.sh` | Icon resolver: name-only lookup across the packs in priority order (and how lazily they load), qualified `pack:name`, case sensitivity, unknown-pack warnings, custom assets (one import per path, memoised misses, the `listfiles` index), cache-key separation, and `window:ResolveIcon`. |
+| `icons_test.sh` | Icon resolver: name-only lookup across the packs in priority order (and how lazily they load), qualified `pack:name`, case sensitivity, unknown packs resolving to nothing, custom assets (one import per path, memoised misses, the `listfiles` index), cache-key separation, and `window:ResolveIcon`. |
 | `motion_test.sh` | Motion service: the built-in default profile (normal but faster, never instant), shared specs, time scale + its cache, profiles, tween ownership (cancel-on-overlap vs. unrelated properties), the no-op and animation-off paths, windows no longer forcing a profile, and hover going through the service. |
 | `anti_duplicate_window_test.sh` | Anti Duplicate Window: sequential CreateWindow replaces the previous shell, per-window opt-out still allows a second window, overlapping constructions from rapid re-entry collapse to exactly one live window, and replacement never interrupts active construction — a window whose host thread is suspended at a pacing checkpoint is marked unloaded at once and torn down only once that construction goes quiet, and a construction overtaken mid-`Window.new` hands its host a window that keeps accepting constructors before it is torn down unshown. |
 

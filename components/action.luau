@@ -5,7 +5,6 @@ Action.__type = "Action"
 local utilities = script.Parent.Parent.utilities
 
 local state = require(utilities.Parent.core.state)
-local log = require(utilities.log)
 local haptic = require(utilities.HapticEngine)
 local motion = require(utilities.motion)
 
@@ -100,13 +99,18 @@ function Action.new(window, props)
         haptic.click()
         task.spawn(function()
             local ok, err = pcall(self.callback)
-            if not ok then
-                log.warn(
-                    `Astra encountered an error, with the callback for a {self.__type} component named '{self.name}':`
-                )
-                log.print(err)
-            end
             idleTransparency()
+            --[[
+            Reset first, then raise: the button's resting state is restored
+            either way, and a callback that threw is a real error — the one
+            kind of output this library still produces.
+            ]]
+            if not ok then
+                error(
+                    `Astra: the callback for {self.__type} '{self.name}' errored: {tostring(err)}`,
+                    0
+                )
+            end
         end)
     end)
 

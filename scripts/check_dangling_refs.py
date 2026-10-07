@@ -37,8 +37,8 @@ HISTORICAL_FILES = {"CHANGELOG.md", "ANALYSIS.md", "PERFORMANCE_CHANGES.md"}
 GENERATED_FILES = {"version-1.luau"}
 TOP_LEVEL_DIRS = {
     "core", "components", "elements", "settings", "cache", "functions",
-    "layouts", "images", "icons", "themes", "utilities", "scripts",
-    "skills", "assets",
+    "layouts", "images", "windowIcons", "icons", "themes", "utilities",
+    "scripts", "skills", "assets",
 }
 
 TOKEN_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_./\-]*")

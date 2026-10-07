@@ -30,8 +30,8 @@ assets/
 ```
 
 * `window-icons/` files are fetched by `cache/imageCache` as `assets/window-icons/<name>.png`.
-* Numeric rbxassetids live in `images/windowIcons.luau` — filenames are just the human alias.
+* Numeric rbxassetids live in `windowIcons/icons.luau` — filenames are just the human alias.
 * `Icons.resolve("sirius")` → the custom asset `assets/custom-icon/sirius.png`; custom usage with `"sirius"` resolves `custom_asset/sirius.png`. The **window default is Sirius** (`sirius` in `components/window/startup.luau`).
 * Previous root `assets/<numeric>.png` + `assets/Astra.png` layout was removed in favor of named files.
 
-* `images/uiIcons.luau` is the single source of truth for window and Settings UI icon names. Names are lowercase and case-sensitive.
+* `windowIcons/names.luau` is the single source of truth for window and Settings UI icon names. Names are lowercase and case-sensitive.

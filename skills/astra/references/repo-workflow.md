@@ -17,6 +17,7 @@ scripts load).
 | `settings/` | `defaults`, `manager`, `registry`, `appearance`, `behavior`, `performance`, `persistence`. |
 | `themes/` | `init` resolver + the `default` palette. |
 | `utilities/` | Motion, haptics, persistence pieces, icon/asset resolution, text metrics, layouts, locale, locks/ordering. |
+| `windowIcons/` | Astra's own built-in glyphs — the window chrome, its affordances and the brand mark. Not part of the icon API: hosts cannot address these by name or swap them for a pack icon. (`icons/` is what a host asks for; `windowIcons/` is what the library needs to exist.) |
 | `icons/` | Seven icon packs, `packBuilder`, custom-asset resolution. |
 | `scripts/` | Build, syntax gate, static checkers and runtime tests. |
 | `skills/astra/` | The Agent Skill published to skills.sh (this folder). |
@@ -32,6 +33,7 @@ Run these from the repository root, in this order, after touching the tree:
 
 ```sh
 node scripts/generate_bundle.js     # rebuild version-1.luau from the modular tree
+node scripts/sign_bundle.js         # re-sign it -- the .sig pins the exact bytes
 sh scripts/check_syntax.sh          # compile every published .luau file
 python3 scripts/check_requires.py   # require paths exist, no dependency cycles
 python3 scripts/check_instance_fields.py   # no custom Lua fields written on Instances
@@ -43,7 +45,21 @@ sh scripts/<feature>_test.sh        # the per-feature runtime tests
 
 - `scripts/generate_bundle.js` refuses to write if fewer than ~60 modules are found,
   emits the Wax-style ObjectTree / ClosureBindings / LineOffsets bundle, and prints
-  module count, line count and byte size.
+  module count, line count and byte size. Every module is stripped of comments and
+  indentation on the way in (`--no-strip` for a readable build); the strip preserves
+  line numbers exactly, which is what keeps the `LineOffsets` error mapping honest.
+- `scripts/sign_bundle.js` has to run after every regeneration. The signature covers
+  `SHA-256(bundle)`, so a new bundle invalidates `version-1.luau.sig` and
+  `loader_integrity_test.sh` fails until it is re-signed. CI re-signs with the
+  `SIGNING_KEY` secret on `main`; locally it falls back to a gitignored throwaway
+  dev key and re-syncs `loader.luau`'s `PUBLIC_KEY` — never ship that key.
+- `scripts/strip_equivalence_test.sh` compiles every published module with
+  `luau-compile --binary` before and after stripping and requires byte-identical
+  output. Run it after touching `scripts/strip_luau.js`.
+- `scripts/strip_fixtures/*.luau` are adversarial lexer fixtures run by the
+  strip gate alongside the real modules. Add a case there whenever a
+  stripper bug is fixed, so the shape stays pinned; each new fixture should
+  be checked to fail against the pre-fix stripper before the fix is trusted.
 - `check_syntax.sh` resolves `luau-compile` (preferred) or `luau --compile` from
   `PATH`, `/tmp`, `/usr/local/bin`; with neither present it exits **2 — "not checked",
   never a silent pass**. The same toolchain lookup is used by the runtime tests.
@@ -72,7 +88,7 @@ A behaviour change is not finished until the docs that describe it are updated:
 | Anything user-visible | `CHANGELOG.md` — a new dated section at the top: a prose title, a paragraph explaining the cause and the fix, then bullets that name the files touched and the new behaviour. |
 | Public API / usage | `USAGE.md` — the author-facing guide; keep examples copy-pasteable and honest about defaults. |
 | Module structure or locals | `MODULES.md` — per-file reference, including the meaning of minified locals. |
-| Startup cost, instance budget, bundle size | `PERFORMANCE_CHANGES.md` — measured with `scripts/startup_test.sh` / `eager_graph.py`. |
+| Bundle bytes, startup cost, instance budget | `PERFORMANCE_CHANGES.md` — measured with `scripts/startup_test.sh` / `eager_graph.py` / `instance_budget_test.sh`. |
 | Typed surface | `Types.luau`, kept in step with `library_entrypoint.luau` and the constructors. |
 | New per-feature test | `scripts/<feature>_test.luau` + `scripts/<feature>_test.sh` wrapper following the existing pairs. |
 

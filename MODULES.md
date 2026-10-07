@@ -456,19 +456,44 @@ Per-element specifics:
 
 ## images/ & cache/
 
+The remote image pipeline — turning a value into something Roblox can load.
+Astra's own glyphs are **not** here; see `windowIcons/` below.
+
 - `init.luau` — folder module: re-exports the image helpers
-  (`resolve`, `assign`, `preload`, `avatar`, `rewrites`) alongside
-  `windowIcons`.
+  (`resolve`, `assign`, `preload`, `avatar`, `rewrites`).
 - `image.luau` — `assign` (guarded property write), `resolve` (value →
   loadable image URL), `avatar(userId, callback)` — returns cached URI or
   `""`, fires callback after fetch; empty final URI → caller uses plate
   fallback; `preload(callback)` — batch preload reporting
   `(failedCount, failedRoles)`; `rewrites`/`onBlock`/`pending` — URL
   rewrites, blocklist hook, in-flight tracking.
-- `windowIcons.luau` — asset-id registry for built-in chrome icons (settings,
-  close, minimize, …).
 - `cache/imageCache.luau` — disk/memory cache under `Astra/assets/images-icon`; `pcall(callback, uri or "")` at the end of the retry chain. `getcustomasset` goes through `importCustomAsset`, which discards an empty executor `ImageCache` leftover.
 - `cache/moduleCache.luau`, `persistenceCache.luau`, `init.luau` — generic memoization layers.
+
+---
+
+## windowIcons/
+
+The glyphs Astra draws for itself — the window chrome (close, minimise,
+maximise, settings, search), its own affordances (chevron, check, config) and
+the brand mark. This is **not** part of the `icons/` catalog: hosts cannot
+address these by name, swap them for a pack icon, or override them, and
+`Icons.priority()` never sees them. Keeping the two apart is the point of the
+folder — `icons/` is what a host asks for, `windowIcons/` is what the library
+needs to exist.
+
+- `init.luau` — the registry: `ids`, `files`, `roles`, `names` plus the
+  derived `manifest()`, `roleForId(id)` and `roleList()`. The single import
+  the rest of the tree uses.
+- `icons.luau` — `ids` (name → `rbxassetid://` number, what Roblox loads
+  directly), `files` (name → PNG under `assets/window-icons/`, the GitHub
+  source `cache/imageCache` fetches when secure mode rewrites assets) and
+  `roles` (name → human label, used only in preload failure copy). The
+  id→roles manifest and the sorted role list are memoised module constants —
+  `roleForId` used to rebuild the whole manifest for every failed icon.
+- `names.luau` — the request strings handed to `icons.resolve` (`window`,
+  `close`, `config`, …). Lowercase and case-sensitive; `"sirius"` (and the
+  legacy `"Sirius"`) names the brand mark.
 
 ---
 
@@ -538,7 +563,7 @@ Per-element specifics:
 
 ## utilities/ (selected)
 
-- `constants.luau` — static constants incl. the `icons` map re-exported from `images/windowIcons.luau`.
+- `constants.luau` — static constants incl. the `icons` map re-exported from `windowIcons/icons.luau`.
 - `motion.luau` — the library's animation service: named `TweenInfo` specs
   created once (`instant`, `fast`, `snappy`, `normal`, `smooth`, `emphasized`,
   `pop`, `glide`, `exit`, `spring`, `settle`, `spin`, `drift` — entrances
@@ -595,17 +620,20 @@ Per-element specifics:
 
 | Script | What it does |
 |---|---|
-| `generate_bundle.js` | Rebuilds `version-1.luau` from the modular tree. |
+| `generate_bundle.js` | Rebuilds `version-1.luau` from the modular tree. Every module is run through `strip_luau.js` on the way in (comments and indentation dropped, line numbers preserved); `--no-strip` emits a readable build for debugging. |
 | `check_requires.py` | Static require graph: every module resolves, no cycles. |
 | `check_instance_fields.py` | Fails on custom-field writes on instances (the crash class that came from writing bookkeeping fields onto Instances). Scans the modular tree only — skips the generated bundle and hidden/vendored dirs, where flat scanning would collide same-name locals across module scopes. |
 | `check_dangling_refs.py` | Fails when a `.luau`/`.md` file names a slash-anchored repo path that does not exist (stale comments/docs after a delete or move). Skips URLs, tree diagrams, historical records and deleted/removed history lines; resolves relative links and extensionless module references. |
 | `check_syntax.sh` | Compiles every published file (modular tree, `example.client.luau`, `version-1.luau`). A syntax error in a loadstring'd bundle is invisible to the user — it only shows up as `attempt to call a nil value` at line 1 of the executor's chunk — so this is the gate that catches it here. |
+| `strip_luau.js` | Strips comments and indentation from Luau source without moving a line — a block comment is replaced by the newlines it spanned, so `LineOffsets` and the bundle's `Astra.utilities.locale:15: message` mapping survive. Copies every string verbatim, including Luau interpolated `` `...{expr}...` `` (which nest); keeps `--!` compiler directives. Throws rather than return output whose line count moved. |
+| `strip_equivalence_test.sh` | Compiles every published module with `luau-compile --binary` before and after stripping and requires byte-identical output. Bytecode is the whole program, so this is what makes publishing a stripped bundle safe rather than merely plausible. |
 | `sidebar_tab_sizing_test.sh`, `smoke_test_bundle.sh` | Rail sizing (name-driven width, cap, restore) and a bundle smoke run; also the collapsed rail: rows are icon-only (title hidden, content centred, no expanded padding) whether they were collapsed in place, rebuilt by a layout switch, or created while the rail was already icon-only, and a capped title re-constrains after that rebuild. |
 | `collapsible_group_test.sh` | Collapsible groups: every declarative element type, state/callbacks, the connected-card geometry and surface recipe, and the corner treatment (band's top arcs matching the container, body clipper's bottom arcs). |
 | `instance_budget_test.sh` | Per-element instance ceilings plus a realistic-page budget — the frame-time proxy guard. |
 | `odometer_test.sh` | Odometer readout: lazy row materialisation, and the resting row still showing the value's digit through plain/wrap/roll-down transitions. |
 | `dropdown_rows_test.sh` | Dropdown option rows: none (and no search bar) while closed whatever the list length, one per option in order on open plus the bar once, the rendered selected/unselected state and corner tiers, reopening reusing the rows, edits and picks made while closed, and the search filter. |
 | `dropdown_actions_test.sh` | The multi-select action row: only a multi-select dropdown builds it, the checkbox's two states (the drawn outline against the rows' check glyph), Select all filling the visible set and toggling it back off, Clear sparing what the filter hides, the box following picks and filters, the 32px row in the open height, and the bin resolving to the pack's trash icon. |
+| `dropdown_filter_test.sh` | The search filter's contract, which is what the single-pass refactor had to preserve: case-insensitive matching either way, a row renamed by `Refresh` matching its **new** name (a stale cached lowercase form would keep matching the old one), the checkbox answering for the filtered set, `Clear` sparing what the filter hides, the panel height tracking the visible row count, and clearing the query restoring every row and the original height. |
 | `tab_elements_test.sh` | Tab elements: only the selected tab is walked on a show/hide, a tab opened later shows its elements in the same frame and state, the search shows every tab it renders, and a late element shows with its tab. |
 | `startup_navigation_test.sh` | Staged-startup navigation: a row tap and the Settings action made while the host build is still streaming survive the host's closing `tab:Select()` (selection and on-screen page); a first main tab created after the user opened Settings does not auto-select itself; after the build settles, host `Select`/`Navigate` and row taps apply; with no user tap, the host's startup selection still applies. |
 | `tab_lock_test.sh` | Locked tabs: the preserved flag + badge (always hidden during the UI pause) and auto-select skipping a locked first tab; tap → notification with no selection; hover leaves the locked row dimmed; `Navigate`/`Select` guards; `SetLocked(false)` re-enables; locking the open tab moves the selection to a same-rail fallback; search excludes locked tabs' elements; locking every remaining tab clears the selection and hides content, and unlocking restores it; retained badge geometry with no layout reserve, full title slots, and hidden badges after collapse/rebuild. |

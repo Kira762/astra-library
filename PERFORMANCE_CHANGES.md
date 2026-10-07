@@ -4,6 +4,58 @@ Goal: remove the 1–3 s startup freeze. The shell must spawn **instantly with z
 frame drops**; the rest of the UI is allowed to finish streaming in behind it.
 All public features, buttons, logic and responsive behaviour are preserved.
 
+## 2026-10-07 — The published bundle stops carrying its comments
+
+Every load pays for the bundle twice: once over the network and once in the
+parser. `loadstring` has to read all 1.1 MB before it can run anything, and
+29.4% of it — **183,660 bytes of comments plus 140,172 bytes of indentation**
+— was text the parser reads and discards.
+
+`scripts/strip_luau.js` removes both from the generated bundle while keeping
+the line structure **exactly** (a block comment is replaced by the newlines it
+spanned, indentation is dropped in place). Nothing that reports a line number
+can drift: the `LineOffsets[refId]` table and the wax runtime's
+`Astra.utilities.locale:15: message` mapping behave identically, verified by
+planting an error and reading the same message out of both builds.
+
+| Metric (lower is better)                  | Before     | After      | Δ |
+| ----------------------------------------- | ---------- | ---------- | - |
+| Bundle bytes                              | 1,100,346  | **805,203** | **−295,143 (−26.8%)** |
+| …of which comments                        | 183,660    | 0          | |
+| …of which indentation                     | 140,172    | 0          | |
+| Modules / lines                           | 111 / 29,016 | 112 / 29,141 | +1 folder (`windowIcons/`) |
+
+Startup behaviour is unchanged, which is the point: `startup_test.sh` still
+reports **shell instances 68, peak allocations/frame 68, build frames 41,
+controls at reveal 4**, and `instance_budget_test.sh` still reports **252
+instances**. The bytes the parser skips are the only thing that moved.
+
+`scripts/strip_equivalence_test.sh` is the standing proof that this stays
+true: it compiles every published module with `luau-compile --binary` before
+and after stripping and requires the two blobs to be **byte-identical**
+(115 files, in `check_all.sh` as step 6/7).
+
+## 2026-10-07 — The dropdown search filter walks its rows once
+
+Typing in a dropdown's search scaled with the host's data — five walks of
+every option row and a lowercased copy of every name per keystroke. One pass
+now sets visibility and collects the survivors, and that set is handed to the
+corner rounding, the select-all checkbox and the panel height. Each row
+caches its lowercased name when it is built.
+
+Measured with the in-repo stub harness (Luau CLI 0.640, virtual time; median
+of three runs of 150 `_applyFilter` calls). **Not** an engine FPS
+measurement — it is the cost of the filter call itself.
+
+| Options | Before | After | Speed-up |
+| ------- | ------ | ----- | -------- |
+| 200     | 0.295 ms/keystroke | 0.246 ms | within noise |
+| 1,000   | 2.954 ms | 1.696 ms | **1.7×** |
+| 3,000   | 10.640 ms | 5.063 ms | **2.1×** |
+
+10.6 ms per keystroke is most of a 60 fps frame. Below ~300 options the
+difference is not measurable.
+
 ## 2026-09-22 — Standalone key gate ships lazy
 
 The new `Astra:CreateKeySystem` module is required lazily from the entrypoint,

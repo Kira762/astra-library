@@ -49,7 +49,7 @@ machines only ever need the gitignored throwaway dev key).
 Current release checksum:
 
 ```
-sha256(version-1.luau) = 2238989b44ddcfd639c90b5f0f86de362601d3bc87770f00c66d196b7dd8d939
+sha256(version-1.luau) = df3a5688c36232cc7e5a92254ee0151696e7fdd09bff6975039b3526091dfeba
 ```
 
 (`node scripts/sign_bundle.js --verify` prints the live digest whenever the
@@ -123,6 +123,7 @@ Types.luau                typed public surface
 core/ components/         runtime, window shell, overlays, settings UI
 elements/                 one module per element plus tab/group/section
 settings/ themes/ icons/  settings registry, the default palette, icon packs
+windowIcons/ images/     Astra's own built-in glyphs; the remote image pipeline
 utilities/                motion, persistence, icons, locale, layouts, diagnostics
 scripts/                  bundle generator, static checkers, runtime tests
 skills/astra/             the published Agent Skill
@@ -132,8 +133,10 @@ skills/astra/             the published Agent Skill
 
 ```sh
 node scripts/generate_bundle.js             # regenerate version-1.luau from the tree
+node scripts/sign_bundle.js                # re-sign it (the .sig pins the exact bundle bytes)
 sh scripts/install_luau.sh                 # build the Luau toolchain into .tools/bin (once)
-sh scripts/check_all.sh                    # requires + field refs + dangling refs + bundle + syntax + tests
+sh scripts/check_all.sh                    # requires + field refs + dangling refs + bundle + syntax
+                                           #   + strip equivalence + tests
 sh scripts/check_syntax.sh                  # compile every published .luau file
 python3 scripts/check_requires.py           # require paths and cycles
 python3 scripts/check_instance_fields.py    # no custom fields written on Instances

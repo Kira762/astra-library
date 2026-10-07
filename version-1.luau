@@ -1622,7 +1622,7 @@ end
 
 
 
-local function parkRestore(window)
+local function parkRestore()
 local token = {}
 window._capsuleTapToken = token
 task.delay(doubleTapWindow, function()
@@ -1687,7 +1687,7 @@ return
 end
 
 window._lastCapsuleTap = now
-parkRestore(window)
+parkRestore()
 end)
 
 window:Connect(inputService.WindowFocusReleased, function()

@@ -185,7 +185,7 @@ function chrome.bindCollapsedDrag(window)
     shows itself in the meantime, or the marker already answered by another
     tap — so a delay never turns into a stale restore.
     ]]
-    local function parkRestore(window)
+    local function parkRestore()
         local token = {}
         window._capsuleTapToken = token
         task.delay(doubleTapWindow, function()
@@ -250,7 +250,7 @@ function chrome.bindCollapsedDrag(window)
         end
 
         window._lastCapsuleTap = now
-        parkRestore(window)
+        parkRestore()
     end)
 
     window:Connect(inputService.WindowFocusReleased, function()

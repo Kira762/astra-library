@@ -293,9 +293,11 @@ turn, one entrance at a time, with a cooldown between two of them. Past six wait
 requests the oldest not-yet-built request is dropped. With the speed profile set to
 **Instant** the order is kept but the pauses disappear.
 
-Search controls are created on first search; built-in settings tabs and their
-controls are lazy until selected. Controls added to an inactive tab wait for that
-tab to be shown before revealing.
+Search controls are created on first search, and the title-bar field expands into
+its space rather than appearing in it: it grows right to left out of the search
+action's side and folds back into the action when search closes. Built-in
+settings tabs and their controls are lazy until selected. Controls added to an
+inactive tab wait for that tab to be shown before revealing.
 
 ## Window lifecycle notes
 

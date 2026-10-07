@@ -1,5 +1,75 @@
 # Changelog
 
+## 2026-10-07 — the search field opens by expanding right to left
+
+The title-bar search field was placed at its full width on the frame it opened
+on and then faded in: the pill, its outline and its glyph were all already at
+their final geometry, so the only thing the entrance animated was opacity. A
+field that covers a 260px stretch of the title bar in one frame reads as a cut
+rather than as a control arriving, and — because it occupies the space between
+the title and the toolbar actions — it does so in the one place where the
+window is most obviously rearranging itself.
+
+Opening is now a movement. The field is built flat against the search action's
+side, its right edge pinned the same 12px off the action group, and only its
+width grows: the visible surface sweeps left across the free space between the
+title and the actions while its outline, glow, glyph and text ride inside it.
+The surface's own fill animates with the same tween, so the pill and its glass
+are one piece rather than a shape that appears and a fade that follows it.
+
+The two directions use the motion vocabulary rather than one symmetric tween:
+an entrance decelerates (`smooth` — the same surface-move spec the window and
+its panels use) and the fold accelerates (`exit`, the dismissal spec), which is
+what makes closing feel like the field being put away instead of the opening
+played backwards. A movement that reverses mid-flight continues from the width
+the field is showing — `motion.tween` keeps one tween per instance, so the new
+direction replaces the old one instead of fighting it — and a re-measure during
+a movement (a window resize, a rail change) re-targets it from where it is
+rather than snapping the pill to a geometry it has not reached yet.
+
+The field also stops being hidden by a timer. It used to wait out a fixed 0.25s
+after closing before disappearing, which is longer than its own fade and shorter
+than nothing in particular; it now hides when the fold's own movement completes,
+which is exact at every speed profile and in both the animated and the instant
+path (a `motion.tween` that has nothing to animate applies its target on the
+spot, and that nil return runs the same completion).
+
+- **`components/search.luau`** — the geometry is split so the movement has one
+  author: `measureSearchPill` (the action's side, the free space, the 260px
+  cap), `placeSearchPill` (the geometry a width means), `sizeSearchInput` (the
+  text box, sized from the field's *resting* width so it scales with the pill
+  instead of being re-cut every frame) and `tweenSearchPill` (the movement,
+  with the surface fill on the same call). `applySearchGeometry(window, mode)`
+  is the single entry point — `"open"` grows the field from the width already
+  showing into the free space, `"close"` folds it back onto the action side,
+  `nil` puts it at rest — and `window._searchReveal` names the movement in
+  flight so a re-measure re-targets it. `HOVER_SPEC_TIME` and the
+  `task.delay` hide are gone; the pill is created flat
+  (`Size.X.Offset == 0`) so its first open animates like every other one.
+- **`scripts/search_reveal_test.luau`, `.sh`** (new) — holds the pill's own
+  tween (a no-op `Play`, the trick the capsule suite uses for the window's
+  fold) to read the frame a real open shows: the field starts flat at the
+  action side, the movement targets the free space with the *same* right edge
+  in both geometries (the growth is one-way), the fill rides that tween, the
+  text box is measured from the resting width while the pill is still flat, the
+  landed movement leaves the resting geometry and the field stays on screen
+  until the fold ends, a reopen mid-fold continues from the width showing, and
+  with motion off both directions land in one step with nothing left in flight.
+  It fails against the previous bundle at its first geometry assertion
+  (260 where the fold should start).
+- **`MODULES.md`** — the search module records the reveal contract and the
+  suite is in the test table; `USAGE.md` and `skills/astra/references/window.md`
+  note that the field expands into its space rather than appearing in it.
+- **`version-1.luau`** — regenerated and re-signed; the README checksum,
+  `version-1.luau.sig` and `loader.luau` public-key pin are in sync.
+
+### Signing
+
+As with the entries below: no production `SIGNING_KEY` is configured in this
+workspace, so the bundle was signed with a fresh gitignored development key and
+`loader.luau`'s pin was synced to it. CI replaces the development signature with
+the production key when it publishes.
+
 ## 2026-10-07 — the library prints nothing: a real error is the only output
 
 Scripts under an HTTP spy were seeing the guard narrate itself — one

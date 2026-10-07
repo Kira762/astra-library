@@ -349,6 +349,23 @@ and shows the matching elements on a shared search page; Escape or the search
 button closes it and restores each element to its home tab. The field is measured
 against the rendered title/action bounds and stays hidden until search is opened.
 
+Opening is a reveal: the pill is built flat and only its *width* is ever animated,
+with its right edge pinned `SEARCH_ACTION_GAP` (12px) off the action group, so the
+field expands right to left out of the search action's side and folds back into it
+on close (`REVEAL_SPEC` / `smooth` growing, `COLLAPSE_SPEC` / `exit` folding). The
+geometry has one author per step: `measureSearchPill` (right edge + free width,
+capped at `SEARCH_MAX_WIDTH` 260), `placeSearchPill` (a width's geometry),
+`sizeSearchInput` (the text box, sized from the field's **resting** width so it
+scales with the pill instead of being re-cut every frame) and `tweenSearchPill`
+(the movement, carrying the surface's own fill on the same call so pill and glass
+arrive together). `applySearchGeometry(window, mode)` is the single entry point --
+`"open"` (grow from the width already showing), `"close"` (fold flat) or `nil`
+(rest) — and `window._searchReveal` names the movement in flight so a re-measure
+(a window resize, a rail change) re-targets it from where it is; the completion
+clears it, and the fold's completion is what hides the pill (never a timer, and on
+the spot when `motion.tween` has nothing to animate). Outline, glow, glyph and text
+still fade on `HOVER_SPEC` (`snappy`).
+
 ---
 
 ## layouts/
@@ -674,6 +691,7 @@ needs to exist.
 | `tab_row_edge_test.sh` | Sidebar row outline shades: the selected row wears the theme's `TabStroke` gradient (its lit lip), hover and unselected rows wear a flat blend of it toward `SidebarSurface` (hover visibly firmer, both at their own transparencies), selecting elsewhere re-shades the row left behind, a `ChangeTheme` re-derives each row's shade instead of dropping unselected rows back onto the lit gradient, and a locked row shades like its neighbours. |
 | `startup_navigation_test.sh` | Staged-startup navigation: a row tap and the Settings action made while the host build is still streaming survive the host's closing `tab:Select()` (selection and on-screen page); a first main tab created after the user opened Settings does not auto-select itself; after the build settles, host `Select`/`Navigate` and row taps apply; with no user tap, the host's startup selection still applies. |
 | `startup_test.sh` | Startup batching and lazy panels; search stays lazy, opens its field in the title bar only on interaction, filters hidden-tab elements, closes via its action or Escape, restores the original tab and reuses the same UI instances. |
+| `search_reveal_test.sh` | The title-bar field's reveal, read off the pill's own held tween (a no-op `Play`): the field is built flat and hidden, opening places it collapsed against the action side and grows it right to left (identical right edge at both ends of the movement, so only the left edge moves), the surface fill rides the same tween, the text box is sized from the resting width while the pill is still flat, the landed movement leaves the resting geometry, closing folds it back and keeps the field on screen until the fold ends, a reopen mid-fold continues from the width showing, and with motion off both directions land in one step with nothing left in flight. |
 | `tab_lock_test.sh` | Locked tabs: the preserved flag + badge (always hidden during the UI pause) and auto-select skipping a locked first tab; tap → notification with no selection; hover leaves the locked row dimmed; `Navigate`/`Select` guards; `SetLocked(false)` re-enables; locking the open tab moves the selection to a same-rail fallback; search excludes locked tabs' elements; locking every remaining tab clears the selection and hides content, and unlocking restores it; retained badge geometry with no layout reserve, full title slots, and hidden badges after collapse/rebuild. |
 | `elements_lock_test.sh` | Elements Lock System: per-window usage tags and stable IDs, existing usage merge, functional-only registration, default and explicit lock tiers, cumulative Mode 1–5 behavior, manual-lock composition, guarded callbacks, preserved input/draft/selection/layout, expanded-dropdown lock behavior, late controls, and the built-in Settings lock-all switch (exempt, unflagged, always able to release the page). |
 | `lock_mode_persistence_test.sh` | Element Lock Mode round trip: the chosen tier is written to the config, the next execution locks the page from it before Settings is ever opened (its switch builds lazily), the lazily built switch agrees with the live tier, a config saved without that panel still carries a host-driven tier, and a lowered tier leaves no stale locks. |

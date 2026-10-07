@@ -4971,14 +4971,22 @@ local search = {}
 
 
 
+
+
+
+
+
 local HOVER_SPEC = "snappy"
-local HOVER_SPEC_TIME = 0.25
+local REVEAL_SPEC = "smooth"
+local COLLAPSE_SPEC = "exit"
 local SEARCH_MAX_WIDTH = 260
 local SEARCH_TITLE_GAP = 16
 local SEARCH_ACTION_GAP = 12
+local SEARCH_HEIGHT = 35
 
 local defaultTransparency = 0.6
 local hoverTransparency = 0.2
+local surfaceTransparency = 0.9
 
 local function getElementText(element)
 if element.__type == "Group" or element.__type == "CollapsibleGroup" then
@@ -5017,8 +5025,12 @@ end
 return elements
 end
 
+
+
+
+
+
 local function setPillVisibility(window, visible, spec)
-motion.tween(window.searchPill, { BackgroundTransparency = if visible then 0.9 else 1 }, spec)
 motion.tween(window.searchStroke, { Transparency = if visible then 0.85 else 1 }, spec)
 motion.tween(window.searchShadow, { Transparency = if visible then 0.92 else 1 }, spec)
 motion.tween(window.searchIcon, { ImageTransparency = if visible then 0.65 else 1 }, spec)
@@ -5031,9 +5043,15 @@ end
 
 
 
-local function positionSearchPill(window)
+
+
+
+
+
+
+local function measureSearchPill(window)
 if not window.searchPill or not window.topbar or not window.titleContainer or not window.searchAction then
-return
+return nil
 end
 
 local titleRight = window.titleContainer.AbsolutePosition.X
@@ -5043,17 +5061,112 @@ local actionLeft = window.searchAction.action.AbsolutePosition.X - window.topbar
 local leftLimit = titleRight + SEARCH_TITLE_GAP
 local rightLimit = actionLeft - SEARCH_ACTION_GAP
 local available = math.max(0, rightLimit - leftLimit)
-local width = math.min(SEARCH_MAX_WIDTH, available)
-local left = rightLimit - width
-
-window.searchPill.Position = UDim2.new(0, left, 0.5, 0)
-window.searchPill.Size = UDim2.fromOffset(width, 35)
-
-if window.searchInput then
-local textLeft = 36
-window.searchInput.Position = UDim2.new(0, textLeft, 0.5, 0)
-window.searchInput.Size = UDim2.new(1, -math.min(48, width), 0, 18)
+return rightLimit, math.min(SEARCH_MAX_WIDTH, available)
 end
+
+
+
+
+
+
+local function sizeSearchInput(window, restWidth)
+if not window.searchInput then
+return
+end
+window.searchInput.Position = UDim2.new(0, 36, 0.5, 0)
+window.searchInput.Size = UDim2.new(1, -math.min(48, restWidth), 0, 18)
+end
+
+
+
+
+
+
+local function placeSearchPill(window, rightLimit, width, restWidth)
+window.searchPill.Position = UDim2.new(0, rightLimit - width, 0.5, 0)
+window.searchPill.Size = UDim2.fromOffset(width, SEARCH_HEIGHT)
+sizeSearchInput(window, restWidth)
+end
+
+
+
+
+
+
+
+
+
+
+
+local function tweenSearchPill(window, rightLimit, width, restWidth, revealing, onCompleted)
+sizeSearchInput(window, restWidth)
+
+local tween = motion.tween(window.searchPill, {
+Position = UDim2.new(0, rightLimit - width, 0.5, 0),
+Size = UDim2.fromOffset(width, SEARCH_HEIGHT),
+BackgroundTransparency = if revealing then surfaceTransparency else 1,
+}, if revealing then REVEAL_SPEC else COLLAPSE_SPEC, onCompleted)
+
+if not tween and onCompleted then
+onCompleted()
+end
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+local function applySearchGeometry(window, mode)
+local rightLimit, restWidth = measureSearchPill(window)
+if not rightLimit then
+return
+end
+
+if not mode then
+window._searchReveal = nil
+placeSearchPill(window, rightLimit, restWidth, restWidth)
+return
+end
+
+window._searchReveal = mode
+if mode == "close" then
+tweenSearchPill(window, rightLimit, 0, restWidth, false, function()
+window._searchReveal = nil
+if not window.unloaded and not window._searching then
+window.searchPill.Visible = false
+end
+end)
+return
+end
+
+
+
+
+
+
+local startWidth = math.clamp(window.searchPill.Size.X.Offset, 0, restWidth)
+placeSearchPill(window, rightLimit, startWidth, restWidth)
+tweenSearchPill(window, rightLimit, restWidth, restWidth, true, function()
+window._searchReveal = nil
+end)
+end
+
+
+
+
+
+
+local function positionSearchPill(window)
+applySearchGeometry(window, window._searchReveal)
 end
 
 local function setTabVisibility(window, visible, tweenInfo)
@@ -5127,13 +5240,16 @@ end
 search.buildContent(window)
 window:_applyRailWidth()
 window._searching = true
-positionSearchPill(window)
+
+
+
+window.searchPill.Visible = true
+applySearchGeometry(window, "open")
 
 collectElements(window)
 filterElements(window, "")
 window:_jumpTo(window.searchPage)
 
-window.searchPill.Visible = true
 setPillVisibility(window, true, HOVER_SPEC)
 window.searchInput:CaptureFocus()
 
@@ -5158,11 +5274,12 @@ window:_jumpTo(jumpTarget)
 end
 
 setPillVisibility(window, false, HOVER_SPEC)
-task.delay(HOVER_SPEC_TIME, function()
-if not window.unloaded and not window._searching then
-window.searchPill.Visible = false
-end
-end)
+
+
+
+
+
+applySearchGeometry(window, "close")
 
 if opts.showTabs then
 if window._applySettingsLayout then
@@ -5238,11 +5355,16 @@ ZIndex = 3,
 Parent = window.main,
 }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
+
+
+
+
+
 window.searchPill = window:Create("Frame", {
 Name = "SearchBar",
 AnchorPoint = Vector2.new(0, 0.5),
 Position = UDim2.new(0, 0, 0.5, 0),
-Size = UDim2.fromOffset(SEARCH_MAX_WIDTH, 35),
+Size = UDim2.fromOffset(0, SEARCH_HEIGHT),
 BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 BorderSizePixel = 0,
 ZIndex = 10,
@@ -27877,105 +27999,105 @@ local LineOffsets = {
     [12] = 3862,
     [13] = 4218,
     [14] = 4960,
-    [15] = 5352,
-    [16] = 5896,
-    [17] = 5959,
-    [18] = 6544,
-    [19] = 6890,
-    [20] = 6904,
-    [21] = 7004,
-    [22] = 7144,
-    [23] = 7698,
-    [24] = 7941,
-    [25] = 8263,
-    [26] = 8363,
-    [27] = 8417,
-    [28] = 9059,
-    [29] = 9307,
-    [30] = 9657,
-    [31] = 10104,
-    [32] = 6864,
-    [34] = 11068,
-    [35] = 11157,
-    [36] = 11386,
-    [37] = 11829,
-    [38] = 12292,
-    [39] = 12449,
-    [40] = 12594,
-    [41] = 14258,
-    [42] = 14506,
-    [43] = 14742,
-    [44] = 15063,
-    [45] = 15316,
-    [46] = 16368,
-    [47] = 16454,
-    [48] = 17057,
-    [49] = 17924,
-    [50] = 18518,
-    [51] = 19089,
-    [52] = 19215,
-    [53] = 19354,
-    [55] = 19869,
-    [56] = 19895,
-    [57] = 19914,
-    [58] = 19946,
-    [59] = 20072,
-    [60] = 20086,
-    [61] = 20135,
-    [62] = 19844,
-    [63] = 20226,
-    [64] = 20567,
-    [65] = 20598,
-    [66] = 20215,
-    [67] = 20641,
-    [68] = 20661,
-    [69] = 20693,
-    [70] = 20623,
-    [71] = 20800,
-    [72] = 20868,
-    [74] = 20958,
-    [75] = 20935,
-    [76] = 21178,
-    [77] = 21274,
-    [78] = 21125,
-    [79] = 21826,
-    [80] = 21872,
-    [81] = 21954,
-    [82] = 22149,
-    [83] = 22280,
-    [84] = 22383,
-    [85] = 22552,
-    [86] = 22892,
-    [87] = 21299,
-    [88] = 23533,
-    [89] = 23422,
-    [90] = 23672,
-    [91] = 23770,
-    [92] = 23949,
-    [93] = 24011,
-    [94] = 24041,
-    [95] = 24333,
-    [96] = 24382,
-    [97] = 24781,
-    [98] = 24799,
-    [99] = 25006,
-    [100] = 25623,
-    [101] = 25643,
-    [102] = 25771,
-    [103] = 25869,
-    [104] = 26098,
-    [105] = 26571,
-    [106] = 26607,
-    [107] = 26676,
-    [108] = 27036,
-    [109] = 27048,
-    [110] = 27099,
-    [111] = 27118,
-    [112] = 27401,
-    [113] = 27445,
-    [114] = 27646,
-    [115] = 27674,
-    [116] = 27685,
+    [15] = 5474,
+    [16] = 6018,
+    [17] = 6081,
+    [18] = 6666,
+    [19] = 7012,
+    [20] = 7026,
+    [21] = 7126,
+    [22] = 7266,
+    [23] = 7820,
+    [24] = 8063,
+    [25] = 8385,
+    [26] = 8485,
+    [27] = 8539,
+    [28] = 9181,
+    [29] = 9429,
+    [30] = 9779,
+    [31] = 10226,
+    [32] = 6986,
+    [34] = 11190,
+    [35] = 11279,
+    [36] = 11508,
+    [37] = 11951,
+    [38] = 12414,
+    [39] = 12571,
+    [40] = 12716,
+    [41] = 14380,
+    [42] = 14628,
+    [43] = 14864,
+    [44] = 15185,
+    [45] = 15438,
+    [46] = 16490,
+    [47] = 16576,
+    [48] = 17179,
+    [49] = 18046,
+    [50] = 18640,
+    [51] = 19211,
+    [52] = 19337,
+    [53] = 19476,
+    [55] = 19991,
+    [56] = 20017,
+    [57] = 20036,
+    [58] = 20068,
+    [59] = 20194,
+    [60] = 20208,
+    [61] = 20257,
+    [62] = 19966,
+    [63] = 20348,
+    [64] = 20689,
+    [65] = 20720,
+    [66] = 20337,
+    [67] = 20763,
+    [68] = 20783,
+    [69] = 20815,
+    [70] = 20745,
+    [71] = 20922,
+    [72] = 20990,
+    [74] = 21080,
+    [75] = 21057,
+    [76] = 21300,
+    [77] = 21396,
+    [78] = 21247,
+    [79] = 21948,
+    [80] = 21994,
+    [81] = 22076,
+    [82] = 22271,
+    [83] = 22402,
+    [84] = 22505,
+    [85] = 22674,
+    [86] = 23014,
+    [87] = 21421,
+    [88] = 23655,
+    [89] = 23544,
+    [90] = 23794,
+    [91] = 23892,
+    [92] = 24071,
+    [93] = 24133,
+    [94] = 24163,
+    [95] = 24455,
+    [96] = 24504,
+    [97] = 24903,
+    [98] = 24921,
+    [99] = 25128,
+    [100] = 25745,
+    [101] = 25765,
+    [102] = 25893,
+    [103] = 25991,
+    [104] = 26220,
+    [105] = 26693,
+    [106] = 26729,
+    [107] = 26798,
+    [108] = 27158,
+    [109] = 27170,
+    [110] = 27221,
+    [111] = 27240,
+    [112] = 27523,
+    [113] = 27567,
+    [114] = 27768,
+    [115] = 27796,
+    [116] = 27807,
 }
 
 -- Misc AOT variable imports

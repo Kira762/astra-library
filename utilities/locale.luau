@@ -1,5 +1,4 @@
 local coreState = require(script.Parent.Parent.core.state)
-local logger = require(script.Parent.log)
 
 local locale = {}
 
@@ -70,10 +69,10 @@ function locale.register(tables: TranslationTables?)
                 locale.strings[id] = target
             end
             for sourceKey, sourceText in entryTable do
+                -- Entries must be string to string; anything else is skipped
+                -- without a word.
                 if type(sourceKey) == "string" and type(sourceText) == "string" then
                     target[sourceKey] = sourceText
-                else
-                    logger.warn(`Astra: skipping a '{id}' translation, entries must be string to string.`)
                 end
             end
         end

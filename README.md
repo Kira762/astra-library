@@ -49,7 +49,7 @@ machines only ever need the gitignored throwaway dev key).
 Current release checksum:
 
 ```
-sha256(version-1.luau) = a811f5e5375b1225f705623c4c4e15b3686751d58e8578b89fad173fde12b2d3
+sha256(version-1.luau) = 4f270148bb4c837c67bac22eea226f95ba15b5c9934abec97a786f095076b55e
 ```
 
 (`node scripts/sign_bundle.js --verify` prints the live digest whenever the
@@ -124,7 +124,7 @@ core/ components/         runtime, window shell, overlays, settings UI
 elements/                 one module per element plus tab/group/section
 settings/ themes/ icons/  settings registry, the default palette, icon packs
 windowIcons/ images/     Astra's own built-in glyphs; the remote image pipeline
-utilities/                motion, persistence, icons, locale, layouts, diagnostics
+utilities/                motion, persistence, icons, locale, layouts, networking
 scripts/                  bundle generator, static checkers, runtime tests
 skills/astra/             the published Agent Skill
 ```

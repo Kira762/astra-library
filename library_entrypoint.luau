@@ -214,8 +214,11 @@ Astra.Performance = HardwarePerformance
 --[[
 HTTP interception detection (`utilities/httpGuard.luau`): `scan()` reports,
 `check(policy)` enforces (`audit` / `warn` / `strict` / `off`), `capture()`
-re-baselines, `guardFetch` wraps a fetch. Hosts that want strict-at-load call
-`Astra.HttpGuard.check("strict")` before `CreateWindow`.
+re-baselines, `guardFetch` wraps a fetch. Silence is part of the contract —
+a finding reaches the caller through the returned report and never the
+console, because whoever hooked HTTP is reading that console — so a denial
+is indistinguishable from a fetch that never happened. Hosts that want
+strict-at-load call `Astra.HttpGuard.check("strict")` before `CreateWindow`.
 ]]
 Astra.HttpGuard = HttpGuard
 

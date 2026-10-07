@@ -47,9 +47,33 @@ local pngMagic = "\137PNG\r\n\26\n"
 local remoteRewrites: { [string]: string } = {}
 local remotePending: { [string]: { RemoteCallback } } = {}
 
+--[[
+The live global table, or nil when the host cannot answer. `getfenv` is
+neither guaranteed to exist nor guaranteed to work — a sandbox may ship a
+throwing one — and every lookup below sits on a path (an icon, an avatar,
+the preload sweep) that has to keep working without it.
+]]
+local function environment(): any?
+    local getfenvFn: any = nil
+    pcall(function()
+        getfenvFn = getfenv
+    end)
+    if type(getfenvFn) == "function" then
+        local ok, env = pcall(getfenvFn)
+        if ok and type(env) == "table" then
+            return env
+        end
+    end
+    local g: any = nil
+    pcall(function()
+        g = _G
+    end)
+    return if type(g) == "table" then g else nil
+end
+
 local function importCustomAsset(filePath: string): string?
-    local env = getfenv()
-    if type(env.getcustomasset) ~= "function" then
+    local env = environment()
+    if env == nil or type(env.getcustomasset) ~= "function" then
         return nil
     end
     local ok, uri = pcall(env.getcustomasset, filePath)
@@ -61,7 +85,8 @@ local function importCustomAsset(filePath: string): string?
 end
 
 local function cacheFile(filePath: string, url: string): string?
-        if type(getfenv().getcustomasset) ~= "function" or typeof(filesystem.isfile) ~= "function" then
+    local env = environment()
+    if env == nil or type(env.getcustomasset) ~= "function" or typeof(filesystem.isfile) ~= "function" then
         return nil
     end
     if not filesystem.isfile(filePath) then
@@ -87,8 +112,8 @@ local function remoteFilePath(url: string): string
 end
 
 function imageCache.remote(url: string, onReady: RemoteCallback?): string
-    local env = getfenv()
-    if type(env.getcustomasset) ~= "function" or typeof(filesystem.isfile) ~= "function" then
+    local env = environment()
+    if env == nil or type(env.getcustomasset) ~= "function" or typeof(filesystem.isfile) ~= "function" then
         if onReady then
             task.defer(onReady, nil)
         end
@@ -199,8 +224,8 @@ local pendingAvatars: { [number]: { AvatarCallback } } = {}
 local failedAvatars: { [number]: boolean } = {}
 
 function imageCache.preload(onSettled: PreloadCallback?): (boolean, number)
-    local env = getfenv()
-    if type(env.getcustomasset) ~= "function" or typeof(filesystem.isfile) ~= "function" then
+    local env = environment()
+    if env == nil or type(env.getcustomasset) ~= "function" or typeof(filesystem.isfile) ~= "function" then
         if onSettled then
             task.defer(onSettled, manifestSize, windowIcons.roleList())
         end

@@ -1,5 +1,57 @@
 # Changelog
 
+## 2026-10-07 — the library prints nothing: a real error is the only output
+
+Scripts under an HTTP spy were seeing the guard narrate itself — one
+`Astra HttpGuard [<layer>/<id>]: …` line per signal, plus
+`No request function available to download asset content.` when the guard had
+just withheld the request function — and the rest of the library was no
+quieter: a warn/print wrapper every module routed through, font debug prints,
+unknown-pack notes, key-fetch notices, persistence failures. Read by whoever
+is driving the hook, a line naming a signal is a to-do list: it says which
+fingerprint to scrub next and confirms the interception was spotted at all.
+The answer is not a quieter log level; it is no log level. Astra now writes
+nothing to the console, anywhere — the one thing it still produces is a real
+error, raised.
+
+- **`utilities/log.luau`** (deleted) and its fifteen requirers. The
+  warn/print wrapper is gone along with every call site: the asset
+  resolver's download notices, the font manager's debug prints and failure
+  notes, the persistence layer's save/load/apply failures, the locale's
+  skipped-entry note, the theme fallback notices, the icon resolver's
+  unknown-pack warning, the key system's fetch/passthrough/link notes, the
+  compact-row and top-strip usage warnings, the lock-surface layout warning,
+  the unknown-flag note and the link card's warn-once pairs. A recoverable
+  condition is now handled, silently. Secure mode still drops the brand font
+  and blocks icon preload; there is no logging left for it to suppress.
+- **`utilities/httpGuard.luau`** — no policy prints. `warn` denies exactly
+  like `audit`, findings travel only in the report `scan()` / `check()`
+  return, and `guardFetch` reports through `(false, nil)`. `strict` is the
+  one line that stays: a host that selects it asked for a visible failure,
+  and a raised error is exactly what this library is still allowed to emit.
+- **Callback errors surface as errors.** A control callback
+  (`components/action.luau`), an element callback (`Window:_runGuarded`), a
+  popup button, a key-system callback and an overlay build that throws now
+  raise on the callback's own thread — after its UI reset, so the red flash,
+  the restored title, the button's resting state and the queue's next-card
+  cadence are unchanged. Each used to print a two-line warn/print pair.
+- **`utilities/network.luau`, `cache/imageCache.luau`** — environment
+  lookups are pcall'd with a `_G` fallback. A sandbox that ships a throwing
+  `getfenv` used to take the asset download and notification paths down; the
+  link suite's broken-`getfenv` case had been passing only because the
+  overlay queue swallowed the failure into a warning. Both now answer "no
+  request function" and keep going.
+- **`elements/stat.luau`** — a dead `require(constants.log)` removed before
+  it could break every build that renders a Stat.
+- **Docs** — `USAGE.md`, `MODULES.md`, `ANALYSIS.md`, the `astra` and
+  `astra-guard` skill references, and the code comments no longer promise
+  warnings; `log.luau` is out of the module list.
+- **`scripts/http_guard_test.luau`, `scripts/icons_test.luau`** — the suites
+  assert the silence: a tripped scan, a denied fetch and an unknown icon pack
+  write nothing to the global `warn` or `print`.
+- **`version-1.luau`, `version-1.luau.sig`, `loader.luau`, `README.md`** —
+  the bundle is regenerated and re-signed (`node scripts/sign_bundle.js`, dev
+  key, pinned `PUBLIC_KEY` synced) and the README checksum updated.
 ## 2026-10-07 — Changelog entries read as a recess, not as a second frame
 
 The Changelog drew `StyleElementBody` on its own card and `StyleElementPanel` on
@@ -617,12 +669,12 @@ the interception and refuses to feed it.
 - **`loader.luau`** — strict preflight before any fetch: a hit returns the
   quiet stub exactly like a signature failure. `SPY_PREFLIGHT = "off"` is the
   documented escape hatch; the probe set is exposed on the test internals.
-- **`components/keySystem.luau`** — `grabKeyFromSite` fetches are strict: a
+- **`components/keySystem.luau`** — `grabKeyFromSite` fetches are guarded: a
   hit drops the key exactly like a failed fetch, so the gate fails closed
   instead of leaking the key body or accepting a spoofed one.
 - **`utilities/network.luau`, `utilities/assetResolver.luau`** — new
-  `getGuardedRequestFn` (default `warn`); asset downloads warn and fall back
-  rather than breaking the UI over public CDN URLs.
+  `getGuardedRequestFn` (default `warn`); asset downloads deny quietly and
+  fall back rather than breaking the UI over public CDN URLs.
 - **`library_entrypoint.luau`, `Types.luau`** — the guard captures before any
   other module loads and is public as `Astra.HttpGuard` (typed).
   Strict-at-load is a host choice (`check("strict")` before `CreateWindow`),

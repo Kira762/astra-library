@@ -34,7 +34,6 @@ local state = require(utilities.Parent.core.state)
 local functions = require(script.Parent.Parent.functions)
 local constants = require(utilities.constants)
 local locale = require(utilities.locale)
-local log = require(utilities.log)
 local haptic = require(utilities.HapticEngine)
 local filesystem = require(utilities.filesystem)
 local httpGuard = require(utilities.httpGuard)
@@ -92,8 +91,8 @@ local linkIconSize = 14
 local linkIconGap = 6
 local noteMaxLines = 2
 --[[
-The links row hard-caps at three buttons — one line of equal faces. The
-warn fires once when a host passes more.
+The links row hard-caps at three buttons — one line of equal faces.
+Anything past that is dropped quietly.
 ]]
 local maxLinks = 3
 
@@ -200,11 +199,11 @@ end
 --[[
 Link buttons: 0-3 entries `{ name, icon?, link }`. A bare single entry
 may be passed without the outer array. Entries with no usable URL are
-skipped with a warning (a named button that copies nothing is a host bug,
-not an empty row like a blank key); missing names default to "Link".
-`getKeyUrl` (legacy sugar) is prepended as the "Get Key" button, and
-anything past three buttons warns and disappears — the promoted entry
-keeps its slot, so an old getKeyUrl host never loses to a new links list.
+skipped (a named button that copies nothing is a host bug, not an empty
+row like a blank key); missing names default to "Link". `getKeyUrl`
+(legacy sugar) is prepended as the "Get Key" button, and anything past
+three buttons disappears — the promoted entry keeps its slot, so an old
+getKeyUrl host never loses to a new links list.
 ]]
 local function normalizeLinks(props, getKeyUrl)
     local raw = props.links or props.Links
@@ -218,7 +217,9 @@ local function normalizeLinks(props, getKeyUrl)
             if typeof(entry) == "table" then
                 local link = entry.link or entry.Link or entry.url or entry.Url
                 if type(link) ~= "string" or trim(link) == "" then
-                    log.warn("Astra: a key system link button was skipped — it has no `link` URL.")
+                    -- No `link` URL: the entry cannot become a button. It is
+                    -- dropped without a word — the library prints nothing.
+                    continue
                 else
                     local name = entry.name or entry.Name
                     if type(name) ~= "string" or trim(name) == "" then
@@ -239,7 +240,7 @@ local function normalizeLinks(props, getKeyUrl)
     end
 
     if #collected > maxLinks then
-        log.warn("Astra: key system shows at most " .. maxLinks .. " link buttons — extra entries were dropped.")
+        -- The card holds a fixed number of rows; extras are dropped quietly.
         while #collected > maxLinks do
             table.remove(collected)
         end
@@ -312,26 +313,26 @@ function KeySystem.new(props)
     --[[
     Remote keys are fetched once, up front, so submitting never yields on
     the network: each entry is treated as a raw URL and its trimmed body
-    becomes the expected key. A URL that fails to fetch warns and is
-    dropped — it can never match, so a dead link fails closed, not open.
-    The fetch is HttpGuard-strict for the same reason: under HTTP
-    interception the key body would leak to the spy's log and the response
-    could be spoofed, so a hit refuses the fetch and the key is dropped.
+    becomes the expected key. A URL that fails to fetch is dropped — it
+    can never match, so a dead link fails closed, not open. The fetch is
+    HttpGuard-guarded for the same reason: under HTTP interception the key
+    body would leak to the spy's log and the response could be spoofed, so
+    a hit refuses the fetch and the key is dropped. Both outcomes are
+    silent: the library prints nothing, and the URL a guard denial withheld
+    never reaches the console either. `Astra.HttpGuard.scan()` is where a
+    host tells a denial apart from a dead link.
     ]]
     local grabFromSite = props.grabKeyFromSite or props.GrabKeyFromSite or false
     for _, key in keys do
         key = tostring(key)
         if grabFromSite then
-            local ok, body = pcall(function()
-                local _, guarded = httpGuard.guardFetch(key, function()
+            local ok, allowed, body = pcall(function()
+                return httpGuard.guardFetch(key, function()
                     return game:HttpGet(key)
-                end, "strict")
-                return guarded
+                end, "warn")
             end)
-            if ok and typeof(body) == "string" and trim(body) ~= "" then
+            if ok and allowed and typeof(body) == "string" and trim(body) ~= "" then
                 table.insert(self._expected, trim(body))
-            else
-                log.warn("Astra: key system could not fetch a key from " .. key)
             end
         elseif trim(key) ~= "" then
             table.insert(self._expected, trim(key))
@@ -339,12 +340,12 @@ function KeySystem.new(props)
     end
 
     --[[
-    No keys to check against fails open with a loud warning (Rayfield's
-    passthrough): a host that misconfigured the gate still gets its `onSuccess`
-    instead of an unopenable card, and the warning says why.
+    No keys to check against fails open (Rayfield's passthrough): a host
+    that misconfigured the gate still gets its `onSuccess` instead of an
+    unopenable card. The passthrough is silent — the library has no console
+    channel — so a host that wants to know checks `#keys` before building.
     ]]
     if #self._expected == 0 then
-        log.warn("Astra: key system has no keys to check against, passing through.")
         self.passed = true
         self.closed = true
         self:_runCallback(self.onSuccess, "")
@@ -396,9 +397,13 @@ function KeySystem:_runCallback(callback, ...)
     local args = { ... }
     task.spawn(function()
         local ok, err = pcall(callback, table.unpack(args))
+        --[[
+        A key-system callback that threw is a real error, and a real error
+        is the only thing this library prints — no warn-style narration on
+        the way to it.
+        ]]
         if not ok then
-            log.warn("Astra: key system callback errored:")
-            log.print(err)
+            error("Astra: key system callback errored: " .. tostring(err), 0)
         end
     end)
 end
@@ -1044,7 +1049,7 @@ notification — the only place the link itself becomes visible. The card
 is built directly against the shim (no entrance queue): taps are
 human-paced and at most three buttons exist. An exact duplicate replaces
 itself first, like Window:Notify. With no clipboard API there is nothing
-to confirm, so the press falls back to the warning alone.
+to confirm, so the press does nothing.
 ]]
 function KeySystem:_copyLink(link)
     if self.closed then
@@ -1052,7 +1057,7 @@ function KeySystem:_copyLink(link)
     end
     local writer = clipboardWriter()
     if not writer then
-        log.warn("Astra: no clipboard API was found in this environment, so the key gate cannot copy its link.")
+        -- No clipboard API in this host: the press silently does nothing.
         return
     end
     local ok = pcall(writer, link.link)

@@ -32,7 +32,6 @@ coroutine's completion, not a duration.
 local utilities = script.Parent.Parent.utilities
 
 local motion = require(utilities.motion)
-local log = require(utilities.log)
 
 local OverlayQueue = {}
 
@@ -219,7 +218,15 @@ function OverlayQueue.pump(window, queue)
             local entry = table.remove(queue.pending, 1)
             local ok, err = pcall(entry.build, release)
             if not ok then
-                log.warn("Astra: an overlay failed to open - " .. tostring(err))
+                --[[
+                The pump has to survive a bad build (it owns every later
+                overlay), so the error is raised on its own thread instead
+                of here: a real error is the one piece of console output
+                this library produces.
+                ]]
+                task.spawn(function()
+                    error("Astra: an overlay failed to open - " .. tostring(err), 0)
+                end)
                 released = true
             end
 

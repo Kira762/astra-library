@@ -3,7 +3,6 @@ state.__index = state
 state.__type = "Group"
 
 local constants = require(script.Parent.Parent.utilities.moveable)
-local Group = require(script.Parent.Parent.utilities.log)
 local tab = require(script.Parent.Parent.utilities.ordering)
 
 local props = 8
@@ -74,9 +73,9 @@ function state:_add(a13, a14)
         a13 = "toggle"
     end
     if self.compact and not direction[a13] then
-        Group.warn(
-            `Astra: a row only holds compact elements (button/toggle/stat/slider/stepper), ignoring '{a13}'. Use a column for it.`
-        )
+        -- A row only holds compact elements; anything else is ignored here
+        -- (a column is where it belongs). Dropped quietly: the library has
+        -- no console channel.
         return nil
     end
 

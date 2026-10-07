@@ -1,7 +1,10 @@
 --[[
 HttpGuard suite: every probe trips on its artifact and stays quiet without
-it, policies enforce (`strict` raises, `warn` warns, `audit` reports, `off`
-skips), and the executor gate keeps non-executor environments clean.
+it, policies enforce (`strict` raises, `warn`/`audit` deny, `off` skips) with
+nothing on the console — a tripped scan is indistinguishable from a clean one
+unless the caller reads the report — and the executor gate keeps non-executor
+environments clean. The library prints nothing at all; the suite asserts that
+against the global warn/print for the guard and for the asset path.
 
 Runs against the generated bundle with scripts/http_guard_stubs.luau
 providing the fake executor. Each phase restores what it mutates so phases
@@ -81,16 +84,97 @@ local strictOk = pcall(function()
 end)
 eq(strictOk, false, "strict check raises under a spy")
 
-local warned = {}
+-- Silence is the contract: the library never writes to the console, so a
+-- tripped scan leaves no trace for the tool that tripped it to read. Capture
+-- the global warn/print and assert both stay empty for every policy.
+local warns = {}
+local prints = {}
 local realWarn = warn
+local realPrint = print
 warn = function(message)
-    warned[#warned + 1] = message
+    warns[#warns + 1] = message
 end
+print = function(...)
+    prints[#prints + 1] = select(1, ...)
+end
+local function resetConsole()
+    table.clear(warns)
+    table.clear(prints)
+end
+
 local warnOk, warnReport = guard.check("warn")
-warn = realWarn
 eq(warnOk, false, "warn check returns false under a spy")
 eq(warnReport.clean, false, "warn check returns the tripped report")
-expect(#warned >= 1, "warn check emits at least one warning")
+eq(#warns, 0, "warn check warns about nothing")
+eq(#prints, 0, "warn check prints nothing")
+
+local auditSilent = guard.check("audit")
+eq(auditSilent, false, "audit check returns false under a spy")
+eq(#warns, 0, "audit check prints nothing")
+
+guard.scan()
+eq(#warns, 0, "scan warns about nothing")
+eq(#prints, 0, "scan prints nothing")
+
+local denied, deniedBody = guard.guardFetch("https://example.test/key", function()
+    return "body"
+end, "warn")
+eq(denied, false, "guardFetch denies under a spy")
+eq(deniedBody, nil, "a denied guardFetch returns nil")
+eq(#warns, 0, "a denied guardFetch warns about nothing")
+eq(#prints, 0, "a denied guardFetch prints nothing")
+
+pcall(function()
+    guard.check("strict")
+end)
+eq(#warns, 0, "strict prints nothing either")
+
+-- The library's own fetch points are silent too. Drive the asset resolver with
+-- a request function the source probe reads as C (an executor's would be):
+-- clean it downloads and says nothing, and with a spy planted it falls back to
+-- nil and still says nothing — the behaviour the old "No request function
+-- available to download asset content." warning broke.
+local resolver = (Astra :: any).Core.state.assetResolver
+local fetched = {}
+local requestStub = function()
+    fetched[#fetched + 1] = true
+    return { Success = true, StatusCode = 200, Body = "asset-bytes" }
+end
+handles.cfuncs[requestStub] = true
+request = requestStub
+
+-- The phase-2 spy table is still planted here: the guarded case first.
+resetConsole()
+eq(
+    resolver:getAssetContentFromUrl("https://example.test/icon.png", nil, true),
+    nil,
+    "a guarded asset download falls back to nil"
+)
+eq(#fetched, 0, "a guarded asset download never reaches the request function")
+eq(#warns, 0, "a guarded asset download warns about nothing")
+eq(#prints, 0, "a guarded asset download prints nothing")
+
+-- Now the same call on a clean environment: it must go through, and still
+-- say nothing (a download that succeeds has nothing to report).
+genv.HttpSpy = nil
+resetConsole()
+eq(
+    resolver:getAssetContentFromUrl("https://example.test/icon.png", nil, true),
+    "asset-bytes",
+    "a clean asset download returns the body"
+)
+eq(#fetched, 1, "a clean asset download reaches the request function")
+eq(#warns, 0, "a clean asset download warns about nothing")
+eq(#prints, 0, "a clean asset download prints nothing")
+
+-- Restore phase 2's state for the assertions that follow it.
+genv.HttpSpy = { OnRequest = {}, BlockUrl = function() end }
+request = nil
+handles.cfuncs[requestStub] = nil
+resetConsole()
+
+warn = realWarn
+print = realPrint
 
 local auditOk, auditReport = guard.check("audit")
 eq(auditOk, false, "audit check returns false under a spy")

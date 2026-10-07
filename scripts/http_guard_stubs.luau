@@ -36,9 +36,18 @@ end
 -- Luau and Roblox omit. Swap the (readonly) debug table for a delegating one
 -- so the source probe exercises genuine sources: "[C]" for C functions,
 -- chunk paths for Lua. Everything else falls through to the real table.
+--
+-- `cSources` is the harness's opt-in: a Lua function registered there reads as
+-- "[C]", the way a real executor's `request` does. The asset-path phase needs
+-- a clean environment with a request function it can observe, and a Lua
+-- closure would (correctly) trip the source probe.
 local realDebug = debug
+local cSources = {}
 debug = setmetatable({
     getinfo = function(fn)
+        if cSources[fn] then
+            return { source = "[C]", short_src = "[C]", what = "C" }
+        end
         local ok, source = pcall(realDebug.info, fn, "s")
         if not ok then
             return nil
@@ -100,4 +109,5 @@ getgenv().__HttpGuardTest = {
     files = fakeFiles,
     guiChildren = guiChildren,
     pristineNamecall = print,
+    cfuncs = cSources,
 }

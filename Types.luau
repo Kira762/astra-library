@@ -594,6 +594,10 @@ snapshots the pristine references (the entrypoint already calls it on load);
 `scan` reports; `check` enforces a policy (`strict` raises on any signal,
 unknown policies fail closed like it); `guardFetch` runs a fetch only when
 the policy allows it.
+
+Silent by contract: no policy prints anything, because the console is a
+channel whoever hooked HTTP can read — the findings travel in the report
+`scan`/`check` return.
 ]]
 export type HttpGuardService = {
     capture: () -> boolean,

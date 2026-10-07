@@ -60,8 +60,9 @@ The repo is also an **Agent Skill** source (`skills/astra/`, published via
   frames=42`.
 - **Executor-only runtime surface.** `getgenv`, `writefile`/`readfile`/`isfile`/`delfile`,
   `listfiles`, `getcustomasset`, `request`. A `getgenv().ASTRA_SECURE` flag switches on
-  "secure mode" (icon preload, brand-font swap) and suppresses all logging via
-  `utilities/log.luau`.
+  "secure mode" (icon preload, brand-font swap). The library writes nothing to the
+  console: recoverable conditions are handled silently and a callback that throws is
+  the only thing that prints, as a raised error.
 - **Path sanitisation before persistence.** `utilities/persistencePaths.luau` routes every
   config/settings path through `pathUtil.sanitizeFile` / `sanitizeFolder`.
 
@@ -221,9 +222,9 @@ future that the rest of the tree does not use — modules `require` each other d
   stubbed Roblox environment and assert geometry, layering, input, persistence and
   lifecycle. The harness was recently hardened so an invented `Enum` member fails instead of
   silently passing (CHANGELOG, 2026-09-19) — that is the right instinct.
-- **No debug leftovers**: zero `TODO`/`FIXME`/`HACK` in shipped source; the 10 `print(` hits
-  are all behind `utilities/log.luau`, which suppresses under secure mode and guards
-  `warn` for non-Roblox runtimes.
+- **No debug leftovers**: zero `TODO`/`FIXME`/`HACK` in shipped source, and zero
+  `print(`/`warn(` calls — the library writes nothing to the console; the only output
+  it still produces is a raised error.
 - **Docs are unusually honest** — CHANGELOG records its own regressions and names the
   commit where a failure predates the change.
 

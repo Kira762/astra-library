@@ -16,7 +16,7 @@ every lookup, misses included. This suite pins the replacement contract:
         explicit pack is answered or refused, never overruled by the
         order (the profile card's alias chain relies on that),
   * I6  names and pack names are case-sensitive (never corrected),
-  * I7  an unknown pack warns once and does not resolve to another pack,
+  * I7  an unknown pack resolves to nothing and never substitutes,
   * I8  loadable values pass through and misses keep the old fallback,
   * I9  custom files resolve, are imported once per path, and misses are
         cached (no repeated probing),
@@ -151,17 +151,21 @@ eq(Icons.get("LUCIDE:house"), nil, "I6 an all-caps pack does not match")
 eq(Icons.resolve("Lucide:house"), "Lucide:house", "I6 a mis-cased pack keeps the raw value")
 expect(Icons.resolve("House") ~= resolvedHouse, "I6 a mis-cased name is not silently corrected")
 
--- ===== I7: unknown packs warn once and never substitute ====================
+-- ===== I7: unknown packs resolve to nothing, and say nothing ===============
 
 local warnings = {}
+local prints = {}
 warn = function(message)
 	table.insert(warnings, message)
+end
+print = function(...)
+	table.insert(prints, select(1, ...))
 end
 
 eq(Icons.get("Nope:house"), nil, "I7 an unknown pack resolves to nothing")
 eq(Icons.get("Nope:home"), nil, "I7 a second request through the same bad pack resolves to nothing")
-eq(#warnings, 1, "I7 the unknown pack warns once, not per lookup")
-expect(string.find(warnings[1], "Nope") ~= nil, "I7 the warning names the pack")
+eq(#warnings, 0, "I7 an unknown pack warns about nothing")
+eq(#prints, 0, "I7 an unknown pack prints nothing")
 eq(Icons.resolve("house", "Nope"), "house", "I7 an unknown pack falls back to the raw value")
 expect(Icons.resolve("house") ~= "house", "I7 ... and the good lookup is unaffected")
 

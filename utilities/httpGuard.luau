@@ -36,8 +36,17 @@ Layers
 The whole scanner is gated on executor evidence (hook/introspection
 primitives). A spy cannot run without them, so plain Studio and bare Luau
 always scan clean — and every probe is pcall-wrapped, so `scan()` never
-raises. Policies: `audit` (report only), `warn` (report + `warn()`),
-`strict` (raise on any signal; unknown policies fail closed too), `off`.
+raises. Policies: `audit` (report only), `warn` (deny; identical to
+`audit` in every way that is observable), `strict` (raise on any signal;
+unknown policies fail closed too), `off`.
+
+Silence
+-------
+Nothing here writes to the console, ever. The console is a channel whoever
+is driving the hook can read, so a line naming a signal is a description
+of what to hide next: a denial has to be indistinguishable from a load
+that never happened. Findings travel in the report that `scan()` /
+`check()` return, and `guardFetch` reports by returning `(false, nil)`.
 
 Enforcement points (strict where it matters, quiet everywhere else)
 -------------------------------------------------------------------
@@ -45,10 +54,11 @@ Enforcement points (strict where it matters, quiet everywhere else)
   signature: a hit returns the quiet stub, like any other loader failure.
 * `components/keySystem.luau` guards each `grabKeyFromSite` fetch: a hit
   drops the key exactly like a failed fetch (the gate fails closed, no
-  raise surfaces).
+  raise and nothing on the console).
 * `utilities/assetResolver.luau` resolves its request function through
   `network.getGuardedRequestFn` with `warn`: icon/CDN URLs are public by
-  design, so interception there warns and falls back instead of breaking.
+  design, so interception there denies quietly and falls back to the
+  no-request-function path instead of breaking.
 * Hosts that want strict-at-load call `Astra.HttpGuard.check("strict")`
   before `CreateWindow`. It is not the entrypoint default on purpose: the
   C-layer trips on *any* `__namecall` hook (admin tools hook it too), and a
@@ -541,8 +551,8 @@ end
 
 --[[
 Enforce a policy against a fresh scan. Returns `true` when the environment is
-clean. Otherwise `audit` and `warn` return `false` (warn also `warn()`s every
-signal), while `strict` raises. Unknown policies fail closed like `strict`.
+clean. Otherwise `audit` and `warn` return `false` with nothing on the
+console, while `strict` raises. Unknown policies fail closed like `strict`.
 `off` skips the scan and always returns `true`.
 ]]
 function HttpGuard.check(policy: GuardPolicy?): (boolean, GuardReport)
@@ -565,12 +575,6 @@ function HttpGuard.check(policy: GuardPolicy?): (boolean, GuardReport)
         return false, report
     end
     if effective == "warn" then
-        local warnFn = globalValue("warn")
-        if type(warnFn) == "function" then
-            for _, signal in report.signals do
-                pcall(warnFn, ("Astra HttpGuard [%s/%s]: %s"):format(signal.layer, signal.id, signal.detail))
-            end
-        end
         return false, report
     end
     local parts: { string } = {}

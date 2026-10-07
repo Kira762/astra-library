@@ -164,25 +164,11 @@ local function customAsset(path: string): (boolean, string?)
 end
 
 --[[
-Warnings are once per unknown pack name: a typo in a hot path must not
-spam the console every frame, but the first occurrence has to be findable.
+An unknown pack name used to warn once per pack (a typo in a hot path must
+not spam the console, but the first occurrence had to be findable). Nothing
+is printed now — the lookup simply misses and resolves to nil, and pack
+names are documented as case-sensitive in the icon reference.
 ]]
-local warnedPacks: { [string]: boolean } = {}
-
-local function report(message: string)
-    local env = environment()
-    if type(env.warn) == "function" then
-        pcall(env.warn, message)
-    end
-end
-
-local function warnUnknownPack(pack: string, request: string)
-    if warnedPacks[pack] then
-        return
-    end
-    warnedPacks[pack] = true
-    report(`[Icons] Unknown icon pack "{pack}" in "{request}": pack names are case-sensitive ({table.concat(PACK_ORDER, ", ")})`)
-end
 
 --[[
 `"pack:name"` -> pack, name. Split on the first colon only, so an icon
@@ -389,7 +375,6 @@ function icons.get(name: string, pack: string?): string?
     local qualifiedPack, qualifiedName = splitRequest(name)
     if qualifiedPack ~= nil then
         if not packLoaders[qualifiedPack] then
-            warnUnknownPack(qualifiedPack, name)
             return nil
         end
         if qualifiedName == "" then
@@ -399,7 +384,6 @@ function icons.get(name: string, pack: string?): string?
     end
     if pack ~= nil then
         if type(pack) ~= "string" or not packLoaders[pack] then
-            warnUnknownPack(tostring(pack), name)
             return nil
         end
         return findInPack(pack, name)
@@ -426,7 +410,6 @@ local function lookup(value: string, pack: string?): string?
     local qualifiedPack, qualifiedName = splitRequest(value)
     if qualifiedPack ~= nil then
         if not packLoaders[qualifiedPack] then
-            warnUnknownPack(qualifiedPack, value)
             return nil
         end
         if qualifiedName == "" then
@@ -444,7 +427,6 @@ local function lookup(value: string, pack: string?): string?
         to come back unresolved so the next candidate is tried.
         ]]
         if type(pack) ~= "string" or not packLoaders[pack] then
-            warnUnknownPack(tostring(pack), value)
             return nil
         end
         return prefixed(findInPack(pack, value))

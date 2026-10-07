@@ -12,7 +12,6 @@ local name = require(constants.moveable)
 local value = require(constants.constants)
 local description = require(script.Parent.description)
 local prefix = require(constants.locale)
-local suffix = require(constants.log)
 
 local element = value.statAccents
 

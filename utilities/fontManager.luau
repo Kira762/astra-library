@@ -3,7 +3,6 @@ local a2 = fontManager.getService("HttpService")
 local a3 = fontManager.getService("RunService")
 local a4 = require(script.Parent.filesystem)
 local a5 = require(script.Parent.assetResolver)
-local a6 = require(script.Parent.log)
 local a7 = require(script.Parent.path)
 
 local function a8(a9: unknown): string?
@@ -13,7 +12,6 @@ local function a8(a9: unknown): string?
     if a10 and type(a11) == "string" then
         return a11
     else
-        a6.warn("Failed to encode JSON:", a11)
         return nil
     end
 end
@@ -25,7 +23,6 @@ local function a12(a13: string): unknown?
     if a14 then
         return a15
     else
-        a6.warn("Failed to decode JSON:", a15)
         return nil
     end
 end
@@ -207,7 +204,6 @@ local function a44(
     local a50: string? = nil
     local a51 = false
     if a3:IsStudio() and self._debug then
-        a6.warn("Font manifest loading is not supported in Studio. Using default font manifest for testing.")
         a50 =
             '{"name":"Inter","faces":[{"name":"Thin","weight":100,"style":"normal","assetId":"rbxassetid://12187277209"},{"name":"Extra Light","weight":200,"style":"normal","assetId":"rbxassetid://12187293441"},{"name":"Light","weight":300,"style":"normal","assetId":"rbxassetid://12187268450"},{"name":"Regular","weight":400,"style":"normal","assetId":"rbxassetid://12187266066"},{"name":"Medium","weight":500,"style":"normal","assetId":"rbxassetid://12187336822"},{"name":"Semi Bold","weight":600,"style":"normal","assetId":"rbxassetid://12187254443"},{"name":"Bold","weight":700,"style":"normal","assetId":"rbxassetid://12187275575"},{"name":"Extra Bold","weight":800,"style":"normal","assetId":"rbxassetid://12187267750"},{"name":"Black","weight":900,"style":"normal","assetId":"rbxassetid://12187359223"}]}'
     elseif a4.isfile(a49) then
@@ -222,23 +218,11 @@ local function a44(
         local ok, a54 = pcall(a12, a50)
         if ok and a54 then
             a53 = a17(a54)
-        else
-            if self._debug then
-                a6.warn(
-                    "Failed to parse font manifest for font id: "
-                        .. tostring(a45)
-                        .. ". Error: "
-                        .. tostring(a54)
-                )
-            end
         end
     else
         return self.defaultOptions.fallbackFont
     end
     if not a53 then
-        if self._debug then
-            a6.warn("Font manifest is nil for font id: " .. tostring(a45))
-        end
                 pcall(a4.delfile, a49)
         return self.defaultOptions.fallbackFont
     end
@@ -266,14 +250,6 @@ local function a44(
                 else nil
             if not a62 or not a22(a62) then
                 a56 = false
-                if self._debug then
-                    a6.warn(
-                        "Font face content is missing or not a font for font id: "
-                            .. tostring(a45)
-                            .. ", face: "
-                            .. a57.name
-                    )
-                end
                 continue
             end
             pcall(a4.writefile, a58, a62)
@@ -282,14 +258,8 @@ local function a44(
         a4.discardExecutorImageCache()
         if ok and type(a63) == "string" then
             a53.faces[i].assetId = a63
-            if self._debug then
-                a6.print("Loaded font face for id: " .. tostring(a45) .. ", face: " .. a57.name)
-            end
         else
             a56 = false
-            if self._debug then
-                a6.warn("Failed to load font face for id: " .. tostring(a45) .. ", face: " .. a57.name)
-            end
         end
     end
             if not a56 then
@@ -303,16 +273,10 @@ local function a44(
     local a65, a66 = pcall(a25.getcustomasset, a55 .. "/manifest.json")
     a4.discardExecutorImageCache()
     if not a65 or not a66 then
-        if self._debug then
-            a6.warn("Failed to load font manifest for id: " .. tostring(a45))
-        end
         return self.defaultOptions.fallbackFont
     end
         local ok, a67 = pcall(Font.new, a66 :: any, a46, a47)
     if not ok or not a67 then
-        if self._debug then
-            a6.warn("Failed to load font for id: " .. tostring(a45))
-        end
         return self.defaultOptions.fallbackFont
     end
 
@@ -326,9 +290,6 @@ local function a44(
                 [a48] = a67,
             },
         }
-        if self._debug then
-            a6.print("Cached font for id: " .. tostring(a45))
-        end
     end
     return a67
 end
@@ -353,7 +314,6 @@ function a16.loadFont(
     local a76 = self.assetResolver:resolve(id)
     local a77 = a29(a76)
     if not a77 then
-        a6.warn("Invalid font id: " .. tostring(id))
         return self.defaultOptions.fallbackFont
     end
         local a78 = self.fontCache
@@ -362,9 +322,6 @@ function a16.loadFont(
         if a79 then
             local a80 = a79.variants and a79.variants[a75]
             if a80 then
-                if self._debug then
-                    a6.print("Loaded font from cache for id: " .. tostring(a77))
-                end
                 return a80
             end
 
@@ -372,14 +329,8 @@ function a16.loadFont(
             if ok and a81 then
                 a79.variants = a79.variants or {}
                 a79.variants[a75] = a81
-                if self._debug then
-                    a6.print("Loaded font variant from cache for id: " .. tostring(a77))
-                end
                 return a81
             else
-                if self._debug then
-                    a6.warn("Failed to load font from cache for id: " .. tostring(a77))
-                end
                 a78[a77] = nil
                 return self.defaultOptions.fallbackFont
             end
@@ -387,10 +338,6 @@ function a16.loadFont(
     end
 
         if not a71 then
-        if self._debug then
-            a6.warn("Font loading without saving to disk can be detected by Anti-cheats.")
-        end
-
         return self.defaultOptions.fallbackFont
     end
 
@@ -433,9 +380,6 @@ function a16.resolve(self: FontManager, id: number | string): Font?
     if a90 then
         local a91 = a90[a89]
         if a91 then
-            if self._debug then
-                a6.print("Resolved font for id: " .. tostring(a89))
-            end
             for _, a92 in pairs(a91.variants or {}) do
                 return a92
             end

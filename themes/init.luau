@@ -16,7 +16,6 @@ This file IS the `themes` ModuleScript (init.luau semantics): the
 ]]
 local themesFolder = script
 local variables = require(script.Parent.core.state)
-local log = require(script.Parent.utilities.log)
 
 local themes = {}
 
@@ -72,13 +71,11 @@ local function themeOverrides(value)
     if typeof(value) == "table" then
         return value
     elseif typeof(value) == "string" then
+        -- Unknown theme name: fall through to the default, quietly.
         local named = themesFolder:FindFirstChild(string.lower(value))
         if named then
             return require(named)
         end
-        log.warn("Astra: unknown theme '" .. value .. "', using default")
-    elseif value ~= nil then
-        log.warn("Astra: invalid theme (expected a built-in name or a theme table), using default")
     end
     return require(themesFolder["default"])
 end

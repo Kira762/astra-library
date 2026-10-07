@@ -28,7 +28,6 @@ local image = require(script.Parent.Parent.images.image)
 local haptic = require(utilities.HapticEngine)
 local locale = require(utilities.locale)
 local lockable = require(utilities.lockable)
-local log = require(utilities.log)
 local moveable = require(utilities.moveable)
 
 --[[
@@ -105,22 +104,6 @@ local checkCandidates = {
     "check-circle",
     "badge-check",
 }
-
---[[
-Warn-once flags, kept at module scope rather than on the card. What they
-guard is a fact about the host (it has no clipboard API) or about how a
-card was built (it carries no link) — not about any one card — so ten
-link cards in one host log one warning, not ten.
-]]
-local warned = {}
-
-local function warnOnce(key: string, message: string)
-    if warned[key] then
-        return
-    end
-    warned[key] = true
-    log.warn(message)
-end
 
 local function environment(): any
     --[[
@@ -913,16 +896,11 @@ end
 
 --[[
 A failed copy keeps the copy glyph: the check mark means the link is on
-the clipboard, so nothing else may show it. The console says why once, and
-the notification is the only visible answer the user gets for the tap
-(exact duplicates coalesce, so repeated taps refresh one card).
+the clipboard, so nothing else may show it. The notification is the only
+visible answer the user gets for the tap (exact duplicates coalesce, so
+repeated taps refresh one card); nothing is printed.
 ]]
 function state:_reportUnavailable()
-    warnOnce(
-        "clipboard",
-        "Astra: no clipboard API was found in this environment, so a Link card cannot copy its URL (looked for setclipboard, toclipboard, setrbxclipboard, Clipboard and StudioService)."
-    )
-
     self.window:Notify({
         title = locale.resolve("Copy failed"),
         content = locale.resolve("This environment has no clipboard API."),
@@ -934,15 +912,9 @@ end
 --[[
 The other way a copy can end up with nothing to put on the clipboard: the
 card carries no link. Same shape as the missing-API answer — the glyph
-stays on copy, the console says why once, the notification is the user's
-only visible answer.
+stays on copy and the notification is the user's only visible answer.
 ]]
 function state:_reportNothingToCopy()
-    warnOnce(
-        "empty",
-        "Astra: a Link card has no link to copy (its `link` prop is empty), so its copy control has nothing to put on the clipboard."
-    )
-
     self.window:Notify({
         title = locale.resolve("Nothing to copy"),
         content = locale.resolve("This link card has no URL."),

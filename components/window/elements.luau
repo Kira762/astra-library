@@ -1,7 +1,6 @@
 local utilities = script.Parent.Parent.Parent.utilities
 local constants = require(utilities.constants)
 local locale = require(utilities.locale)
-local log = require(utilities.log)
 local motion = require(utilities.motion)
 local persistence = require(utilities.persistence)
 local state = require(utilities.Parent.core.state)
@@ -283,22 +282,10 @@ function Window:_buildLockScrim(element)
     parented onto a layout-managed surface takes a slot beside the
     surface's own content and shoves it around the moment the element
     locks (compact rows shipped exactly that shift). Layouts belong on an
-    inner content frame — see `Window:_buildCompactRow`. Loud warning so
-    a new element cannot silently reintroduce lock-time layout shifts.
+    inner content frame — see `Window:_buildCompactRow`. This mattered
+    enough to warn about once; it is now a rule at review time, because
+    the library has no console channel to warn through.
     ]]
-    for _, child in ipairs(parent:GetChildren()) do
-        if
-            child:IsA("UIListLayout")
-            or child:IsA("UIGridLayout")
-            or child:IsA("UITableLayout")
-            or child:IsA("UIPageLayout")
-        then
-            log.warn(
-                `Astra: {element.__type} '{element.name}' lock surface hosts a {child.ClassName}; the lock scrim will join its layout and shift the content when locked. Move the layout onto an inner content frame.`
-            )
-            break
-        end
-    end
     element.lockScrim = self:Create("TextButton", {
         Name = "ElementLock",
         Active = true,
@@ -463,14 +450,9 @@ function Window:_runGuarded(element, fn, ...)
         local errorTween = "snappy"
         motion.tween(flashTarget, { BackgroundColor3 = self.theme.ErrorColor }, errorTween)
         motion.tween(element.stroke, { Color = self.theme.ErrorStrokeColor }, errorTween)
-                if element.title then
-            element.title.Text = locale.resolve("Error, log recorded in console.")
+        if element.title then
+            element.title.Text = locale.resolve("Error: callback failed, see console")
         end
-
-        log.warn(
-            `Astra encountered an error, with the callback for a {element.__type} component named '{element.name}':`
-        )
-        log.print(err)
 
         task.wait(1)
 
@@ -488,6 +470,17 @@ function Window:_runGuarded(element, fn, ...)
             "emphasized"
         )
         element._errored = false
+        --[[
+        The card is restored first, then the error is raised. A callback
+        that threw is a real error, and a real error is the only thing this
+        library prints — the flash and the title already told the user which
+        element to look at, and the raise is what puts the traceback in the
+        console for them to read.
+        ]]
+        error(
+            `Astra: the callback for {element.__type} '{element.name}' errored: {tostring(err)}`,
+            0
+        )
     end)
 end
 

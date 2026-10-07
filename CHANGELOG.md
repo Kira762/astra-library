@@ -53,7 +53,7 @@ small ones.
 ## 2026-10-07 — the published bundle stops carrying its comments, and built-in window icons get their own folder
 
 Two changes, both behaviour-preserving. The first cuts what a `loadstring`
-has to fetch and parse by **26.9%** (1,100,346 → 804,679 bytes); the second
+has to fetch and parse by **26.8%** (1,100,346 → 805,203 bytes); the second
 makes the library's own glyphs a first-class folder instead of three files
 hiding inside the remote-image pipeline.
 
@@ -85,11 +85,35 @@ error planted at `utilities/locale.luau` line 15 reports the identical
   which a naive `--`-scanner corrupts — that bug was found this way), and
   `--!` compiler directives are kept because they are configuration, not
   decoration. It throws rather than return output whose line count moved.
+  Two real bugs came out of writing it, both fixed, neither reachable from
+  today's modules (which is why the corpus test alone never saw them):
+
+    1. `{ {1, 2} }` inside an interpolated string lost the space after `{` and
+       came out as `{{1, 2}` — and Luau rejects `{{` outright as "double
+       braces are not permitted". Cause: the walker re-enters mid-line for
+       each interpolation expression but assumed it started at a line start,
+       so the space was mistaken for indentation and deleted. "At a line
+       start" is now measured from the preceding byte instead of assumed.
+    2. Interpolation nesting was tracked with a boolean flag rather than a
+       depth counter, so the *first* `}` closed the expression even when it
+       belonged to a table constructor inside it. It is a counter now.
+
+  The fixture fails on the pre-fix stripper and passes on the current one;
+  that negative control is the point of keeping the fixture around.
+
 - **`scripts/strip_equivalence_test.sh`** (new, in `check_all.sh` as step
   6/7) — compiles every published module with `luau-compile --binary` before
   and after stripping and requires the two blobs to be **byte-identical**.
   Bytecode is the whole program, so this catches every class of stripper bug
   at once instead of trusting the eye.
+- **`scripts/strip_fixtures/adversarial.luau`** (new) — the 115 published
+  modules are real code, and real code only contains the shapes its authors
+  happened to write, so a green corpus proves less than it looks like. This
+  fixture carries the shapes a hand-written lexer gets wrong on purpose: `--`
+  in all five string forms, nested interpolated strings, `]]` inside a long
+  comment, escaped braces, and table constructors inside an interpolated
+  expression.
+
 - **`scripts/generate_bundle.js`** — strips each module as it is embedded.
   `--no-strip` (or `ASTRA_BUNDLE_NO_STRIP=1`) emits a readable build for
   debugging; the generator says which one it wrote.
@@ -1321,8 +1345,6 @@ still named by source comments and docs.
 `luau-analyze` is still not wired in: without a Roblox-globals allowlist it floods
 `Unknown global 'script'/'Enum'/'Color3'` on every file, so it would fail the gate on
 noise rather than findings.
-
-
 
 ## 2026-09-22 — Static gates: instance-field checker wired in, dangling-reference checker added
 

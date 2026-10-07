@@ -56,6 +56,10 @@ sh scripts/<feature>_test.sh        # the per-feature runtime tests
 - `scripts/strip_equivalence_test.sh` compiles every published module with
   `luau-compile --binary` before and after stripping and requires byte-identical
   output. Run it after touching `scripts/strip_luau.js`.
+- `scripts/strip_fixtures/*.luau` are adversarial lexer fixtures run by the
+  strip gate alongside the real modules. Add a case there whenever a
+  stripper bug is fixed, so the shape stays pinned; each new fixture should
+  be checked to fail against the pre-fix stripper before the fix is trusted.
 - `check_syntax.sh` resolves `luau-compile` (preferred) or `luau --compile` from
   `PATH`, `/tmp`, `/usr/local/bin`; with neither present it exits **2 — "not checked",
   never a silent pass**. The same toolchain lookup is used by the runtime tests.

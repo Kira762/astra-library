@@ -78,14 +78,21 @@ function longBracketOpen(level) {
  * looks like a comment opener inside a string is not one.
  *
  * `braceDepth` is only non-zero while walking the expression part of an
- * interpolated string; it lets the matching `}` close the interpolation
+ * interpolated string; it lets the *matching* `}` close the interpolation
  * even when the expression itself contains table constructors.
  */
 function walk(src, out, start, braceDepth) {
   let i = start;
   const n = src.length;
-  let atLineStart = true;
+  // Re-entry for an interpolation expression happens mid-line, so "at the
+  // start of a line" has to be measured, not assumed: assuming true made the
+  // space in `` `{ {1} }` `` look like indentation, and deleting it fused the
+  // braces into `{{` -- which Luau rejects outright.
+  let atLineStart = start === 0 || src[start - 1] === NEWLINE;
   let pendingSpace = false;
+  // 0 outside an interpolation (where `{`/`}` are ordinary code); > 0 inside
+  // one, where it counts nesting and closes at the matching brace.
+  let depth = braceDepth;
 
   const flushSpace = () => {
     if (pendingSpace) {
@@ -141,10 +148,27 @@ function walk(src, out, start, braceDepth) {
       continue;
     }
 
-    // ---- the interpolation terminator ----------------------------------
-    if (braceDepth > 0 && ch === "}") {
+    // ---- interpolation braces ------------------------------------------
+    // Counted, not flagged: `{` opens a nested table constructor inside the
+    // expression, so only the brace that takes the depth back to zero closes
+    // the interpolation. A single boolean closed on the *first* `}`, which
+    // mis-read `` `x = { {1,2}[1] }` `` as ending at the table's brace.
+    if (depth > 0 && (ch === "{" || ch === "}")) {
+      // Inside an interpolation the braces are syntax, so keep a single
+      // space around them (never `{{`, which Luau reads as an error).
+      flushSpace();
+      atLineStart = false;
+      if (ch === "{") {
+        out.push("{");
+        depth += 1;
+        i += 1;
+        continue;
+      }
       out.push("}");
-      return { index: i + 1, closed: true };
+      depth -= 1;
+      i += 1;
+      if (depth === 0) return { index: i, closed: true };
+      continue;
     }
 
     flushSpace();
@@ -174,12 +198,6 @@ function walk(src, out, start, braceDepth) {
     // ---- interpolated strings ------------------------------------------
     if (ch === "`") {
       i = scanInterpolated(src, i, out);
-      continue;
-    }
-
-    if (ch === "{") {
-      out.push("{");
-      i += 1;
       continue;
     }
 

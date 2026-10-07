@@ -20,7 +20,7 @@ planting an error and reading the same message out of both builds.
 
 | Metric (lower is better)                  | Before     | After      | Δ |
 | ----------------------------------------- | ---------- | ---------- | - |
-| Bundle bytes                              | 1,100,346  | **804,679** | **−295,667 (−26.9%)** |
+| Bundle bytes                              | 1,100,346  | **805,203** | **−295,143 (−26.8%)** |
 | …of which comments                        | 183,660    | 0          | |
 | …of which indentation                     | 140,172    | 0          | |
 | Modules / lines                           | 111 / 29,016 | 112 / 29,141 | +1 folder (`windowIcons/`) |

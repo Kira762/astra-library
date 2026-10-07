@@ -58,6 +58,68 @@ FILES="$FILES library_entrypoint.luau Types.luau example.client.luau changelog.e
 
 checked=0
 failed=0
+fixtures_checked=0
+
+# -- 1. Adversarial fixtures -------------------------------------------------
+# The published modules are real code, and real code is an unreliable witness:
+# it contains only the shapes its authors happened to write. These fixtures
+# hold the shapes a hand-written Luau lexer gets wrong on purpose, so a
+# regression is caught here instead of by a user whose bundle will not load.
+for fixture in scripts/strip_fixtures/*.luau; do
+	[ -f "$fixture" ] || continue
+
+	if ! node scripts/strip_luau.js "$fixture" "$WORK/stripped.luau" 2>"$WORK/strip.log"; then
+		echo "  FAIL  $fixture (stripper refused)" >&2
+		sed -n '1,4p' "$WORK/strip.log" >&2
+		failed=$((failed + 1))
+		continue
+	fi
+	if ! "$LUAU_COMPILE" --binary "$fixture" >"$WORK/before.bin" 2>/dev/null; then
+		echo "  FAIL  $fixture (fixture does not compile)" >&2
+		failed=$((failed + 1))
+		continue
+	fi
+	if ! "$LUAU_COMPILE" --binary "$WORK/stripped.luau" >"$WORK/after.bin" 2>/dev/null; then
+		echo "  FAIL  $fixture (stripped output does not compile)" >&2
+		failed=$((failed + 1))
+		continue
+	fi
+	if ! cmp -s "$WORK/before.bin" "$WORK/after.bin"; then
+		echo "  FAIL  $fixture (bytecode differs after stripping)" >&2
+		failed=$((failed + 1))
+		continue
+	fi
+
+	# Line numbers are load-bearing: the bundle maps a runtime error back to
+	# its source line with LineOffsets, so a moved line misreports the error.
+	lines_before=$(wc -l <"$fixture" | tr -d " ")
+	lines_after=$(wc -l <"$WORK/stripped.luau" | tr -d " ")
+	if [ "$lines_before" != "$lines_after" ]; then
+		echo "  FAIL  $fixture (line count $lines_before -> $lines_after)" >&2
+		failed=$((failed + 1))
+		continue
+	fi
+
+	# `--!strict` and friends configure the compiler. Prose does not, so it
+	# goes; these stay.
+	grep "^--!" "$fixture" >"$WORK/directives.txt" 2>/dev/null || true
+	directive_fail=0
+	while IFS= read -r directive; do
+		[ -n "$directive" ] || continue
+		if ! grep -Fxq -e "$directive" "$WORK/stripped.luau"; then
+			echo "  FAIL  $fixture (directive dropped: $directive)" >&2
+			directive_fail=1
+		fi
+	done <"$WORK/directives.txt"
+	if [ "$directive_fail" -ne 0 ]; then
+		failed=$((failed + 1))
+		continue
+	fi
+
+	fixtures_checked=$((fixtures_checked + 1))
+done
+
+# -- 2. Every published module ----------------------------------------------
 for file in $FILES; do
 	[ -f "$file" ] || continue
 	if ! node scripts/strip_luau.js "$file" "$WORK/stripped.luau" 2>"$WORK/strip.log"; then
@@ -86,11 +148,11 @@ done
 
 if [ "$failed" -ne 0 ]; then
 	echo "" >&2
-	echo "STRIP EQUIVALENCE FAILED: $failed of $((checked + failed)) file(s) changed meaning." >&2
+	echo "STRIP EQUIVALENCE FAILED: $failed file(s) changed meaning." >&2
 	echo "The bundle is published stripped, so a stripper bug ships to every" >&2
 	echo "user as a silently different library. Fix scripts/strip_luau.js." >&2
 	exit 1
 fi
 
-echo "STRIP EQUIVALENCE PASSED ($checked file(s) compile to identical bytecode with and without stripping)"
+echo "STRIP EQUIVALENCE PASSED ($fixtures_checked adversarial fixture(s) and $checked module file(s) compile to identical bytecode with and without stripping)"
 exit 0

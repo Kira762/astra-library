@@ -10488,11 +10488,19 @@ end
 
 
 
+
+
+
+
+
+
+
+
 function Window:_showTabElements(tab)
 tab._elementsPending = false
 local elements = tab.elements
 local count = #elements
-if count <= 8 then
+if count <= 8 or tab ~= self.selectedTab then
 for _, element in ipairs(elements) do
 element:_setShown(true, false)
 end
@@ -10512,7 +10520,18 @@ end
 if initialCount < count then
 task.spawn(function()
 local index = initialCount + 1
-while index <= count and not self.unloaded and self.selectedTab == tab do
+while index <= count do
+
+
+
+
+
+
+
+if self.unloaded or self.hidden or self.minimised or self.selectedTab ~= tab then
+tab._elementsPending = true
+return
+end
 local nextBatch = math.min(count, index + batchSize - 1)
 for j = index, nextBatch do
 elements[j]:_setShown(true, false)
@@ -10580,9 +10599,20 @@ local viewBottom = viewTop + page.AbsoluteWindowSize.Y
 local step = motion.step(stepDelay)
 local maxReveals = if step > 0 then math.floor(totalDuration / step) else math.huge
 local revealed = 0
+
+
+
+
+
+
+local function abandon()
+tab._elementsPending = true
+return
+end
+
 for _, element in ipairs(tab.elements) do
 if not isStillValid() then
-return
+return abandon()
 end
 local elemTop = element.main.AbsolutePosition.Y
 local isVisible = (elemTop + element.main.AbsoluteSize.Y) > viewTop and elemTop < viewBottom
@@ -10592,7 +10622,7 @@ revealed += 1
 if step > 0 and revealed <= maxReveals then
 task.wait(step)
 if not isStillValid() then
-return
+return abandon()
 end
 end
 else
@@ -27954,88 +27984,88 @@ local LineOffsets = {
     [30] = 9643,
     [31] = 10090,
     [32] = 6843,
-    [34] = 11024,
-    [35] = 11113,
-    [36] = 11342,
-    [37] = 11763,
-    [38] = 12226,
-    [39] = 12383,
-    [40] = 12528,
-    [41] = 14192,
-    [42] = 14440,
-    [43] = 14677,
-    [44] = 14998,
-    [45] = 15251,
-    [46] = 16331,
-    [47] = 16417,
-    [48] = 17020,
-    [49] = 17888,
-    [50] = 18482,
-    [51] = 19053,
-    [52] = 19183,
-    [53] = 19322,
-    [55] = 19837,
-    [56] = 19863,
-    [57] = 19882,
-    [58] = 19914,
-    [59] = 20040,
-    [60] = 20054,
-    [61] = 20103,
-    [62] = 19812,
-    [63] = 20194,
-    [64] = 20510,
-    [65] = 20541,
-    [66] = 20183,
-    [67] = 20584,
-    [68] = 20604,
-    [69] = 20636,
-    [70] = 20566,
-    [71] = 20743,
-    [72] = 20811,
-    [74] = 20901,
-    [75] = 20878,
-    [76] = 21121,
-    [77] = 21217,
-    [78] = 21068,
-    [79] = 21787,
-    [80] = 21833,
-    [81] = 21915,
-    [82] = 22110,
-    [83] = 22241,
-    [84] = 22344,
-    [85] = 22513,
-    [86] = 22853,
-    [87] = 21242,
-    [88] = 23497,
-    [89] = 23383,
-    [90] = 23636,
-    [91] = 23734,
-    [92] = 23915,
-    [93] = 23977,
-    [94] = 24007,
-    [95] = 24299,
-    [96] = 24348,
-    [97] = 24803,
-    [98] = 24821,
-    [99] = 25028,
-    [100] = 25641,
-    [101] = 25661,
-    [102] = 25789,
-    [103] = 25888,
-    [104] = 26117,
-    [105] = 26173,
-    [106] = 26646,
-    [107] = 26682,
-    [108] = 26720,
-    [109] = 27080,
-    [110] = 27092,
-    [111] = 27143,
-    [112] = 27162,
-    [113] = 27460,
-    [114] = 27504,
-    [115] = 27705,
-    [116] = 27733,
-    [117] = 27744,
+    [34] = 11054,
+    [35] = 11143,
+    [36] = 11372,
+    [37] = 11793,
+    [38] = 12256,
+    [39] = 12413,
+    [40] = 12558,
+    [41] = 14222,
+    [42] = 14470,
+    [43] = 14707,
+    [44] = 15028,
+    [45] = 15281,
+    [46] = 16361,
+    [47] = 16447,
+    [48] = 17050,
+    [49] = 17918,
+    [50] = 18512,
+    [51] = 19083,
+    [52] = 19213,
+    [53] = 19352,
+    [55] = 19867,
+    [56] = 19893,
+    [57] = 19912,
+    [58] = 19944,
+    [59] = 20070,
+    [60] = 20084,
+    [61] = 20133,
+    [62] = 19842,
+    [63] = 20224,
+    [64] = 20540,
+    [65] = 20571,
+    [66] = 20213,
+    [67] = 20614,
+    [68] = 20634,
+    [69] = 20666,
+    [70] = 20596,
+    [71] = 20773,
+    [72] = 20841,
+    [74] = 20931,
+    [75] = 20908,
+    [76] = 21151,
+    [77] = 21247,
+    [78] = 21098,
+    [79] = 21817,
+    [80] = 21863,
+    [81] = 21945,
+    [82] = 22140,
+    [83] = 22271,
+    [84] = 22374,
+    [85] = 22543,
+    [86] = 22883,
+    [87] = 21272,
+    [88] = 23527,
+    [89] = 23413,
+    [90] = 23666,
+    [91] = 23764,
+    [92] = 23945,
+    [93] = 24007,
+    [94] = 24037,
+    [95] = 24329,
+    [96] = 24378,
+    [97] = 24833,
+    [98] = 24851,
+    [99] = 25058,
+    [100] = 25671,
+    [101] = 25691,
+    [102] = 25819,
+    [103] = 25918,
+    [104] = 26147,
+    [105] = 26203,
+    [106] = 26676,
+    [107] = 26712,
+    [108] = 26750,
+    [109] = 27110,
+    [110] = 27122,
+    [111] = 27173,
+    [112] = 27192,
+    [113] = 27490,
+    [114] = 27534,
+    [115] = 27735,
+    [116] = 27763,
+    [117] = 27774,
 }
 
 -- Misc AOT variable imports

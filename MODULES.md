@@ -133,7 +133,11 @@ engine — both entrances animate the shell first and hand the page to
 `_stageContentReveal`, which waits `contentRevealBeat`, runs `_revealElements`
 one control per beat, and then opens the overlay gate; `_contentEntranceId` is
 the generation that keeps a superseded entrance from touching the page, and
-`_revealElements` owns clearing `_elementsPending` for the tab it walks), `_bindTopbarDrag`/`_bindKeybind`/`_bindMouseOverride`,
+`_revealElements` owns clearing `_elementsPending` for the tab it walks — an
+abandoned pass (window hidden, minimised, or a superseded layout transition)
+puts the mark back so the next open finishes the page, and `_showTabElements`
+streams only the tab that is on screen, showing any other tab in one pass
+because a stream for a page nobody can see would abandon its own tail), `_bindTopbarDrag`/`_bindKeybind`/`_bindMouseOverride`,
 `_applyWindowSize`/`_applyRailWidth`/`_clampToScreen`/`_watchViewport`,
 `_clampedPosition` (keep-on-screen clamp on the window's own half-extents),
 `_restingCenterPosition`/`_recenterWindow` (screen-centre recentering;

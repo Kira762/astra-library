@@ -40,7 +40,7 @@ local window = Astra:CreateWindow({
     icon = "house",                   -- icon name or asset id
     theme = "default",                -- built-in name or custom table
     showName = "Astra",               -- capsule label when minimised
-    showIconOnly = false,
+    showIconOnly = false,            -- starting capsule shape; double-tap it to switch
     fallbackFont = Enum.Font.Gotham,  -- used when the brand font cannot load
     translator = function(source, localeId) end,
     locale = "en",
@@ -142,7 +142,11 @@ previous tab. User code does not build these tabs.
 
 Old non-letter menu bindings migrate to K. Capsule content only appears after
 `Hide()` settles; it is invisible during folding, restoration and topbar-only
-minimisation. Keep one-off settings standalone; reserve collapsible groups for
+minimisation. A single tap on the capsule restores the window (after a 0.25s
+gesture window) and a double tap folds it between the wide pill and the
+icon-only circle instead — a right-to-left shape change that keeps the pill's
+left edge, moves the icon to the centre and cuts the text at the pill's edge.
+The chosen shape is not saved; `showIconOnly` is the shape it starts in. Keep one-off settings standalone; reserve collapsible groups for
 multiple related controls.
 
 ## Themes
@@ -293,9 +297,11 @@ turn, one entrance at a time, with a cooldown between two of them. Past six wait
 requests the oldest not-yet-built request is dropped. With the speed profile set to
 **Instant** the order is kept but the pauses disappear.
 
-Search controls are created on first search; built-in settings tabs and their
-controls are lazy until selected. Controls added to an inactive tab wait for that
-tab to be shown before revealing.
+Search controls are created on first search, and the title-bar field expands into
+its space rather than appearing in it: it grows right to left out of the search
+action's side and folds back into the action when search closes. Built-in
+settings tabs and their controls are lazy until selected. Controls added to an
+inactive tab wait for that tab to be shown before revealing.
 
 ## Window lifecycle notes
 

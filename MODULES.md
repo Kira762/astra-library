@@ -199,6 +199,27 @@ Tab-rail reflow:
 ### `components/action.luau`, `chrome.luau`, `tabSelector.luau`
 Small window-furniture classes; top-level `utility` require + constructor locals for created frames/buttons.
 
+`chrome.buildCollapsedFace` builds the restore capsule's face once, in the shape
+`showIconOnly` starts the window in; `chrome.morphCollapsedShape(window)` is the
+runtime change between the two shapes, driven by a double tap on the capsule
+(`chrome.bindCollapsedDrag`). The morph tweens the shell's `Size` and `Position`
+as one `glide` movement with the centre offset by half the width difference, so
+the pill's left edge and vertical centre are fixed for the whole tween and the
+right edge is what travels (right to left into the circle); the icon moves
+between its 16px inset and the circle's centre, and the labels — laid out at
+`collapsedTextWidth` (the wide capsule's 125px column, from
+`window/constants.luau`'s `collapsedWideSize`) inside a clipping
+`collapsedTextFrame` — are cut off at the pill's own edge instead of re-wrapping.
+`window.animating` is held for the movement (settled through
+`window._capsuleMorphId`, like the fold's `_hideTransitionId`), and the capsule
+remembers the place it was left in (`_collapsedPosition`) in either shape.
+
+The tap gesture: a tap-up parks `window:ToggleHide()` behind `doubleTapWindow`
+(0.25s) so a second tap can claim the gesture; the parked restore is dropped by
+a press that claims `InputBegan`, by travel (a move, draggable or not) and by a
+window that already showed itself, and it re-checks `hidden` when it fires.
+`_lastCapsuleTap` / `_capsuleTapToken` are the gesture's own bookkeeping.
+
 `tabSelector.railContentWidth(window, layout)` — natural rail width for the
 responsive sidebar: the widest row in the current rail group (tabs or
 settings tabs per `_settingsMode`), measured with `functions.textWidth`
@@ -349,6 +370,23 @@ and shows the matching elements on a shared search page; Escape or the search
 button closes it and restores each element to its home tab. The field is measured
 against the rendered title/action bounds and stays hidden until search is opened.
 
+Opening is a reveal: the pill is built flat and only its *width* is ever animated,
+with its right edge pinned `SEARCH_ACTION_GAP` (12px) off the action group, so the
+field expands right to left out of the search action's side and folds back into it
+on close (`REVEAL_SPEC` / `smooth` growing, `COLLAPSE_SPEC` / `exit` folding). The
+geometry has one author per step: `measureSearchPill` (right edge + free width,
+capped at `SEARCH_MAX_WIDTH` 260), `placeSearchPill` (a width's geometry),
+`sizeSearchInput` (the text box, sized from the field's **resting** width so it
+scales with the pill instead of being re-cut every frame) and `tweenSearchPill`
+(the movement, carrying the surface's own fill on the same call so pill and glass
+arrive together). `applySearchGeometry(window, mode)` is the single entry point --
+`"open"` (grow from the width already showing), `"close"` (fold flat) or `nil`
+(rest) — and `window._searchReveal` names the movement in flight so a re-measure
+(a window resize, a rail change) re-targets it from where it is; the completion
+clears it, and the fold's completion is what hides the pill (never a timer, and on
+the spot when `motion.tween` has nothing to animate). Outline, glow, glyph and text
+still fade on `HOVER_SPEC` (`snappy`).
+
 ---
 
 ## layouts/
@@ -435,7 +473,7 @@ Per-element specifics:
 - `keybind.luau` — required A–Z editable TextBox with a one-letter themed keycap, shared base-card layout, flags, guarded callbacks and move/lock methods. `value` is an uppercase string. `_canCapture` checks visibility, selected tab and ancestors; `Capture`/`CancelCapture` own `window._keybindCapture`; the TextBox sanitises direct edits while `_captureInput` accepts letters and Escape; `Set` validates without clearing. Keybinds intentionally have no description row. Tab and column Group expose `CreateKeybind`; declarative Collapsible Groups accept `Keybind`.
 - `utilities/keybind.luau` — shared `letter(value)` validation for strings and KeyCode EnumItems; settings defaults, live validation and saved-setting migration use the same rule. Settings schema 2 migrates unsupported bindings to K.
 - `components/window/input.luau` — routes input to the capture owner before the menu toggle; ignores game-processed input and focused *other* TextBoxes while allowing the editable keybind field to keep its capture. Tab changes, hide, minimise, group collapse, lock, removal and unload cancel capture.
-- `components/chrome.luau` / `window/visibility.luau` — capsule icon/text use explicit Visible gates; only the Hide completion reveals them. Expanded, folding, restoring and topbar-minimised states never show the restore face.
+- `components/chrome.luau` / `window/visibility.luau` — capsule icon/text use explicit Visible gates; only the Hide completion reveals them. Expanded, folding, restoring and topbar-minimised states never show the restore face. The double-tap reshape keeps the same rule: the text frame is only revealed while the capsule is on screen (it goes back off when the circle settles).
 - `baseCard.luau` — shared card container and header layout helper for element modules.
 - Functional info badges: `infoHelper.luau` and badge gesture bindings were
   deleted. Legacy `info`/`infoIcon` props are ignored and `SetInfo` methods are
@@ -673,7 +711,9 @@ needs to exist.
 | `tab_elements_test.sh` | Tab elements: only the selected tab is walked on a show/hide, a tab opened later shows its elements in the same frame and state, the search shows every tab it renders, and a late element shows with its tab. |
 | `tab_row_edge_test.sh` | Sidebar row outline shades: the selected row wears the theme's `TabStroke` gradient (its lit lip), hover and unselected rows wear a flat blend of it toward `SidebarSurface` (hover visibly firmer, both at their own transparencies), selecting elsewhere re-shades the row left behind, a `ChangeTheme` re-derives each row's shade instead of dropping unselected rows back onto the lit gradient, and a locked row shades like its neighbours. |
 | `startup_navigation_test.sh` | Staged-startup navigation: a row tap and the Settings action made while the host build is still streaming survive the host's closing `tab:Select()` (selection and on-screen page); a first main tab created after the user opened Settings does not auto-select itself; after the build settles, host `Select`/`Navigate` and row taps apply; with no user tap, the host's startup selection still applies. |
+| `capsule_double_tap_test.sh` | The capsule's double tap, driven through the real input path: one tap restores only after the gesture window, two taps fold the pill into the icon-only circle (left edge and vertical centre unchanged, so the right edge travels), the icon centres, the text frame goes away and the labels keep their fixed column, a second double tap reverts, the capsule returns to the place it was left in, a press that travels drops the parked restore, an already-shown window is not restored on top, a host's icon-only capsule starts as the circle and taps up into the pill, motion-off lands both shapes in one step, and a held movement blocks taps mid-way. |
 | `startup_test.sh` | Startup batching and lazy panels; search stays lazy, opens its field in the title bar only on interaction, filters hidden-tab elements, closes via its action or Escape, restores the original tab and reuses the same UI instances. |
+| `search_reveal_test.sh` | The title-bar field's reveal, read off the pill's own held tween (a no-op `Play`): the field is built flat and hidden, opening places it collapsed against the action side and grows it right to left (identical right edge at both ends of the movement, so only the left edge moves), the surface fill rides the same tween, the text box is sized from the resting width while the pill is still flat, the landed movement leaves the resting geometry, closing folds it back and keeps the field on screen until the fold ends, a reopen mid-fold continues from the width showing, and with motion off both directions land in one step with nothing left in flight. |
 | `tab_lock_test.sh` | Locked tabs: the preserved flag + badge (always hidden during the UI pause) and auto-select skipping a locked first tab; tap → notification with no selection; hover leaves the locked row dimmed; `Navigate`/`Select` guards; `SetLocked(false)` re-enables; locking the open tab moves the selection to a same-rail fallback; search excludes locked tabs' elements; locking every remaining tab clears the selection and hides content, and unlocking restores it; retained badge geometry with no layout reserve, full title slots, and hidden badges after collapse/rebuild. |
 | `elements_lock_test.sh` | Elements Lock System: per-window usage tags and stable IDs, existing usage merge, functional-only registration, default and explicit lock tiers, cumulative Mode 1–5 behavior, manual-lock composition, guarded callbacks, preserved input/draft/selection/layout, expanded-dropdown lock behavior, late controls, and the built-in Settings lock-all switch (exempt, unflagged, always able to release the page). |
 | `lock_mode_persistence_test.sh` | Element Lock Mode round trip: the chosen tier is written to the config, the next execution locks the page from it before Settings is ever opened (its switch builds lazily), the lazily built switch agrees with the live tier, a config saved without that panel still carries a host-driven tier, and a lowered tier leaves no stale locks. |

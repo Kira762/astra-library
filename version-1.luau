@@ -1443,9 +1443,32 @@ local constants = require(utilities.constants)
 local locale = require(utilities.locale)
 local haptic = require(utilities.HapticEngine)
 
+local shared = require(script.Parent.window.constants)
+local collapsedWideSize = shared.collapsedWideSize
+local collapsedIconOnlySize = shared.collapsedIconOnlySize
+
 local chrome = {}
 
 local dragThreshold = 5
+
+
+local faceIconInset = 16
+local collapsedTextInset = 60
+
+
+
+
+
+
+
+local collapsedTextWidth = collapsedWideSize.X.Offset - collapsedTextInset
+
+
+
+
+
+
+local doubleTapWindow = 0.25
 
 function chrome.buildCollapsedFace(window)
 local iconOnly = window.showIconOnly
@@ -1454,7 +1477,7 @@ window.collapsedIcon = window:Create("ImageLabel", {
 Name = "CollapsedIcon",
 Visible = false,
 AnchorPoint = if iconOnly then Vector2.new(0.5, 0.5) else Vector2.new(0, 0.5),
-Position = if iconOnly then UDim2.fromScale(0.5, 0.5) else UDim2.new(0, 16, 0.5, 0),
+Position = if iconOnly then UDim2.fromScale(0.5, 0.5) else UDim2.new(0, faceIconInset, 0.5, 0),
 Size = UDim2.fromOffset(24, 24),
 BackgroundTransparency = 1,
 Image = window.showIcon,
@@ -1473,8 +1496,15 @@ Name = "CollapsedText",
 Visible = false,
 AnchorPoint = Vector2.new(0, 0.5),
 Position = UDim2.new(0, 50, 0.5, 0),
-Size = UDim2.new(1, -60, 0, 32),
+Size = UDim2.new(1, -collapsedTextInset, 0, 32),
 BackgroundTransparency = 1,
+
+
+
+
+
+
+ClipsDescendants = true,
 ZIndex = constants.zIndex.restoreContent,
 Parent = window.main,
 })
@@ -1491,7 +1521,7 @@ Parent = collapsedTextFrame,
 window.collapsedTitle = window:Create("TextLabel", {
 Name = "Title",
 Text = window.showName,
-Size = UDim2.new(1, 0, 0, 16),
+Size = UDim2.new(0, collapsedTextWidth, 0, 16),
 BackgroundTransparency = 1,
 FontFace = state.brandFont(Enum.FontWeight.Medium),
 RichText = true,
@@ -1507,7 +1537,7 @@ Parent = collapsedTextFrame,
 window.collapsedSubtitle = window:Create("TextLabel", {
 Name = "Subtitle",
 Text = locale.t("Tap to show"),
-Size = UDim2.new(1, 0, 0, 14),
+Size = UDim2.new(0, collapsedTextWidth, 0, 14),
 BackgroundTransparency = 1,
 FontFace = state.brandFont(Enum.FontWeight.Medium),
 TextSize = 14,
@@ -1568,7 +1598,13 @@ if not hasMoved and (mousePos - startMousePos).Magnitude < dragThreshold then
 return
 end
 if not (window.settings and window.settings.dragMinimisedBar == true) then
+
+
+
+
+
 hasMoved = true
+window._lastCapsuleTap = nil
 cleanupDrag()
 return
 end
@@ -1576,6 +1612,29 @@ hasMoved = true
 
 local newPos = mousePos + dragOffset + getGuiInset()
 window.main.Position = UDim2.fromOffset(newPos.X, newPos.Y)
+end
+
+
+
+
+
+
+
+
+
+local function parkRestore()
+local token = {}
+window._capsuleTapToken = token
+task.delay(doubleTapWindow, function()
+if window.unloaded or window._capsuleTapToken ~= token then
+return
+end
+window._capsuleTapToken = nil
+window._lastCapsuleTap = nil
+if window.hidden and not window.animating then
+window:ToggleHide()
+end
+end)
 end
 
 window:Connect(window.collapsedInteract.InputBegan, function(input, gameProcessed)
@@ -1586,6 +1645,9 @@ local inputType = input.UserInputType.Name
 if inputType ~= "MouseButton1" and inputType ~= "Touch" then
 return
 end
+
+
+window._capsuleTapToken = nil
 
 isDragging, hasMoved = true, false
 if renderConnection then
@@ -1609,16 +1671,99 @@ cleanupDrag()
 
 if hasMoved then
 window._collapsedPosition = window.main.Position
+window._lastCapsuleTap = nil
 return
 end
 
 haptic.click()
-window:ToggleHide()
+local now = os.clock()
+local lastTap = window._lastCapsuleTap
+if lastTap and now - lastTap <= doubleTapWindow then
+window._lastCapsuleTap = nil
+window._capsuleTapToken = nil
+haptic.notify()
+chrome.morphCollapsedShape(window)
+return
+end
+
+window._lastCapsuleTap = now
+parkRestore()
 end)
 
 window:Connect(inputService.WindowFocusReleased, function()
 cleanupDrag()
 end)
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+function chrome.morphCollapsedShape(window)
+if window.animating or window.unloaded or not window.hidden or not window._collapsedShown then
+return false
+end
+
+local iconOnly = not window.showIconOnly
+local size = if iconOnly then collapsedIconOnlySize else collapsedWideSize
+
+
+
+
+
+local delta = (size.X.Offset - window.main.Size.X.Offset) / 2
+local position = window.main.Position
+
+window.showIconOnly = iconOnly
+window._capsuleMorphId = (window._capsuleMorphId or 0) + 1
+local morphId = window._capsuleMorphId
+window.animating = true
+
+motion.tween(window.collapsedIcon, {
+AnchorPoint = if iconOnly then Vector2.new(0.5, 0.5) else Vector2.new(0, 0.5),
+Position = if iconOnly then UDim2.fromScale(0.5, 0.5) else UDim2.new(0, faceIconInset, 0.5, 0),
+}, "glide")
+
+if not iconOnly then
+
+
+
+
+
+window.collapsedTextFrame.Visible = true
+motion.tween(window.collapsedTitle, { TextTransparency = 0 }, "glide")
+motion.tween(window.collapsedSubtitle, { TextTransparency = 0.5 }, "glide")
+end
+
+local function settle()
+if window.unloaded or window._capsuleMorphId ~= morphId then
+return
+end
+window.animating = false
+
+window._collapsedPosition = window.main.Position
+if iconOnly then
+window.collapsedTextFrame.Visible = false
+end
+end
+
+local moved = motion.tween(window.main, {
+Size = size,
+Position = UDim2.new(position.X.Scale, position.X.Offset + delta, position.Y.Scale, position.Y.Offset),
+}, "glide", settle)
+
+if not moved then
+settle()
+end
+return true
 end
 
 function chrome.isNewUser()
@@ -4971,14 +5116,22 @@ local search = {}
 
 
 
+
+
+
+
+
 local HOVER_SPEC = "snappy"
-local HOVER_SPEC_TIME = 0.25
+local REVEAL_SPEC = "smooth"
+local COLLAPSE_SPEC = "exit"
 local SEARCH_MAX_WIDTH = 260
 local SEARCH_TITLE_GAP = 16
 local SEARCH_ACTION_GAP = 12
+local SEARCH_HEIGHT = 35
 
 local defaultTransparency = 0.6
 local hoverTransparency = 0.2
+local surfaceTransparency = 0.9
 
 local function getElementText(element)
 if element.__type == "Group" or element.__type == "CollapsibleGroup" then
@@ -5017,8 +5170,12 @@ end
 return elements
 end
 
+
+
+
+
+
 local function setPillVisibility(window, visible, spec)
-motion.tween(window.searchPill, { BackgroundTransparency = if visible then 0.9 else 1 }, spec)
 motion.tween(window.searchStroke, { Transparency = if visible then 0.85 else 1 }, spec)
 motion.tween(window.searchShadow, { Transparency = if visible then 0.92 else 1 }, spec)
 motion.tween(window.searchIcon, { ImageTransparency = if visible then 0.65 else 1 }, spec)
@@ -5031,9 +5188,15 @@ end
 
 
 
-local function positionSearchPill(window)
+
+
+
+
+
+
+local function measureSearchPill(window)
 if not window.searchPill or not window.topbar or not window.titleContainer or not window.searchAction then
-return
+return nil
 end
 
 local titleRight = window.titleContainer.AbsolutePosition.X
@@ -5043,17 +5206,112 @@ local actionLeft = window.searchAction.action.AbsolutePosition.X - window.topbar
 local leftLimit = titleRight + SEARCH_TITLE_GAP
 local rightLimit = actionLeft - SEARCH_ACTION_GAP
 local available = math.max(0, rightLimit - leftLimit)
-local width = math.min(SEARCH_MAX_WIDTH, available)
-local left = rightLimit - width
-
-window.searchPill.Position = UDim2.new(0, left, 0.5, 0)
-window.searchPill.Size = UDim2.fromOffset(width, 35)
-
-if window.searchInput then
-local textLeft = 36
-window.searchInput.Position = UDim2.new(0, textLeft, 0.5, 0)
-window.searchInput.Size = UDim2.new(1, -math.min(48, width), 0, 18)
+return rightLimit, math.min(SEARCH_MAX_WIDTH, available)
 end
+
+
+
+
+
+
+local function sizeSearchInput(window, restWidth)
+if not window.searchInput then
+return
+end
+window.searchInput.Position = UDim2.new(0, 36, 0.5, 0)
+window.searchInput.Size = UDim2.new(1, -math.min(48, restWidth), 0, 18)
+end
+
+
+
+
+
+
+local function placeSearchPill(window, rightLimit, width, restWidth)
+window.searchPill.Position = UDim2.new(0, rightLimit - width, 0.5, 0)
+window.searchPill.Size = UDim2.fromOffset(width, SEARCH_HEIGHT)
+sizeSearchInput(window, restWidth)
+end
+
+
+
+
+
+
+
+
+
+
+
+local function tweenSearchPill(window, rightLimit, width, restWidth, revealing, onCompleted)
+sizeSearchInput(window, restWidth)
+
+local tween = motion.tween(window.searchPill, {
+Position = UDim2.new(0, rightLimit - width, 0.5, 0),
+Size = UDim2.fromOffset(width, SEARCH_HEIGHT),
+BackgroundTransparency = if revealing then surfaceTransparency else 1,
+}, if revealing then REVEAL_SPEC else COLLAPSE_SPEC, onCompleted)
+
+if not tween and onCompleted then
+onCompleted()
+end
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+local function applySearchGeometry(window, mode)
+local rightLimit, restWidth = measureSearchPill(window)
+if not rightLimit then
+return
+end
+
+if not mode then
+window._searchReveal = nil
+placeSearchPill(window, rightLimit, restWidth, restWidth)
+return
+end
+
+window._searchReveal = mode
+if mode == "close" then
+tweenSearchPill(window, rightLimit, 0, restWidth, false, function()
+window._searchReveal = nil
+if not window.unloaded and not window._searching then
+window.searchPill.Visible = false
+end
+end)
+return
+end
+
+
+
+
+
+
+local startWidth = math.clamp(window.searchPill.Size.X.Offset, 0, restWidth)
+placeSearchPill(window, rightLimit, startWidth, restWidth)
+tweenSearchPill(window, rightLimit, restWidth, restWidth, true, function()
+window._searchReveal = nil
+end)
+end
+
+
+
+
+
+
+local function positionSearchPill(window)
+applySearchGeometry(window, window._searchReveal)
 end
 
 local function setTabVisibility(window, visible, tweenInfo)
@@ -5127,13 +5385,16 @@ end
 search.buildContent(window)
 window:_applyRailWidth()
 window._searching = true
-positionSearchPill(window)
+
+
+
+window.searchPill.Visible = true
+applySearchGeometry(window, "open")
 
 collectElements(window)
 filterElements(window, "")
 window:_jumpTo(window.searchPage)
 
-window.searchPill.Visible = true
 setPillVisibility(window, true, HOVER_SPEC)
 window.searchInput:CaptureFocus()
 
@@ -5158,11 +5419,12 @@ window:_jumpTo(jumpTarget)
 end
 
 setPillVisibility(window, false, HOVER_SPEC)
-task.delay(HOVER_SPEC_TIME, function()
-if not window.unloaded and not window._searching then
-window.searchPill.Visible = false
-end
-end)
+
+
+
+
+
+applySearchGeometry(window, "close")
 
 if opts.showTabs then
 if window._applySettingsLayout then
@@ -5238,11 +5500,16 @@ ZIndex = 3,
 Parent = window.main,
 }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
+
+
+
+
+
 window.searchPill = window:Create("Frame", {
 Name = "SearchBar",
 AnchorPoint = Vector2.new(0, 0.5),
 Position = UDim2.new(0, 0, 0.5, 0),
-Size = UDim2.fromOffset(SEARCH_MAX_WIDTH, 35),
+Size = UDim2.fromOffset(0, SEARCH_HEIGHT),
 BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 BorderSizePixel = 0,
 ZIndex = 10,
@@ -27871,111 +28138,111 @@ local LineOffsets = {
     [6] = 1125,
     [7] = 1292,
     [8] = 1438,
-    [9] = 1689,
-    [10] = 2071,
-    [11] = 3453,
-    [12] = 3862,
-    [13] = 4218,
-    [14] = 4960,
-    [15] = 5352,
-    [16] = 5896,
-    [17] = 5959,
-    [18] = 6544,
-    [19] = 6890,
-    [20] = 6904,
-    [21] = 7004,
-    [22] = 7144,
-    [23] = 7698,
-    [24] = 7941,
-    [25] = 8263,
-    [26] = 8363,
-    [27] = 8417,
-    [28] = 9059,
-    [29] = 9307,
-    [30] = 9657,
-    [31] = 10104,
-    [32] = 6864,
-    [34] = 11068,
-    [35] = 11157,
-    [36] = 11386,
-    [37] = 11829,
-    [38] = 12292,
-    [39] = 12449,
-    [40] = 12594,
-    [41] = 14258,
-    [42] = 14506,
-    [43] = 14742,
-    [44] = 15063,
-    [45] = 15316,
-    [46] = 16368,
-    [47] = 16454,
-    [48] = 17057,
-    [49] = 17924,
-    [50] = 18518,
-    [51] = 19089,
-    [52] = 19215,
-    [53] = 19354,
-    [55] = 19869,
-    [56] = 19895,
-    [57] = 19914,
-    [58] = 19946,
-    [59] = 20072,
-    [60] = 20086,
-    [61] = 20135,
-    [62] = 19844,
-    [63] = 20226,
-    [64] = 20567,
-    [65] = 20598,
-    [66] = 20215,
-    [67] = 20641,
-    [68] = 20661,
-    [69] = 20693,
-    [70] = 20623,
-    [71] = 20800,
-    [72] = 20868,
-    [74] = 20958,
-    [75] = 20935,
-    [76] = 21178,
-    [77] = 21274,
-    [78] = 21125,
-    [79] = 21826,
-    [80] = 21872,
-    [81] = 21954,
-    [82] = 22149,
-    [83] = 22280,
-    [84] = 22383,
-    [85] = 22552,
-    [86] = 22892,
-    [87] = 21299,
-    [88] = 23533,
-    [89] = 23422,
-    [90] = 23672,
-    [91] = 23770,
-    [92] = 23949,
-    [93] = 24011,
-    [94] = 24041,
-    [95] = 24333,
-    [96] = 24382,
-    [97] = 24781,
-    [98] = 24799,
-    [99] = 25006,
-    [100] = 25623,
-    [101] = 25643,
-    [102] = 25771,
-    [103] = 25869,
-    [104] = 26098,
-    [105] = 26571,
-    [106] = 26607,
-    [107] = 26676,
-    [108] = 27036,
-    [109] = 27048,
-    [110] = 27099,
-    [111] = 27118,
-    [112] = 27401,
-    [113] = 27445,
-    [114] = 27646,
-    [115] = 27674,
-    [116] = 27685,
+    [9] = 1834,
+    [10] = 2216,
+    [11] = 3598,
+    [12] = 4007,
+    [13] = 4363,
+    [14] = 5105,
+    [15] = 5619,
+    [16] = 6163,
+    [17] = 6226,
+    [18] = 6811,
+    [19] = 7157,
+    [20] = 7171,
+    [21] = 7271,
+    [22] = 7411,
+    [23] = 7965,
+    [24] = 8208,
+    [25] = 8530,
+    [26] = 8630,
+    [27] = 8684,
+    [28] = 9326,
+    [29] = 9574,
+    [30] = 9924,
+    [31] = 10371,
+    [32] = 7131,
+    [34] = 11335,
+    [35] = 11424,
+    [36] = 11653,
+    [37] = 12096,
+    [38] = 12559,
+    [39] = 12716,
+    [40] = 12861,
+    [41] = 14525,
+    [42] = 14773,
+    [43] = 15009,
+    [44] = 15330,
+    [45] = 15583,
+    [46] = 16635,
+    [47] = 16721,
+    [48] = 17324,
+    [49] = 18191,
+    [50] = 18785,
+    [51] = 19356,
+    [52] = 19482,
+    [53] = 19621,
+    [55] = 20136,
+    [56] = 20162,
+    [57] = 20181,
+    [58] = 20213,
+    [59] = 20339,
+    [60] = 20353,
+    [61] = 20402,
+    [62] = 20111,
+    [63] = 20493,
+    [64] = 20834,
+    [65] = 20865,
+    [66] = 20482,
+    [67] = 20908,
+    [68] = 20928,
+    [69] = 20960,
+    [70] = 20890,
+    [71] = 21067,
+    [72] = 21135,
+    [74] = 21225,
+    [75] = 21202,
+    [76] = 21445,
+    [77] = 21541,
+    [78] = 21392,
+    [79] = 22093,
+    [80] = 22139,
+    [81] = 22221,
+    [82] = 22416,
+    [83] = 22547,
+    [84] = 22650,
+    [85] = 22819,
+    [86] = 23159,
+    [87] = 21566,
+    [88] = 23800,
+    [89] = 23689,
+    [90] = 23939,
+    [91] = 24037,
+    [92] = 24216,
+    [93] = 24278,
+    [94] = 24308,
+    [95] = 24600,
+    [96] = 24649,
+    [97] = 25048,
+    [98] = 25066,
+    [99] = 25273,
+    [100] = 25890,
+    [101] = 25910,
+    [102] = 26038,
+    [103] = 26136,
+    [104] = 26365,
+    [105] = 26838,
+    [106] = 26874,
+    [107] = 26943,
+    [108] = 27303,
+    [109] = 27315,
+    [110] = 27366,
+    [111] = 27385,
+    [112] = 27668,
+    [113] = 27712,
+    [114] = 27913,
+    [115] = 27941,
+    [116] = 27952,
 }
 
 -- Misc AOT variable imports

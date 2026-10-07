@@ -1,18 +1,3 @@
---[[
-Astra — a UI-only tour of the public API.
-
-Three tabs, every element, nothing wired to the game: no callbacks and no
-Roblox services, so the same script runs in an executor, in Studio and under
-scripts/example_test.luau. Compact controls sit side by side in row Groups
-(a row holds buttons, toggles, sliders, steppers, stats and links, and wraps
-when they no longer fit) and the secondary ones fold into a Collapsible Group.
-
-Opens through the key gate (demo key: ASTRA-STUDIO-2026) and builds the
-whole studio inside `onSuccess`. In Studio/Rojo, require
-ReplicatedStorage.Astra instead of the loadstring line below. The test
-drives the gate through the file-scope `keyGate` / `window` / `overview` /
-`studioReady` handles.
-]]
 local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"))()
 
 -- Harness handles: the test drives the gate through these.
@@ -23,8 +8,8 @@ local studioReady
 
 local function buildStudio()
     window = Astra:CreateWindow({
-        name = "Astra",
-        subtitle = "Every element, UI only",
+        name = "Mova",
+        subtitle = "Gen 1",
         icon = "sirius",
     })
 

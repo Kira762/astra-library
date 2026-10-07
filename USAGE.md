@@ -605,6 +605,16 @@ The restore capsule's icon, text and hit target stay invisible throughout the
 fold and appear only after `Hide()` completes. They disappear immediately when
 restoring. `ToggleMinimise()` keeps the normal topbar, not the restore capsule.
 
+Double-tapping the capsule swaps its shape: the wide pill (icon, name, "Tap to
+show") folds into the icon-only circle, and a second double tap opens it back.
+The shape change is a movement — the pill's left edge and vertical centre stay
+put, so its right edge sweeps in and out (right to left into the circle) while
+the icon glides to the centre and the text is cut off at the pill's own edge.
+A single tap still restores the window, but only after a 0.25s gesture window, so
+a second tap in that time can claim the gesture instead. A press that turns into
+a move drops the parked restore. The chosen shape is session state, not saved:
+`showIconOnly` remains the shape a window starts in.
+
 
 The window rests dead centre of the screen. That resting centre is re-derived
 on the first show and on every hide/show restore, and "Keep window on screen"
@@ -889,7 +899,7 @@ local window = Astra:CreateWindow({
     icon = "house",              -- topbar icon (pack name or asset id)
     theme = "default",           -- built-in name (`"default"`) or a custom table
     showName = "Astra",          -- name shown when the window is minimised to the capsule (default "Astra")
-    showIconOnly = false,        -- capsule shows only the icon, no name
+    showIconOnly = false,        -- capsule starts icon-only (double-tap it to switch shapes)
     fallbackFont = Enum.Font.Gotham,  -- font used when the brand font cannot load
     translator = function(source, localeId) return ... end,  -- optional custom translator
     locale = "en",

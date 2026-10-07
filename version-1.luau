@@ -1443,9 +1443,32 @@ local constants = require(utilities.constants)
 local locale = require(utilities.locale)
 local haptic = require(utilities.HapticEngine)
 
+local shared = require(script.Parent.window.constants)
+local collapsedWideSize = shared.collapsedWideSize
+local collapsedIconOnlySize = shared.collapsedIconOnlySize
+
 local chrome = {}
 
 local dragThreshold = 5
+
+
+local faceIconInset = 16
+local collapsedTextInset = 60
+
+
+
+
+
+
+
+local collapsedTextWidth = collapsedWideSize.X.Offset - collapsedTextInset
+
+
+
+
+
+
+local doubleTapWindow = 0.25
 
 function chrome.buildCollapsedFace(window)
 local iconOnly = window.showIconOnly
@@ -1454,7 +1477,7 @@ window.collapsedIcon = window:Create("ImageLabel", {
 Name = "CollapsedIcon",
 Visible = false,
 AnchorPoint = if iconOnly then Vector2.new(0.5, 0.5) else Vector2.new(0, 0.5),
-Position = if iconOnly then UDim2.fromScale(0.5, 0.5) else UDim2.new(0, 16, 0.5, 0),
+Position = if iconOnly then UDim2.fromScale(0.5, 0.5) else UDim2.new(0, faceIconInset, 0.5, 0),
 Size = UDim2.fromOffset(24, 24),
 BackgroundTransparency = 1,
 Image = window.showIcon,
@@ -1473,8 +1496,15 @@ Name = "CollapsedText",
 Visible = false,
 AnchorPoint = Vector2.new(0, 0.5),
 Position = UDim2.new(0, 50, 0.5, 0),
-Size = UDim2.new(1, -60, 0, 32),
+Size = UDim2.new(1, -collapsedTextInset, 0, 32),
 BackgroundTransparency = 1,
+
+
+
+
+
+
+ClipsDescendants = true,
 ZIndex = constants.zIndex.restoreContent,
 Parent = window.main,
 })
@@ -1491,7 +1521,7 @@ Parent = collapsedTextFrame,
 window.collapsedTitle = window:Create("TextLabel", {
 Name = "Title",
 Text = window.showName,
-Size = UDim2.new(1, 0, 0, 16),
+Size = UDim2.new(0, collapsedTextWidth, 0, 16),
 BackgroundTransparency = 1,
 FontFace = state.brandFont(Enum.FontWeight.Medium),
 RichText = true,
@@ -1507,7 +1537,7 @@ Parent = collapsedTextFrame,
 window.collapsedSubtitle = window:Create("TextLabel", {
 Name = "Subtitle",
 Text = locale.t("Tap to show"),
-Size = UDim2.new(1, 0, 0, 14),
+Size = UDim2.new(0, collapsedTextWidth, 0, 14),
 BackgroundTransparency = 1,
 FontFace = state.brandFont(Enum.FontWeight.Medium),
 TextSize = 14,
@@ -1568,7 +1598,13 @@ if not hasMoved and (mousePos - startMousePos).Magnitude < dragThreshold then
 return
 end
 if not (window.settings and window.settings.dragMinimisedBar == true) then
+
+
+
+
+
 hasMoved = true
+window._lastCapsuleTap = nil
 cleanupDrag()
 return
 end
@@ -1576,6 +1612,29 @@ hasMoved = true
 
 local newPos = mousePos + dragOffset + getGuiInset()
 window.main.Position = UDim2.fromOffset(newPos.X, newPos.Y)
+end
+
+
+
+
+
+
+
+
+
+local function parkRestore(window)
+local token = {}
+window._capsuleTapToken = token
+task.delay(doubleTapWindow, function()
+if window.unloaded or window._capsuleTapToken ~= token then
+return
+end
+window._capsuleTapToken = nil
+window._lastCapsuleTap = nil
+if window.hidden and not window.animating then
+window:ToggleHide()
+end
+end)
 end
 
 window:Connect(window.collapsedInteract.InputBegan, function(input, gameProcessed)
@@ -1586,6 +1645,9 @@ local inputType = input.UserInputType.Name
 if inputType ~= "MouseButton1" and inputType ~= "Touch" then
 return
 end
+
+
+window._capsuleTapToken = nil
 
 isDragging, hasMoved = true, false
 if renderConnection then
@@ -1609,16 +1671,99 @@ cleanupDrag()
 
 if hasMoved then
 window._collapsedPosition = window.main.Position
+window._lastCapsuleTap = nil
 return
 end
 
 haptic.click()
-window:ToggleHide()
+local now = os.clock()
+local lastTap = window._lastCapsuleTap
+if lastTap and now - lastTap <= doubleTapWindow then
+window._lastCapsuleTap = nil
+window._capsuleTapToken = nil
+haptic.notify()
+chrome.morphCollapsedShape(window)
+return
+end
+
+window._lastCapsuleTap = now
+parkRestore(window)
 end)
 
 window:Connect(inputService.WindowFocusReleased, function()
 cleanupDrag()
 end)
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+function chrome.morphCollapsedShape(window)
+if window.animating or window.unloaded or not window.hidden or not window._collapsedShown then
+return false
+end
+
+local iconOnly = not window.showIconOnly
+local size = if iconOnly then collapsedIconOnlySize else collapsedWideSize
+
+
+
+
+
+local delta = (size.X.Offset - window.main.Size.X.Offset) / 2
+local position = window.main.Position
+
+window.showIconOnly = iconOnly
+window._capsuleMorphId = (window._capsuleMorphId or 0) + 1
+local morphId = window._capsuleMorphId
+window.animating = true
+
+motion.tween(window.collapsedIcon, {
+AnchorPoint = if iconOnly then Vector2.new(0.5, 0.5) else Vector2.new(0, 0.5),
+Position = if iconOnly then UDim2.fromScale(0.5, 0.5) else UDim2.new(0, faceIconInset, 0.5, 0),
+}, "glide")
+
+if not iconOnly then
+
+
+
+
+
+window.collapsedTextFrame.Visible = true
+motion.tween(window.collapsedTitle, { TextTransparency = 0 }, "glide")
+motion.tween(window.collapsedSubtitle, { TextTransparency = 0.5 }, "glide")
+end
+
+local function settle()
+if window.unloaded or window._capsuleMorphId ~= morphId then
+return
+end
+window.animating = false
+
+window._collapsedPosition = window.main.Position
+if iconOnly then
+window.collapsedTextFrame.Visible = false
+end
+end
+
+local moved = motion.tween(window.main, {
+Size = size,
+Position = UDim2.new(position.X.Scale, position.X.Offset + delta, position.Y.Scale, position.Y.Offset),
+}, "glide", settle)
+
+if not moved then
+settle()
+end
+return true
 end
 
 function chrome.isNewUser()
@@ -27993,111 +28138,111 @@ local LineOffsets = {
     [6] = 1125,
     [7] = 1292,
     [8] = 1438,
-    [9] = 1689,
-    [10] = 2071,
-    [11] = 3453,
-    [12] = 3862,
-    [13] = 4218,
-    [14] = 4960,
-    [15] = 5474,
-    [16] = 6018,
-    [17] = 6081,
-    [18] = 6666,
-    [19] = 7012,
-    [20] = 7026,
-    [21] = 7126,
-    [22] = 7266,
-    [23] = 7820,
-    [24] = 8063,
-    [25] = 8385,
-    [26] = 8485,
-    [27] = 8539,
-    [28] = 9181,
-    [29] = 9429,
-    [30] = 9779,
-    [31] = 10226,
-    [32] = 6986,
-    [34] = 11190,
-    [35] = 11279,
-    [36] = 11508,
-    [37] = 11951,
-    [38] = 12414,
-    [39] = 12571,
-    [40] = 12716,
-    [41] = 14380,
-    [42] = 14628,
-    [43] = 14864,
-    [44] = 15185,
-    [45] = 15438,
-    [46] = 16490,
-    [47] = 16576,
-    [48] = 17179,
-    [49] = 18046,
-    [50] = 18640,
-    [51] = 19211,
-    [52] = 19337,
-    [53] = 19476,
-    [55] = 19991,
-    [56] = 20017,
-    [57] = 20036,
-    [58] = 20068,
-    [59] = 20194,
-    [60] = 20208,
-    [61] = 20257,
-    [62] = 19966,
-    [63] = 20348,
-    [64] = 20689,
-    [65] = 20720,
-    [66] = 20337,
-    [67] = 20763,
-    [68] = 20783,
-    [69] = 20815,
-    [70] = 20745,
-    [71] = 20922,
-    [72] = 20990,
-    [74] = 21080,
-    [75] = 21057,
-    [76] = 21300,
-    [77] = 21396,
-    [78] = 21247,
-    [79] = 21948,
-    [80] = 21994,
-    [81] = 22076,
-    [82] = 22271,
-    [83] = 22402,
-    [84] = 22505,
-    [85] = 22674,
-    [86] = 23014,
-    [87] = 21421,
-    [88] = 23655,
-    [89] = 23544,
-    [90] = 23794,
-    [91] = 23892,
-    [92] = 24071,
-    [93] = 24133,
-    [94] = 24163,
-    [95] = 24455,
-    [96] = 24504,
-    [97] = 24903,
-    [98] = 24921,
-    [99] = 25128,
-    [100] = 25745,
-    [101] = 25765,
-    [102] = 25893,
-    [103] = 25991,
-    [104] = 26220,
-    [105] = 26693,
-    [106] = 26729,
-    [107] = 26798,
-    [108] = 27158,
-    [109] = 27170,
-    [110] = 27221,
-    [111] = 27240,
-    [112] = 27523,
-    [113] = 27567,
-    [114] = 27768,
-    [115] = 27796,
-    [116] = 27807,
+    [9] = 1834,
+    [10] = 2216,
+    [11] = 3598,
+    [12] = 4007,
+    [13] = 4363,
+    [14] = 5105,
+    [15] = 5619,
+    [16] = 6163,
+    [17] = 6226,
+    [18] = 6811,
+    [19] = 7157,
+    [20] = 7171,
+    [21] = 7271,
+    [22] = 7411,
+    [23] = 7965,
+    [24] = 8208,
+    [25] = 8530,
+    [26] = 8630,
+    [27] = 8684,
+    [28] = 9326,
+    [29] = 9574,
+    [30] = 9924,
+    [31] = 10371,
+    [32] = 7131,
+    [34] = 11335,
+    [35] = 11424,
+    [36] = 11653,
+    [37] = 12096,
+    [38] = 12559,
+    [39] = 12716,
+    [40] = 12861,
+    [41] = 14525,
+    [42] = 14773,
+    [43] = 15009,
+    [44] = 15330,
+    [45] = 15583,
+    [46] = 16635,
+    [47] = 16721,
+    [48] = 17324,
+    [49] = 18191,
+    [50] = 18785,
+    [51] = 19356,
+    [52] = 19482,
+    [53] = 19621,
+    [55] = 20136,
+    [56] = 20162,
+    [57] = 20181,
+    [58] = 20213,
+    [59] = 20339,
+    [60] = 20353,
+    [61] = 20402,
+    [62] = 20111,
+    [63] = 20493,
+    [64] = 20834,
+    [65] = 20865,
+    [66] = 20482,
+    [67] = 20908,
+    [68] = 20928,
+    [69] = 20960,
+    [70] = 20890,
+    [71] = 21067,
+    [72] = 21135,
+    [74] = 21225,
+    [75] = 21202,
+    [76] = 21445,
+    [77] = 21541,
+    [78] = 21392,
+    [79] = 22093,
+    [80] = 22139,
+    [81] = 22221,
+    [82] = 22416,
+    [83] = 22547,
+    [84] = 22650,
+    [85] = 22819,
+    [86] = 23159,
+    [87] = 21566,
+    [88] = 23800,
+    [89] = 23689,
+    [90] = 23939,
+    [91] = 24037,
+    [92] = 24216,
+    [93] = 24278,
+    [94] = 24308,
+    [95] = 24600,
+    [96] = 24649,
+    [97] = 25048,
+    [98] = 25066,
+    [99] = 25273,
+    [100] = 25890,
+    [101] = 25910,
+    [102] = 26038,
+    [103] = 26136,
+    [104] = 26365,
+    [105] = 26838,
+    [106] = 26874,
+    [107] = 26943,
+    [108] = 27303,
+    [109] = 27315,
+    [110] = 27366,
+    [111] = 27385,
+    [112] = 27668,
+    [113] = 27712,
+    [114] = 27913,
+    [115] = 27941,
+    [116] = 27952,
 }
 
 -- Misc AOT variable imports

@@ -268,6 +268,10 @@ Astra.Performance = HardwarePerformance
 
 
 
+
+
+
+
 Astra.HttpGuard = HttpGuard
 
 function Astra:CreateWindow(props: types.WindowProps): types.Window
@@ -1093,6 +1097,11 @@ export type HttpGuardPolicy = "audit" | "warn" | "strict" | "off"
 
 
 
+
+
+
+
+
 export type HttpGuardService = {
 capture: () -> boolean,
 scan: () -> HttpGuardReport,
@@ -1100,6 +1109,8 @@ check: (policy: HttpGuardPolicy?) -> (boolean, HttpGuardReport),
 guardFetch: (url: string, fetch: () -> any, policy: HttpGuardPolicy?) -> (boolean, any),
 setDefaultPolicy: (policy: HttpGuardPolicy) -> HttpGuardPolicy,
 getDefaultPolicy: () -> HttpGuardPolicy,
+setDiagnostics: (enabled: boolean) -> boolean,
+getDiagnostics: () -> boolean,
 }
 
 export type Astra = {
@@ -2382,19 +2393,26 @@ _linkInteracts = {},
 
 
 
+
+
+
+
 local grabFromSite = props.grabKeyFromSite or props.GrabKeyFromSite or false
 for _, key in keys do
 key = tostring(key)
 if grabFromSite then
-local ok, body = pcall(function()
-local _, guarded = httpGuard.guardFetch(key, function()
+local ok, allowed, body = pcall(function()
+return httpGuard.guardFetch(key, function()
 return game:HttpGet(key)
-end, "strict")
-return guarded
+end, "warn")
 end)
-if ok and typeof(body) == "string" and trim(body) ~= "" then
+if ok and allowed then
+if typeof(body) == "string" and trim(body) ~= "" then
 table.insert(self._expected, trim(body))
 else
+log.warn("Astra: key system could not fetch a key from " .. key)
+end
+elseif not ok then
 log.warn("Astra: key system could not fetch a key from " .. key)
 end
 elseif trim(key) ~= "" then
@@ -23907,10 +23925,12 @@ local content: string? = nil
 
 
 
+
+
+
+
 local requestFn = networkUtil.getGuardedRequestFn(nil, "warn")
-if not requestFn then
-logger.warn("No request function available to download asset content.")
-else
+if requestFn then
 local requestOk, requestResult = pcall(
 requestFn,
 {
@@ -25134,6 +25154,18 @@ end)() end,
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 export type GuardPolicy = "audit" | "warn" | "strict" | "off"
 export type GuardSignal = {
 id: string,
@@ -25152,6 +25184,15 @@ signals: { GuardSignal },
 local HttpGuard = {}
 
 local DEFAULT_POLICY: GuardPolicy = "strict"
+
+
+
+
+
+
+
+
+local DIAGNOSTICS = false
 
 
 
@@ -25623,6 +25664,25 @@ end
 
 
 
+local function emitDiagnostics(signals: { GuardSignal })
+if not DIAGNOSTICS then
+return
+end
+local warnFn = globalValue("warn")
+if type(warnFn) ~= "function" then
+return
+end
+for _, signal in signals do
+pcall(warnFn, ("Astra HttpGuard [%s/%s]: %s"):format(signal.layer, signal.id, signal.detail))
+end
+end
+
+
+
+
+
+
+
 
 function HttpGuard.check(policy: GuardPolicy?): (boolean, GuardReport)
 local effective: string = policy or DEFAULT_POLICY
@@ -25644,20 +25704,30 @@ if effective == "audit" then
 return false, report
 end
 if effective == "warn" then
-local warnFn = globalValue("warn")
-if type(warnFn) == "function" then
-for _, signal in report.signals do
-pcall(warnFn, ("Astra HttpGuard [%s/%s]: %s"):format(signal.layer, signal.id, signal.detail))
-end
-end
+emitDiagnostics(report.signals)
 return false, report
 end
+emitDiagnostics(report.signals)
 local parts: { string } = {}
 for _, signal in report.signals do
 parts[#parts + 1] = signal.layer .. "/" .. signal.id
 end
 error(("Astra: refusing to continue — HTTP interception detected (%s)"):format(table.concat(parts, ", ")), 0)
 return false, report
+end
+
+
+
+
+
+
+function HttpGuard.setDiagnostics(enabled: boolean): boolean
+DIAGNOSTICS = enabled == true
+return DIAGNOSTICS
+end
+
+function HttpGuard.getDiagnostics(): boolean
+return DIAGNOSTICS
 end
 
 
@@ -26746,6 +26816,8 @@ or (env.http and env.http.request)
 or (env.syn and env.syn.request)
 or (env.fluxus and env.fluxus.request)
 end
+
+
 
 
 
@@ -27977,117 +28049,117 @@ end)() end,
 
 local LineOffsets = {
     [2] = 52,
-    [3] = 499,
-    [5] = 1135,
-    [6] = 1118,
-    [7] = 1290,
-    [8] = 1432,
-    [9] = 1683,
-    [10] = 2065,
-    [11] = 3442,
-    [12] = 3851,
-    [13] = 4200,
-    [14] = 4939,
-    [15] = 5331,
-    [16] = 5875,
-    [17] = 5938,
-    [18] = 6523,
-    [19] = 6869,
-    [20] = 6883,
-    [21] = 6983,
-    [22] = 7123,
-    [23] = 7684,
-    [24] = 7927,
-    [25] = 8249,
-    [26] = 8349,
-    [27] = 8403,
-    [28] = 9045,
-    [29] = 9293,
-    [30] = 9643,
-    [31] = 10090,
-    [32] = 6843,
-    [34] = 11054,
-    [35] = 11143,
-    [36] = 11372,
-    [37] = 11815,
-    [38] = 12278,
-    [39] = 12435,
-    [40] = 12580,
-    [41] = 14244,
-    [42] = 14492,
-    [43] = 14729,
-    [44] = 15050,
-    [45] = 15303,
-    [46] = 16383,
-    [47] = 16469,
-    [48] = 17072,
-    [49] = 17940,
-    [50] = 18534,
-    [51] = 19105,
-    [52] = 19235,
-    [53] = 19374,
-    [55] = 19889,
-    [56] = 19915,
-    [57] = 19934,
-    [58] = 19966,
-    [59] = 20092,
-    [60] = 20106,
-    [61] = 20155,
-    [62] = 19864,
-    [63] = 20246,
-    [64] = 20562,
-    [65] = 20593,
-    [66] = 20235,
-    [67] = 20636,
-    [68] = 20656,
-    [69] = 20688,
-    [70] = 20618,
-    [71] = 20795,
-    [72] = 20863,
-    [74] = 20953,
-    [75] = 20930,
-    [76] = 21173,
-    [77] = 21269,
-    [78] = 21120,
-    [79] = 21839,
-    [80] = 21885,
-    [81] = 21967,
-    [82] = 22162,
-    [83] = 22293,
-    [84] = 22396,
-    [85] = 22565,
-    [86] = 22905,
-    [87] = 21294,
-    [88] = 23549,
-    [89] = 23435,
-    [90] = 23688,
-    [91] = 23786,
-    [92] = 23967,
-    [93] = 24029,
-    [94] = 24059,
-    [95] = 24351,
-    [96] = 24400,
-    [97] = 24855,
-    [98] = 24873,
-    [99] = 25080,
-    [100] = 25693,
-    [101] = 25713,
-    [102] = 25841,
-    [103] = 25940,
-    [104] = 26169,
-    [105] = 26225,
-    [106] = 26698,
-    [107] = 26734,
-    [108] = 26772,
-    [109] = 27132,
-    [110] = 27144,
-    [111] = 27195,
-    [112] = 27214,
-    [113] = 27512,
-    [114] = 27556,
-    [115] = 27757,
-    [116] = 27785,
-    [117] = 27796,
+    [3] = 503,
+    [5] = 1146,
+    [6] = 1129,
+    [7] = 1301,
+    [8] = 1443,
+    [9] = 1694,
+    [10] = 2076,
+    [11] = 3460,
+    [12] = 3869,
+    [13] = 4218,
+    [14] = 4957,
+    [15] = 5349,
+    [16] = 5893,
+    [17] = 5956,
+    [18] = 6541,
+    [19] = 6887,
+    [20] = 6901,
+    [21] = 7001,
+    [22] = 7141,
+    [23] = 7702,
+    [24] = 7945,
+    [25] = 8267,
+    [26] = 8367,
+    [27] = 8421,
+    [28] = 9063,
+    [29] = 9311,
+    [30] = 9661,
+    [31] = 10108,
+    [32] = 6861,
+    [34] = 11072,
+    [35] = 11161,
+    [36] = 11390,
+    [37] = 11833,
+    [38] = 12296,
+    [39] = 12453,
+    [40] = 12598,
+    [41] = 14262,
+    [42] = 14510,
+    [43] = 14747,
+    [44] = 15068,
+    [45] = 15321,
+    [46] = 16401,
+    [47] = 16487,
+    [48] = 17090,
+    [49] = 17958,
+    [50] = 18552,
+    [51] = 19123,
+    [52] = 19253,
+    [53] = 19392,
+    [55] = 19907,
+    [56] = 19933,
+    [57] = 19952,
+    [58] = 19984,
+    [59] = 20110,
+    [60] = 20124,
+    [61] = 20173,
+    [62] = 19882,
+    [63] = 20264,
+    [64] = 20580,
+    [65] = 20611,
+    [66] = 20253,
+    [67] = 20654,
+    [68] = 20674,
+    [69] = 20706,
+    [70] = 20636,
+    [71] = 20813,
+    [72] = 20881,
+    [74] = 20971,
+    [75] = 20948,
+    [76] = 21191,
+    [77] = 21287,
+    [78] = 21138,
+    [79] = 21857,
+    [80] = 21903,
+    [81] = 21985,
+    [82] = 22180,
+    [83] = 22311,
+    [84] = 22414,
+    [85] = 22583,
+    [86] = 22923,
+    [87] = 21312,
+    [88] = 23567,
+    [89] = 23453,
+    [90] = 23706,
+    [91] = 23804,
+    [92] = 23987,
+    [93] = 24049,
+    [94] = 24079,
+    [95] = 24371,
+    [96] = 24420,
+    [97] = 24875,
+    [98] = 24893,
+    [99] = 25100,
+    [100] = 25763,
+    [101] = 25783,
+    [102] = 25911,
+    [103] = 26010,
+    [104] = 26239,
+    [105] = 26295,
+    [106] = 26768,
+    [107] = 26804,
+    [108] = 26844,
+    [109] = 27204,
+    [110] = 27216,
+    [111] = 27267,
+    [112] = 27286,
+    [113] = 27584,
+    [114] = 27628,
+    [115] = 27829,
+    [116] = 27857,
+    [117] = 27868,
 }
 
 -- Misc AOT variable imports

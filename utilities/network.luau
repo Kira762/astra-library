@@ -16,9 +16,11 @@ end
 
 --[[
 Resolve the request function, refusing to hand it back while HTTP
-interception is detected. `warn` (the default) reports and returns nil so
-callers fall back to their no-request-function path; `strict` raises instead.
-`audit` returns nil silently, `off` skips the scan.
+interception is detected. `warn` (the default) returns nil so callers fall
+back to their no-request-function path; `strict` raises instead. Both are
+silent: the guard reports through `Astra.HttpGuard`, never the console, so
+the tool that hooked the fetch cannot read a denial. `audit` returns nil
+too, `off` skips the scan.
 ]]
 function network.getGuardedRequestFn(env: any?, policy: HttpGuard.GuardPolicy?): RequestFn?
     local fn = network.getRequestFn(env)

@@ -222,6 +222,7 @@ local ok, report = Astra.HttpGuard.check("strict")   -- audit | warn | strict | 
 local report = Astra.HttpGuard.scan()                 -- never raises
 local proceed, body = Astra.HttpGuard.guardFetch(url, function() return game:HttpGet(url) end, "strict")
 Astra.HttpGuard.setDefaultPolicy("audit")
+Astra.HttpGuard.setDiagnostics(true)                  -- developer triage only
 ```
 
 Detects HttpSpy-style HTTP interception in three layers (spy artifacts,
@@ -232,9 +233,13 @@ carry stable `id`s (`genv-spy-api`, `coregui-spy-window`, `spy-log-files`,
 `namecall-lclosure`, `cfunc-lua-source`) with a `layer` (`A`/`B`/`C`) and
 human `detail`. Already enforced: the loader preflights strict before
 fetching (quiet stub on a hit, `SPY_PREFLIGHT = "off"` to disable),
-`grabKeyFromSite` fetches are strict (a hit drops the key, gate fails closed),
-asset downloads warn-and-fallback. Not the entrypoint default: call
-`check("strict")` before `CreateWindow` for strict-at-load.
+`grabKeyFromSite` fetches are guarded (a hit drops the key silently, gate
+fails closed), asset downloads fall back without a word. Nothing prints:
+findings travel in the returned report, and `setDiagnostics(true)` is the
+developer-only switch for the `warn` policy's console lines. Not the
+entrypoint default: call `check("strict")` before `CreateWindow` for
+strict-at-load (`strict` raises — the one policy that speaks, because the
+caller asked it to).
 
 ## Localisation
 

@@ -786,20 +786,33 @@ local ok, report = Astra.HttpGuard.check("strict")  -- raises on any signal
 -- report: { clean, executor, captured, httpSpy, hooked, signals = { { id, layer, detail } } }
 ```
 
-Policies: `audit` (report only), `warn` (report + `warn()`), `strict` (raise;
-the default), `off` (skip). Detection runs in three layers — spy artifacts
-(the tool's window, log files, API table), baseline drift against references
-captured at load, and baseline-free heuristics — all gated on executor
-evidence, so Studio and plain Luau always scan clean and `scan()` never
-raises.
+Policies: `audit` (report only), `warn` (deny; `audit` plus the diagnostic
+line), `strict` (raise; the default), `off` (skip). Detection runs in three
+layers — spy artifacts (the tool's window, log files, API table), baseline
+drift against references captured at load, and baseline-free heuristics — all
+gated on executor evidence, so Studio and plain Luau always scan clean and
+`scan()` never raises.
+
+**Nothing the guard decides is printed.** A denial has to look like a fetch
+that never happened, because the console is a channel whoever hooked HTTP is
+reading too: a line like `Astra HttpGuard [C/cfunc-lua-source]: …` tells them
+exactly which fingerprint to scrub next. Findings reach you through the report
+`check`/`scan` return, and `guardFetch` reports by returning `(false, nil)`.
+`Astra.HttpGuard.setDiagnostics(true)` turns the `warn` policy's console lines
+back on for local triage — off by default, and a build you ship should keep it
+that way.
 
 Enforcement is already wired where it matters: the signed loader refuses to
 fetch under interception (quiet stub, like any other failure; setting
 `SPY_PREFLIGHT` to `"off"` in `loader.luau` disables it), and
-`grabKeyFromSite` key fetches are strict — a hit drops the key like a failed
-fetch, so the gate fails closed. Asset downloads only warn and fall back.
-Hosts that want strict-at-load call `Astra.HttpGuard.check("strict")` before
-`CreateWindow`.
+`grabKeyFromSite` key fetches are guarded — a hit drops the key like a failed
+fetch, so the gate fails closed, and it drops it without a word (no warning,
+and never the key URL, which the guard just kept off the wire). Asset
+downloads fall back to the no-request-function path silently: the icon or
+image simply does not load. Hosts that want strict-at-load call
+`Astra.HttpGuard.check("strict")` before `CreateWindow` — `strict` is the one
+policy that makes noise, deliberately, and only because the host asked for it;
+a host that wants a silent refusal reads the second return value instead.
 
 One honest limit: nothing inside an executor can *prevent* a hook — a spy the
 user runs themselves sees whatever the script fetches. Treat HttpGuard as

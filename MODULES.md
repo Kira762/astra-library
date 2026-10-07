@@ -637,11 +637,16 @@ needs to exist.
   entrypoint), C: baseline-free heuristics (Lua-closure `__namecall`,
   non-`[C]` sources) — all behind an executor-evidence gate (hook primitives
   only; filesystem functions are stubbed in tests so they never count).
-  Strict where it matters: the loader preflights before fetching (quiet stub
-  on a hit, `SPY_PREFLIGHT` escape hatch), `keySystem` `grabKeyFromSite`
-  fetches refuse-and-drop, `network.getGuardedRequestFn` (default `warn`)
-  backs `assetResolver`'s warn-and-fallback. Tested by
-  `scripts/http_guard_test.luau` plus loader-integrity cases 11–12.
+  Silent by contract — a denial is indistinguishable from a fetch that never
+  happened, since the console is a channel the hooked script reads too;
+  findings travel in the report `scan()` / `check()` return and
+  `setDiagnostics(true)` (off by default) is the developer-only console
+  switch. Strict where it matters: the loader preflights before fetching
+  (quiet stub on a hit, `SPY_PREFLIGHT` escape hatch), `keySystem`
+  `grabKeyFromSite` fetches refuse-and-drop without a word,
+  `network.getGuardedRequestFn` (default `warn`) backs `assetResolver`'s
+  quiet fallback. Tested by `scripts/http_guard_test.luau` plus
+  loader-integrity cases 11–12.
 - `windowSizing.luau` — responsive size computation (desktop tiers around the
   600x420 default, min/max protected) plus the fixed mobile profile returned
   for touch-only phone-sized viewports (`isMobileViewport`).

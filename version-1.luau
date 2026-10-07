@@ -4952,6 +4952,9 @@ local search = {}
 
 local HOVER_SPEC = "snappy"
 local HOVER_SPEC_TIME = 0.25
+local SEARCH_MAX_WIDTH = 260
+local SEARCH_TITLE_GAP = 16
+local SEARCH_ACTION_GAP = 12
 
 local defaultTransparency = 0.6
 local hoverTransparency = 0.2
@@ -4999,6 +5002,37 @@ motion.tween(window.searchStroke, { Transparency = if visible then 0.85 else 1 }
 motion.tween(window.searchShadow, { Transparency = if visible then 0.92 else 1 }, spec)
 motion.tween(window.searchIcon, { ImageTransparency = if visible then 0.65 else 1 }, spec)
 motion.tween(window.searchInput, { TextTransparency = if visible then 0.2 else 1 }, spec)
+end
+
+
+
+
+
+
+
+local function positionSearchPill(window)
+if not window.searchPill or not window.topbar or not window.titleContainer or not window.searchAction then
+return
+end
+
+local titleRight = window.titleContainer.AbsolutePosition.X
++ window.titleContainer.AbsoluteSize.X
+- window.topbar.AbsolutePosition.X
+local actionLeft = window.searchAction.action.AbsolutePosition.X - window.topbar.AbsolutePosition.X
+local leftLimit = titleRight + SEARCH_TITLE_GAP
+local rightLimit = actionLeft - SEARCH_ACTION_GAP
+local available = math.max(0, rightLimit - leftLimit)
+local width = math.min(SEARCH_MAX_WIDTH, available)
+local left = rightLimit - width
+
+window.searchPill.Position = UDim2.new(0, left, 0.5, 0)
+window.searchPill.Size = UDim2.fromOffset(width, 35)
+
+if window.searchInput then
+local textLeft = 36
+window.searchInput.Position = UDim2.new(0, textLeft, 0.5, 0)
+window.searchInput.Size = UDim2.new(1, -math.min(48, width), 0, 18)
+end
 end
 
 local function setTabVisibility(window, visible, tweenInfo)
@@ -5072,6 +5106,7 @@ end
 search.buildContent(window)
 window:_applyRailWidth()
 window._searching = true
+positionSearchPill(window)
 
 collectElements(window)
 filterElements(window, "")
@@ -5127,9 +5162,9 @@ search.open(window)
 end
 end
 
-function search.railWidth(window, railWidth)
-if window.searchPill then
-window.searchPill.Size = UDim2.new(1, -(railWidth + 30), 0, 35)
+function search.railWidth(window)
+if window._searching then
+positionSearchPill(window)
 end
 end
 
@@ -5162,7 +5197,7 @@ Parent = window.searchPage,
 })
 
 window:Create("UIPadding", {
-PaddingTop = UDim.new(0, 53),
+PaddingTop = UDim.new(0, 16),
 PaddingBottom = UDim.new(0, 33),
 Parent = window.searchPage,
 })
@@ -5182,20 +5217,19 @@ ZIndex = 3,
 Parent = window.main,
 }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-local pillTop = window.layout.chromeHeight + 8
-
 window.searchPill = window:Create("Frame", {
 Name = "SearchBar",
-AnchorPoint = Vector2.new(1, 0),
-Position = UDim2.new(1, -15, 0, pillTop),
-Size = UDim2.new(1, -(window.layout.railWidth + 30), 0, 35),
+AnchorPoint = Vector2.new(0, 0.5),
+Position = UDim2.new(0, 0, 0.5, 0),
+Size = UDim2.fromOffset(SEARCH_MAX_WIDTH, 35),
 BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 BorderSizePixel = 0,
 ZIndex = 10,
 BackgroundTransparency = 1,
 Visible = false,
-Parent = window.main,
+Parent = window.topbar,
 })
+
 
 
 
@@ -5223,7 +5257,7 @@ Parent = window.searchPill,
 window.searchIcon = window:Create("ImageLabel", {
 Image = "rbxassetid://" .. tostring(constants.icons.search),
 AnchorPoint = Vector2.new(0, 0.5),
-Position = UDim2.new(0, 15, 0.5, 1),
+Position = UDim2.new(0, 12, 0.5, 1),
 Size = UDim2.fromOffset(16, 16),
 BackgroundTransparency = 1,
 ZIndex = 10,
@@ -5235,8 +5269,8 @@ window.searchInput = window:Create("TextBox", {
 Text = "",
 PlaceholderText = locale.t("Search all pages"),
 AnchorPoint = Vector2.new(0, 0.5),
-Position = UDim2.new(0, 40, 0.5, 0),
-Size = UDim2.new(1, -110, 0, 18),
+Position = UDim2.new(0, 36, 0.5, 0),
+Size = UDim2.new(1, -48, 0, 18),
 BackgroundTransparency = 1,
 TextSize = 16,
 TextXAlignment = Enum.TextXAlignment.Left,
@@ -5253,6 +5287,16 @@ filterElements(window, window.searchInput.Text)
 end
 end)
 
+window:Connect(window.main:GetPropertyChangedSignal("Size"), function()
+if not window._searching then
+return
+end
+task.defer(function()
+if window._searching and not window.unloaded then
+positionSearchPill(window)
+end
+end)
+end)
 end
 
 function search.build(window)
@@ -5268,6 +5312,16 @@ end,
 window.searchAction.isLit = function()
 return window._searching
 end
+
+window:Connect(state.userInputService.InputBegan, function(input)
+if not window._searching or input.KeyCode ~= Enum.KeyCode.Escape then
+return
+end
+if state.userInputService:GetFocusedTextBox() ~= window.searchInput then
+return
+end
+search.close(window, { showTabs = true })
+end)
 end
 
 return search
@@ -7806,7 +7860,11 @@ end
 end
 
 local function isOverInteractive(x, y)
-for _, region in { self.tabList, self.actionContainer } do
+local regions = { self.tabList, self.actionContainer }
+if self.searchPill and self.searchPill.Visible then
+table.insert(regions, self.searchPill)
+end
+for _, region in regions do
 local absPos, absSize = region.AbsolutePosition, region.AbsoluteSize
 if x >= absPos.X and x <= absPos.X + absSize.X and y >= absPos.Y and y <= absPos.Y + absSize.Y then
 return true
@@ -27878,106 +27936,106 @@ local LineOffsets = {
     [12] = 3851,
     [13] = 4200,
     [14] = 4939,
-    [15] = 5277,
-    [16] = 5821,
-    [17] = 5884,
-    [18] = 6469,
-    [19] = 6815,
-    [20] = 6829,
-    [21] = 6929,
-    [22] = 7069,
-    [23] = 7630,
-    [24] = 7869,
-    [25] = 8191,
-    [26] = 8291,
-    [27] = 8345,
-    [28] = 8987,
-    [29] = 9235,
-    [30] = 9585,
-    [31] = 10032,
-    [32] = 6789,
-    [34] = 10966,
-    [35] = 11055,
-    [36] = 11284,
-    [37] = 11705,
-    [38] = 12168,
-    [39] = 12325,
-    [40] = 12470,
-    [41] = 14134,
-    [42] = 14382,
-    [43] = 14619,
-    [44] = 14940,
-    [45] = 15193,
-    [46] = 16273,
-    [47] = 16359,
-    [48] = 16962,
-    [49] = 17830,
-    [50] = 18424,
-    [51] = 18995,
-    [52] = 19125,
-    [53] = 19264,
-    [55] = 19779,
-    [56] = 19805,
-    [57] = 19824,
-    [58] = 19856,
-    [59] = 19982,
-    [60] = 19996,
-    [61] = 20045,
-    [62] = 19754,
-    [63] = 20136,
-    [64] = 20452,
-    [65] = 20483,
-    [66] = 20125,
-    [67] = 20526,
-    [68] = 20546,
-    [69] = 20578,
-    [70] = 20508,
-    [71] = 20685,
-    [72] = 20753,
-    [74] = 20843,
-    [75] = 20820,
-    [76] = 21063,
-    [77] = 21159,
-    [78] = 21010,
-    [79] = 21729,
-    [80] = 21775,
-    [81] = 21857,
-    [82] = 22052,
-    [83] = 22183,
-    [84] = 22286,
-    [85] = 22455,
-    [86] = 22795,
-    [87] = 21184,
-    [88] = 23439,
-    [89] = 23325,
-    [90] = 23578,
-    [91] = 23676,
-    [92] = 23857,
-    [93] = 23919,
-    [94] = 23949,
-    [95] = 24241,
-    [96] = 24290,
-    [97] = 24745,
-    [98] = 24763,
-    [99] = 24970,
-    [100] = 25583,
-    [101] = 25603,
-    [102] = 25731,
-    [103] = 25830,
-    [104] = 26059,
-    [105] = 26115,
-    [106] = 26588,
-    [107] = 26624,
-    [108] = 26662,
-    [109] = 27022,
-    [110] = 27034,
-    [111] = 27085,
-    [112] = 27104,
-    [113] = 27402,
-    [114] = 27446,
-    [115] = 27647,
-    [116] = 27675,
-    [117] = 27686,
+    [15] = 5331,
+    [16] = 5875,
+    [17] = 5938,
+    [18] = 6523,
+    [19] = 6869,
+    [20] = 6883,
+    [21] = 6983,
+    [22] = 7123,
+    [23] = 7684,
+    [24] = 7927,
+    [25] = 8249,
+    [26] = 8349,
+    [27] = 8403,
+    [28] = 9045,
+    [29] = 9293,
+    [30] = 9643,
+    [31] = 10090,
+    [32] = 6843,
+    [34] = 11024,
+    [35] = 11113,
+    [36] = 11342,
+    [37] = 11763,
+    [38] = 12226,
+    [39] = 12383,
+    [40] = 12528,
+    [41] = 14192,
+    [42] = 14440,
+    [43] = 14677,
+    [44] = 14998,
+    [45] = 15251,
+    [46] = 16331,
+    [47] = 16417,
+    [48] = 17020,
+    [49] = 17888,
+    [50] = 18482,
+    [51] = 19053,
+    [52] = 19183,
+    [53] = 19322,
+    [55] = 19837,
+    [56] = 19863,
+    [57] = 19882,
+    [58] = 19914,
+    [59] = 20040,
+    [60] = 20054,
+    [61] = 20103,
+    [62] = 19812,
+    [63] = 20194,
+    [64] = 20510,
+    [65] = 20541,
+    [66] = 20183,
+    [67] = 20584,
+    [68] = 20604,
+    [69] = 20636,
+    [70] = 20566,
+    [71] = 20743,
+    [72] = 20811,
+    [74] = 20901,
+    [75] = 20878,
+    [76] = 21121,
+    [77] = 21217,
+    [78] = 21068,
+    [79] = 21787,
+    [80] = 21833,
+    [81] = 21915,
+    [82] = 22110,
+    [83] = 22241,
+    [84] = 22344,
+    [85] = 22513,
+    [86] = 22853,
+    [87] = 21242,
+    [88] = 23497,
+    [89] = 23383,
+    [90] = 23636,
+    [91] = 23734,
+    [92] = 23915,
+    [93] = 23977,
+    [94] = 24007,
+    [95] = 24299,
+    [96] = 24348,
+    [97] = 24803,
+    [98] = 24821,
+    [99] = 25028,
+    [100] = 25641,
+    [101] = 25661,
+    [102] = 25789,
+    [103] = 25888,
+    [104] = 26117,
+    [105] = 26173,
+    [106] = 26646,
+    [107] = 26682,
+    [108] = 26720,
+    [109] = 27080,
+    [110] = 27092,
+    [111] = 27143,
+    [112] = 27162,
+    [113] = 27460,
+    [114] = 27504,
+    [115] = 27705,
+    [116] = 27733,
+    [117] = 27744,
 }
 
 -- Misc AOT variable imports

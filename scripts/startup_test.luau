@@ -94,11 +94,25 @@ assert(late.title.TextTransparency < 1, "Control reveals when selected")
 window.searchAction.callback()
 TestPump(0.3)
 assert(window._searching and window.searchPage and window.searchInput, "First search builds its controls")
+assert(window.searchPill.Parent == window.topbar, "The search field lives in the title bar")
+assert(window.searchPill.Visible and window.searchPill.Position.Y.Scale == 0.5, "The title-bar field opens on interaction, vertically centred")
+assert(window.searchPill.Size.Y.Offset == 35, "The title-bar field keeps its compact height")
 window.searchInput.Text = "Hidden control"
 assert(late.main.Parent == window.searchPage and late.main.Visible, "Lazy search can find controls")
 window.searchAction.callback()
 TestPump(0.3)
 assert(late.main.Parent == second.tabPage, "Closing search restores the source tab")
+assert(not window.searchPill.Visible, "The search field hides again when closed")
+
+window.searchAction.callback()
+TestPump(0.3)
+local userInput = game:GetService("UserInputService")
+userInput._focusedTextBox = window.searchInput
+userInput.InputBegan:Fire({ KeyCode = Enum.KeyCode.Escape }, false)
+TestPump(0.3)
+assert(not window._searching and late.main.Parent == second.tabPage, "Escape closes search and restores the source tab")
+userInput._focusedTextBox = nil
+
 local count = #window.instances
 window.searchAction.callback()
 TestPump(0.3)

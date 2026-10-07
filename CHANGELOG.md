@@ -1,5 +1,39 @@
 # Changelog
 
+## 2026-10-07 — search joins the title bar; the example title is shortened
+
+The global search action already lived in the window's title bar, but opening
+it placed a wide search field across the content header. The field now appears
+inside the title bar only while search is active, in the available space between
+the window title and toolbar actions. Its width follows their rendered bounds,
+so it does not shove either group out of place; the results start closer to the
+top of the page now that the field no longer covers that area. Search remains
+lazy, searches the same unlocked pages, and restores the active tab when closed.
+
+- **`components/search.luau`** — the search pill now lives in the title bar,
+  measures the gap between the title and action groups, and stays hidden until
+  the search action opens it. Escape closes it while its field is focused; the
+  action remains a toggle, search filtering is unchanged, and the page's extra
+  top padding is removed.
+- **`components/window/input.luau`** — a click on the title-bar field is treated
+  as an interactive region rather than a window-drag gesture.
+- **`example.client.luau`** — the window and key gate are both titled **Astra**
+  (one word); the descriptive subtitle and the separate `Astra-Example`
+  persistence filename stay as they were.
+- **`scripts/startup_test.luau`, `scripts/example_test.luau`** — pin the
+  title-bar location, hidden/visible lifecycle, Escape restore path and the
+  one-word title on both the key gate and window. `MODULES.md` records the new
+  search behavior and coverage.
+- **`version-1.luau`** — regenerated and re-signed; the README checksum,
+  `version-1.luau.sig` and `loader.luau` public-key pin are in sync.
+
+### Signing
+
+No production `SIGNING_KEY` was configured in this workspace, so the bundle was
+signed with a one-off gitignored development key. The private key was deleted
+after signing; CI will replace the development signature with the production
+key when it publishes.
+
 ## 2026-10-07 — sidebar rows: one lit outline, quiet rows around it
 
 Every sidebar row's outline wore the same `TabStroke` gradient (95 → 50 grey)

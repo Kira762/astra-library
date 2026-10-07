@@ -339,7 +339,11 @@ a previous gate instead of stacking. Handle fields: `passed`, `closed`,
 construction internals the runtime suite drives.
 
 ### `components/search.luau`
-Fuzzy search overlay: locals for candidate list, scoring weights, debounce connection.
+Lazy, case-insensitive substring search across unlocked tabs. Opening search moves
+its field into the title bar between the title and action group, captures focus,
+and shows the matching elements on a shared search page; Escape or the search
+button closes it and restores each element to its home tab. The field is measured
+against the rendered title/action bounds and stays hidden until search is opened.
 
 ---
 
@@ -662,6 +666,7 @@ needs to exist.
 | `tab_elements_test.sh` | Tab elements: only the selected tab is walked on a show/hide, a tab opened later shows its elements in the same frame and state, the search shows every tab it renders, and a late element shows with its tab. |
 | `tab_row_edge_test.sh` | Sidebar row outline shades: the selected row wears the theme's `TabStroke` gradient (its lit lip), hover and unselected rows wear a flat blend of it toward `SidebarSurface` (hover visibly firmer, both at their own transparencies), selecting elsewhere re-shades the row left behind, a `ChangeTheme` re-derives each row's shade instead of dropping unselected rows back onto the lit gradient, and a locked row shades like its neighbours. |
 | `startup_navigation_test.sh` | Staged-startup navigation: a row tap and the Settings action made while the host build is still streaming survive the host's closing `tab:Select()` (selection and on-screen page); a first main tab created after the user opened Settings does not auto-select itself; after the build settles, host `Select`/`Navigate` and row taps apply; with no user tap, the host's startup selection still applies. |
+| `startup_test.sh` | Startup batching and lazy panels; search stays lazy, opens its field in the title bar only on interaction, filters hidden-tab elements, closes via its action or Escape, restores the original tab and reuses the same UI instances. |
 | `tab_lock_test.sh` | Locked tabs: the preserved flag + badge (always hidden during the UI pause) and auto-select skipping a locked first tab; tap → notification with no selection; hover leaves the locked row dimmed; `Navigate`/`Select` guards; `SetLocked(false)` re-enables; locking the open tab moves the selection to a same-rail fallback; search excludes locked tabs' elements; locking every remaining tab clears the selection and hides content, and unlocking restores it; retained badge geometry with no layout reserve, full title slots, and hidden badges after collapse/rebuild. |
 | `elements_lock_test.sh` | Elements Lock System: per-window usage tags and stable IDs, existing usage merge, functional-only registration, default and explicit lock tiers, cumulative Mode 1–5 behavior, manual-lock composition, guarded callbacks, preserved input/draft/selection/layout, expanded-dropdown lock behavior, late controls, and the built-in Settings lock-all switch (exempt, unflagged, always able to release the page). |
 | `lock_mode_persistence_test.sh` | Element Lock Mode round trip: the chosen tier is written to the config, the next execution locks the page from it before Settings is ever opened (its switch builds lazily), the lazily built switch agrees with the live tier, a config saved without that panel still carries a host-driven tier, and a lowered tier leaves no stale locks. |
@@ -672,7 +677,7 @@ needs to exist.
 | `keybind_input_test.sh` | Dedicated A–Z capture: required value, validation, focus handling, cancellation, current-key suppression, groups, flags, lock/removal/unload and settings validation. |
 | `keybind_persistence_test.sh` | Config and settings round trips; unsupported legacy bindings migrate to required K. |
 | `capsule_visibility_test.sh` | Held-tween assertions before/after Hide completion, both styles, restore, topbar minimisation, instant motion and stale completion after unload. |
-| `example_test.sh` | Runs the real local demo; covers the three-tab contract, Group-based layout, every element, information-first tabs and no single-child Collapsible Groups in the demo/settings, and statically guards the example against game wiring (it must stay UI-only). |
+| `example_test.sh` | Runs the real local demo; covers the one-word `Astra` window/key-gate title, three-tab contract, Group-based layout, every element, information-first tabs and no single-child Collapsible Groups in the demo/settings, and statically guards the example against game wiring (it must stay UI-only). |
 | `slider_travel_test.sh` | Slider knob travel: the capsule's centre stays half a knob inside each track end (resting, held and after release), so it never overlaps the track end or card edge at max/min, and the fill ends at the knob's centre. |
 | `stepper_value_test.sh` | Stepper values: the `0` default, per-click `±step` with the display following, the `0` floor (a `(−)` tap there is a no-op with no callback), the optional `max` ceiling, typed commits clamping into range and unparseable text restoring the old value, the callback firing only on real changes, an inert `description` prop (no helper line, no card growth), the field's stroke being the pill's own `SurfaceStroke` (tightened by focus, restored on leave), and the title block and pill cluster sharing one centre line. |
 | `icons_test.sh` | Icon resolver: name-only lookup across the packs in priority order (and how lazily they load), qualified `pack:name`, case sensitivity, unknown-pack warnings, custom assets (one import per path, memoised misses, the `listfiles` index), cache-key separation, and `window:ResolveIcon`. |

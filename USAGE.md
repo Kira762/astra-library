@@ -457,6 +457,17 @@ local theme = tab:CreateStat({ name = "Current theme", value = "Default", letter
 theme:SetText("Studio")  -- the card reads "Studio", not "S"
 ```
 
+A Stat inside a row Group builds the compact card, which has no badge to put a
+letter in: a letter stat there reads its value out of the row card's own readout
+(the whole value, affixes included — `"B+"` reads as `B+`), and `Set` /
+`SetText` / `ResetBaseline` write to that readout. The badge is what the full
+card draws.
+
+```lua
+local row = tab:CreateGroup({ direction = "row" })
+local rank = row:CreateStat({ name = "Rank", value = "A" })  -- compact card, reads "A" on the right
+```
+
 ### Link
 ```lua
 tab:CreateLink({

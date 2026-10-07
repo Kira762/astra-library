@@ -715,6 +715,8 @@ display: string?, compact: boolean?,
 
 
 
+
+
 letter: boolean?,
 changeMode: string?, changeBaseline: string?, numberEasing: boolean?,
 }
@@ -17469,11 +17471,15 @@ function state:Set(a51)
 
 
 
+
 if self.letter then
 self.value = a51
 self._hasValue = a51 ~= nil
 if self.letterGlyph then
 self.letterGlyph.Text = glyphText(a51, self.name)
+else
+
+self:_writeTextReadout()
 end
 return
 end
@@ -17544,6 +17550,9 @@ self.value = a62
 self._hasValue = a62 ~= nil
 if self.letterGlyph then
 self.letterGlyph.Text = glyphText(a62, self.name)
+else
+
+self:_writeTextReadout()
 end
 return
 end
@@ -17586,9 +17595,15 @@ end
 
 
 
+
+
+
+
 function state:_writeTextReadout()
 if self.textLabel then
 self.textLabel.Text = self:_formatValue(self.value)
+elseif self.readoutOdo then
+self.readoutOdo:snap(self:_formatValue(self.value))
 end
 end
 
@@ -17614,20 +17629,14 @@ end
 function state:_setShown(a66, a67)
 local w = self.window
 
-if self.letter then
-if a66 then
-w:_revealCommon(self, a67)
-w:_reveal(self.gradientContainer, { BackgroundTransparency = 0 }, a67)
-w:_reveal(self.glow, { Transparency = 0.82 }, a67)
-w:_reveal(self.letterGlyph, { TextTransparency = 0 }, a67)
-else
-w:_hideCommon(self, a67)
-w:_reveal(self.gradientContainer, { BackgroundTransparency = 1 }, a67)
-w:_reveal(self.glow, { Transparency = 1 }, a67)
-w:_reveal(self.letterGlyph, { TextTransparency = 1 }, a67)
-end
-return
-end
+
+
+
+
+
+
+
+
 
 if self.compact then
 w:_reveal(
@@ -17646,6 +17655,25 @@ if self.readoutOdo then
 self.readoutOdo:reveal(if a66 then 0 else 1, a67)
 else
 w:_reveal(self.textLabel, { TextTransparency = if a66 then 0 else 1 }, a67)
+end
+return
+end
+
+
+
+
+
+if self.letter then
+if a66 then
+w:_revealCommon(self, a67)
+w:_reveal(self.gradientContainer, { BackgroundTransparency = 0 }, a67)
+w:_reveal(self.glow, { Transparency = 0.82 }, a67)
+w:_reveal(self.letterGlyph, { TextTransparency = 0 }, a67)
+else
+w:_hideCommon(self, a67)
+w:_reveal(self.gradientContainer, { BackgroundTransparency = 1 }, a67)
+w:_reveal(self.glow, { Transparency = 1 }, a67)
+w:_reveal(self.letterGlyph, { TextTransparency = 1 }, a67)
 end
 return
 end
@@ -27727,116 +27755,116 @@ end)() end,
 local LineOffsets = {
     [2] = 52,
     [3] = 499,
-    [5] = 1133,
-    [6] = 1116,
-    [7] = 1288,
-    [8] = 1430,
-    [9] = 1681,
-    [10] = 2063,
-    [11] = 3440,
-    [12] = 3849,
-    [13] = 4198,
-    [14] = 4937,
-    [15] = 5275,
-    [16] = 5819,
-    [17] = 5882,
-    [18] = 6356,
-    [19] = 6702,
-    [20] = 6716,
-    [21] = 6816,
-    [22] = 6956,
-    [23] = 7517,
-    [24] = 7756,
-    [25] = 8078,
-    [26] = 8178,
-    [27] = 8232,
-    [28] = 8874,
-    [29] = 9122,
-    [30] = 9472,
-    [31] = 9919,
-    [32] = 6676,
-    [34] = 10853,
-    [35] = 10942,
-    [36] = 11171,
-    [37] = 11592,
-    [38] = 12055,
-    [39] = 12212,
-    [40] = 12357,
-    [41] = 14021,
-    [42] = 14269,
-    [43] = 14506,
-    [44] = 14827,
-    [45] = 15080,
-    [46] = 16160,
-    [47] = 16246,
-    [48] = 16849,
-    [49] = 17691,
-    [50] = 18285,
-    [51] = 18854,
-    [52] = 18984,
-    [53] = 19123,
-    [55] = 19638,
-    [56] = 19664,
-    [57] = 19683,
-    [58] = 19715,
-    [59] = 19841,
-    [60] = 19855,
-    [61] = 19904,
-    [62] = 19613,
-    [63] = 19995,
-    [64] = 20311,
-    [65] = 20342,
-    [66] = 19984,
-    [67] = 20385,
-    [68] = 20405,
-    [69] = 20437,
-    [70] = 20367,
-    [71] = 20544,
-    [72] = 20612,
-    [74] = 20702,
-    [75] = 20679,
-    [76] = 20922,
-    [77] = 21018,
-    [78] = 20869,
-    [79] = 21588,
-    [80] = 21634,
-    [81] = 21716,
-    [82] = 21911,
-    [83] = 22042,
-    [84] = 22145,
-    [85] = 22314,
-    [86] = 22654,
-    [87] = 21043,
-    [88] = 23298,
-    [89] = 23184,
-    [90] = 23437,
-    [91] = 23535,
-    [92] = 23716,
-    [93] = 23778,
-    [94] = 23808,
-    [95] = 24100,
-    [96] = 24149,
-    [97] = 24604,
-    [98] = 24622,
-    [99] = 24829,
-    [100] = 25442,
-    [101] = 25462,
-    [102] = 25590,
-    [103] = 25689,
-    [104] = 25918,
-    [105] = 25974,
-    [106] = 26447,
-    [107] = 26483,
-    [108] = 26521,
-    [109] = 26881,
-    [110] = 26893,
-    [111] = 26944,
-    [112] = 26963,
-    [113] = 27261,
-    [114] = 27305,
-    [115] = 27506,
-    [116] = 27534,
-    [117] = 27545,
+    [5] = 1135,
+    [6] = 1118,
+    [7] = 1290,
+    [8] = 1432,
+    [9] = 1683,
+    [10] = 2065,
+    [11] = 3442,
+    [12] = 3851,
+    [13] = 4200,
+    [14] = 4939,
+    [15] = 5277,
+    [16] = 5821,
+    [17] = 5884,
+    [18] = 6358,
+    [19] = 6704,
+    [20] = 6718,
+    [21] = 6818,
+    [22] = 6958,
+    [23] = 7519,
+    [24] = 7758,
+    [25] = 8080,
+    [26] = 8180,
+    [27] = 8234,
+    [28] = 8876,
+    [29] = 9124,
+    [30] = 9474,
+    [31] = 9921,
+    [32] = 6678,
+    [34] = 10855,
+    [35] = 10944,
+    [36] = 11173,
+    [37] = 11594,
+    [38] = 12057,
+    [39] = 12214,
+    [40] = 12359,
+    [41] = 14023,
+    [42] = 14271,
+    [43] = 14508,
+    [44] = 14829,
+    [45] = 15082,
+    [46] = 16162,
+    [47] = 16248,
+    [48] = 16851,
+    [49] = 17719,
+    [50] = 18313,
+    [51] = 18882,
+    [52] = 19012,
+    [53] = 19151,
+    [55] = 19666,
+    [56] = 19692,
+    [57] = 19711,
+    [58] = 19743,
+    [59] = 19869,
+    [60] = 19883,
+    [61] = 19932,
+    [62] = 19641,
+    [63] = 20023,
+    [64] = 20339,
+    [65] = 20370,
+    [66] = 20012,
+    [67] = 20413,
+    [68] = 20433,
+    [69] = 20465,
+    [70] = 20395,
+    [71] = 20572,
+    [72] = 20640,
+    [74] = 20730,
+    [75] = 20707,
+    [76] = 20950,
+    [77] = 21046,
+    [78] = 20897,
+    [79] = 21616,
+    [80] = 21662,
+    [81] = 21744,
+    [82] = 21939,
+    [83] = 22070,
+    [84] = 22173,
+    [85] = 22342,
+    [86] = 22682,
+    [87] = 21071,
+    [88] = 23326,
+    [89] = 23212,
+    [90] = 23465,
+    [91] = 23563,
+    [92] = 23744,
+    [93] = 23806,
+    [94] = 23836,
+    [95] = 24128,
+    [96] = 24177,
+    [97] = 24632,
+    [98] = 24650,
+    [99] = 24857,
+    [100] = 25470,
+    [101] = 25490,
+    [102] = 25618,
+    [103] = 25717,
+    [104] = 25946,
+    [105] = 26002,
+    [106] = 26475,
+    [107] = 26511,
+    [108] = 26549,
+    [109] = 26909,
+    [110] = 26921,
+    [111] = 26972,
+    [112] = 26991,
+    [113] = 27289,
+    [114] = 27333,
+    [115] = 27534,
+    [116] = 27562,
+    [117] = 27573,
 }
 
 -- Misc AOT variable imports

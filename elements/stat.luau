@@ -618,14 +618,18 @@ end
 
 function state:Set(a51)
     --[[
-    Letter mode never builds the numeric readouts, so a Set() there keeps
-    the glyph badge in step instead of driving odometers that do not exist.
+    Letter mode has no numeric readouts to drive: a full card keeps its
+    glyph badge in step, a compact card (a row card has no badge) its
+    readout.
     ]]
     if self.letter then
         self.value = a51
         self._hasValue = a51 ~= nil
         if self.letterGlyph then
             self.letterGlyph.Text = glyphText(a51, self.name)
+        else
+            -- Compact letter card: no badge, so the readout carries the value.
+            self:_writeTextReadout()
         end
         return
     end
@@ -696,6 +700,9 @@ function state:ResetBaseline(a62)
         self._hasValue = a62 ~= nil
         if self.letterGlyph then
             self.letterGlyph.Text = glyphText(a62, self.name)
+        else
+            -- Compact letter card: no badge, so the readout carries the value.
+            self:_writeTextReadout()
         end
         return
     end
@@ -737,10 +744,16 @@ end
 --[[
 Text readout update: rewrites the whole-value label. Text stats only —
 the numeric paths drive their odometers and the badge path its glyph.
+
+A compact letter stat is the one case that reaches this without a label: a
+row card reads its value out of the readout odometer (it has no badge to put
+a letter in), so a write lands there instead.
 ]]
 function state:_writeTextReadout()
     if self.textLabel then
         self.textLabel.Text = self:_formatValue(self.value)
+    elseif self.readoutOdo then
+        self.readoutOdo:snap(self:_formatValue(self.value))
     end
 end
 
@@ -766,21 +779,15 @@ end
 function state:_setShown(a66, a67)
     local w = self.window
 
-    if self.letter then
-        if a66 then
-            w:_revealCommon(self, a67)
-            w:_reveal(self.gradientContainer, { BackgroundTransparency = 0 }, a67)
-            w:_reveal(self.glow, { Transparency = 0.82 }, a67)
-            w:_reveal(self.letterGlyph, { TextTransparency = 0 }, a67)
-        else
-            w:_hideCommon(self, a67)
-            w:_reveal(self.gradientContainer, { BackgroundTransparency = 1 }, a67)
-            w:_reveal(self.glow, { Transparency = 1 }, a67)
-            w:_reveal(self.letterGlyph, { TextTransparency = 1 }, a67)
-        end
-        return
-    end
-
+    --[[
+    The compact card answers first. A row Group builds every child on the
+    compact surface, which has no glyph badge, gradient or glow of its own —
+    a letter stat there reads its value out of the compact readout like any
+    other row card. The badge branch below belongs to the full card, where
+    those surfaces exist: reaching it from a compact letter stat, as it used
+    to, revealed only the outline and the title and left the accent fill and
+    the value readout at transparency 1, so the card drew as an empty box.
+    ]]
     if self.compact then
         w:_reveal(
             self.main,
@@ -798,6 +805,25 @@ function state:_setShown(a66, a67)
             self.readoutOdo:reveal(if a66 then 0 else 1, a67)
         else
             w:_reveal(self.textLabel, { TextTransparency = if a66 then 0 else 1 }, a67)
+        end
+        return
+    end
+
+    --[[
+    Full card, letter mode: the value is the centered glyph badge, so it
+    fades with the card's own gradient and glow.
+    ]]
+    if self.letter then
+        if a66 then
+            w:_revealCommon(self, a67)
+            w:_reveal(self.gradientContainer, { BackgroundTransparency = 0 }, a67)
+            w:_reveal(self.glow, { Transparency = 0.82 }, a67)
+            w:_reveal(self.letterGlyph, { TextTransparency = 0 }, a67)
+        else
+            w:_hideCommon(self, a67)
+            w:_reveal(self.gradientContainer, { BackgroundTransparency = 1 }, a67)
+            w:_reveal(self.glow, { Transparency = 1 }, a67)
+            w:_reveal(self.letterGlyph, { TextTransparency = 1 }, a67)
         end
         return
     end

@@ -1,5 +1,100 @@
 # Changelog
 
+## 2026-10-07 — Changelog entries read as a recess, not as a second frame
+
+The Changelog drew `StyleElementBody` on its own card and `StyleElementPanel` on
+*every entry*: the same `ElementGradient` fill and the same lit outline, at the
+same strength, one inside the other. A release list of N entries therefore drew
+N+1 outlines around surfaces of one colour — the nesting cost a line per level
+and said nothing, because the inner card never read as a level. (Inside a
+Collapsible Group it was just as loud: `CollapsibleChildElementStrokeTransparency`
+is 0 too.) The version line already carries the hierarchy through type and
+colour — `TitlingColor` heading, `PlaceholderColor` date and metadata at 0.55 —
+so the entry's frame was the third thing saying what the typography said.
+
+The library's rule is one lit line per element, with the levels inside it read as
+surface: that is how a Collapsible Group paints its body clip with `WindowColor`,
+and how the sidebar rows were quieted the other day. The entry cards now follow
+the same idiom.
+
+- **`elements/changelog.luau`** — an entry card keeps its `UICorner` at
+  `ElementCornerRadius` (same corner family as the card it sits in) and swaps the
+  panel's `ElementGradient` for a `WindowColor` gradient — a theme binding, so a
+  host palette re-derives it — and carries **no `UIStroke`**. It is revealed at
+  `ElementTransparency` (opaque, like the body clip) rather than on the element's
+  own surface tier, so the recess still reads when the changelog is nested in a
+  Collapsible Group, where the card behind it is itself stepped down. The
+  element's own lit line is unchanged. `StyleElementPanel` is deliberately left
+  alone: a panel that *floats* over other content — a Dropdown's list, a popup
+  box — needs the edge a nested entry does not, and keeps it. No prop changes;
+  there is nothing for a host to opt into or out of.
+- **`scripts/changelog_entry_surface_test.luau`, `.sh`** (new) — pins that an
+  entry card carries no stroke while the changelog's own stroke stays at the
+  element tier, that the entry's fill is the `WindowColor` binding (and
+  re-derives on a theme change), that it rounds with `ElementCornerRadius`, that
+  hide/Show moves the entries with the element, and that a Dropdown's floating
+  panel keeps its lit lip.
+- **`MODULES.md`, `USAGE.md`** — record the nested-surface contract.
+- **`version-1.luau`** — regenerated and re-signed; the README checksum,
+  `version-1.luau.sig` and `loader.luau` public-key pin are in sync.
+
+### Signing
+
+As with the two entries below: no production `SIGNING_KEY` is configured in this
+workspace and the previous throwaway dev key is not kept between checkouts, so the
+bundle was signed with a freshly generated gitignored dev key and the
+`loader.luau` public-key pin was synced to it. CI replaces the development signature with the production
+key when it publishes — publishing without that re-sign leaves the one-line
+loader failing closed to its silent no-op stub.
+
+## 2026-10-07 — a tab's reveal always finishes the tab
+
+The example's **Controls** tab could open with the rows under the `Fields`
+divider — the Mode Dropdown, the Nickname Input, the Toggle UI Keybind — drawn
+as empty cards: the surface and the outline of each row came up, and nothing
+inside it did. The rows had never been *shown*.
+
+A tab nobody has opened keeps its elements hidden and carries
+`_elementsPending`; the page shows them when it becomes the page on screen. A
+tab longer than one reveal batch (`hardwarePerformance.getElementBatchSize()`,
+6 on a low-end device) reveals its first batch on the spot and hands the rest
+to a stream that only runs while that tab stays on screen — and
+`_showTabElements` cleared the pending mark on entry, before either half had
+run. `search.collectElements` calls `_showTabElements` for **every** tab that
+still owes a reveal, because it lays all of them out on the search page, and at
+that moment the search page, not the tab, is what is on screen. So the stream
+failed its own first check without revealing anything, the mark now claimed the
+tab was done, and the tail rows stayed transparent for the life of the window.
+The next theme pass repainted their card surfaces (`ElementTransparency` /
+`ElementStrokeTransparency` are theme bindings, not reveal state), which is why
+the rows read as empty boxes instead of missing rows.
+
+- **`components/window/visibility.luau`** — `_showTabElements` streams only the
+  tab that is actually on screen (`count <= 8 or tab ~= self.selectedTab` takes
+  the single pass): a page nobody is looking at cannot hitch, and there is no
+  stream left to abandon. The stream now notices its own abandonment instead of
+  ending quietly — a hide, a minimise, an unload or a tab change mid-stream puts
+  `_elementsPending` back so the next open of that tab finishes the job.
+  `_revealElements` (the entrance cascade) owns the same mark, drops it up
+  front, and returns early on `isStillValid()` twice; both exits now re-arm
+  through one `abandon()` helper.
+- **`scripts/tab_reveal_stream_test.luau`, `.sh`** (new) — pins that a reveal
+  spent while a 30-row tab is off screen shows all 30 rows (the last of them an
+  Input, whose title and field text have to come with it), that the
+  search → close → open-the-tab path finds no missing rows, and that the tab on
+  screen still streams its tail rather than spending every row on the frame it
+  opens on. It fails against the previous bundle: 24 of 30 rows shown.
+  `MODULES.md` records the reveal contract.
+- **`version-1.luau`** — regenerated and re-signed; the README checksum,
+  `version-1.luau.sig` and `loader.luau` public-key pin are in sync.
+
+### Signing
+
+As with the entry below: no production `SIGNING_KEY` is configured in this
+workspace, so the bundle was signed with a fresh gitignored development key and
+`loader.luau`'s pin was synced to it. CI replaces the development signature with
+the production key when it publishes.
+
 ## 2026-10-07 — search joins the title bar; the example title is shortened
 
 The global search action already lived in the window's title bar, but opening

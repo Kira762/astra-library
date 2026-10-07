@@ -133,7 +133,11 @@ engine — both entrances animate the shell first and hand the page to
 `_stageContentReveal`, which waits `contentRevealBeat`, runs `_revealElements`
 one control per beat, and then opens the overlay gate; `_contentEntranceId` is
 the generation that keeps a superseded entrance from touching the page, and
-`_revealElements` owns clearing `_elementsPending` for the tab it walks), `_bindTopbarDrag`/`_bindKeybind`/`_bindMouseOverride`,
+`_revealElements` owns clearing `_elementsPending` for the tab it walks — an
+abandoned pass (window hidden, minimised, or a superseded layout transition)
+puts the mark back so the next open finishes the page, and `_showTabElements`
+streams only the tab that is on screen, showing any other tab in one pass
+because a stream for a page nobody can see would abandon its own tail), `_bindTopbarDrag`/`_bindKeybind`/`_bindMouseOverride`,
 `_applyWindowSize`/`_applyRailWidth`/`_clampToScreen`/`_watchViewport`,
 `_clampedPosition` (keep-on-screen clamp on the window's own half-extents),
 `_restingCenterPosition`/`_recenterWindow` (screen-centre recentering;
@@ -401,7 +405,7 @@ Per-element specifics:
   it silently.
 - `tab.luau` — tab class: `tabPage` (ScrollingFrame), `_register(element)` pipeline into `window.controls[flag]`, selector button visuals. `CreateChangelog` builds a regular changelog element wherever declared. Locked tabs (`locked` prop / `SetLocked(bool)`): the flag gates `Select` (no-op), the row tap (short "This tab is locked" notification instead), and hover; `_applyVisual` raises the row's content transparency while locked (copy of the shared state table, never a mutation of it); `SetLocked(true)` on the open tab clears `window.selectedTab` and selects the first unlocked non-neglect tab with same-rail preference (the `Remove` fallback rule), hiding the tab's elements and marking `_elementsPending` when no fallback exists. Selection is split in two: the public `Select(instant)` is the host's call and is skipped while `window._userNavigated` is set and the host build has not settled (`window._hostBuildSettled`, set by the entrypoint once construction is quiet), so a host's closing `tab:Select()` cannot pull the user off a tab they tapped mid-build; `_select(instant)` does the actual work and is what the row tap (which sets `_userNavigated`), the Settings action (`components/settings.luau` `toggleSettingsMode`), the lock/remove fallbacks and the first-tab auto-select in `Window:CreateTab` (skipped once the user has navigated) call.
 - `group.luau`, `section.luau`, `tabSection.luau` — container classes with UIListLayout locals.
-- `changelog.luau` — release-history element (`__type = "Changelog"`): normalizes `ChangelogEntry`/`ChangelogChange` props, maps symbols (`+`/`-`/`~`, or words like "added"/"removed"/"changed") to green/red/amber, fades entries in, supports `Set`/`Refresh`/`Add(entry, prepend?)`/`Clear`. Renders as a regular standalone element; supports `Set`/`Refresh`/`Add`/`Clear` and move/lock API.
+- `changelog.luau` — release-history element (`__type = "Changelog"`): normalizes `ChangelogEntry`/`ChangelogChange` props, maps symbols (`+`/`-`/`~`, or words like "added"/"removed"/"changed") to green/red/amber, fades entries in, supports `Set`/`Refresh`/`Add(entry, prepend?)`/`Clear`. Renders as a regular standalone element; supports `Set`/`Refresh`/`Add`/`Clear` and move/lock API. Nested surface: the element card wears the lit line (`StyleElementBody`), and each entry card is a **recess** instead of a second frame — a `WindowColor` gradient (theme-bound, so a host palette re-derives it) on the element corner with no stroke of its own, revealed at `ElementTransparency` so it still reads inside a Collapsible Group. A changelog therefore draws one outline however many releases it lists. `StyleElementPanel` is not used here — panels that *float* over other content (a Dropdown list, a popup box) keep the edge they need.
 - `link.luau` — a card that carries a URL: icon, title, subtitle and a fixed
   trailing copy control. The link is a hidden value (stored on the element, never
   rendered), and the control copies it, swaps in the confirmation glyph for two

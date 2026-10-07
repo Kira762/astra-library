@@ -238,7 +238,30 @@ function Changelog:_renderEntry(entry: ChangelogEntry, index: number)
         LayoutOrder = index,
         Parent = self.history,
     })
-    local stroke = self.window:StyleElementPanel(card)
+    --[[
+    A nested level reads as a recess, not as a second frame. The entry card
+    wears the window's own surface — the same idiom a Collapsible Group paints
+    its body clip with — and no outline of its own, so the changelog keeps the
+    one lit line the element family expects and the darker fill plus the 8px
+    gap do the separating. It is revealed opaque (`ElementTransparency`, like
+    the body clip) rather than on the element's own surface tier, so the recess
+    still reads when the changelog sits inside a Collapsible Group, where the
+    card behind it is itself stepped down.
+
+    `StyleElementPanel` is deliberately not used here: a panel that *floats*
+    over other content (a Dropdown list, a popup box) needs the edge a nested
+    entry does not, and it keeps it.
+    ]]
+    self.window:Create("UIGradient", {
+        Rotation = 270,
+
+        Parent = card,
+    }, { Color = "WindowColor" })
+
+    self.window:Create("UICorner", {
+        Parent = card,
+    }, { CornerRadius = "ElementCornerRadius" })
+
     self.window:Create("UIPadding", {
         PaddingTop = UDim.new(0, 11),
         PaddingBottom = UDim.new(0, 11),
@@ -251,8 +274,7 @@ function Changelog:_renderEntry(entry: ChangelogEntry, index: number)
         SortOrder = Enum.SortOrder.LayoutOrder,
         Parent = card,
     })
-    self:_addFade(card, "BackgroundTransparency", self.window:_elementBackgroundTransparency(self))
-    self:_addFade(stroke, "Transparency", self.window:_elementStrokeTransparency(self, false))
+    self:_addFade(card, "BackgroundTransparency", self.window.theme.ElementTransparency or 0)
     local header = self.window:Create("Frame", {
         Name = "Header",
         Size = UDim2.new(1, 0, 0, 22),

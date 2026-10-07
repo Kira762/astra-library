@@ -397,13 +397,21 @@ end
 Show every element of one tab and clear its pending mark.
 Automatically adapts loading for tabs with many elements and low-end devices
 to prevent UI hitching, frame jitter, and memory crashes.
+
+Only the page on screen can hitch, so only the page on screen is streamed. A
+tab that is not on screen is finished in one pass instead: its stream would
+be gated on the tab *staying* selected, and `search.collectElements` shows
+every tab that still owes a reveal while the search page is the one being
+looked at. Streaming there abandons the tail on the loop's first check, with
+the mark already cleared — so the last rows of that tab stay invisible for the
+rest of the window's life, even after the player opens it.
 ]]
 
 function Window:_showTabElements(tab)
     tab._elementsPending = false
     local elements = tab.elements
     local count = #elements
-    if count <= 8 then
+    if count <= 8 or tab ~= self.selectedTab then
         for _, element in ipairs(elements) do
             element:_setShown(true, false)
         end
@@ -423,7 +431,18 @@ function Window:_showTabElements(tab)
     if initialCount < count then
         task.spawn(function()
             local index = initialCount + 1
-            while index <= count and not self.unloaded and self.selectedTab == tab do
+            while index <= count do
+                --[[
+                The window hid, minimised or moved to another page: this stream
+                is the only thing that was going to show what is left, and it
+                owns the mark it cleared on entry. Hand the mark back so the
+                next time this tab is opened the reveal finishes rather than
+                leaving its last rows invisible.
+                ]]
+                if self.unloaded or self.hidden or self.minimised or self.selectedTab ~= tab then
+                    tab._elementsPending = true
+                    return
+                end
                 local nextBatch = math.min(count, index + batchSize - 1)
                 for j = index, nextBatch do
                     elements[j]:_setShown(true, false)
@@ -491,9 +510,20 @@ function Window:_revealElements(stepDelay, totalDuration, layoutTransitionId)
     local step = motion.step(stepDelay)
     local maxReveals = if step > 0 then math.floor(totalDuration / step) else math.huge
     local revealed = 0
+
+    --[[
+    The same mark is what `_showTabElements` would otherwise use to finish this
+    page later, and it was dropped up front: an abandoned cascade has to put it
+    back, or the rows this pass never reached stay invisible for good.
+    ]]
+    local function abandon()
+        tab._elementsPending = true
+        return
+    end
+
     for _, element in ipairs(tab.elements) do
         if not isStillValid() then
-            return
+            return abandon()
         end
         local elemTop = element.main.AbsolutePosition.Y
         local isVisible = (elemTop + element.main.AbsoluteSize.Y) > viewTop and elemTop < viewBottom
@@ -503,7 +533,7 @@ function Window:_revealElements(stepDelay, totalDuration, layoutTransitionId)
             if step > 0 and revealed <= maxReveals then
                 task.wait(step)
                 if not isStillValid() then
-                    return
+                    return abandon()
                 end
             end
         else

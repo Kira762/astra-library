@@ -10488,11 +10488,19 @@ end
 
 
 
+
+
+
+
+
+
+
+
 function Window:_showTabElements(tab)
 tab._elementsPending = false
 local elements = tab.elements
 local count = #elements
-if count <= 8 then
+if count <= 8 or tab ~= self.selectedTab then
 for _, element in ipairs(elements) do
 element:_setShown(true, false)
 end
@@ -10512,7 +10520,18 @@ end
 if initialCount < count then
 task.spawn(function()
 local index = initialCount + 1
-while index <= count and not self.unloaded and self.selectedTab == tab do
+while index <= count do
+
+
+
+
+
+
+
+if self.unloaded or self.hidden or self.minimised or self.selectedTab ~= tab then
+tab._elementsPending = true
+return
+end
 local nextBatch = math.min(count, index + batchSize - 1)
 for j = index, nextBatch do
 elements[j]:_setShown(true, false)
@@ -10580,9 +10599,20 @@ local viewBottom = viewTop + page.AbsoluteWindowSize.Y
 local step = motion.step(stepDelay)
 local maxReveals = if step > 0 then math.floor(totalDuration / step) else math.huge
 local revealed = 0
+
+
+
+
+
+
+local function abandon()
+tab._elementsPending = true
+return
+end
+
 for _, element in ipairs(tab.elements) do
 if not isStillValid() then
-return
+return abandon()
 end
 local elemTop = element.main.AbsolutePosition.Y
 local isVisible = (elemTop + element.main.AbsoluteSize.Y) > viewTop and elemTop < viewBottom
@@ -10592,7 +10622,7 @@ revealed += 1
 if step > 0 and revealed <= maxReveals then
 task.wait(step)
 if not isStillValid() then
-return
+return abandon()
 end
 end
 else
@@ -11579,7 +11609,30 @@ ClipsDescendants = true,
 LayoutOrder = index,
 Parent = self.history,
 })
-local stroke = self.window:StyleElementPanel(card)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+self.window:Create("UIGradient", {
+Rotation = 270,
+
+Parent = card,
+}, { Color = "WindowColor" })
+
+self.window:Create("UICorner", {
+Parent = card,
+}, { CornerRadius = "ElementCornerRadius" })
+
 self.window:Create("UIPadding", {
 PaddingTop = UDim.new(0, 11),
 PaddingBottom = UDim.new(0, 11),
@@ -11592,8 +11645,7 @@ Padding = UDim.new(0, 5),
 SortOrder = Enum.SortOrder.LayoutOrder,
 Parent = card,
 })
-self:_addFade(card, "BackgroundTransparency", self.window:_elementBackgroundTransparency(self))
-self:_addFade(stroke, "Transparency", self.window:_elementStrokeTransparency(self, false))
+self:_addFade(card, "BackgroundTransparency", self.window.theme.ElementTransparency or 0)
 local header = self.window:Create("Frame", {
 Name = "Header",
 Size = UDim2.new(1, 0, 0, 22),
@@ -27954,88 +28006,88 @@ local LineOffsets = {
     [30] = 9643,
     [31] = 10090,
     [32] = 6843,
-    [34] = 11024,
-    [35] = 11113,
-    [36] = 11342,
-    [37] = 11763,
-    [38] = 12226,
-    [39] = 12383,
-    [40] = 12528,
-    [41] = 14192,
-    [42] = 14440,
-    [43] = 14677,
-    [44] = 14998,
-    [45] = 15251,
-    [46] = 16331,
-    [47] = 16417,
-    [48] = 17020,
-    [49] = 17888,
-    [50] = 18482,
-    [51] = 19053,
-    [52] = 19183,
-    [53] = 19322,
-    [55] = 19837,
-    [56] = 19863,
-    [57] = 19882,
-    [58] = 19914,
-    [59] = 20040,
-    [60] = 20054,
-    [61] = 20103,
-    [62] = 19812,
-    [63] = 20194,
-    [64] = 20510,
-    [65] = 20541,
-    [66] = 20183,
-    [67] = 20584,
-    [68] = 20604,
-    [69] = 20636,
-    [70] = 20566,
-    [71] = 20743,
-    [72] = 20811,
-    [74] = 20901,
-    [75] = 20878,
-    [76] = 21121,
-    [77] = 21217,
-    [78] = 21068,
-    [79] = 21787,
-    [80] = 21833,
-    [81] = 21915,
-    [82] = 22110,
-    [83] = 22241,
-    [84] = 22344,
-    [85] = 22513,
-    [86] = 22853,
-    [87] = 21242,
-    [88] = 23497,
-    [89] = 23383,
-    [90] = 23636,
-    [91] = 23734,
-    [92] = 23915,
-    [93] = 23977,
-    [94] = 24007,
-    [95] = 24299,
-    [96] = 24348,
-    [97] = 24803,
-    [98] = 24821,
-    [99] = 25028,
-    [100] = 25641,
-    [101] = 25661,
-    [102] = 25789,
-    [103] = 25888,
-    [104] = 26117,
-    [105] = 26173,
-    [106] = 26646,
-    [107] = 26682,
-    [108] = 26720,
-    [109] = 27080,
-    [110] = 27092,
-    [111] = 27143,
-    [112] = 27162,
-    [113] = 27460,
-    [114] = 27504,
-    [115] = 27705,
-    [116] = 27733,
-    [117] = 27744,
+    [34] = 11054,
+    [35] = 11143,
+    [36] = 11372,
+    [37] = 11815,
+    [38] = 12278,
+    [39] = 12435,
+    [40] = 12580,
+    [41] = 14244,
+    [42] = 14492,
+    [43] = 14729,
+    [44] = 15050,
+    [45] = 15303,
+    [46] = 16383,
+    [47] = 16469,
+    [48] = 17072,
+    [49] = 17940,
+    [50] = 18534,
+    [51] = 19105,
+    [52] = 19235,
+    [53] = 19374,
+    [55] = 19889,
+    [56] = 19915,
+    [57] = 19934,
+    [58] = 19966,
+    [59] = 20092,
+    [60] = 20106,
+    [61] = 20155,
+    [62] = 19864,
+    [63] = 20246,
+    [64] = 20562,
+    [65] = 20593,
+    [66] = 20235,
+    [67] = 20636,
+    [68] = 20656,
+    [69] = 20688,
+    [70] = 20618,
+    [71] = 20795,
+    [72] = 20863,
+    [74] = 20953,
+    [75] = 20930,
+    [76] = 21173,
+    [77] = 21269,
+    [78] = 21120,
+    [79] = 21839,
+    [80] = 21885,
+    [81] = 21967,
+    [82] = 22162,
+    [83] = 22293,
+    [84] = 22396,
+    [85] = 22565,
+    [86] = 22905,
+    [87] = 21294,
+    [88] = 23549,
+    [89] = 23435,
+    [90] = 23688,
+    [91] = 23786,
+    [92] = 23967,
+    [93] = 24029,
+    [94] = 24059,
+    [95] = 24351,
+    [96] = 24400,
+    [97] = 24855,
+    [98] = 24873,
+    [99] = 25080,
+    [100] = 25693,
+    [101] = 25713,
+    [102] = 25841,
+    [103] = 25940,
+    [104] = 26169,
+    [105] = 26225,
+    [106] = 26698,
+    [107] = 26734,
+    [108] = 26772,
+    [109] = 27132,
+    [110] = 27144,
+    [111] = 27195,
+    [112] = 27214,
+    [113] = 27512,
+    [114] = 27556,
+    [115] = 27757,
+    [116] = 27785,
+    [117] = 27796,
 }
 
 -- Misc AOT variable imports

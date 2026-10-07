@@ -8,12 +8,15 @@ local actionComponent = require(script.Parent.action)
 local search = {}
 
 --[[
-The search overlay shares the library's hover spec for its fades; the
-two task.delay beats below read the spec's duration so the pill never
-hides while its fade is still running.
+The title-bar search field shares the library's hover spec for its fades;
+the delayed hide reads the spec's duration so the pill never disappears
+while its fade is still running.
 ]]
 local HOVER_SPEC = "snappy"
 local HOVER_SPEC_TIME = 0.25
+local SEARCH_MAX_WIDTH = 260
+local SEARCH_TITLE_GAP = 16
+local SEARCH_ACTION_GAP = 12
 
 local defaultTransparency = 0.6
 local hoverTransparency = 0.2
@@ -61,6 +64,37 @@ local function setPillVisibility(window, visible, spec)
     motion.tween(window.searchShadow, { Transparency = if visible then 0.92 else 1 }, spec)
     motion.tween(window.searchIcon, { ImageTransparency = if visible then 0.65 else 1 }, spec)
     motion.tween(window.searchInput, { TextTransparency = if visible then 0.2 else 1 }, spec)
+end
+
+--[[
+The title and action groups stay put while the input occupies the gap
+between them. Measure the free space from their rendered bounds so a long
+window name or a narrow window cannot push the title or toolbar controls
+out of place.
+]]
+local function positionSearchPill(window)
+    if not window.searchPill or not window.topbar or not window.titleContainer or not window.searchAction then
+        return
+    end
+
+    local titleRight = window.titleContainer.AbsolutePosition.X
+        + window.titleContainer.AbsoluteSize.X
+        - window.topbar.AbsolutePosition.X
+    local actionLeft = window.searchAction.action.AbsolutePosition.X - window.topbar.AbsolutePosition.X
+    local leftLimit = titleRight + SEARCH_TITLE_GAP
+    local rightLimit = actionLeft - SEARCH_ACTION_GAP
+    local available = math.max(0, rightLimit - leftLimit)
+    local width = math.min(SEARCH_MAX_WIDTH, available)
+    local left = rightLimit - width
+
+    window.searchPill.Position = UDim2.new(0, left, 0.5, 0)
+    window.searchPill.Size = UDim2.fromOffset(width, 35)
+
+    if window.searchInput then
+        local textLeft = 36
+        window.searchInput.Position = UDim2.new(0, textLeft, 0.5, 0)
+        window.searchInput.Size = UDim2.new(1, -math.min(48, width), 0, 18)
+    end
 end
 
 local function setTabVisibility(window, visible, tweenInfo)
@@ -134,6 +168,7 @@ function search.open(window)
     search.buildContent(window)
     window:_applyRailWidth()
     window._searching = true
+    positionSearchPill(window)
 
     collectElements(window)
     filterElements(window, "")
@@ -189,9 +224,9 @@ function search.toggle(window)
     end
 end
 
-function search.railWidth(window, railWidth)
-    if window.searchPill then
-        window.searchPill.Size = UDim2.new(1, -(railWidth + 30), 0, 35)
+function search.railWidth(window)
+    if window._searching then
+        positionSearchPill(window)
     end
 end
 
@@ -224,7 +259,7 @@ function search.buildContent(window)
     })
 
     window:Create("UIPadding", {
-        PaddingTop = UDim.new(0, 53),
+        PaddingTop = UDim.new(0, 16),
         PaddingBottom = UDim.new(0, 33),
         Parent = window.searchPage,
     })
@@ -244,24 +279,23 @@ function search.buildContent(window)
         Parent = window.main,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
 
-    local pillTop = window.layout.chromeHeight + 8
-
     window.searchPill = window:Create("Frame", {
         Name = "SearchBar",
-        AnchorPoint = Vector2.new(1, 0),
-        Position = UDim2.new(1, -15, 0, pillTop),
-        Size = UDim2.new(1, -(window.layout.railWidth + 30), 0, 35),
+        AnchorPoint = Vector2.new(0, 0.5),
+        Position = UDim2.new(0, 0, 0.5, 0),
+        Size = UDim2.fromOffset(SEARCH_MAX_WIDTH, 35),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BorderSizePixel = 0,
         ZIndex = 10,
         BackgroundTransparency = 1,
         Visible = false,
-        Parent = window.main,
+        Parent = window.topbar,
     })
 
     --[[
-    The bar is a field floating over the content, so it wears the
-    element tier rather than the shell's own arc.
+    The field floats in the topbar's open space beside the title; it wears
+    the element tier rather than the shell's own arc and leaves the title
+    and action groups in their normal positions.
     ]]
     window:Create("UICorner", {
         Parent = window.searchPill,
@@ -285,7 +319,7 @@ function search.buildContent(window)
     window.searchIcon = window:Create("ImageLabel", {
         Image = "rbxassetid://" .. tostring(constants.icons.search),
         AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 15, 0.5, 1),
+        Position = UDim2.new(0, 12, 0.5, 1),
         Size = UDim2.fromOffset(16, 16),
         BackgroundTransparency = 1,
         ZIndex = 10,
@@ -297,8 +331,8 @@ function search.buildContent(window)
         Text = "",
         PlaceholderText = locale.t("Search all pages"),
         AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 40, 0.5, 0),
-        Size = UDim2.new(1, -110, 0, 18),
+        Position = UDim2.new(0, 36, 0.5, 0),
+        Size = UDim2.new(1, -48, 0, 18),
         BackgroundTransparency = 1,
         TextSize = 16,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -315,6 +349,16 @@ function search.buildContent(window)
         end
     end)
 
+    window:Connect(window.main:GetPropertyChangedSignal("Size"), function()
+        if not window._searching then
+            return
+        end
+        task.defer(function()
+            if window._searching and not window.unloaded then
+                positionSearchPill(window)
+            end
+        end)
+    end)
 end
 
 function search.build(window)
@@ -330,6 +374,16 @@ function search.build(window)
     window.searchAction.isLit = function()
         return window._searching
     end
+
+    window:Connect(state.userInputService.InputBegan, function(input)
+        if not window._searching or input.KeyCode ~= Enum.KeyCode.Escape then
+            return
+        end
+        if state.userInputService:GetFocusedTextBox() ~= window.searchInput then
+            return
+        end
+        search.close(window, { showTabs = true })
+    end)
 end
 
 return search

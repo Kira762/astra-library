@@ -177,7 +177,11 @@ function Window:_bindTopbarDrag()
     end
 
                 local function isOverInteractive(x, y)
-        for _, region in { self.tabList, self.actionContainer } do
+        local regions = { self.tabList, self.actionContainer }
+        if self.searchPill and self.searchPill.Visible then
+            table.insert(regions, self.searchPill)
+        end
+        for _, region in regions do
             local absPos, absSize = region.AbsolutePosition, region.AbsoluteSize
             if x >= absPos.X and x <= absPos.X + absSize.X and y >= absPos.Y and y <= absPos.Y + absSize.Y then
                 return true

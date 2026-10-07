@@ -6,6 +6,7 @@ the Continue button and Enter key take before it can assert on the studio.
 ]]
 TestPump(2)
 assert(keyGate ~= nil and not keyGate.passed and not keyGate.closed, "Demo opens on the key gate")
+assert(keyGate.title == "Astra", "The key gate uses the one-word Astra title")
 assert(window == nil and overview == nil, "No studio is built before the key passes")
 keyGate:_submit("not-the-demo-key")
 TestPump(0.6)
@@ -14,6 +15,7 @@ keyGate:_submit("  ASTRA-STUDIO-2026  ")
 TestPump(2)
 assert(keyGate.passed and keyGate.closed, "The demo key passes the gate (trimmed)")
 assert(window ~= nil and overview ~= nil, "The studio is built inside onSuccess")
+assert(window.name == "Astra" and window.title.Text == "Astra", "The window title is one word")
 --[[
 BuildStudio runs on the thread the gate spawns for `onSuccess`, so the
 window's budget-paced construction yields real frames here (the main

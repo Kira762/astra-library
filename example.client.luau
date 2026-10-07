@@ -1,5 +1,5 @@
 --[[
-Astra Element Studio — a UI-only tour of the public API.
+Astra — a UI-only tour of the public API.
 
 Three tabs, every element, nothing wired to the game: no callbacks and no
 Roblox services, so the same script runs in an executor, in Studio and under
@@ -23,7 +23,7 @@ local studioReady
 
 local function buildStudio()
     window = Astra:CreateWindow({
-        name = "Astra Element Studio",
+        name = "Astra",
         subtitle = "Every element, UI only",
         icon = "sirius",
     })
@@ -110,7 +110,7 @@ local function buildStudio()
 end
 
 keyGate = Astra:CreateKeySystem({
-    title = "Astra Element Studio",
+    title = "Astra",
     subtitle = "Key System",
     note = "Demo key: ASTRA-STUDIO-2026.",
     keys = { "ASTRA-STUDIO-2026" },

@@ -29,15 +29,84 @@ fully transparent and fall back to the rail's SidebarSurface underneath,
 i.e. the tab-area shade; hover changes only the outline and content.
 (The old TabBackground gradient tinted every row off both bands,
 which is why the rail used to bleed into the topbar.)
+
+`edge` is the row's outline shade: how far its stroke has fallen from the
+stroke's lit end toward the rail's own surface (0 keeps the TabStroke
+gradient, 1 is the rail surface itself). Only the selected row wears the
+gradient — its lit top lip is what says "this is the page you are on" —
+while hover and unselected rows flatten it to one even shade, stepped down
+so the rail reads as a quiet list with a single lit row instead of three
+outlines of the same strength. See `rowStroke`.
 ]]
 tabSelector.states = {
     sidebar = {
-        selected = { background = 0, stroke = 0.5, content = 0, shadow = 0.8 },
-        hover = { background = 1, stroke = 0.8, content = 0.3, shadow = 1 },
-        unselected = { background = 1, stroke = 0.8, content = 0.5, shadow = 1 },
-        hidden = { background = 1, stroke = 1, content = 1, shadow = 1 },
+        selected = { background = 0, stroke = 0.5, content = 0, shadow = 0.8, edge = 0 },
+        hover = { background = 1, stroke = 0.65, content = 0.3, shadow = 1, edge = 0.28 },
+        unselected = { background = 1, stroke = 0.8, content = 0.5, shadow = 1, edge = 0.55 },
+        hidden = { background = 1, stroke = 1, content = 1, shadow = 1, edge = 1 },
     },
 }
+
+--[[
+The row's outline shade, derived from the theme rather than stored per
+row, so every palette — built-in or a host's own table — gets coherent
+states: the stroke's lit end (the first keypoint of TabStroke) blended
+toward the rail's own surface by `edge`, carried across as many keypoints
+as the theme's own stroke has. An `edge` of 0 hands back TabStroke
+untouched, gradient and all; anything above it flattens the outline to one
+even shade, which is what keeps the unselected rows from wearing a
+gradient lip of their own. Matching the theme's keypoint count keeps a
+hover's shade change tweenable whatever shape the host's stroke is.
+
+Results are memoised by `edge`: a reveal, a selection change or a layout
+switch re-applies state across every row on one frame, and the rows
+sharing an edge (all the unselected ones, typically) share one shade
+sequence. Each entry records the stroke and surface it was cut from, so a
+theme that changes either — ChangeTheme writes theme tables, it never
+edits a sequence in place — re-derives instead of handing back a stale
+shade.
+]]
+local shadeCache = {}
+
+local function rowStroke(theme, edge)
+    local stroke = theme.TabStroke
+    --[[
+    Recognised structurally rather than through `typeof(x) == "ColorSequence"`:
+    a host may hand ChangeTheme a plain table, and the library's own test
+    stubs build sequences as tables too (same rule as `motion.isInfo`). A
+    theme whose stroke is a bare Color3 has no keypoints and is returned
+    untouched.
+    ]]
+    local keypoints = if type(stroke) == "table" then stroke.Keypoints else nil
+    if not edge or edge <= 0 or type(keypoints) ~= "table" then
+        return stroke
+    end
+    local surface = theme.SidebarSurface or theme.ElementSurface or keypoints[1].Value
+    local cached = shadeCache[edge]
+    if cached and cached.stroke == stroke and cached.surface == surface then
+        return cached.shade
+    end
+    local shade = keypoints[1].Value:Lerp(surface, math.min(edge, 1))
+    local points = {}
+    for _, point in keypoints do
+        table.insert(points, ColorSequenceKeypoint.new(point.Time, shade))
+    end
+    local sequence = ColorSequence.new(points)
+    shadeCache[edge] = { stroke = stroke, surface = surface, shade = sequence }
+    return sequence
+end
+
+--[[
+The shade a row wears before any state has been applied to it: rows are
+built invisible and every path applies a state before showing them, but a
+row created and left alone reads as unselected, not as selected.
+]]
+function tabSelector.rowEdge(tab)
+    if tab._rowEdge ~= nil then
+        return tab._rowEdge
+    end
+    return tabSelector.states.sidebar.unselected.edge
+end
 
 local function buildGradients(tab, item, stroke)
     --[[
@@ -45,11 +114,24 @@ local function buildGradients(tab, item, stroke)
     solid ElementSurface token (bound on topbarItem below), so a
     background gradient would tint the selected row off the elements
     area it is meant to connect to.
+
+    The colour is bound through the row's state rather than straight to
+    TabStroke: the theme pass re-resolves bindings on ChangeTheme, and a
+    row that binds the token directly drops back onto the lit gradient
+    there — an unselected row would sit bright until the pointer next
+    moved over it.
     ]]
     tab.topbarItemStrokeGradient = tab.window:Create("UIGradient", {
         Rotation = 90,
         Parent = stroke,
-    }, { Color = { "TabStroke", functions.toColorSequence } })
+    }, {
+        Color = {
+            "TabStroke",
+            function()
+                return rowStroke(tab.window.theme, tabSelector.rowEdge(tab))
+            end,
+        },
+    })
 end
 
 --[[
@@ -426,10 +508,39 @@ function tabSelector.setRowCollapsed(tab, collapsed, layout)
 end
 
 function tabSelector.applyVisual(tab, visualState, tweenInfo)
+    --[[
+    The row's shade is remembered so the theme pass can re-resolve the
+    stroke binding through it (see buildGradients) — a ChangeTheme must
+    not drop an unselected row back onto the lit gradient.
+    ]]
+    tab._rowEdge = visualState.edge or 0
+
     local targets = {
         [tab.topbarItem] = { BackgroundTransparency = visualState.background },
+        -- The shade rides the stroke's gradient (the stroke's own Color is a
+        -- Color3 the gradient multiplies, not a sequence).
         [tab.topbarItemStroke] = { Transparency = visualState.stroke },
     }
+
+    --[[
+    A ColorSequence tween needs the same keypoint count on both sides. Every
+    shade is derived from the theme's own stroke, so the counts only differ
+    while a theme change that swapped the stroke's shape is in flight: that
+    one lands on the spot instead of erroring.
+    ]]
+    local gradient = tab.topbarItemStrokeGradient
+    if gradient then
+        local shade = rowStroke(tab.window.theme, tab._rowEdge)
+        local current = gradient.Color
+        local tweenable = type(shade) == "table" and type(shade.Keypoints) == "table"
+            and type(current) == "table" and type(current.Keypoints) == "table"
+            and #current.Keypoints == #shade.Keypoints
+        if tweenable then
+            targets[gradient] = { Color = shade }
+        else
+            gradient.Color = shade
+        end
+    end
 
     if tab.topbarItemIcon then
         targets[tab.topbarItemIcon] = { ImageTransparency = visualState.content }

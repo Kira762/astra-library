@@ -5913,16 +5913,91 @@ end
 
 
 
+
+
+
+
+
+
+
+
 tabSelector.states = {
 sidebar = {
-selected = { background = 0, stroke = 0.5, content = 0, shadow = 0.8 },
-hover = { background = 1, stroke = 0.8, content = 0.3, shadow = 1 },
-unselected = { background = 1, stroke = 0.8, content = 0.5, shadow = 1 },
-hidden = { background = 1, stroke = 1, content = 1, shadow = 1 },
+selected = { background = 0, stroke = 0.5, content = 0, shadow = 0.8, edge = 0 },
+hover = { background = 1, stroke = 0.65, content = 0.3, shadow = 1, edge = 0.28 },
+unselected = { background = 1, stroke = 0.8, content = 0.5, shadow = 1, edge = 0.55 },
+hidden = { background = 1, stroke = 1, content = 1, shadow = 1, edge = 1 },
 },
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+local shadeCache = {}
+
+local function rowStroke(theme, edge)
+local stroke = theme.TabStroke
+
+
+
+
+
+
+
+local keypoints = if type(stroke) == "table" then stroke.Keypoints else nil
+if not edge or edge <= 0 or type(keypoints) ~= "table" then
+return stroke
+end
+local surface = theme.SidebarSurface or theme.ElementSurface or keypoints[1].Value
+local cached = shadeCache[edge]
+if cached and cached.stroke == stroke and cached.surface == surface then
+return cached.shade
+end
+local shade = keypoints[1].Value:Lerp(surface, math.min(edge, 1))
+local points = {}
+for _, point in keypoints do
+table.insert(points, ColorSequenceKeypoint.new(point.Time, shade))
+end
+local sequence = ColorSequence.new(points)
+shadeCache[edge] = { stroke = stroke, surface = surface, shade = sequence }
+return sequence
+end
+
+
+
+
+
+
+function tabSelector.rowEdge(tab)
+if tab._rowEdge ~= nil then
+return tab._rowEdge
+end
+return tabSelector.states.sidebar.unselected.edge
+end
+
 local function buildGradients(tab, item, stroke)
+
+
+
+
+
+
 
 
 
@@ -5932,7 +6007,14 @@ local function buildGradients(tab, item, stroke)
 tab.topbarItemStrokeGradient = tab.window:Create("UIGradient", {
 Rotation = 90,
 Parent = stroke,
-}, { Color = { "TabStroke", functions.toColorSequence } })
+}, {
+Color = {
+"TabStroke",
+function()
+return rowStroke(tab.window.theme, tabSelector.rowEdge(tab))
+end,
+},
+})
 end
 
 
@@ -6309,10 +6391,39 @@ end
 end
 
 function tabSelector.applyVisual(tab, visualState, tweenInfo)
+
+
+
+
+
+tab._rowEdge = visualState.edge or 0
+
 local targets = {
 [tab.topbarItem] = { BackgroundTransparency = visualState.background },
+
+
 [tab.topbarItemStroke] = { Transparency = visualState.stroke },
 }
+
+
+
+
+
+
+
+local gradient = tab.topbarItemStrokeGradient
+if gradient then
+local shade = rowStroke(tab.window.theme, tab._rowEdge)
+local current = gradient.Color
+local tweenable = type(shade) == "table" and type(shade.Keypoints) == "table"
+and type(current) == "table" and type(current.Keypoints) == "table"
+and #current.Keypoints == #shade.Keypoints
+if tweenable then
+targets[gradient] = { Color = shade }
+else
+gradient.Color = shade
+end
+end
 
 if tab.topbarItemIcon then
 targets[tab.topbarItemIcon] = { ImageTransparency = visualState.content }
@@ -18517,11 +18628,13 @@ if self.locked then
 
 
 
+
 a21 = {
 background = a21.background,
 stroke = a21.stroke,
 content = math.max(a21.content, 0.7),
 shadow = a21.shadow,
+edge = a21.edge,
 }
 end
 
@@ -27768,103 +27881,103 @@ local LineOffsets = {
     [15] = 5277,
     [16] = 5821,
     [17] = 5884,
-    [18] = 6358,
-    [19] = 6704,
-    [20] = 6718,
-    [21] = 6818,
-    [22] = 6958,
-    [23] = 7519,
-    [24] = 7758,
-    [25] = 8080,
-    [26] = 8180,
-    [27] = 8234,
-    [28] = 8876,
-    [29] = 9124,
-    [30] = 9474,
-    [31] = 9921,
-    [32] = 6678,
-    [34] = 10855,
-    [35] = 10944,
-    [36] = 11173,
-    [37] = 11594,
-    [38] = 12057,
-    [39] = 12214,
-    [40] = 12359,
-    [41] = 14023,
-    [42] = 14271,
-    [43] = 14508,
-    [44] = 14829,
-    [45] = 15082,
-    [46] = 16162,
-    [47] = 16248,
-    [48] = 16851,
-    [49] = 17719,
-    [50] = 18313,
-    [51] = 18882,
-    [52] = 19012,
-    [53] = 19151,
-    [55] = 19666,
-    [56] = 19692,
-    [57] = 19711,
-    [58] = 19743,
-    [59] = 19869,
-    [60] = 19883,
-    [61] = 19932,
-    [62] = 19641,
-    [63] = 20023,
-    [64] = 20339,
-    [65] = 20370,
-    [66] = 20012,
-    [67] = 20413,
-    [68] = 20433,
-    [69] = 20465,
-    [70] = 20395,
-    [71] = 20572,
-    [72] = 20640,
-    [74] = 20730,
-    [75] = 20707,
-    [76] = 20950,
-    [77] = 21046,
-    [78] = 20897,
-    [79] = 21616,
-    [80] = 21662,
-    [81] = 21744,
-    [82] = 21939,
-    [83] = 22070,
-    [84] = 22173,
-    [85] = 22342,
-    [86] = 22682,
-    [87] = 21071,
-    [88] = 23326,
-    [89] = 23212,
-    [90] = 23465,
-    [91] = 23563,
-    [92] = 23744,
-    [93] = 23806,
-    [94] = 23836,
-    [95] = 24128,
-    [96] = 24177,
-    [97] = 24632,
-    [98] = 24650,
-    [99] = 24857,
-    [100] = 25470,
-    [101] = 25490,
-    [102] = 25618,
-    [103] = 25717,
-    [104] = 25946,
-    [105] = 26002,
-    [106] = 26475,
-    [107] = 26511,
-    [108] = 26549,
-    [109] = 26909,
-    [110] = 26921,
-    [111] = 26972,
-    [112] = 26991,
-    [113] = 27289,
-    [114] = 27333,
-    [115] = 27534,
-    [116] = 27562,
-    [117] = 27573,
+    [18] = 6469,
+    [19] = 6815,
+    [20] = 6829,
+    [21] = 6929,
+    [22] = 7069,
+    [23] = 7630,
+    [24] = 7869,
+    [25] = 8191,
+    [26] = 8291,
+    [27] = 8345,
+    [28] = 8987,
+    [29] = 9235,
+    [30] = 9585,
+    [31] = 10032,
+    [32] = 6789,
+    [34] = 10966,
+    [35] = 11055,
+    [36] = 11284,
+    [37] = 11705,
+    [38] = 12168,
+    [39] = 12325,
+    [40] = 12470,
+    [41] = 14134,
+    [42] = 14382,
+    [43] = 14619,
+    [44] = 14940,
+    [45] = 15193,
+    [46] = 16273,
+    [47] = 16359,
+    [48] = 16962,
+    [49] = 17830,
+    [50] = 18424,
+    [51] = 18995,
+    [52] = 19125,
+    [53] = 19264,
+    [55] = 19779,
+    [56] = 19805,
+    [57] = 19824,
+    [58] = 19856,
+    [59] = 19982,
+    [60] = 19996,
+    [61] = 20045,
+    [62] = 19754,
+    [63] = 20136,
+    [64] = 20452,
+    [65] = 20483,
+    [66] = 20125,
+    [67] = 20526,
+    [68] = 20546,
+    [69] = 20578,
+    [70] = 20508,
+    [71] = 20685,
+    [72] = 20753,
+    [74] = 20843,
+    [75] = 20820,
+    [76] = 21063,
+    [77] = 21159,
+    [78] = 21010,
+    [79] = 21729,
+    [80] = 21775,
+    [81] = 21857,
+    [82] = 22052,
+    [83] = 22183,
+    [84] = 22286,
+    [85] = 22455,
+    [86] = 22795,
+    [87] = 21184,
+    [88] = 23439,
+    [89] = 23325,
+    [90] = 23578,
+    [91] = 23676,
+    [92] = 23857,
+    [93] = 23919,
+    [94] = 23949,
+    [95] = 24241,
+    [96] = 24290,
+    [97] = 24745,
+    [98] = 24763,
+    [99] = 24970,
+    [100] = 25583,
+    [101] = 25603,
+    [102] = 25731,
+    [103] = 25830,
+    [104] = 26059,
+    [105] = 26115,
+    [106] = 26588,
+    [107] = 26624,
+    [108] = 26662,
+    [109] = 27022,
+    [110] = 27034,
+    [111] = 27085,
+    [112] = 27104,
+    [113] = 27402,
+    [114] = 27446,
+    [115] = 27647,
+    [116] = 27675,
+    [117] = 27686,
 }
 
 -- Misc AOT variable imports

@@ -106,8 +106,24 @@ Vector2 = {
 
 Vector3 = { new = function(x, y, z) return { X = x or 0, Y = y or 0, Z = z or 0 } end }
 
+--[[
+Colors carry `Lerp` because the library blends its own shades — the tab
+row's outline is a blend of the theme's stroke toward the rail surface —
+and the tests assert on the resulting channels.
+]]
 local function color3(r, g, b)
-	return { R = r / 255, G = g / 255, B = b / 255 }
+	return {
+		R = r / 255,
+		G = g / 255,
+		B = b / 255,
+		Lerp = function(self, other, alpha)
+			return color3(
+				(self.R + (other.R - self.R) * alpha) * 255,
+				(self.G + (other.G - self.G) * alpha) * 255,
+				(self.B + (other.B - self.B) * alpha) * 255
+			)
+		end,
+	}
 end
 
 Color3 = {

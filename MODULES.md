@@ -230,6 +230,28 @@ wraps a long locked title clear of it, and `SetLocked` re-derives the rail.
 expanding row's own title state (selected 0, locked 0.7, unselected 0.5) so a
 rail re-apply never brightens rows it did not mean to.
 
+Row outline shades: `tabSelector.states.sidebar` gives every state an `edge` —
+how far that row's outline has fallen from the stroke's lit end toward the
+rail's surface (`rowStroke(theme, edge)`: 0 hands back `TabStroke` untouched,
+anything above it flattens it to one even shade of the stroke's first keypoint
+bled toward `SidebarSurface`, carried across the theme stroke's own keypoint
+count so a state change stays tweenable; a theme that swapped the stroke's
+shape lands on the spot, since a `ColorSequence` tween needs matching counts;
+results are memoised by `edge` — a reveal or a selection change re-applies
+state across every row, and the rows sharing an edge share one sequence — with
+the stroke and surface they were cut from recorded, so a theme change
+re-derives rather than handing back a stale shade). Only the selected row
+wears the gradient — its lit top lip marks the open page — while unselected reads 0.55
+(transparency 0.8) and hover 0.28 (transparency 0.65, firmer than unselected
+but short of the lit end); hidden sits at the rail surface. `applyVisual`
+remembers the row's `edge` (`tab._rowEdge`, read back through
+`tabSelector.rowEdge`, renamed unselected by default) and writes the shade to
+`tab.topbarItemStrokeGradient.Color` — the stroke's own `Color` is the `Color3`
+its gradient multiplies — while the gradient's theme binding resolves through
+`rowEdge` too, so `ChangeTheme` re-derives every row's shade instead of
+dropping unselected rows back onto the lit gradient until the next pointer
+move. `Tab:_applyVisual`'s locked copy carries `edge` along.
+
 `tabSelector.railCollapsed(window, layout)` answers whether the rail is at that
 icon-only width right now (the rail's own `Size`, written by the layout's
 `Build`/`ApplyWidth`; `forceCollapsed` is always collapsed). `tabSelector.build`
@@ -638,6 +660,7 @@ needs to exist.
 | `dropdown_actions_test.sh` | The multi-select action row: only a multi-select dropdown builds it, the checkbox's two states (the drawn outline against the rows' check glyph), Select all filling the visible set and toggling it back off, Clear sparing what the filter hides, the box following picks and filters, the 32px row in the open height, and the bin resolving to the pack's trash icon. |
 | `dropdown_filter_test.sh` | The search filter's contract, which is what the single-pass refactor had to preserve: case-insensitive matching either way, a row renamed by `Refresh` matching its **new** name (a stale cached lowercase form would keep matching the old one), the checkbox answering for the filtered set, `Clear` sparing what the filter hides, the panel height tracking the visible row count, and clearing the query restoring every row and the original height. |
 | `tab_elements_test.sh` | Tab elements: only the selected tab is walked on a show/hide, a tab opened later shows its elements in the same frame and state, the search shows every tab it renders, and a late element shows with its tab. |
+| `tab_row_edge_test.sh` | Sidebar row outline shades: the selected row wears the theme's `TabStroke` gradient (its lit lip), hover and unselected rows wear a flat blend of it toward `SidebarSurface` (hover visibly firmer, both at their own transparencies), selecting elsewhere re-shades the row left behind, a `ChangeTheme` re-derives each row's shade instead of dropping unselected rows back onto the lit gradient, and a locked row shades like its neighbours. |
 | `startup_navigation_test.sh` | Staged-startup navigation: a row tap and the Settings action made while the host build is still streaming survive the host's closing `tab:Select()` (selection and on-screen page); a first main tab created after the user opened Settings does not auto-select itself; after the build settles, host `Select`/`Navigate` and row taps apply; with no user tap, the host's startup selection still applies. |
 | `tab_lock_test.sh` | Locked tabs: the preserved flag + badge (always hidden during the UI pause) and auto-select skipping a locked first tab; tap → notification with no selection; hover leaves the locked row dimmed; `Navigate`/`Select` guards; `SetLocked(false)` re-enables; locking the open tab moves the selection to a same-rail fallback; search excludes locked tabs' elements; locking every remaining tab clears the selection and hides content, and unlocking restores it; retained badge geometry with no layout reserve, full title slots, and hidden badges after collapse/rebuild. |
 | `elements_lock_test.sh` | Elements Lock System: per-window usage tags and stable IDs, existing usage merge, functional-only registration, default and explicit lock tiers, cumulative Mode 1–5 behavior, manual-lock composition, guarded callbacks, preserved input/draft/selection/layout, expanded-dropdown lock behavior, late controls, and the built-in Settings lock-all switch (exempt, unflagged, always able to release the page). |

@@ -1,5 +1,71 @@
 # Changelog
 
+## 2026-10-07 — sidebar rows: one lit outline, quiet rows around it
+
+Every sidebar row's outline wore the same `TabStroke` gradient (95 → 50 grey)
+at the same weight; only the transparency differed (selected 0.5, unselected
+0.8). A three-tab rail therefore read as three equally bright outlines with one
+of them filled in, and the unselected rows carried a lit top lip of their own —
+competition for the one row that is actually open.
+
+The state table now carries an `edge` per state: how far the row's outline has
+fallen from the stroke's lit end toward the rail's own surface. The selected row
+sits at 0 and keeps the theme's gradient — the lit top lip is what says "this is
+the page you are on" — while hover reads 0.28 (a flat ≈RGB 75 blend, at outline
+transparency 0.65 instead of 0.8, so hovering still firms the row up) and
+unselected reads 0.55 (a flat ≈RGB 56 blend, transparency unchanged at 0.8).
+A hidden row sits at 1, the rail surface itself. The step from unselected to
+hover to selected is now a shade progression rather than a transparency nudge,
+and only one row in the rail wears a gradient.
+
+- **`components/tabSelector.luau`** — `states.sidebar` gains `edge` per state
+  (hover's transparency 0.8 → 0.65 for the firmer step); new `rowStroke(theme,
+  edge)` derives the shade from the theme rather than storing one per row, so a
+  host's own palette gets coherent states: the stroke's first keypoint blended
+  toward `SidebarSurface` (falling back to `ElementSurface`), carried across
+  the theme stroke's own keypoint count so a state change stays tweenable.
+  Edge 0 hands back `TabStroke` untouched. `tabSelector.rowEdge(tab)` reads a
+  row's current shade, defaulting to unselected. The stroke gradient's theme
+  binding resolves through the row's state (not straight to `TabStroke`), so
+  `ChangeTheme` re-derives every row's shade — binding the token directly
+  dropped unselected rows back onto the lit gradient until the pointer next
+  moved over them. `applyVisual` remembers the row's `edge` and writes the
+  shade to `tab.topbarItemStrokeGradient.Color` (the stroke's own `Color` is
+  the `Color3` its gradient multiplies); a theme that swaps the stroke for one
+  with a different keypoint count lands on the spot, since a `ColorSequence`
+  tween needs matching counts on both sides. Derived shades are memoised by
+  `edge`, so a reveal or a selection change that re-applies state across every
+  row cuts one sequence per shade instead of one per row.
+- **`elements/tab.luau`** — the locked row's state copy carries `edge` along, so
+  a locked row keeps the same shade as any other unpicked one.
+- **`scripts/sidebar_sizing_stubs.luau`** — the `Color3` stub gains `Lerp`;
+  the library now blends its own shades, and the tests assert the channels.
+- **`scripts/tab_row_edge_test.luau`, `.sh`** (new) — pins the selected
+  gradient, the flat hover/unselected shades and their step, the re-shade when
+  selection moves, theme-change re-derivation against a new rail surface, and
+  the locked row's shade. It fails against the previous bundle ("the unselected
+  row's outline is one even shade") and passes against this one.
+- **`MODULES.md`** — the row outline contract is recorded beside the lock-badge
+  and collapsed-rail notes; the test table gains the new script.
+- **`README.md`** — release checksum updated.
+- **`version-1.luau`** — regenerated and re-signed (`node scripts/sign_bundle.js`).
+
+### Signing
+
+`version-1.luau.sig` pins the exact bundle bytes, so every regeneration
+invalidates it. This entry is signed with a **throwaway dev key**
+(`scripts/sign_bundle.js` generated it into the gitignored
+`scripts/dev_signing_key.pem`, and it was deleted afterwards) because the
+production key is not available to contributors; the script re-synced
+`loader.luau`'s `PUBLIC_KEY` to that dev key. The previous public key was
+`3686f16de69aa2fbda26f58e9138cd2f09206bd857a5f29f73a9aa7a2a4e6cf3`.
+
+The `Sign bundle` workflow replaces this signature on `main` only when the
+`SIGNING_KEY` Actions secret is set. If it is not, this dev-key signature is
+the one the loader trusts: it verifies as committed
+(`node scripts/sign_bundle.js --verify`), but its private half no longer
+exists, so the next bundle change mints and pins a fresh dev key.
+
 ## 2026-10-07 — a letter Stat in a row Group draws its compact card
 
 `layout:CreateGroup({ direction = "row" })` builds every child on the *compact*

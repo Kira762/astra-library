@@ -203,13 +203,15 @@ function state:_applyVisual(a19, a20)
         A locked row never selects and never hovers: dim the pill further
         than the unselected state so it reads as disabled, not merely
         unpicked. The badge rides along at the same transparency. The
-        copy keeps the shared state table intact.
+        copy keeps the shared state table intact — `edge` included, so a
+        locked row keeps the same outline shade as any other unpicked one.
         ]]
         a21 = {
             background = a21.background,
             stroke = a21.stroke,
             content = math.max(a21.content, 0.7),
             shadow = a21.shadow,
+            edge = a21.edge,
         }
     end
 

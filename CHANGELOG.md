@@ -1,5 +1,91 @@
 # Changelog
 
+## 2026-10-07 — example.client.luau becomes a lean, UI-only tour
+
+`example.client.luau` had grown to thirteen tabs and about 1,400 lines, most of
+it game wiring (Humanoid edits, Lighting and Camera writes, teleporting, a
+Heartbeat sampler) and prose about itself. It is now a three-tab tour of the
+elements with nothing wired to the game, laid out in Groups.
+
+- **`example.client.luau`** — 1,396 → 131 lines. The key gate is unchanged and
+  still builds the studio inside `onSuccess`. Tabs: **Overview** (Section, Text,
+  Link, a one-entry Changelog, Footer — information stays on the first tab),
+  **Controls** (three row Groups holding Buttons, Toggles and Sliders, then a
+  Stepper, a Dropdown, an Input and a Keybind) and **Layout** (a row Group of
+  Stats and a Collapsible Group folding a Toggle, a Slider and a Group of two
+  Buttons). No element carries a callback, the script touches no Roblox
+  service, and it sets no `configuration` or `flag`s, so the demo adds no
+  persistence of its own beyond the remembered key.
+- **Removed** — Player, Combat, Visuals, World and Live Stats (the game
+  wiring); Configs, Window and Premium (persistence, theme/motion/visibility,
+  overlays and a locked-tab demo, which Settings and `USAGE.md` already
+  cover); New Elements, Elements, All Elements and Steppers (duplicates of what
+  Controls and Layout now show); the cross-tab activity log and "Actions run"
+  stat, the release-history fold and the long explanatory text. All of it
+  stays recoverable from history.
+- **`scripts/example_test.luau`** — the thirteen-tab count and the "All
+  Elements names its entries" checks give way to a tab-name contract
+  (`Overview, Controls, Layout`) and a Group check: every tab after Overview
+  lays its controls out in a Group with two or more children. Kept: the key
+  gate, the streamed build, element-kind coverage, information only on the
+  first tab, no single-child folds and the Settings checks.
+- **`scripts/example_test.sh`** — a static guard that fails if the example
+  mentions `GetService`, `LocalPlayer`, `Humanoid`, `Lighting`, `CFrame`,
+  `Instance.new`, `Heartbeat` or `WalkSpeed`, so real function cannot creep
+  back in. Each new check was shown to bite against a mutated copy (game
+  wiring added, Groups removed, a fourth tab, a Link on a content tab).
+- **`README.md`, `USAGE.md`, `MODULES.md`** — the descriptions of the example
+  and of `example_test.sh` follow.
+
+`skills/astra/assets/example-window.luau` (the copy-paste starter) is a
+separate file and is unchanged. `example.client.luau` is not part of
+`version-1.luau`, so nothing was regenerated or re-signed for this change.
+
+## 2026-10-07 — Load and Delete in Settings → Configurations get icons
+
+Settings → Persistence → Configurations ends in a row of three buttons. Save
+wore the `config` glyph, but Load and Delete were built with no `icon` at all
+(`Button` draws an icon only when it is handed one), so the row read as one
+finished button next to two blank ones.
+
+- **`windowIcons/names.luau`** — new `load` (`download`) and `delete`
+  (`trash`) entries. Unlike the other built-in glyphs they have no Roblox
+  asset id: they are catalog icons requested by name, and `trash` is the same
+  bin the dropdown's Clear action already draws.
+- **`components/settings.luau`** — Load and Delete read their icon from
+  `constants.uiIcons`; a note beside the row records the width cost below.
+- **Row width** — each icon adds 22px to its button's minimum width
+  (`Button:_minWidth`), and the row wraps once the minimums no longer fit.
+  Estimated with Finger Paint at 16px (the brand font, the widest case), the
+  row's minimum grows from about 268px to about 312px. It still fits the
+  default 600px window (a 341px row) with room to spare, but Delete wraps onto
+  a second line in windows narrower than about 571px with the expanded rail
+  (the fixed 560px mobile profile and the 540px resize minimum). The default
+  font is narrower, so its threshold is lower. Switching to the collapsed
+  sidebar layout leaves ample room.
+- **`scripts/settings_config_icons_test.luau`, `.sh`** (new) — Save, Load and
+  Delete each own an icon label carrying a loadable value, and the three
+  glyphs differ. It fails against the previous bundle (Load: "owns an icon
+  label") and passes against this one.
+- **`README.md`** — release checksum updated.
+- **`version-1.luau`** — regenerated and re-signed (`node scripts/sign_bundle.js`).
+
+### Signing
+
+`version-1.luau.sig` pins the exact bundle bytes, so every regeneration
+invalidates it. This entry is signed with a **throwaway dev key**
+(`scripts/sign_bundle.js` generated it into the gitignored
+`scripts/dev_signing_key.pem`, and it was deleted afterwards) because the
+production key is not available to contributors; the script re-synced
+`loader.luau`'s `PUBLIC_KEY` to that dev key. The previous public key was
+`1df1ca768ede3c04d4b14591955656b0d397cf9663c3a11c07c76b40b4184669`.
+
+The `Sign bundle` workflow replaces this signature on `main` only when the
+`SIGNING_KEY` Actions secret is set. If it is not, this dev-key signature is
+the one the loader trusts: it verifies as committed
+(`node scripts/sign_bundle.js --verify`), but its private half no longer
+exists, so the next bundle change mints and pins a fresh dev key.
+
 ## 2026-10-07 — a dropdown's search filter walks its rows once instead of five times
 
 Typing in a dropdown's search is the one input path whose cost scales with

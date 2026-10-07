@@ -331,6 +331,13 @@ function settingsComponent.buildUI(window)
                 },
                 {
                     type = "Group",
+                    --[[
+                    All three buttons wear an icon (names live in
+                    windowIcons/names.luau). Each icon adds 22px to its
+                    button's minimum width (`Button:_minWidth`) and the row
+                    wraps when the minimums no longer fit, so keep new
+                    buttons in this row to a short label.
+                    ]]
                     elements = {
                         {
                             type = "Button",
@@ -366,6 +373,7 @@ function settingsComponent.buildUI(window)
                         {
                             type = "Button",
                             name = "Load",
+                            icon = constants.uiIcons.load,
                             callback = function()
                                 if not selected or selected == "" then
                                     window:Notify({ title = locale.resolve("Pick a configuration to load") })
@@ -387,6 +395,7 @@ function settingsComponent.buildUI(window)
                         {
                             type = "Button",
                             name = "Delete",
+                            icon = constants.uiIcons.delete,
                             lockLevel = 4,
                             callback = function()
                                 local name = selected

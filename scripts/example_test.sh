@@ -10,6 +10,14 @@ if [ ! -f "$BUNDLE" ]; then
 	exit 1
 fi
 
+# The studio is a UI-only tour: no callbacks, no Roblox services, no character,
+# lighting or position edits. A static check keeps real function from creeping
+# back into the example (drop it deliberately if that policy ever changes).
+if grep -nE 'GetService|LocalPlayer|Humanoid|Lighting|CFrame|Instance\.new|Heartbeat|WalkSpeed' "$ROOT/example.client.luau" >&2; then
+	echo "example.client.luau must stay UI-only: no game services or character/world edits" >&2
+	exit 1
+fi
+
 LUAU_BIN="$(command -v luau || true)"
 if [ -z "$LUAU_BIN" ]; then
 	for candidate in /tmp/luau /usr/local/bin/luau; do

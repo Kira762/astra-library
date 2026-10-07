@@ -1,5 +1,56 @@
 # Changelog
 
+## 2026-10-07 — the search field's width is automatic
+
+The title-bar search field rested at a fixed 260px cap however much room the
+title bar had: on a wide window it stopped well short of the title, and the
+cap was the only thing keeping the field's width from following the title and
+subtitle, which size themselves to their text. The field already measured the
+free space between the rendered title and the action group — the cap just
+threw most of it away.
+
+The field now rests at the whole of that space. Its width is automatic: a
+short window title gives a wide field that reaches from the title to the
+toolbar actions, a long title or subtitle leaves it narrow, and a narrow
+window leaves it nothing at all. A window resize or a rail change already
+re-measured the field; now a title that changes while the field is open does
+too — the title container's own `AbsoluteSize` (which is its text, since the
+title and subtitle are `AutomaticSize`) runs the same deferred re-measure,
+re-targeting the movement in flight exactly like a resize does. The reveal is
+unchanged: the field still builds flat against the search action's side and
+only its width grows, right edge pinned, so a wider resting width is simply a
+longer sweep across the same gap.
+
+- **`components/search.luau`** — `SEARCH_MAX_WIDTH` is gone; `measureSearchPill`
+  returns the full free space between the title/subtitle and the action group
+  as the resting width, so the size depends on the window title/subtitle.
+  `buildContent` connects the title container's `AbsoluteSize` to the same
+  deferred re-measure the window resize already used, so a title change while
+  the field is open re-fits it.
+- **`scripts/search_reveal_test.luau`, `.sh`** — the geometry helper measures
+  the resting width the way the library now does, uncapped, and a new R10
+  widens the rendered title mid-search (the harness has no AutomaticSize
+  engine, so it sets the container's size and fires the `AbsoluteSize` signal
+  the engine would fire) and asserts the field re-fits with its right edge
+  pinned — and that a title change with the field closed touches nothing. The
+  harness leaves the field 452px of free space, wider than the old 260px cap,
+  so the suite fails against the previous bundle at its first geometry
+  assertion (260 where the free space should start).
+- **`scripts/example_test.luau`** — the window-title assertion still expected
+  the example's old `Astra` name; the example was renamed to `Mova` (with the
+  `Gen 1` subtitle) and the assertion now follows it.
+- **`MODULES.md`, `USAGE.md`, `skills/astra/references/window.md`** — the search
+  notes say the field's width is automatic and what it depends on.
+- **`version-1.luau`** — regenerated and re-signed; the README checksum,
+  `version-1.luau.sig` and `loader.luau` public-key pin are in sync.
+
+### Signing
+
+As with the entries below: no production `SIGNING_KEY` is configured in this
+workspace, so the bundle was signed with a fresh gitignored development key and
+`loader.luau`'s pin was synced to it. CI replaces the development signature with
+the production key when it publishes.
+
 ## 2026-10-07 — the capsule changes shape on a double tap
 
 The restore capsule had two shapes — the wide pill (icon, window name, "Tap to

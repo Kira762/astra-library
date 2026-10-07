@@ -3,7 +3,9 @@
 # flat and hidden, opening grows it from right to left into the free space
 # between the title and the toolbar actions, closing folds it back and only
 # hides it when the movement ends, a reversal mid-flight continues from the
-# width showing, and with motion off both directions land on the spot.
+# width showing, and with motion off both directions land on the spot. The
+# resting width is automatic — the whole free space — so it follows the
+# title/subtitle: a title that changes while the field is open re-fits it.
 #
 # The pill's tween is held (Play swapped for a no-op) so the assertions can
 # read the frame a real open shows before its movement advances -- the same

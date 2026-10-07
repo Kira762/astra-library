@@ -31,7 +31,10 @@ Expected behavior under test:
   * R8 with motion off nothing tweens: the field lands at rest on the spot
        and hides on the spot when it closes,
   * R9 the text box is sized from the field's resting width, so it scales
-       with the pill instead of being re-cut on every frame.
+       with the pill instead of being re-cut on every frame,
+  * R10 the resting width follows the title/subtitle: a title that changes
+       while the field is open re-fits it to the room it now has, and one
+       that changes while it is closed touches nothing.
 ]]
 
 local function expect(cond, message)
@@ -64,9 +67,12 @@ tab:CreateButton({ name = "Action" })
 TestPump(1)
 
 --[[
-The search action's side and the free space the field may occupy, measured
+The search action's side and the free space the field rests at, measured
 the way `components/search.luau` measures it: from the rendered title and
-action bounds, with the same 16px title gap, 12px action gap and 260px cap.
+action bounds, with the same 16px title gap and 12px action gap. The width
+is automatic — the field rests at the whole of the free space, which the
+harness leaves wider than the old fixed 260px cap, so the suite exercises
+the uncapped path.
 ]]
 local function geometry()
 	local topbar = window.topbar
@@ -74,7 +80,7 @@ local function geometry()
 		+ window.titleContainer.AbsoluteSize.X
 		- topbar.AbsolutePosition.X
 	local rightLimit = window.searchAction.action.AbsolutePosition.X - topbar.AbsolutePosition.X - 12
-	local restWidth = math.min(260, math.max(0, rightLimit - (titleRight + 16)))
+	local restWidth = math.max(0, rightLimit - (titleRight + 16))
 	return rightLimit, restWidth
 end
 
@@ -209,5 +215,41 @@ window.searchAction.callback()
 TestPump(0.4)
 eq(window.searchPill.Visible, false, "R8 the field folds and hides again once motion returns")
 eq(window._searchReveal, nil, "R8 the settled fold leaves no movement behind")
+
+-- R10: the resting width follows the title/subtitle.
+window.searchAction.callback() -- reopen at the automatic resting width
+TestPump(0.05)
+eq(window.searchPill.Size.X.Offset, restWidth, "R10 the field reopens at its automatic resting width")
+eq(window.searchPill.Position.X.Offset, rightLimit - restWidth, "R10 ... at its resting left edge")
+
+--[[
+The harness has no AutomaticSize engine — the title container's rendered
+size is its Size prop. Widen it the way a longer title would and fire the
+AbsoluteSize signal the engine fires when an automatic size recomputes;
+the field's re-measure is deferred, so pump a frame for it.
+]]
+local narrowRestWidth
+do
+	local topbar = window.topbar
+	window.titleContainer.Size = UDim2.fromOffset(150, 24)
+	local titleRight = window.titleContainer.AbsolutePosition.X
+		+ window.titleContainer.AbsoluteSize.X
+		- topbar.AbsolutePosition.X
+	narrowRestWidth = math.max(0, rightLimit - (titleRight + 16))
+	window.titleContainer:GetPropertyChangedSignal("AbsoluteSize"):Fire()
+	TestPump(0.05)
+end
+expect(narrowRestWidth < restWidth, "R10 the harness leaves the field less room behind a longer title")
+eq(window.searchPill.Size.X.Offset, narrowRestWidth, "R10 a title change re-fits the resting width")
+eq(window.searchPill.Position.X.Offset, rightLimit - narrowRestWidth, "R10 ... and keeps the right edge pinned")
+
+-- A title change while the field is closed touches nothing.
+window.searchAction.callback() -- close and fold
+TestPump(0.05)
+eq(window.searchPill.Visible, false, "R10 the field folds and hides again")
+window.titleContainer:GetPropertyChangedSignal("AbsoluteSize"):Fire()
+TestPump(0.05)
+eq(window.searchPill.Visible, false, "R10 a title change with the field closed leaves it hidden")
+eq(window.searchPill.Size.X.Offset, 0, "R10 ... still folded flat")
 
 print("SEARCH REVEAL: the title-bar field expands right to left, folds back and hides when it lands")

@@ -20,7 +20,6 @@ still moving.
 local HOVER_SPEC = "snappy"
 local REVEAL_SPEC = "smooth"
 local COLLAPSE_SPEC = "exit"
-local SEARCH_MAX_WIDTH = 260
 local SEARCH_TITLE_GAP = 16
 local SEARCH_ACTION_GAP = 12
 local SEARCH_HEIGHT = 35
@@ -84,11 +83,13 @@ between them. Measure the free space from their rendered bounds so a long
 window name or a narrow window cannot push the title or toolbar controls
 out of place.
 
-Every measurement is expressed from the field's right edge: it is pinned
-`SEARCH_ACTION_GAP` off the action group and capped at `SEARCH_MAX_WIDTH`,
-so a wider field extends left and the title keeps its gap. Returns the
-right edge and the width the field may rest at, or nothing when the title
-bar is not built yet.
+The field's width is automatic: it rests at the whole of the space the
+title and subtitle leave behind, so a short title gives a wide field and a
+long one a narrow field. Every measurement is expressed from the field's
+right edge — it is pinned `SEARCH_ACTION_GAP` off the action group and any
+width grows it left, so the title keeps its gap. Returns the right edge and
+the width the field rests at, or nothing when the title bar is not built
+yet.
 ]]
 local function measureSearchPill(window)
     if not window.searchPill or not window.topbar or not window.titleContainer or not window.searchAction then
@@ -102,7 +103,7 @@ local function measureSearchPill(window)
     local leftLimit = titleRight + SEARCH_TITLE_GAP
     local rightLimit = actionLeft - SEARCH_ACTION_GAP
     local available = math.max(0, rightLimit - leftLimit)
-    return rightLimit, math.min(SEARCH_MAX_WIDTH, available)
+    return rightLimit, available
 end
 
 --[[
@@ -472,6 +473,22 @@ function search.buildContent(window)
     end)
 
     window:Connect(window.main:GetPropertyChangedSignal("Size"), function()
+        if not window._searching then
+            return
+        end
+        task.defer(function()
+            if window._searching and not window.unloaded then
+                positionSearchPill(window)
+            end
+        end)
+    end)
+
+    --[[
+    The title and subtitle size themselves to their text, so the space the
+    field rests in moves with them: a title that changes while the field is
+    open re-fits it to the room it now has.
+    ]]
+    window:Connect(window.titleContainer:GetPropertyChangedSignal("AbsoluteSize"), function()
         if not window._searching then
             return
         end

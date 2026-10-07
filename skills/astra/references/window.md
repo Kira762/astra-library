@@ -299,7 +299,10 @@ requests the oldest not-yet-built request is dropped. With the speed profile set
 
 Search controls are created on first search, and the title-bar field expands into
 its space rather than appearing in it: it grows right to left out of the search
-action's side and folds back into the action when search closes. Built-in
+action's side and folds back into the action when search closes. Its width is
+automatic — the field rests at the whole of the gap between the window
+title/subtitle and the action group, so a long title leaves it narrow and a short
+title leaves it wide. Built-in
 settings tabs and their controls are lazy until selected. Controls added to an
 inactive tab wait for that tab to be shown before revealing.
 

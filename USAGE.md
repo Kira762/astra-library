@@ -939,7 +939,9 @@ instead of a freeze either way.
 Search controls are created the first time search opens, and the title-bar field
 expands into its space rather than appearing in it: it grows out of the search
 action's side from right to left, keeps its right edge fixed, and folds back into
-the action when search closes. Additional built-in
+the action when search closes. The field's width is automatic — it rests at the
+whole of the gap between the window title/subtitle and the action group, so a
+long title leaves it narrow and a short title leaves it wide. Additional built-in
 settings tabs are created on first settings access, and their controls remain lazy
 until each tab is selected. Controls added to inactive tabs wait until that tab is
 shown before running their reveal animations.

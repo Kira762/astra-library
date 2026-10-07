@@ -368,21 +368,26 @@ Lazy, case-insensitive substring search across unlocked tabs. Opening search mov
 its field into the title bar between the title and action group, captures focus,
 and shows the matching elements on a shared search page; Escape or the search
 button closes it and restores each element to its home tab. The field is measured
-against the rendered title/action bounds and stays hidden until search is opened.
+against the rendered title/action bounds, its width is automatic — it rests at the
+whole of the space the title and subtitle leave — and it stays hidden until search
+is opened.
 
 Opening is a reveal: the pill is built flat and only its *width* is ever animated,
 with its right edge pinned `SEARCH_ACTION_GAP` (12px) off the action group, so the
 field expands right to left out of the search action's side and folds back into it
 on close (`REVEAL_SPEC` / `smooth` growing, `COLLAPSE_SPEC` / `exit` folding). The
 geometry has one author per step: `measureSearchPill` (right edge + free width,
-capped at `SEARCH_MAX_WIDTH` 260), `placeSearchPill` (a width's geometry),
+automatic — the resting width is the whole gap between the title/subtitle and the
+action group, so it depends on the window title/subtitle), `placeSearchPill`
+(a width's geometry),
 `sizeSearchInput` (the text box, sized from the field's **resting** width so it
 scales with the pill instead of being re-cut every frame) and `tweenSearchPill`
 (the movement, carrying the surface's own fill on the same call so pill and glass
 arrive together). `applySearchGeometry(window, mode)` is the single entry point --
 `"open"` (grow from the width already showing), `"close"` (fold flat) or `nil`
 (rest) — and `window._searchReveal` names the movement in flight so a re-measure
-(a window resize, a rail change) re-targets it from where it is; the completion
+(a window resize, a rail change, a title/subtitle change) re-targets it from where
+it is; the completion
 clears it, and the fold's completion is what hides the pill (never a timer, and on
 the spot when `motion.tween` has nothing to animate). Outline, glow, glyph and text
 still fade on `HOVER_SPEC` (`snappy`).

@@ -15,7 +15,7 @@ keyGate:_submit("  ASTRA-STUDIO-2026  ")
 TestPump(2)
 assert(keyGate.passed and keyGate.closed, "The demo key passes the gate (trimmed)")
 assert(window ~= nil and overview ~= nil, "The studio is built inside onSuccess")
-assert(window.name == "Astra" and window.title.Text == "Astra", "The window title is one word")
+assert(window.name == "Mova" and window.title.Text == "Mova", "The window title is one word")
 --[[
 BuildStudio runs on the thread the gate spawns for `onSuccess`, so the
 window's budget-paced construction yields real frames here (the main

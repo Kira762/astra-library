@@ -21,8 +21,10 @@ local collapsedTextInset = 60
 --[[
 The label column: the wide capsule's own width minus the text frame's insets.
 The labels are laid out at that fixed width rather than against the frame, so
-the shrinking pill's edge cuts them off (see `chrome.morphCollapsedShape`)
-instead of re-wrapping the words into a shape that is already leaving.
+a name too long for the pill ends at the frame's own clipping edge instead of
+re-wrapping into a shape that is already too small for it. The morph does not
+rely on that clip any more — it takes the labels off the screen before the
+shape moves (see `chrome.morphCollapsedShape`).
 ]]
 local collapsedTextWidth = collapsedWideSize.X.Offset - collapsedTextInset
 
@@ -64,8 +66,9 @@ function chrome.buildCollapsedFace(window)
         --[[
         The frame is the capsule's text window: its width follows the pill's,
         so the labels — laid out at `collapsedTextWidth` and never re-flowed
-        — are revealed and cut off at the pill's own edge when the shape
-        changes (see `chrome.morphCollapsedShape`).
+        — are clipped at the pill's own edge instead of wrapping. A shape
+        change never leans on that clip: the labels are hidden for the whole
+        movement (see `chrome.morphCollapsedShape`).
         ]]
         ClipsDescendants = true,
         ZIndex = constants.zIndex.restoreContent,
@@ -267,8 +270,8 @@ its centre shifts by half that change, which pins the pill's left edge and
 its vertical centre for the whole movement — so the shape leaves and arrives
 right to left, the far edge travelling in to meet the icon. The face rides
 the same movement: the icon glides between its 16px inset and the circle's
-centre, and the text frame narrows with the pill, cutting the labels off at
-the pill's own edge instead of fading them.
+centre, and the labels are off for the whole of it — nothing reads a name on
+a shape that is still moving (see the hide below and `settle`).
 ]]
 function chrome.morphCollapsedShape(window)
     if window.animating or window.unloaded or not window.hidden or not window._collapsedShown then
@@ -295,15 +298,19 @@ function chrome.morphCollapsedShape(window)
         Position = if iconOnly then UDim2.fromScale(0.5, 0.5) else UDim2.new(0, faceIconInset, 0.5, 0),
     }, "glide")
 
-    if not iconOnly then
-        --[[
-        The widening pill reveals the labels as it travels, so they have to be
-        there to be revealed — a capsule that started icon-only has never had
-        them painted in.
-        ]]
-        window.collapsedTextFrame.Visible = true
-        motion.tween(window.collapsedTitle, { TextTransparency = 0 }, "glide")
-        motion.tween(window.collapsedSubtitle, { TextTransparency = 0.5 }, "glide")
+    --[[
+    The labels are off for the whole movement, both ways round. A folding pill
+    was being cut off letter by letter at its own shrinking edge (the clipping
+    frame narrowed with the shell), and a widening one painted the words in as
+    it travelled: either way the name stayed legible while the shape was still
+    changing, which is not what a double tap is asking for. `motion.set` takes
+    them off the screen on the spot and cancels the face's own fade, so a
+    reveal still running from the fold cannot paint them back mid-movement.
+    ]]
+    motion.set(window.collapsedTitle, { TextTransparency = 1 })
+    motion.set(window.collapsedSubtitle, { TextTransparency = 1 })
+    if iconOnly then
+        window.collapsedTextFrame.Visible = false
     end
 
     local function settle()
@@ -313,8 +320,14 @@ function chrome.morphCollapsedShape(window)
         window.animating = false
         -- The capsule remembers the place it was left in, in either shape.
         window._collapsedPosition = window.main.Position
-        if iconOnly then
-            window.collapsedTextFrame.Visible = false
+        if not iconOnly then
+            --[[
+            Arrived, so the labels can come back: painted in on the pill that
+            has stopped moving, never on one that is still travelling.
+            ]]
+            window.collapsedTextFrame.Visible = true
+            motion.tween(window.collapsedTitle, { TextTransparency = 0 }, "glide")
+            motion.tween(window.collapsedSubtitle, { TextTransparency = 0.5 }, "glide")
         end
     end
 

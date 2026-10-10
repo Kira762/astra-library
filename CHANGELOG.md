@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-10-10 — the capsule's name never rides a shape that is moving
+
+Double-tapping the restore capsule folds the wide pill into the icon-only
+circle and back. The shape change is one `glide` movement of the shell, and the
+labels used to sit inside a text frame whose width followed the shell, so a
+folding pill cut the name off letter by letter at its own shrinking edge and a
+widening one painted the words in as it travelled. Either way the name stayed
+legible while the shape was still changing.
+
+The labels are now off for the whole movement, both ways round. They are taken
+off the screen the instant the morph starts — `motion.set`, which cancels the
+face's own fade first, so a reveal still running from the fold cannot paint them
+back mid-flight — and only a pill that has *arrived* fades them in again. A
+folding pill therefore shows nothing written on it for the whole fold, and a
+widening one is blank until it lands.
+
+- **`components/chrome.luau`** — `chrome.morphCollapsedShape` hides the title
+  and subtitle on the spot when the shape starts moving (and takes the text
+  frame out immediately when it is folding to the circle); `settle` paints them
+  back in only for the widening direction, after the movement has landed. The
+  text frame still clips a name too long for the resting pill — the morph just
+  no longer leans on that clip.
+- **`scripts/capsule_double_tap_test.luau`** — new T11 holds the movement's own
+  `Play` (the technique T10 uses for the gesture) and asserts the face
+  mid-morph in both directions: nothing painted in while the shell is moving,
+  and the labels back only after the widening pill lands. Fails against the
+  previous bundle at its first mid-morph assertion.
+- **`MODULES.md`, `USAGE.md`** — the capsule notes describe the labels leaving
+  before the shape moves.
+- **`version-1.luau`, `version-1.luau.sig`** — regenerated and re-signed (dev key
+  on this branch; CI re-signs with the production key on `main`, as usual).
+
 ## 2026-10-10 — catalog icons render with a hooked `__namecall`
 
 Numeric window glyphs (close, minimise, settings, search) rendered while every

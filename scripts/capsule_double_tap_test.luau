@@ -19,8 +19,8 @@ Expected behavior under test:
        centre are identical before and after the movement, and only the
        right edge travels,
   * T4 the face follows: the icon ends centred in the circle, the text frame
-       is out of the way, and the labels keep a fixed column so the pill's
-       own edge clips them instead of re-wrapping them,
+       is out of the way, and the labels keep a fixed column so a name too
+       long for the pill is clipped instead of re-wrapping,
   * T5 double-tapping again reverts to the full pill — the same left edge,
        the icon back at its inset, the labels back on screen,
   * T6 the capsule remembers the place it was left in, in either shape, so a
@@ -30,9 +30,12 @@ Expected behavior under test:
   * T8 a parked restore never fights a window that showed itself in the
        meantime,
   * T9 a capsule built icon-only starts as the circle and double-taps up into
-       the pill, painting the labels in as it widens,
+       the pill, painting the labels in once it has widened,
   * T10 with motion off both shapes land on the spot, and the capsule is
-       left interactable (no animation left in flight).
+       left interactable (no animation left in flight),
+  * T11 no word is on screen while the shape is moving, either way round: the
+       labels go the instant the movement starts and the widening pill paints
+       them back only after it has landed.
 ]]
 
 local function expect(cond, message)
@@ -281,5 +284,65 @@ tweenService.Create = createTween
 TestPump(0.05)
 expect(not window.animating, "T10 the movement settles once it lands")
 eq(window.main.Size.X.Offset, circleSize, "T10 ... on the new shape")
+
+-- T11: no word is on screen while the shape is moving, either way round.
+--[[
+The harness plays a tween to its end synchronously, so the in-flight state is
+only observable while the movement's own `Play` is held: the same technique
+T10 uses, here to read the face mid-movement instead of mid-gesture.
+]]
+local heldLabels
+local function holdMorph()
+	local createTween = tweenService.Create
+	heldLabels = nil
+	tweenService.Create = function(service, target, info, props)
+		local tween = createTween(service, target, info, props)
+		if target == window.main and props.Size then
+			local play = tween.Play
+			tween.Play = function()
+				heldLabels = { finish = play }
+			end
+		end
+		return tween
+	end
+	return function()
+		tweenService.Create = createTween
+	end
+end
+
+-- The circle opening back into the pill: the labels wait for the landing.
+local restoreCreate = holdMorph()
+tap(window)
+tap(window)
+TestPump(0.05)
+expect(heldLabels ~= nil and window.animating, "T11 the widening pill is held mid-movement")
+eq(window.showIconOnly, false, "T11 ... on the shape it is moving to")
+eq(window.collapsedTextFrame.Visible, false, "T11 ... with the text frame still off the screen")
+eq(window.collapsedTitle.TextTransparency, 1, "T11 ... and no title painted in")
+eq(window.collapsedSubtitle.TextTransparency, 1, "T11 ... and no subtitle either")
+heldLabels.finish()
+restoreCreate()
+TestPump(0.05)
+expect(not window.animating, "T11 the pill lands")
+eq(window.collapsedTextFrame.Visible, true, "T11 ... and only then are the labels back")
+eq(window.collapsedTitle.TextTransparency, 0, "T11 ... painted in")
+eq(window.collapsedSubtitle.TextTransparency, 0.5, "T11 ... at the face's own strengths")
+
+-- The pill folding back down: the labels go before the shape has moved at all.
+local restoreCreateDown = holdMorph()
+tap(window)
+tap(window)
+TestPump(0.05)
+expect(heldLabels ~= nil and window.animating, "T11 the folding pill is held mid-movement")
+eq(window.main.Size.X.Offset, wideSize, "T11 ... with the shell still the wide pill")
+eq(window.collapsedTitle.TextTransparency, 1, "T11 ... and the labels already off")
+eq(window.collapsedSubtitle.TextTransparency, 1, "T11 ... both of them")
+eq(window.collapsedTextFrame.Visible, false, "T11 ... the text frame out of the way")
+heldLabels.finish()
+restoreCreateDown()
+TestPump(0.05)
+eq(window.main.Size.X.Offset, circleSize, "T11 the circle lands")
+eq(window.collapsedTextFrame.Visible, false, "T11 ... with nothing written on it")
+eq(window.collapsedTitle.TextTransparency, 1, "T11 ... and the labels still off")
 
 print("CAPSULE DOUBLE TAP: the pill folds into the icon-only circle and back, one tap still restores")

@@ -609,7 +609,9 @@ Double-tapping the capsule swaps its shape: the wide pill (icon, name, "Tap to
 show") folds into the icon-only circle, and a second double tap opens it back.
 The shape change is a movement — the pill's left edge and vertical centre stay
 put, so its right edge sweeps in and out (right to left into the circle) while
-the icon glides to the centre and the text is cut off at the pill's own edge.
+the icon glides to the centre. The name is never written on a moving shape: the
+labels leave the screen the moment the movement starts and the widening pill
+fades them back in once it has landed.
 A single tap still restores the window, but only after a 0.25s gesture window, so
 a second tap in that time can claim the gesture instead. A press that turns into
 a move drops the parked restore. The chosen shape is session state, not saved:

@@ -31,7 +31,7 @@ local function cachePathFor(url)
 	return "Astra/assets/images-icon/icon_" .. tostring(hashUrl(url)) .. ".png"
 end
 
-local SIRIUS_URL = "https://raw.githubusercontent.com/Kira762/astra-version-1/main/assets/window-icons/sirius.png"
+local SIRIUS_URL = "https://raw.githubusercontent.com/Kira762/astra-library/main/assets/window-icons/sirius.png"
 local OTHER_URL = "https://example.com/astra-other-icon.png"
 
 expect(isfolder("Astra"), "C1 Astra root exists after load")

@@ -1,6 +1,6 @@
 # Astra v1
 
-[![skills.sh](https://skills.sh/b/Kira762/astra-version-1)](https://skills.sh/Kira762/astra-version-1)
+[![skills.sh](https://skills.sh/b/Kira762/astra-library)](https://skills.sh/Kira762/astra-library)
 
 A Roblox/Luau interface library for executor scripts: one loader line, one
 `CreateWindow` call, and tabs full of elements — buttons, toggles, sliders,
@@ -13,7 +13,7 @@ saved configs and staged startup.
 The official one-liner loads through the verifying loader:
 
 ```lua
-local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/loader.luau"))()
+local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/loader.luau"))()
 
 local window = Astra:CreateWindow({ name = "Example Hub", subtitle = "v1.0" })
 local tab = window:CreateTab({ name = "Home", icon = "house" })
@@ -49,7 +49,7 @@ machines only ever need the gitignored throwaway dev key).
 Current release checksum:
 
 ```
-sha256(version-1.luau) = d7e1a6a7dd8072e447819bba6d747215864e7a44eb5fccbb826ad5224a966664
+sha256(version-1.luau) = 3685a44c6cfdbed02a2505c335bc5065f05d3740fb1aec6745fbb9735000113a
 ```
 
 (`node scripts/sign_bundle.js --verify` prints the live digest whenever the
@@ -85,10 +85,10 @@ itself, so they stop guessing at the API:
 
 ```sh
 # install everything this repo publishes (currently just `astra`)
-npx skills add Kira762/astra-version-1
+npx skills add Kira762/astra-library
 
 # non-interactive, for a specific set of agents
-npx skills add Kira762/astra-version-1 --skill astra -a claude-code -a cursor -y
+npx skills add Kira762/astra-library --skill astra -a claude-code -a cursor -y
 ```
 
 Skill contents:

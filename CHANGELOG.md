@@ -1,5 +1,39 @@
 # Changelog
 
+## 2026-10-10 — icons load from the renamed repository again
+
+The repository was renamed from `Kira762/astra-version-1` to
+`Kira762/astra-library`. `github.com` web addresses follow a rename, but
+`raw.githubusercontent.com` serves by exact path, so every raw URL built with
+the old name started returning 404. The icon resolver's `assetBase` was one of
+them: each catalog icon download came back "404: Not Found", failed the PNG
+check in `cache/imageCache`, and the `Image` stayed blank — no tab icons, no
+element icons, no notification icons. The signed loader's own bundle and
+signature URLs broke the same way, so fresh installs failed closed too.
+
+Every live URL now uses the new repository name, the bundle is rebuilt from
+the fixed tree, and the signature is refreshed (dev-signed on this branch; CI
+re-signs with the production key when this lands on `main`, as usual).
+
+- **`icons/init.luau`** — `assetBase` points at
+  `raw.githubusercontent.com/Kira762/astra-library/main/`, so catalog icons
+  resolve to PNGs that exist again.
+- **`cache/imageCache.luau`** — the secure-mode window-icon preload fetches
+  from `assets/window-icons/` under the new repository name.
+- **`loader.luau`** — `BUNDLE_URL`, `SIG_URL` and the documented one-liner use
+  the new name; the pinned public key is synced to this branch's dev signature
+  and CI re-syncs it to the production key on `main`.
+- **`version-1.luau`, `version-1.luau.sig`** — rebuilt from the fixed tree and
+  re-signed; `README.md` carries the new bundle checksum.
+- **`README.md`, `USAGE.md`, `skills/astra/`** — the loader one-liners, skill
+  install commands and badges use the new repository name.
+- **`components/settings.luau`, `example.client.luau`,
+  `skills/astra/assets/example-window.luau`** — in-UI repository links use the
+  new name.
+- **`scripts/icons_test.luau`, `scripts/window_icon_test.luau`,
+  `scripts/image_cache_folder_test.luau`** — expected URL bases follow the
+  rename, so the suites assert the live resolver output again.
+
 ## 2026-10-07 — the search field's width is automatic
 
 The title-bar search field rested at a fixed 260px cap however much room the

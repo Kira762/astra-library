@@ -1,7 +1,7 @@
 --[[
 Astra signed loader — verifies version-1.luau before it is ever executed.
 
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/loader.luau"))()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/loader.luau"))()
 
 Contract
 --------
@@ -44,10 +44,10 @@ skips the fetch/verify/load sequence.
 -- PUBLIC_KEY in sync with ASTRA_VERSION and the signing key)
 -- ===========================================================================
 
-local BUNDLE_URL = "https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"
-local SIG_URL = "https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau.sig"
+local BUNDLE_URL = "https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau"
+local SIG_URL = "https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau.sig"
 local EXPECTED_BUNDLE_VERSION = "1.0.0"
-local PUBLIC_KEY = "db80970e489b88ad7e9e1020ec3f76880c00d86aa72bf5f55e2cbfdc1b3e4770"
+local PUBLIC_KEY = "d237612a4a7714b2c54d62ce90e3e473f1e7d0e21f3d935f827beb4fada7f4ab"
 
 -- Verification mode. The official loader ships "signature" and never
 -- downgrades itself: a failed signature check always fails closed, there is

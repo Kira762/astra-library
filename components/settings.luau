@@ -57,7 +57,7 @@ function settingsComponent.buildUI(window)
         about:CreateStat({ name = "Author", value = aboutAuthor, letter = false })
         about:CreateLink({
             name = "Repository", subtitle = "Docs, releases and issues", icon = "code",
-            link = "https://github.com/Kira762/astra-version-1",
+            link = "https://github.com/Kira762/astra-library",
         })
     end
     about._settingsContentBuilder = buildAbout

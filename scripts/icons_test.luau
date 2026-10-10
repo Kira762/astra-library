@@ -50,7 +50,7 @@ end
 
 local Icons = Astra.Icons
 local PACK_ORDER = { "lucide", "material", "tabler", "phosphor", "heroicons", "feather", "remix" }
-local ASSET_BASE = "https://raw.githubusercontent.com/Kira762/astra-version-1/main/"
+local ASSET_BASE = "https://raw.githubusercontent.com/Kira762/astra-library/main/"
 
 local function urlOf(path)
 	return ASSET_BASE .. path

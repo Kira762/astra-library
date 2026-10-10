@@ -9,7 +9,7 @@ Load Astra and build your first window in a few lines.
 One loader, one line — this is what `example.client.luau` does:
 
 ```lua
-local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"))()
+local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau"))()
 ```
 
 Three things have to be right for that line to return a table:
@@ -727,7 +727,7 @@ shell corner, 8px field and button corners, accent Continue) under a forced
 Sirius header. Build your window inside `onSuccess`:
 
 ```lua
-local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"))()
+local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau"))()
 
 Astra:CreateKeySystem({
     title = "Example Hub",

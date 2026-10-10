@@ -39,7 +39,7 @@ local function eq(actual, wanted, message)
 end
 
 local Icons = Astra.Icons
-local ASSET_BASE = "https://raw.githubusercontent.com/Kira762/astra-version-1/main/"
+local ASSET_BASE = "https://raw.githubusercontent.com/Kira762/astra-library/main/"
 local SIRIUS_URL = ASSET_BASE .. "assets/window-icons/sirius.png"
 
 local function isLoadable(value)

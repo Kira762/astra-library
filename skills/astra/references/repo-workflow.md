@@ -1,6 +1,6 @@
 # Astra v1 — Repository workflow
 
-For work *inside* this repository (`Kira762/astra-version-1`). The library ships as
+For work *inside* this repository (`Kira762/astra-library`). The library ships as
 both a modular tree (source of truth) and a generated single-file bundle (what
 scripts load).
 
@@ -100,13 +100,13 @@ file mirroring its Roblox name (`init.luau` = the folder ModuleScript).
 ## Publisher-facing notes
 
 - The raw GitHub URL in every example
-  (`https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau`)
+  (`https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau`)
   points at `main`. A change is only live for users once the regenerated bundle is
   committed to `main` — a syntax error in the bundle surfaces for users as
   `attempt to call a nil value` at line 1, not as a syntax error, which is exactly
   why `check_syntax.sh` exists.
 - `skills/` is the discovery root used by the `skills` CLI: `skills/astra/SKILL.md`
-  is what `npx skills add Kira762/astra-version-1` installs.
+  is what `npx skills add Kira762/astra-library` installs.
 - The library is published as one bundle; do not switch examples or loaders to the
   modular tree or to per-file raw URLs.
 

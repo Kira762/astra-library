@@ -1,4 +1,4 @@
-local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"))()
+local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau"))()
 
 -- Harness handles: the test drives the gate through these.
 local keyGate
@@ -25,7 +25,7 @@ local function buildStudio()
         name = "Repository",
         subtitle = "Copy the project link",
         icon = "code",
-        link = "https://github.com/Kira762/astra-version-1",
+        link = "https://github.com/Kira762/astra-library",
     })
     overview:CreateChangelog({
         name = "What's new",
@@ -99,9 +99,9 @@ keyGate = Astra:CreateKeySystem({
     subtitle = "Key System",
     note = "Demo key: ASTRA-STUDIO-2026.",
     keys = { "ASTRA-STUDIO-2026" },
-    getKeyUrl = "https://github.com/Kira762/astra-version-1/blob/main/example.client.luau",
+    getKeyUrl = "https://github.com/Kira762/astra-library/blob/main/example.client.luau",
     links = {
-        { name = "Repository", icon = "external-link", link = "https://github.com/Kira762/astra-version-1" },
+        { name = "Repository", icon = "external-link", link = "https://github.com/Kira762/astra-library" },
     },
     saveKey = true,
     fileName = "Astra-Example",

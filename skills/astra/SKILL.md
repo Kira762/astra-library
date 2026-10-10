@@ -13,7 +13,7 @@ surface that actually exists; do not invent parallel methods or props.
 ## Load the library
 
 ```lua
-local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"))()
+local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau"))()
 ```
 
 Three details are load-bearing:
@@ -39,7 +39,7 @@ limit). Confirm with `print(game:HttpGet(url):sub(1, 120))`. Inside this repo, r
 ## Minimal working script
 
 ```lua
-local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"))()
+local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau"))()
 
 local window = Astra:CreateWindow({
     name = "Example Hub",

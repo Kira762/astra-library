@@ -1,5 +1,5 @@
 -- Executor entry point. In Studio/Rojo, require ReplicatedStorage.Astra instead.
-local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-version-1/main/version-1.luau"))()
+local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau"))()
 
 local window = Astra:CreateWindow({
     name = "Astra Element Studio",
@@ -50,11 +50,11 @@ overview:CreateText({
 overview:CreateDivider({ text = "Resources" })
 overview:CreateLink({
     name = "Source & releases", subtitle = "Copy the repository link", icon = "code",
-    link = "https://github.com/Kira762/astra-version-1",
+    link = "https://github.com/Kira762/astra-library",
 })
 overview:CreateLink({
     name = "Build with Astra", subtitle = "Copy the element and API guide", icon = "book-open",
-    link = "https://github.com/Kira762/astra-version-1/blob/main/USAGE.md",
+    link = "https://github.com/Kira762/astra-library/blob/main/USAGE.md",
 })
 overview:CreateChangelog({
     name = "Studio highlights",
@@ -153,7 +153,7 @@ allElements:CreateDropdown({ name = "Dropdown", icon = "list-filter", options = 
 allElements:CreateInput({ name = "Input", icon = "text-cursor-input", value = "Input" })
 allElements:CreateKeybind({ name = "Keybind", icon = "keyboard", value = "K" })
 allElements:CreateStat({ name = "Stat", value = 42 })
-allElements:CreateLink({ name = "Link", subtitle = "Copy this URL", icon = "link", link = "https://github.com/Kira762/astra-version-1" })
+allElements:CreateLink({ name = "Link", subtitle = "Copy this URL", icon = "link", link = "https://github.com/Kira762/astra-library" })
 allElements:CreateFooter({ parts = { { text = "Footer" }, { icon = "zap" } } })
 allElements:CreateChangelog({ name = "Changelog", entries = { { version = "Demo", title = "Changelog", changes = { { symbol = "+", text = "Changelog" } } } } })
 allElements:CreateDivider({ text = "Divider" })

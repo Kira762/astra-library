@@ -191,7 +191,7 @@ local function findInPack(pack: string, name: string): string?
     return data[name]
 end
 
-local assetBase = "https://raw.githubusercontent.com/Kira762/astra-version-1/main/"
+local assetBase = "https://raw.githubusercontent.com/Kira762/astra-library/main/"
 
 local function prefixed(resolved: string?): string?
     if type(resolved) == "string" and string.sub(resolved, 1, 7) == "assets/" then

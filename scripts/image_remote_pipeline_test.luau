@@ -65,6 +65,38 @@ expect(
     "the request-downloaded icon imports through getsynasset"
 )
 
+-- Executors may return a cached response without yielding. Roblox's
+-- task.spawn starts immediately, so an image worker must wait until
+-- image.assign has installed its empty placeholder before it can complete.
+local originalSpawn, originalDefer = task.spawn, task.defer
+local deferredTasks = {}
+task.spawn = function(fn, ...)
+    return fn(...)
+end
+task.defer = function(fn, ...)
+    table.insert(deferredTasks, { fn = fn, args = table.pack(...) })
+end
+
+local fastUrl = "https://raw.githubusercontent.com/Kira762/astra-library/main/assets/icons/lucide-pack/lucideStar.png"
+local fastLabel = window:Create("ImageLabel", {
+    Name = "FastRemoteIcon",
+    Image = fastUrl,
+    Parent = window.main,
+})
+task.spawn, task.defer = originalSpawn, originalDefer
+
+expect(fastLabel.Image == "", "a new fast remote image starts with its placeholder")
+expect(requestFetched[fastUrl] == nil, "the image download waits until after assignment")
+for _, item in ipairs(deferredTasks) do
+    item.fn(table.unpack(item.args, 1, item.args.n))
+end
+expect(requestFetched[fastUrl] == 1, "the synchronous request is fetched once")
+expect(
+    type(fastLabel.Image) == "string"
+        and string.find(fastLabel.Image, "rbxasset://partial-filesystem/", 1, true) == 1,
+    "a synchronous download cannot lose its completion callback or leave the icon blank"
+)
+
 window:Unload()
 requestWindow:Unload()
 TestPump(0.1)

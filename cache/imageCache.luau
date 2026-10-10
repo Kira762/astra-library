@@ -138,10 +138,20 @@ function imageCache.remote(url: string, onReady: RemoteCallback?): string
     end
 
     local pending = remotePending[url]
+    local shouldFetch = pending == nil
     if not pending then
         pending = {}
         remotePending[url] = pending
-        task.spawn(function()
+    end
+    if onReady then
+        table.insert(pending, onReady)
+    end
+    if shouldFetch then
+        -- `task.spawn` resumes immediately. A cached/synchronous request can
+        -- finish before image.assign has assigned the returned empty string,
+        -- either missing the callback or having its URI overwritten. Defer the
+        -- worker until the caller has installed that placeholder.
+        task.defer(function()
             local uri = cacheFile(filePath, url)
             if uri then
                 remoteRewrites[url] = uri
@@ -154,9 +164,6 @@ function imageCache.remote(url: string, onReady: RemoteCallback?): string
                 end
             end
         end)
-    end
-    if onReady then
-        table.insert(pending, onReady)
     end
     return ""
 end

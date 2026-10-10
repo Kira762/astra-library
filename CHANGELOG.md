@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-10-10 — fast icon downloads keep their completion callback
+
+A remote PNG could be fetched and imported successfully but still leave its
+`ImageLabel` blank when an executor's request function returned synchronously.
+`task.spawn` may begin running immediately, before the image assignment has
+registered its callback or set its initial empty value; that meant the callback
+could be missed or its URI overwritten. The image cache now registers callbacks
+before starting work and defers each new download until the current assignment
+has finished. The remote-pipeline regression test covers a synchronous response.
+
+- **`cache/imageCache.luau`** — queue the completion callback first and use
+  `task.defer` for a new remote download, eliminating the fast-response race.
+- **`scripts/image_remote_pipeline_test.luau`** — exercise a synchronous request
+  and assert the imported URI lands on the image instead of remaining blank.
+- **`version-1.luau`** — regenerated and re-signed to publish the fix.
+
 ## 2026-10-10 — named PNG icons render across executor environments
 
 The example's icon names were valid, but the PNG route depended on executor APIs

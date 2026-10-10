@@ -669,7 +669,7 @@ needs to exist.
 - `lockable.luau` — Lockable API plus stable `lockable:astra:<elementId>` usage tags, functional-control registration and automatic level/group resolution for the cumulative five-mode lock system.
 - `locale.luau` — translation table + `SetTranslator` support.
 - `filesystem.luau`, `filesystemManager.luau` — RobloxFS abstraction (isFolder/WriteFile wrappers, secure-mode aware). `discardEmptyFolder` / `discardExecutorImageCache` remove a workspace-root `ImageCache` leftover some executors mkdir on `getcustomasset` when that folder has no children; Astra's own image files stay under `Astra/assets`, never under `Astra/config`.
-- `assetResolver.luau`, `network.luau`, `services.luau` — platform layer (HTTP fetch with retries, service singletons).
+- `assetResolver.luau`, `network.luau`, `services.luau` — platform layer (HTTP fetch with retries, service singletons). `network` resolves the public-asset transports (`getAssetRequestFn`, `getAssetHttpGetFn`) under the layer-A-only gate described below, and the fully guarded variants (`getGuardedRequestFn`, `getGuardedHttpGetFn`) for sensitive callers.
 - `httpGuard.luau` — HTTP interception (spy/hook) detection, public as
   `Astra.HttpGuard`: `scan()` (never raises), `check(policy)` (`audit` /
   `warn` / `strict` / `off`, unknown fails closed), `guardFetch`,
@@ -684,10 +684,15 @@ needs to exist.
   findings travel in the report `scan()` / `check()` return. Strict where it
   matters: the loader preflights before fetching
   (quiet stub on a hit, `SPY_PREFLIGHT` escape hatch), `keySystem`
-  `grabKeyFromSite` fetches refuse-and-drop without a word,
-  `network.getGuardedRequestFn` (default `warn`) backs `assetResolver`'s
-  quiet fallback. Tested by `scripts/http_guard_test.luau` plus
-  loader-integrity cases 11–12.
+  `grabKeyFromSite` fetches refuse-and-drop without a word, and
+  `assetResolver` resolves its transports through `network.getAssetRequestFn`
+  / `network.getAssetHttpGetFn` (default `warn`), which refuse a *public
+  asset* only on a layer-A spy artifact: the plain guard's layer-C
+  heuristics trip on any `__namecall` hook another script installed and on
+  an executor's Lua `request` wrapper, and denying those left every catalog
+  icon blank while the numeric window glyphs still rendered. Tested by
+  `scripts/http_guard_test.luau`, `scripts/image_asset_guard_test.luau`
+  plus loader-integrity cases 11–12.
 - `windowSizing.luau` — responsive size computation (desktop tiers around the
   600x420 default, min/max protected) plus the fixed mobile profile returned
   for touch-only phone-sized viewports (`isMobileViewport`).

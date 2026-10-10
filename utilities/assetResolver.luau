@@ -118,12 +118,18 @@ function assetResolver.getAssetContentFromUrl(
     end
 
     local content: string? = nil
-    -- Public CDN assets can use an executor request function, or (when no
-    -- request API exists at all) the same guarded game:HttpGet path commonly
-    -- used to load the bundle. If a request function exists but HttpGuard
-    -- denies it, do not fall through to HttpGet: that would bypass the denial.
-    local rawRequestFn = networkUtil.getRequestFn(nil)
-    local requestFn = networkUtil.getGuardedRequestFn(nil, "warn")
+    --[[
+    Public CDN assets can use an executor request function, or (when no
+    request API exists at all) the same guarded game:HttpGet path commonly
+    used to load the bundle. Both transports are resolved through
+    `network.getAssetRequestFn` / `network.getAssetHttpGetFn`, which refuse
+    only on real HTTP-spy artifacts: the layer-C hook heuristics (someone
+    else's `__namecall` hook, an executor's Lua `request` wrapper) must not
+    blank every icon in the window, which is what a whole-guard denial here
+    used to do. A refusal still holds for both transports - an HttpGet
+    fallback can never slip past a denial for the same request.
+    ]]
+    local requestFn = networkUtil.getAssetRequestFn("warn")
     if requestFn then
         local requestOk, requestResult = pcall(
             requestFn,
@@ -135,8 +141,8 @@ function assetResolver.getAssetContentFromUrl(
         if requestOk and isSuccessResponse(requestResult) then
             content = (requestResult :: { Body: string }).Body
         end
-    elseif rawRequestFn == nil then
-        local httpGetFn = networkUtil.getGuardedHttpGetFn("warn")
+    else
+        local httpGetFn = networkUtil.getAssetHttpGetFn("warn")
         if httpGetFn then
             local requestOk, responseBody = pcall(httpGetFn, url)
             if requestOk and type(responseBody) == "string" and responseBody ~= "" then

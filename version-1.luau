@@ -24179,8 +24179,14 @@ local content: string? = nil
 
 
 
-local rawRequestFn = networkUtil.getRequestFn(nil)
-local requestFn = networkUtil.getGuardedRequestFn(nil, "warn")
+
+
+
+
+
+
+
+local requestFn = networkUtil.getAssetRequestFn("warn")
 if requestFn then
 local requestOk, requestResult = pcall(
 requestFn,
@@ -24192,8 +24198,8 @@ Method = "GET",
 if requestOk and isSuccessResponse(requestResult) then
 content = (requestResult :: { Body: string }).Body
 end
-elseif rawRequestFn == nil then
-local httpGetFn = networkUtil.getGuardedHttpGetFn("warn")
+else
+local httpGetFn = networkUtil.getAssetHttpGetFn("warn")
 if httpGetFn then
 local requestOk, responseBody = pcall(httpGetFn, url)
 if requestOk and type(responseBody) == "string" and responseBody ~= "" then
@@ -25404,6 +25410,10 @@ end
 return hardwarePerformance
 end)() end,
     [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
+
+
+
+
 
 
 
@@ -27102,7 +27112,7 @@ end
 
 
 
-function network.getGuardedHttpGetFn(policy: HttpGuard.GuardPolicy?): RequestFn?
+function network.getHttpGetFn(): RequestFn?
 local gameRef = globals.get("game")
 if gameRef == nil then
 return nil
@@ -27119,13 +27129,68 @@ if type(httpGet) ~= "function" then
 return nil
 end
 
-if not HttpGuard.check(policy or "warn") then
-return nil
-end
-
 return function(url: string): any
 return httpGet(gameRef, url)
 end
+end
+
+function network.getGuardedHttpGetFn(policy: HttpGuard.GuardPolicy?): RequestFn?
+if not HttpGuard.check(policy or "warn") then
+return nil
+end
+return network.getHttpGetFn()
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+local function publicAssetAllowed(policy: HttpGuard.GuardPolicy?): boolean
+local allowed, report = HttpGuard.check(policy or "warn")
+if allowed then
+return true
+end
+
+return report ~= nil and report.httpSpy ~= true
+end
+
+function network.getAssetRequestFn(policy: HttpGuard.GuardPolicy?): RequestFn?
+local fn = network.getRequestFn(nil)
+if fn == nil or not publicAssetAllowed(policy) then
+return nil
+end
+return fn
+end
+
+function network.getAssetHttpGetFn(policy: HttpGuard.GuardPolicy?): RequestFn?
+if not publicAssetAllowed(policy) then
+return nil
+end
+return network.getHttpGetFn()
 end
 
 return network
@@ -28410,32 +28475,32 @@ local LineOffsets = {
     [89] = 23710,
     [90] = 23960,
     [91] = 24058,
-    [92] = 24243,
-    [93] = 24305,
-    [94] = 24335,
-    [95] = 24629,
-    [96] = 24678,
-    [97] = 25077,
-    [98] = 25095,
-    [99] = 25200,
-    [100] = 25407,
-    [101] = 26044,
-    [102] = 26064,
-    [103] = 26192,
-    [104] = 26290,
-    [105] = 26519,
-    [106] = 26992,
-    [107] = 27028,
-    [108] = 27135,
-    [109] = 27495,
-    [110] = 27507,
-    [111] = 27558,
-    [112] = 27577,
-    [113] = 27860,
-    [114] = 27904,
-    [115] = 28105,
-    [116] = 28133,
-    [117] = 28144,
+    [92] = 24249,
+    [93] = 24311,
+    [94] = 24341,
+    [95] = 24635,
+    [96] = 24684,
+    [97] = 25083,
+    [98] = 25101,
+    [99] = 25206,
+    [100] = 25413,
+    [101] = 26054,
+    [102] = 26074,
+    [103] = 26202,
+    [104] = 26300,
+    [105] = 26529,
+    [106] = 27002,
+    [107] = 27038,
+    [108] = 27200,
+    [109] = 27560,
+    [110] = 27572,
+    [111] = 27623,
+    [112] = 27642,
+    [113] = 27925,
+    [114] = 27969,
+    [115] = 28170,
+    [116] = 28198,
+    [117] = 28209,
 }
 
 -- Misc AOT variable imports

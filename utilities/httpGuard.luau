@@ -56,9 +56,13 @@ Enforcement points (strict where it matters, quiet everywhere else)
   drops the key exactly like a failed fetch (the gate fails closed, no
   raise and nothing on the console).
 * `utilities/assetResolver.luau` resolves its request function through
-  `network.getGuardedRequestFn` with `warn`: icon/CDN URLs are public by
-  design, so interception there denies quietly and falls back to the
-  no-request-function path instead of breaking.
+  `network.getAssetRequestFn` with `warn`: icon/CDN URLs are public by
+  design, so a *public asset* is refused only when the scan finds a real
+  spy artifact (layer A - `getgenv().HttpSpy`, its CoreGui window, or its
+  log files). The layer-C heuristics alone (a `__namecall` hook another
+  script installed, an executor's Lua `request` wrapper) deny every fetch
+  under the plain guard and left the whole window without catalog icons,
+  which is the failure that split exists to prevent.
 * Hosts that want strict-at-load call `Astra.HttpGuard.check("strict")`
   before `CreateWindow`. It is not the entrypoint default on purpose: the
   C-layer trips on *any* `__namecall` hook (admin tools hook it too), and a

@@ -1,5 +1,56 @@
 # Changelog
 
+## 2026-10-10 — catalog icons render with a hooked `__namecall`
+
+Numeric window glyphs (close, minimise, settings, search) rendered while every
+catalog icon — tab icons, element icons, the window's own mark — stayed blank.
+The two are different transports: the window glyphs are `rbxassetid`s that
+Roblox loads directly, while a catalog name resolves to a
+`raw.githubusercontent.com` PNG that `cache/imageCache` downloads and imports.
+
+That download ran through `network.getGuardedRequestFn`, which refuses on *any*
+HttpGuard signal. Two of the guard's probes are layer-C heuristics that fire on
+ordinary exploit tooling and mean nothing about Astra's own requests: a
+`__namecall` hook another script installed (`namecall-lclosure` — an admin
+panel, ESP or aimbot is enough) and an executor whose `request` is a Lua wrapper
+rather than a C closure (`cfunc-lua-source`, which `scripts/http_guard_test.luau`
+already pins as a signal). On such an executor the request function resolved to
+nil, the `game:HttpGet` fallback was skipped because a request function existed,
+the resolver returned nil, and `Image` kept the empty placeholder it started
+with. The `getgenv()`-only and partial-filesystem cases fixed earlier were the
+same blank-PNG symptom from a different cause.
+
+Public assets now have their own gate. A catalog PNG is public, cosmetic and
+identical for every user — not a trust boundary — so it is refused only when the
+scan finds a real HTTP-spy artifact: layer A's `getgenv().HttpSpy` API shape, its
+CoreGui window, or its log files. A layer-C verdict no longer blanks the UI, and
+a layer-A verdict still refuses both transports, so the denial cannot be slipped
+past through `game:HttpGet`. The sensitive paths are untouched: the loader's
+bundle/signature preflight and `components/keySystem.luau` keep the full guard.
+
+- **`utilities/network.luau`** — `getHttpGetFn` is now the bare transport
+  resolution; `getGuardedHttpGetFn` keeps its whole-scan refusal on top of it.
+  New `getAssetRequestFn` / `getAssetHttpGetFn` resolve the public-asset
+  transports under `publicAssetAllowed`, which denies only when the report
+  carries a layer-A artifact (`report.httpSpy`).
+- **`utilities/assetResolver.luau`** — `getAssetContentFromUrl` resolves its
+  request function through `getAssetRequestFn` and falls back to
+  `getAssetHttpGetFn` only when no request transport is available, exactly as
+  before; a refusal still holds for both, so the HttpGet fallback cannot bypass
+  a denial for the same request.
+- **`utilities/httpGuard.luau`** — the enforcement-point note describes the
+  asset path's layer-A-only gate.
+- **`scripts/image_asset_guard_test.luau`, `scripts/image_asset_guard_stubs.luau`,
+  `scripts/image_asset_guard_test.sh`** — new regression: an executor with a Lua
+  `request` wrapper and a hooked `__namecall` must still render the topbar mark
+  and an element icon, must still download through `request`, and a planted
+  `getgenv().HttpSpy` must still refuse the fetch. Fails against the previous
+  bundle at its first render assertion.
+- **`MODULES.md`** — the platform layer and the guard's enforcement points
+  document the split transports.
+- **`version-1.luau`, `version-1.luau.sig`** — regenerated and re-signed (dev key
+  on this branch; CI re-signs with the production key on `main`, as usual).
+
 ## 2026-10-10 — fast icon downloads keep their completion callback
 
 A remote PNG could be fetched and imported successfully but still leave its

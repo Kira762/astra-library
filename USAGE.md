@@ -701,12 +701,17 @@ like `Astra.Icons.resolve`. `ResolveIcon(name, pack)` and `pack:name` still sele
 one exact pack when desired. Window and element icons can mix packs freely.
 The old window-wide `iconPack` property is no longer used.
 
-Icon names resolve to 48x48 PNGs that ship in this repo under
-`assets/icons/<pack>-pack/`; the resolver maps them onto the repo's raw-GitHub URL
-(or your executor's `getcustomasset` override when one is provided), so no
-`rbxassetid` lookups are needed. Values already usable as-is — numbers,
-`rbxassetid://…`, `rbxasset://…`, `rbxthumb://…`, `http(s)://…` — pass through
-untouched, and an unresolved value comes back unchanged. See
+Icon names resolve to PNGs that ship in this repo under
+`assets/icons/<pack>-pack/`; the resolver maps them to the repo's raw-GitHub
+URLs, downloads them into Astra's image cache and imports them as local assets.
+Executors need an image importer (`getcustomasset` or `getsynasset`) and the
+filesystem functions needed to cache a file (`isfile`, `writefile`, `isfolder`,
+`makefolder`). Downloads use an executor `request` function when available, or a
+guarded `game:HttpGet` fallback when no request function exists. If the executor
+cannot import/cache remote PNGs, use a Roblox asset ID instead. Values already
+usable as-is — numbers, `rbxassetid://…`, `rbxasset://…`, `rbxthumb://…`,
+`http(s)://…` — pass through untouched, and an unresolved value comes back
+unchanged. See
 [the visual icon catalog](assets/icons/README.md) for previews and copyable names across all seven packs.
 
 **Custom assets.** A `custom_asset/` folder next to your script takes precedence

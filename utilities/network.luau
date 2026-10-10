@@ -1,56 +1,64 @@
 local HttpGuard = require(script.Parent.httpGuard)
+local globals = require(script.Parent.globals)
 
 local network = {}
 network.__index = network
 
 export type RequestFn = (...any) -> any
 
---[[
-The caller's environment, or nil when it cannot be read. `getfenv` is
-neither guaranteed to exist nor guaranteed to work: a sandbox that ships a
-throwing one must not take down the paths that look for a request function
-(asset downloads, a notification's icon), so the probe is pcall'd and `_G`
-is the fallback — the same shape `utilities/httpGuard.luau` uses to find
-live globals.
-]]
-local function environment(): any?
-    local getfenvFn: any = nil
-    pcall(function()
-        getfenvFn = getfenv
-    end)
-    if type(getfenvFn) == "function" then
-        local ok, env = pcall(getfenvFn)
-        if ok and type(env) == "table" then
-            return env
+local REQUEST_PATHS = {
+    { "request" },
+    { "http_request" },
+    { "http", "request" },
+    { "syn", "request" },
+    { "fluxus", "request" },
+}
+
+local function functionAt(root: any, path: { string }): RequestFn?
+    local current = root
+    for _, key in path do
+        if type(current) ~= "table" then
+            return nil
+        end
+        local ok, value = pcall(function()
+            return current[key]
+        end)
+        if not ok then
+            return nil
+        end
+        current = value
+        if current == nil then
+            return nil
         end
     end
-    local g: any = nil
-    pcall(function()
-        g = _G
-    end)
-    return if type(g) == "table" then g else nil
+    return if type(current) == "function" then current else nil
 end
 
 function network.getRequestFn(env: any?): RequestFn?
-    env = env or environment()
-    if type(env) ~= "table" then
+    if env ~= nil then
+        for _, path in REQUEST_PATHS do
+            local fn = functionAt(env, path)
+            if fn then
+                return fn
+            end
+        end
         return nil
     end
-    return env.request
-        or env.http_request
-        or (env.http and env.http.request)
-        or (env.syn and env.syn.request)
-        or (env.fluxus and env.fluxus.request)
+
+    for _, root in globals.roots() do
+        for _, path in REQUEST_PATHS do
+            local fn = functionAt(root, path)
+            if fn then
+                return fn
+            end
+        end
+    end
+    return nil
 end
 
---[[
-Resolve the request function, refusing to hand it back while HTTP
-interception is detected. `warn` (the default) returns nil so callers fall
-back to their no-request-function path; `strict` raises instead. Both are
-silent: the guard reports through `Astra.HttpGuard`, never the console, so
-the tool that hooked the fetch cannot read a denial. `audit` returns nil
-too, `off` skips the scan.
-]]
+-- Resolve the request function, refusing to hand it back while HTTP
+-- interception is detected. `warn` (the default) returns nil so callers
+-- can take a quiet fallback path; `strict` raises instead.
 function network.getGuardedRequestFn(env: any?, policy: HttpGuard.GuardPolicy?): RequestFn?
     local fn = network.getRequestFn(env)
     if fn == nil then
@@ -61,6 +69,36 @@ function network.getGuardedRequestFn(env: any?, policy: HttpGuard.GuardPolicy?):
         return nil
     end
     return fn
+end
+
+-- Some executors can run `game:HttpGet` (including the bundle's documented
+-- loader) but do not expose a separate `request` function. This fallback is
+-- guarded against the same HTTP interception checks; callers must not use it
+-- after a request function was found but denied, or it would bypass a refusal.
+function network.getGuardedHttpGetFn(policy: HttpGuard.GuardPolicy?): RequestFn?
+    local gameRef = globals.get("game")
+    if gameRef == nil then
+        return nil
+    end
+
+    local httpGet: any = nil
+    pcall(function()
+        httpGet = gameRef.HttpGet
+        if type(httpGet) ~= "function" then
+            httpGet = gameRef.HttpGetAsync
+        end
+    end)
+    if type(httpGet) ~= "function" then
+        return nil
+    end
+
+    if not HttpGuard.check(policy or "warn") then
+        return nil
+    end
+
+    return function(url: string): any
+        return httpGet(gameRef, url)
+    end
 end
 
 return network

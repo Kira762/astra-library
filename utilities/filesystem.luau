@@ -1,54 +1,34 @@
 local serviceProvider = require(script.Parent.services)
+local globals = require(script.Parent.globals)
 local filesystem = {}
 
 local isStudio = serviceProvider.getService("RunService"):IsStudio()
-local hasExecutorFilesystem = not isStudio
-    and typeof(writefile) == "function"
-    and typeof(readfile) == "function"
-    and typeof(isfile) == "function"
-    and typeof(isfolder) == "function"
-    and typeof(makefolder) == "function"
-    and typeof(listfiles) == "function"
-    and typeof(delfile) == "function"
-    and typeof(delfolder) == "function"
 
-if hasExecutorFilesystem then
-        function filesystem.writefile(writePath: string, writeContents: string)
-        writefile(writePath, writeContents)
-    end
-
-    function filesystem.readfile(readPath: string): string
-        return readfile(readPath)
-    end
-
-            if typeof(appendfile) == "function" then
-        function filesystem.appendfile(appendPath: string, appendContents: string)
-            appendfile(appendPath, appendContents)
+if not isStudio then
+    -- Executor filesystems are not uniform. Bind each capability that exists
+    -- instead of disabling the entire adapter because an unrelated function
+    -- (for example `delfolder`) is missing. Remote image caching only needs a
+    -- small subset: isfile, writefile, isfolder and makefolder.
+    local function bind(api: any)
+        return function(...)
+            return api(...)
         end
     end
-
-    function filesystem.isfile(isFilePath: string): boolean
-        return isfile(isFilePath)
-    end
-
-    function filesystem.delfile(deleteFilePath: string)
-        delfile(deleteFilePath)
-    end
-
-    function filesystem.listfiles(listDir: string): { string }
-        return listfiles(listDir)
-    end
-
-    function filesystem.makefolder(makeFolderPath: string)
-        makefolder(makeFolderPath)
-    end
-
-    function filesystem.isfolder(isFolderPath: string): boolean
-        return isfolder(isFolderPath)
-    end
-
-    function filesystem.delfolder(deleteFolderPath: string)
-        delfolder(deleteFolderPath)
+    for _, name in {
+        "writefile",
+        "readfile",
+        "appendfile",
+        "isfile",
+        "delfile",
+        "listfiles",
+        "makefolder",
+        "isfolder",
+        "delfolder",
+    } do
+        local api = globals.getFunction(name)
+        if api then
+            filesystem[name] = bind(api)
+        end
     end
 elseif isStudio then
             local rootFolder = Instance.new("Folder")
@@ -222,27 +202,49 @@ elseif isStudio then
     end
 end
 
-if filesystem.writefile and not filesystem.appendfile then
+if filesystem.writefile and filesystem.readfile and not filesystem.appendfile then
     function filesystem.appendfile(fallbackAppendPath: string, fallbackAppendContents: string)
-        local fallbackExisting = if filesystem.isfile(fallbackAppendPath) then filesystem.readfile(fallbackAppendPath) else nil
-        filesystem.writefile(fallbackAppendPath, if fallbackExisting then fallbackExisting .. fallbackAppendContents else fallbackAppendContents)
+        local fallbackExisting = if filesystem.isfile and filesystem.isfile(fallbackAppendPath)
+            then filesystem.readfile(fallbackAppendPath)
+            else nil
+        filesystem.writefile(
+            fallbackAppendPath,
+            if fallbackExisting then fallbackExisting .. fallbackAppendContents else fallbackAppendContents
+        )
     end
 end
 
-function filesystem.ensureFolder(ensureFolderPath: string)
-    if not filesystem.isfolder(ensureFolderPath) then
-        filesystem.makefolder(ensureFolderPath)
+function filesystem.ensureFolder(ensureFolderPath: string): boolean
+    if type(filesystem.isfolder) ~= "function" or type(filesystem.makefolder) ~= "function" then
+        return false
     end
+    local ok, exists = pcall(filesystem.isfolder, ensureFolderPath)
+    if not ok then
+        return false
+    end
+    if exists then
+        return true
+    end
+    local made = pcall(filesystem.makefolder, ensureFolderPath)
+    return made
 end
 
-function filesystem.ensureDir(ensureDirPath: string)
+function filesystem.ensureDir(ensureDirPath: string): boolean
+    if type(filesystem.isfolder) ~= "function" or type(filesystem.makefolder) ~= "function" then
+        return false
+    end
     local partial = ""
     for ensureSegment in string.gmatch(ensureDirPath, "[^/]+") do
         partial = if partial == "" then ensureSegment else partial .. "/" .. ensureSegment
-        if not filesystem.isfolder(partial) then
-            filesystem.makefolder(partial)
+        local ok, exists = pcall(filesystem.isfolder, partial)
+        if not ok then
+            return false
+        end
+        if not exists and not pcall(filesystem.makefolder, partial) then
+            return false
         end
     end
+    return true
 end
 
 --[[

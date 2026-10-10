@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-10-10 — named PNG icons render across executor environments
+
+The example's icon names were valid, but the PNG route depended on executor APIs
+more strictly than the runtime needed: `filesystem.luau` hid every file helper
+unless the executor supplied all eight base APIs, `getcustomasset` and `request` were
+looked up only in the current function environment, and assets had no guarded
+`game:HttpGet` fallback when an executor exposed that API but not `request`. The
+result was that numeric Roblox asset IDs rendered while named catalog icons
+stayed blank.
+
+- **`utilities/globals.luau`** — shared lookup across `getgenv()`, `getfenv(0)`,
+  the current environment and `_G`, so executor APIs are found where the host
+  actually exposes them.
+- **`utilities/filesystem.luau`** — registers each available filesystem
+  capability independently. Missing optional methods such as `delfolder` no
+  longer disable the `isfile`/`writefile`/folder helpers used by image caching.
+- **`utilities/network.luau`, `utilities/assetResolver.luau`** — if and only if
+  no executor request function exists, public CDN assets can use a guarded
+  `game:HttpGet` / `HttpGetAsync` fallback. A request function denied by
+  `HttpGuard` never falls through to another transport.
+- **`cache/imageCache.luau`, `icons/init.luau`** — resolve `getcustomasset` from
+  any supported environment and accept the `getsynasset` alias.
+- **`scripts/image_remote_pipeline_test.sh`** — new regression for a partial
+  filesystem, getgenv-only APIs, the importer alias and the guarded HTTP fallback.
+
 ## 2026-10-10 — icons load from the renamed repository again
 
 The repository was renamed from `Kira762/astra-version-1` to

@@ -26,6 +26,7 @@ resolves to nothing rather than to some other pack.
 ]]
 
 local filesystem = require(script.Parent.utilities.filesystem)
+local globals = require(script.Parent.utilities.globals)
 
 local icons = {}
 
@@ -149,16 +150,16 @@ local namedAssets = {
     Sirius = "assets/window-icons/sirius.png",
 }
 
-local function environment(): any
-    return (getfenv and getfenv()) or _G
+local function assetImporter(): any
+    return globals.getFunction("getcustomasset") or globals.getFunction("getsynasset")
 end
 
 local function customAsset(path: string): (boolean, string?)
-    local env = environment()
-    if type(env.getcustomasset) ~= "function" then
+    local importer = assetImporter()
+    if not importer then
         return false, nil
     end
-    local ok, uri = pcall(env.getcustomasset, path)
+    local ok, uri = pcall(importer, path)
     filesystem.discardExecutorImageCache()
     return ok, uri
 end
@@ -247,11 +248,11 @@ local function customKey(path: string): (string?, number?)
 end
 
 local function buildCustomIndex(): { [string]: string }?
-    local env = environment()
-    if type(env.listfiles) ~= "function" then
+    local listFiles = globals.getFunction("listfiles")
+    if not listFiles then
         return nil
     end
-    local ok, entries = pcall(env.listfiles, customAssetFolder)
+    local ok, entries = pcall(listFiles, customAssetFolder)
     if not ok or type(entries) ~= "table" then
         --[[
         No folder (or no listing support right now): an empty index, so
@@ -293,7 +294,7 @@ local function customFile(value: string): string?
     if probed ~= nil then
         return probed or nil
     end
-    if type(environment().getcustomasset) ~= "function" then
+    if not assetImporter() then
         customProbed[value] = false
         return nil
     end

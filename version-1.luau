@@ -17,7 +17,7 @@ local ImportGlobals
 -- __recFP snapshots the environment when the MainModule closure starts,
 -- __checkFP re-snapshots after every module has loaded; a mismatch means
 -- something was replaced mid-load. Silent: failure returns a no-op stub.
-local ExpectedClosureCount = 111;
+local ExpectedClosureCount = 112;
 local __fp
 local function __snap()
     return table.concat({
@@ -20508,6 +20508,7 @@ return moduleCache
 end)() end,
     [63] = function()local wax,script,require=ImportGlobals(63)local ImportGlobals return (function(...)
 local filesystem = require(script.Parent.Parent.utilities.filesystem)
+local globals = require(script.Parent.Parent.utilities.globals)
 local path = require(script.Parent.Parent.utilities.path)
 local variables = require(script.Parent.Parent.core.state)
 local constants = require(script.Parent.Parent.utilities.constants)
@@ -20559,46 +20560,43 @@ local remotePending: { [string]: { RemoteCallback } } = {}
 
 
 
-
-
-
-local function environment(): any?
-local getfenvFn: any = nil
-pcall(function()
-getfenvFn = getfenv
-end)
-if type(getfenvFn) == "function" then
-local ok, env = pcall(getfenvFn)
-if ok and type(env) == "table" then
-return env
+local function assetImporter(): any
+return globals.getFunction("getcustomasset") or globals.getFunction("getsynasset")
 end
+
+local function fileExists(filePath: string): boolean
+if type(filesystem.isfile) ~= "function" then
+return false
 end
-local g: any = nil
-pcall(function()
-g = _G
-end)
-return if type(g) == "table" then g else nil
+local ok, exists = pcall(filesystem.isfile, filePath)
+return ok and exists == true
 end
 
 local function importCustomAsset(filePath: string): string?
-local env = environment()
-if env == nil or type(env.getcustomasset) ~= "function" then
+local importer = assetImporter()
+if not importer then
 return nil
 end
-local ok, uri = pcall(env.getcustomasset, filePath)
+local ok, uri = pcall(importer, filePath)
 filesystem.discardExecutorImageCache()
-if ok and type(uri) == "string" then
+if ok and type(uri) == "string" and uri ~= "" then
 return uri
 end
 return nil
 end
 
 local function cacheFile(filePath: string, url: string): string?
-local env = environment()
-if env == nil or type(env.getcustomasset) ~= "function" or typeof(filesystem.isfile) ~= "function" then
+if not assetImporter() or type(filesystem.isfile) ~= "function" then
 return nil
 end
-if not filesystem.isfile(filePath) then
+if not fileExists(filePath) then
+if
+type(filesystem.writefile) ~= "function"
+or type(filesystem.isfolder) ~= "function"
+or type(filesystem.makefolder) ~= "function"
+then
+return nil
+end
 pcall(filesystem.ensureFolder, cacheRoot)
 pcall(filesystem.ensureFolder, cacheFolder)
 local body = assetResolver:getAssetContentFromUrl(url, filePath, false)
@@ -20621,8 +20619,7 @@ return path.join(cacheFolder, "icon_" .. tostring(hash) .. ".png")
 end
 
 function imageCache.remote(url: string, onReady: RemoteCallback?): string
-local env = environment()
-if env == nil or type(env.getcustomasset) ~= "function" or typeof(filesystem.isfile) ~= "function" then
+if not assetImporter() or type(filesystem.isfile) ~= "function" then
 if onReady then
 task.defer(onReady, nil)
 end
@@ -20638,7 +20635,7 @@ return rewritten
 end
 
 local filePath = remoteFilePath(url)
-if filesystem.isfile(filePath) then
+if fileExists(filePath) then
 local uri = importCustomAsset(filePath)
 if uri then
 remoteRewrites[url] = uri
@@ -20733,8 +20730,7 @@ local pendingAvatars: { [number]: { AvatarCallback } } = {}
 local failedAvatars: { [number]: boolean } = {}
 
 function imageCache.preload(onSettled: PreloadCallback?): (boolean, number)
-local env = environment()
-if env == nil or type(env.getcustomasset) ~= "function" or typeof(filesystem.isfile) ~= "function" then
+if not assetImporter() or type(filesystem.isfile) ~= "function" then
 if onSettled then
 task.defer(onSettled, manifestSize, windowIcons.roleList())
 end
@@ -20763,7 +20759,7 @@ local pending, missing = 0, 0
 local spawning = true for id, url in manifest do
 local filePath = path.join(cacheFolder, tostring(id) .. ".png")
 local uri: string? = nil
-if filesystem.isfile(filePath) then
+if fileExists(filePath) then
 uri = importCustomAsset(filePath)
 end
 if uri then
@@ -20800,12 +20796,12 @@ if type(userId) ~= "number" then
 return ""
 end
 
-if typeof(filesystem.isfile) ~= "function" then
+if type(filesystem.isfile) ~= "function" then
 return ""
 end
 
 local filePath = avatarPath(userId)
-if filesystem.isfile(filePath) then
+if fileExists(filePath) then
 local uri = importCustomAsset(filePath)
 if uri then
 return uri
@@ -21608,6 +21604,7 @@ end)() end,
 
 
 local filesystem = require(script.Parent.utilities.filesystem)
+local globals = require(script.Parent.utilities.globals)
 
 local icons = {}
 
@@ -21731,16 +21728,16 @@ sirius = "assets/window-icons/sirius.png",
 Sirius = "assets/window-icons/sirius.png",
 }
 
-local function environment(): any
-return (getfenv and getfenv()) or _G
+local function assetImporter(): any
+return globals.getFunction("getcustomasset") or globals.getFunction("getsynasset")
 end
 
 local function customAsset(path: string): (boolean, string?)
-local env = environment()
-if type(env.getcustomasset) ~= "function" then
+local importer = assetImporter()
+if not importer then
 return false, nil
 end
-local ok, uri = pcall(env.getcustomasset, path)
+local ok, uri = pcall(importer, path)
 filesystem.discardExecutorImageCache()
 return ok, uri
 end
@@ -21829,11 +21826,11 @@ return nil, nil
 end
 
 local function buildCustomIndex(): { [string]: string }?
-local env = environment()
-if type(env.listfiles) ~= "function" then
+local listFiles = globals.getFunction("listfiles")
+if not listFiles then
 return nil
 end
-local ok, entries = pcall(env.listfiles, customAssetFolder)
+local ok, entries = pcall(listFiles, customAssetFolder)
 if not ok or type(entries) ~= "table" then
 
 
@@ -21875,7 +21872,7 @@ local probed = customProbed[value]
 if probed ~= nil then
 return probed or nil
 end
-if type(environment().getcustomasset) ~= "function" then
+if not assetImporter() then
 customProbed[value] = false
 return nil
 end
@@ -24175,9 +24172,7 @@ local content: string? = nil
 
 
 
-
-
-
+local rawRequestFn = networkUtil.getRequestFn(nil)
 local requestFn = networkUtil.getGuardedRequestFn(nil, "warn")
 if requestFn then
 local requestOk, requestResult = pcall(
@@ -24188,9 +24183,19 @@ Method = "GET",
 } :: AssetRequestPayload
 )
 if requestOk and isSuccessResponse(requestResult) then
-local responseBody = (requestResult :: { Body: string }).Body
+content = (requestResult :: { Body: string }).Body
+end
+elseif rawRequestFn == nil then
+local httpGetFn = networkUtil.getGuardedHttpGetFn("warn")
+if httpGetFn then
+local requestOk, responseBody = pcall(httpGetFn, url)
+if requestOk and type(responseBody) == "string" and responseBody ~= "" then
 content = responseBody
-if cacheKey ~= nil and cache then
+end
+end
+end
+
+if content ~= nil and cacheKey ~= nil and cache then
 local order = self.contentCacheOrder
 if order and cache[cacheKey] == nil then
 table.insert(order, cacheKey)
@@ -24199,9 +24204,7 @@ if evictedKey ~= nil then
 cache[evictedKey] = nil
 end
 end
-cache[cacheKey] = responseBody
-end
-end
+cache[cacheKey] = content
 end
 
 if cacheKey ~= nil then
@@ -24323,56 +24326,36 @@ return enums
 end)() end,
     [94] = function()local wax,script,require=ImportGlobals(94)local ImportGlobals return (function(...)
 local serviceProvider = require(script.Parent.services)
+local globals = require(script.Parent.globals)
 local filesystem = {}
 
 local isStudio = serviceProvider.getService("RunService"):IsStudio()
-local hasExecutorFilesystem = not isStudio
-and typeof(writefile) == "function"
-and typeof(readfile) == "function"
-and typeof(isfile) == "function"
-and typeof(isfolder) == "function"
-and typeof(makefolder) == "function"
-and typeof(listfiles) == "function"
-and typeof(delfile) == "function"
-and typeof(delfolder) == "function"
 
-if hasExecutorFilesystem then
-function filesystem.writefile(writePath: string, writeContents: string)
-writefile(writePath, writeContents)
-end
+if not isStudio then
 
-function filesystem.readfile(readPath: string): string
-return readfile(readPath)
-end
 
-if typeof(appendfile) == "function" then
-function filesystem.appendfile(appendPath: string, appendContents: string)
-appendfile(appendPath, appendContents)
+
+
+local function bind(api: any)
+return function(...)
+return api(...)
 end
 end
-
-function filesystem.isfile(isFilePath: string): boolean
-return isfile(isFilePath)
+for _, name in {
+"writefile",
+"readfile",
+"appendfile",
+"isfile",
+"delfile",
+"listfiles",
+"makefolder",
+"isfolder",
+"delfolder",
+} do
+local api = globals.getFunction(name)
+if api then
+filesystem[name] = bind(api)
 end
-
-function filesystem.delfile(deleteFilePath: string)
-delfile(deleteFilePath)
-end
-
-function filesystem.listfiles(listDir: string): { string }
-return listfiles(listDir)
-end
-
-function filesystem.makefolder(makeFolderPath: string)
-makefolder(makeFolderPath)
-end
-
-function filesystem.isfolder(isFolderPath: string): boolean
-return isfolder(isFolderPath)
-end
-
-function filesystem.delfolder(deleteFolderPath: string)
-delfolder(deleteFolderPath)
 end
 elseif isStudio then
 local rootFolder = Instance.new("Folder")
@@ -24546,27 +24529,49 @@ deleteFolderChild:Destroy()
 end
 end
 
-if filesystem.writefile and not filesystem.appendfile then
+if filesystem.writefile and filesystem.readfile and not filesystem.appendfile then
 function filesystem.appendfile(fallbackAppendPath: string, fallbackAppendContents: string)
-local fallbackExisting = if filesystem.isfile(fallbackAppendPath) then filesystem.readfile(fallbackAppendPath) else nil
-filesystem.writefile(fallbackAppendPath, if fallbackExisting then fallbackExisting .. fallbackAppendContents else fallbackAppendContents)
+local fallbackExisting = if filesystem.isfile and filesystem.isfile(fallbackAppendPath)
+then filesystem.readfile(fallbackAppendPath)
+else nil
+filesystem.writefile(
+fallbackAppendPath,
+if fallbackExisting then fallbackExisting .. fallbackAppendContents else fallbackAppendContents
+)
 end
 end
 
-function filesystem.ensureFolder(ensureFolderPath: string)
-if not filesystem.isfolder(ensureFolderPath) then
-filesystem.makefolder(ensureFolderPath)
+function filesystem.ensureFolder(ensureFolderPath: string): boolean
+if type(filesystem.isfolder) ~= "function" or type(filesystem.makefolder) ~= "function" then
+return false
 end
+local ok, exists = pcall(filesystem.isfolder, ensureFolderPath)
+if not ok then
+return false
+end
+if exists then
+return true
+end
+local made = pcall(filesystem.makefolder, ensureFolderPath)
+return made
 end
 
-function filesystem.ensureDir(ensureDirPath: string)
+function filesystem.ensureDir(ensureDirPath: string): boolean
+if type(filesystem.isfolder) ~= "function" or type(filesystem.makefolder) ~= "function" then
+return false
+end
 local partial = ""
 for ensureSegment in string.gmatch(ensureDirPath, "[^/]+") do
 partial = if partial == "" then ensureSegment else partial .. "/" .. ensureSegment
-if not filesystem.isfolder(partial) then
-filesystem.makefolder(partial)
+local ok, exists = pcall(filesystem.isfolder, partial)
+if not ok then
+return false
+end
+if not exists and not pcall(filesystem.makefolder, partial) then
+return false
 end
 end
+return true
 end
 
 
@@ -25090,6 +25095,111 @@ end)() end,
 
 
 
+local globals = {}
+
+type Root = { [string]: any }
+
+function globals.roots(): { Root }
+local result: { Root } = {}
+local seen: { [table]: boolean } = {}
+
+local function add(value: any)
+if type(value) == "table" and not seen[value] then
+seen[value] = true
+table.insert(result, value)
+end
+end
+
+local getgenvFn: any = nil
+pcall(function()
+getgenvFn = getgenv
+end)
+if type(getgenvFn) == "function" then
+local ok, value = pcall(getgenvFn)
+if ok then
+add(value)
+end
+end
+
+local getfenvFn: any = nil
+pcall(function()
+getfenvFn = getfenv
+end)
+if type(getfenvFn) == "function" then
+local ok, value = pcall(getfenvFn, 0)
+if ok then
+add(value)
+end
+ok, value = pcall(getfenvFn)
+if ok then
+add(value)
+end
+end
+
+local globalTable: any = nil
+pcall(function()
+globalTable = _G
+end)
+add(globalTable)
+
+return result
+end
+
+function globals.get(name: string): any
+for _, root in globals.roots() do
+local ok, value = pcall(function()
+return root[name]
+end)
+if ok and value ~= nil then
+return value
+end
+end
+return nil
+end
+
+function globals.getFunction(name: string): any
+local value = globals.get(name)
+return if type(value) == "function" then value else nil
+end
+
+function globals.getPath(path: { string }): any
+for _, root in globals.roots() do
+local current: any = root
+local found = true
+for _, key in path do
+local ok, nextValue = pcall(function()
+if type(current) ~= "table" then
+return nil
+end
+return current[key]
+end)
+if not ok or nextValue == nil then
+found = false
+break
+end
+current = nextValue
+end
+if found then
+return current
+end
+end
+return nil
+end
+
+return globals
+
+end)() end,
+    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -25286,7 +25396,7 @@ end
 
 return hardwarePerformance
 end)() end,
-    [99] = function()local wax,script,require=ImportGlobals(99)local ImportGlobals return (function(...)
+    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
 
 
 
@@ -25422,28 +25532,48 @@ local baseline: Baseline? = nil
 
 
 
+
 local function globalRoots(): { { [string]: any } }
 local roots: { { [string]: any } } = {}
+local seen: { [table]: boolean } = {}
+local function add(root: any)
+if type(root) == "table" and not seen[root] then
+seen[root] = true
+roots[#roots + 1] = root
+end
+end
+
+local getgenvFn: any = nil
+pcall(function()
+getgenvFn = getgenv
+end)
+if type(getgenvFn) == "function" then
+local ok, env = pcall(getgenvFn)
+if ok then
+add(env)
+end
+end
+
 local getfenvFn: any = nil
 pcall(function()
 getfenvFn = getfenv
 end)
 if type(getfenvFn) == "function" then
-local env: any = nil
-local ok = pcall(function()
-env = getfenvFn(0)
-end)
-if ok and type(env) == "table" then
-roots[#roots + 1] = env
+local ok, env = pcall(getfenvFn, 0)
+if ok then
+add(env)
+end
+ok, env = pcall(getfenvFn)
+if ok then
+add(env)
 end
 end
+
 local g: any = nil
 pcall(function()
 g = _G
 end)
-if type(g) == "table" and g ~= roots[1] then
-roots[#roots + 1] = g
-end
+add(g)
 return roots
 end
 
@@ -25903,7 +26033,7 @@ end
 return HttpGuard
 
 end)() end,
-    [100] = function()local wax,script,require=ImportGlobals(100)local ImportGlobals return (function(...)
+    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
 
 local keybind = {}
 
@@ -25923,7 +26053,7 @@ end
 return keybind
 
 end)() end,
-    [101] = function()local wax,script,require=ImportGlobals(101)local ImportGlobals return (function(...)
+    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
 local layouts = {}
 
 local sidebarLayout = require(script.Parent.Parent.layouts.Sidebar)
@@ -26051,7 +26181,7 @@ end
 return layouts
 
 end)() end,
-    [102] = function()local wax,script,require=ImportGlobals(102)local ImportGlobals return (function(...)
+    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 
 local locale = {}
@@ -26149,7 +26279,7 @@ end
 return locale
 
 end)() end,
-    [103] = function()local wax,script,require=ImportGlobals(103)local ImportGlobals return (function(...)
+    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
 
 
 
@@ -26378,7 +26508,7 @@ end,
 return lockable
 
 end)() end,
-    [104] = function()local wax,script,require=ImportGlobals(104)local ImportGlobals return (function(...)
+    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
 
 
 
@@ -26851,7 +26981,7 @@ end
 
 return motion
 end)() end,
-    [105] = function()local wax,script,require=ImportGlobals(105)local ImportGlobals return (function(...)
+    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
 local function moveable<T>(dragState: T): T
 local target = dragState :: any
 
@@ -26887,56 +27017,64 @@ end
 return moveable
 
 end)() end,
-    [106] = function()local wax,script,require=ImportGlobals(106)local ImportGlobals return (function(...)
+    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
 local HttpGuard = require(script.Parent.httpGuard)
+local globals = require(script.Parent.globals)
 
 local network = {}
 network.__index = network
 
 export type RequestFn = (...any) -> any
 
+local REQUEST_PATHS = {
+{ "request" },
+{ "http_request" },
+{ "http", "request" },
+{ "syn", "request" },
+{ "fluxus", "request" },
+}
 
-
-
-
-
-
-
-
-local function environment(): any?
-local getfenvFn: any = nil
-pcall(function()
-getfenvFn = getfenv
+local function functionAt(root: any, path: { string }): RequestFn?
+local current = root
+for _, key in path do
+if type(current) ~= "table" then
+return nil
+end
+local ok, value = pcall(function()
+return current[key]
 end)
-if type(getfenvFn) == "function" then
-local ok, env = pcall(getfenvFn)
-if ok and type(env) == "table" then
-return env
+if not ok then
+return nil
+end
+current = value
+if current == nil then
+return nil
 end
 end
-local g: any = nil
-pcall(function()
-g = _G
-end)
-return if type(g) == "table" then g else nil
+return if type(current) == "function" then current else nil
 end
 
 function network.getRequestFn(env: any?): RequestFn?
-env = env or environment()
-if type(env) ~= "table" then
+if env ~= nil then
+for _, path in REQUEST_PATHS do
+local fn = functionAt(env, path)
+if fn then
+return fn
+end
+end
 return nil
 end
-return env.request
-or env.http_request
-or (env.http and env.http.request)
-or (env.syn and env.syn.request)
-or (env.fluxus and env.fluxus.request)
+
+for _, root in globals.roots() do
+for _, path in REQUEST_PATHS do
+local fn = functionAt(root, path)
+if fn then
+return fn
 end
-
-
-
-
-
+end
+end
+return nil
+end
 
 
 
@@ -26953,10 +27091,40 @@ end
 return fn
 end
 
+
+
+
+
+function network.getGuardedHttpGetFn(policy: HttpGuard.GuardPolicy?): RequestFn?
+local gameRef = globals.get("game")
+if gameRef == nil then
+return nil
+end
+
+local httpGet: any = nil
+pcall(function()
+httpGet = gameRef.HttpGet
+if type(httpGet) ~= "function" then
+httpGet = gameRef.HttpGetAsync
+end
+end)
+if type(httpGet) ~= "function" then
+return nil
+end
+
+if not HttpGuard.check(policy or "warn") then
+return nil
+end
+
+return function(url: string): any
+return httpGet(gameRef, url)
+end
+end
+
 return network
 
 end)() end,
-    [107] = function()local wax,script,require=ImportGlobals(107)local ImportGlobals return (function(...)
+    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local motion = require(script.Parent.motion)
 local textService = coreState.textService
@@ -27316,7 +27484,7 @@ end
 return odometer
 
 end)() end,
-    [108] = function()local wax,script,require=ImportGlobals(108)local ImportGlobals return (function(...)
+    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
 type OrderedElement = {
 main: GuiObject,
 }
@@ -27328,7 +27496,7 @@ end
 return ordering
 
 end)() end,
-    [109] = function()local wax,script,require=ImportGlobals(109)local ImportGlobals return (function(...)
+    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
 local path = {}
 
 function path.join(base: string, suffix: string?): string
@@ -27379,7 +27547,7 @@ end
 return path
 
 end)() end,
-    [110] = function()local wax,script,require=ImportGlobals(110)local ImportGlobals return (function(...)
+    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
 local persistence = {}
 
 local configPersistence = require(script.Parent.persistenceConfig)
@@ -27398,7 +27566,7 @@ persistence.loadSettings = settingsPersistence.loadSettings
 return persistence
 
 end)() end,
-    [111] = function()local wax,script,require=ImportGlobals(111)local ImportGlobals return (function(...)
+    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local pathUtil = require(script.Parent.path)
@@ -27681,7 +27849,7 @@ end
 return persistenceConfig
 
 end)() end,
-    [112] = function()local wax,script,require=ImportGlobals(112)local ImportGlobals return (function(...)
+    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local pathUtil = require(script.Parent.path)
 
@@ -27725,7 +27893,7 @@ end
 return persistencePaths
 
 end)() end,
-    [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
+    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local fs = require(script.Parent.filesystem)
 local paths = require(script.Parent.persistencePaths)
@@ -27926,7 +28094,7 @@ end
 return persistenceSettings
 
 end)() end,
-    [114] = function()local wax,script,require=ImportGlobals(114)local ImportGlobals return (function(...)
+    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
 local fs = require(script.Parent.filesystem)
 
 local persistenceWrite = {}
@@ -27954,7 +28122,7 @@ end
 return persistenceWrite
 
 end)() end,
-    [115] = function()local wax,script,require=ImportGlobals(115)local ImportGlobals return (function(...)
+    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
 local services = {}
 
 function services.getService(serviceName)
@@ -27965,7 +28133,7 @@ end
 return services
 
 end)() end,
-    [116] = function()local wax,script,require=ImportGlobals(116)local ImportGlobals return (function(...)
+    [117] = function()local wax,script,require=ImportGlobals(117)local ImportGlobals return (function(...)
 local layoutMetrics = require(script.Parent.layouts)
 local coreState = require(script.Parent.Parent.core.state)
 
@@ -28208,58 +28376,59 @@ local LineOffsets = {
     [61] = 20419,
     [62] = 20128,
     [63] = 20510,
-    [64] = 20851,
-    [65] = 20882,
+    [64] = 20847,
+    [65] = 20878,
     [66] = 20499,
-    [67] = 20925,
-    [68] = 20945,
-    [69] = 20977,
-    [70] = 20907,
-    [71] = 21084,
-    [72] = 21152,
-    [74] = 21242,
-    [75] = 21219,
-    [76] = 21462,
-    [77] = 21558,
-    [78] = 21409,
-    [79] = 22110,
-    [80] = 22156,
-    [81] = 22238,
-    [82] = 22433,
-    [83] = 22564,
-    [84] = 22667,
-    [85] = 22836,
-    [86] = 23176,
-    [87] = 21583,
-    [88] = 23817,
-    [89] = 23706,
-    [90] = 23956,
-    [91] = 24054,
-    [92] = 24233,
-    [93] = 24295,
-    [94] = 24325,
-    [95] = 24617,
-    [96] = 24666,
-    [97] = 25065,
-    [98] = 25083,
-    [99] = 25290,
-    [100] = 25907,
-    [101] = 25927,
-    [102] = 26055,
-    [103] = 26153,
-    [104] = 26382,
-    [105] = 26855,
-    [106] = 26891,
-    [107] = 26960,
-    [108] = 27320,
-    [109] = 27332,
-    [110] = 27383,
-    [111] = 27402,
-    [112] = 27685,
-    [113] = 27729,
-    [114] = 27930,
-    [115] = 27958,
-    [116] = 27969,
+    [67] = 20921,
+    [68] = 20941,
+    [69] = 20973,
+    [70] = 20903,
+    [71] = 21080,
+    [72] = 21148,
+    [74] = 21238,
+    [75] = 21215,
+    [76] = 21458,
+    [77] = 21554,
+    [78] = 21405,
+    [79] = 22107,
+    [80] = 22153,
+    [81] = 22235,
+    [82] = 22430,
+    [83] = 22561,
+    [84] = 22664,
+    [85] = 22833,
+    [86] = 23173,
+    [87] = 21579,
+    [88] = 23814,
+    [89] = 23703,
+    [90] = 23953,
+    [91] = 24051,
+    [92] = 24236,
+    [93] = 24298,
+    [94] = 24328,
+    [95] = 24622,
+    [96] = 24671,
+    [97] = 25070,
+    [98] = 25088,
+    [99] = 25193,
+    [100] = 25400,
+    [101] = 26037,
+    [102] = 26057,
+    [103] = 26185,
+    [104] = 26283,
+    [105] = 26512,
+    [106] = 26985,
+    [107] = 27021,
+    [108] = 27128,
+    [109] = 27488,
+    [110] = 27500,
+    [111] = 27551,
+    [112] = 27570,
+    [113] = 27853,
+    [114] = 27897,
+    [115] = 28098,
+    [116] = 28126,
+    [117] = 28137,
 }
 
 -- Misc AOT variable imports
@@ -28916,7 +29085,7 @@ local ObjectTree = {
                 },
             },
             {
-                117,
+                118,
                 1,
                 {
                     "utilities",
@@ -28982,130 +29151,137 @@ local ObjectTree = {
                         98,
                         2,
                         {
-                            "hardwarePerformance",
+                            "globals",
                         },
                     },
                     {
                         99,
                         2,
                         {
-                            "httpGuard",
+                            "hardwarePerformance",
                         },
                     },
                     {
                         100,
                         2,
                         {
-                            "keybind",
+                            "httpGuard",
                         },
                     },
                     {
                         101,
                         2,
                         {
-                            "layouts",
+                            "keybind",
                         },
                     },
                     {
                         102,
                         2,
                         {
-                            "locale",
+                            "layouts",
                         },
                     },
                     {
                         103,
                         2,
                         {
-                            "lockable",
+                            "locale",
                         },
                     },
                     {
                         104,
                         2,
                         {
-                            "motion",
+                            "lockable",
                         },
                     },
                     {
                         105,
                         2,
                         {
-                            "moveable",
+                            "motion",
                         },
                     },
                     {
                         106,
                         2,
                         {
-                            "network",
+                            "moveable",
                         },
                     },
                     {
                         107,
                         2,
                         {
-                            "odometer",
+                            "network",
                         },
                     },
                     {
                         108,
                         2,
                         {
-                            "ordering",
+                            "odometer",
                         },
                     },
                     {
                         109,
                         2,
                         {
-                            "path",
+                            "ordering",
                         },
                     },
                     {
                         110,
                         2,
                         {
-                            "persistence",
+                            "path",
                         },
                     },
                     {
                         111,
                         2,
                         {
-                            "persistenceConfig",
+                            "persistence",
                         },
                     },
                     {
                         112,
                         2,
                         {
-                            "persistencePaths",
+                            "persistenceConfig",
                         },
                     },
                     {
                         113,
                         2,
                         {
-                            "persistenceSettings",
+                            "persistencePaths",
                         },
                     },
                     {
                         114,
                         2,
                         {
-                            "persistenceWrite",
+                            "persistenceSettings",
                         },
                     },
                     {
                         115,
                         2,
                         {
-                            "services",
+                            "persistenceWrite",
                         },
                     },
                     {
                         116,
+                        2,
+                        {
+                            "services",
+                        },
+                    },
+                    {
+                        117,
                         2,
                         {
                             "windowSizing",

@@ -171,6 +171,13 @@ eq(#prints, 0, "a clean asset download prints nothing")
 genv.HttpSpy = { OnRequest = {}, BlockUrl = function() end }
 request = nil
 handles.cfuncs[requestStub] = nil
+local directHttpGetCount = #handles.httpGetCalls
+eq(
+	resolver:getAssetContentFromUrl("https://example.test/icon-no-request.png", nil, true),
+	nil,
+	"guarded HttpGet fallback denies an intercepted asset request"
+)
+eq(#handles.httpGetCalls, directHttpGetCount, "HttpGuard denial never falls through to game:HttpGet")
 resetConsole()
 
 warn = realWarn

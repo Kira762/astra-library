@@ -128,33 +128,53 @@ type Baseline = {
 local baseline: Baseline? = nil
 
 --[[
-Live global environments, in lookup order. `getfenv(0)` is the live table on
-the luau CLI and on executors; `_G` is stale under the CLI (it locks `_G`)
-but live on Roblox and executors, where `getfenv` may not exist at all.
-Probing both keeps every runtime working.
+Live global environments, in lookup order. Executors often keep request and
+hook APIs in getgenv(), while getfenv(0) is the live table on the Luau CLI and
+some executors. `_G` is stale under the CLI (it locks `_G`) but live on Roblox
+and executors where getfenv may not exist. Probe all three without duplicates
+so the guard observes the same request function the downloader can call.
 ]]
 local function globalRoots(): { { [string]: any } }
     local roots: { { [string]: any } } = {}
+    local seen: { [table]: boolean } = {}
+    local function add(root: any)
+        if type(root) == "table" and not seen[root] then
+            seen[root] = true
+            roots[#roots + 1] = root
+        end
+    end
+
+    local getgenvFn: any = nil
+    pcall(function()
+        getgenvFn = getgenv
+    end)
+    if type(getgenvFn) == "function" then
+        local ok, env = pcall(getgenvFn)
+        if ok then
+            add(env)
+        end
+    end
+
     local getfenvFn: any = nil
     pcall(function()
         getfenvFn = getfenv
     end)
     if type(getfenvFn) == "function" then
-        local env: any = nil
-        local ok = pcall(function()
-            env = getfenvFn(0)
-        end)
-        if ok and type(env) == "table" then
-            roots[#roots + 1] = env
+        local ok, env = pcall(getfenvFn, 0)
+        if ok then
+            add(env)
+        end
+        ok, env = pcall(getfenvFn)
+        if ok then
+            add(env)
         end
     end
+
     local g: any = nil
     pcall(function()
         g = _G
     end)
-    if type(g) == "table" and g ~= roots[1] then
-        roots[#roots + 1] = g
-    end
+    add(g)
     return roots
 end
 

@@ -1,4 +1,5 @@
 local filesystem = require(script.Parent.Parent.utilities.filesystem)
+local globals = require(script.Parent.Parent.utilities.globals)
 local path = require(script.Parent.Parent.utilities.path)
 local variables = require(script.Parent.Parent.core.state)
 local constants = require(script.Parent.Parent.utilities.constants)
@@ -47,53 +48,50 @@ local pngMagic = "\137PNG\r\n\26\n"
 local remoteRewrites: { [string]: string } = {}
 local remotePending: { [string]: { RemoteCallback } } = {}
 
---[[
-The live global table, or nil when the host cannot answer. `getfenv` is
-neither guaranteed to exist nor guaranteed to work — a sandbox may ship a
-throwing one — and every lookup below sits on a path (an icon, an avatar,
-the preload sweep) that has to keep working without it.
-]]
-local function environment(): any?
-    local getfenvFn: any = nil
-    pcall(function()
-        getfenvFn = getfenv
-    end)
-    if type(getfenvFn) == "function" then
-        local ok, env = pcall(getfenvFn)
-        if ok and type(env) == "table" then
-            return env
-        end
+-- `getcustomasset` is the common name; Synapse-compatible executors may
+-- expose the same importer as `getsynasset`. The globals helper checks the
+-- executor environment as well as getfenv(0) and _G.
+local function assetImporter(): any
+    return globals.getFunction("getcustomasset") or globals.getFunction("getsynasset")
+end
+
+local function fileExists(filePath: string): boolean
+    if type(filesystem.isfile) ~= "function" then
+        return false
     end
-    local g: any = nil
-    pcall(function()
-        g = _G
-    end)
-    return if type(g) == "table" then g else nil
+    local ok, exists = pcall(filesystem.isfile, filePath)
+    return ok and exists == true
 end
 
 local function importCustomAsset(filePath: string): string?
-    local env = environment()
-    if env == nil or type(env.getcustomasset) ~= "function" then
+    local importer = assetImporter()
+    if not importer then
         return nil
     end
-    local ok, uri = pcall(env.getcustomasset, filePath)
+    local ok, uri = pcall(importer, filePath)
     filesystem.discardExecutorImageCache()
-    if ok and type(uri) == "string" then
+    if ok and type(uri) == "string" and uri ~= "" then
         return uri
     end
     return nil
 end
 
 local function cacheFile(filePath: string, url: string): string?
-    local env = environment()
-    if env == nil or type(env.getcustomasset) ~= "function" or typeof(filesystem.isfile) ~= "function" then
+    if not assetImporter() or type(filesystem.isfile) ~= "function" then
         return nil
     end
-    if not filesystem.isfile(filePath) then
+    if not fileExists(filePath) then
+        if
+            type(filesystem.writefile) ~= "function"
+            or type(filesystem.isfolder) ~= "function"
+            or type(filesystem.makefolder) ~= "function"
+        then
+            return nil
+        end
         pcall(filesystem.ensureFolder, cacheRoot)
         pcall(filesystem.ensureFolder, cacheFolder)
         local body = assetResolver:getAssetContentFromUrl(url, filePath, false)
-                        if not body or string.sub(body, 1, 8) ~= pngMagic then
+        if not body or string.sub(body, 1, 8) ~= pngMagic then
             return nil
         end
         if not pcall(filesystem.writefile, filePath, body) then
@@ -112,8 +110,7 @@ local function remoteFilePath(url: string): string
 end
 
 function imageCache.remote(url: string, onReady: RemoteCallback?): string
-    local env = environment()
-    if env == nil or type(env.getcustomasset) ~= "function" or typeof(filesystem.isfile) ~= "function" then
+    if not assetImporter() or type(filesystem.isfile) ~= "function" then
         if onReady then
             task.defer(onReady, nil)
         end
@@ -129,7 +126,7 @@ function imageCache.remote(url: string, onReady: RemoteCallback?): string
     end
 
     local filePath = remoteFilePath(url)
-    if filesystem.isfile(filePath) then
+    if fileExists(filePath) then
         local uri = importCustomAsset(filePath)
         if uri then
             remoteRewrites[url] = uri
@@ -224,8 +221,7 @@ local pendingAvatars: { [number]: { AvatarCallback } } = {}
 local failedAvatars: { [number]: boolean } = {}
 
 function imageCache.preload(onSettled: PreloadCallback?): (boolean, number)
-    local env = environment()
-    if env == nil or type(env.getcustomasset) ~= "function" or typeof(filesystem.isfile) ~= "function" then
+    if not assetImporter() or type(filesystem.isfile) ~= "function" then
         if onSettled then
             task.defer(onSettled, manifestSize, windowIcons.roleList())
         end
@@ -254,7 +250,7 @@ function imageCache.preload(onSettled: PreloadCallback?): (boolean, number)
     local spawning = true     for id, url in manifest do
         local filePath = path.join(cacheFolder, tostring(id) .. ".png")
         local uri: string? = nil
-        if filesystem.isfile(filePath) then
+        if fileExists(filePath) then
             uri = importCustomAsset(filePath)
         end
         if uri then
@@ -291,12 +287,12 @@ function imageCache.avatar(userId: unknown, onReady: AvatarCallback?): string
         return ""
     end
 
-        if typeof(filesystem.isfile) ~= "function" then
+    if type(filesystem.isfile) ~= "function" then
         return ""
     end
 
     local filePath = avatarPath(userId)
-    if filesystem.isfile(filePath) then
+    if fileExists(filePath) then
         local uri = importCustomAsset(filePath)
         if uri then
             return uri

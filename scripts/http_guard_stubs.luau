@@ -5,7 +5,7 @@ primitives plus mutable spy artifacts, so every HttpGuard probe can be driven
 both clean and tripped inside one run.
 
 Clean baseline (what the bundle captures at load): the `game` HTTP methods
-and the fake `__namecall` are real C functions (`print`), no `HttpSpy` table
+and the fake `__namecall` read as C functions, no `HttpSpy` table
 sits in the genv store, the fake hui root has no children, and the workspace
 listing is empty. The test flips each of these and asserts the matching
 signal id, then flips it back.
@@ -97,8 +97,17 @@ gethui = function()
     }
 end
 
--- Pristine engine HTTP entry points are C functions.
-game.HttpGet = print
+-- Pristine engine HTTP entry points are C functions. The HttpGet stub counts
+-- calls so the asset suite can prove a guarded denial never falls through to
+-- the alternate transport.
+local httpGetCalls = {}
+local function httpGetStub(_game, url)
+    httpGetCalls[#httpGetCalls + 1] = url
+    return "http-get-asset-body"
+end
+cSources[httpGetStub] = true
+
+game.HttpGet = httpGetStub
 game.HttpGetAsync = print
 game.GetObjects = print
 game.HttpPost = print
@@ -110,4 +119,5 @@ getgenv().__HttpGuardTest = {
     guiChildren = guiChildren,
     pristineNamecall = print,
     cfuncs = cSources,
+    httpGetCalls = httpGetCalls,
 }

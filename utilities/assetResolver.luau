@@ -118,13 +118,11 @@ function assetResolver.getAssetContentFromUrl(
     end
 
     local content: string? = nil
-    --[[
-    Asset URLs are public CDN addresses, so interception here falls back to
-    the no-request-function path instead of breaking the UI — unlike key
-    fetches, which fail closed. Nothing is logged for a missing request
-    function: under a hook the guard is what removed it, and printing that
-    would tell the tool which requests never made it to the wire.
-    ]]
+    -- Public CDN assets can use an executor request function, or (when no
+    -- request API exists at all) the same guarded game:HttpGet path commonly
+    -- used to load the bundle. If a request function exists but HttpGuard
+    -- denies it, do not fall through to HttpGet: that would bypass the denial.
+    local rawRequestFn = networkUtil.getRequestFn(nil)
     local requestFn = networkUtil.getGuardedRequestFn(nil, "warn")
     if requestFn then
         local requestOk, requestResult = pcall(
@@ -135,23 +133,31 @@ function assetResolver.getAssetContentFromUrl(
             } :: AssetRequestPayload
         )
         if requestOk and isSuccessResponse(requestResult) then
-            local responseBody = (requestResult :: { Body: string }).Body
-            content = responseBody
-            if cacheKey ~= nil and cache then
-                local order = self.contentCacheOrder
-                if order and cache[cacheKey] == nil then
-                    table.insert(order, cacheKey)
-                    local evictedKey = if #order > maxCacheEntries then table.remove(order, 1) else nil
-                    if evictedKey ~= nil then
-                        cache[evictedKey] = nil
-                    end
-                end
-                cache[cacheKey] = responseBody
+            content = (requestResult :: { Body: string }).Body
+        end
+    elseif rawRequestFn == nil then
+        local httpGetFn = networkUtil.getGuardedHttpGetFn("warn")
+        if httpGetFn then
+            local requestOk, responseBody = pcall(httpGetFn, url)
+            if requestOk and type(responseBody) == "string" and responseBody ~= "" then
+                content = responseBody
             end
         end
     end
 
-            if cacheKey ~= nil then
+    if content ~= nil and cacheKey ~= nil and cache then
+        local order = self.contentCacheOrder
+        if order and cache[cacheKey] == nil then
+            table.insert(order, cacheKey)
+            local evictedKey = if #order > maxCacheEntries then table.remove(order, 1) else nil
+            if evictedKey ~= nil then
+                cache[evictedKey] = nil
+            end
+        end
+        cache[cacheKey] = content
+    end
+
+    if cacheKey ~= nil then
         local queued = pending[cacheKey]
         pending[cacheKey] = nil
         if queued then

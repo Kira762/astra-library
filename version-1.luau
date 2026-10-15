@@ -17373,7 +17373,7 @@ NumberSequenceKeypoint.new(0, 0.85),
 NumberSequenceKeypoint.new(1, 0),
 })
 
-local valueLabel = 38
+local valueLabel = 70
 
 
 

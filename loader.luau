@@ -47,7 +47,7 @@ skips the fetch/verify/load sequence.
 local BUNDLE_URL = "https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau"
 local SIG_URL = "https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau.sig"
 local EXPECTED_BUNDLE_VERSION = "1.0.0"
-local PUBLIC_KEY = "49e6c67ddd88879470c5a8763eb2908362abf0523cf280fd3985701abf644e63"
+local PUBLIC_KEY = "c91fafe1ca16278260fabdf7222d7b4d59dfe6c28271dfb7d547386323d3210c"
 
 -- Verification mode. The official loader ships "signature" and never
 -- downgrades itself: a failed signature check always fails closed, there is

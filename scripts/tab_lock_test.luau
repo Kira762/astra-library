@@ -254,14 +254,15 @@ eq(w3.sidebar.Size.X.Offset, 144, "L10 locking keeps the same rail width")
 near(premiumTab.topbarItemTitle.TextTransparency, 0.7, 0.05, "L10 the re-locked row keeps the gated floor")
 
 --[[
-A long locked name wraps clear of the badge: at the 300px cap the slot is
-270 - 20 - 26 - 19 = 224, while the short rows stay unconstrained.
+A long locked name wraps clear of the badge: at the 340px cap the row is
+329 wide and the slot is 329 - 20 - 26 - 19 = 264, while the short rows
+stay unconstrained.
 ]]
 local longLocked = w3:CreateTab({ name = "ThisLockedNameIsLongEnoughToCapTheRail", icon = "star", locked = true })
 TestPump(0.3)
-eq(w3.sidebar.Size.X.Offset, 300, "L10 very long locked name caps the rail")
+eq(w3.sidebar.Size.X.Offset, 340, "L10 very long locked name caps the rail")
 eq(longLocked.topbarItemTitle.AutomaticSize, Enum.AutomaticSize.Y, "L10 capped locked title wraps")
-eq(longLocked.topbarItemTitle.Size.X.Offset, 224, "L10 capped locked title holds the full title slot")
+eq(longLocked.topbarItemTitle.Size.X.Offset, 264, "L10 capped locked title holds the full title slot")
 eq(premiumTab.topbarItemTitle.AutomaticSize, Enum.AutomaticSize.XY, "L10 short locked title stays unconstrained")
 longLocked:Remove()
 TestPump(0.2)

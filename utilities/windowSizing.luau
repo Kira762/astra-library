@@ -31,15 +31,15 @@ local mobileBreakpoint = 700
 Fixed mobile footprint (per layout mode). Mobile no longer recomputes its
 window from live viewport occupancy: it opens at one stable size, so
 rotation / on-screen keyboard / inset changes never resize the window.
-Desktop/PC keeps the responsive profiles below: 600x420 default target,
+Desktop/PC keeps the responsive profiles below: 680x420 default target,
 responsive shrink on smaller screens, maxSize caps so large screens stay
 responsive without growing into an oversized window.
 ]]
 local profiles = {
 	sidebar = {
-		defaultSize = Vector2.new(600, 420),
-		minSize = Vector2.new(540, 360),
-		maxSize = Vector2.new(760, 500),
+		defaultSize = Vector2.new(680, 420),
+		minSize = Vector2.new(600, 360),
+		maxSize = Vector2.new(840, 500),
 		mobileSize = Vector2.new(560, 380),
 		maxOccupancyX = 0.92,
 		maxOccupancyY = 0.84,

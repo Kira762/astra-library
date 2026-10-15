@@ -698,7 +698,7 @@ needs to exist.
   `scripts/http_guard_test.luau`, `scripts/image_asset_guard_test.luau`
   plus loader-integrity cases 11–12.
 - `windowSizing.luau` — responsive size computation (desktop tiers around the
-  600x420 default, min/max protected) plus the fixed mobile profile returned
+  680x420 default, min/max protected) plus the fixed mobile profile returned
   for touch-only phone-sized viewports (`isMobileViewport`).
 - `enums.luau`, `ordering.luau`, `odometer.luau`, `fontManager.luau`, `functions.luau` (legacy shim), `path.luau` — small helpers.
 

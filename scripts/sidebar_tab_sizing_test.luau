@@ -68,8 +68,8 @@ local ROW_ICON = 20
 local ROW_SPACING = 6
 local ROW_HEIGHT = 38
 
--- Window is 600 wide at the 1920x1080 test viewport (windowSizing fit).
-local WINDOW_WIDE = 600
+-- Window is 680 wide at the 1920x1080 test viewport (windowSizing fit).
+local WINDOW_WIDE = 680
 local RAIL_CAP = math.floor(WINDOW_WIDE * 0.5) -- the window's available-space cap
 
 local function textW(text)

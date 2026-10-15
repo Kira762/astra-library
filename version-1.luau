@@ -28258,9 +28258,9 @@ local mobileBreakpoint = 700
 
 local profiles = {
 sidebar = {
-defaultSize = Vector2.new(600, 420),
-minSize = Vector2.new(540, 360),
-maxSize = Vector2.new(760, 500),
+defaultSize = Vector2.new(680, 420),
+minSize = Vector2.new(600, 360),
+maxSize = Vector2.new(840, 500),
 mobileSize = Vector2.new(560, 380),
 maxOccupancyX = 0.92,
 maxOccupancyY = 0.84,

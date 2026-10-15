@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-10-15 — the window opens 80px wider
+
+The desktop window's default width moves from 600 to 680 (height unchanged at
+420). The content area after the rail gains ~80px, which is where the extra
+room reads: dropdown option text, two-column groups and slider rows stop
+fighting for space. The resize bounds moved in concert with the default —
+the minimum width 540 → 600 and the responsive cap 760 → 840 — so the
+minimum/default/max relationship is unchanged and every height bound stays
+where it was. The fixed mobile profile (560x380) is untouched.
+
+- **`utilities/windowSizing.luau`** — `sidebar` profile: `defaultSize`
+  600x420 → 680x420, `minSize` 540x360 → 600x360, `maxSize` 760x500 →
+  840x500; the desktop-occupancy comment follows the new default.
+- **`scripts/sidebar_tab_sizing_test.luau`** — `WINDOW_WIDE` expectation
+  600 → 680 (the 1920x1080 test viewport now fits a 680-wide window).
+- **`MODULES.md`** — the `windowSizing` note names the new default.
+- **`version-1.luau`, `version-1.luau.sig`** — regenerated and re-signed (dev key
+  on this branch; CI re-signs with the production key on `main`, as usual).
+
 ## 2026-10-10 — the capsule's name never rides a shape that is moving
 
 Double-tapping the restore capsule folds the wide pill into the icon-only

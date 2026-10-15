@@ -58,11 +58,11 @@ local tab = window:CreateTab({ name = "Guard" })
 local callbacks = { button = 0, toggle = 0, input = 0, dropdown = 0 }
 
 -- 9 lockable + explicit Level 1 probe
-local link = tab:CreateLink({
+local link = tab:CreateInput({
 	name = "Help Link",
 	id = "helpLink",
 	usage = { "host:documentation", "analytics:read" },
-	link = "https://example.com/help",
+	value = "https://example.com/help",
 })
 local input = tab:CreateInput({
 	name = "Username",
@@ -105,7 +105,7 @@ local advancedSlider = tab:CreateSlider({
 	range = { 0, 100 },
 	value = 40,
 })
-local group = tab:CreateCollapsibleGroup({
+local group = tab:CreateAccordion({
 	name = "Expandable Group",
 	description = "Guard harness group.",
 	elements = {},
@@ -144,7 +144,7 @@ end
 eq(toggle.usageTag, "lockable:astra:createToggle", "toggle uses documented usage format")
 eq(input.usageTag, "lockable:astra:usernameInput", "input uses explicit id")
 eq(minorToggle.usageTag, "lockable:astra:minorToggle", "explicit Level 1 keeps explicit id")
-eq(link.lockLevel, 2, "Links default to standard tier (2)")
+eq(link.lockLevel, 2, "Help Link defaults to standard tier (2)")
 eq(input.lockLevel, 2, "Inputs default to standard tier (2)")
 eq(dropdown.lockLevel, 2, "Dropdowns default to standard tier (2)")
 eq(keybind.lockLevel, 2, "Keybinds default to standard tier (2)")
@@ -152,7 +152,7 @@ eq(toggle.lockLevel, 3, "Toggles default to important tier (3)")
 eq(saveButton.lockLevel, 3, "Buttons default to important tier (3)")
 eq(deleteButton.lockLevel, 4, "sensitive lockGroup maps to Level 4")
 eq(advancedSlider.lockLevel, 5, "explicit 5 deferred to Mode 5")
-eq(group.lockLevel, 5, "CollapsibleGroups default to remaining tier (5)")
+eq(group.lockLevel, 5, "Accordions default to remaining tier (5)")
 eq(minorToggle.lockLevel, 1, "explicit lockLevel=1 honored")
 expect(containsUsage(link.usage, "host:documentation"), "existing usage preserved (host:documentation)")
 expect(containsUsage(link.usage, "analytics:read"), "existing usage preserved (analytics:read)")
@@ -283,10 +283,11 @@ local rowToggle = rowActions:CreateToggle({
 	value = true,
 	callback = function() end,
 })
-local rowLink = rowActions:CreateLink({
+local rowLink = rowActions:CreateButton({
 	name = "Row link",
 	id = "rowLink",
-	link = "https://example.com",
+	lockLevel = 2,
+	callback = function() end,
 })
 TestPump(0.2)
 
@@ -381,8 +382,8 @@ local function assertCornerPair(element, label, wantExpanded)
 		eq(scrim.bottomRight, 8, label .. " collapsed scrim bottomRight 8")
 	end
 end
-assertCornerPair(group, "CollapsibleGroup", false)
-assertCornerPair(group, "CollapsibleGroup", true)
+assertCornerPair(group, "Accordion", false)
+assertCornerPair(group, "Accordion", true)
 -- leave collapsed
 group:_setExpanded(false, false)
 TestPump(0.1)

@@ -40,8 +40,8 @@ local function build()
 	local tab = window:CreateTab({ name = "Main" })
 	local controls = {
 		toggle = tab:CreateToggle({ name = "Feature", flag = "featureToggle", value = false }),
-		link = tab:CreateLink({ name = "Docs", id = "docsLink", link = "https://example.com" }),
-		group = tab:CreateCollapsibleGroup({
+		link = tab:CreateButton({ name = "Docs", id = "docsLink", callback = function() end }),
+		group = tab:CreateAccordion({
 			name = "Advanced",
 			elements = { { type = "Button", name = "Run", id = "runButton", callback = function() end } },
 		}),

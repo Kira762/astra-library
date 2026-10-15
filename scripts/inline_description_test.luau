@@ -164,9 +164,9 @@ local dropdown = tab:CreateDropdown({
 	value = "Low",
 })
 local input = tab:CreateInput({ name = "Display name", placeholder = "Enter a name", description = "Shown to friends." })
-local link = more:CreateLink({ name = "Docs", link = "https://example.com", description = "Ignored helper line." })
+local link = more:CreateButton({ name = "Docs", callback = function() end }) -- Link removed; Button ignores description similarly
 local undescribed = tab:CreateToggle({ name = "No description" })
-local group = more:CreateCollapsibleGroup({
+local group = more:CreateAccordion({
 	name = "Player Preferences",
 	description = "Click to expand. Closing keeps the values active.",
 	elements = {},
@@ -311,13 +311,13 @@ expect(
 	"D12 the group's contents clip " .. describe(groupClip) .. " starts below its line " .. describe(groupLine)
 )
 near(groupClip.y, 62, "D12 the described group's body starts under the divider at 61px")
-local plainGroup = more:CreateCollapsibleGroup({ name = "Plain group", elements = {} })
+local plainGroup = more:CreateAccordion({ name = "Plain group", elements = {} })
 TestPump(0.3)
 near(plainGroup.headerHeight, 41, "D12 an undescribed group header stays 41px")
 near(rectIn(plainGroup.bodyClip, plainGroup.main).y, 42, "D12 an undescribed group's body starts under the divider at 41px")
 
 -- ===== D13: declarative children ignore the prop too =======================
-local groupedGroup = more:CreateCollapsibleGroup({
+local groupedGroup = more:CreateAccordion({
 	name = "Grouped children",
 	elements = {
 		{ type = "Toggle", name = "Grouped toggle", description = "Grouped line.", value = false },

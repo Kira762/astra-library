@@ -20,7 +20,7 @@ Same for `headerCorner` metrics on header-based containers.
 - A lock surface (`lockSurface` or `main`) never hosts a flow layout. Layout-managed surfaces keep their flow on an **inner full-size content frame** (`Window:_buildCompactRow`'s `Content` frame), and the scrim stacks absolutely beside it.
 - `Window:_buildLockScrim` requires a layout-free surface (there is no console channel to warn through); `scripts/guard_invariants_test.luau` (section D) asserts every lockable's scrim parents to a layout-free surface, and section D2 pins the compact-row shape (content frame hosts the flow, row hosts the scrim) across Mode 5.
 
-The guard (`scripts/guard_invariants_test.luau`) snapshots `Position/Size/Parent` for **13 elements** — Button, Toggle, Slider, Input, Dropdown, Keybind, Link, CollapsibleGroup, Stat, Text, Divider, Section, Footer — and asserts equality across `SetElementLockMode(1)` ↔ `SetElementLockMode(5)`. Lockables also assert the scrim exists as an overlay:
+The guard (`scripts/guard_invariants_test.luau`) snapshots `Position/Size/Parent` for **13 elements** — Button, Toggle, Slider, Input, Dropdown, Keybind, Link, Accordion, Stat, Text, Divider, Section, Footer — and asserts equality across `SetElementLockMode(1)` ↔ `SetElementLockMode(5)`. Lockables also assert the scrim exists as an overlay:
 
 ```
 element.lockScrim.Visible == true at Mode 5 (after snap)
@@ -35,7 +35,7 @@ Why it matters: every element is a card in a scrolling list. Moving one card on 
 
 ## Corner sync — header-based containers
 
-`CollapsibleGroup` is a two-surface card. The **header band** carries the top corners; the body clipper carries the bottom. The constants are in each element:
+`Accordion` is a two-surface card. The **header band** carries the top corners; the body clipper carries the bottom. The constants are in each element:
 
 ```lua
 local bandCorners = {

@@ -85,6 +85,8 @@ export type WindowProps = types.WindowProps
 export type TabProps = types.TabProps
 export type SectionProps = types.SectionProps
 export type GroupProps = types.GroupProps
+export type AccordionProps = types.AccordionProps
+export type AccordionElementProps = types.AccordionElementProps
 export type CollapsibleGroupProps = types.CollapsibleGroupProps
 export type CollapsibleElementProps = types.CollapsibleElementProps
 export type ButtonProps = types.ButtonProps
@@ -106,6 +108,7 @@ export type Lockable = types.Lockable
 export type Window = types.Window
 export type Tab = types.Tab
 export type Group = types.Group
+export type Accordion = types.Accordion
 export type CollapsibleGroup = types.CollapsibleGroup
 export type Button = types.Button
 export type Toggle = types.Toggle
@@ -597,18 +600,22 @@ direction: string?, }
 
 
 
-export type CollapsibleElementProps = {
+export type AccordionElementProps = {
 type: "Button" | "Toggle" | "Switch" | "Slider" | "Dropdown" | "Input"
-| "Link" | "Stat" | "Section" | "Text" | "Footer" | "Changelog" | "Divider" | "Group",
-elements: { CollapsibleElementProps }?,
+| "Stat" | "Section" | "Text" | "Footer" | "Changelog" | "Divider" | "Group",
+elements: { AccordionElementProps }?,
 [string]: any,
 }
 
-export type CollapsibleGroupProps = LockableProps & {
+export type AccordionProps = LockableProps & {
 name: string?,
 icon: (string | number)?,
-elements: { CollapsibleElementProps }?,
+elements: { AccordionElementProps }?,
 }
+
+
+export type CollapsibleElementProps = AccordionElementProps
+export type CollapsibleGroupProps = AccordionProps
 
 export type ButtonProps = LockableProps & {
 name: string?,
@@ -725,16 +732,6 @@ changeMode: string?, changeBaseline: string?, numberEasing: boolean?,
 }
 
 
-
-
-
-export type LinkProps = LockableProps & {
-name: string?,
-subtitle: string?,
-link: string?,
-icon: (string | number)?,
-callback: ((link: string) -> ())?,
-}
 
 
 export type NotifyProps = {
@@ -868,20 +865,6 @@ export type Divider = Moveable & {
 text: string, Set: (self: Divider, text: string?) -> (),
 }
 
-export type Link = Moveable & Lockable & {
-
-link: string,
-Set: (self: Link, link: string) -> (),
-SetLink: (self: Link, link: string) -> (),
-SetTitle: (self: Link, title: string) -> (),
-SetSubtitle: (self: Link, subtitle: string) -> (),
-SetIcon: (self: Link, icon: (string | number)?) -> (),
-
-Copy: (self: Link) -> boolean,
-
-IsConfirming: (self: Link) -> boolean,
-}
-
 export type Popup = {
 Close: (self: Popup) -> (),
 }
@@ -898,16 +881,19 @@ CreateSection: (self: Group, props: SectionProps) -> Section?,
 CreateText: (self: Group, props: TextProps) -> Text?,
 CreateFooter: (self: Group, props: FooterProps?) -> Footer?,
 CreateDivider: (self: Group, props: DividerProps?) -> Divider?,
-CreateLink: (self: Group, props: LinkProps) -> Link,
 CreateGroup: (self: Group, props: GroupProps?) -> Group,
 }
 
-export type CollapsibleGroup = Moveable & Lockable & {
+export type Accordion = Moveable & Lockable & {
 elements: { any },
 }
 
+
+export type CollapsibleGroup = Accordion
+
 export type Tab = {
-CreateCollapsibleGroup: (self: Tab, props: CollapsibleGroupProps) -> CollapsibleGroup,
+CreateAccordion: (self: Tab, props: AccordionProps) -> Accordion,
+CreateCollapsibleGroup: (self: Tab, props: AccordionProps) -> Accordion,
 Select: (self: Tab, noAnimation: boolean?) -> (),
 Deselect: (self: Tab, noAnimation: boolean?) -> (),
 SetLocked: (self: Tab, locked: boolean) -> (),
@@ -919,7 +905,6 @@ CreateStepper: (self: Tab, props: StepperProps) -> Stepper,
 CreateDropdown: (self: Tab, props: DropdownProps) -> Dropdown,
 CreateKeybind: (self: Tab, props: KeybindProps) -> Keybind,
 CreateInput: (self: Tab, props: InputProps) -> Input,
-CreateLink: (self: Tab, props: LinkProps) -> Link,
 CreateStat: (self: Tab, props: StatProps) -> Stat,
 CreateSection: (self: Tab, props: SectionProps) -> Section,
 CreateText: (self: Tab, props: TextProps) -> Text,
@@ -5146,11 +5131,11 @@ local hoverTransparency = 0.2
 local surfaceTransparency = 0.9
 
 local function getElementText(element)
-if element.__type == "Group" or element.__type == "CollapsibleGroup" then
+if element.__type == "Group" or element.__type == "Accordion" or element.__type == "CollapsibleGroup" then
 local names = { element.name or "" }
 local function collectNames(group)
 for _, child in group.elements do
-if child.__type == "Group" or child.__type == "CollapsibleGroup" then
+if child.__type == "Group" or child.__type == "Accordion" or child.__type == "CollapsibleGroup" then
 collectNames(child)
 elseif child.name then
 table.insert(names, child.name)
@@ -5365,7 +5350,7 @@ order += 1
 local mainFrame = element.main
 table.insert(window._searchUnits, {
 unit = element,
-homeExpanded = if element.__type == "CollapsibleGroup" then element._expanded else nil,
+homeExpanded = if element.__type == "Accordion" or element.__type == "CollapsibleGroup" then element._expanded else nil,
 text = string.lower(getElementText(element)),
 homeParent = mainFrame.Parent,
 homeOrder = mainFrame.LayoutOrder,
@@ -5703,10 +5688,7 @@ about:CreateSection({ name = "Astra", icon = constants.icons.dot })
 about:CreateText({ name = "About", text = "UI Library for a better experience." })
 about:CreateStat({ name = "Version", value = aboutVersion, letter = false })
 about:CreateStat({ name = "Author", value = aboutAuthor, letter = false })
-about:CreateLink({
-name = "Repository", subtitle = "Docs, releases and issues", icon = "code",
-link = "https://github.com/Kira762/astra-library",
-})
+about:CreateText({ name = "Repository", text = "https://github.com/Kira762/astra-library" })
 end
 about._settingsContentBuilder = buildAbout
 
@@ -5747,7 +5729,7 @@ window:SetElementLockMode(if locked then 5 else 1)
 end,
 })
 
-general:CreateCollapsibleGroup({
+general:CreateAccordion({
 name = "Window Behavior",
 icon = "layout",
 elements = {
@@ -5907,7 +5889,7 @@ end
 appearance._settingsContentBuilder = buildAppearance
 
 local function buildPersistence()
-persistence:CreateCollapsibleGroup({
+persistence:CreateAccordion({
 name = "Auto Save & Load",
 icon = "save",
 elements = {
@@ -5956,7 +5938,7 @@ end
 end
 end
 
-local configGroup = persistence:CreateCollapsibleGroup({
+local configGroup = persistence:CreateAccordion({
 name = "Configurations",
 icon = constants.icons.config,
 elements = {
@@ -11362,6 +11344,461 @@ end
 
 end)() end,
     [34] = function()local wax,script,require=ImportGlobals(34)local ImportGlobals return (function(...)
+local utilities = script.Parent.Parent.utilities
+local motion = require(utilities.motion)
+local locale = require(utilities.locale)
+local haptic = require(utilities.HapticEngine)
+local moveable = require(utilities.moveable)
+local lockable = require(utilities.lockable)
+local ordering = require(utilities.ordering)
+
+local Accordion = {}
+Accordion.__index = Accordion
+Accordion.__type = "Accordion"
+
+
+
+
+
+local constructors = {
+Button = function(parent, props) return require(script.Parent.button).new(parent, props) end,
+Toggle = function(parent, props) return require(script.Parent.toggle).new(parent, props) end,
+Switch = function(parent, props) return require(script.Parent.toggle).new(parent, props) end,
+Slider = function(parent, props) return require(script.Parent.slider).new(parent, props) end,
+Stepper = function(parent, props) return require(script.Parent.stepper).new(parent, props) end,
+Dropdown = function(parent, props) return require(script.Parent.dropdown).new(parent, props) end,
+Keybind = function(parent, props) return require(script.Parent.keybind).new(parent, props) end,
+Input = function(parent, props) return require(script.Parent.input).new(parent, props) end,
+Stat = function(parent, props) return require(script.Parent.stat).new(parent, props) end,
+Section = function(parent, props) return require(script.Parent.section).new(parent, props) end,
+Text = function(parent, props) return require(script.Parent.text).new(parent, props) end,
+Footer = function(parent, props) return require(script.Parent.footer).new(parent, props) end,
+Changelog = function(parent, props) return require(script.Parent.changelog).new(parent, props) end,
+Divider = function(parent, props) return require(script.Parent.divider).new(parent, props) end,
+Group = function(parent, props) return require(script.Parent.group).new(parent, props) end,
+}
+local compactTypes = { Button = true, Toggle = true, Switch = true, Slider = true, Stepper = true, Stat = true, Group = true }
+
+
+
+
+
+
+
+
+local bandCorners = {
+expanded = { "TopLeftRadius", "TopRightRadius" },
+collapsed = { "TopLeftRadius", "TopRightRadius", "BottomLeftRadius", "BottomRightRadius" },
+}
+
+local function validate(definitions, path, ancestors, depth)
+assert(type(definitions) == "table", path .. " must be an array")
+assert(not ancestors[definitions] and depth <= 32, path .. ": cyclic or excessively deep group definitions")
+ancestors[definitions] = true
+local count = 0
+for key in pairs(definitions) do
+assert(type(key) == "number" and key >= 1 and key % 1 == 0, path .. " must be an array")
+count += 1
+end
+for index = 1, count do
+local spec = definitions[index]
+local location = path .. "[" .. index .. "]"
+assert(type(spec) == "table", location .. " must be an element definition")
+local kind = spec.type or spec.Type
+assert(kind ~= "Accordion" and kind ~= "CollapsibleGroup", location .. ": Accordions cannot be nested, including inside Groups")
+assert(constructors[kind], location .. ": unsupported element type " .. tostring(kind))
+if kind == "Group" then
+validate(spec.elements or {}, location .. ".elements", ancestors, depth + 1)
+else
+assert(spec.elements == nil, location .. ": only ordinary Groups can contain elements")
+end
+end
+ancestors[definitions] = nil
+end
+
+local function groupProps(spec)
+local props = table.clone(spec)
+
+
+
+
+for _, child in ipairs(spec.elements or {}) do
+if not compactTypes[child.type or child.Type] then
+props.direction = "column"
+break
+end
+end
+return props
+end
+
+local function buildChildren(parent, definitions)
+for _, spec in ipairs(definitions) do
+local kind = spec.type or spec.Type
+local child
+if parent.__type == "Group" then
+if kind == "Group" then
+child = parent:CreateGroup(groupProps(spec))
+else
+child = parent:_add(string.lower(kind), spec)
+end
+else
+child = constructors[kind](parent, if kind == "Group" then groupProps(spec) else spec)
+child._collapsibleChild = true
+table.insert(parent.elements, child)
+ordering(child, #parent.elements * 10)
+parent.window:_restoreLate(child)
+end
+if kind == "Group" then
+buildChildren(child, spec.elements or {})
+end
+parent.window:_constructionCheckpoint(false)
+end
+end
+
+local function visit(elements, callback)
+for _, child in ipairs(elements) do
+callback(child)
+if child.elements then visit(child.elements, callback) end
+end
+end
+
+function Accordion.new(tab, props)
+assert(tab and tab.__type == "Tab", "Accordions must be direct children of a Tab")
+props = if type(props) == "table" then props else {}
+validate(props.elements or {}, "Accordion.elements", {}, 0)
+local self = setmetatable({
+tab = tab, window = tab.window, elements = {}, connections = {},
+name = props.name or props.Name or "Accordion",
+icon = tab.window:ResolveIcon(props.icon or props.Icon),
+description = props.description or props.Description,
+deriveFlagFromName = tab.deriveFlagFromName,
+forgetState = props.forgetState or tab.forgetState,
+_expanded = false, _shown = false,
+}, Accordion)
+local w = self.window
+
+
+
+
+
+self.headerHeight = if self.description then 61 else 41
+
+
+
+
+
+
+
+self.bodyPad = 10
+self.main = w:Create("Frame", {
+Name = self.name, Size = UDim2.new(1, -20, 0, self.headerHeight),
+BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+BackgroundTransparency = 1, BorderSizePixel = 0,
+ClipsDescendants = true, Parent = tab.tabPage,
+}, { BackgroundTransparency = "ElementTransparency" })
+
+
+
+
+
+
+
+
+
+w:Create("UIGradient", { Rotation = 270, Parent = self.main }, { Color = "ElementGradient" })
+w:Create("UICorner", { Parent = self.main }, { CornerRadius = "ElementCornerRadius" })
+
+
+
+
+
+
+
+self.stroke = w:Create("UIStroke", {
+ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Transparency = 1, Parent = self.main,
+}, { Color = "ElementStroke", Transparency = "ElementStrokeTransparency" })
+self.headerSurface = w:Create("Frame", {
+Name = "HeaderSurface", Size = UDim2.new(1, 0, 0, self.headerHeight),
+BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
+}, { BackgroundTransparency = "ElementTransparency" })
+
+
+
+
+w:Create("UIGradient", { Rotation = 270, Parent = self.headerSurface }, { Color = "ElementGradient" })
+
+
+
+
+
+
+
+
+self.headerCorner = w:_roundCorners(self.headerSurface, { "TopLeftRadius", "TopRightRadius" }, "ElementCornerRadius")
+self:_fitHeaderCorners()
+self.divider = w:Create("Frame", {
+Name = "HeaderDivider", Position = UDim2.fromOffset(0, self.headerHeight),
+Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0,
+BackgroundTransparency = 1, Visible = false, Parent = self.main,
+}, { BackgroundColor3 = "ElementStroke", BackgroundTransparency = "ElementStrokeTransparency" })
+self.header = w:Create("Frame", {
+Name = "Header", Size = UDim2.new(1, 0, 0, self.headerHeight),
+BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
+})
+self.hoverOverlay = w:CreateHoverOverlay(self.header)
+
+
+
+
+local textX = if self.icon then 42 else 20
+if self.icon then
+self.iconLabel = w:Create("ImageLabel", {
+Image = self.icon, Position = UDim2.fromOffset(20, 12), Size = UDim2.fromOffset(16, 16),
+BackgroundTransparency = 1, ImageTransparency = 1, Parent = self.header,
+}, { ImageColor3 = "ContentColor" })
+end
+self.title = w:Create("TextLabel", {
+Text = locale.t(self.name), Position = UDim2.fromOffset(textX, 0),
+Size = UDim2.new(1, -(textX + 42), 0, 41), BackgroundTransparency = 1,
+TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+TextTransparency = 1, Parent = self.header,
+}, { TextColor3 = "TitlingColor", FontFace = "Font" })
+if self.description then
+self.descriptionLabel = w:Create("TextLabel", {
+Name = "Description",
+Text = locale.t(self.description), Position = UDim2.fromOffset(textX, 37),
+Size = UDim2.new(1, -(textX + 20), 0, 18), BackgroundTransparency = 1,
+TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+TextTransparency = 1, Parent = self.header,
+}, { TextColor3 = "ContentColor", FontFace = "Font" })
+end
+self.chevron = w:Create("ImageLabel", {
+Image = w:ResolveIcon("chevron-right"), Position = UDim2.new(1, -36, 0, 12),
+Size = UDim2.fromOffset(16, 16), BackgroundTransparency = 1,
+ImageTransparency = 1, Rotation = 0, Parent = self.header,
+}, { ImageColor3 = "ContentColor" })
+self.interact = w:Create("TextButton", {
+Text = "", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
+AutoButtonColor = false, ZIndex = 6, Parent = self.header,
+})
+
+
+
+
+
+
+
+
+self.bodyClip = w:Create("Frame", {
+Name = "ContentsClip",
+Position = UDim2.fromOffset(0, self.headerHeight + 1),
+Size = UDim2.new(1, 0, 1, -(self.headerHeight + 1)),
+BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+BackgroundTransparency = 1, BorderSizePixel = 0,
+ClipsDescendants = true, Visible = false, Parent = self.main,
+}, { BackgroundTransparency = "ElementTransparency" })
+
+
+
+
+
+
+w:Create("UIGradient", { Rotation = 270, Parent = self.bodyClip }, { Color = "WindowColor" })
+w:_roundCorners(self.bodyClip, { "BottomLeftRadius", "BottomRightRadius" }, "ElementCornerRadius")
+
+
+
+
+self.body = w:Create("Frame", {
+Name = "Contents", Position = UDim2.fromOffset(0, self.bodyPad),
+Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false, Parent = self.bodyClip,
+})
+self.tabPage = self.body
+self.contentLayout = w:Create("UIListLayout", {
+Padding = UDim.new(0, self.bodyPad), FillDirection = Enum.FillDirection.Vertical,
+HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder,
+Parent = self.body,
+})
+w:ConnectFor(self, self.contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+self:_resize(true)
+end)
+w:ConnectFor(self, self.interact.Activated, function()
+if self.locked or not w:_interactive() then return end
+haptic.click()
+self:_setExpanded(not self._expanded, true)
+end)
+w:_wireElementHover(self, { target = self.header, titleRestKey = "TitlingColor" })
+self.lockSurface = self.header
+buildChildren(self, props.elements or {})
+lockable.register(self, props)
+return self
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+function Accordion:_fitHeaderCorners()
+self.window:_setRoundedCorners(
+self.headerCorner,
+if self._expanded then bandCorners.expanded else bandCorners.collapsed,
+"ElementCornerRadius"
+)
+if self.lockScrimCorner then
+self.window:_setRoundedCorners(
+self.lockScrimCorner,
+if self._expanded then bandCorners.expanded else bandCorners.collapsed,
+"ElementCornerRadius"
+)
+end
+end
+
+function Accordion:_resize(animate)
+
+
+
+
+local measured = self.contentLayout.AbsoluteContentSize
+local contentHeight = if measured then measured.Y else 0
+local height = self.headerHeight
+if self._expanded then
+
+
+
+
+
+height += 1 + self.bodyPad + contentHeight + self.bodyPad
+end
+local size = UDim2.new(1, -20, 0, height)
+self._resizeRevision = (self._resizeRevision or 0) + 1
+local revision = self._resizeRevision
+local function finish()
+if self.window.unloaded or not self.main.Parent or self._resizeRevision ~= revision then
+return
+end
+if not self._expanded then
+self.body.Visible = false
+self.bodyClip.Visible = false
+self.divider.Visible = false
+end
+
+
+
+
+
+
+
+self:_fitHeaderCorners()
+end
+if animate and self._shown then
+
+
+
+
+
+
+local mainTween = motion.tween(self.main, { Size = size }, "snappy", finish)
+if not mainTween then finish() end
+else
+motion.cancel(self.main)
+self.main.Size = size
+finish()
+end
+end
+
+function Accordion:_setExpanded(expanded, animate)
+if self._expanded == expanded then return end
+self._expanded = expanded
+if expanded then
+
+
+
+
+
+self:_fitHeaderCorners()
+self.body.Visible = true
+self.bodyClip.Visible = true
+self.divider.Visible = true
+for _, child in ipairs(self.elements) do child:_setShown(self._shown, false) end
+else
+
+visit(self.elements, function(child)
+if child.__type == "Dropdown" and child._isOpen then child:_close() end
+if child.recording then child:_stopRecording() end
+if child.CancelCapture then child:CancelCapture() end
+if child.__type == "Input" then
+local ok, focused = pcall(function() return child.input:IsFocused() end)
+if ok and focused then
+
+
+
+
+child.input.Text = child.value
+child.input:ReleaseFocus()
+end
+end
+end)
+end
+local chevronProps = { Rotation = if expanded then 90 else 0 }
+if animate then
+motion.tween(self.chevron, chevronProps, "snappy")
+else
+motion.set(self.chevron, chevronProps)
+end
+self:_resize(animate)
+end
+
+function Accordion:_setShown(shown, animate)
+self._shown = shown
+local w = self.window
+w:_reveal(self.main, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
+w:_reveal(self.headerSurface, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
+w:_reveal(self.bodyClip, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
+w:_reveal(self.stroke, { Transparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
+w:_reveal(self.divider, { BackgroundTransparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
+w:_reveal(self.title, { TextTransparency = if shown then 0 else 1 }, animate)
+w:_reveal(self.chevron, { ImageTransparency = if shown then 0.4 else 1 }, animate)
+if self.iconLabel then w:_reveal(self.iconLabel, { ImageTransparency = if shown then 0 else 1 }, animate) end
+if self.descriptionLabel then
+w:_reveal(self.descriptionLabel, { TextTransparency = if shown then 0.45 else 1 }, animate)
+end
+if self._expanded then
+for _, child in ipairs(self.elements) do child:_setShown(shown, animate) end
+end
+self:_resize(false)
+end
+
+function Accordion:_refreshTheme()
+self:_setShown(self._shown, false)
+for _, child in ipairs(self.elements) do
+if child._refreshTheme then child:_refreshTheme() end
+end
+end
+
+function Accordion:_moveElement(element, index)
+local old = table.find(self.elements, element)
+if not old then return end
+table.remove(self.elements, old)
+table.insert(self.elements, math.clamp(index, 1, #self.elements + 1), element)
+for i, child in ipairs(self.elements) do ordering(child, i * 10) end
+end
+
+moveable(Accordion)
+lockable(Accordion)
+return Accordion
+
+end)() end,
+    [35] = function()local wax,script,require=ImportGlobals(35)local ImportGlobals return (function(...)
 
 
 
@@ -11450,7 +11887,7 @@ end
 return baseCard
 
 end)() end,
-    [35] = function()local wax,script,require=ImportGlobals(35)local ImportGlobals return (function(...)
+    [36] = function()local wax,script,require=ImportGlobals(36)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Button"
@@ -11679,7 +12116,7 @@ end
 return state
 
 end)() end,
-    [36] = function()local wax,script,require=ImportGlobals(36)local ImportGlobals return (function(...)
+    [37] = function()local wax,script,require=ImportGlobals(37)local ImportGlobals return (function(...)
 local Changelog = {}
 Changelog.__index = Changelog
 Changelog.__type = "Changelog"
@@ -12122,470 +12559,17 @@ moveable(Changelog)
 return Changelog
 
 end)() end,
-    [37] = function()local wax,script,require=ImportGlobals(37)local ImportGlobals return (function(...)
-local utilities = script.Parent.Parent.utilities
-local motion = require(utilities.motion)
-local locale = require(utilities.locale)
-local haptic = require(utilities.HapticEngine)
-local moveable = require(utilities.moveable)
-local lockable = require(utilities.lockable)
-local ordering = require(utilities.ordering)
+    [38] = function()local wax,script,require=ImportGlobals(38)local ImportGlobals return (function(...)
 
-local Collapsible = {}
-Collapsible.__index = Collapsible
-Collapsible.__type = "CollapsibleGroup"
 
+local Accordion = require(script.Parent.accordion)
 
 
 
-
-local constructors = {
-Button = function(parent, props) return require(script.Parent.button).new(parent, props) end,
-Toggle = function(parent, props) return require(script.Parent.toggle).new(parent, props) end,
-Switch = function(parent, props) return require(script.Parent.toggle).new(parent, props) end,
-Slider = function(parent, props) return require(script.Parent.slider).new(parent, props) end,
-Stepper = function(parent, props) return require(script.Parent.stepper).new(parent, props) end,
-Dropdown = function(parent, props) return require(script.Parent.dropdown).new(parent, props) end,
-Keybind = function(parent, props) return require(script.Parent.keybind).new(parent, props) end,
-Input = function(parent, props) return require(script.Parent.input).new(parent, props) end,
-Link = function(parent, props) return require(script.Parent.link).new(parent, props) end,
-Stat = function(parent, props) return require(script.Parent.stat).new(parent, props) end,
-Section = function(parent, props) return require(script.Parent.section).new(parent, props) end,
-Text = function(parent, props) return require(script.Parent.text).new(parent, props) end,
-Footer = function(parent, props) return require(script.Parent.footer).new(parent, props) end,
-Changelog = function(parent, props) return require(script.Parent.changelog).new(parent, props) end,
-Divider = function(parent, props) return require(script.Parent.divider).new(parent, props) end,
-Group = function(parent, props) return require(script.Parent.group).new(parent, props) end,
-}
-local compactTypes = { Button = true, Toggle = true, Switch = true, Slider = true, Stepper = true, Stat = true, Group = true, Link = true }
-
-
-
-
-
-
-
-
-local bandCorners = {
-expanded = { "TopLeftRadius", "TopRightRadius" },
-collapsed = { "TopLeftRadius", "TopRightRadius", "BottomLeftRadius", "BottomRightRadius" },
-}
-
-local function validate(definitions, path, ancestors, depth)
-assert(type(definitions) == "table", path .. " must be an array")
-assert(not ancestors[definitions] and depth <= 32, path .. ": cyclic or excessively deep group definitions")
-ancestors[definitions] = true
-local count = 0
-for key in pairs(definitions) do
-assert(type(key) == "number" and key >= 1 and key % 1 == 0, path .. " must be an array")
-count += 1
-end
-for index = 1, count do
-local spec = definitions[index]
-local location = path .. "[" .. index .. "]"
-assert(type(spec) == "table", location .. " must be an element definition")
-local kind = spec.type or spec.Type
-assert(kind ~= "CollapsibleGroup", location .. ": CollapsibleGroups cannot be nested, including inside Groups")
-assert(constructors[kind], location .. ": unsupported element type " .. tostring(kind))
-if kind == "Group" then
-validate(spec.elements or {}, location .. ".elements", ancestors, depth + 1)
-else
-assert(spec.elements == nil, location .. ": only ordinary Groups can contain elements")
-end
-end
-ancestors[definitions] = nil
-end
-
-local function groupProps(spec)
-local props = table.clone(spec)
-
-
-
-
-for _, child in ipairs(spec.elements or {}) do
-if not compactTypes[child.type or child.Type] then
-props.direction = "column"
-break
-end
-end
-return props
-end
-
-local function buildChildren(parent, definitions)
-for _, spec in ipairs(definitions) do
-local kind = spec.type or spec.Type
-local child
-if parent.__type == "Group" then
-if kind == "Group" then
-child = parent:CreateGroup(groupProps(spec))
-else
-child = parent:_add(string.lower(kind), spec)
-end
-else
-child = constructors[kind](parent, if kind == "Group" then groupProps(spec) else spec)
-child._collapsibleChild = true
-table.insert(parent.elements, child)
-ordering(child, #parent.elements * 10)
-parent.window:_restoreLate(child)
-end
-if kind == "Group" then
-buildChildren(child, spec.elements or {})
-end
-parent.window:_constructionCheckpoint(false)
-end
-end
-
-local function visit(elements, callback)
-for _, child in ipairs(elements) do
-callback(child)
-if child.elements then visit(child.elements, callback) end
-end
-end
-
-function Collapsible.new(tab, props)
-assert(tab and tab.__type == "Tab", "CollapsibleGroups must be direct children of a Tab")
-props = if type(props) == "table" then props else {}
-validate(props.elements or {}, "CollapsibleGroup.elements", {}, 0)
-local self = setmetatable({
-tab = tab, window = tab.window, elements = {}, connections = {},
-name = props.name or props.Name or "Collapsible Group",
-icon = tab.window:ResolveIcon(props.icon or props.Icon),
-description = props.description or props.Description,
-deriveFlagFromName = tab.deriveFlagFromName,
-forgetState = props.forgetState or tab.forgetState,
-_expanded = false, _shown = false,
-}, Collapsible)
-local w = self.window
-
-
-
-
-
-self.headerHeight = if self.description then 61 else 41
-
-
-
-
-
-
-
-self.bodyPad = 10
-self.main = w:Create("Frame", {
-Name = self.name, Size = UDim2.new(1, -20, 0, self.headerHeight),
-BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-BackgroundTransparency = 1, BorderSizePixel = 0,
-ClipsDescendants = true, Parent = tab.tabPage,
-}, { BackgroundTransparency = "ElementTransparency" })
-
-
-
-
-
-
-
-
-
-w:Create("UIGradient", { Rotation = 270, Parent = self.main }, { Color = "ElementGradient" })
-w:Create("UICorner", { Parent = self.main }, { CornerRadius = "ElementCornerRadius" })
-
-
-
-
-
-
-
-self.stroke = w:Create("UIStroke", {
-ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Transparency = 1, Parent = self.main,
-}, { Color = "ElementStroke", Transparency = "ElementStrokeTransparency" })
-self.headerSurface = w:Create("Frame", {
-Name = "HeaderSurface", Size = UDim2.new(1, 0, 0, self.headerHeight),
-BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
-}, { BackgroundTransparency = "ElementTransparency" })
-
-
-
-
-w:Create("UIGradient", { Rotation = 270, Parent = self.headerSurface }, { Color = "ElementGradient" })
-
-
-
-
-
-
-
-
-self.headerCorner = w:_roundCorners(self.headerSurface, { "TopLeftRadius", "TopRightRadius" }, "ElementCornerRadius")
-self:_fitHeaderCorners()
-self.divider = w:Create("Frame", {
-Name = "HeaderDivider", Position = UDim2.fromOffset(0, self.headerHeight),
-Size = UDim2.new(1, 0, 0, 1), BorderSizePixel = 0,
-BackgroundTransparency = 1, Visible = false, Parent = self.main,
-}, { BackgroundColor3 = "ElementStroke", BackgroundTransparency = "ElementStrokeTransparency" })
-self.header = w:Create("Frame", {
-Name = "Header", Size = UDim2.new(1, 0, 0, self.headerHeight),
-BackgroundTransparency = 1, BorderSizePixel = 0, Parent = self.main,
-})
-self.hoverOverlay = w:CreateHoverOverlay(self.header)
-
-
-
-
-local textX = if self.icon then 42 else 20
-if self.icon then
-self.iconLabel = w:Create("ImageLabel", {
-Image = self.icon, Position = UDim2.fromOffset(20, 12), Size = UDim2.fromOffset(16, 16),
-BackgroundTransparency = 1, ImageTransparency = 1, Parent = self.header,
-}, { ImageColor3 = "ContentColor" })
-end
-self.title = w:Create("TextLabel", {
-Text = locale.t(self.name), Position = UDim2.fromOffset(textX, 0),
-Size = UDim2.new(1, -(textX + 42), 0, 41), BackgroundTransparency = 1,
-TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
-TextTransparency = 1, Parent = self.header,
-}, { TextColor3 = "TitlingColor", FontFace = "Font" })
-if self.description then
-self.descriptionLabel = w:Create("TextLabel", {
-Name = "Description",
-Text = locale.t(self.description), Position = UDim2.fromOffset(textX, 37),
-Size = UDim2.new(1, -(textX + 20), 0, 18), BackgroundTransparency = 1,
-TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
-TextTransparency = 1, Parent = self.header,
-}, { TextColor3 = "ContentColor", FontFace = "Font" })
-end
-self.chevron = w:Create("ImageLabel", {
-Image = w:ResolveIcon("chevron-right"), Position = UDim2.new(1, -36, 0, 12),
-Size = UDim2.fromOffset(16, 16), BackgroundTransparency = 1,
-ImageTransparency = 1, Rotation = 0, Parent = self.header,
-}, { ImageColor3 = "ContentColor" })
-self.interact = w:Create("TextButton", {
-Text = "", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
-AutoButtonColor = false, ZIndex = 6, Parent = self.header,
-})
-
-
-
-
-
-
-
-
-self.bodyClip = w:Create("Frame", {
-Name = "ContentsClip",
-Position = UDim2.fromOffset(0, self.headerHeight + 1),
-Size = UDim2.new(1, 0, 1, -(self.headerHeight + 1)),
-BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-BackgroundTransparency = 1, BorderSizePixel = 0,
-ClipsDescendants = true, Visible = false, Parent = self.main,
-}, { BackgroundTransparency = "ElementTransparency" })
-
-
-
-
-
-
-w:Create("UIGradient", { Rotation = 270, Parent = self.bodyClip }, { Color = "WindowColor" })
-w:_roundCorners(self.bodyClip, { "BottomLeftRadius", "BottomRightRadius" }, "ElementCornerRadius")
-
-
-
-
-self.body = w:Create("Frame", {
-Name = "Contents", Position = UDim2.fromOffset(0, self.bodyPad),
-Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
-BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false, Parent = self.bodyClip,
-})
-self.tabPage = self.body
-self.contentLayout = w:Create("UIListLayout", {
-Padding = UDim.new(0, self.bodyPad), FillDirection = Enum.FillDirection.Vertical,
-HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder,
-Parent = self.body,
-})
-w:ConnectFor(self, self.contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-self:_resize(true)
-end)
-w:ConnectFor(self, self.interact.Activated, function()
-if self.locked or not w:_interactive() then return end
-haptic.click()
-self:_setExpanded(not self._expanded, true)
-end)
-w:_wireElementHover(self, { target = self.header, titleRestKey = "TitlingColor" })
-self.lockSurface = self.header
-buildChildren(self, props.elements or {})
-lockable.register(self, props)
-return self
-end
-
-
-
-
-
-
-
-
-
-
-
-
-
-function Collapsible:_fitHeaderCorners()
-self.window:_setRoundedCorners(
-self.headerCorner,
-if self._expanded then bandCorners.expanded else bandCorners.collapsed,
-"ElementCornerRadius"
-)
-if self.lockScrimCorner then
-self.window:_setRoundedCorners(
-self.lockScrimCorner,
-if self._expanded then bandCorners.expanded else bandCorners.collapsed,
-"ElementCornerRadius"
-)
-end
-end
-
-function Collapsible:_resize(animate)
-
-
-
-
-local measured = self.contentLayout.AbsoluteContentSize
-local contentHeight = if measured then measured.Y else 0
-local height = self.headerHeight
-if self._expanded then
-
-
-
-
-
-height += 1 + self.bodyPad + contentHeight + self.bodyPad
-end
-local size = UDim2.new(1, -20, 0, height)
-self._resizeRevision = (self._resizeRevision or 0) + 1
-local revision = self._resizeRevision
-local function finish()
-if self.window.unloaded or not self.main.Parent or self._resizeRevision ~= revision then
-return
-end
-if not self._expanded then
-self.body.Visible = false
-self.bodyClip.Visible = false
-self.divider.Visible = false
-end
-
-
-
-
-
-
-
-self:_fitHeaderCorners()
-end
-if animate and self._shown then
-
-
-
-
-
-
-local mainTween = motion.tween(self.main, { Size = size }, "snappy", finish)
-if not mainTween then finish() end
-else
-motion.cancel(self.main)
-self.main.Size = size
-finish()
-end
-end
-
-function Collapsible:_setExpanded(expanded, animate)
-if self._expanded == expanded then return end
-self._expanded = expanded
-if expanded then
-
-
-
-
-
-self:_fitHeaderCorners()
-self.body.Visible = true
-self.bodyClip.Visible = true
-self.divider.Visible = true
-for _, child in ipairs(self.elements) do child:_setShown(self._shown, false) end
-else
-
-visit(self.elements, function(child)
-if child.__type == "Dropdown" and child._isOpen then child:_close() end
-if child.recording then child:_stopRecording() end
-if child.CancelCapture then child:CancelCapture() end
-
-
-
-
-
-
-if child.__type == "Link" then child:_resetCopyState() end
-if child.__type == "Input" then
-local ok, focused = pcall(function() return child.input:IsFocused() end)
-if ok and focused then
-
-
-
-
-child.input.Text = child.value
-child.input:ReleaseFocus()
-end
-end
-end)
-end
-local chevronProps = { Rotation = if expanded then 90 else 0 }
-if animate then
-motion.tween(self.chevron, chevronProps, "snappy")
-else
-motion.set(self.chevron, chevronProps)
-end
-self:_resize(animate)
-end
-
-function Collapsible:_setShown(shown, animate)
-self._shown = shown
-local w = self.window
-w:_reveal(self.main, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
-w:_reveal(self.headerSurface, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
-w:_reveal(self.bodyClip, { BackgroundTransparency = if shown then w.theme.ElementTransparency or 0 else 1 }, animate)
-w:_reveal(self.stroke, { Transparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
-w:_reveal(self.divider, { BackgroundTransparency = if shown then w.theme.ElementStrokeTransparency else 1 }, animate)
-w:_reveal(self.title, { TextTransparency = if shown then 0 else 1 }, animate)
-w:_reveal(self.chevron, { ImageTransparency = if shown then 0.4 else 1 }, animate)
-if self.iconLabel then w:_reveal(self.iconLabel, { ImageTransparency = if shown then 0 else 1 }, animate) end
-if self.descriptionLabel then
-w:_reveal(self.descriptionLabel, { TextTransparency = if shown then 0.45 else 1 }, animate)
-end
-if self._expanded then
-for _, child in ipairs(self.elements) do child:_setShown(shown, animate) end
-end
-self:_resize(false)
-end
-
-function Collapsible:_refreshTheme()
-self:_setShown(self._shown, false)
-for _, child in ipairs(self.elements) do
-if child._refreshTheme then child:_refreshTheme() end
-end
-end
-
-function Collapsible:_moveElement(element, index)
-local old = table.find(self.elements, element)
-if not old then return end
-table.remove(self.elements, old)
-table.insert(self.elements, math.clamp(index, 1, #self.elements + 1), element)
-for i, child in ipairs(self.elements) do ordering(child, i * 10) end
-end
-
-moveable(Collapsible)
-lockable(Collapsible)
-return Collapsible
+return Accordion
 
 end)() end,
-    [38] = function()local wax,script,require=ImportGlobals(38)local ImportGlobals return (function(...)
+    [39] = function()local wax,script,require=ImportGlobals(39)local ImportGlobals return (function(...)
 
 
 
@@ -12742,7 +12726,7 @@ end
 return description
 
 end)() end,
-    [39] = function()local wax,script,require=ImportGlobals(39)local ImportGlobals return (function(...)
+    [40] = function()local wax,script,require=ImportGlobals(40)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Divider"
@@ -12887,7 +12871,7 @@ constants(state)
 return state
 
 end)() end,
-    [40] = function()local wax,script,require=ImportGlobals(40)local ImportGlobals return (function(...)
+    [41] = function()local wax,script,require=ImportGlobals(41)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Dropdown"
@@ -14551,7 +14535,7 @@ multiSelect(state)
 return state
 
 end)() end,
-    [41] = function()local wax,script,require=ImportGlobals(41)local ImportGlobals return (function(...)
+    [42] = function()local wax,script,require=ImportGlobals(42)local ImportGlobals return (function(...)
 
 
 
@@ -14799,7 +14783,7 @@ constants(state)
 return state
 
 end)() end,
-    [42] = function()local wax,script,require=ImportGlobals(42)local ImportGlobals return (function(...)
+    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Group"
@@ -14816,7 +14800,6 @@ switch = true,
 stat = true,
 slider = true,
 stepper = true,
-link = true,
 }
 
 function state.new(tab, element)
@@ -14896,7 +14879,7 @@ self:_reflowRow()
 local ownerTab = self.tab
 local contentsVisible = true
 while ownerTab.tab do
-if ownerTab.__type == "CollapsibleGroup" and not ownerTab._expanded then contentsVisible = false end
+if (ownerTab.__type == "Accordion" or ownerTab.__type == "CollapsibleGroup") and not ownerTab._expanded then contentsVisible = false end
 ownerTab = ownerTab.tab
 end
 if contentsVisible and not self.window.hidden and not self.window.minimised and self.window.selectedTab == ownerTab then
@@ -14975,10 +14958,6 @@ function state:CreateDivider(a25)
 return self:_add("divider", a25)
 end
 
-function state:CreateLink(a30)
-return self:_add("link", a30)
-end
-
 function state:_addGroup(a26)
 a26 = if typeof(a26) == "table" then table.clone(a26) else {}
 
@@ -15035,7 +15014,7 @@ constants(state)
 return state
 
 end)() end,
-    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)
+    [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)
 local state = {}
 state.__index = state
 state.__type = "Input"
@@ -15356,7 +15335,7 @@ end
 return state
 
 end)() end,
-    [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)
+    [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
 
 
 
@@ -15503,7 +15482,7 @@ return false
 end
 local owner = self.tab
 while owner do
-if owner.locked or (owner.__type == "CollapsibleGroup" and not owner._expanded) then
+if owner.locked or ((owner.__type == "Accordion" or owner.__type == "CollapsibleGroup") and not owner._expanded) then
 return false
 end
 if owner.__type == "Tab" then
@@ -15607,1058 +15586,6 @@ end
 moveable(Keybind)
 lockable(Keybind)
 return Keybind
-
-end)() end,
-    [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-local state = {}
-state.__index = state
-state.__type = "Link"
-
-local utilities = script.Parent.Parent.utilities
-
-local functions = require(script.Parent.Parent.functions)
-local coreState = require(script.Parent.Parent.core.state)
-local image = require(script.Parent.Parent.images.image)
-local haptic = require(utilities.HapticEngine)
-local locale = require(utilities.locale)
-local lockable = require(utilities.lockable)
-local moveable = require(utilities.moveable)
-
-
-
-
-
-
-
-local cardHeight = 56
-local cardHeightSingle = 43
-local titleSize = 16
-local subtitleSize = 14
-local titleHeight = 19
-local subtitleHeight = 16
-local lineGap = 1
-local iconSize = 16
-local iconGap = 10
-local gutter = 20
-
-
-
-
-
-
-
-local tapTarget = 26
-local contentInset = 70
-
-
-
-
-
-
-
-
-local rowPadding = 16
-local rowGap = 6
-
-
-
-
-
-local restingSubtitleTransparency = 0.45
-
-
-
-
-
-
-
-
-
-local restingGlyphTransparency = 0.5
-
-
-local confirmSeconds = 2
-
-
-
-
-
-
-
-
-
-
-
-local copyCandidates = { "copy", "clipboard", "clipboard-copy" }
-local checkCandidates = {
-"check",
-"check-check",
-"clipboard-check",
-"circle-check",
-"check-circle",
-"badge-check",
-}
-
-local function environment(): any
-
-
-
-
-
-
-
-
-if getfenv then
-local ok, env = pcall(function()
-return getfenv(1)
-end)
-if ok and type(env) == "table" then
-return env
-end
-end
-return _G
-end
-
-local function resolveGlyph(window, candidates): string?
-for _, name in ipairs(candidates) do
-local resolved = window:ResolveIcon(name)
-if resolved ~= nil and resolved ~= name and resolved ~= "" then
-return resolved
-end
-end
-return nil
-end
-
-
-
-
-
-
-
-
-local globalNames = { "setclipboard", "toclipboard", "setrbxclipboard", "set_clipboard" }
-local objectMethods = { "set", "Set", "copy", "Copy" }
-
-local function globalFunction(name: string): any
-local env = environment()
-if type(env) ~= "table" then
-return nil
-end
-local candidate = env[name]
-if typeof(candidate) == "function" then
-return candidate
-end
-return nil
-end
-
-local function clipboardWriter(): ((string) -> ())?
-for _, name in ipairs(globalNames) do
-local fn = globalFunction(name)
-if fn then
-return function(text: string)
-return fn(text)
-end
-end
-end
-
-
-local env = environment()
-if type(env) == "table" then
-local clipboard = env.Clipboard
-if typeof(clipboard) == "table" then
-for _, name in ipairs(objectMethods) do
-local method = clipboard[name]
-if typeof(method) == "function" then
-return function(text: string)
-return method(clipboard, text)
-end
-end
-end
-end
-end
-
-
-local ok, studioService = pcall(function()
-return (game :: any):GetService("StudioService")
-end)
-if ok and studioService and typeof(studioService.CopyToClipboard) == "function" then
-return function(text: string)
-return studioService:CopyToClipboard(text)
-end
-end
-
-return nil
-end
-
-function state.new(tab, element)
-element = if typeof(element) == "table" then element else {}
-
-local self = setmetatable({
-tab = assert(tab, "Missing argument #1 (Tab expected)"),
-window = tab.window,
-name = tostring(element.name or element.Name or "Link"),
-subtitle = tostring(element.subtitle or element.Subtitle or ""),
-
-link = tostring(element.link or element.Link or ""),
-icon = tab.window:ResolveIcon(element.icon or element.Icon),
-callback = element.callback or element.Callback,
-compact = tab.compact or false,
-
-
-
-
-
-_glyph = "copy",
-_copyToken = 0,
-
-_pressCanvas = nil,
-
-_pressGuard = nil,
-}, state)
-
-self.copyImage = resolveGlyph(self.window, copyCandidates)
-self.checkImage = resolveGlyph(self.window, checkCandidates)
-
-if self.compact then
-self:_buildCompact()
-else
-self:_buildFull()
-end
-
-lockable.register(self, element)
-return self
-end
-
-function state:_contentHeight(): number
-return if self.subtitle ~= "" then titleHeight + lineGap + subtitleHeight else titleHeight
-end
-
-function state:_baseHeight(): number
-return if self.subtitle ~= "" then cardHeight else cardHeightSingle
-end
-
-
-
-
-
-
-
-function state:_layoutContent()
-if self.compact then
-return
-end
-
-local base = self:_baseHeight()
-self.main.Size = UDim2.new(1, -20, 0, base)
-if self.container then
-self.container.Position = UDim2.new(0, gutter, 0.5, 0)
-end
-if self.copyButton then
-self.copyButton.Position = UDim2.new(1, -gutter, 0.5, 0)
-end
-end
-
-function state:_buildFull()
-local window = self.window
-
-self.main = window:Create("Frame", {
-Name = self.name,
-Size = UDim2.new(1, -20, 0, self:_baseHeight()),
-BorderSizePixel = 0,
-BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-BackgroundTransparency = 1,
-Parent = self.tab.tabPage,
-}, { BackgroundTransparency = "ElementTransparency" })
-
-self.stroke = window:StyleElementBody(self.main)
-self.hoverOverlay = window:CreateHoverOverlay(self.main)
-
-self.container = window:Create("Frame", {
-Name = "Content",
-Size = UDim2.new(1, -contentInset, 0, self:_contentHeight()),
-Position = UDim2.new(0, gutter, 0.5, 0),
-AnchorPoint = Vector2.new(0, 0.5),
-BorderSizePixel = 0,
-BackgroundTransparency = 1,
-Parent = self.main,
-})
-
-
-
-
-
-
-window:Create("UIListLayout", {
-FillDirection = Enum.FillDirection.Horizontal,
-Padding = UDim.new(0, iconGap),
-SortOrder = Enum.SortOrder.LayoutOrder,
-VerticalAlignment = Enum.VerticalAlignment.Center,
-HorizontalAlignment = Enum.HorizontalAlignment.Left,
-Parent = self.container,
-})
-
-
-
-
-
-
-self.iconLabel = window:Create("ImageLabel", {
-Image = self.icon or "",
-Size = UDim2.fromOffset(iconSize, iconSize),
-BorderSizePixel = 0,
-BackgroundTransparency = 1,
-LayoutOrder = 0,
-Visible = self.icon ~= nil,
-ImageTransparency = 1,
-Parent = self.container,
-}, { ImageColor3 = "ContentColor" })
-
-local textWidthOffset = if self.icon then -(iconSize + iconGap) else 0
-
-self.textColumn = window:Create("Frame", {
-Name = "Text",
-Size = UDim2.new(1, textWidthOffset, 0, self:_contentHeight()),
-BorderSizePixel = 0,
-BackgroundTransparency = 1,
-LayoutOrder = 1,
-Parent = self.container,
-})
-
-window:Create("UIListLayout", {
-Padding = UDim.new(0, lineGap),
-SortOrder = Enum.SortOrder.LayoutOrder,
-VerticalAlignment = Enum.VerticalAlignment.Center,
-Parent = self.textColumn,
-})
-
-self.title = window:Create("TextLabel", {
-Text = locale.t(self.name),
-Size = UDim2.new(1, 0, 0, titleHeight),
-AutomaticSize = Enum.AutomaticSize.None,
-BorderSizePixel = 0,
-BackgroundTransparency = 1,
-TextSize = titleSize,
-TextXAlignment = Enum.TextXAlignment.Left,
-TextTruncate = Enum.TextTruncate.AtEnd,
-LayoutOrder = 1,
-TextTransparency = 1,
-Parent = self.textColumn,
-}, { TextColor3 = "TitlingColor", FontFace = "Font" })
-
-self.subtitleLabel = window:Create("TextLabel", {
-Text = locale.t(self.subtitle),
-Size = UDim2.new(1, 0, 0, subtitleHeight),
-AutomaticSize = Enum.AutomaticSize.None,
-BorderSizePixel = 0,
-BackgroundTransparency = 1,
-TextSize = subtitleSize,
-TextXAlignment = Enum.TextXAlignment.Left,
-TextTruncate = Enum.TextTruncate.AtEnd,
-LayoutOrder = 2,
-Visible = self.subtitle ~= "",
-TextTransparency = 1,
-Parent = self.textColumn,
-}, { TextColor3 = "ContentColor", FontFace = "Font" })
-
-self:_buildCopyControl(self.main, {
-Position = UDim2.new(1, -gutter, 0.5, 0),
-AnchorPoint = Vector2.new(1, 0.5),
-})
-
-window:_wireElementHover(self, { titleRestKey = "TitlingColor" })
-end
-
-function state:_buildCompact()
-local window = self.window
-
-self.main, self.stroke, self.interact = window:_buildCompactRow(self.tab, self.name)
-self.hoverOverlay = self.interact
-
-window:Create("UIPadding", {
-PaddingLeft = UDim.new(0, 16),
-PaddingRight = UDim.new(0, 16),
-Parent = self.interact,
-})
-
-window:Create("UIListLayout", {
-SortOrder = Enum.SortOrder.LayoutOrder,
-FillDirection = Enum.FillDirection.Horizontal,
-VerticalAlignment = Enum.VerticalAlignment.Center,
-HorizontalAlignment = Enum.HorizontalAlignment.Center,
-Padding = UDim.new(0, 6),
-Parent = self.interact,
-})
-
-self.iconLabel = window:Create("ImageLabel", {
-Image = self.icon or "",
-Size = UDim2.fromOffset(iconSize, iconSize),
-BorderSizePixel = 0,
-BackgroundTransparency = 1,
-LayoutOrder = 0,
-Visible = self.icon ~= nil,
-ImageTransparency = 1,
-Parent = self.interact,
-}, { ImageColor3 = "ContentColor" })
-
-self.title = window:Create("TextLabel", {
-Text = locale.t(self.name),
-Size = UDim2.fromOffset(0, titleHeight),
-AutomaticSize = Enum.AutomaticSize.X,
-BorderSizePixel = 0,
-BackgroundTransparency = 1,
-TextSize = titleSize,
-TextXAlignment = Enum.TextXAlignment.Left,
-TextTruncate = Enum.TextTruncate.AtEnd,
-LayoutOrder = 1,
-TextTransparency = 1,
-Parent = self.interact,
-}, { TextColor3 = "TitlingColor", FontFace = "Font" })
-
-window:Create("UIFlexItem", {
-FlexMode = Enum.UIFlexMode.Shrink,
-Parent = self.title,
-})
-
-
-
-
-
-
-self.subtitleLabel = window:Create("TextLabel", {
-Text = locale.t(self.subtitle),
-Size = UDim2.fromOffset(0, subtitleHeight),
-AutomaticSize = Enum.AutomaticSize.X,
-BorderSizePixel = 0,
-BackgroundTransparency = 1,
-TextSize = subtitleSize,
-TextXAlignment = Enum.TextXAlignment.Left,
-TextTruncate = Enum.TextTruncate.AtEnd,
-LayoutOrder = 2,
-Visible = self.subtitle ~= "",
-TextTransparency = 1,
-Parent = self.interact,
-}, { TextColor3 = "ContentColor", FontFace = "Font" })
-
-window:Create("UIFlexItem", {
-FlexMode = Enum.UIFlexMode.Shrink,
-Parent = self.subtitleLabel,
-})
-
-self:_buildCopyControl(self.interact, { LayoutOrder = 3 })
-
-window:_wireElementHover(self, { titleRestKey = "TitlingColor" })
-end
-
-
-
-
-
-
-
-function state:_buildCopyControl(parent, placement)
-local window = self.window
-
-
-
-
-
-
-
-local props = {
-Name = "Copy",
-Text = "",
-AutoButtonColor = false,
-
-
-
-
-
-
-
-
-Selectable = false,
-BackgroundTransparency = 1,
-BorderSizePixel = 0,
-Size = UDim2.fromOffset(tapTarget, tapTarget),
-ZIndex = 4,
-Parent = parent,
-}
-for key, value in placement do
-props[key] = value
-end
-
-self.copyButton = window:Create("TextButton", props)
-
-self.tapIcon = window:Create("ImageLabel", {
-Name = "CopyIcon",
-Image = self.copyImage or "",
-Size = UDim2.fromOffset(iconSize, iconSize),
-Position = UDim2.fromScale(0.5, 0.5),
-AnchorPoint = Vector2.new(0.5, 0.5),
-BorderSizePixel = 0,
-BackgroundTransparency = 1,
-ImageTransparency = 1,
-Parent = self.copyButton,
-}, { ImageColor3 = "ContentColor" })
-
-window:ConnectFor(self, self.copyButton.MouseButton1Click, function()
-self:_copy()
-end)
-
-self:_pinPressToCanvas()
-end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-function state:_pinPressToCanvas()
-local window = self.window
-if not self.copyButton then
-return
-end
-
-
-
-
-
-
-
-
-
-
-local page: any = self.copyButton
-while page and not page:IsA("ScrollingFrame") do
-page = page.Parent
-end
-
-if not page then
-return
-end
-
-
-
-
-
-
-local postReleaseFrames = 30
-
-local function isPress(input)
-local kind = if input ~= nil then input.UserInputType else nil
-return kind == Enum.UserInputType.MouseButton1 or kind == Enum.UserInputType.Touch
-end
-
-
-local function writable()
-return not self.window.unloaded and page.Parent ~= nil
-end
-
-local canvasGuard = nil
-local frameGuard = nil
-
-local function dropWatchers()
-local stale = {}
-if canvasGuard then
-table.insert(stale, canvasGuard)
-canvasGuard = nil
-end
-if frameGuard then
-table.insert(stale, frameGuard)
-frameGuard = nil
-end
-if #stale > 0 then
-window:DisconnectMany(self, stale)
-end
-end
-
-
-
-
-
-local function pinTarget()
-if self._pressCanvas then
-return self._pressCanvas
-end
-if self._pinSnapshot then
-return self._pinSnapshot
-end
-return nil
-end
-
-local function endGesture()
-self._pressCanvas = nil
-self._pinSnapshot = nil
-self._pinFrames = nil
-dropWatchers()
-end
-
-local function ensureCanvasGuard()
-if canvasGuard then
-return
-end
-canvasGuard = window:ConnectFor(self, page:GetPropertyChangedSignal("CanvasPosition"), function()
-local target = pinTarget()
-if not target or not writable() then
-endGesture()
-return
-end
-local now = page.CanvasPosition
-if now.X ~= target.X or now.Y ~= target.Y then
-
-
-self._pressMoved = true
-page.CanvasPosition = target
-end
-end)
-end
-
-local function ensureFrameGuard()
-if frameGuard then
-return
-end
-frameGuard = window:ConnectFor(self, coreState.runService.Heartbeat, function()
-if self._pressCanvas or not self._pinSnapshot then
-return
-end
-self._pinFrames = (self._pinFrames or 0) - 1
-if self._pinFrames <= 0 then
-endGesture()
-end
-end)
-end
-
-
-
-
-
-local function settle(openWindow: boolean?)
-local held = self._pressCanvas
-local moved = self._pressMoved == true
-self._pressCanvas = nil
-self._pressMoved = nil
-if not writable() then
-endGesture()
-return
-end
-if held then
-local now = page.CanvasPosition
-if now.X ~= held.X or now.Y ~= held.Y then
-page.CanvasPosition = held
-end
-if openWindow ~= false and moved then
-self._pinSnapshot = held
-self._pinFrames = postReleaseFrames
-ensureCanvasGuard()
-ensureFrameGuard()
-else
-endGesture()
-end
-elseif openWindow == false or not self._pinSnapshot then
-endGesture()
-end
-end
-
-
-
-self.CancelCapture = function()
-if self._pressCanvas then
-settle(false)
-end
-end
-
-local function hold()
-if self.locked or not window:_interactive() or self._pressCanvas then
-return
-end
-
-self._pinSnapshot = nil
-self._pinFrames = nil
-self._pressMoved = nil
-self._pressCanvas = page.CanvasPosition
-ensureCanvasGuard()
-end
-
-window:ConnectFor(self, self.copyButton.InputBegan, function(input)
-if not isPress(input) then
-return
-end
-hold()
-end)
-
-window:ConnectFor(self, self.copyButton.InputEnded, function(input)
-if not isPress(input) then
-return
-end
-settle()
-end)
-
-
-window:ConnectFor(self, self.copyButton.MouseButton1Click, function()
-settle()
-end)
-
-
-
-
-
-
-window:ConnectFor(self, coreState.userInputService.InputEnded, function(input)
-if not isPress(input) then
-return
-end
-settle()
-end)
-
-
-
-
-
-
-window:ConnectFor(self, coreState.userInputService.InputBegan, function(input)
-if not isPress(input) then
-return
-end
-if self._pressCanvas then
-return
-end
-endGesture()
-end)
-
-
-window:ConnectFor(self, coreState.userInputService.InputChanged, function(input)
-if input == nil or input.UserInputType ~= Enum.UserInputType.MouseWheel then
-return
-end
-if self._pressCanvas then
-return
-end
-endGesture()
-end)
-
-window:ConnectFor(self, coreState.userInputService.WindowFocusReleased, function()
-settle(false)
-end)
-end
-
-function state:_copy(): boolean
-if self.locked or not self.window:_interactive() then
-return false
-end
-
-
-
-
-
-
-
-
-if self.link == "" then
-self:_reportNothingToCopy()
-return false
-end
-
-local writer = clipboardWriter()
-if not writer then
-self:_reportUnavailable()
-return false
-end
-
-
-
-
-
-
-local ok, written = pcall(writer, self.link)
-if not ok or written == false then
-self:_reportUnavailable()
-return false
-end
-
-
-
-
-
-
-haptic.click()
-
-self:_confirm()
-
-if self.callback then
-self.window:_runGuarded(self, self.callback, self.link)
-end
-
-return true
-end
-
-
-
-
-
-
-
-function state:_confirm()
-if not self.tapIcon or not self.checkImage then
-return
-end
-
-self._copyToken += 1
-local token = self._copyToken
-self:_showGlyph("check")
-
-task.delay(confirmSeconds, function()
-if self._copyToken ~= token or self.window.unloaded then
-return
-end
-
-
-
-
-
-if not self:_alive() then
-return
-end
-self:_resetCopyState()
-end)
-end
-
-
-
-
-
-
-function state:_alive(): boolean
-local main = self.main
-if main == nil or self.tab.tabPage == nil then
-return false
-end
-return main.Parent ~= nil
-end
-
-function state:_resetCopyState()
-self._copyToken += 1
-self:_showGlyph("copy")
-end
-
-
-
-
-
-
-
-
-function state:_showGlyph(which)
-if not self.tapIcon then
-return
-end
-
-self._glyph = which
-local source = if which == "check" then self.checkImage else self.copyImage
-image.assign(self.tapIcon, "Image", source or "")
-end
-
-function state:IsConfirming(): boolean
-return self._glyph == "check"
-end
-
-
-
-
-
-
-
-function state:_reportUnavailable()
-self.window:Notify({
-title = locale.resolve("Copy failed"),
-content = locale.resolve("This environment has no clipboard API."),
-icon = "clipboard-x",
-duration = 3,
-})
-end
-
-
-
-
-
-
-function state:_reportNothingToCopy()
-self.window:Notify({
-title = locale.resolve("Nothing to copy"),
-content = locale.resolve("This link card has no URL."),
-icon = "unlink",
-duration = 3,
-})
-end
-
-function state:_applyPresence()
-local hasSubtitle = self.subtitle ~= ""
-if self.subtitleLabel then
-self.subtitleLabel.Visible = hasSubtitle
-end
-if self.container then
-self.container.Size = UDim2.new(1, -contentInset, 0, self:_contentHeight())
-end
-if self.textColumn then
-local offset = if self.icon then -(iconSize + iconGap) else 0
-self.textColumn.Size = UDim2.new(1, offset, 0, self:_contentHeight())
-end
-
-
-
-
-self:_layoutContent()
-end
-
-function state:Set(link)
-self.link = if link ~= nil then tostring(link) else ""
-end
-
-function state:SetLink(link)
-return self:Set(link)
-end
-
-function state:SetTitle(text)
-self.name = if text ~= nil then tostring(text) else ""
-self.window:_bindLocale(self.title, "Text", self.name)
-end
-
-function state:SetSubtitle(text)
-self.subtitle = if text ~= nil then tostring(text) else ""
-self.window:_bindLocale(self.subtitleLabel, "Text", self.subtitle)
-self:_applyPresence()
-end
-
-function state:SetIcon(icon)
-local resolved = self.window:ResolveIcon(icon)
-self.icon = resolved
-
-if self.iconLabel then
-image.assign(self.iconLabel, "Image", resolved or "")
-self.iconLabel.Visible = resolved ~= nil
-end
-
-if self.textColumn then
-local offset = if resolved then -(iconSize + iconGap) else 0
-self.textColumn.Size = UDim2.new(1, offset, 0, self:_contentHeight())
-end
-end
-
-
-
-
-
-function state:Copy(): boolean
-return self:_copy()
-end
-
-function state:_setShown(shown, animate)
-
-
-
-
-
-
-
-self.window:_reveal(self.tapIcon, { ImageTransparency = if shown then restingGlyphTransparency else 1 }, animate)
-
-if shown then
-self.window:_revealCommon(self, animate)
-self.window:_reveal(self.subtitleLabel, { TextTransparency = restingSubtitleTransparency }, animate)
-
-
-
-
-
-
-
-
-if self._glyph ~= "copy" then
-self:_resetCopyState()
-end
-else
-self.window:_hideCommon(self, animate)
-self.window:_reveal(self.subtitleLabel, { TextTransparency = 1 }, animate)
-
-
-
-
-
-self:_resetCopyState()
-end
-end
-
-
-
-
-
-
-
-
-
-
-function state:_minWidth()
-local font = self.window.theme.Font
-local width = rowPadding * 2
-if self.icon then
-width += iconSize + rowGap
-end
-width += functions.textWidth(font, titleSize, locale.resolve(self.name))
-if self.subtitle ~= "" then
-width += rowGap + functions.textWidth(font, subtitleSize, locale.resolve(self.subtitle))
-end
-width += rowGap + tapTarget
-return width
-end
-
-moveable(state)
-lockable(state)
-
-return state
 
 end)() end,
     [46] = function()local wax,script,require=ImportGlobals(46)local ImportGlobals return (function(...)
@@ -18834,7 +17761,7 @@ if window._elementLockAllToggle == element then
 window._elementLockAllToggle = nil
 end
 window:_unregisterLockableElement(element)
-if element.__type == "Group" or element.__type == "CollapsibleGroup" then
+if element.__type == "Group" or element.__type == "Accordion" or element.__type == "CollapsibleGroup" then
 customOrder(window, element.elements)
 else
 window:_unregisterControl(element)
@@ -19298,12 +18225,12 @@ function state:CreateInput(a38)
 return self:_register(require(script.Parent.input).new(self, a38))
 end
 
-function state:CreateLink(a40)
-return self:_register(require(script.Parent.link).new(self, a40))
+function state:CreateAccordion(props)
+return self:_register(require(script.Parent.accordion).new(self, props))
 end
 
 function state:CreateCollapsibleGroup(props)
-return self:_register(require(script.Parent.collapsibleGroup).new(self, props))
+return self:CreateAccordion(props)
 end
 
 function state:CreateGroup(a41)
@@ -28403,117 +27330,117 @@ end)() end,
 
 local LineOffsets = {
     [2] = 52,
-    [3] = 502,
-    [5] = 1142,
-    [6] = 1125,
-    [7] = 1292,
-    [8] = 1438,
-    [9] = 1847,
-    [10] = 2229,
-    [11] = 3611,
-    [12] = 4020,
-    [13] = 4376,
-    [14] = 5118,
-    [15] = 5649,
-    [16] = 6193,
-    [17] = 6256,
-    [18] = 6841,
-    [19] = 7187,
-    [20] = 7201,
-    [21] = 7301,
-    [22] = 7441,
-    [23] = 7995,
-    [24] = 8238,
-    [25] = 8560,
-    [26] = 8660,
-    [27] = 8714,
-    [28] = 9356,
-    [29] = 9604,
-    [30] = 9954,
-    [31] = 10401,
-    [32] = 7161,
-    [34] = 11365,
-    [35] = 11454,
-    [36] = 11683,
-    [37] = 12126,
-    [38] = 12589,
-    [39] = 12746,
-    [40] = 12891,
-    [41] = 14555,
-    [42] = 14803,
-    [43] = 15039,
-    [44] = 15360,
-    [45] = 15613,
-    [46] = 16665,
-    [47] = 16751,
-    [48] = 17354,
-    [49] = 18221,
-    [50] = 18815,
-    [51] = 19386,
-    [52] = 19512,
-    [53] = 19651,
-    [55] = 20166,
-    [56] = 20192,
-    [57] = 20211,
-    [58] = 20243,
-    [59] = 20369,
-    [60] = 20383,
-    [61] = 20432,
-    [62] = 20141,
-    [63] = 20523,
-    [64] = 20867,
-    [65] = 20898,
-    [66] = 20512,
-    [67] = 20941,
-    [68] = 20961,
-    [69] = 20993,
-    [70] = 20923,
-    [71] = 21100,
-    [72] = 21168,
-    [74] = 21258,
-    [75] = 21235,
-    [76] = 21478,
-    [77] = 21574,
-    [78] = 21425,
-    [79] = 22127,
-    [80] = 22173,
-    [81] = 22255,
-    [82] = 22450,
-    [83] = 22581,
-    [84] = 22684,
-    [85] = 22853,
-    [86] = 23193,
-    [87] = 21599,
-    [88] = 23834,
-    [89] = 23723,
-    [90] = 23973,
-    [91] = 24071,
-    [92] = 24262,
-    [93] = 24324,
-    [94] = 24354,
-    [95] = 24648,
-    [96] = 24697,
-    [97] = 25096,
-    [98] = 25114,
-    [99] = 25219,
-    [100] = 25426,
-    [101] = 26067,
-    [102] = 26087,
-    [103] = 26215,
-    [104] = 26313,
-    [105] = 26542,
-    [106] = 27015,
-    [107] = 27051,
-    [108] = 27213,
-    [109] = 27573,
-    [110] = 27585,
-    [111] = 27636,
-    [112] = 27655,
-    [113] = 27938,
-    [114] = 27982,
-    [115] = 28183,
-    [116] = 28211,
-    [117] = 28222,
+    [3] = 505,
+    [5] = 1127,
+    [6] = 1110,
+    [7] = 1277,
+    [8] = 1423,
+    [9] = 1832,
+    [10] = 2214,
+    [11] = 3596,
+    [12] = 4005,
+    [13] = 4361,
+    [14] = 5103,
+    [15] = 5634,
+    [16] = 6175,
+    [17] = 6238,
+    [18] = 6823,
+    [19] = 7169,
+    [20] = 7183,
+    [21] = 7283,
+    [22] = 7423,
+    [23] = 7977,
+    [24] = 8220,
+    [25] = 8542,
+    [26] = 8642,
+    [27] = 8696,
+    [28] = 9338,
+    [29] = 9586,
+    [30] = 9936,
+    [31] = 10383,
+    [32] = 7143,
+    [34] = 11347,
+    [35] = 11802,
+    [36] = 11891,
+    [37] = 12120,
+    [38] = 12563,
+    [39] = 12573,
+    [40] = 12730,
+    [41] = 12875,
+    [42] = 14539,
+    [43] = 14787,
+    [44] = 15018,
+    [45] = 15339,
+    [46] = 15592,
+    [47] = 15678,
+    [48] = 16281,
+    [49] = 17148,
+    [50] = 17742,
+    [51] = 18313,
+    [52] = 18439,
+    [53] = 18578,
+    [55] = 19093,
+    [56] = 19119,
+    [57] = 19138,
+    [58] = 19170,
+    [59] = 19296,
+    [60] = 19310,
+    [61] = 19359,
+    [62] = 19068,
+    [63] = 19450,
+    [64] = 19794,
+    [65] = 19825,
+    [66] = 19439,
+    [67] = 19868,
+    [68] = 19888,
+    [69] = 19920,
+    [70] = 19850,
+    [71] = 20027,
+    [72] = 20095,
+    [74] = 20185,
+    [75] = 20162,
+    [76] = 20405,
+    [77] = 20501,
+    [78] = 20352,
+    [79] = 21054,
+    [80] = 21100,
+    [81] = 21182,
+    [82] = 21377,
+    [83] = 21508,
+    [84] = 21611,
+    [85] = 21780,
+    [86] = 22120,
+    [87] = 20526,
+    [88] = 22761,
+    [89] = 22650,
+    [90] = 22900,
+    [91] = 22998,
+    [92] = 23189,
+    [93] = 23251,
+    [94] = 23281,
+    [95] = 23575,
+    [96] = 23624,
+    [97] = 24023,
+    [98] = 24041,
+    [99] = 24146,
+    [100] = 24353,
+    [101] = 24994,
+    [102] = 25014,
+    [103] = 25142,
+    [104] = 25240,
+    [105] = 25469,
+    [106] = 25942,
+    [107] = 25978,
+    [108] = 26140,
+    [109] = 26500,
+    [110] = 26512,
+    [111] = 26563,
+    [112] = 26582,
+    [113] = 26865,
+    [114] = 26909,
+    [115] = 27110,
+    [116] = 27138,
+    [117] = 27149,
 }
 
 -- Misc AOT variable imports
@@ -28770,84 +27697,84 @@ local ObjectTree = {
                         34,
                         2,
                         {
-                            "baseCard",
+                            "accordion",
                         },
                     },
                     {
                         35,
                         2,
                         {
-                            "button",
+                            "baseCard",
                         },
                     },
                     {
                         36,
                         2,
                         {
-                            "changelog",
+                            "button",
                         },
                     },
                     {
                         37,
                         2,
                         {
-                            "collapsibleGroup",
+                            "changelog",
                         },
                     },
                     {
                         38,
                         2,
                         {
-                            "description",
+                            "collapsibleGroup",
                         },
                     },
                     {
                         39,
                         2,
                         {
-                            "divider",
+                            "description",
                         },
                     },
                     {
                         40,
                         2,
                         {
-                            "dropdown",
+                            "divider",
                         },
                     },
                     {
                         41,
                         2,
                         {
-                            "footer",
+                            "dropdown",
                         },
                     },
                     {
                         42,
                         2,
                         {
-                            "group",
+                            "footer",
                         },
                     },
                     {
                         43,
                         2,
                         {
-                            "input",
+                            "group",
                         },
                     },
                     {
                         44,
                         2,
                         {
-                            "keybind",
+                            "input",
                         },
                     },
                     {
                         45,
                         2,
                         {
-                            "link",
+                            "keybind",
                         },
                     },
                     {

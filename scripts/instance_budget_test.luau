@@ -65,7 +65,6 @@ local ceilings = {
 	slider = 40,
 	dropdown = 28,
 	input = 18,
-	link = 18,
 	stat = 28,
 	statCompact = 24,
 	section = 8,
@@ -82,9 +81,6 @@ local builders = {
 		return tab:CreateDropdown({ name = "Dropdown", options = { "A", "B", "C" }, value = "A" })
 	end,
 	input = function() return tab:CreateInput({ name = "Input", placeholder = "x" }) end,
-	link = function()
-		return tab:CreateLink({ name = "Discord", subtitle = "Join our community", link = "https://discord.gg/astra", icon = "message-circle" })
-	end,
 	stat = function() return tab:CreateStat({ name = "Stat", value = 1, suffix = "" }) end,
 	statCompact = function() return tab:CreateStat({ name = "StatC", value = 1, suffix = "", compact = true }) end,
 	section = function() return tab:CreateSection({ name = "Section" }) end,

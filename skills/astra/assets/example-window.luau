@@ -48,13 +48,11 @@ overview:CreateText({
     text = "Actions demonstrates buttons, compact groups, statistics and feedback. Preferences covers switches, ranges, choices, text and letter-only key capture. The gear opens library settings; its Overview always comes first.",
 })
 overview:CreateDivider({ text = "Resources" })
-overview:CreateLink({
-    name = "Source & releases", subtitle = "Copy the repository link", icon = "code",
-    link = "https://github.com/Kira762/astra-library",
+overview:CreateText({
+    name = "Source & releases", text = "https://github.com/Kira762/astra-library",
 })
-overview:CreateLink({
-    name = "Build with Astra", subtitle = "Copy the element and API guide", icon = "book-open",
-    link = "https://github.com/Kira762/astra-library/blob/main/USAGE.md",
+overview:CreateText({
+    name = "Build with Astra", text = "https://github.com/Kira762/astra-library/blob/main/USAGE.md",
 })
 overview:CreateChangelog({
     name = "Studio highlights",
@@ -66,7 +64,7 @@ overview:CreateChangelog({
         } },
     },
 })
-releaseHistory = overview:CreateCollapsibleGroup({
+releaseHistory = overview:CreateAccordion({
     name = "Release history", description = "Earlier library milestones", icon = "history",
     elements = {
         { type = "Changelog", name = "Recent releases", entries = {
@@ -104,7 +102,7 @@ shortcuts:CreateButton({ name = "Notify", icon = "bell", callback = function()
 end })
 actions:CreateDivider({ text = "Window preview" })
 actions:CreateButton({ name = "Hide to capsule", icon = "minus", callback = function() window:Hide() end })
-actions:CreateCollapsibleGroup({
+actions:CreateAccordion({
     name = "Feedback lab", icon = "flask-conical", description = "Two ways to test the overlay system.",
     elements = {
         { type = "Button", name = "Show confirmation", icon = "message-square", callback = function()
@@ -134,7 +132,7 @@ preferences:CreateKeybind({
         window:Notify({ title = "Shortcut saved", content = "Sample shortcut: " .. letter })
     end,
 })
-preferences:CreateCollapsibleGroup({
+preferences:CreateAccordion({
     name = "Delivery options", icon = "bell", description = "Related switches belong together.",
     elements = {
         { type = "Toggle", name = "Desktop notifications", value = true, flag = "demo.desktop" },
@@ -153,16 +151,16 @@ allElements:CreateDropdown({ name = "Dropdown", icon = "list-filter", options = 
 allElements:CreateInput({ name = "Input", icon = "text-cursor-input", value = "Input" })
 allElements:CreateKeybind({ name = "Keybind", icon = "keyboard", value = "K" })
 allElements:CreateStat({ name = "Stat", value = 42 })
-allElements:CreateLink({ name = "Link", subtitle = "Copy this URL", icon = "link", link = "https://github.com/Kira762/astra-library" })
+allElements:CreateText({ name = "Link (removed)", text = "Link element has been removed. Use Text or Button." })
 allElements:CreateFooter({ parts = { { text = "Footer" }, { icon = "zap" } } })
 allElements:CreateChangelog({ name = "Changelog", entries = { { version = "Demo", title = "Changelog", changes = { { symbol = "+", text = "Changelog" } } } } })
 allElements:CreateDivider({ text = "Divider" })
 local allGroup = allElements:CreateGroup({ direction = "column" })
 allGroup:CreateText({ name = "Group", text = "Group" })
-allElements:CreateCollapsibleGroup({
-    name = "CollapsibleGroup", icon = "chevrons-up-down", description = "CollapsibleGroup",
+allElements:CreateAccordion({
+    name = "Accordion", icon = "chevrons-up-down", description = "Accordion",
     elements = {
-        { type = "Text", name = "Text", text = "CollapsibleGroup contents" },
+        { type = "Text", name = "Text", text = "Accordion contents" },
         { type = "Button", name = "Button" },
     },
 })

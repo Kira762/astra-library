@@ -77,7 +77,7 @@ The first tab opens on its own and layout is a user setting (**Settings → Appe
 2. **Colons on library calls.** `Astra:CreateWindow`, `window:CreateTab`,
    `window:Notify`, `tab:CreateButton`, `handle:Set(...)`.
 3. **Create the parent first.** Elements are created on a **Tab** (or on a
-   **Group** created by a tab). `CreateCollapsibleGroup` exists *only* on a tab.
+   **Group** created by a tab). `CreateAccordion` exists *only* on a tab.
 4. **Keep the returned handles.** They are objects with methods (`:Set`, `:Add`,
    `:Remove`, `:Refresh`, `:MoveUp`, `:Lock`, …), not plain data.
 5. **Window methods live on the window**: `window:ChangeTheme`, `window:SetLocale`,
@@ -108,7 +108,7 @@ The first tab opens on its own and layout is a user setting (**Settings → Appe
 |---|---|
 | `attempt to index a function value` on the loader line | The `()` after `loadstring(...)` is missing, so `Astra` is a chunk, not the module table. |
 | `rAnDoMcHuNkNaMe:1: attempt to call a nil value` | The fetched text never compiled — usually an HTML error page (private repo, wrong branch, rate limit) or a broken bundle. `print(game:HttpGet(url):sub(1, 120))`. |
-| `attempt to call a nil value` after loading | The method does not exist on that parent: `CreateCollapsibleGroup` on a Group, `CreateTab` on `Astra`, or props passed positionally. |
+| `attempt to call a nil value` after loading | The method does not exist on that parent: `CreateAccordion` on a Group, `CreateTab` on `Astra`, or props passed positionally. |
 | An element renders a blank or broken icon | The icon name resolved to nothing and was passed through unchanged — check case, pack and spelling with `Astra.Icons.get`. |
 | Values do not come back on the next run | No `flag` on the control, a duplicated flag, `forgetState = true`, or Auto Load turned off in Settings → Persistence. |
 | Two shells appear at once | A second `CreateWindow` after the guard was disabled or the previous handle was left live — reuse the handle or `window:Unload()` first. |
@@ -118,7 +118,7 @@ The first tab opens on its own and layout is a user setting (**Settings → Appe
 ## Element cheat sheet
 
 `flag`, `icon` and `name` are accepted almost everywhere; `description` is a helper
-line on `CreateCollapsibleGroup` and `CreateStat` only — Button, Toggle, Slider,
+line on `CreateAccordion` and `CreateStat` only — Button, Toggle, Slider,
 Stepper, Dropdown, Input and Link ignore the prop.
 
 | Create on Tab / Group | Key props | Handle methods |
@@ -132,13 +132,12 @@ Stepper, Dropdown, Input and Link ignore the prop.
 | `CreateStepper({ name, min, max, step, value, flag, callback })` | `[−] [value] [+]` capsule; one tap is one clamped `step`, `min` defaults to 0, `max` optional | `:Set(value)`, `:Get()`, `:Increment()`, `:Decrement()` |
 | `CreateDropdown({ name, options, value, multiSelect, placeholder, flag, callback })` | multi-select value is a table | `:Refresh(options)`, `:Add(option)`, `:Remove(option)` |
 | `CreateInput({ name, value, placeholder, numeric, clearOnFocus, flag, callback })` | text field, `callback(text)` | `:Set(text)` |
-| `CreateLink({ name, subtitle, link, icon, callback })` | card carrying a hidden URL; the trailing control copies it and swaps in a check mark for two seconds — the link is never rendered | `:Set(link)`, `:SetLink(link)`, `:SetTitle(name)`, `:SetSubtitle(text)`, `:SetIcon(icon)`, `:Copy()`, `:IsConfirming()` |
 | `CreateStat({ name, value, prefix, suffix, display, compact, letter, changeMode, changeBaseline })` | readout card; a string `value` shows one letter unless `letter = false`, which reads the whole value | `:Set(value)`, `:SetText(text)`, `:ResetBaseline(n)` |
 | `CreateFooter({ parts, textSize, spacing })` | centred run of text and inline icons (`parts = { { text = "Built with" }, { icon = "zap" }, { text = "Astra" } }`; plain strings are text shorthand); re-centres as one unit | `:Set(parts)` |
 | `CreateDivider({ text, line, spacing })` | rule between controls | — |
 | `CreateGroup({ direction = "row" \| "column" })` | horizontal row by default | nesting via `Create…` |
 
-`CreateChangelog` is tab-only. Tab-only declarative container: `tab:CreateCollapsibleGroup({ name, icon, description, elements = { ... } })`
+`CreateChangelog` is tab-only. Tab-only declarative container: `tab:CreateAccordion({ name, icon, description, elements = { ... } })`
 where each child is `{ type = "Toggle" | "Switch" | "Button" | "Slider" | "Stepper" | "Dropdown" | "Keybind" | "Input" | "Link" | "Stat" | "Section" | "Text" | "Footer" | "Divider" | "Group" | "Changelog", ...same props }`.
 Groups may nest inside it; collapsible groups never nest, and every collapsible
 starts collapsed. `Changelog` renders as a regular element wherever it is declared.

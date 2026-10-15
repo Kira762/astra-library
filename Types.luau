@@ -96,18 +96,22 @@ export type GroupProps = {
 Definitions use the corresponding element's normal properties plus `type`.
 `elements` is allowed only for ordinary Groups; CollapsibleGroups cannot nest.
 ]]
-export type CollapsibleElementProps = {
+export type AccordionElementProps = {
     type: "Button" | "Toggle" | "Switch" | "Slider" | "Dropdown" | "Input"
-        | "Link" | "Stat" | "Section" | "Text" | "Footer" | "Changelog" | "Divider" | "Group",
-    elements: { CollapsibleElementProps }?,
+        | "Stat" | "Section" | "Text" | "Footer" | "Changelog" | "Divider" | "Group",
+    elements: { AccordionElementProps }?,
     [string]: any,
 }
 
-export type CollapsibleGroupProps = LockableProps & {
+export type AccordionProps = LockableProps & {
     name: string?,
     icon: (string | number)?,
-    elements: { CollapsibleElementProps }?,
+    elements: { AccordionElementProps }?,
 }
+
+-- Deprecated alias: use AccordionProps
+export type CollapsibleElementProps = AccordionElementProps
+export type CollapsibleGroupProps = AccordionProps
 
 export type ButtonProps = LockableProps & {
     name: string?,
@@ -223,17 +227,7 @@ export type StatProps = {
     changeMode: string?,     changeBaseline: string?,     numberEasing: boolean?,
 }
 
---[[
-`link` is the hidden value: stored on the element and copied by the card's
-trailing control, never rendered as text.
-]]
-export type LinkProps = LockableProps & {
-    name: string?,
-    subtitle: string?,
-    link: string?,
-    icon: (string | number)?,
-    callback: ((link: string) -> ())?,
-}
+
 
 -- Exact title/content duplicates refresh an active card or coalesce in the queue.
 export type NotifyProps = {
@@ -367,20 +361,6 @@ export type Divider = Moveable & {
     text: string,     Set: (self: Divider, text: string?) -> (),
 }
 
-export type Link = Moveable & Lockable & {
-    -- The hidden value the copy control writes to the clipboard.
-    link: string,
-    Set: (self: Link, link: string) -> (),
-    SetLink: (self: Link, link: string) -> (),
-    SetTitle: (self: Link, title: string) -> (),
-    SetSubtitle: (self: Link, subtitle: string) -> (),
-    SetIcon: (self: Link, icon: (string | number)?) -> (),
-    -- Copy the link now: the same cycle a tap runs, including the check mark.
-    Copy: (self: Link) -> boolean,
-    -- True while the control is showing its confirmation instead of the copy mark.
-    IsConfirming: (self: Link) -> boolean,
-}
-
 export type Popup = {
     Close: (self: Popup) -> (),
 }
@@ -397,16 +377,19 @@ export type Group = Moveable & {
     CreateText: (self: Group, props: TextProps) -> Text?,
     CreateFooter: (self: Group, props: FooterProps?) -> Footer?,
     CreateDivider: (self: Group, props: DividerProps?) -> Divider?,
-    CreateLink: (self: Group, props: LinkProps) -> Link,
     CreateGroup: (self: Group, props: GroupProps?) -> Group,
 }
 
-export type CollapsibleGroup = Moveable & Lockable & {
+export type Accordion = Moveable & Lockable & {
     elements: { any },
 }
 
+-- Deprecated alias: use Accordion
+export type CollapsibleGroup = Accordion
+
 export type Tab = {
-    CreateCollapsibleGroup: (self: Tab, props: CollapsibleGroupProps) -> CollapsibleGroup,
+    CreateAccordion: (self: Tab, props: AccordionProps) -> Accordion,
+    CreateCollapsibleGroup: (self: Tab, props: AccordionProps) -> Accordion,
     Select: (self: Tab, noAnimation: boolean?) -> (),
     Deselect: (self: Tab, noAnimation: boolean?) -> (),
     SetLocked: (self: Tab, locked: boolean) -> (),
@@ -418,7 +401,6 @@ export type Tab = {
     CreateDropdown: (self: Tab, props: DropdownProps) -> Dropdown,
     CreateKeybind: (self: Tab, props: KeybindProps) -> Keybind,
     CreateInput: (self: Tab, props: InputProps) -> Input,
-    CreateLink: (self: Tab, props: LinkProps) -> Link,
     CreateStat: (self: Tab, props: StatProps) -> Stat,
     CreateSection: (self: Tab, props: SectionProps) -> Section,
     CreateText: (self: Tab, props: TextProps) -> Text,

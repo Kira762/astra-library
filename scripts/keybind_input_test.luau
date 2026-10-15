@@ -100,7 +100,7 @@ assert(not field.capturing, "hiding cancels capture")
 local tab = window:CreateTab({ name = "Capture layouts" })
 local group = tab:CreateGroup({ direction = "column" })
 local grouped = group:CreateKeybind({ name = "Grouped", value = "a", flag = "grouped" })
-local fold = tab:CreateCollapsibleGroup({ name = "Shortcuts", elements = {
+local fold = tab:CreateAccordion({ name = "Shortcuts", elements = {
     { type = "Keybind", name = "Primary", value = "B", flag = "primary" },
     { type = "Keybind", name = "Secondary", value = "C", flag = "secondary" },
 } })

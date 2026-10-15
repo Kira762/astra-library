@@ -14,7 +14,6 @@ local direction = {
     stat = true,
     slider = true,
     stepper = true,
-    link = true,
 }
 
 function state.new(tab, element)
@@ -94,7 +93,7 @@ function state:_add(a13, a14)
     local ownerTab = self.tab
     local contentsVisible = true
     while ownerTab.tab do
-        if ownerTab.__type == "CollapsibleGroup" and not ownerTab._expanded then contentsVisible = false end
+        if (ownerTab.__type == "Accordion" or ownerTab.__type == "CollapsibleGroup") and not ownerTab._expanded then contentsVisible = false end
         ownerTab = ownerTab.tab
     end
     if contentsVisible and not self.window.hidden and not self.window.minimised and self.window.selectedTab == ownerTab then
@@ -171,10 +170,6 @@ function state:CreateFooter(props)
 end
 function state:CreateDivider(a25)
     return self:_add("divider", a25)
-end
-
-function state:CreateLink(a30)
-    return self:_add("link", a30)
 end
 
 function state:_addGroup(a26)

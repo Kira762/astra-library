@@ -20,7 +20,7 @@ local frame = NumberSequence.new({
     NumberSequenceKeypoint.new(1, 0),
 })
 
-local valueLabel = 38
+local valueLabel = 70
 
 --[[
 The stat's accent gradient drifts to its new angle on the shared hero

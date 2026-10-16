@@ -13,7 +13,7 @@ build. scripts/strip_equivalence_test.sh proves the two are the same program.
 -- Will be used later for getting flattened globals
 local ImportGlobals
 
--- Integrity canaries (generated; covered by the release signature).
+-- Runtime integrity canaries generated with the bundle.
 -- __recFP snapshots the environment when the MainModule closure starts,
 -- __checkFP re-snapshots after every module has loaded; a mismatch means
 -- something was replaced mid-load. Silent: failure returns a no-op stub.
@@ -12376,12 +12376,11 @@ Parent = self.history,
 
 
 
-
 self.window:Create("UIGradient", {
 Rotation = 270,
 
 Parent = card,
-}, { Color = "WindowColor" })
+}, { Color = "ElementGradient" })
 
 self.window:Create("UICorner", {
 Parent = card,
@@ -16722,8 +16721,7 @@ Parent = self.main,
 })
 
 self.card = window:Create("Frame", {
-AutomaticSize = Enum.AutomaticSize.X,
-Size = UDim2.fromOffset(0, valueLabel),
+Size = UDim2.new(1, 0, 0, valueLabel),
 BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 BorderSizePixel = 0,
 ZIndex = 5,
@@ -16745,36 +16743,31 @@ Transparency = frame,
 Parent = self.card,
 })
 
-window:Create("UIPadding", {
-PaddingLeft = UDim.new(0, 12),
-PaddingRight = UDim.new(0, 12),
-
-Parent = self.card,
-})
-
 window:Create("UIListLayout", {
-FillDirection = Enum.FillDirection.Horizontal,
+FillDirection = Enum.FillDirection.Vertical,
 VerticalAlignment = Enum.VerticalAlignment.Center,
-HorizontalFlex = Enum.UIFlexAlignment.SpaceBetween,
+HorizontalAlignment = Enum.HorizontalAlignment.Left,
 Padding = UDim.new(0, 8),
 
 Parent = self.card,
 })
 
+window:Create("UIPadding", {
+PaddingTop = UDim.new(0, 12),
+PaddingBottom = UDim.new(0, 12),
+PaddingLeft = UDim.new(0, 12),
+PaddingRight = UDim.new(0, 12),
+Parent = self.card,
+})
+
 self.titleContainer = window:Create("Frame", {
-AutomaticSize = Enum.AutomaticSize.X,
-Size = UDim2.fromOffset(0, 15),
+Size = UDim2.new(1, 0, 0, 18),
 BackgroundTransparency = 1,
 BorderSizePixel = 0,
 LayoutOrder = 0,
 ZIndex = 6,
 
 Parent = self.card,
-})
-
-window:Create("UIFlexItem", {
-FlexMode = Enum.UIFlexMode.Shrink,
-Parent = self.titleContainer,
 })
 
 window:Create("UIListLayout", {
@@ -16789,8 +16782,8 @@ Parent = self.titleContainer,
 
 self.title = window:Create("TextLabel", {
 Text = prefix.t(self.name),
-Size = UDim2.fromOffset(0, 15),
-AutomaticSize = Enum.AutomaticSize.X,
+Size = UDim2.new(1, 0, 0, 18),
+AutomaticSize = Enum.AutomaticSize.None,
 BorderSizePixel = 0,
 BackgroundTransparency = 1,
 TextSize = 15,
@@ -16802,11 +16795,6 @@ ZIndex = 6,
 TextTransparency = 1,
 Parent = self.titleContainer,
 }, { TextColor3 = "ContentColor", FontFace = "Font" })
-window:Create("UIFlexItem", {
-FlexMode = Enum.UIFlexMode.Shrink,
-Parent = self.title,
-})
-
 if self.textValue then
 
 
@@ -16816,13 +16804,13 @@ if self.textValue then
 
 self.textLabel = window:Create("TextLabel", {
 Text = self:_formatValue(self.value),
-Size = UDim2.fromOffset(0, 15),
-AutomaticSize = Enum.AutomaticSize.X,
+Size = UDim2.new(1, 0, 0, 18),
+AutomaticSize = Enum.AutomaticSize.None,
 BackgroundTransparency = 1,
 BorderSizePixel = 0,
 LayoutOrder = 1,
 TextSize = 15,
-TextXAlignment = Enum.TextXAlignment.Right,
+TextXAlignment = Enum.TextXAlignment.Left,
 TextYAlignment = Enum.TextYAlignment.Center,
 TextTruncate = Enum.TextTruncate.AtEnd,
 TextTransparency = 1,
@@ -16832,8 +16820,7 @@ Parent = self.card,
 }, { TextColor3 = "ContentColor", FontFace = "Font" })
 else
 self.readoutHost = window:Create("Frame", {
-AutomaticSize = Enum.AutomaticSize.X,
-Size = UDim2.fromOffset(0, 16),
+Size = UDim2.new(1, 0, 0, 18),
 BackgroundTransparency = 1,
 BorderSizePixel = 0,
 LayoutOrder = 1,
@@ -16844,7 +16831,7 @@ Parent = self.card,
 
 self.readoutOdo = props.new(window, self.readoutHost, {
 textSize = 15,
-alignment = Enum.HorizontalAlignment.Right,
+alignment = Enum.HorizontalAlignment.Left,
 transparency = 1,
 })
 self.readoutOdo:snap(self.display == "change" and self:_formatChange(0) or self:_formatValue(self.value))
@@ -26153,7 +26140,6 @@ end
 
 
 
-
 local function publicAssetAllowed(policy: HttpGuard.GuardPolicy?): boolean
 local allowed, report = HttpGuard.check(policy or "warn")
 if allowed then
@@ -27408,84 +27394,84 @@ local LineOffsets = {
     [35] = 11808,
     [36] = 11897,
     [37] = 12126,
-    [38] = 12569,
-    [39] = 12579,
-    [40] = 12736,
-    [41] = 12881,
-    [42] = 14545,
-    [43] = 14793,
-    [44] = 15024,
-    [45] = 15345,
-    [46] = 15598,
-    [47] = 15684,
-    [48] = 16289,
-    [49] = 17186,
-    [50] = 17780,
-    [51] = 18351,
-    [52] = 18477,
-    [53] = 18616,
-    [55] = 19131,
-    [56] = 19157,
-    [57] = 19176,
-    [58] = 19208,
-    [59] = 19334,
-    [60] = 19348,
-    [61] = 19397,
-    [62] = 19106,
-    [63] = 19488,
-    [64] = 19832,
-    [65] = 19863,
-    [66] = 19477,
-    [67] = 19906,
-    [68] = 19926,
-    [69] = 19958,
-    [70] = 19888,
-    [71] = 20065,
-    [72] = 20133,
-    [74] = 20223,
-    [75] = 20200,
-    [76] = 20443,
-    [77] = 20539,
-    [78] = 20390,
-    [79] = 21092,
-    [80] = 21138,
-    [81] = 21220,
-    [82] = 21415,
-    [83] = 21546,
-    [84] = 21649,
-    [85] = 21818,
-    [86] = 22158,
-    [87] = 20564,
-    [88] = 22826,
-    [89] = 22688,
-    [90] = 22965,
-    [91] = 23063,
-    [92] = 23254,
-    [93] = 23296,
-    [94] = 23326,
-    [95] = 23620,
-    [96] = 23669,
-    [97] = 24068,
-    [98] = 24086,
-    [99] = 24191,
-    [100] = 24398,
-    [101] = 25039,
-    [102] = 25059,
-    [103] = 25187,
-    [104] = 25285,
-    [105] = 25514,
-    [106] = 25987,
-    [107] = 26023,
-    [108] = 26185,
-    [109] = 26545,
-    [110] = 26557,
-    [111] = 26608,
-    [112] = 26627,
-    [113] = 26910,
-    [114] = 26954,
-    [115] = 27155,
-    [116] = 27183,
-    [117] = 27194,
+    [38] = 12568,
+    [39] = 12578,
+    [40] = 12735,
+    [41] = 12880,
+    [42] = 14544,
+    [43] = 14792,
+    [44] = 15023,
+    [45] = 15344,
+    [46] = 15597,
+    [47] = 15683,
+    [48] = 16288,
+    [49] = 17173,
+    [50] = 17767,
+    [51] = 18338,
+    [52] = 18464,
+    [53] = 18603,
+    [55] = 19118,
+    [56] = 19144,
+    [57] = 19163,
+    [58] = 19195,
+    [59] = 19321,
+    [60] = 19335,
+    [61] = 19384,
+    [62] = 19093,
+    [63] = 19475,
+    [64] = 19819,
+    [65] = 19850,
+    [66] = 19464,
+    [67] = 19893,
+    [68] = 19913,
+    [69] = 19945,
+    [70] = 19875,
+    [71] = 20052,
+    [72] = 20120,
+    [74] = 20210,
+    [75] = 20187,
+    [76] = 20430,
+    [77] = 20526,
+    [78] = 20377,
+    [79] = 21079,
+    [80] = 21125,
+    [81] = 21207,
+    [82] = 21402,
+    [83] = 21533,
+    [84] = 21636,
+    [85] = 21805,
+    [86] = 22145,
+    [87] = 20551,
+    [88] = 22813,
+    [89] = 22675,
+    [90] = 22952,
+    [91] = 23050,
+    [92] = 23241,
+    [93] = 23283,
+    [94] = 23313,
+    [95] = 23607,
+    [96] = 23656,
+    [97] = 24055,
+    [98] = 24073,
+    [99] = 24178,
+    [100] = 24385,
+    [101] = 25026,
+    [102] = 25046,
+    [103] = 25174,
+    [104] = 25272,
+    [105] = 25501,
+    [106] = 25974,
+    [107] = 26010,
+    [108] = 26171,
+    [109] = 26531,
+    [110] = 26543,
+    [111] = 26594,
+    [112] = 26613,
+    [113] = 26896,
+    [114] = 26940,
+    [115] = 27141,
+    [116] = 27169,
+    [117] = 27180,
 }
 
 -- Misc AOT variable imports
@@ -28352,8 +28338,7 @@ local ObjectTree = {
 
 
 -- Canary: closure count must match what the generator saw. Catches a bundle
--- whose ClosureBindings table was edited after generation (the release
--- signature is the strong check; this is the second layer for raw-path loads).
+-- whose ClosureBindings table was edited after generation (these canaries are a lightweight consistency check for raw-path loads).
 do
     local counted = 0
     for _ in next, ClosureBindings do counted = counted + 1 end

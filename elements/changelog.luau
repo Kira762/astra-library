@@ -239,10 +239,9 @@ function Changelog:_renderEntry(entry: ChangelogEntry, index: number)
         Parent = self.history,
     })
     --[[
-    A nested level reads as a recess, not as a second frame. The entry card
-    wears the window's own surface — the same idiom a Collapsible Group paints
-    its body clip with — and no outline of its own, so the changelog keeps the
-    one lit line the element family expects and the darker fill plus the 8px
+    A nested level uses the same element surface as the other controls, not a
+    darker window surface. The entry has no outline of its own, so the changelog
+    keeps the one lit line the element family expects and the darker fill plus the 8px
     gap do the separating. It is revealed opaque (`ElementTransparency`, like
     the body clip) rather than on the element's own surface tier, so the recess
     still reads when the changelog sits inside a Collapsible Group, where the
@@ -256,7 +255,7 @@ function Changelog:_renderEntry(entry: ChangelogEntry, index: number)
         Rotation = 270,
 
         Parent = card,
-    }, { Color = "WindowColor" })
+    }, { Color = "ElementGradient" })
 
     self.window:Create("UICorner", {
         Parent = card,

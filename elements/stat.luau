@@ -434,8 +434,7 @@ function state:_buildCompact()
     })
 
     self.card = window:Create("Frame", {
-        AutomaticSize = Enum.AutomaticSize.X,
-        Size = UDim2.fromOffset(0, valueLabel),
+        Size = UDim2.new(1, 0, 0, valueLabel),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BorderSizePixel = 0,
         ZIndex = 5,
@@ -457,36 +456,31 @@ function state:_buildCompact()
         Parent = self.card,
     })
 
-    window:Create("UIPadding", {
-        PaddingLeft = UDim.new(0, 12),
-        PaddingRight = UDim.new(0, 12),
-
-        Parent = self.card,
-    })
-
     window:Create("UIListLayout", {
-        FillDirection = Enum.FillDirection.Horizontal,
+        FillDirection = Enum.FillDirection.Vertical,
         VerticalAlignment = Enum.VerticalAlignment.Center,
-        HorizontalFlex = Enum.UIFlexAlignment.SpaceBetween,
+        HorizontalAlignment = Enum.HorizontalAlignment.Left,
         Padding = UDim.new(0, 8),
 
         Parent = self.card,
     })
 
+    window:Create("UIPadding", {
+        PaddingTop = UDim.new(0, 12),
+        PaddingBottom = UDim.new(0, 12),
+        PaddingLeft = UDim.new(0, 12),
+        PaddingRight = UDim.new(0, 12),
+        Parent = self.card,
+    })
+
     self.titleContainer = window:Create("Frame", {
-        AutomaticSize = Enum.AutomaticSize.X,
-        Size = UDim2.fromOffset(0, 15),
+        Size = UDim2.new(1, 0, 0, 18),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         LayoutOrder = 0,
         ZIndex = 6,
 
         Parent = self.card,
-    })
-
-    window:Create("UIFlexItem", {
-        FlexMode = Enum.UIFlexMode.Shrink,
-        Parent = self.titleContainer,
     })
 
     window:Create("UIListLayout", {
@@ -501,8 +495,8 @@ function state:_buildCompact()
 
     self.title = window:Create("TextLabel", {
         Text = prefix.t(self.name),
-        Size = UDim2.fromOffset(0, 15),
-        AutomaticSize = Enum.AutomaticSize.X,
+        Size = UDim2.new(1, 0, 0, 18),
+        AutomaticSize = Enum.AutomaticSize.None,
         BorderSizePixel = 0,
         BackgroundTransparency = 1,
         TextSize = 15,
@@ -514,11 +508,6 @@ function state:_buildCompact()
         TextTransparency = 1,
         Parent = self.titleContainer,
     }, { TextColor3 = "ContentColor", FontFace = "Font" })
-    window:Create("UIFlexItem", {
-        FlexMode = Enum.UIFlexMode.Shrink,
-        Parent = self.title,
-    })
-
     if self.textValue then
         --[[
         Text readout in the compact card: the whole value in one label.
@@ -528,13 +517,13 @@ function state:_buildCompact()
         ]]
         self.textLabel = window:Create("TextLabel", {
             Text = self:_formatValue(self.value),
-            Size = UDim2.fromOffset(0, 15),
-            AutomaticSize = Enum.AutomaticSize.X,
+            Size = UDim2.new(1, 0, 0, 18),
+            AutomaticSize = Enum.AutomaticSize.None,
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
             LayoutOrder = 1,
             TextSize = 15,
-            TextXAlignment = Enum.TextXAlignment.Right,
+            TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Center,
             TextTruncate = Enum.TextTruncate.AtEnd,
             TextTransparency = 1,
@@ -544,8 +533,7 @@ function state:_buildCompact()
         }, { TextColor3 = "ContentColor", FontFace = "Font" })
     else
         self.readoutHost = window:Create("Frame", {
-            AutomaticSize = Enum.AutomaticSize.X,
-            Size = UDim2.fromOffset(0, 16),
+            Size = UDim2.new(1, 0, 0, 18),
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
             LayoutOrder = 1,
@@ -556,7 +544,7 @@ function state:_buildCompact()
 
         self.readoutOdo = props.new(window, self.readoutHost, {
             textSize = 15,
-            alignment = Enum.HorizontalAlignment.Right,
+            alignment = Enum.HorizontalAlignment.Left,
             transparency = 1,
         })
         self.readoutOdo:snap(self.display == "change" and self:_formatChange(0) or self:_formatValue(self.value))

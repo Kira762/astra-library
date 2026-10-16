@@ -125,8 +125,7 @@ the only icons left on screen.
 What does justify refusing a public asset is an actual HTTP-spy artifact:
 layer A's `getgenv().HttpSpy` API shape, the spy's CoreGui window, or its
 log files. Those are what `publicAssetAllowed` gates on, for both
-transports. The sensitive paths - the signed loader's bundle/signature
-preflight and `components/keySystem.luau` - keep using the full guard.
+transports. The sensitive path - `components/keySystem.luau` - keeps using the full guard.
 
 Callers keep the historic order: the request function first, and the
 HttpGet fallback only when no request function is available at all.

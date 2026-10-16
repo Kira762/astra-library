@@ -1,6 +1,7 @@
 #!/bin/sh
 # Runtime test for the Changelog's nested entry surface: an entry card reads as
-# a recess in the changelog card (window surface, no outline of its own) rather
+# a recess in the changelog card (standard element surface, no outline of its own)
+# rather
 # than as a second frame, so a changelog wears one lit line however many
 # releases it lists — while a panel that floats over other content (a Dropdown
 # list) keeps the edge `StyleElementPanel` gives it. Assembles mini Roblox

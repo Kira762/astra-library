@@ -10,7 +10,7 @@ saved configs and staged startup.
 
 ## Use the library
 
-The official one-liner loads through the verifying loader:
+The official one-liner loads the bundle through the lightweight loader:
 
 ```lua
 local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/loader.luau"))()
@@ -33,39 +33,15 @@ the same library is a ModuleScript — `require(game:GetService("ReplicatedStora
 Always load the published artifacts from the repository root; the modular folders
 are the bundle's source, not a runtime entry point.
 
-## Integrity and verification
+## Loader behavior
 
-The loader fetches `version-1.luau` plus its detached signature
-`version-1.luau.sig`, checks `SHA-256(bundle)` inside an Ed25519-signed record
-`ASTRA-BUNDLE-V1|<version>|<digest>`, and hands the **exact verified bytes** to
-`loadstring` (no mutation, error line mapping intact). Any failure — tampered
-bundle, corrupted or missing signature, pinned public key mismatch, stale
-version, network error, or an in-bundle canary tripping — resolves to a silent
-no-op stub: no error, no print, and `Astra:CreateWindow(...)` keeps chaining
-without raising. The public key and expected version are pinned inside
-`loader.luau`; CI re-signs with the `SIGNING_KEY` Actions secret (contributor
-machines only ever need the gitignored throwaway dev key).
+The loader fetches `version-1.luau`, compiles it, and returns the API. It does not
+fetch or verify a detached signature or hash. Network, compile, and bundle runtime
+failures return a silent no-op stub. The bundled library retains its own runtime
+canaries, but these are not a cryptographic authenticity check. Treat the published
+loader and bundle as executable code and review changes before running them.
 
-Current release checksum:
-
-```
-sha256(version-1.luau) = 963a8b0498c891abafa9fc3d763a18de2555fc83270025a39c804a669ce9509a
-```
-
-(`node scripts/sign_bundle.js --verify` prints the live digest whenever the
-bundle changes.)
-
-### Backward compatibility and scope
-
-| Path | Behaviour |
-|---|---|
-| Old one-liner loading `version-1.luau` directly | Still works. No signature check happens at this path, but the signed bundle's own canaries (environment fingerprint, closure count, decoy) still run inside it. |
-| Rojo / Studio `require(ReplicatedStorage.Astra)` | Unaffected — the loader and signature files are not part of the Rojo tree. |
-| Replacing `loader.luau`, hooking `loadstring`/`HttpGet`, server-side enforcement | Out of scope **on purpose**. Verification proves the bundle is the one this repository published — *integrity ≠ authorization*. It does not authenticate the client, the executor, the end user, or any server; treat it as tamper evidence for the delivery channel, not as a trust root. |
-
-The loader is strict-mode only: there is no automatic fallback to a weaker
-check. A second-origin pin mode exists as an explicitly configured, labeled
-degraded option (`VERIFICATION_MODE = "pin"`) and is never selected silently.
+Direct bundle loading and the Rojo / Studio ModuleScript path are also supported.
 
 ## What is in the box
 
@@ -133,7 +109,6 @@ skills/astra/             the published Agent Skill
 
 ```sh
 node scripts/generate_bundle.js             # regenerate version-1.luau from the tree
-node scripts/sign_bundle.js                # re-sign it (the .sig pins the exact bundle bytes)
 sh scripts/install_luau.sh                 # build the Luau toolchain into .tools/bin (once)
 sh scripts/check_all.sh                    # requires + field refs + dangling refs + bundle + syntax
                                            #   + strip equivalence + tests

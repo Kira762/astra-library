@@ -599,6 +599,13 @@ window:ChangeTheme({
 })
 ```
 
+`AccentColor` is the shared active-control color: toggles, slider fills, and
+positive/neutral Stat accents stay in the same hue. If a partial theme changes
+only `AccentColor` (or the legacy `Accent` key), Astra derives matching
+`AccentStroke` and `SliderProgress` values; set either token explicitly when
+you want a separate treatment. Error,
+warning, and changelog markers retain their semantic status colors.
+
 **Corner scale.** Three radius tokens carry every surface, nested one step
 inside each other so the arcs stay concentric:
 

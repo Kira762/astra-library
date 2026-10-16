@@ -265,9 +265,11 @@ function state.new(ownerTab, a31)
     end)
 
     self.window:ConnectFor(self, self.main:GetPropertyChangedSignal("AbsoluteSize"), function()
-        if self.window.animating or (self.window.hidden and self.window.hasShownOnce) then
-            return
-        end
+        -- Keep responsive geometry in sync while the window is hidden or
+        -- transitioning too. A Row Group can assign its final flex width during
+        -- entrance; skipping that derived size change leaves the wide
+        -- label/track layout stuck on a narrow card afterward. _applyLayout is
+        -- a cheap no-op unless the card crosses a breakpoint.
         self:_applyLayout()
     end)
     self:_applyLayout()

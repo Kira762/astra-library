@@ -325,8 +325,8 @@ function Window:_flashResult(element, ok)
     end
     local glow = if element._fieldGlow then element:_fieldGlow() else element.glow
     local boxStroke = element.boxStroke
-    local flashColor = ok and constants.accent.on or self.theme.ErrorColor
-    local flashStroke = ok and constants.accent.onStroke or self.theme.ErrorStrokeColor
+    local flashColor = ok and self.theme.AccentColor or self.theme.ErrorColor
+    local flashStroke = ok and self.theme.AccentStroke or self.theme.ErrorStrokeColor
     --[[
     Hoisted out of the function: these two are fixed, and the flash runs
     on every element callback that reports a result.

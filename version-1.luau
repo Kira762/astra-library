@@ -7747,8 +7747,8 @@ return
 end
 local glow = if element._fieldGlow then element:_fieldGlow() else element.glow
 local boxStroke = element.boxStroke
-local flashColor = ok and constants.accent.on or self.theme.ErrorColor
-local flashStroke = ok and constants.accent.onStroke or self.theme.ErrorStrokeColor
+local flashColor = ok and self.theme.AccentColor or self.theme.ErrorColor
+local flashStroke = ok and self.theme.AccentStroke or self.theme.ErrorStrokeColor
 
 
 
@@ -8720,6 +8720,7 @@ local Window = require(script.Parent.class)
 
 function Window.new(props)
 props = if typeof(props) == "table" then props else {}
+local requestedTheme = props.theme or props.Theme
 
 if props.translations or props.Translations then
 locale.register(props.translations or props.Translations)
@@ -8774,7 +8775,7 @@ selectedTab = nil,
 _settingsLayoutActive = false,
 _settingsTabs = {},
 _settingsMode = false,
-theme = resolveTheme(props.theme or props.Theme),
+theme = resolveTheme(requestedTheme),
 
 controls = {},
 _elementLockMode = 1,
@@ -9202,7 +9203,10 @@ self.hasShownOnce = false
 self._collapsedShown = false
 
 self:LoadSettings()
-self:ChangeTheme(self.settings.theme)
+
+
+local themeToApply = if requestedTheme ~= nil then resolveTheme(requestedTheme) else self.settings.theme
+self:ChangeTheme(themeToApply)
 if self.settings.layoutMode == "collapsedSidebar"
 or (self.settings.layoutMode and self.settings.layoutMode ~= self.layout.mode)
 then
@@ -9944,6 +9948,7 @@ local state = require(utilities.Parent.core.state)
 local themes = require(script.Parent.Parent.Parent.themes)
 local coerceValue = themes.coerceValue
 local deriveStrokes = themes.deriveStrokes
+local deriveAccents = themes.deriveAccents
 local resolveTheme = themes.resolve
 
 local shared = require(script.Parent.constants)
@@ -10035,6 +10040,7 @@ self.theme[key] = coerceValue(key, value)
 end
 if typeof(themeInput) == "table" then
 deriveStrokes(self.theme, themeTable)
+deriveAccents(self.theme, themeTable)
 end
 
 
@@ -15942,9 +15948,11 @@ self:_endDrag()
 end)
 
 self.window:ConnectFor(self, self.main:GetPropertyChangedSignal("AbsoluteSize"), function()
-if self.window.animating or (self.window.hidden and self.window.hasShownOnce) then
-return
-end
+
+
+
+
+
 self:_applyLayout()
 end)
 self:_applyLayout()
@@ -16289,11 +16297,8 @@ local motion = require(constants.motion)
 local tab = require(script.Parent.Parent.functions)
 local props = require(constants.odometer)
 local name = require(constants.moveable)
-local value = require(constants.constants)
 local description = require(script.Parent.description)
 local prefix = require(constants.locale)
-
-local element = value.statAccents
 
 local frame = NumberSequence.new({
 NumberSequenceKeypoint.new(0, 0.85),
@@ -16335,6 +16340,22 @@ end
 
 local function a14(a15)
 return a15.fill.Keypoints[1].Value
+end
+
+local function accentPalette(theme)
+local accent = {
+fill = theme.SliderProgress,
+stroke = ColorSequence.new(theme.AccentStroke, theme.AccentColor),
+}
+local errorAccent = {
+fill = ColorSequence.new(theme.ErrorColor, theme.ErrorColor:Lerp(Color3.new(0, 0, 0), 0.2)),
+stroke = ColorSequence.new(theme.ErrorStrokeColor, theme.ErrorColor),
+}
+return {
+positive = accent,
+neutral = accent,
+negative = errorAccent,
+}
 end
 
 local function a16(a17)
@@ -16425,8 +16446,10 @@ _initialValue = if (a25.value or a25.Value) ~= nil
 then (a25.value or a25.Value)
 else nil,
 _lastChange = 0,
+_accentState = "neutral",
 }, state)
 
+self:_refreshAccentPalette()
 if self.compact then
 self:_buildCompact()
 else
@@ -16435,6 +16458,10 @@ end
 
 
 return self
+end
+
+function state:_refreshAccentPalette()
+self._accentPalette = accentPalette(self.window.theme)
 end
 
 function state:_buildFull()
@@ -16465,7 +16492,7 @@ Parent = self.main,
 self.strokeGradient = window:Create("UIGradient", {
 Rotation = 2,
 Offset = Vector2.new(0, 0.5),
-Color = element.neutral.stroke,
+Color = self._accentPalette.neutral.stroke,
 Transparency = frame,
 
 Parent = self.stroke,
@@ -16500,7 +16527,7 @@ ZIndex = 5,
 Parent = self.main,
 })
 
-self.glow = window:CreateGlow(self.main, a14(element.neutral), 10, 1)
+self.glow = window:CreateGlow(self.main, a14(self._accentPalette.neutral), 10, 1)
 
 self.title = window:Create("TextLabel", {
 Text = prefix.t(self.name),
@@ -16521,7 +16548,7 @@ Parent = self.titleContainer,
 self.mainGradient = window:Create("UIGradient", {
 Rotation = 2,
 Offset = Vector2.new(0, 0.5),
-Color = element.neutral.fill,
+Color = self._accentPalette.neutral.fill,
 Transparency = frame,
 
 Parent = self.gradientContainer,
@@ -16673,7 +16700,7 @@ Parent = self.main,
 self.strokeGradient = window:Create("UIGradient", {
 Rotation = 2,
 Offset = Vector2.new(0, 0.5),
-Color = element.neutral.stroke,
+Color = self._accentPalette.neutral.stroke,
 Transparency = frame,
 
 Parent = self.stroke,
@@ -16712,7 +16739,7 @@ Parent = self.card,
 self.mainGradient = window:Create("UIGradient", {
 Rotation = 2,
 Offset = Vector2.new(0, 0.5),
-Color = element.neutral.fill,
+Color = self._accentPalette.neutral.fill,
 Transparency = frame,
 
 Parent = self.card,
@@ -16827,7 +16854,8 @@ self._accentGradients = { self.strokeGradient, self.mainGradient }
 end
 
 function state:_setAccent(a27, a28)
-local a29 = element[a27]
+local a29 = self._accentPalette[a27]
+self._accentState = a27
 self.strokeGradient.Color = a29.stroke
 self.mainGradient.Color = a29.fill
 if self.glow then
@@ -17128,6 +17156,16 @@ self.changeOdo:reveal(1, a67)
 else
 w:_reveal(self.textLabel, { TextTransparency = 1 }, a67)
 end
+end
+end
+
+function state:_refreshTheme()
+self:_refreshAccentPalette()
+local accent = self._accentPalette[self._accentState or "neutral"]
+motion.tween(self.strokeGradient, { Color = accent.stroke }, baseline)
+motion.tween(self.mainGradient, { Color = accent.fill }, baseline)
+if self.glow then
+motion.tween(self.glow, { Color = a14(accent) }, baseline)
 end
 end
 
@@ -22716,6 +22754,32 @@ resolved.TabStroke = ColorSequence.new(edgeShade(themes.firstColor(resolved.TabB
 end
 end
 
+
+
+
+
+
+
+function themes.deriveAccents(resolved, overrides)
+local accent = if overrides.AccentColor ~= nil then overrides.AccentColor else overrides.Accent
+if typeof(accent) ~= "Color3" then
+return
+end
+
+if overrides.AccentColor == nil then
+resolved.AccentColor = accent
+end
+if overrides.Accent == nil then
+resolved.Accent = accent
+end
+if overrides.AccentStroke == nil then
+resolved.AccentStroke = accent:Lerp(Color3.new(1, 1, 1), 0.2)
+end
+if overrides.SliderProgress == nil then
+resolved.SliderProgress = ColorSequence.new(accent, accent:Lerp(Color3.new(0, 0, 0), 0.12))
+end
+end
+
 local function themeOverrides(value)
 if typeof(value) == "table" then
 return value
@@ -22741,6 +22805,7 @@ resolved[key] = themes.coerceValue(key, override)
 end
 if typeof(value) == "table" then
 themes.deriveStrokes(resolved, overrides)
+themes.deriveAccents(resolved, overrides)
 end
 
 local userTable = if typeof(value) == "table" then value else nil
@@ -22849,7 +22914,7 @@ TabBackground = ColorSequence.new(Color3.fromRGB(50, 50, 50), Color3.fromRGB(35,
 TabStroke = ColorSequence.new(Color3.fromRGB(95, 95, 95), Color3.fromRGB(50, 50, 50)),
 SliderBackground = Color3.fromRGB(47, 47, 47),
 SliderBackgroundHover = Color3.fromRGB(60, 60, 60),
-SliderProgress = ColorSequence.new(Color3.fromRGB(0, 170, 127), Color3.fromRGB(0, 134, 98)),
+SliderProgress = ColorSequence.new(Color3.fromRGB(23, 153, 110), Color3.fromRGB(0, 134, 98)),
 SliderStroke = Color3.fromRGB(255, 255, 255),
 ActionColor = Color3.fromRGB(255, 255, 255),
 TitleFont = default.brandFont(Enum.FontWeight.SemiBold),
@@ -23206,26 +23271,6 @@ constants.fontAsset = "rbxassetid://12187375716"
 
 constants.icons = windowIcons.ids
 constants.uiIcons = windowIcons.names
-
-constants.accent = {
-on = Color3.fromRGB(23, 153, 110),
-onStroke = Color3.fromRGB(32, 201, 144),
-}
-
-constants.statAccents = {
-positive = {
-fill = ColorSequence.new(Color3.fromRGB(0, 170, 127), Color3.fromRGB(0, 134, 98)),
-stroke = ColorSequence.new(Color3.fromRGB(0, 213, 156), Color3.fromRGB(0, 189, 135)),
-},
-negative = {
-fill = ColorSequence.new(Color3.fromRGB(172, 47, 47), Color3.fromRGB(135, 37, 37)),
-stroke = ColorSequence.new(Color3.fromRGB(255, 75, 75), Color3.fromRGB(244, 67, 67)),
-},
-neutral = {
-fill = ColorSequence.new(Color3.fromRGB(0, 170, 127), Color3.fromRGB(0, 134, 98)),
-stroke = ColorSequence.new(Color3.fromRGB(0, 213, 156), Color3.fromRGB(0, 189, 135)),
-},
-}
 
 constants.zIndex = {
 elementLock = 60,
@@ -27354,93 +27399,93 @@ local LineOffsets = {
     [25] = 8542,
     [26] = 8642,
     [27] = 8696,
-    [28] = 9338,
-    [29] = 9586,
-    [30] = 9936,
-    [31] = 10383,
+    [28] = 9342,
+    [29] = 9590,
+    [30] = 9940,
+    [31] = 10389,
     [32] = 7143,
-    [34] = 11347,
-    [35] = 11802,
-    [36] = 11891,
-    [37] = 12120,
-    [38] = 12563,
-    [39] = 12573,
-    [40] = 12730,
-    [41] = 12875,
-    [42] = 14539,
-    [43] = 14787,
-    [44] = 15018,
-    [45] = 15339,
-    [46] = 15592,
-    [47] = 15678,
-    [48] = 16281,
-    [49] = 17148,
-    [50] = 17742,
-    [51] = 18313,
-    [52] = 18439,
-    [53] = 18578,
-    [55] = 19093,
-    [56] = 19119,
-    [57] = 19138,
-    [58] = 19170,
-    [59] = 19296,
-    [60] = 19310,
-    [61] = 19359,
-    [62] = 19068,
-    [63] = 19450,
-    [64] = 19794,
-    [65] = 19825,
-    [66] = 19439,
-    [67] = 19868,
-    [68] = 19888,
-    [69] = 19920,
-    [70] = 19850,
-    [71] = 20027,
-    [72] = 20095,
-    [74] = 20185,
-    [75] = 20162,
-    [76] = 20405,
-    [77] = 20501,
-    [78] = 20352,
-    [79] = 21054,
-    [80] = 21100,
-    [81] = 21182,
-    [82] = 21377,
-    [83] = 21508,
-    [84] = 21611,
-    [85] = 21780,
-    [86] = 22120,
-    [87] = 20526,
-    [88] = 22761,
-    [89] = 22650,
-    [90] = 22900,
-    [91] = 22998,
-    [92] = 23189,
-    [93] = 23251,
-    [94] = 23281,
-    [95] = 23575,
-    [96] = 23624,
-    [97] = 24023,
-    [98] = 24041,
-    [99] = 24146,
-    [100] = 24353,
-    [101] = 24994,
-    [102] = 25014,
-    [103] = 25142,
-    [104] = 25240,
-    [105] = 25469,
-    [106] = 25942,
-    [107] = 25978,
-    [108] = 26140,
-    [109] = 26500,
-    [110] = 26512,
-    [111] = 26563,
-    [112] = 26582,
-    [113] = 26865,
-    [114] = 26909,
-    [115] = 27110,
-    [116] = 27138,
-    [117] = 27149,
+    [34] = 11353,
+    [35] = 11808,
+    [36] = 11897,
+    [37] = 12126,
+    [38] = 12569,
+    [39] = 12579,
+    [40] = 12736,
+    [41] = 12881,
+    [42] = 14545,
+    [43] = 14793,
+    [44] = 15024,
+    [45] = 15345,
+    [46] = 15598,
+    [47] = 15684,
+    [48] = 16289,
+    [49] = 17186,
+    [50] = 17780,
+    [51] = 18351,
+    [52] = 18477,
+    [53] = 18616,
+    [55] = 19131,
+    [56] = 19157,
+    [57] = 19176,
+    [58] = 19208,
+    [59] = 19334,
+    [60] = 19348,
+    [61] = 19397,
+    [62] = 19106,
+    [63] = 19488,
+    [64] = 19832,
+    [65] = 19863,
+    [66] = 19477,
+    [67] = 19906,
+    [68] = 19926,
+    [69] = 19958,
+    [70] = 19888,
+    [71] = 20065,
+    [72] = 20133,
+    [74] = 20223,
+    [75] = 20200,
+    [76] = 20443,
+    [77] = 20539,
+    [78] = 20390,
+    [79] = 21092,
+    [80] = 21138,
+    [81] = 21220,
+    [82] = 21415,
+    [83] = 21546,
+    [84] = 21649,
+    [85] = 21818,
+    [86] = 22158,
+    [87] = 20564,
+    [88] = 22826,
+    [89] = 22688,
+    [90] = 22965,
+    [91] = 23063,
+    [92] = 23254,
+    [93] = 23296,
+    [94] = 23326,
+    [95] = 23620,
+    [96] = 23669,
+    [97] = 24068,
+    [98] = 24086,
+    [99] = 24191,
+    [100] = 24398,
+    [101] = 25039,
+    [102] = 25059,
+    [103] = 25187,
+    [104] = 25285,
+    [105] = 25514,
+    [106] = 25987,
+    [107] = 26023,
+    [108] = 26185,
+    [109] = 26545,
+    [110] = 26557,
+    [111] = 26608,
+    [112] = 26627,
+    [113] = 26910,
+    [114] = 26954,
+    [115] = 27155,
+    [116] = 27183,
+    [117] = 27194,
 }
 
 -- Misc AOT variable imports

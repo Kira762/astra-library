@@ -55,10 +55,7 @@ function settingsComponent.buildUI(window)
         about:CreateText({ name = "About", text = "UI Library for a better experience." })
         about:CreateStat({ name = "Version", value = aboutVersion, letter = false })
         about:CreateStat({ name = "Author", value = aboutAuthor, letter = false })
-        about:CreateLink({
-            name = "Repository", subtitle = "Docs, releases and issues", icon = "code",
-            link = "https://github.com/Kira762/astra-library",
-        })
+        about:CreateText({ name = "Repository", text = "https://github.com/Kira762/astra-library" })
     end
     about._settingsContentBuilder = buildAbout
 
@@ -99,7 +96,7 @@ function settingsComponent.buildUI(window)
             end,
         })
 
-        general:CreateCollapsibleGroup({
+        general:CreateAccordion({
             name = "Window Behavior",
             icon = "layout",
             elements = {
@@ -259,7 +256,7 @@ function settingsComponent.buildUI(window)
     appearance._settingsContentBuilder = buildAppearance
 
     local function buildPersistence()
-        persistence:CreateCollapsibleGroup({
+        persistence:CreateAccordion({
             name = "Auto Save & Load",
             icon = "save",
             elements = {
@@ -308,7 +305,7 @@ function settingsComponent.buildUI(window)
             end
         end
 
-        local configGroup = persistence:CreateCollapsibleGroup({
+        local configGroup = persistence:CreateAccordion({
             name = "Configurations",
             icon = constants.icons.config,
             elements = {

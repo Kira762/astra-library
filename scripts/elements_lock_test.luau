@@ -39,11 +39,11 @@ TestPump(0.5)
 local tab = window:CreateTab({ name = "Controls" })
 
 local callbacks = { button = 0, toggle = 0, input = 0, dropdown = 0 }
-local link = tab:CreateLink({
+local link = tab:CreateInput({
 	name = "Help Link",
 	id = "helpLink",
 	usage = { "host:documentation", "analytics:read" },
-	link = "https://example.com/help",
+	value = "https://example.com/help",
 })
 local input = tab:CreateInput({
 	name = "Username",
@@ -94,7 +94,7 @@ local advancedSlider = tab:CreateSlider({
 	range = { 0, 100 },
 	value = 40,
 })
-local group = tab:CreateCollapsibleGroup({
+local group = tab:CreateAccordion({
 	name = "Expandable Group",
 	description = "Click to expand without losing the values inside.",
 	elements = {},

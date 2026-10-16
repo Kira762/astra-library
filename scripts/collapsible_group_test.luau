@@ -21,8 +21,8 @@ local defs = {
         { type = "Group", elements = { { type = "Toggle", name = "Nested toggle", value = true } } },
     } },
 }
-local group = tab:CreateCollapsibleGroup({ name = "LocalPlayer", icon = "user-round", elements = defs })
-local other = tab:CreateCollapsibleGroup({ name = "Other", elements = { { type = "Text", name = "Independent", text = "text" } } })
+local group = tab:CreateAccordion({ name = "LocalPlayer", icon = "user-round", elements = defs })
+local other = tab:CreateAccordion({ name = "Other", elements = { { type = "Text", name = "Independent", text = "text" } } })
 TestPump(1)
 assert(#group.elements == #defs, "Every tab element type must be supported as a child")
 assert(group.elements[10].__type == "Changelog" and #group.elements[10].entries == 1, "Changelog renders as a regular child element")
@@ -228,17 +228,17 @@ assert(not group._expanded and not group.body.Visible, "Search restores prior co
 
 -- Validate before creating anything, including nesting hidden inside Group.
 for _, invalid in {
-    { { type = "CollapsibleGroup", elements = {} } },
-    { { type = "Group", elements = { { type = "CollapsibleGroup" } } } },
+    { { type = "Accordion", elements = {} } },
+    { { type = "Group", elements = { { type = "Accordion" } } } },
     { { type = "NotAnElement" } },
 } do
     local count = #window.instances
-    local ok = pcall(function() tab:CreateCollapsibleGroup({ elements = invalid }) end)
+    local ok = pcall(function() tab:CreateAccordion({ elements = invalid }) end)
     assert(not ok and #window.instances == count, "Invalid definitions must leave no partial UI")
 end
 local cyclic = {}
 cyclic[1] = { type = "Group", elements = cyclic }
-assert(not pcall(function() tab:CreateCollapsibleGroup({ elements = cyclic }) end), "Cycles must be rejected")
+assert(not pcall(function() tab:CreateAccordion({ elements = cyclic }) end), "Cycles must be rejected")
 local count = #window.instances
 group:MoveToBottom()
 assert(tab.elements[#tab.elements] == group, "Group supports normal element ordering")

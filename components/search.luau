@@ -29,11 +29,11 @@ local hoverTransparency = 0.2
 local surfaceTransparency = 0.9
 
 local function getElementText(element)
-    if element.__type == "Group" or element.__type == "CollapsibleGroup" then
+    if element.__type == "Group" or element.__type == "Accordion" or element.__type == "CollapsibleGroup" then
         local names = { element.name or "" }
         local function collectNames(group)
             for _, child in group.elements do
-                if child.__type == "Group" or child.__type == "CollapsibleGroup" then
+                if child.__type == "Group" or child.__type == "Accordion" or child.__type == "CollapsibleGroup" then
                     collectNames(child)
                 elseif child.name then
                     table.insert(names, child.name)
@@ -248,7 +248,7 @@ local function collectElements(window)
         local mainFrame = element.main
         table.insert(window._searchUnits, {
             unit = element,
-            homeExpanded = if element.__type == "CollapsibleGroup" then element._expanded else nil,
+            homeExpanded = if element.__type == "Accordion" or element.__type == "CollapsibleGroup" then element._expanded else nil,
             text = string.lower(getElementText(element)),
             homeParent = mainFrame.Parent,
             homeOrder = mainFrame.LayoutOrder,

@@ -1,7 +1,7 @@
 local function create()
     local window = Astra:CreateWindow({ name = "Preferences" })
     local tab = window:CreateTab({ name = "Main" })
-    local group = tab:CreateCollapsibleGroup({ name = "Saved controls", elements = {
+    local group = tab:CreateAccordion({ name = "Saved controls", elements = {
         { type = "Toggle", name = "Active", flag = "savedActive", value = false },
         { type = "Slider", name = "Speed", flag = "savedSpeed", range = { 0, 100 }, value = 16 },
     } })
@@ -84,7 +84,7 @@ window = Astra:CreateWindow({
     name = "List freshness",
     configuration = { fileName = "Autosave-Visible", customFolder = "AstraVisibility", autoSave = true, autoLoad = true },
 })
-group = window:CreateTab({ name = "Main" }):CreateCollapsibleGroup({ name = "Saved controls", elements = {
+group = window:CreateTab({ name = "Main" }):CreateAccordion({ name = "Saved controls", elements = {
     { type = "Toggle", name = "Active", flag = "freshActive", value = false },
 } })
 TestPump(1)

@@ -52,7 +52,7 @@ compiled" and check, in order:
 
 Once the line returns a table the compile is fine, and any later
 `attempt to call a nil value` names the Astra line that called it — a missing
-element method, a `Create…` on the wrong parent (Collapsible Groups live on a
+element method, a `Create…` on the wrong parent (Accordions live on a
 Tab, not on a Group), or props passed positionally instead of as one table.
 
 ---
@@ -100,7 +100,7 @@ from control values, even while Auto Save Config is off.
   Turning it on does not replace values in the current session.
 - Turning either off does not delete saved configurations.
 - Stable, unique flags are recommended for controls that should be restored.
-- Ordinary controls and controls inside Collapsible Groups use the same system.
+- Ordinary controls and controls inside Accordions use the same system.
 - File persistence requires a runtime with writable storage.
 - Astra only creates an `Astra/` folder in the executor workspace
   (`config/`, `settings/`, `assets/`, `keys/`). Saved configs live under
@@ -202,9 +202,9 @@ build, and the auto-select of a first tab you create late, are skipped — the
 player stays where they tapped. Once your build has gone quiet (two frames
 with no construction), `Select` and `Navigate` always apply again.
 
-Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateStepper`, `CreateDropdown`, `CreateKeybind`, `CreateInput`, `CreateLink`, `CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateChangelog`, `CreateGroup` and `CreateCollapsibleGroup`.
+Tab methods: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateStepper`, `CreateDropdown`, `CreateKeybind`, `CreateInput`, `CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateChangelog`, `CreateGroup` and `CreateAccordion` (`CreateAccordion` deprecated alias).
 
-Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateStepper`, `CreateDropdown`, `CreateKeybind`, `CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateLink`, `CreateGroup`. Collapsible Groups can only be created directly on a tab.
+Groups support: `CreateButton`, `CreateToggle`, `CreateSlider`, `CreateStepper`, `CreateDropdown`, `CreateKeybind`, `CreateStat`, `CreateSection`, `CreateText`, `CreateFooter`, `CreateDivider`, `CreateGroup`. Accordions can only be created directly on a tab (`CreateAccordion` / deprecated `CreateAccordion`).
 
 Selected tabs retain their outline and highlight. Unselected tabs retain an
 outline but have no fill/shadow highlight, including on hover.
@@ -266,7 +266,7 @@ would lock at this tier); each higher mode keeps those locks and adds another
 tier; Mode 5 locks every lockable functional element (e.g. Mode 2 locks Links,
 Inputs, Dropdowns and Keybinds; Mode 3 locks Buttons, Toggles, Sliders and
 Steppers; Mode 4 locks sensitive actions; Mode 5 locks all remaining lockable
-controls including Collapsible Groups). **Settings → Controls → Lock all
+controls including Accordions). **Settings → Controls → Lock all
 controls** is one switch for the two ends of that ladder: on is Mode 5, off is
 Mode 1. The switch is exempt, so it always stays usable. Hosts set any rung
 directly with `window:SetElementLockMode(1..5)` and inspect it with
@@ -299,7 +299,7 @@ tier; `lockGroup` is an alternative string shorthand:
 | 2 | `standard`, `input`, `selection` | Link, Input, Dropdown, Keybind |
 | 3 | `action`, `important` | Button, Toggle, Slider, Stepper |
 | 4 | `advanced`, `sensitive`, `highimpact` | No default type; use for sensitive actions such as deleting a configuration |
-| 5 | `remaining`, `all` | Other lockable controls, including Collapsible Group headers |
+| 5 | `remaining`, `all` | Other lockable controls, including Accordion headers |
 
 ```lua
 local exportButton = tab:CreateButton({
@@ -319,7 +319,7 @@ props are ignored and `SetInfo` is a compatibility no-op, so old hosts do not
 throw or recreate the badges. Use `window:ShowTooltip(anchor, text)` for an
 explicitly host-managed tooltip.
 
-The in-card `description` line is a Stat recipe now (the Collapsible Group
+The in-card `description` line is a Stat recipe now (the Accordion
 header carries its own variant of it). `Button`, `Toggle`, `Slider`, `Dropdown`,
 `Input` and `Link` no longer accept the prop: a `description` passed to one of
 them is ignored — no line, no card growth.
@@ -389,7 +389,7 @@ the value actually changes — a `(−)` tap at `0` is a deliberate no-op —
 and `Set(value, true)` skips it. Supports flags, `forgetState`,
 move/lock methods and a leading
 `icon`; the stepper joins the Slider's lock tier (Mode 3). Available on
-tabs, row/column Groups, and declarative Collapsible Groups using
+tabs, row/column Groups, and declarative Accordions using
 `type = "Stepper"`.
 
 ### Dropdown
@@ -427,7 +427,7 @@ to **K**, while invalid `Set` calls return `false` and retain the previous lette
 (unless silent). Capture consumes the key before the menu-toggle handler, so
 rebinding the menu's current letter does not accidentally hide the window.
 
-Available on tabs, column Groups, and declarative Collapsible Groups using
+Available on tabs, column Groups, and declarative Accordions using
 `type = "Keybind"` (not compact rows). Supports flags, `forgetState`, move/lock
 methods, and a leading `icon`. Values and callbacks use uppercase
 strings for config persistence. The control records a shortcut; hosts decide what
@@ -467,48 +467,6 @@ card draws.
 local row = tab:CreateGroup({ direction = "row" })
 local rank = row:CreateStat({ name = "Rank", value = "A" })  -- compact card, reads "A" on the right
 ```
-
-### Link
-```lua
-tab:CreateLink({
-    name = "Discord",                       -- title
-    subtitle = "Join our community",        -- muted second line
-    link = "https://discord.gg/example",    -- hidden value: copied, never shown
-    icon = "message-circle",
-    callback = function(link) end,          -- optional, after a successful copy
-})
-```
-
-A card that carries a URL. The link is stored on the element and never rendered
-as text: the trailing control copies it, swaps the copy mark for a check mark for
-two seconds, then puts the copy mark back. Every card owns that cycle, whether it
-stands alone, sits in a Group, or sits in a Collapsible Group — a card hidden
-while it is confirming (a group that closes) is back on the copy mark the next
-time it is revealed.
-
-```lua
-local link = tab:CreateLink({ name = "Discord", subtitle = "Join us", link = "https://discord.gg/example" })
-link:Set("https://discord.gg/new")   -- or SetLink: rewrite the hidden value
-link:SetTitle("Discord server")      -- title
-link:SetSubtitle("Now with a stage") -- second line (empty drops the card to one line)
-link:SetIcon("messages-square")      -- leading icon (nil removes it)
-link:Copy()                          -- run the cycle from code; true when the copy landed
-link:IsConfirming()                  -- true while the check mark is showing
-```
-
-`Set`, `SetLink`, `SetTitle`, `SetSubtitle`, `SetIcon` take effect immediately and
-the copy always follows the link currently stored. The card asks its host for a
-clipboard (`setclipboard`, `toclipboard`, `setrbxclipboard`, a `Clipboard` object,
-or Studio's `StudioService:CopyToClipboard`); where none exists the control keeps
-the copy mark and logs the reason, because the check mark means the link is on the
-clipboard and nothing else may show it. A card built without a `link` behaves the
-same way: it copies nothing, keeps the copy mark, and says why. The element
-supports the move and lock API like the other interactive elements.
-
-Holding the copy control never scrolls the page: a press on it is pinned to the
-tab page's canvas for as long as it is held, so the card stays exactly where it
-is instead of dragging down and springing back. The page scrolls normally
-everywhere else, and a scroll made between taps is left alone.
 
 ### Text / Divider / Group
 ```lua
@@ -599,7 +557,7 @@ The settings tabs are:
 The menu binding cannot be cleared. Saved legacy non-letter bindings (including
 Space, mouse buttons and unbound values) migrate to **K**. The settings pages
 remain lazy-built. Single controls are shown directly, never hidden in a
-one-element Collapsible Group.
+one-element Accordion.
 
 The restore capsule's icon, text and hit target stay invisible throughout the
 fold and appear only after `Hide()` completes. They disappear immediately when
@@ -893,7 +851,7 @@ window:SetTranslator(function(source, localeId) return ... end)
 
 ### Full example
 
-See `example.client.luau` — a three-tab studio that loads the bundle with the one-line loader above, opens behind `Astra:CreateKeySystem` (the demo key `ASTRA-STUDIO-2026` shows the full gate → `onSuccess` flow, saved and replayed on the next join), and shows every element type (including ordinary and Collapsible Groups and Changelog) as a UI-only tour: no callbacks and no game wiring, with compact controls side by side in row Groups.
+See `example.client.luau` — a three-tab studio that loads the bundle with the one-line loader above, opens behind `Astra:CreateKeySystem` (the demo key `ASTRA-STUDIO-2026` shows the full gate → `onSuccess` flow, saved and replayed on the next join), and shows every element type (including ordinary and Accordions and Changelog) as a UI-only tour: no callbacks and no game wiring, with compact controls side by side in row Groups.
 
 ---
 
@@ -953,11 +911,11 @@ settings tabs are created on first settings access, and their controls remain la
 until each tab is selected. Controls added to inactive tabs wait until that tab is
 shown before running their reveal animations.
 
-### Collapsible Group (optional)
+### Accordion (optional)
 
-`tab:CreateCollapsibleGroup` groups controls under an animated header. Existing
+`tab:CreateAccordion` groups controls under an animated header. Existing
 standalone elements and ordinary Groups are unchanged; nothing is automatically
-wrapped in a Collapsible Group.
+wrapped in a Accordion.
 
 ```lua
 local window = Astra:CreateWindow({
@@ -967,7 +925,7 @@ local window = Astra:CreateWindow({
 })
 local tab = window:CreateTab({ name = "Player", icon = "user-round" })
 
-local playerControls = tab:CreateCollapsibleGroup({
+local playerControls = tab:CreateAccordion({
     name = "LocalPlayer",
     icon = "user-round", -- optional; may be from any icon pack
     elements = {
@@ -1021,12 +979,12 @@ An ordinary Group retains its compact row layout when its children support it.
 Use `direction = "column"` for a vertical Group; the declarative builder also
 chooses a column automatically if the Group contains noncompact controls, so no
 chosen element is silently discarded. Ordinary Groups may contain ordinary Groups.
-**Collapsible Groups cannot contain Collapsible Groups**, directly or through a
-Group. Invalid types, sparse lists, and cyclic/nested Collapsible Group definitions
+**Accordions cannot contain Accordions**, directly or through a
+Group. Invalid types, sparse lists, and cyclic/nested Accordion definitions
 are rejected before creating any UI.
 
 - `{ type = "Changelog", ... }` renders as a regular Changelog element.
-- Every Collapsible Group starts collapsed; there is no `expanded` usage property.
+- Every Accordion starts collapsed; there is no `expanded` usage property.
 - Click the header to open/close. Multiple groups operate independently.
 - Expansion uses Astra's motion service, including the instant-motion setting.
 - Values, flags and running features remain active when collapsed. Closing and

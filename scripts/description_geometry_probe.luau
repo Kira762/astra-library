@@ -126,11 +126,11 @@ local elements = {
 	{ "stat", "Wrapped", tab:CreateStat({ name = "Wrapped", value = 240, description = "A longer helper line that runs long enough to wrap onto a second line inside the card." }) },
 	{ "toggle", "No description", tab:CreateToggle({ name = "No description" }) },
 	{ "toggle", "Ignored description", tab:CreateToggle({ name = "Ignored description", description = "Ping me.", value = true }) },
-	{ "group", "Player Preferences", more:CreateCollapsibleGroup({ name = "Player Preferences", description = "Click to expand. Closing keeps the values active.", elements = {} }) },
+	{ "group", "Player Preferences", more:CreateAccordion({ name = "Player Preferences", description = "Click to expand. Closing keeps the values active.", elements = {} }) },
 	{
 		"grouped",
 		"Grouped control",
-		more:CreateCollapsibleGroup({
+		more:CreateAccordion({
 			name = "Grouped children",
 			elements = {
 				{ type = "Toggle", name = "Grouped toggle", description = "Grouped line.", value = false },

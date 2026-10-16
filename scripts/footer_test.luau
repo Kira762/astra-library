@@ -219,7 +219,7 @@ expect(groupFooter ~= nil, "F6 a Group builds a footer")
 eq(groupFooter.__type, "Footer", "F6 ... reporting its type")
 eq(#runsOf(groupFooter), 1, "F6 ... rendering its run")
 
-local collapsible = tab:CreateCollapsibleGroup({
+local collapsible = tab:CreateAccordion({
 	name = "About",
 	elements = {
 		{ type = "Footer", parts = { "declarative footer" } },

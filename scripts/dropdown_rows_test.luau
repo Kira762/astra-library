@@ -272,7 +272,7 @@ stub models that strictness, so this pin fails on the old code path.
 ]]
 
 local groupedTab = window:CreateTab({ name = "Grouped" })
-local group = groupedTab:CreateCollapsibleGroup({
+local group = groupedTab:CreateAccordion({
     name = "Nested controls",
     elements = {
         { type = "Dropdown", name = "Inner", options = { "One", "Two", "Three" }, value = "One" },

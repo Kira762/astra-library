@@ -20,7 +20,7 @@ local function customOrder(window, forgetState)
             window._elementLockAllToggle = nil
         end
         window:_unregisterLockableElement(element)
-        if element.__type == "Group" or element.__type == "CollapsibleGroup" then
+        if element.__type == "Group" or element.__type == "Accordion" or element.__type == "CollapsibleGroup" then
             customOrder(window, element.elements)
         else
             window:_unregisterControl(element)
@@ -484,12 +484,12 @@ function state:CreateInput(a38)
     return self:_register(require(script.Parent.input).new(self, a38))
 end
 
-function state:CreateLink(a40)
-    return self:_register(require(script.Parent.link).new(self, a40))
+function state:CreateAccordion(props)
+    return self:_register(require(script.Parent.accordion).new(self, props))
 end
 
 function state:CreateCollapsibleGroup(props)
-    return self:_register(require(script.Parent.collapsibleGroup).new(self, props))
+    return self:CreateAccordion(props)
 end
 
 function state:CreateGroup(a41)

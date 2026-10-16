@@ -39,7 +39,7 @@ Read the three references for the full spec; the short rules are:
 ### 3. Layout & geometry — `references/layout-geometry.md`
 
 - **Placement preserved:** `main.Position / Size / Parent` (and `headerCorner` metrics) are identical before vs after `SetElementLockMode(5)` for every element on the page — 13 elements in the guard harness. The scrim is an overlay (`Visible` + `ZIndex 60`), never a re-parent or resize.
-- **Corner sync:** CollapsibleGroup headers flip corners: `collapsed → 8,8` (all four), `expanded → 8,0` (top only). Their `lockScrimCorner` mirrors `headerCorner` — expanded shows a straight divider, not rounded bottom arcs.
+- **Corner sync:** Accordion headers flip corners: `collapsed → 8,8` (all four), `expanded → 8,0` (top only). Their `lockScrimCorner` mirrors `headerCorner` — expanded shows a straight divider, not rounded bottom arcs.
 - **Track geometry (slider/mode-picker):** knob clearance `knobGap = 2` on all sides, fill is the knob's pill (`knobHeight`/`knobRadius` + `knobGap` inset), running to the knob's trailing edge, so last stop fills end-to-end and no accent bleeds above/below the knob.
 
 ## How to use
@@ -66,7 +66,7 @@ Read the three references for the full spec; the short rules are:
 - 9 lockable types have correct `lockLevel` and `usageTag = lockable:astra:<id>` present in `usage`; 7 non-lockable have `usageTag=nil` and `_isLockable~=true`
 - Mode 1 locks only explicit `=1`; Mode 2/3/4/5 are cumulative; late element inherits current mode; manual `Lock`/`Unlock` compose and `Unlock` cannot bypass a mode lock
 - Placement invariant (`Position/Size/Parent`) for 13 elements across `SetElementLockMode(5)`
-- Header `lockScrimCorner` mirrors `headerCorner` for `8,0` vs `8,8` in both expanded and collapsed states for CollapsibleGroup
+- Header `lockScrimCorner` mirrors `headerCorner` for `8,0` vs `8,8` in both expanded and collapsed states for Accordion
 - Controller `_elementLockAllToggle` is exempt (`_isLockable=false`, `IsLocked()=false` at Mode 5) and its title is a string and locale-bound
 - Sliding: locked Toggle/Dropdown/Input/Button guard callbacks and preserve values; open dropdown stays open under its scrim
 

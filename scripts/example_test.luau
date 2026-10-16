@@ -68,10 +68,10 @@ local types = {}
 local function scan(elements, informationOnlyHere)
     for _, element in elements do
         types[if element.__type == "Statistic" then "Stat" else element.__type] = true
-        if element.__type == "Changelog" or element.__type == "Link" or element.__type == "Footer" then
+        if element.__type == "Changelog" or element.__type == "Footer" then
             assert(informationOnlyHere, "Information belongs in the first tab")
         end
-        if element.__type == "CollapsibleGroup" then
+        if element.__type == "Accordion" or element.__type == "CollapsibleGroup" then
             assert(#element.elements > 1, "Never wrap a lone element in a collapsible group")
         end
         if element.elements then scan(element.elements, informationOnlyHere) end
@@ -82,7 +82,7 @@ for _, tab in userTabs do
     TestPump(0.5)
     scan(tab.elements, tab == overview)
 end
-for _, kind in { "Section", "Text", "Stat", "Divider", "Link", "Changelog", "Footer", "Button", "Group", "CollapsibleGroup", "Input", "Keybind", "Toggle", "Stepper", "Slider", "Dropdown" } do
+for _, kind in { "Section", "Text", "Stat", "Divider", "Changelog", "Footer", "Button", "Group", "Accordion", "Input", "Keybind", "Toggle", "Stepper", "Slider", "Dropdown" } do
     assert(types[kind], "Demo exercises " .. kind)
 end
 window:_buildSettingsUI()

@@ -21,11 +21,9 @@ local function buildStudio()
         name = "A UI-only tour of the API.",
         text = "Every element, grouped. Nothing here touches the game.",
     })
-    overview:CreateLink({
+    overview:CreateText({
         name = "Repository",
-        subtitle = "Copy the project link",
-        icon = "code",
-        link = "https://github.com/Kira762/astra-library",
+        text = "https://github.com/Kira762/astra-library",
     })
     overview:CreateChangelog({
         name = "What's new",
@@ -76,7 +74,7 @@ local function buildStudio()
 
     layout:CreateDivider({ text = "Folded" })
 
-    layout:CreateCollapsibleGroup({
+    layout:CreateAccordion({
         name = "More options",
         icon = "chevrons-up-down",
         description = "Secondary controls, folded away.",

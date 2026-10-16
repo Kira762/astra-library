@@ -144,7 +144,7 @@ function Keybind:_canCapture()
     end
     local owner = self.tab
     while owner do
-        if owner.locked or (owner.__type == "CollapsibleGroup" and not owner._expanded) then
+        if owner.locked or ((owner.__type == "Accordion" or owner.__type == "CollapsibleGroup") and not owner._expanded) then
             return false
         end
         if owner.__type == "Tab" then

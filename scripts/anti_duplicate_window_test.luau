@@ -146,7 +146,7 @@ task.spawn(function()
 	for index = 1, 40 do
 		table.insert(elements, { type = "Button", name = "Busy " .. index, callback = function() end })
 	end
-	busyTab:CreateCollapsibleGroup({ name = "Busy group", elements = elements })
+	busyTab:CreateAccordion({ name = "Busy group", elements = elements })
 	busyHostDone = true
 end)
 
@@ -226,7 +226,7 @@ task.spawn(function()
 	for index = 1, 24 do
 		table.insert(elements, { type = "Toggle", name = "Overtaken " .. index })
 	end
-	tab:CreateCollapsibleGroup({ name = "Overtaken group", elements = elements })
+	tab:CreateAccordion({ name = "Overtaken group", elements = elements })
 	--[[
 	The published examples end their build with a selection; a superseded
 	script's must survive the same way.

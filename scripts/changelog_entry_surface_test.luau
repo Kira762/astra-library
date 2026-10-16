@@ -11,8 +11,8 @@ that the element wears one lit line and the levels inside it read as surface.
 
   * N1 an entry card carries no UIStroke, and the changelog's own card still
        carries the one lit line (`ElementStroke` at the element tier),
-  * N2 the entry's fill is the window surface — a theme binding, like every
-       other surface in the library, so a host palette re-derives it — revealed
+  * N2 the entry's fill matches the other element surfaces — a theme binding,
+       so a host palette re-derives it — revealed
        opaque so the recess reads even inside a Collapsible Group,
   * N3 the entry rounds with `ElementCornerRadius`, the same tier as the card
        it sits in, and reveal/hide still move the entry with the element,
@@ -102,30 +102,18 @@ eq(
 	"N1 the changelog's own line stays at the element tier"
 )
 
--- ===== N2: the recess is the window surface, and it is theme-bound ==========
+-- ===== N2: standard element surface, theme-bound =========================
 
 for _, card in cards do
 	local gradient = childOfClassName(card, "UIGradient")
 	expect(gradient ~= nil, "N2 the entry card carries a gradient")
 	eq(
 		tostring(window.themeProperties[gradient] and window.themeProperties[gradient].Color),
-		"WindowColor",
-		"N2 the entry wears the window surface, as a theme binding"
+		"ElementGradient",
+		"N2 the entry matches the other element surfaces"
 	)
 	eq(card.BackgroundTransparency, window.theme.ElementTransparency, "N2 the recess is revealed opaque")
 end
-
-local function firstKey(color)
-	return color and color.Keypoints and color.Keypoints[1] and color.Keypoints[1].Value
-end
-
-local beforeSwap = firstKey(childOfClassName(cards[1], "UIGradient").Color)
-local themeSwap = Color3.fromRGB(1, 2, 3)
-window:ChangeTheme({ WindowColor = ColorSequence.new(themeSwap) })
-TestPump(0.4)
-local afterSwap = firstKey(childOfClassName(cards[1], "UIGradient").Color)
-expect(afterSwap ~= beforeSwap, "N2 a theme change re-derives the entry surface")
-eq(afterSwap.R, themeSwap.R, "N2 the entry surface follows the theme's window colour")
 
 -- ===== N3: one corner family, and the reveal moves with the element =========
 

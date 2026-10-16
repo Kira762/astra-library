@@ -16,7 +16,7 @@ What this module can and cannot do (read before relying on it)
 * CANNOT: prevent a hook. `hookfunction` patches the closure itself, so code
   running inside the executor cannot hide from it or remove it. Anything that
   must be enforced (keys, purchases, permissions) needs a server — same trust
-  model as the signed loader: tamper *evidence*, not a trust root.
+  model: client-side detection is evidence, not a trust root.
 
 Layers
 ------

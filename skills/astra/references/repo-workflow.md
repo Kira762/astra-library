@@ -33,7 +33,6 @@ Run these from the repository root, in this order, after touching the tree:
 
 ```sh
 node scripts/generate_bundle.js     # rebuild version-1.luau from the modular tree
-node scripts/sign_bundle.js         # re-sign it -- the .sig pins the exact bytes
 sh scripts/check_syntax.sh          # compile every published .luau file
 python3 scripts/check_requires.py   # require paths exist, no dependency cycles
 python3 scripts/check_instance_fields.py   # no custom Lua fields written on Instances
@@ -48,11 +47,6 @@ sh scripts/<feature>_test.sh        # the per-feature runtime tests
   module count, line count and byte size. Every module is stripped of comments and
   indentation on the way in (`--no-strip` for a readable build); the strip preserves
   line numbers exactly, which is what keeps the `LineOffsets` error mapping honest.
-- `scripts/sign_bundle.js` has to run after every regeneration. The signature covers
-  `SHA-256(bundle)`, so a new bundle invalidates `version-1.luau.sig` and
-  `loader_integrity_test.sh` fails until it is re-signed. CI re-signs with the
-  `SIGNING_KEY` secret on `main`; locally it falls back to a gitignored throwaway
-  dev key and re-syncs `loader.luau`'s `PUBLIC_KEY` — never ship that key.
 - `scripts/strip_equivalence_test.sh` compiles every published module with
   `luau-compile --binary` before and after stripping and requires byte-identical
   output. Run it after touching `scripts/strip_luau.js`.

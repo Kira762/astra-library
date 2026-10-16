@@ -202,7 +202,7 @@ lines.push("");
 lines.push("-- Will be used later for getting flattened globals");
 lines.push("local ImportGlobals");
 lines.push("");
-lines.push("-- Integrity canaries (generated; covered by the release signature).");
+lines.push("-- Runtime integrity canaries generated with the bundle.");
 lines.push("-- __recFP snapshots the environment when the MainModule closure starts,");
 lines.push("-- __checkFP re-snapshots after every module has loaded; a mismatch means");
 lines.push("-- something was replaced mid-load. Silent: failure returns a no-op stub.");
@@ -262,8 +262,7 @@ const out1 = lines.length; // informational only
 const runtime = `
 
 -- Canary: closure count must match what the generator saw. Catches a bundle
--- whose ClosureBindings table was edited after generation (the release
--- signature is the strong check; this is the second layer for raw-path loads).
+-- whose ClosureBindings table was edited after generation (these canaries are a lightweight consistency check for raw-path loads).
 do
     local counted = 0
     for _ in next, ClosureBindings do counted = counted + 1 end

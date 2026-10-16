@@ -785,9 +785,8 @@ to the console — the only thing it still emits is a raised error, so a
 callback that throws surfaces with a traceback and everything recoverable
 stays quiet.
 
-Enforcement is already wired where it matters: the signed loader refuses to
-fetch under interception (quiet stub, like any other failure; setting
-`SPY_PREFLIGHT` to `"off"` in `loader.luau` disables it), and
+Enforcement is already wired where it matters: the loader fetches the published
+bundle directly and returns a quiet stub on fetch or runtime failure, and
 `grabKeyFromSite` key fetches are guarded — a hit drops the key like a failed
 fetch, so the gate fails closed, and it drops it without a word (no warning,
 and never the key URL, which the guard just kept off the wire). Asset

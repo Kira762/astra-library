@@ -111,8 +111,9 @@ Colors carry `Lerp` because the library blends its own shades — the tab
 row's outline is a blend of the theme's stroke toward the rail surface —
 and the tests assert on the resulting channels.
 ]]
+local color3Meta = { __type = "Color3" }
 local function color3(r, g, b)
-	return {
+	return setmetatable({
 		R = r / 255,
 		G = g / 255,
 		B = b / 255,
@@ -123,7 +124,7 @@ local function color3(r, g, b)
 				(self.B + (other.B - self.B) * alpha) * 255
 			)
 		end,
-	}
+	}, color3Meta)
 end
 
 Color3 = {
@@ -302,7 +303,7 @@ function typeof(value)
 	if type(value) == "table" then
 		local mt = getmetatable(value)
 		local marker = mt and rawget(mt, "__type")
-		if marker == "EnumItem" or marker == "Enum" then
+		if marker == "EnumItem" or marker == "Enum" or marker == "Color3" then
 			return marker
 		end
 	end

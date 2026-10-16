@@ -3,7 +3,7 @@ Theme resolution engine (themes/init.luau).
 
 Extracted verbatim from components/window.luau so the window no longer owns
 theme logic. Responsibilities: named-theme lookup against the themes folder,
-value coercion (Color3 -> ColorSequence for gradient keys), stroke
+value coercion (Color3 -> ColorSequence for gradient keys), stroke/accent
 derivation for user-supplied theme tables, and brand-font fallbacks.
 The only built-in palette is `default`; unknown names warn and fall back
 to it. Custom theme tables overlay the default key set.
@@ -67,6 +67,32 @@ function themes.deriveStrokes(resolved, overrides)
     end
 end
 
+--[[
+The accent is the shared active-control color. Keep the older `Accent` alias,
+toggle outlines, and slider/stat fills in the same family when a partial theme
+only supplies AccentColor (or Accent). Explicit AccentStroke and SliderProgress
+values still win for themes that want a separate treatment.
+]]
+function themes.deriveAccents(resolved, overrides)
+    local accent = if overrides.AccentColor ~= nil then overrides.AccentColor else overrides.Accent
+    if typeof(accent) ~= "Color3" then
+        return
+    end
+
+    if overrides.AccentColor == nil then
+        resolved.AccentColor = accent
+    end
+    if overrides.Accent == nil then
+        resolved.Accent = accent
+    end
+    if overrides.AccentStroke == nil then
+        resolved.AccentStroke = accent:Lerp(Color3.new(1, 1, 1), 0.2)
+    end
+    if overrides.SliderProgress == nil then
+        resolved.SliderProgress = ColorSequence.new(accent, accent:Lerp(Color3.new(0, 0, 0), 0.12))
+    end
+end
+
 local function themeOverrides(value)
     if typeof(value) == "table" then
         return value
@@ -92,6 +118,7 @@ function themes.resolve(value)
 	end
 	if typeof(value) == "table" then
 		themes.deriveStrokes(resolved, overrides)
+		themes.deriveAccents(resolved, overrides)
 	end
 
 	local userTable = if typeof(value) == "table" then value else nil

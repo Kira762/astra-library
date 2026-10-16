@@ -25,6 +25,7 @@ local Window = require(script.Parent.class)
 
 function Window.new(props)
     props = if typeof(props) == "table" then props else {}
+    local requestedTheme = props.theme or props.Theme
 
                 if props.translations or props.Translations then
         locale.register(props.translations or props.Translations)
@@ -79,7 +80,7 @@ function Window.new(props)
         _settingsLayoutActive = false,
         _settingsTabs = {},
         _settingsMode = false,
-        theme = resolveTheme(props.theme or props.Theme),
+        theme = resolveTheme(requestedTheme),
 
         controls = {},
         _elementLockMode = 1,
@@ -507,7 +508,10 @@ function Window.new(props)
     self._collapsedShown = false
 
         self:LoadSettings()
-    self:ChangeTheme(self.settings.theme)
+    -- An explicit CreateWindow theme beats the persisted built-in choice.
+    -- Re-resolve after settings load so its stored font choice is included.
+    local themeToApply = if requestedTheme ~= nil then resolveTheme(requestedTheme) else self.settings.theme
+    self:ChangeTheme(themeToApply)
     if self.settings.layoutMode == "collapsedSidebar"
         or (self.settings.layoutMode and self.settings.layoutMode ~= self.layout.mode)
     then

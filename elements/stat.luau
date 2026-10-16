@@ -9,11 +9,8 @@ local motion = require(constants.motion)
 local tab = require(script.Parent.Parent.functions)
 local props = require(constants.odometer)
 local name = require(constants.moveable)
-local value = require(constants.constants)
 local description = require(script.Parent.description)
 local prefix = require(constants.locale)
-
-local element = value.statAccents
 
 local frame = NumberSequence.new({
     NumberSequenceKeypoint.new(0, 0.85),
@@ -55,6 +52,22 @@ end
 
 local function a14(a15)
     return a15.fill.Keypoints[1].Value
+end
+
+local function accentPalette(theme)
+    local accent = {
+        fill = theme.SliderProgress,
+        stroke = ColorSequence.new(theme.AccentStroke, theme.AccentColor),
+    }
+    local errorAccent = {
+        fill = ColorSequence.new(theme.ErrorColor, theme.ErrorColor:Lerp(Color3.new(0, 0, 0), 0.2)),
+        stroke = ColorSequence.new(theme.ErrorStrokeColor, theme.ErrorColor),
+    }
+    return {
+        positive = accent,
+        neutral = accent,
+        negative = errorAccent,
+    }
 end
 
 local function a16(a17)
@@ -145,8 +158,10 @@ function state.new(tab, a25)
             then (a25.value or a25.Value)
             else nil,
         _lastChange = 0,
+        _accentState = "neutral",
     }, state)
 
+    self:_refreshAccentPalette()
     if self.compact then
         self:_buildCompact()
     else
@@ -155,6 +170,10 @@ function state.new(tab, a25)
 
 
     return self
+end
+
+function state:_refreshAccentPalette()
+    self._accentPalette = accentPalette(self.window.theme)
 end
 
 function state:_buildFull()
@@ -185,7 +204,7 @@ function state:_buildFull()
     self.strokeGradient = window:Create("UIGradient", {
         Rotation = 2,
         Offset = Vector2.new(0, 0.5),
-        Color = element.neutral.stroke,
+        Color = self._accentPalette.neutral.stroke,
         Transparency = frame,
 
         Parent = self.stroke,
@@ -220,7 +239,7 @@ function state:_buildFull()
         Parent = self.main,
     })
 
-    self.glow = window:CreateGlow(self.main, a14(element.neutral), 10, 1)
+    self.glow = window:CreateGlow(self.main, a14(self._accentPalette.neutral), 10, 1)
 
     self.title = window:Create("TextLabel", {
         Text = prefix.t(self.name),
@@ -241,7 +260,7 @@ function state:_buildFull()
     self.mainGradient = window:Create("UIGradient", {
         Rotation = 2,
         Offset = Vector2.new(0, 0.5),
-        Color = element.neutral.fill,
+        Color = self._accentPalette.neutral.fill,
         Transparency = frame,
 
         Parent = self.gradientContainer,
@@ -393,7 +412,7 @@ function state:_buildCompact()
     self.strokeGradient = window:Create("UIGradient", {
         Rotation = 2,
         Offset = Vector2.new(0, 0.5),
-        Color = element.neutral.stroke,
+        Color = self._accentPalette.neutral.stroke,
         Transparency = frame,
 
         Parent = self.stroke,
@@ -432,7 +451,7 @@ function state:_buildCompact()
     self.mainGradient = window:Create("UIGradient", {
         Rotation = 2,
         Offset = Vector2.new(0, 0.5),
-        Color = element.neutral.fill,
+        Color = self._accentPalette.neutral.fill,
         Transparency = frame,
 
         Parent = self.card,
@@ -547,7 +566,8 @@ function state:_buildCompact()
 end
 
 function state:_setAccent(a27, a28)
-    local a29 = element[a27]
+    local a29 = self._accentPalette[a27]
+    self._accentState = a27
     self.strokeGradient.Color = a29.stroke
     self.mainGradient.Color = a29.fill
     if self.glow then
@@ -848,6 +868,16 @@ function state:_setShown(a66, a67)
         else
             w:_reveal(self.textLabel, { TextTransparency = 1 }, a67)
         end
+    end
+end
+
+function state:_refreshTheme()
+    self:_refreshAccentPalette()
+    local accent = self._accentPalette[self._accentState or "neutral"]
+    motion.tween(self.strokeGradient, { Color = accent.stroke }, baseline)
+    motion.tween(self.mainGradient, { Color = accent.fill }, baseline)
+    if self.glow then
+        motion.tween(self.glow, { Color = a14(accent) }, baseline)
     end
 end
 

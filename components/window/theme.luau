@@ -9,6 +9,7 @@ local state = require(utilities.Parent.core.state)
 local themes = require(script.Parent.Parent.Parent.themes)
 local coerceValue = themes.coerceValue
 local deriveStrokes = themes.deriveStrokes
+local deriveAccents = themes.deriveAccents
 local resolveTheme = themes.resolve
 
 local shared = require(script.Parent.constants)
@@ -94,12 +95,13 @@ function Window:_syncLiveAnimation()
 end
 
 function Window:ChangeTheme(themeInput)
-            local themeTable = if typeof(themeInput) == "table" then themeInput else resolveTheme(themeInput)
+    local themeTable = if typeof(themeInput) == "table" then themeInput else resolveTheme(themeInput)
     for key, value in themeTable do
         self.theme[key] = coerceValue(key, value)
     end
-        if typeof(themeInput) == "table" then
+    if typeof(themeInput) == "table" then
         deriveStrokes(self.theme, themeTable)
+        deriveAccents(self.theme, themeTable)
     end
 
     --[[

@@ -8,7 +8,7 @@ end
 
 local harness = getgenv().__ImageRemotePipeline
 expect(type(harness) == "table", "the partial executor stubs are installed")
-expect(Mova.Icons.get("house") == "assets/icons/lucide-pack/lucideHouse.png", "the example's bare icon name resolves")
+expect(Mova.Icons.get("house") == "assets/icons/lucide-pack/lucideHouse.png", "the example's bare icon name resolves") -- dangling-ok: asserts the resolver's string, not that the PNG still lives here
 
 local window = Mova:CreateWindow({
     name = "Remote Icon Pipeline",
@@ -26,7 +26,7 @@ expect(
 
 local foundCatalogRequest = false
 for url, count in harness.fetched do
-    if string.find(url, "/assets/icons/lucide-pack/lucideHouse.png", 1, true) then
+    if string.find(url, "/assets/icons/lucide-pack/lucideHouse.png", 1, true) then -- dangling-ok: asserts the resolver's string, not that the PNG still lives here
         foundCatalogRequest = count == 1
         break
     end

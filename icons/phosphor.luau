@@ -7,7 +7,7 @@ constructors. Regenerate with scripts/generate_icon_packs.js.
 ]]
 
 return require(script.Parent.packBuilder).create(
-	"assets/icons/phosphor-pack/",
+	"assets/icons/phosphor-pack/", -- dangling-ok: pack PNGs moved out of this repo
 	"phosphor",
 [==[
 acorn address-book-tabs address-book air-traffic-control airplane-in-flight airplane-landing airplane-takeoff airplane-taxiing airplane-tilt airplane

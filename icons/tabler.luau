@@ -7,7 +7,7 @@ constructors. Regenerate with scripts/generate_icon_packs.js.
 ]]
 
 return require(script.Parent.packBuilder).create(
-	"assets/icons/tabler-pack/",
+	"assets/icons/tabler-pack/", -- dangling-ok: pack PNGs moved out of this repo
 	"tabler",
 [==[
 a-b-2 a-b-off a-b abacus-off abacus abc access-point-off access-point accessible-off accessible

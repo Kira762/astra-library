@@ -7,7 +7,7 @@ constructors. Regenerate with scripts/generate_icon_packs.js.
 ]]
 
 return require(script.Parent.packBuilder).create(
-	"assets/icons/heroicons-pack/",
+	"assets/icons/heroicons-pack/", -- dangling-ok: pack PNGs moved out of this repo
 	"heroicons",
 [==[
 academic-cap academic-cap_solid adjustments-horizontal adjustments-horizontal_solid adjustments-vertical adjustments-vertical_solid archive-box-arrow-down archive-box-arrow-down_solid archive-box-x-mark archive-box-x-mark_solid

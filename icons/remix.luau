@@ -7,7 +7,7 @@ constructors. Render with scripts/render_remix_pack.js.
 ]]
 
 return require(script.Parent.packBuilder).create(
-	"assets/icons/remix-pack/",
+	"assets/icons/remix-pack/", -- dangling-ok: pack PNGs moved out of this repo
 	"remix",
 [==[
 24-hours-fill 24-hours-line 4k-fill 4k-line a-b accessibility-fill accessibility-line account-box-2-fill account-box-2-line account-box-fill

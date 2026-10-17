@@ -1,6 +1,6 @@
 --[[
 ===== Default-only theme behaviour =====
-Runs the real Astra bundle against the mini Roblox environment from
+Runs the real Mova bundle against the mini Roblox environment from
 sidebar_sizing_stubs.luau. Colour palettes other than `default` were
 removed, so Appearance no longer offers a theme picker. This suite
 pins that:
@@ -56,7 +56,7 @@ local function findSettingsElement(targetWindow, tabName, elementName)
 	return nil
 end
 
-local window = Astra:CreateWindow({ name = "Theme Settings Test", configuration = { autoSave = false, autoLoad = false } })
+local window = Mova:CreateWindow({ name = "Theme Settings Test", configuration = { autoSave = false, autoLoad = false } })
 TestPump(1.2)
 
 local defaultAccent = Color3.fromRGB(23, 153, 110)

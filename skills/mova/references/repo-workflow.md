@@ -1,4 +1,4 @@
-# Astra v1 — Repository workflow
+# Mova v1 — Repository workflow
 
 For work *inside* this repository (`Kira762/astra-library`). The library ships as
 both a modular tree (source of truth) and a generated single-file bundle (what
@@ -17,11 +17,11 @@ scripts load).
 | `settings/` | `defaults`, `manager`, `registry`, `appearance`, `behavior`, `performance`, `persistence`. |
 | `themes/` | `init` resolver + the `default` palette. |
 | `utilities/` | Motion, haptics, persistence pieces, icon/asset resolution, text metrics, layouts, locale, locks/ordering. |
-| `windowIcons/` | Astra's own built-in glyphs — the window chrome, its affordances and the brand mark. Not part of the icon API: hosts cannot address these by name or swap them for a pack icon. (`icons/` is what a host asks for; `windowIcons/` is what the library needs to exist.) |
+| `windowIcons/` | Mova's own built-in glyphs — the window chrome, its affordances and the brand mark. Not part of the icon API: hosts cannot address these by name or swap them for a pack icon. (`icons/` is what a host asks for; `windowIcons/` is what the library needs to exist.) |
 | `icons/` | Seven icon packs, `packBuilder`, custom-asset resolution. |
 | `scripts/` | Build, syntax gate, static checkers and runtime tests. |
-| `skills/astra/` | The Agent Skill published to skills.sh (this folder). |
-| `skills/astra-guard/` | Regression guard for the three recurring bug classes (lock tiers, text/locale, layout geometry). |
+| `skills/mova/` | The Agent Skill published to skills.sh (this folder). |
+| `skills/mova-guard/` | Regression guard for the three recurring bug classes (lock tiers, text/locale, layout geometry). |
 | `default.project.json`, `wax.project.json` | Rojo / Wax project mapping for Studio. |
 
 Function bodies in the tree are minified (locals renamed `a1`, `a2`, …); top-level
@@ -63,11 +63,11 @@ sh scripts/<feature>_test.sh        # the per-feature runtime tests
   like `file.luau` are ignored on purpose — too ambiguous to judge.
 - `check_all.sh` runs all of the above plus the full runtime suite in fixed order
   (`1/6` requires through `6/6` runtime tests) and is the single command to run
-  before publishing. The `astra-guard` harness (`scripts/guard_invariants_test.sh`)
+  before publishing. The `mova-guard` harness (`scripts/guard_invariants_test.sh`)
   is part of that suite; it guards the three recurring bug classes.
 - Runtime tests assemble mini Roblox stubs + the bundle (wrapped in a function so the
   bundle's own error-line mapping survives) + assertions, then run them under the
-  Luau CLI. `ASTRA_BUNDLE=/path/to/bundle` points a test at another build.
+  Luau CLI. `MOVA_BUNDLE=/path/to/bundle` points a test at another build.
 - `python3 scripts/eager_graph.py` reports the eager transitive module graph and is
   the tool behind the startup numbers in `PERFORMANCE_CHANGES.md`.
 - Files outside the gate's fixed list (for example a new `.luau` under `skills/`)
@@ -99,7 +99,7 @@ file mirroring its Roblox name (`init.luau` = the folder ModuleScript).
   committed to `main` — a syntax error in the bundle surfaces for users as
   `attempt to call a nil value` at line 1, not as a syntax error, which is exactly
   why `check_syntax.sh` exists.
-- `skills/` is the discovery root used by the `skills` CLI: `skills/astra/SKILL.md`
+- `skills/` is the discovery root used by the `skills` CLI: `skills/mova/SKILL.md`
   is what `npx skills add Kira762/astra-library` installs.
 - The library is published as one bundle; do not switch examples or loaders to the
   modular tree or to per-file raw URLs.

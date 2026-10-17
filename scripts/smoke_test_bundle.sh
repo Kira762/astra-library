@@ -32,13 +32,13 @@ if [ -z "$LUAU_BIN" ]; then
 fi
 
 TMPDIR_LOCAL="${TMPDIR:-/tmp}"
-SMOKE="$TMPDIR_LOCAL/astra_smoke_$$.luau"
+SMOKE="$TMPDIR_LOCAL/mova_smoke_$$.luau"
 trap 'rm -f "$SMOKE"' EXIT
 
 {
 	cat "$ROOT/scripts/smoke_stubs.luau"
 	echo ""
-	echo "Astra = (function()"
+	echo "Mova = (function()"
 	echo ""
 	cat "$BUNDLE"
 	echo ""
@@ -52,20 +52,20 @@ local function expect(cond, message)
 	end
 end
 
-expect(type(Astra) == "table", "bundle returned its API table, got " .. type(Astra))
-expect(type(Astra.CreateWindow) == "function", "CreateWindow is a function")
-expect(type(Astra.Icons) == "table", "Icons surface exists")
-expect(Astra.Icons.Lucide == "lucide", "icon name constants intact")
-expect(type(Astra.Icons.get) == "function", "Icons.get callable")
+expect(type(Mova) == "table", "bundle returned its API table, got " .. type(Mova))
+expect(type(Mova.CreateWindow) == "function", "CreateWindow is a function")
+expect(type(Mova.Icons) == "table", "Icons surface exists")
+expect(Mova.Icons.Lucide == "lucide", "icon name constants intact")
+expect(type(Mova.Icons.get) == "function", "Icons.get callable")
 
 -- Internal service surface (added in the modular refactor)
-expect(type(Astra.Core) == "table", "Astra.Core service surface exists")
-expect(type(Astra.Core.state) == "table", "core state loaded")
-expect(type(Astra.Settings) == "table", "Astra.Settings service surface exists")
-expect(type(Astra.Settings.readPersisted) == "function", "settings readPersisted callable")
+expect(type(Mova.Core) == "table", "Mova.Core service surface exists")
+expect(type(Mova.Core.state) == "table", "core state loaded")
+expect(type(Mova.Settings) == "table", "Mova.Settings service surface exists")
+expect(type(Mova.Settings.readPersisted) == "function", "settings readPersisted callable")
 
 -- Lazy icon pack actually loads data
-local lucidePack = Astra.Icons.getByPack("lucide", "house")
+local lucidePack = Mova.Icons.getByPack("lucide", "house")
 expect(type(lucidePack) == "string" and #lucidePack > 0, "lucide house icon resolves to a URL")
 ASSERTIONS
 } > "$SMOKE"

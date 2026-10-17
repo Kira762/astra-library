@@ -1,6 +1,6 @@
 --[[
 ===== default window icon (topbar + collapsed capsule) regression =====
-Runs the real Astra bundle (loaded as global `Astra` above) against the
+Runs the real Mova bundle (loaded as global `Mova` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau.
 
 The centralize-icons change dropped the `sirius` named asset and moved
@@ -38,7 +38,7 @@ local function eq(actual, wanted, message)
 	end
 end
 
-local Icons = Astra.Icons
+local Icons = Mova.Icons
 local ASSET_BASE = "https://raw.githubusercontent.com/Kira762/astra-library/main/"
 local SIRIUS_URL = ASSET_BASE .. "assets/window-icons/sirius.png"
 
@@ -55,7 +55,7 @@ eq(Icons.resolve("Sirius"), SIRIUS_URL, "W1 the legacy Sirius spelling resolves 
 
 -- ===== W2: a default window carries it on topbar and capsule ===============
 
-local window = Astra:CreateWindow({ name = "WindowIcon" })
+local window = Mova:CreateWindow({ name = "WindowIcon" })
 TestPump(0.6)
 
 eq(window.icon, SIRIUS_URL, "W2 the topbar icon is the loadable source")
@@ -90,7 +90,7 @@ Icons.refreshCustom()
 
 -- ===== W4: an explicit icon still resolves from the packs ==================
 
-local explicit = Astra:CreateWindow({ name = "ExplicitIcon", icon = "house" })
+local explicit = Mova:CreateWindow({ name = "ExplicitIcon", icon = "house" })
 TestPump(0.3)
 
 eq(explicit.icon, Icons.resolve("house"), "W4 an explicit pack icon resolves")

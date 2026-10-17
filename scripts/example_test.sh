@@ -3,7 +3,7 @@
 set -u
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BUNDLE="${ASTRA_BUNDLE:-$ROOT/version-1.luau}"
+BUNDLE="${MOVA_BUNDLE:-${ASTRA_BUNDLE:-$ROOT/version-1.luau}}"
 
 if [ ! -f "$BUNDLE" ]; then
 	echo "bundle missing: $BUNDLE" >&2
@@ -33,19 +33,19 @@ if [ -z "$LUAU_BIN" ]; then
 fi
 
 TMPDIR_LOCAL="${TMPDIR:-/tmp}"
-OUT="$TMPDIR_LOCAL/astra_example_$$.luau"
+OUT="$TMPDIR_LOCAL/mova_example_$$.luau"
 trap 'rm -f "$OUT"' EXIT
 
 {
 	cat "$ROOT/scripts/sidebar_sizing_stubs.luau"
 	echo ""
-	echo "Astra = (function()"
+	echo "Mova = (function()"
 	echo ""
 	cat "$BUNDLE"
 	echo ""
 	echo "end)()"
 	echo ""
-    sed 's@local Astra = loadstring(game:HttpGet(.*@local Astra = Astra@' "$ROOT/example.client.luau"
+    sed 's@local Mova = loadstring(game:HttpGet(.*@local Mova = Mova@' "$ROOT/example.client.luau"
     cat "$ROOT/scripts/example_test.luau"
 } > "$OUT"
 

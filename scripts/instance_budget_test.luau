@@ -1,6 +1,6 @@
 --[[
 ===== instance budget assertions =====
-Runs the real Astra bundle (loaded as global `Astra` above) against the
+Runs the real Mova bundle (loaded as global `Mova` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau.
 
 Instance count is the library's main frame-time lever: Roblox renders and
@@ -29,7 +29,7 @@ local function expect(cond, message)
 	end
 end
 
-local window = Astra:CreateWindow({ name = "Budget" })
+local window = Mova:CreateWindow({ name = "Budget" })
 TestPump(0.6)
 window:Show()
 TestPump(0.6)

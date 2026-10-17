@@ -12,7 +12,7 @@ local peak = 0
 local frames = 0
 local first, second
 task.spawn(function()
-    window = Astra:CreateWindow({ name = "Staged startup" })
+    window = Mova:CreateWindow({ name = "Staged startup" })
     shellInstances = #window.instances
     first = window:CreateTab({ name = "Visible" })
     second = window:CreateTab({ name = "Later" })
@@ -46,7 +46,7 @@ assert(window.hasShownOnce and not window.hidden, "The UI must auto-show on its 
 assert(builtAtReveal and builtAtReveal < 100, "A large initial build must continue after the window is visible")
 assert(window.windowScale and window.windowScale.Scale == 1, "The UIScale entrance settles at full scale")
 -- pop is 0.55s at 1x; the built-in faster default scales it to 0.385s.
-assert(Astra.Motion.spec("pop").Time >= 0.35, "The opening animation is long enough to be visible")
+assert(Mova.Motion.spec("pop").Time >= 0.35, "The opening animation is long enough to be visible")
 assert(not window.searchPage and not window.searchInput, "Search content must stay lazy")
 assert(#window._settingsTabs == 1, "Unused settings tab shells must stay lazy")
 assert(not window._settingsUIBuilt, "Startup must not build the settings panels")
@@ -120,7 +120,7 @@ assert(#window.instances == count, "Reopening search must reuse the same instanc
 
 -- An explicit Hide still cancels the delayed auto-show.
 window:Unload()
-local hidden = Astra:CreateWindow({ name = "Stay hidden" })
+local hidden = Mova:CreateWindow({ name = "Stay hidden" })
 hidden:Hide()
 TestPump(1)
 assert(hidden.hidden and not hidden.hasShownOnce, "Hide must cancel pending auto-show")
@@ -132,7 +132,7 @@ local building, done, buildOk
 local added = 0
 task.spawn(function()
     buildOk = pcall(function()
-        building = Astra:CreateWindow({ name = "Cancel build" })
+        building = Mova:CreateWindow({ name = "Cancel build" })
         local tab = building:CreateTab({ name = "Batch" })
         for i = 1, 100 do
             tab:CreateToggle({ name = "Cancel " .. i, value = false })

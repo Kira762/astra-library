@@ -1,6 +1,6 @@
 --[[
 ===== row-Group sliders keep their responsive layout ======================
-Runs the real Astra bundle against the mini Roblox environment. Row Groups
+Runs the real Mova bundle against the mini Roblox environment. Row Groups
 shrink sliders after each control is built, and this can happen while the
 window is animating. The slider must still switch to its narrow card layout
 so the name/value row and the track do not overlap.
@@ -21,7 +21,7 @@ local function eq(actual, wanted, message)
 	end
 end
 
-local window = Astra:CreateWindow({ name = "Slider Group Layout Test" })
+local window = Mova:CreateWindow({ name = "Slider Group Layout Test" })
 TestPump(0.6)
 local tab = window:CreateTab({ name = "Controls" })
 TestPump(0.3)

@@ -1,4 +1,4 @@
-# Astra v1
+# Mova v1
 
 [![skills.sh](https://skills.sh/b/Kira762/astra-library)](https://skills.sh/Kira762/astra-library)
 
@@ -13,9 +13,9 @@ saved configs and staged startup.
 The official one-liner loads the bundle through the lightweight loader:
 
 ```lua
-local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/loader.luau"))()
+local Mova = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/loader.luau"))()
 
-local window = Astra:CreateWindow({ name = "Example Hub", subtitle = "v1.0" })
+local window = Mova:CreateWindow({ name = "Example Hub", subtitle = "v1.0" })
 local tab = window:CreateTab({ name = "Home", icon = "house" })
 
 tab:CreateButton({
@@ -29,7 +29,7 @@ tab:Select()
 
 Two things have to be right: the runtime must provide `loadstring` (executors do,
 plain Studio does not) and `HttpService` requests must be enabled. In Studio/Rojo
-the same library is a ModuleScript — `require(game:GetService("ReplicatedStorage").Astra)`.
+the same library is a ModuleScript — `require(game:GetService("ReplicatedStorage").Mova)`.
 Always load the published artifacts from the repository root; the modular folders
 are the bundle's source, not a runtime entry point.
 
@@ -56,21 +56,21 @@ Direct bundle loading and the Rojo / Studio ModuleScript path are also supported
 ## Install the agent skill
 
 This repository is also an [Agent Skill](https://agentskills.io) source. The skill
-teaches coding agents how to build Astra interfaces and how to work on the library
+teaches coding agents how to build Mova interfaces and how to work on the library
 itself, so they stop guessing at the API:
 
 ```sh
-# install everything this repo publishes (currently just `astra`)
+# install everything this repo publishes (currently just `mova`)
 npx skills add Kira762/astra-library
 
 # non-interactive, for a specific set of agents
-npx skills add Kira762/astra-library --skill astra -a claude-code -a cursor -y
+npx skills add Kira762/astra-library --skill mova -a claude-code -a cursor -y
 ```
 
 Skill contents:
 
 ```
-skills/astra/
+skills/mova/
 ├── SKILL.md                     # loader contract, API rules, element cheat sheet
 ├── references/elements.md       # every element's props and handle methods
 ├── references/window.md         # window methods, themes, icons, motion, persistence
@@ -87,7 +87,7 @@ skills/astra/
 | [CHANGELOG.md](CHANGELOG.md) | Dated entries explaining each behaviour change. |
 | [PERFORMANCE_CHANGES.md](PERFORMANCE_CHANGES.md) | Startup and instance-budget work with measured numbers. |
 | [assets/icons/README.md](assets/icons/README.md) | Visual icon catalog with copyable names across all seven packs. |
-| [example.client.luau](example.client.luau) | Key-gated three-tab UI tour: every element laid out in row Groups and a Collapsible Group, with no callbacks and no game wiring, built inside `CreateKeySystem`'s `onSuccess` (demo key `ASTRA-STUDIO-2026`). |
+| [example.client.luau](example.client.luau) | Key-gated three-tab UI tour: every element laid out in row Groups and a Collapsible Group, with no callbacks and no game wiring, built inside `CreateKeySystem`'s `onSuccess` (demo key `MOVA-STUDIO-2026`). |
 | [changelog.example.luau](changelog.example.luau) | Host-side changelog data file consumed by the Changelog element. |
 
 ## Repository layout
@@ -99,10 +99,10 @@ Types.luau                typed public surface
 core/ components/         runtime, window shell, overlays, settings UI
 elements/                 one module per element plus tab/group/section
 settings/ themes/ icons/  settings registry, the default palette, icon packs
-windowIcons/ images/     Astra's own built-in glyphs; the remote image pipeline
+windowIcons/ images/     Mova's own built-in glyphs; the remote image pipeline
 utilities/                motion, persistence, icons, locale, layouts, networking
 scripts/                  bundle generator, static checkers, runtime tests
-skills/astra/             the published Agent Skill
+skills/mova/             the published Agent Skill
 ```
 
 ## Development

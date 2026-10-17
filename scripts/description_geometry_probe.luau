@@ -116,7 +116,7 @@ local function dump(kind, name, element)
 	walk(main, 0)
 end
 
-local window = Astra:CreateWindow({ name = "Description geometry" })
+local window = Mova:CreateWindow({ name = "Description geometry" })
 TestPump(0.6)
 local tab = window:CreateTab({ name = "Controls" })
 local more = window:CreateTab({ name = "More" })

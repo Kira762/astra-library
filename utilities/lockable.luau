@@ -3,15 +3,18 @@ Lockable controls keep their value and callback intact while a lock source
 blocks user input. This mixin also stamps the public usage tag used by the
 window's cumulative element-lock modes:
 
-    lockable:astra:<elementId>
+    lockable:mova:<elementId>
 
+The public `usage` list also carries the former `lockable:astra:<elementId>`
+tag during the brand transition, so host-side filters keep matching.
 `register` is called by interactive element constructors after their UI has
 been built. Static presentation elements never call it, so they never get a
 lock tag or enter the mode registry.
 ]]
 local lockable = {}
 
-local LOCK_USAGE_PREFIX = "lockable:astra:"
+local LOCK_USAGE_PREFIX = "lockable:mova:"
+local LEGACY_LOCK_USAGE_PREFIX = "lockable:astra:"
 
 local defaultLockLevels = {
 	Link = 2,
@@ -173,6 +176,7 @@ function lockable.register(element, properties, options)
 	local baseId = normalizeId(explicitId, name)
 	local elementId = uniqueId(window, baseId, element)
 	local usageTag = LOCK_USAGE_PREFIX .. elementId
+	local legacyUsageTag = LEGACY_LOCK_USAGE_PREFIX .. elementId
 	local existingUsage = mergeUsages(
 		read(properties, "usage", "Usage"),
 		options.usage
@@ -181,8 +185,9 @@ function lockable.register(element, properties, options)
 	element.id = elementId
 	element.elementId = elementId
 	element.usageTag = usageTag
+	element.legacyUsageTag = legacyUsageTag
 	element.lockUsage = usageTag
-	element.usage = usageWithTag(existingUsage, usageTag)
+	element.usage = usageWithTag(usageWithTag(existingUsage, usageTag), legacyUsageTag)
 	element.lockLevel = requestedLevel(properties, options, element)
 	element._isLockable = true
 	element._lockSystemController = false

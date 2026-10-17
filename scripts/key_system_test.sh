@@ -33,14 +33,14 @@ if [ -z "$LUAU_BIN" ]; then
 fi
 
 TMPDIR_LOCAL="${TMPDIR:-/tmp}"
-OUT="$TMPDIR_LOCAL/astra_key_system_$$.luau"
+OUT="$TMPDIR_LOCAL/mova_key_system_$$.luau"
 trap 'rm -f "$OUT"' EXIT
 
 {
 	cat "$ROOT/scripts/sidebar_sizing_stubs.luau"
 	cat "$ROOT/scripts/filesystem_stubs.luau"
 	echo ""
-	echo "Astra = (function()"
+	echo "Mova = (function()"
 	echo ""
 	cat "$BUNDLE"
 	echo ""

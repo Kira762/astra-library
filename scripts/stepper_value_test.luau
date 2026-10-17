@@ -1,6 +1,6 @@
 --[[
 ===== stepper value assertions: stepping, clamping, typed commits =========
-Runs the real Astra bundle (loaded as global `Astra` above) against the
+Runs the real Mova bundle (loaded as global `Mova` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau.
 
 The Stepper is the [−] [value] [+] counter: three controls in one
@@ -75,7 +75,7 @@ local function centerY(instance, ancestor)
 	return y + height / 2
 end
 
-local window = Astra:CreateWindow({ name = "Stepper Value Test" })
+local window = Mova:CreateWindow({ name = "Stepper Value Test" })
 TestPump(0.6)
 local tab = window:CreateTab({ name = "Controls" })
 

@@ -1,6 +1,6 @@
 --[[
 ===== Tab row outline shades =====
-Runs the real Astra bundle against the mini Roblox environment from
+Runs the real Mova bundle against the mini Roblox environment from
 sidebar_sizing_stubs.luau and pins the sidebar row's outline contract:
 
   * the selected row wears the theme's own TabStroke gradient — its lit top
@@ -48,7 +48,7 @@ local function same(a, b)
 	return math.abs(a.R - b.R) < 0.001 and math.abs(a.G - b.G) < 0.001 and math.abs(a.B - b.B) < 0.001
 end
 
-local window = Astra:CreateWindow({ name = "Tab Row Edge Test", configuration = { autoSave = false, autoLoad = false } })
+local window = Mova:CreateWindow({ name = "Tab Row Edge Test", configuration = { autoSave = false, autoLoad = false } })
 TestPump(1.2)
 
 local alpha = window:CreateTab({ name = "Alpha", icon = "house" })

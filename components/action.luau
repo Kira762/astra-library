@@ -107,7 +107,7 @@ function Action.new(window, props)
             ]]
             if not ok then
                 error(
-                    `Astra: the callback for {self.__type} '{self.name}' errored: {tostring(err)}`,
+                    `Mova: the callback for {self.__type} '{self.name}' errored: {tostring(err)}`,
                     0
                 )
             end

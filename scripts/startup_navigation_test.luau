@@ -41,7 +41,7 @@ runs on its own thread once the window is visible — the user's taps.
 local function runStartup(name, build, onShown)
 	local state = { done = false }
 	task.spawn(function()
-		local window = Astra:CreateWindow({ name = name })
+		local window = Mova:CreateWindow({ name = name })
 		state.window = window
 		build(window, function()
 			window:_paceBudget(true)

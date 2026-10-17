@@ -39,7 +39,7 @@ local function findChild(instance, className)
 	return nil
 end
 
-local window = Astra:CreateWindow({
+local window = Mova:CreateWindow({
 	name = "Surface hierarchy",
 	configuration = { autoSave = false, autoLoad = false },
 })

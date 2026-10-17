@@ -1,9 +1,9 @@
 --[[
 ===== corner scale assertions: three nested tiers, plus the derived pills =====
-Runs the real Astra bundle (loaded as global `Astra` above) against the
+Runs the real Mova bundle (loaded as global `Mova` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau.
 
-Astra shipped with every radius at zero: the three theme tokens were
+Mova shipped with every radius at zero: the three theme tokens were
 `UDim.new(0, 0)` and eleven more surfaces baked a zero of their own, so 34 of
 the tree's 35 corners drew a hard edge. The scale that replaced them is three
 tiers nested one step inside each other — 12px shell, 8px elements, 32px
@@ -78,7 +78,7 @@ local function rounds(corner)
 	return false
 end
 
-local window = Astra:CreateWindow({ name = "Corner scale" })
+local window = Mova:CreateWindow({ name = "Corner scale" })
 TestPump(0.6)
 window:Show()
 TestPump(0.6)

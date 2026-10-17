@@ -1,6 +1,6 @@
 --[[
 ===== active control colors share the theme accent =======================
-Runs the real Astra bundle against the mini Roblox environment. A partial
+Runs the real Mova bundle against the mini Roblox environment. A partial
 AccentColor override must recolor toggles, slider progress and Stat accents
 as one system; explicit AccentStroke/SliderProgress overrides remain valid.
 ]]
@@ -34,7 +34,7 @@ local function childOfClass(parent, className)
 	return nil
 end
 
-local window = Astra:CreateWindow({ name = "Theme Accent Consistency Test" })
+local window = Mova:CreateWindow({ name = "Theme Accent Consistency Test" })
 TestPump(0.6)
 local tab = window:CreateTab({ name = "Controls" })
 local toggle = tab:CreateToggle({ name = "Enabled", value = true })
@@ -99,7 +99,7 @@ TestPump(0.3)
 
 -- Partial themes are also resolved at construction, not only by ChangeTheme.
 local startupAccent = Color3.fromRGB(180, 95, 205)
-local startupWindow = Astra:CreateWindow({
+local startupWindow = Mova:CreateWindow({
 	name = "Initial Theme Accent Test",
 	theme = { AccentColor = startupAccent },
 })

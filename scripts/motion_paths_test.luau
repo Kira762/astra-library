@@ -20,10 +20,10 @@ local function expect(cond, message)
 	end
 end
 
-local motion = Astra.Motion
+local motion = Mova.Motion
 motion.setProfile("normal")
 
-local window = Astra:CreateWindow({
+local window = Mova:CreateWindow({
 	name = "Motion paths",
 	configuration = { autoSave = false, autoLoad = false },
 })

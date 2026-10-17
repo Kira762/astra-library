@@ -28,13 +28,13 @@ if [ -z "$LUAU_BIN" ]; then
 fi
 
 TMPDIR_LOCAL="${TMPDIR:-/tmp}"
-OUT="$TMPDIR_LOCAL/astra_slider_group_layout_$$.luau"
+OUT="$TMPDIR_LOCAL/mova_slider_group_layout_$$.luau"
 trap 'rm -f "$OUT"' EXIT
 
 {
 	cat "$ROOT/scripts/sidebar_sizing_stubs.luau"
 	echo ""
-	echo "Astra = (function()"
+	echo "Mova = (function()"
 	echo ""
 	cat "$BUNDLE"
 	echo ""

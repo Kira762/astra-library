@@ -14,7 +14,7 @@ if [ -z "$LUAU_BIN" ]; then
   echo "luau CLI not found (looked in PATH, /tmp, /usr/local/bin)" >&2
   exit 2
 fi
-WORK="${TMPDIR:-/tmp}/astra_loader_unsigned_$$.luau"
+WORK="${TMPDIR:-/tmp}/mova_loader_unsigned_$$.luau"
 trap 'rm -f "$WORK"' EXIT
 
 run_case() {
@@ -27,16 +27,16 @@ HttpGet = function(url)
   if url ~= "https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau" then error("unexpected URL") end
   $response
 end
-local Astra = (function()
+local Mova = (function()
 LUA
     cat "$LOADER"
     cat <<LUA
 end)()
 if $expect_real then
-  assert(type(Astra.CreateWindow) == "function", "$name: expected real API")
+  assert(type(Mova.CreateWindow) == "function", "$name: expected real API")
 else
-  assert(type(Astra.CreateWindow) == "table", "$name: expected quiet stub")
-  assert(pcall(function() Astra:CreateWindow({}):CreateTab({}):Select() end), "$name: stub chain raised")
+  assert(type(Mova.CreateWindow) == "table", "$name: expected quiet stub")
+  assert(pcall(function() Mova:CreateWindow({}):CreateTab({}):Select() end), "$name: stub chain raised")
 end
 print("$name: ok")
 LUA

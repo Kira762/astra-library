@@ -1,5 +1,5 @@
 {
-  "name": "Astra",
+  "name": "Mova",
   "tree": {
     "$className": "Folder",
     "MainModule": { "$path": "library_entrypoint.luau" },

@@ -1,6 +1,6 @@
 --[[
 ===== switch (toggle) geometry assertions =====
-Runs the real Astra bundle (loaded as global `Astra` above) against the
+Runs the real Mova bundle (loaded as global `Mova` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau.
 
 The element used to park its knob 3px from the end of a track twice as long
@@ -41,9 +41,9 @@ local function eq(actual, wanted, message)
 	end
 end
 
-local state = Astra.Core.state
+local state = Mova.Core.state
 
-local window = Astra:CreateWindow({ name = "Switch Test" })
+local window = Mova:CreateWindow({ name = "Switch Test" })
 TestPump(0.6)
 window:Show()
 TestPump(0.6)

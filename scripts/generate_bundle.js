@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Wax-style bundle generator for Astra.
+ * Wax-style bundle generator for Mova.
  *
  * Regenerates `version-1.luau` from the modular source tree. This mirrors the
  * Wax 0.4.1 bundle format that the previous `version-1.luau` used:
@@ -9,7 +9,7 @@
  *   - LineOffsets per ref for error line mapping
  *   - the standalone loader contract: return the MainModule API to loadstring
  *
- * The virtual DOM mirrors wax.project.json: an "Astra" folder whose MainModule
+ * The virtual DOM mirrors wax.project.json: an "Mova" folder whose MainModule
  * is `library_entrypoint.luau` and whose children are the source folders.
  *
  * Every module's source is run through `scripts/strip_luau.js` before it is
@@ -31,10 +31,14 @@ const { stripLuau } = require("./strip_luau.js");
 const ROOT = path.resolve(__dirname, "..");
 const OUT = path.join(ROOT, "version-1.luau");
 
-// `--no-strip` (or ASTRA_BUNDLE_NO_STRIP=1) emits the comments too. Handy
+// `--no-strip` (or MOVA_BUNDLE_NO_STRIP=1) emits the comments too. Handy
 // when a stack trace out of the bundle has to be read by eye; never publish
 // it, and expect `check_all.sh`'s bundle-freshness gate to reject it.
-const STRIP = !process.argv.includes("--no-strip") && process.env.ASTRA_BUNDLE_NO_STRIP !== "1";
+// ASTRA_BUNDLE_NO_STRIP remains a migration alias for older build scripts.
+const STRIP =
+  !process.argv.includes("--no-strip") &&
+  process.env.MOVA_BUNDLE_NO_STRIP !== "1" &&
+  process.env.ASTRA_BUNDLE_NO_STRIP !== "1";
 
 const CLASS_FOLDER = 1;
 const CLASS_MODULE = 2;
@@ -161,8 +165,8 @@ function buildNode(entry) {
   throw new Error("Unknown tree entry: " + JSON.stringify(entry));
 }
 
-// The root "Astra" folder wraps everything.
-const rootRefId = makeNode("Astra", CLASS_FOLDER);
+// The root "Mova" folder wraps everything.
+const rootRefId = makeNode("Mova", CLASS_FOLDER);
 const children = TREE.map(buildNode);
 const allModules = children.flatMap((c) => [c, ...(c.closures || [])]).filter((c) => c.closure);
 // TREE[0] is the MainModule entry; its wrapper records the environment
@@ -181,7 +185,7 @@ function wrapperLine(mod) {
 // each entry). Wrapping the root object is load-bearing: emitting the root
 // object directly makes the runtime index the raw refId number.
 const objectTree = [
-  [rootRefId, CLASS_FOLDER, ["Astra"], children.map((c) => c.tree)],
+  [rootRefId, CLASS_FOLDER, ["Mova"], children.map((c) => c.tree)],
 ];
 
 // --- Emit Lua ---
@@ -225,7 +229,7 @@ lines.push("end");
 lines.push("local function __quietStub()");
 lines.push("    -- Self-returning stub (matches loader.luau's quietStub): every index");
 lines.push("    -- and call resolves to the stub table itself, so chains like");
-lines.push("    -- Astra.Settings.readPersisted stay silent instead of indexing a");
+lines.push("    -- Mova.Settings.readPersisted stay silent instead of indexing a");
 lines.push("    -- function value. type(CreateWindow) == \"table\" marks a stub.");
 lines.push("    local stub = {}");
 lines.push("    return setmetatable(stub, {");
@@ -698,8 +702,8 @@ end
 -- Standalone loader contract: return the public MainModule API to loadstring callers.
 -- The canaries run after MainModule (and everything it requires) has loaded:
 -- environment fingerprint unchanged, decoy untouched. Any trip → quiet stub.
-local AstraRoot = RealObjectRoot:FindFirstChild("Astra")
-local MainModule = if AstraRoot then AstraRoot:FindFirstChild("MainModule") else nil
+local MovaRoot = RealObjectRoot:FindFirstChild("Mova")
+local MainModule = if MovaRoot then MovaRoot:FindFirstChild("MainModule") else nil
 if MainModule then
     local __api = LoadScript(MainModule)
     if not __checkFP() then
@@ -710,7 +714,7 @@ if MainModule then
     end
     return __api
 end
-error("Astra bundle is missing its MainModule", 0)
+error("Mova bundle is missing its MainModule", 0)
 `;
 
 // Serialize the ObjectTree in Lua syntax.

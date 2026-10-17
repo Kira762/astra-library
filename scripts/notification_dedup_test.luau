@@ -42,7 +42,7 @@ local function countInstances(window)
 end
 
 -- Pending duplicates still collapse because there is no old card to remove.
-local window = Astra:CreateWindow({ name = "Replacement" })
+local window = Mova:CreateWindow({ name = "Replacement" })
 window:CreateTab({ name = "Home" })
 window:Notify({ title = "Other", content = "Do not evict", duration = 30 })
 local pending = { title = "Same", content = "Value", duration = 1 }
@@ -105,7 +105,7 @@ window:Unload()
 advance(0.5)
 
 -- Empty/default text and replacement during entrance use the same path.
-local entrance = Astra:CreateWindow({ name = "Entrance replacement" })
+local entrance = Mova:CreateWindow({ name = "Entrance replacement" })
 entrance:CreateTab({ name = "Home" })
 advance(1.5)
 entrance:Notify({ duration = 30 })
@@ -121,7 +121,7 @@ entrance:Unload()
 advance(0.5)
 
 -- The registry is per window; unloading clears pending identity entries.
-local other = Astra:CreateWindow({ name = "Independent replacement" })
+local other = Mova:CreateWindow({ name = "Independent replacement" })
 other:CreateTab({ name = "Home" })
 other:Notify({ duration = 12 })
 advance(1.5)
@@ -138,7 +138,7 @@ expect(#other._overlayQueue.pending == 0, "unload clears queued identity entries
 A request parked behind a cancelled entrance still coalesces by snapshot and
 then builds one fresh card when the gate opens.
 ]]
-local gated = Astra:CreateWindow({ name = "Gated replacement" })
+local gated = Mova:CreateWindow({ name = "Gated replacement" })
 gated:CreateTab({ name = "Home" })
 gated:Hide()
 advance(0.2)
@@ -151,12 +151,12 @@ gated:Show()
 advance(1.5)
 expect(built(gated) == 1 and live(gated)[1].duration == 25, "opening gate builds newest snapshot")
 
-Astra.Motion.setProfile("instant")
+Mova.Motion.setProfile("instant")
 local instant = find(gated, "Held", "Same text")
 gated:Notify({ title = "Held", content = "Same text", duration = 10 })
 advance(0.2)
 expect(built(gated) == 2 and find(gated, "Held", "Same text") ~= instant, "instant mode still replaces active duplicate")
 gated:Unload()
-Astra.Motion.setProfile("normal")
+Mova.Motion.setProfile("normal")
 advance(0.2)
 print("NOTIFICATION REPLACEMENT: pending coalescing, active removal, fresh animation path and cleanup passed")

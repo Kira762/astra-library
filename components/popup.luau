@@ -613,7 +613,7 @@ function Popup:_buildButton(footerFrame, option, index)
                     -- error is the only thing this library prints.
                     if not ok then
                         error(
-                            "Astra: popup button '" .. text .. "' callback errored: " .. tostring(err),
+                            "Mova: popup button '" .. text .. "' callback errored: " .. tostring(err),
                             0
                         )
                     end

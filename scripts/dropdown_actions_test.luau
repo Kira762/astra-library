@@ -1,6 +1,6 @@
 --[[
 ===== dropdown bulk-action row assertions =====
-Runs the real Astra bundle (loaded as global `Astra` above) against the
+Runs the real Mova bundle (loaded as global `Mova` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau.
 
 A multi-select dropdown's Select all / Clear line used to be two bare text
@@ -75,7 +75,7 @@ local function sameSet(actual, wanted)
 	return true
 end
 
-local window = Astra:CreateWindow({ name = "Dropdown actions" })
+local window = Mova:CreateWindow({ name = "Dropdown actions" })
 TestPump(0.6)
 window:Show()
 TestPump(0.6)
@@ -274,7 +274,7 @@ closeDropdown(hover)
 
 -- ===== A9: the bin is a real icon =====
 
-local bin = Astra.Icons.resolve("trash")
+local bin = Mova.Icons.resolve("trash")
 expect(type(bin) == "string" and bin ~= "trash", "A9 the bin resolves to an icon")
 expect(
 	string.find(bin, "lucide-pack/lucideTrash.png", 1, true) ~= nil,

@@ -14,7 +14,7 @@ secure-mode rewrites, so every role needs its PNG here.
 | search | `100604009889706` | `search.png` |
 | chevron | `88479147175134` | `chevron.png` |
 | check | `125626312718314` | `check.png` |
-| dot / Astra | `80387863064905` | `astra.png` |
+| dot / Mova | `80387863064905` | `mova.png` |
 | config | `125823673784681` | `config.png` |
 
 The **window default icon is Sirius**: `components/window/startup.luau`

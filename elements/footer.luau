@@ -1,5 +1,5 @@
 --[[
-Centred inline text-and-icon strip — the "Built with ⚡ Astra ♡" line.
+Centred inline text-and-icon strip — the "Built with ⚡ Mova ♡" line.
 A Footer is an ordered run of text segments and inline icons that is
 always centred as one unit: every segment auto-sizes, each icon scales to
 the text size so the line keeps its proportions, and the whole run

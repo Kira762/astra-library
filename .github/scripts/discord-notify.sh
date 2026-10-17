@@ -92,7 +92,7 @@ fi
 
 # --- build -------------------------------------------------------------------
 
-WORK="$(mktemp -d "$TMPDIR_LOCAL/astra-discord-notify.XXXXXX")" || die "cannot create a temp directory." 2
+WORK="$(mktemp -d "$TMPDIR_LOCAL/mova-discord-notify.XXXXXX")" || die "cannot create a temp directory." 2
 trap 'rm -rf "$WORK"' EXIT INT TERM
 PAYLOAD="$WORK/payload.json"
 RESPONSE="$WORK/response.txt"

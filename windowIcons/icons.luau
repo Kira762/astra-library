@@ -28,7 +28,7 @@ windowIcons.files = {
     search = "search.png",
     chevron = "chevron.png",
     check = "check.png",
-    dot = "astra.png",
+    dot = "mova.png",
     config = "config.png",
 }
 
@@ -40,7 +40,7 @@ windowIcons.roles = {
     search = "search",
     chevron = "chevron",
     check = "check",
-    dot = "astra",
+    dot = "mova",
     config = "config",
 }
 

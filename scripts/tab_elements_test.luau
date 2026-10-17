@@ -1,6 +1,6 @@
 --[[
 ===== tab element assertions: tabs nobody opened cost nothing =====
-Runs the real Astra bundle (loaded as global `Astra` above) against the
+Runs the real Mova bundle (loaded as global `Mova` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau.
 
 Opening a window (and every show/minimise/layout switch after it) used to
@@ -35,7 +35,7 @@ local function eq(actual, wanted, message)
 	end
 end
 
-local window = Astra:CreateWindow({ name = "Tabs Test" })
+local window = Mova:CreateWindow({ name = "Tabs Test" })
 
 -- Count every element visibility set the library performs, per step.
 local shownCalls = 0

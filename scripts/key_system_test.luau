@@ -1,6 +1,6 @@
 --[[
 ===== key system assertions: the standalone key gate =======================
-Runs the real Astra bundle (loaded as global `Astra` above) against the
+Runs the real Mova bundle (loaded as global `Mova` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau, plus the
 in-memory executor filesystem from filesystem_stubs.luau.
 
@@ -11,7 +11,7 @@ Expected behavior under test:
   * K2 a wrong key costs an attempt, clears the field and never fires
        onSuccess,
   * K3 a correct key (surrounding whitespace trimmed) passes, closes the
-       gate and saves the trimmed key to Astra/keys/<fileName>.txt,
+       gate and saves the trimmed key to Mova/keys/<fileName>.txt,
   * K4 a matching saved key skips the UI entirely (passthrough),
   * K5 maxAttempts locks the gate and fires onMaxAttempts; further
        submits are ignored,
@@ -60,7 +60,7 @@ end
 
 -- ===== K1: geometry and the corner scale ====================================
 
-local gate = Astra:CreateKeySystem({
+local gate = Mova:CreateKeySystem({
 	keys = { "SECRET" },
 	saveKey = false,
 	onSuccess = function() end,
@@ -104,7 +104,7 @@ eq(gate.attempts, 1, "K2 an empty submit costs no attempt")
 -- ===== K3: a correct key passes, closes and saves ===========================
 
 local savedKey = nil
-local passGate = Astra:CreateKeySystem({
+local passGate = Mova:CreateKeySystem({
 	title = "Key System Test",
 	fileName = "KeySystemTest",
 	keys = { "SECRET" },
@@ -122,13 +122,13 @@ eq(savedKey, "SECRET", "K3 the padded key passes trimmed")
 eq(passGate.passed, true, "K3 the gate records its pass")
 eq(passGate.closed, true, "K3 the gate closes on success")
 eq(passGate._screenGui, nil, "K3 the gate drops its root on success")
-eq(isfile("Astra/keys/KeySystemTest.txt"), true, "K3 the key file is written")
-eq(readfile("Astra/keys/KeySystemTest.txt"), "SECRET", "K3 the trimmed key is what is saved")
+eq(isfile("Mova/keys/KeySystemTest.txt"), true, "K3 the key file is written")
+eq(readfile("Mova/keys/KeySystemTest.txt"), "SECRET", "K3 the trimmed key is what is saved")
 
 -- ===== K4: a saved key skips the UI =========================================
 
 local skippedKey = nil
-local skipGate = Astra:CreateKeySystem({
+local skipGate = Mova:CreateKeySystem({
 	fileName = "KeySystemTest",
 	keys = { "SECRET" },
 	saveKey = true,
@@ -142,10 +142,26 @@ eq(skipGate.closed, true, "K4 the passthrough builds no card to close")
 eq(skipGate._screenGui, nil, "K4 the passthrough builds no UI at all")
 eq(skippedKey, "SECRET", "K4 onSuccess still fires with the saved key")
 
+-- ===== K15: the old default Astra key is still recognized ===================
+
+writefile("Astra/keys/Astra.txt", "LEGACY-DEFAULT-KEY")
+local legacyDefaultKey = nil
+local legacyDefaultGate = Mova:CreateKeySystem({
+    keys = { "LEGACY-DEFAULT-KEY" },
+    saveKey = true,
+    onSuccess = function(key)
+        legacyDefaultKey = key
+    end,
+})
+TestPump(0.3)
+eq(legacyDefaultGate.passed, true, "K15 the legacy default saved key passes")
+eq(legacyDefaultGate._screenGui, nil, "K15 the legacy saved key skips the UI")
+eq(legacyDefaultKey, "LEGACY-DEFAULT-KEY", "K15 onSuccess receives the legacy key")
+
 -- ===== K5: the attempt budget locks the gate =================================
 
 local exhausted = false
-local budgetGate = Astra:CreateKeySystem({
+local budgetGate = Mova:CreateKeySystem({
 	keys = { "SECRET" },
 	maxAttempts = 2,
 	saveKey = false,
@@ -171,7 +187,7 @@ eq(budgetGate.passed, false, "K5 a locked gate never passes")
 -- ===== K6: a theme table overlays the baked palette =========================
 
 local themedAccent = Color3.fromRGB(120, 90, 220)
-local themeGate = Astra:CreateKeySystem({
+local themeGate = Mova:CreateKeySystem({
 	keys = { "SECRET" },
 	saveKey = false,
 	theme = { AccentColor = themedAccent },
@@ -192,7 +208,7 @@ game.HttpGet = function(_, _)
 	return "REMOTE-KEY\n"
 end
 local remoteKey = nil
-local remoteGate = Astra:CreateKeySystem({
+local remoteGate = Mova:CreateKeySystem({
 	keys = { "https://keys.example.com/a" },
 	grabKeyFromSite = true,
 	saveKey = false,
@@ -209,7 +225,7 @@ game.HttpGet = nil
 
 -- ===== K8: a non-dismissable gate has no close ===============================
 
-local pinnedGate = Astra:CreateKeySystem({
+local pinnedGate = Mova:CreateKeySystem({
 	keys = { "SECRET" },
 	saveKey = false,
 	dismissable = false,
@@ -224,7 +240,7 @@ local copied = nil
 setclipboard = function(text)
 	copied = text
 end
-local linkGate = Astra:CreateKeySystem({
+local linkGate = Mova:CreateKeySystem({
 	keys = { "SECRET" },
 	saveKey = false,
 	note = "No key yet? The button below copies the link.",
@@ -271,7 +287,7 @@ setclipboard = nil
 -- ===== K10: no keys passes through ===========================================
 
 local openKey = nil
-local openGate = Astra:CreateKeySystem({
+local openGate = Mova:CreateKeySystem({
 	saveKey = false,
 	onSuccess = function(key)
 		openKey = key
@@ -284,13 +300,13 @@ eq(openKey, "", "K10 onSuccess fires with an empty key")
 
 -- ===== K11: gates never stack ================================================
 
-local firstGate = Astra:CreateKeySystem({
+local firstGate = Mova:CreateKeySystem({
 	keys = { "SECRET" },
 	saveKey = false,
 	onSuccess = function() end,
 })
 TestPump(0.3)
-local secondGate = Astra:CreateKeySystem({
+local secondGate = Mova:CreateKeySystem({
 	keys = { "SECRET" },
 	saveKey = false,
 	onSuccess = function() end,
@@ -332,7 +348,7 @@ getcustomasset = function(path)
 	return "rbxasset://mock/" .. tostring(path):gsub("[^%w]+", "_")
 end
 
-local manyGate = Astra:CreateKeySystem({
+local manyGate = Mova:CreateKeySystem({
 	keys = { "SECRET" },
 	saveKey = false,
 	links = {
@@ -392,7 +408,7 @@ eq(
 setclipboard = nil
 
 -- A gate with no links builds no row and never touches the notification lane.
-local bareGate = Astra:CreateKeySystem({
+local bareGate = Mova:CreateKeySystem({
 	keys = { "SECRET" },
 	saveKey = false,
 	onSuccess = function() end,
@@ -410,12 +426,12 @@ expect(
 
 -- ===== K14: the header icon is forced to Sirius ==============================
 
-local Icons = Astra.Icons
+local Icons = Mova.Icons
 expect(
 	type(Icons.resolve("sirius")) == "string" and Icons.resolve("sirius"):find("^https?://") ~= nil,
 	"K14 sirius resolves to a loadable source"
 )
-local iconGate = Astra:CreateKeySystem({
+local iconGate = Mova:CreateKeySystem({
 	keys = { "SECRET" },
 	saveKey = false,
 	icon = "house", -- older scripts pass this; it must be ignored
@@ -431,7 +447,7 @@ expect(
 eq(iconGate._headerIcon.Size.X.Offset, iconGate._headerIcon.Size.Y.Offset, "K14 the mark is square")
 
 -- A gate with no icon prop wears the identical mark: props.icon is ignored.
-local plainGate = Astra:CreateKeySystem({
+local plainGate = Mova:CreateKeySystem({
 	keys = { "SECRET" },
 	saveKey = false,
 	onSuccess = function() end,

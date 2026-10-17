@@ -1,6 +1,6 @@
-# Astra v1 — full repository analysis
+# Mova v1 — full repository analysis
 
-Analysed 2026-09-19 on branch `arena/01a0bb09-astra-version-1` at `fde5eff`, working tree
+Analysed 2026-09-19 on branch `arena/01a0bb09-mova-version-1` at `fde5eff`, working tree
 clean. Every number below came from a command run in this checkout; the commands are
 listed in the last section so any figure can be reproduced.
 
@@ -8,8 +8,8 @@ listed in the last section so any figure can be reproduced.
 
 ## 1. What this repository is
 
-Astra v1 is a **Roblox/Luau UI library for executor scripts** — one `loadstring` line, one
-`Astra:CreateWindow()` call, then tabs of elements. It ships as **two artifacts built from
+Mova v1 is a **Roblox/Luau UI library for executor scripts** — one `loadstring` line, one
+`Mova:CreateWindow()` call, then tabs of elements. It ships as **two artifacts built from
 one source**:
 
 | Artifact | What it is | Size |
@@ -17,7 +17,7 @@ one source**:
 | `version-1.luau` | generated single-file bundle, the thing users `loadstring` | 25,773 lines / 1,041,455 bytes / 102 modules |
 | modular tree (`core/`, `components/`, `elements/`, …) | the source the bundle is generated from; also a Rojo + wax project | 104 modules / 24,379 lines |
 
-Lineage is visible in the code: **Rayfield → Sirius (Haijo12) → Astra (Kira762)**. Config
+Lineage is visible in the code: **Rayfield → Sirius (Haijo12) → Mova (Kira762)**. Config
 files still use the `.rfld` extension, the settings About panel still credits Haijo and
 names Rayfield, and the default window icon is still `Sirius` (see §5).
 
@@ -32,8 +32,8 @@ names Rayfield, and the default window icon is still `Sirius` (see §5).
 | Docs | README 1,041 w · USAGE 4,819 w · MODULES 6,343 w · CHANGELOG 20,179 w · PERF 1,175 w |
 | Tooling | 34 `scripts/*.sh`, 5 `.py`, 3 `.js` |
 
-The repo is also an **Agent Skill** source (`skills/astra/`, published via
-`npx skills add Kira762/astra-version-1`) and vendors 9 third-party agent skills under
+The repo is also an **Agent Skill** source (`skills/mova/`, published via
+`npx skills add Kira762/mova-version-1`) and vendors 9 third-party agent skills under
 `.agents/skills/`, symlinked into `.claude/skills/` — all 9 symlinks resolve.
 
 ### Layer map (Luau lines)
@@ -59,7 +59,7 @@ The repo is also an **Agent Skill** source (`skills/astra/`, published via
   a fixed 1 s deadline. Measured: `shell instances=67, peak allocations/frame=57, build
   frames=42`.
 - **Executor-only runtime surface.** `getgenv`, `writefile`/`readfile`/`isfile`/`delfile`,
-  `listfiles`, `getcustomasset`, `request`. A `getgenv().ASTRA_SECURE` flag switches on
+  `listfiles`, `getcustomasset`, `request`. A `getgenv().MOVA_SECURE` flag switches on
   "secure mode" (icon preload, brand-font swap). The library writes nothing to the
   console: recoverable conditions are handled silently and a callback that throws is
   the only thing that prints, as a raised error.
@@ -133,7 +133,7 @@ Yet it is referenced by:
 - `.gitignore` — 3 entries for `website/node_modules`, `website/.next`, `website/out`
 - `.github/workflows/deploy-pages.yml` — checks out and builds `website/`
 
-The live URL <https://kira762.github.io/astra-version-1/> therefore cannot be built from
+The live URL <https://kira762.github.io/mova-version-1/> therefore cannot be built from
 this tree. Either the directory was never pushed or it was deleted; either way the README,
 package.json and the workflow all promise something the repo does not contain.
 
@@ -141,14 +141,14 @@ package.json and the workflow all promise something the repo does not contain.
 
 The file has 8 `require`s (`core`, `core.state`, `images.image`, `utilities.locale`,
 `utilities.constants`, `icons`, `utilities.motion`, `settings`) and **none binds `types`**,
-yet `types.Window`, `types.WindowProps`, `types.Astra`, … appear 44 times (lines 10–118).
+yet `types.Window`, `types.WindowProps`, `types.Mova`, … appear 44 times (lines 10–118).
 `MODULES.md` even documents the require that is missing:
 
 > Requires — `core` (state/registry/loader), `core.state`, `images.image`,
 > `utilities.locale`, `utilities.constants`, `icons`, `settings`, **`Types`**.
 
 `luau-analyze` confirms it: `TypeError: Unknown type 'types.Window'`, `types.WindowProps`,
-`types.Astra`, … So the public API's whole typed surface — the 40 `export type`
+`types.Mova`, … So the public API's whole typed surface — the 40 `export type`
 re-exports at the top of the file — resolves to nothing for any editor or type checker
 (luau-lsp, Studio's script analysis).
 
@@ -175,12 +175,12 @@ Since the doc's whole value is that the numbers are measured, three stale ones u
 
 - `icons/init.luau:29` — `icons.BASE = "https://raw.githubusercontent.com/Haijo12/sisys_ididh/main"`,
   pointing at the *previous* author's repo. It is **never read anywhere** (only assignment in
-  the tree); the live resolver uses `assetBase` (`.../Kira762/astra-version-1/main/`) at
+  the tree); the live resolver uses `assetBase` (`.../Kira762/mova-version-1/main/`) at
   `icons/init.luau:179`. Dead, and misleading.
 - `components/settings.luau:185-186` — the About panel ships `"Customized by Haijo"` /
-  `"Originally from Rayfield, Astra is customized, refined, and maintained by Haijo."`
+  `"Originally from Rayfield, Mova is customized, refined, and maintained by Haijo."`
 - `components/window.luau:157` + `icons/init.luau:134` — default window icon is `Sirius`
-  (`assets/Sirius.png`), not Astra.
+  (`assets/Sirius.png`), not Mova.
 - Persistence writes `.rfld` files (Rayfield's extension).
 
 None of these break anything. All of them are user-visible or repo-identity noise.
@@ -206,7 +206,7 @@ the most opaque.
 
 `grep` finds no use of `registry.get/register/registerFactory/names` or
 `loader.load/service` anywhere outside `core/` itself; `core/init.luau` merely re-exports
-them, and the only consumer is the smoke test asserting `Astra.Core.state` exists. The
+them, and the only consumer is the smoke test asserting `Mova.Core.state` exists. The
 registry knows 2 modules (`state`, `registry`). It is a generic service locator built for a
 future that the rest of the tree does not use — modules `require` each other directly.
 
@@ -277,11 +277,11 @@ CHANGELOG.md under 2026-09-19.
 
 | Finding | Action | Verified by |
 |---|---|---|
-| 3.1 `website/` referenced but absent | Removed the README table row + "Docs website" section + layout line; deleted `package.json` (all 5 scripts were broken) and `.github/workflows/deploy-pages.yml`; cleaned `.gitignore`; dropped the row in `skills/astra/references/repo-workflow.md` | 0 `website` refs outside `.agents/`, `.claude/`, this file and the CHANGELOG entry that documents the removal |
-| 3.2 unbound `types` | Added `local types = require(script.Parent.Types)` to `library_entrypoint.luau` | Negative control: rewriting it to `script.Parent.TypesBogus` makes `startup_test.sh` **fail**; the real bundle passes 31 suites + smoke. `Types` confirmed a sibling of `Astra` in `default.project.json`, exactly where `core` sits |
+| 3.1 `website/` referenced but absent | Removed the README table row + "Docs website" section + layout line; deleted `package.json` (all 5 scripts were broken) and `.github/workflows/deploy-pages.yml`; cleaned `.gitignore`; dropped the row in `skills/mova/references/repo-workflow.md` | 0 `website` refs outside `.agents/`, `.claude/`, this file and the CHANGELOG entry that documents the removal |
+| 3.2 unbound `types` | Added `local types = require(script.Parent.Types)` to `library_entrypoint.luau` | Negative control: rewriting it to `script.Parent.TypesBogus` makes `startup_test.sh` **fail**; the real bundle passes 31 suites + smoke. `Types` confirmed a sibling of `Mova` in `default.project.json`, exactly where `core` sits |
 | 3.4 dead `icons.BASE` | Deleted the constant (pointed at `Haijo12/sisys_ididh`) | `grep` for `BASE` in shipped source now returns nothing |
 | 3.5 exec bits | `git update-index --chmod=+x` + `chmod +x` on the working tree | 34/34 at `100755` in the index and `-rwxr-xr-x` on disk; `./scripts/smoke_test_bundle.sh` now runs directly |
-| 3.7 dead `core/registry` + `core/loader` | Deleted both; `core/init.luau` now exposes only `core.state`; MODULES.md and repo-workflow.md updated | `registry.get` had no callers, so nothing could read a registered factory; `Astra.Core.state` (13 uses in the suites) is untouched |
+| 3.7 dead `core/registry` + `core/loader` | Deleted both; `core/init.luau` now exposes only `core.state`; MODULES.md and repo-workflow.md updated | `registry.get` had no callers, so nothing could read a registered factory; `Mova.Core.state` (13 uses in the suites) is untouched |
 
 ### Gate results after the changes
 
@@ -326,7 +326,7 @@ three 2026-09-19 entries.
 | Item | Outcome |
 |---|---|
 | 3.3 perf doc | Refreshed: 66→**67** shell instances, 64→**57** peak, 987,741→**1,039,418** bytes. Wall-time row dropped as not comparable; two rows the harness no longer emits marked `—` |
-| 3.4 branding | Configs `.rfld`→`.txt` (incl. the `sub(-5)`→`sub(-4)` fix), About panel rewritten, `Sirius`→`Astra` and the asset deleted, `Gen2`/`Rayfield` comments de-branded |
+| 3.4 branding | Configs `.rfld`→`.txt` (incl. the `sub(-5)`→`sub(-4)` fix), About panel rewritten, `Sirius`→`Mova` and the asset deleted, `Gen2`/`Rayfield` comments de-branded |
 | D8 | Resolved by removing the feature that owned it |
 | profile card | `components/profilePanel.luau` (2,428 lines) deleted, with `Window:SetProfile`, the three settings keys, the Appearance "Profile" group, six test suites and the docs |
 

@@ -1,6 +1,6 @@
 --[[
 ===== dropdown lazy-row assertions =====
-Runs the real Astra bundle (loaded as global `Astra` above) against the
+Runs the real Mova bundle (loaded as global `Mova` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau.
 
 A dropdown used to build its search bar and every option row (frame, corner,
@@ -68,7 +68,7 @@ local function rowState(row)
 	}
 end
 
-local window = Astra:CreateWindow({ name = "Dropdown rows" })
+local window = Mova:CreateWindow({ name = "Dropdown rows" })
 TestPump(0.6)
 window:Show()
 TestPump(0.6)

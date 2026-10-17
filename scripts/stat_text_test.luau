@@ -1,6 +1,6 @@
 --[[
 ===== Stat text-readout assertions =====
-Runs the real Astra bundle against the mini Roblox environment from
+Runs the real Mova bundle against the mini Roblox environment from
 sidebar_sizing_stubs.luau and pins the Stat's third presentation:
   * a string value that opts out of the letter badge (letter = false) reads
     the whole value out in one TextLabel — no odometer, no change readout,
@@ -18,7 +18,7 @@ local function expect(cond, message)
 	end
 end
 
-local window = Astra:CreateWindow({ name = "Stat Text Test", configuration = { autoSave = false, autoLoad = false } })
+local window = Mova:CreateWindow({ name = "Stat Text Test", configuration = { autoSave = false, autoLoad = false } })
 TestPump(1.2)
 
 local tab = window:CreateTab({ name = "Probe", icon = "house" })

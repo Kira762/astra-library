@@ -51,7 +51,7 @@ Lowering the mode unlocks only tiers above it. Raising it never unlocks. `Window
 
 ## Registry rules
 
-- **Who registers.** Only functional controls call `lockable.register` after building their UI. Each registered element gets `lockable:astra:<elementId>` (`elementId` normalized from `id`/`Id`/`elementId`/`ElementId` or the display name, deduped per window). `element.usage` merges the existing `usage` prop with the lock tag.
+- **Who registers.** Only functional controls call `lockable.register` after building their UI. Each registered element gets `lockable:mova:<elementId>` (`elementId` normalized from `id`/`Id`/`elementId`/`ElementId` or the display name, deduped per window). `element.usage` merges the existing `usage` prop with the lock tag.
 - **Who does not.** Static presentation elements (`Text`, `Stat`, `Divider`, `Section`, `Footer`, `Changelog`, `Group`) and Buttons without a real callback never register — `usageTag == nil` and `_isLockable ~= true`. They are never affected by mode changes.
 - **Duplicate ids.** Same normalized name → suffix `2, 3, ...` per window (`duplicate`, `duplicate2`).
 
@@ -76,7 +76,7 @@ other control edit uses (`Window:_scheduleSave`).
 ## Persistence
 
 The tier travels with the configuration under the shared flag
-`astra.elementLockMode` (`components/window/constants.luau` →
+`mova.elementLockMode` (`components/window/constants.luau` →
 `elementLockModeFlag`; used by `components/settings.luau` and
 `components/window/elements.luau`).
 

@@ -41,7 +41,8 @@ state.secureMode = (function()
 		return false
 	end
 	local ok, result = pcall(function()
-		return getgenv().ASTRA_SECURE
+		local env = getgenv()
+		return env.MOVA_SECURE == true or env.ASTRA_SECURE == true
 	end)
 	return ok and result == true
 end)()

@@ -25,18 +25,18 @@ local function eq(actual, wanted, message)
 	end
 end
 
-local http = Astra.Core.state.httpService
+local http = Mova.Core.state.httpService
 
 local function savedTier(window)
 	local _, path = window:GetPath()
 	if not isfile(path) then
 		return nil
 	end
-	return http:JSONDecode(readfile(path))["astra.elementLockMode"]
+	return http:JSONDecode(readfile(path))["mova.elementLockMode"]
 end
 
 local function build()
-	local window = Astra:CreateWindow({ name = "Lock Mode Persistence" })
+	local window = Mova:CreateWindow({ name = "Lock Mode Persistence" })
 	local tab = window:CreateTab({ name = "Main" })
 	local controls = {
 		toggle = tab:CreateToggle({ name = "Feature", flag = "featureToggle", value = false }),
@@ -92,7 +92,7 @@ controller = openControls(window)
 eq(controller.value, true, "L3 the lazily built switch shows the saved mode")
 eq(window:GetElementLockMode(), 5, "L3 building the switch keeps the tier")
 expect(controls.toggle:IsLocked(), "L3 the controls stay locked after the switch is built")
-eq(window.controls["astra.elementLockMode"], nil, "L3 the tier stays window state, not a flagged control")
+eq(window.controls["mova.elementLockMode"], nil, "L3 the tier stays window state, not a flagged control")
 window:Unload()
 TestPump(0.6)
 
@@ -136,4 +136,14 @@ expect(not controls.group:IsLocked(), "L5 no stale header lock survives the re-e
 window:Unload()
 TestPump(0.6)
 
-print("LOCK MODE PERSISTENCE: tier written, applied on the next execution, switch sync and Mode 1 reset passed")
+-- L6: old saved configs can still restore the pre-rebrand flag once.
+local legacyWindow = Mova:CreateWindow({
+	name = "Legacy Lock Flag",
+	configuration = { autoSave = false, autoLoad = false },
+})
+legacyWindow:_restoreUnowned({ ["astra.elementLockMode"] = 3 })
+eq(legacyWindow:GetElementLockMode(), 3, "L6 the old lock-mode flag is accepted")
+legacyWindow:Unload()
+TestPump(0.6)
+
+print("LOCK MODE PERSISTENCE: tier round trip, legacy flag migration and Mode 1 reset passed")

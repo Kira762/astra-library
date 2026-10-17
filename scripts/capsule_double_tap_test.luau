@@ -1,7 +1,7 @@
 --[[
 ===== Capsule double tap: the pill folds into the icon-only circle and =====
 ===== back, one tap still restores the window                        =====
-Runs the real Astra bundle (loaded as global `Astra` above) against the mini
+Runs the real Mova bundle (loaded as global `Mova` above) against the mini
 Roblox environment from sidebar_sizing_stubs.luau.
 
 The gesture is driven through the stub's real input services: a tap is a
@@ -115,7 +115,7 @@ end
 local wideSize = 185
 local circleSize = 50
 
-local window = Astra:CreateWindow({
+local window = Mova:CreateWindow({
 	name = "Capsule double tap",
 	configuration = { autoSave = false, autoLoad = false },
 })
@@ -212,7 +212,7 @@ expect(not window.hidden, "T8 a window that showed itself keeps its state")
 
 -- T9: a host that starts icon-only begins as the circle and taps up to the pill.
 window.settings.antiWindowDuplicate = false
-local circleWindow = Astra:CreateWindow({
+local circleWindow = Mova:CreateWindow({
 	name = "Icon only capsule",
 	showIconOnly = true,
 	configuration = { autoSave = false, autoLoad = false },
@@ -238,7 +238,7 @@ TestPump(0.3)
 -- T10: with motion off both shapes land on the spot, still interactable.
 window:Hide()
 TestPump(1.0)
-Astra.Motion.setProfile("instant")
+Mova.Motion.setProfile("instant")
 local instant = rect(window)
 tap(window)
 tap(window)
@@ -255,8 +255,8 @@ expect(not window.animating, "T10 with nothing left in flight either way")
 
 -- A held morph: the second double tap cannot land mid-movement, so the
 -- capsule is never left half-shaped and half-settled.
-Astra.Motion.setProfile("normal")
-local tweenService = Astra.Core.state.tweenService
+Mova.Motion.setProfile("normal")
+local tweenService = Mova.Core.state.tweenService
 local createTween = tweenService.Create
 local held
 tweenService.Create = function(service, target, info, props)

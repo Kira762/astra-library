@@ -1,6 +1,6 @@
 --[[
 ===== input field assertions: the field wears the element corner =====
-Runs the real Astra bundle (loaded as global `Astra` above) against the
+Runs the real Mova bundle (loaded as global `Mova` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau.
 
 Expected behavior under test:
@@ -28,7 +28,7 @@ local function eq(actual, wanted, message)
 	end
 end
 
-local window = Astra:CreateWindow({ name = "Input Field Test" })
+local window = Mova:CreateWindow({ name = "Input Field Test" })
 TestPump(0.6)
 local tab = window:CreateTab({ name = "Controls" })
 local input = tab:CreateInput({ name = "Display name", placeholder = "Enter a name" })

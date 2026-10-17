@@ -1,26 +1,26 @@
 ---
-name: astra
-description: "Build and edit Roblox UIs and executor GUI hubs with Astra v1, the Luau UI library loaded as one bundle (version-1.luau) through loadstring plus game:HttpGet. Use for Astra:CreateWindow scripts and everything they build — windows, tabs, groups and elements (Button, Toggle, Slider, Stepper, Dropdown, Input, Keybind, Stat, Text, Section, Link, Footer, Divider, Group, Collapsible Group, Changelog), flags, saved configs, themes, icons, motion, notifications, popups and localisation. Also use when changing the Astra repository itself (modular tree, generated bundle, syntax gate, runtime tests)."
+name: mova
+description: "Build and edit Roblox UIs and executor GUI hubs with Mova v1, the Luau UI library loaded as one bundle (version-1.luau) through loadstring plus game:HttpGet. Use for Mova:CreateWindow scripts and everything they build — windows, tabs, groups and elements (Button, Toggle, Slider, Stepper, Dropdown, Input, Keybind, Stat, Text, Section, Link, Footer, Divider, Group, Collapsible Group, Changelog), flags, saved configs, themes, icons, motion, notifications, popups and localisation. Also use when changing the Mova repository itself (modular tree, generated bundle, syntax gate, runtime tests)."
 ---
 
-# Astra v1
+# Mova v1
 
-Astra is a Roblox/Luau UI library for executor scripts. One public entry point —
-`Astra:CreateWindow(props)` — then a window owns tabs, tabs own elements, and
+Mova is a Roblox/Luau UI library for executor scripts. One public entry point —
+`Mova:CreateWindow(props)` — then a window owns tabs, tabs own elements, and
 every element is created from a single props table. Everything below is the API
 surface that actually exists; do not invent parallel methods or props.
 
 ## Load the library
 
 ```lua
-local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau"))()
+local Mova = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau"))()
 ```
 
 Three details are load-bearing:
 
 - **The trailing `()` is required.** `loadstring(text)` only compiles and returns
-  a chunk; calling it runs Astra and returns the module table. Without the call,
-  every later `Astra:CreateWindow` fails with `attempt to index a function value`.
+  a chunk; calling it runs Mova and returns the module table. Without the call,
+  every later `Mova:CreateWindow` fails with `attempt to index a function value`.
 - **Fetch the bundle, never the modular tree.** `version-1.luau` is the generated
   artifact (see `scripts/generate_bundle.js`); `core/`, `elements/` and friends are
   source for building it.
@@ -28,10 +28,10 @@ Three details are load-bearing:
   must be enabled in the runtime.
 
 Inside Studio/Rojo (no `loadstring`) the same library is a ModuleScript:
-`require(game:GetService("ReplicatedStorage").Astra)`.
+`require(game:GetService("ReplicatedStorage").Mova)`.
 
 A failed load looks like `rAnDoMcHuNkNaMe:1: attempt to call a nil value` — that is
-the *loader*, not an Astra bug. It means the fetched text never compiled, usually
+the *loader*, not an Mova bug. It means the fetched text never compiled, usually
 because the fetch returned an HTML error page (private repo, wrong branch, rate
 limit). Confirm with `print(game:HttpGet(url):sub(1, 120))`. Inside this repo, run
 `sh scripts/check_syntax.sh` and regenerate with `node scripts/generate_bundle.js`.
@@ -39,9 +39,9 @@ limit). Confirm with `print(game:HttpGet(url):sub(1, 120))`. Inside this repo, r
 ## Minimal working script
 
 ```lua
-local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau"))()
+local Mova = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau"))()
 
-local window = Astra:CreateWindow({
+local window = Mova:CreateWindow({
     name = "Example Hub",
     subtitle = "v1.0",
     icon = "house",
@@ -74,7 +74,7 @@ The first tab opens on its own and layout is a user setting (**Settings → Appe
 
 1. **One props table, always.** Every constructor is `parent:CreateX({ ... })`.
    Positional arguments are not supported.
-2. **Colons on library calls.** `Astra:CreateWindow`, `window:CreateTab`,
+2. **Colons on library calls.** `Mova:CreateWindow`, `window:CreateTab`,
    `window:Notify`, `tab:CreateButton`, `handle:Set(...)`.
 3. **Create the parent first.** Elements are created on a **Tab** (or on a
    **Group** created by a tab). `CreateAccordion` exists *only* on a tab.
@@ -82,9 +82,9 @@ The first tab opens on its own and layout is a user setting (**Settings → Appe
    `:Remove`, `:Refresh`, `:MoveUp`, `:Lock`, …), not plain data.
 5. **Window methods live on the window**: `window:ChangeTheme`, `window:SetLocale`,
    `window:Notify`, `window:Popup`, `window:Get`/`Set`. There is no
-   `Astra.ChangeTheme` or `Astra.Unload`.
+   `Mova.ChangeTheme` or `Mova.Unload`.
 6. **Never build a second live window by accident.** With the default
-   `antiWindowDuplicate` setting on, a new `Astra:CreateWindow` unloads the existing
+   `antiWindowDuplicate` setting on, a new `Mova:CreateWindow` unloads the existing
    window first. Reuse the handle, call `window:Unload()`, or opt out per window
    with `settings = { antiWindowDuplicate = false }`.
 7. **Flags are shared key space.** Give every control that must restore a unique,
@@ -93,9 +93,9 @@ The first tab opens on its own and layout is a user setting (**Settings → Appe
    searched across lucide, material, tabler, phosphor, heroicons, feather, remix in that
    order; `"tabler:home"` pins one pack. An unresolved value is returned unchanged,
    so a typo silently yields a bad image, not an error — check with
-   `Astra.Icons.get("house")`.
+   `Mova.Icons.get("house")`.
 9. **Animate through the motion service**, not ad-hoc TweenInfos, so user motion
-   settings apply: `Astra.Motion.tween(instance, { BackgroundTransparency = 0.5 }, "snappy", onComplete)`.
+   settings apply: `Mova.Motion.tween(instance, { BackgroundTransparency = 0.5 }, "snappy", onComplete)`.
    Specs: `instant, fast, snappy, normal, smooth, emphasized, pop, glide, exit, spring, settle, spin, drift`.
 10. **Expect startup to be staged.** Constructors return fully built objects but may
     yield while the first UI is built, the window auto-shows on the next frame, and
@@ -106,10 +106,10 @@ The first tab opens on its own and layout is a user setting (**Settings → Appe
 
 | What you see | What it means |
 |---|---|
-| `attempt to index a function value` on the loader line | The `()` after `loadstring(...)` is missing, so `Astra` is a chunk, not the module table. |
+| `attempt to index a function value` on the loader line | The `()` after `loadstring(...)` is missing, so `Mova` is a chunk, not the module table. |
 | `rAnDoMcHuNkNaMe:1: attempt to call a nil value` | The fetched text never compiled — usually an HTML error page (private repo, wrong branch, rate limit) or a broken bundle. `print(game:HttpGet(url):sub(1, 120))`. |
-| `attempt to call a nil value` after loading | The method does not exist on that parent: `CreateAccordion` on a Group, `CreateTab` on `Astra`, or props passed positionally. |
-| An element renders a blank or broken icon | The icon name resolved to nothing and was passed through unchanged — check case, pack and spelling with `Astra.Icons.get`. |
+| `attempt to call a nil value` after loading | The method does not exist on that parent: `CreateAccordion` on a Group, `CreateTab` on `Mova`, or props passed positionally. |
+| An element renders a blank or broken icon | The icon name resolved to nothing and was passed through unchanged — check case, pack and spelling with `Mova.Icons.get`. |
 | Values do not come back on the next run | No `flag` on the control, a duplicated flag, `forgetState = true`, or Auto Load turned off in Settings → Persistence. |
 | Two shells appear at once | A second `CreateWindow` after the guard was disabled or the previous handle was left live — reuse the handle or `window:Unload()` first. |
 | A control ignores clicks | It is `:Lock()`ed, or its tab has never been shown (inactive tabs reveal and build lazily). |
@@ -133,7 +133,7 @@ Stepper, Dropdown, Input and Link ignore the prop.
 | `CreateDropdown({ name, options, value, multiSelect, placeholder, flag, callback })` | multi-select value is a table | `:Refresh(options)`, `:Add(option)`, `:Remove(option)` |
 | `CreateInput({ name, value, placeholder, numeric, clearOnFocus, flag, callback })` | text field, `callback(text)` | `:Set(text)` |
 | `CreateStat({ name, value, prefix, suffix, display, compact, letter, changeMode, changeBaseline })` | readout card; a string `value` shows one letter unless `letter = false`, which reads the whole value | `:Set(value)`, `:SetText(text)`, `:ResetBaseline(n)` |
-| `CreateFooter({ parts, textSize, spacing })` | centred run of text and inline icons (`parts = { { text = "Built with" }, { icon = "zap" }, { text = "Astra" } }`; plain strings are text shorthand); re-centres as one unit | `:Set(parts)` |
+| `CreateFooter({ parts, textSize, spacing })` | centred run of text and inline icons (`parts = { { text = "Built with" }, { icon = "zap" }, { text = "Mova" } }`; plain strings are text shorthand); re-centres as one unit | `:Set(parts)` |
 | `CreateDivider({ text, line, spacing })` | rule between controls | — |
 | `CreateGroup({ direction = "row" \| "column" })` | horizontal row by default | nesting via `Create…` |
 
@@ -160,7 +160,7 @@ Built-in Settings live behind the gear action (Overview, Controls, Appearance,
 Persistence) and hold menu keybind, window behaviour, motion, bar layout and
 auto save/load. They are window-scoped — user code does not build them.
 
-**Key gate.** `Astra:CreateKeySystem({ keys, onSuccess })` shows the standalone
+**Key gate.** `Mova:CreateKeySystem({ keys, onSuccess })` shows the standalone
 enter-your-key card *before* any window exists — build the window inside
 `onSuccess`. The header is always the Sirius mark (`icon` is ignored), the
 note is plain text, and optional `links = { { name, icon, link } … }` (0–3)
@@ -177,7 +177,7 @@ Read only what the task needs:
   themes, icon packs, motion service, localisation, persistence, startup pacing.
 - `references/repo-workflow.md` — working inside this repository: bundle generation,
   syntax and checker scripts, runtime tests, docs/changelog conventions.
-- `skills/astra-guard/SKILL.md` + `skills/astra-guard/references/*` — regression guard for lock tiers, text/locale and layout geometry (the three recurring bug classes). Consult before shipping anything that touches `elements/`, `components/window/elements.luau`, `utilities/lockable.luau`, or `utilities/locale`.
+- `skills/mova-guard/SKILL.md` + `skills/mova-guard/references/*` — regression guard for lock tiers, text/locale and layout geometry (the three recurring bug classes). Consult before shipping anything that touches `elements/`, `components/window/elements.luau`, `utilities/lockable.luau`, or `utilities/locale`.
 - `assets/example-window.luau` — a single-file, copy-pasteable hub covering every
   element type. It is Luau-parsed, but `scripts/check_syntax.sh` only walks the
   library paths, so compile it directly after editing.

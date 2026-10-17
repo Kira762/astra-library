@@ -1,5 +1,5 @@
 --[[
-Shared base card layout and styling for Astra UI elements.
+Shared base card layout and styling for Mova UI elements.
 Handles standard background frame, theme strokes, hover overlay,
 content container, icon, and title label.
 ]]

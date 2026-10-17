@@ -1,4 +1,4 @@
-# Astra v1 — Window, theme and runtime reference
+# Mova v1 — Window, theme and runtime reference
 
 ## Window methods
 
@@ -34,12 +34,12 @@ Extension helpers used by library internals and safe for custom elements:
 ### CreateWindow props
 
 ```lua
-local window = Astra:CreateWindow({
+local window = Mova:CreateWindow({
     name = "My UI",                   -- topbar title
     subtitle = "v1.0",
     icon = "house",                   -- icon name or asset id
     theme = "default",                -- built-in name or custom table
-    showName = "Astra",               -- capsule label when minimised
+    showName = "Mova",               -- capsule label when minimised
     showIconOnly = false,            -- starting capsule shape; double-tap it to switch
     fallbackFont = Enum.Font.Gotham,  -- used when the brand font cannot load
     translator = function(source, localeId) end,
@@ -75,13 +75,13 @@ distinct; matching is per window.
 ### Key gate
 
 ```lua
-Astra:CreateKeySystem({
+Mova:CreateKeySystem({
     title = "My Hub",
     subtitle = "Key System",
     note = "Get your key at example.com, then paste it below.",
     keys = { "KEY-1" },          -- string or list; no keys passes through
     grabKeyFromSite = false,     -- entries are raw URLs whose body is the key
-    saveKey = true,              -- a matching Astra/keys/<fileName>.txt skips the UI
+    saveKey = true,              -- a matching Mova/keys/<fileName>.txt skips the UI
     fileName = "MyHub",          -- defaults to title
     getKeyUrl = "https://...",  -- legacy sugar: prepends a "Get Key" copy button
     links = {                    -- 0-3 buttons under the note; face = icon + name,
@@ -92,7 +92,7 @@ Astra:CreateKeySystem({
     dismissable = true,
     theme = "default",           -- resolved once, baked in
     onSuccess = function(key)    -- build the window here
-        local window = Astra:CreateWindow({ name = "My Hub" })
+        local window = Mova:CreateWindow({ name = "My Hub" })
     end,
     onClose = function() end,
     onMaxAttempts = function() end,
@@ -169,14 +169,14 @@ key (`WindowColor`, `ElementGradient`, `ElementStrokeGradient`, `TabBackground`,
 ## Icons
 
 ```lua
-Astra.Icons.get("house")              -- searched in pack priority order
-Astra.Icons.get("material:home")      -- exactly this pack
-Astra.Icons.get("home", "tabler")     -- same, pack as second argument
-Astra.Icons.resolve("house")          -- URL / asset id ready for an Image
-Astra.Icons.list("lucide")
-Astra.Icons.packs() Astra.Icons.count() Astra.Icons.isPack("feather")
-Astra.Icons.priority() Astra.Icons.loaded()
-Astra.Icons.refreshCustom()           -- re-read custom_asset/
+Mova.Icons.get("house")              -- searched in pack priority order
+Mova.Icons.get("material:home")      -- exactly this pack
+Mova.Icons.get("home", "tabler")     -- same, pack as second argument
+Mova.Icons.resolve("house")          -- URL / asset id ready for an Image
+Mova.Icons.list("lucide")
+Mova.Icons.packs() Mova.Icons.count() Mova.Icons.isPack("feather")
+Mova.Icons.priority() Mova.Icons.loaded()
+Mova.Icons.refreshCustom()           -- re-read custom_asset/
 ```
 
 - Pack priority: **lucide → material → tabler → phosphor → heroicons → feather → remix**.
@@ -198,14 +198,14 @@ Astra.Icons.refreshCustom()           -- re-read custom_asset/
 ## Motion
 
 ```lua
-Astra.Motion.tween(frame, { BackgroundTransparency = 0.5 }, "snappy")
-Astra.Motion.tween(panel, { Position = target }, "smooth", function() panel.Visible = false end)
-Astra.Motion.tween(stroke, { Color = Color3.new(1, 1, 1) }, TweenInfo.new(0.3))   -- TweenInfo allowed
-Astra.Motion.setProfile("relaxed")   -- relaxed | normal | snappy | instant
-Astra.Motion.setTimeScale(0.8)
-Astra.Motion.setEnabled(false)       -- apply targets immediately, no tweens
-Astra.Motion.step(0.035)             -- cascade pacing, scaled like the rest
-Astra.Motion.cancel(frame)           -- stop the tweens the service owns here
+Mova.Motion.tween(frame, { BackgroundTransparency = 0.5 }, "snappy")
+Mova.Motion.tween(panel, { Position = target }, "smooth", function() panel.Visible = false end)
+Mova.Motion.tween(stroke, { Color = Color3.new(1, 1, 1) }, TweenInfo.new(0.3))   -- TweenInfo allowed
+Mova.Motion.setProfile("relaxed")   -- relaxed | normal | snappy | instant
+Mova.Motion.setTimeScale(0.8)
+Mova.Motion.setEnabled(false)       -- apply targets immediately, no tweens
+Mova.Motion.step(0.035)             -- cascade pacing, scaled like the rest
+Mova.Motion.cancel(frame)           -- stop the tweens the service owns here
 ```
 
 Spec names: `instant`, `fast`, `snappy`, `normal`, `smooth`, `emphasized`, `pop`,
@@ -222,10 +222,10 @@ the only way to rescale the library's pace.
 ## HttpGuard
 
 ```lua
-local ok, report = Astra.HttpGuard.check("strict")   -- audit | warn | strict | off
-local report = Astra.HttpGuard.scan()                 -- never raises
-local proceed, body = Astra.HttpGuard.guardFetch(url, function() return game:HttpGet(url) end, "strict")
-Astra.HttpGuard.setDefaultPolicy("audit")
+local ok, report = Mova.HttpGuard.check("strict")   -- audit | warn | strict | off
+local report = Mova.HttpGuard.scan()                 -- never raises
+local proceed, body = Mova.HttpGuard.guardFetch(url, function() return game:HttpGet(url) end, "strict")
+Mova.HttpGuard.setDefaultPolicy("audit")
 ```
 
 Detects HttpSpy-style HTTP interception in three layers (spy artifacts,
@@ -239,7 +239,7 @@ fetching (quiet stub on a hit, `SPY_PREFLIGHT = "off"` to disable),
 `grabKeyFromSite` fetches are guarded (a hit drops the key silently, gate
 fails closed), asset downloads fall back without a word. Nothing prints,
 anywhere in the library: findings travel in the returned report, and the only
-console output Astra produces is a raised error. Not the entrypoint default:
+console output Mova produces is a raised error. Not the entrypoint default:
 call `check("strict")` before `CreateWindow` for strict-at-load (`strict`
 raises — the one policy that speaks, because the caller asked it to).
 
@@ -275,8 +275,8 @@ control values).
   precedence. Default storage identifiers are shared by windows using the defaults —
   unrelated hubs should use separate named presets.
 - File persistence needs a runtime with writable storage; `window:GetPath()` returns
-  the `(folder, file)` pair actually in use. Configs are under `Astra/config/`;
-  cached images are under `Astra/assets/`. Astra does not create a workspace-root
+  the `(folder, file)` pair actually in use. Configs are under `Mova/config/`;
+  cached images are under `Mova/assets/`. Mova does not create a workspace-root
   `ImageCache` folder (and discards an empty executor leftover of that name).
 
 ## Startup pacing

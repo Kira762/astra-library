@@ -1,4 +1,4 @@
-# Astra v1 — Elements reference
+# Mova v1 — Elements reference
 
 Every element is created with **one props table** on a Tab or a Group:
 
@@ -233,11 +233,11 @@ local footer = tab:CreateFooter({
     parts = {
         { text = "Built with" },
         { icon = "zap" },
-        { text = "Astra" },
+        { text = "Mova" },
         { icon = "heart" },
     },
 })
-footer:Set({ "Made", { icon = "heart" }, "with Astra" })  -- replace the run
+footer:Set({ "Made", { icon = "heart" }, "with Mova" })  -- replace the run
 ```
 
 `CreateFooter` takes `parts` (ordered; `{ text = ... }` / `{ icon = ... }` /
@@ -278,7 +278,7 @@ Symbols: `+` added (green), `-` removed (red), `~` changed (amber); the words
 
 Locked elements ignore user input while keeping their values, selection, callback
 and layout; `MoveTo` indices are tab-relative and re-clamped after sibling
-removal. Functional controls publish `usage = "lockable:astra:<elementId>"`
+removal. Functional controls publish `usage = "lockable:mova:<elementId>"`
 (or a usage array that retains pre-existing entries). Static/decorative elements
 and Buttons without callbacks are excluded. Supply `id`/`elementId` for a stable
 ID and `lockLevel = 1..5` or `lockGroup` (`minor`, `standard`, `action`,

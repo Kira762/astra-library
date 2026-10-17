@@ -1,6 +1,6 @@
 export type Theme = string | { [string]: any }
 
--- Lockable interactive elements receive a stable `lockable:astra:<id>` usage
+-- Lockable interactive elements receive a stable `lockable:mova:<id>` usage
 -- tag automatically. `lockLevel` (1..5) or `lockGroup` can override the
 -- automatic type-based group; a lock mode of 5 always covers every tag.
 export type ElementUsage = string | { string }
@@ -267,6 +267,7 @@ export type Lockable = {
     elementId: string?,
     usage: ElementUsage?,
     usageTag: string?,
+    legacyUsageTag: string?,
     lockUsage: string?,
     lockLevel: number?,
     Lock: (self: any, reason: string?) -> boolean,
@@ -474,7 +475,7 @@ export type MotionSpec = string | TweenInfo
 
 --[[
 The service is a plain table of functions (dot calls, like `Icons`),
-so the fields carry no `self` - `Astra.Motion.tween(frame, props)`.
+so the fields carry no `self` - `Mova.Motion.tween(frame, props)`.
 ]]
 export type MotionService = {
     enabled: boolean,
@@ -571,7 +572,7 @@ export type HttpGuardReport = {
 export type HttpGuardPolicy = "audit" | "warn" | "strict" | "off"
 
 --[[
-HTTP interception detection, public as `Astra.HttpGuard`. `capture`
+HTTP interception detection, public as `Mova.HttpGuard`. `capture`
 snapshots the pristine references (the entrypoint already calls it on load);
 `scan` reports; `check` enforces a policy (`strict` raises on any signal,
 unknown policies fail closed like it); `guardFetch` runs a fetch only when
@@ -590,9 +591,9 @@ export type HttpGuardService = {
     getDefaultPolicy: () -> HttpGuardPolicy,
 }
 
-export type Astra = {
-    CreateWindow: (self: Astra, props: WindowProps) -> Window,
-    CreateKeySystem: (self: Astra, props: KeySystemProps) -> KeySystem,
+export type Mova = {
+    CreateWindow: (self: Mova, props: WindowProps) -> Window,
+    CreateKeySystem: (self: Mova, props: KeySystemProps) -> KeySystem,
     Icons: IconCatalog,
     Motion: MotionService,
     Performance: any?,

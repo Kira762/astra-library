@@ -13,7 +13,7 @@ values this build stamps into the Settings tab, so a release updates them
 here and nowhere else.
 ]]
 local aboutVersion = "1.4.0"
-local aboutAuthor = "Astra Team"
+local aboutAuthor = "Mova Team"
 
 local function layoutKey(layout)
     if type(layout) == "table" and layout.mode == "sidebar" and layout.forceCollapsed then
@@ -51,7 +51,7 @@ function settingsComponent.buildUI(window)
         guide, releases and issues all live behind that link. The version
         and author strings live at the top of this module.
         ]]
-        about:CreateSection({ name = "Astra", icon = constants.icons.dot })
+        about:CreateSection({ name = "Mova", icon = constants.icons.dot })
         about:CreateText({ name = "About", text = "UI Library for a better experience." })
         about:CreateStat({ name = "Version", value = aboutVersion, letter = false })
         about:CreateStat({ name = "Author", value = aboutAuthor, letter = false })
@@ -87,7 +87,7 @@ function settingsComponent.buildUI(window)
         this panel builds lazily on first open.
         ]]
         window._elementLockAllToggle = general:CreateToggle({
-            id = "astraElementLockAll",
+            id = "movaElementLockAll",
             name = "Lock all controls",
             value = window:GetElementLockMode() >= 5,
             lockSystemController = true,
@@ -154,9 +154,9 @@ function settingsComponent.buildUI(window)
         "Animation speed" setting is gone: the library plays at its
         built-in motion (the normal language, faster — never instant).
         ]]
-        local fontLabels = { default = "Default", brand = "Astra" }
-        local fontOptions = { "Default", "Astra" }
-        local fontChoices = { Default = "default", Astra = "brand" }
+        local fontLabels = { default = "Default", brand = "Mova" }
+        local fontOptions = { "Default", "Mova" }
+        local fontChoices = { Default = "default", Mova = "brand" }
 
         appearance:CreateDropdown({
             name = "Font",

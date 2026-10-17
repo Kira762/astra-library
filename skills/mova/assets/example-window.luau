@@ -1,13 +1,13 @@
--- Executor entry point. In Studio/Rojo, require ReplicatedStorage.Astra instead.
-local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau"))()
+-- Executor entry point. In Studio/Rojo, require ReplicatedStorage.Mova instead.
+local Mova = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau"))()
 
-local window = Astra:CreateWindow({
-    name = "Astra Element Studio",
+local window = Mova:CreateWindow({
+    name = "Mova Element Studio",
     subtitle = "Explore • interact • customise",
     icon = "sirius",
     configuration = {
-        fileName = "Astra-Example",
-        customFolder = "AstraExamples",
+        fileName = "Mova-Example",
+        customFolder = "MovaExamples",
         autoSave = true,
         autoLoad = true,
     },
@@ -22,10 +22,10 @@ local actions = window:CreateTab({ name = "Actions", icon = "play" })
 local preferences = window:CreateTab({ name = "Preferences", icon = "sliders-horizontal" })
 local releaseHistory
 
-overview:CreateSection({ name = "Astra", icon = 80387863064905 })
+overview:CreateSection({ name = "Mova", icon = 80387863064905 })
 overview:CreateText({
     name = "A small studio for every element.",
-    text = "Version 1.4.0 · build 2026.09.21 · by Astra Team.",
+    text = "Version 1.4.0 · build 2026.09.21 · by Mova Team.",
 })
 overview:CreateButton({
     name = "Release history",
@@ -52,7 +52,7 @@ overview:CreateText({
     name = "Source & releases", text = "https://github.com/Kira762/astra-library",
 })
 overview:CreateText({
-    name = "Build with Astra", text = "https://github.com/Kira762/astra-library/blob/main/USAGE.md",
+    name = "Build with Mova", text = "https://github.com/Kira762/astra-library/blob/main/USAGE.md",
 })
 overview:CreateChangelog({
     name = "Studio highlights",
@@ -80,7 +80,7 @@ releaseHistory = overview:CreateAccordion({
     },
 })
 overview:CreateDivider()
-overview:CreateFooter({ parts = { { text = "Built with" }, { icon = "zap" }, { text = "Astra" }, { icon = "heart" } } })
+overview:CreateFooter({ parts = { { text = "Built with" }, { icon = "zap" }, { text = "Mova" }, { icon = "heart" } } })
 
 --[[
 Actions: an immediate result, a compact action pair and a related advanced
@@ -98,7 +98,7 @@ actions:CreateButton({
 local shortcuts = actions:CreateGroup({ direction = "row" })
 shortcuts:CreateButton({ name = "Reset counter", icon = "rotate-ccw", callback = function() runs:Set(0) end })
 shortcuts:CreateButton({ name = "Notify", icon = "bell", callback = function()
-    window:Notify({ title = "Hello from Astra", content = "Click again to replace this exact notification with a fresh animated card." })
+    window:Notify({ title = "Hello from Mova", content = "Click again to replace this exact notification with a fresh animated card." })
 end })
 actions:CreateDivider({ text = "Window preview" })
 actions:CreateButton({ name = "Hide to capsule", icon = "minus", callback = function() window:Hide() end })

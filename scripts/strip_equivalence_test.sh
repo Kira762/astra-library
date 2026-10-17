@@ -44,7 +44,7 @@ if [ -z "$LUAU_COMPILE" ]; then
 	exit 2
 fi
 
-WORK="${TMPDIR:-/tmp}/astra_strip_equivalence_$$"
+WORK="${TMPDIR:-/tmp}/mova_strip_equivalence_$$"
 mkdir -p "$WORK"
 trap 'rm -rf "$WORK"' EXIT
 

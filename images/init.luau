@@ -3,7 +3,7 @@ Remote image pipeline — the folder module.
 
 `images` is where a value becomes something Roblox can load: `assign` writes
 an image property through the cache layer, `preload` warms the window's own
-art, `avatar` builds a headshot URI. It has nothing to do with Astra's
+art, `avatar` builds a headshot URI. It has nothing to do with Mova's
 built-in glyphs — those live in `windowIcons/`.
 ]]
 

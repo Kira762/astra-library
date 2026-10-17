@@ -1,6 +1,6 @@
 --[[
 ===== catalog icons under a hook-heuristic guard verdict =====
-Runs the real Astra bundle against an executor whose `request` is a Lua
+Runs the real Mova bundle against an executor whose `request` is a Lua
 wrapper and whose `__namecall` carries someone else's hook (see
 image_asset_guard_stubs.luau). Both trip HttpGuard's layer-C heuristics, so
 the scan is not clean - but neither is an HTTP spy, and the PNGs the catalog
@@ -28,12 +28,12 @@ end
 
 local harness = getgenv().__AssetGuardTest
 expect(type(harness) == "table", "the executor stubs are installed")
-expect(type(Astra.HttpGuard) == "table", "Astra.HttpGuard is exposed")
+expect(type(Mova.HttpGuard) == "table", "Mova.HttpGuard is exposed")
 
 local ASSET_BASE = "https://raw.githubusercontent.com/Kira762/astra-library/main/"
 local houseUrl = ASSET_BASE .. "assets/icons/lucide-pack/lucideHouse.png"
 
-local report = Astra.HttpGuard.scan()
+local report = Mova.HttpGuard.scan()
 
 -- ===== A1: the heuristics trip ==============================================
 expect(report.executor == true, "A1 the executor gate is open")
@@ -54,7 +54,7 @@ end
 -- ===== A2: but a public asset is not refused ================================
 expect(report.httpSpy == false, "A2 a hook heuristic is not an HTTP spy")
 
-local window = Astra:CreateWindow({
+local window = Mova:CreateWindow({
     name = "Asset Guard",
     icon = "house",
     configuration = { autoSave = false, autoLoad = false },
@@ -64,7 +64,7 @@ TestPump(1)
 expect(window.topbarIcon ~= nil, "A2 the window created its topbar icon")
 expect(
     type(window.topbarIcon.Image) == "string"
-        and string.find(window.topbarIcon.Image, "rbxasset://asset-guard/Astra/assets/images-icon/icon_", 1, true) == 1,
+        and string.find(window.topbarIcon.Image, "rbxasset://asset-guard/Mova/assets/images-icon/icon_", 1, true) == 1,
     "A2 the topbar catalog icon renders (got " .. tostring(window.topbarIcon.Image) .. ")"
 )
 expect(
@@ -75,7 +75,7 @@ expect(
 -- ===== A3: the download used the executor's request function ================
 local importedCatalog = false
 for path in harness.imported do
-    if string.find(path, "Astra/assets/images-icon/icon_", 1, true) == 1 then
+    if string.find(path, "Mova/assets/images-icon/icon_", 1, true) == 1 then
         importedCatalog = true
         break
     end
@@ -95,7 +95,7 @@ expect(
 )
 
 -- ===== A5: layer A still refuses the fetch ==================================
-local resolver = Astra.Core.state.assetResolver
+local resolver = Mova.Core.state.assetResolver
 local spyUrl = "https://example.test/spied-icon.png"
 local before = 0
 for _ in harness.fetched do
@@ -105,7 +105,7 @@ getgenv().HttpSpy = {
     OnRequest = {},
     BlockUrl = function() end,
 }
-local spyReport = Astra.HttpGuard.scan()
+local spyReport = Mova.HttpGuard.scan()
 expect(spyReport.httpSpy == true, "A5 the spy artifacts flag httpSpy")
 expect(
     resolver:getAssetContentFromUrl(spyUrl, nil, true) == nil,
@@ -113,7 +113,7 @@ expect(
 )
 expect(harness.fetched[spyUrl] == nil, "A5 the refused fetch never reached the request function")
 getgenv().HttpSpy = nil
-expect(Astra.HttpGuard.scan().httpSpy == false, "A5 removing the spy clears the flag")
+expect(Mova.HttpGuard.scan().httpSpy == false, "A5 removing the spy clears the flag")
 
 window:Unload()
 TestPump(0.1)

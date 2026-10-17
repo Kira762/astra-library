@@ -36,7 +36,7 @@ end
 local function __quietStub()
     -- Self-returning stub (matches loader.luau's quietStub): every index
     -- and call resolves to the stub table itself, so chains like
-    -- Astra.Settings.readPersisted stay silent instead of indexing a
+    -- Mova.Settings.readPersisted stay silent instead of indexing a
     -- function value. type(CreateWindow) == "table" marks a stub.
     local stub = {}
     return setmetatable(stub, {
@@ -127,15 +127,20 @@ export type HttpGuardSignal = types.HttpGuardSignal
 export type HttpGuardReport = types.HttpGuardReport
 export type HttpGuardPolicy = types.HttpGuardPolicy
 export type HttpGuardService = types.HttpGuardService
-export type Astra = types.Astra
+export type Mova = types.Mova
 
 type WindowModule = { new: (types.WindowProps) -> types.Window }
 
-local Astra = {} :: Astra
+local Mova = {} :: Mova
 local activeWindow: types.Window? = nil
-local ACTIVE_WINDOW_KEY = "__ASTRA_ACTIVE_WINDOW_V1"
-local LIVE_WINDOWS_KEY = "__ASTRA_LIVE_WINDOWS_V1"
-local GENERATION_KEY = "__ASTRA_WINDOW_GENERATION_V1"
+local ACTIVE_WINDOW_KEY = "__MOVA_ACTIVE_WINDOW_V1"
+local LIVE_WINDOWS_KEY = "__MOVA_LIVE_WINDOWS_V1"
+local GENERATION_KEY = "__MOVA_WINDOW_GENERATION_V1"
+
+
+local LEGACY_ACTIVE_WINDOW_KEY = "__ASTRA_ACTIVE_WINDOW_V1"
+local LEGACY_LIVE_WINDOWS_KEY = "__ASTRA_LIVE_WINDOWS_V1"
+local LEGACY_GENERATION_KEY = "__ASTRA_WINDOW_GENERATION_V1"
 
 
 
@@ -161,10 +166,19 @@ local globalStore = getGlobalStore()
 
 local function getLiveWindows(): { types.Window }
 local live = globalStore[LIVE_WINDOWS_KEY]
+local legacyLive = globalStore[LEGACY_LIVE_WINDOWS_KEY]
 if type(live) ~= "table" then
-live = {}
-globalStore[LIVE_WINDOWS_KEY] = live
+live = if type(legacyLive) == "table" then legacyLive else {}
 end
+if type(legacyLive) == "table" and legacyLive ~= live then
+for _, window in legacyLive do
+if not table.find(live, window) then
+table.insert(live, window)
+end
+end
+end
+globalStore[LIVE_WINDOWS_KEY] = live
+globalStore[LEGACY_LIVE_WINDOWS_KEY] = live
 return live
 end
 
@@ -186,11 +200,9 @@ end
 
 add(activeWindow)
 add(globalStore[ACTIVE_WINDOW_KEY])
-local live = globalStore[LIVE_WINDOWS_KEY]
-if type(live) == "table" then
-for _, window in live do
+add(globalStore[LEGACY_ACTIVE_WINDOW_KEY])
+for _, window in getLiveWindows() do
 add(window)
-end
 end
 return list
 end
@@ -202,10 +214,10 @@ end
 if globalStore[ACTIVE_WINDOW_KEY] == window then
 globalStore[ACTIVE_WINDOW_KEY] = nil
 end
-local live = globalStore[LIVE_WINDOWS_KEY]
-if type(live) ~= "table" then
-return
+if globalStore[LEGACY_ACTIVE_WINDOW_KEY] == window then
+globalStore[LEGACY_ACTIVE_WINDOW_KEY] = nil
 end
+local live = getLiveWindows()
 for index = #live, 1, -1 do
 if live[index] == window then
 table.remove(live, index)
@@ -216,13 +228,23 @@ end
 local function rememberWindow(window: types.Window)
 activeWindow = window
 globalStore[ACTIVE_WINDOW_KEY] = window
+globalStore[LEGACY_ACTIVE_WINDOW_KEY] = window
 local live = getLiveWindows()
-for _, existing in live do
-if existing == window then
-return
-end
-end
+if not table.find(live, window) then
 table.insert(live, window)
+end
+end
+
+local function currentGeneration(): number
+return math.max(
+tonumber(globalStore[GENERATION_KEY]) or 0,
+tonumber(globalStore[LEGACY_GENERATION_KEY]) or 0
+)
+end
+
+local function setGeneration(value: number)
+globalStore[GENERATION_KEY] = value
+globalStore[LEGACY_GENERATION_KEY] = value
 end
 
 local function isReplaceableWindow(window: types.Window): boolean
@@ -252,20 +274,18 @@ end
 end
 end
 
-Astra.Icons = Icons
+Mova.Icons = Icons
 
 
 
 
 
 
-Astra.Motion = Motion
+Mova.Motion = Motion
 
-Astra.Core = Core
-Astra.Settings = Settings
-Astra.Performance = HardwarePerformance
-
-
+Mova.Core = Core
+Mova.Settings = Settings
+Mova.Performance = HardwarePerformance
 
 
 
@@ -274,9 +294,11 @@ Astra.Performance = HardwarePerformance
 
 
 
-Astra.HttpGuard = HttpGuard
 
-function Astra:CreateWindow(props: types.WindowProps): types.Window
+
+Mova.HttpGuard = HttpGuard
+
+function Mova:CreateWindow(props: types.WindowProps): types.Window
 
 
 
@@ -288,8 +310,8 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 local antiDuplicateEnabled = Settings.readPersisted("antiWindowDuplicate", true)
 local claimedGeneration: number? = nil
 if antiDuplicateEnabled then
-claimedGeneration = (tonumber(globalStore[GENERATION_KEY]) or 0) + 1
-globalStore[GENERATION_KEY] = claimedGeneration
+claimedGeneration = currentGeneration() + 1
+setGeneration(claimedGeneration)
 unloadReplaceableWindows(nil)
 else
 for _, existing in trackedWindows() do
@@ -308,7 +330,7 @@ end
 
 local window = result :: types.Window
 if antiDuplicateEnabled then
-if globalStore[GENERATION_KEY] ~= claimedGeneration then
+if currentGeneration() ~= claimedGeneration then
 
 
 
@@ -488,7 +510,7 @@ end
 
 
 
-function Astra:CreateKeySystem(props: types.KeySystemProps): types.KeySystem
+function Mova:CreateKeySystem(props: types.KeySystemProps): types.KeySystem
 local ok, result = pcall(function()
 return (require(script.Parent.components.keySystem) :: any).new(props)
 end)
@@ -498,7 +520,7 @@ end
 return result
 end
 
-return Astra
+return Mova
 
 end)() end,
     [3] = function()local wax,script,require=ImportGlobals(3)local ImportGlobals return (function(...)
@@ -771,6 +793,7 @@ export type Lockable = {
 elementId: string?,
 usage: ElementUsage?,
 usageTag: string?,
+legacyUsageTag: string?,
 lockUsage: string?,
 lockLevel: number?,
 Lock: (self: any, reason: string?) -> boolean,
@@ -1094,9 +1117,9 @@ setDefaultPolicy: (policy: HttpGuardPolicy) -> HttpGuardPolicy,
 getDefaultPolicy: () -> HttpGuardPolicy,
 }
 
-export type Astra = {
-CreateWindow: (self: Astra, props: WindowProps) -> Window,
-CreateKeySystem: (self: Astra, props: KeySystemProps) -> KeySystem,
+export type Mova = {
+CreateWindow: (self: Mova, props: WindowProps) -> Window,
+CreateKeySystem: (self: Mova, props: KeySystemProps) -> KeySystem,
 Icons: IconCatalog,
 Motion: MotionService,
 Performance: any?,
@@ -1167,7 +1190,8 @@ if typeof(getgenv) ~= "function" then
 return false
 end
 local ok, result = pcall(function()
-return getgenv().ASTRA_SECURE
+local env = getgenv()
+return env.MOVA_SECURE == true or env.ASTRA_SECURE == true
 end)
 return ok and result == true
 end)()
@@ -1383,7 +1407,7 @@ idleTransparency()
 
 if not ok then
 error(
-`Astra: the callback for {self.__type} '{self.name}' errored: {tostring(err)}`,
+`Mova: the callback for {self.__type} '{self.name}' errored: {tostring(err)}`,
 0
 )
 end
@@ -2471,10 +2495,30 @@ end
 return folder, pathUtil.join(folder, base .. ".txt")
 end
 
+local function keyFileReadPaths(fileName)
+local folder, currentPath = keyFilePath(fileName)
+local base = pathUtil.sanitizeFile(fileName)
+if base == "" then
+base = "Key"
+end
+
+local paths = { currentPath }
+
+
+if base == "Mova" then
+table.insert(paths, pathUtil.join(folder, "Astra.txt"))
+end
+table.insert(paths, pathUtil.join("Astra/keys", base .. ".txt"))
+if base == "Mova" then
+table.insert(paths, pathUtil.join("Astra/keys", "Astra.txt"))
+end
+return paths
+end
+
 function KeySystem.new(props)
 props = if typeof(props) == "table" then props else {}
 
-local title = tostring(props.title or props.Title or "Astra")
+local title = tostring(props.title or props.Title or "Mova")
 local keys = props.keys or props.Keys or props.key or props.Key
 if typeof(keys) == "string" then
 keys = { keys }
@@ -2570,14 +2614,20 @@ end
 
 
 if self.saveKey then
-local _, file = keyFilePath(self.fileName)
-local savedOk, saved = pcall(function()
+local saved = nil
+for _, file in keyFileReadPaths(self.fileName) do
+local savedOk, candidate = pcall(function()
 if filesystem.isfile(file) then
 return filesystem.readfile(file)
 end
 return nil
 end)
-if savedOk and typeof(saved) == "string" then
+if savedOk and typeof(candidate) == "string" then
+saved = candidate
+break
+end
+end
+if typeof(saved) == "string" then
 local cleaned = trim(saved)
 for _, key in self._expected do
 if cleaned == key then
@@ -2616,7 +2666,7 @@ local ok, err = pcall(callback, table.unpack(args))
 
 
 if not ok then
-error("Astra: key system callback errored: " .. tostring(err), 0)
+error("Mova: key system callback errored: " .. tostring(err), 0)
 end
 end)
 end
@@ -4229,7 +4279,7 @@ if not ok then
 
 
 task.spawn(function()
-error("Astra: an overlay failed to open - " .. tostring(err), 0)
+error("Mova: an overlay failed to open - " .. tostring(err), 0)
 end)
 released = true
 end
@@ -4973,7 +5023,7 @@ local ok, err = pcall(callback)
 
 if not ok then
 error(
-"Astra: popup button '" .. text .. "' callback errored: " .. tostring(err),
+"Mova: popup button '" .. text .. "' callback errored: " .. tostring(err),
 0
 )
 end
@@ -5646,7 +5696,7 @@ local settingsComponent = {}
 
 
 local aboutVersion = "1.4.0"
-local aboutAuthor = "Astra Team"
+local aboutAuthor = "Mova Team"
 
 local function layoutKey(layout)
 if type(layout) == "table" and layout.mode == "sidebar" and layout.forceCollapsed then
@@ -5684,7 +5734,7 @@ local function buildAbout()
 
 
 
-about:CreateSection({ name = "Astra", icon = constants.icons.dot })
+about:CreateSection({ name = "Mova", icon = constants.icons.dot })
 about:CreateText({ name = "About", text = "UI Library for a better experience." })
 about:CreateStat({ name = "Version", value = aboutVersion, letter = false })
 about:CreateStat({ name = "Author", value = aboutAuthor, letter = false })
@@ -5720,7 +5770,7 @@ end,
 
 
 window._elementLockAllToggle = general:CreateToggle({
-id = "astraElementLockAll",
+id = "movaElementLockAll",
 name = "Lock all controls",
 value = window:GetElementLockMode() >= 5,
 lockSystemController = true,
@@ -5787,9 +5837,9 @@ local function buildAppearance()
 
 
 
-local fontLabels = { default = "Default", brand = "Astra" }
-local fontOptions = { "Default", "Astra" }
-local fontChoices = { Default = "default", Astra = "brand" }
+local fontLabels = { default = "Default", brand = "Mova" }
+local fontOptions = { "Default", "Mova" }
+local fontChoices = { Default = "default", Mova = "brand" }
 
 appearance:CreateDropdown({
 name = "Font",
@@ -7347,7 +7397,8 @@ local lockedTextTransparency = 0.55
 
 
 
-local elementLockModeFlag = "astra.elementLockMode"
+local elementLockModeFlag = "mova.elementLockMode"
+local legacyElementLockModeFlag = "astra.elementLockMode"
 
 local viewportCheckInterval = 2
 
@@ -7409,6 +7460,7 @@ windowSurfaceGradientOffset = windowSurfaceGradientOffset,
 lockScrimTransparency = lockScrimTransparency,
 lockedTextTransparency = lockedTextTransparency,
 elementLockModeFlag = elementLockModeFlag,
+legacyElementLockModeFlag = legacyElementLockModeFlag,
 viewportCheckInterval = viewportCheckInterval,
 constructionFrameBudget = constructionFrameBudget,
 constructionInstanceBudget = constructionInstanceBudget,
@@ -7589,6 +7641,9 @@ if typeof(values) ~= "table" or self.controls[shared.elementLockModeFlag] then
 return
 end
 local stored = tonumber(values[shared.elementLockModeFlag])
+if stored == nil then
+stored = tonumber(values[shared.legacyElementLockModeFlag])
+end
 if stored then
 self:SetElementLockMode(stored)
 end
@@ -7900,7 +7955,7 @@ element._errored = false
 
 
 error(
-`Astra: the callback for {element.__type} '{element.name}' errored: {tostring(err)}`,
+`Mova: the callback for {element.__type} '{element.name}' errored: {tostring(err)}`,
 0
 )
 end)
@@ -8739,7 +8794,7 @@ local layout = layouts.sidebar
 local providedIcon = props.icon or props.Icon
 
 local self = setmetatable({
-name = props.name or props.Name or "Astra Window",
+name = props.name or props.Name or "Mova Window",
 subheading = props.subtitle or props.Subtitle,
 layout = layout,
 size = computeSize(layout.mode),
@@ -8763,7 +8818,7 @@ _overlayQueue = {},
 _overlayQueueRunning = false,
 
 icon = icons.resolve(providedIcon or constants.uiIcons.window),
-showName = props.showName or props.ShowName or "Astra",
+showName = props.showName or props.ShowName or "Mova",
 showIcon = icons.resolve(providedIcon or constants.uiIcons.window),
 showIconOnly = props.showIconOnly or props.ShowIconOnly or false,
 
@@ -8793,8 +8848,8 @@ if load == nil then load = config.AutoLoad end
 return {
 autoSave = if save == nil then true else save == true,
 autoLoad = if load == nil then true else load == true,
-fileName = config.fileName or config.FileName or "Astra-Hub",
-customFolder = config.customFolder or config.CustomFolder or "AstraConfigs",
+fileName = config.fileName or config.FileName or "Mova-Hub",
+customFolder = config.customFolder or config.CustomFolder or "MovaConfigs",
 }
 end)(),
 }, Window)
@@ -19440,7 +19495,7 @@ fontChoice = {
 key = "fontChoice",
 kind = "enum",
 domain = "appearance",
-description = "Text font: default (the original Roblox look) or brand (Astra's custom family).",
+description = "Text font: default (the original Roblox look) or brand (Mova's custom family).",
 },
 }
 
@@ -20457,7 +20512,7 @@ settings = "settings.png",
 search = "search.png",
 chevron = "chevron.png",
 check = "check.png",
-dot = "astra.png",
+dot = "mova.png",
 config = "config.png",
 }
 
@@ -20469,7 +20524,7 @@ settings = "settings",
 search = "search",
 chevron = "chevron",
 check = "check",
-dot = "astra",
+dot = "mova",
 config = "config",
 }
 
@@ -23607,10 +23662,73 @@ end)() end,
 local fs = require(script.Parent.filesystem)
 local pathUtil = require(script.Parent.path)
 
-local defaultRoot = "Astra"
+local defaultRoot = "Mova"
+local legacyRoot = "Astra"
+local maxMigrationDepth = 32
 
 local filesystemManager = {}
 filesystemManager.__index = filesystemManager
+
+local function isFolder(path: string): boolean
+if type(fs.isfolder) ~= "function" then
+return false
+end
+local ok, result = pcall(fs.isfolder, path)
+return ok and result == true
+end
+
+local function isFile(path: string): boolean
+if type(fs.isfile) ~= "function" then
+return false
+end
+local ok, result = pcall(fs.isfile, path)
+return ok and result == true
+end
+
+
+
+
+local function migrateLegacyTree(source: string, destination: string, depth: number?)
+depth = depth or 0
+if depth >= maxMigrationDepth or type(fs.listfiles) ~= "function" then
+return
+end
+local migrationMarker = pathUtil.join(destination, ".legacy-data-migrated")
+if depth == 0 and isFile(migrationMarker) then
+return
+end
+pcall(fs.ensureFolder, destination)
+
+local ok, entries = pcall(fs.listfiles, source)
+if not ok or type(entries) ~= "table" then
+return
+end
+
+local sourcePrefix = source:gsub("\\", "/"):gsub("/+$", "") .. "/"
+for _, listedPath in ipairs(entries) do
+if type(listedPath) == "string" then
+local normalizedPath = listedPath:gsub("\\", "/")
+local sourcePath = if normalizedPath:sub(1, #sourcePrefix) == sourcePrefix
+then normalizedPath
+else pathUtil.join(source, normalizedPath)
+local name = pathUtil.basename(sourcePath)
+if name ~= "" and name ~= "." and name ~= ".." and sourcePath ~= source then
+local destinationPath = pathUtil.join(destination, name)
+if isFolder(sourcePath) then
+migrateLegacyTree(sourcePath, destinationPath, depth + 1)
+elseif isFile(sourcePath) and not isFile(destinationPath) then
+local readOk, contents = pcall(fs.readfile, sourcePath)
+if readOk and type(contents) == "string" then
+pcall(fs.writefile, destinationPath, contents)
+end
+end
+end
+end
+end
+if depth == 0 and type(fs.writefile) == "function" then
+pcall(fs.writefile, migrationMarker, "1")
+end
+end
 
 export type FileSystemManager = {
 root: string,
@@ -23627,6 +23745,9 @@ root = root,
 assets = root .. "/assets",
 }, filesystemManager) :: any
 pcall(fs.ensureFolder, self.root)
+if root == defaultRoot then
+migrateLegacyTree(legacyRoot, root)
+end
 pcall(fs.ensureFolder, self.assets)
 
 return self
@@ -24989,7 +25110,7 @@ local parts: { string } = {}
 for _, signal in report.signals do
 parts[#parts + 1] = signal.layer .. "/" .. signal.id
 end
-error(("Astra: refusing to continue — HTTP interception detected (%s)"):format(table.concat(parts, ", ")), 0)
+error(("Mova: refusing to continue — HTTP interception detected (%s)"):format(table.concat(parts, ", ")), 0)
 return false, report
 end
 
@@ -25009,7 +25130,7 @@ end
 
 function HttpGuard.setDefaultPolicy(policy: GuardPolicy): GuardPolicy
 if policy ~= "audit" and policy ~= "warn" and policy ~= "strict" and policy ~= "off" then
-error(("Astra HttpGuard: invalid policy %q (want audit, warn, strict or off)"):format(tostring(policy)), 0)
+error(("Mova HttpGuard: invalid policy %q (want audit, warn, strict or off)"):format(tostring(policy)), 0)
 end
 DEFAULT_POLICY = policy
 return DEFAULT_POLICY
@@ -25280,9 +25401,12 @@ end)() end,
 
 
 
+
+
 local lockable = {}
 
-local LOCK_USAGE_PREFIX = "lockable:astra:"
+local LOCK_USAGE_PREFIX = "lockable:mova:"
+local LEGACY_LOCK_USAGE_PREFIX = "lockable:astra:"
 
 local defaultLockLevels = {
 Link = 2,
@@ -25444,6 +25568,7 @@ local name = element.name or element.__type or "Element"
 local baseId = normalizeId(explicitId, name)
 local elementId = uniqueId(window, baseId, element)
 local usageTag = LOCK_USAGE_PREFIX .. elementId
+local legacyUsageTag = LEGACY_LOCK_USAGE_PREFIX .. elementId
 local existingUsage = mergeUsages(
 read(properties, "usage", "Usage"),
 options.usage
@@ -25452,8 +25577,9 @@ options.usage
 element.id = elementId
 element.elementId = elementId
 element.usageTag = usageTag
+element.legacyUsageTag = legacyUsageTag
 element.lockUsage = usageTag
-element.usage = usageWithTag(existingUsage, usageTag)
+element.usage = usageWithTag(usageWithTag(existingUsage, usageTag), legacyUsageTag)
 element.lockLevel = requestedLevel(properties, options, element)
 element._isLockable = true
 element._lockSystemController = false
@@ -26895,6 +27021,7 @@ end)() end,
     [113] = function()local wax,script,require=ImportGlobals(113)local ImportGlobals return (function(...)
 local coreState = require(script.Parent.Parent.core.state)
 local pathUtil = require(script.Parent.path)
+local fs = require(script.Parent.filesystem)
 
 local persistencePaths = {}
 
@@ -26925,12 +27052,78 @@ end
 if baseName == "" then
 baseName = "Configuration"
 end
-return folder, pathUtil.join(folder, baseName .. ".txt")
+
+local currentPath = pathUtil.join(folder, baseName .. ".txt")
+
+
+
+
+if
+window.configuration.customFolder == "MovaConfigs"
+and window.configuration.fileName == "Mova-Hub"
+and type(fs.isfile) == "function"
+and type(fs.readfile) == "function"
+and type(fs.writefile) == "function"
+then
+local currentExists = false
+pcall(function()
+currentExists = fs.isfile(currentPath)
+end)
+if not currentExists then
+for _, legacyPath in {
+pathUtil.join("Mova/config/AstraConfigs", "Astra-Hub.txt"),
+pathUtil.join("Astra/config/AstraConfigs", "Astra-Hub.txt"),
+} do
+local legacyExists = false
+pcall(function()
+legacyExists = fs.isfile(legacyPath)
+end)
+if legacyExists then
+local readOk, contents = pcall(fs.readfile, legacyPath)
+if readOk and type(contents) == "string" then
+pcall(fs.ensureDir, folder)
+local writeOk = pcall(fs.writefile, currentPath, contents)
+if writeOk then
+break
+end
+end
+end
+end
+end
+end
+
+return folder, currentPath
 end
 
 function persistencePaths.getSettingsPath(): (string, string)
 local settingsFolder = coreState.fileSystemManager:getPath("settings")
-return settingsFolder, pathUtil.join(settingsFolder, "astra.txt")
+local currentPath = pathUtil.join(settingsFolder, "mova.txt")
+if type(fs.isfile) == "function" and type(fs.readfile) == "function" and type(fs.writefile) == "function" then
+local currentExists = false
+pcall(function()
+currentExists = fs.isfile(currentPath)
+end)
+if not currentExists then
+pcall(fs.ensureFolder, settingsFolder)
+for _, legacyPath in {
+pathUtil.join(settingsFolder, "astra.txt"),
+pathUtil.join("Astra/settings", "astra.txt"),
+} do
+local legacyExists = false
+pcall(function()
+legacyExists = fs.isfile(legacyPath)
+end)
+if legacyExists then
+local readOk, contents = pcall(fs.readfile, legacyPath)
+if readOk and type(contents) == "string" then
+pcall(fs.writefile, currentPath, contents)
+end
+break
+end
+end
+end
+end
+return settingsFolder, currentPath
 end
 
 return persistencePaths
@@ -27361,117 +27554,117 @@ end)() end,
 
 local LineOffsets = {
     [2] = 52,
-    [3] = 505,
-    [5] = 1127,
-    [6] = 1110,
-    [7] = 1277,
-    [8] = 1423,
-    [9] = 1832,
-    [10] = 2214,
-    [11] = 3596,
-    [12] = 4005,
-    [13] = 4361,
-    [14] = 5103,
-    [15] = 5634,
-    [16] = 6175,
-    [17] = 6238,
-    [18] = 6823,
-    [19] = 7169,
-    [20] = 7183,
-    [21] = 7283,
-    [22] = 7423,
-    [23] = 7977,
-    [24] = 8220,
-    [25] = 8542,
-    [26] = 8642,
-    [27] = 8696,
-    [28] = 9342,
-    [29] = 9590,
-    [30] = 9940,
-    [31] = 10389,
-    [32] = 7143,
-    [34] = 11353,
-    [35] = 11808,
-    [36] = 11897,
-    [37] = 12126,
-    [38] = 12568,
-    [39] = 12578,
-    [40] = 12735,
-    [41] = 12880,
-    [42] = 14544,
-    [43] = 14792,
-    [44] = 15023,
-    [45] = 15344,
-    [46] = 15597,
-    [47] = 15683,
-    [48] = 16288,
-    [49] = 17173,
-    [50] = 17767,
-    [51] = 18338,
-    [52] = 18464,
-    [53] = 18603,
-    [55] = 19118,
-    [56] = 19144,
-    [57] = 19163,
-    [58] = 19195,
-    [59] = 19321,
-    [60] = 19335,
-    [61] = 19384,
-    [62] = 19093,
-    [63] = 19475,
-    [64] = 19819,
-    [65] = 19850,
-    [66] = 19464,
-    [67] = 19893,
-    [68] = 19913,
-    [69] = 19945,
-    [70] = 19875,
-    [71] = 20052,
-    [72] = 20120,
-    [74] = 20210,
-    [75] = 20187,
-    [76] = 20430,
-    [77] = 20526,
-    [78] = 20377,
-    [79] = 21079,
-    [80] = 21125,
-    [81] = 21207,
-    [82] = 21402,
-    [83] = 21533,
-    [84] = 21636,
-    [85] = 21805,
-    [86] = 22145,
-    [87] = 20551,
-    [88] = 22813,
-    [89] = 22675,
-    [90] = 22952,
-    [91] = 23050,
-    [92] = 23241,
-    [93] = 23283,
-    [94] = 23313,
-    [95] = 23607,
-    [96] = 23656,
-    [97] = 24055,
-    [98] = 24073,
-    [99] = 24178,
-    [100] = 24385,
-    [101] = 25026,
-    [102] = 25046,
-    [103] = 25174,
-    [104] = 25272,
-    [105] = 25501,
-    [106] = 25974,
-    [107] = 26010,
-    [108] = 26171,
-    [109] = 26531,
-    [110] = 26543,
-    [111] = 26594,
-    [112] = 26613,
-    [113] = 26896,
-    [114] = 26940,
-    [115] = 27141,
-    [116] = 27169,
-    [117] = 27180,
+    [3] = 527,
+    [5] = 1150,
+    [6] = 1133,
+    [7] = 1301,
+    [8] = 1447,
+    [9] = 1856,
+    [10] = 2238,
+    [11] = 3646,
+    [12] = 4055,
+    [13] = 4411,
+    [14] = 5153,
+    [15] = 5684,
+    [16] = 6225,
+    [17] = 6288,
+    [18] = 6873,
+    [19] = 7219,
+    [20] = 7233,
+    [21] = 7333,
+    [22] = 7475,
+    [23] = 8032,
+    [24] = 8275,
+    [25] = 8597,
+    [26] = 8697,
+    [27] = 8751,
+    [28] = 9397,
+    [29] = 9645,
+    [30] = 9995,
+    [31] = 10444,
+    [32] = 7193,
+    [34] = 11408,
+    [35] = 11863,
+    [36] = 11952,
+    [37] = 12181,
+    [38] = 12623,
+    [39] = 12633,
+    [40] = 12790,
+    [41] = 12935,
+    [42] = 14599,
+    [43] = 14847,
+    [44] = 15078,
+    [45] = 15399,
+    [46] = 15652,
+    [47] = 15738,
+    [48] = 16343,
+    [49] = 17228,
+    [50] = 17822,
+    [51] = 18393,
+    [52] = 18519,
+    [53] = 18658,
+    [55] = 19173,
+    [56] = 19199,
+    [57] = 19218,
+    [58] = 19250,
+    [59] = 19376,
+    [60] = 19390,
+    [61] = 19439,
+    [62] = 19148,
+    [63] = 19530,
+    [64] = 19874,
+    [65] = 19905,
+    [66] = 19519,
+    [67] = 19948,
+    [68] = 19968,
+    [69] = 20000,
+    [70] = 19930,
+    [71] = 20107,
+    [72] = 20175,
+    [74] = 20265,
+    [75] = 20242,
+    [76] = 20485,
+    [77] = 20581,
+    [78] = 20432,
+    [79] = 21134,
+    [80] = 21180,
+    [81] = 21262,
+    [82] = 21457,
+    [83] = 21588,
+    [84] = 21691,
+    [85] = 21860,
+    [86] = 22200,
+    [87] = 20606,
+    [88] = 22868,
+    [89] = 22730,
+    [90] = 23007,
+    [91] = 23105,
+    [92] = 23296,
+    [93] = 23338,
+    [94] = 23368,
+    [95] = 23662,
+    [96] = 23777,
+    [97] = 24176,
+    [98] = 24194,
+    [99] = 24299,
+    [100] = 24506,
+    [101] = 25147,
+    [102] = 25167,
+    [103] = 25295,
+    [104] = 25393,
+    [105] = 25627,
+    [106] = 26100,
+    [107] = 26136,
+    [108] = 26297,
+    [109] = 26657,
+    [110] = 26669,
+    [111] = 26720,
+    [112] = 26739,
+    [113] = 27022,
+    [114] = 27133,
+    [115] = 27334,
+    [116] = 27362,
+    [117] = 27373,
 }
 
 -- Misc AOT variable imports
@@ -27483,7 +27676,7 @@ local ObjectTree = {
         1,
         1,
         {
-            "Astra",
+            "Mova",
         },
         {
             {
@@ -28774,8 +28967,8 @@ end
 -- Standalone loader contract: return the public MainModule API to loadstring callers.
 -- The canaries run after MainModule (and everything it requires) has loaded:
 -- environment fingerprint unchanged, decoy untouched. Any trip → quiet stub.
-local AstraRoot = RealObjectRoot:FindFirstChild("Astra")
-local MainModule = if AstraRoot then AstraRoot:FindFirstChild("MainModule") else nil
+local MovaRoot = RealObjectRoot:FindFirstChild("Mova")
+local MainModule = if MovaRoot then MovaRoot:FindFirstChild("MainModule") else nil
 if MainModule then
     local __api = LoadScript(MainModule)
     if not __checkFP() then
@@ -28786,4 +28979,4 @@ if MainModule then
     end
     return __api
 end
-error("Astra bundle is missing its MainModule", 0)
+error("Mova bundle is missing its MainModule", 0)

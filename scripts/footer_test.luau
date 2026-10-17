@@ -1,10 +1,10 @@
 --[[
 ===== Footer (CreateFooter) assertions =====
-Runs the real Astra bundle (loaded as global `Astra` above) against the
+Runs the real Mova bundle (loaded as global `Mova` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau.
 
 The Footer is the centred inline text-and-icon strip — the
-"Built with ⚡ Astra ♡" credit line. Its whole contract is order and
+"Built with ⚡ Mova ♡" credit line. Its whole contract is order and
 centring: the run renders exactly in the order it was given, every
 segment auto-sizes, the icons scale to the text size, and the row
 re-centres itself as one unit whenever the content changes.
@@ -73,7 +73,7 @@ local function runsOf(footer)
 	return runs
 end
 
-local window = Astra:CreateWindow({ name = "Footer Test" })
+local window = Mova:CreateWindow({ name = "Footer Test" })
 TestPump(0.6)
 window:Show()
 TestPump(0.6)
@@ -87,7 +87,7 @@ local footer = tab:CreateFooter({
 	parts = {
 		{ text = "Built with" },
 		{ icon = "zap" },
-		{ text = "Astra" },
+		{ text = "Mova" },
 		{ icon = "heart" },
 	},
 })
@@ -104,7 +104,7 @@ eq(runs[1].text, "Built with", "F1 ... carrying the first text")
 eq(runs[2].className, "ImageLabel", "F1 segment 2 is an icon")
 expect(runs[2].image ~= nil and runs[2].image ~= "zap", "F1 ... resolved through the icon catalog")
 eq(runs[3].className, "TextLabel", "F1 segment 3 is text")
-eq(runs[3].text, "Astra", "F1 ... carrying the second text")
+eq(runs[3].text, "Mova", "F1 ... carrying the second text")
 eq(runs[4].className, "ImageLabel", "F1 segment 4 is an icon")
 expect(runs[4].image ~= nil and runs[4].image ~= "heart", "F1 ... resolved through the icon catalog")
 

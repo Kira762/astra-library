@@ -38,10 +38,21 @@ local function screenGuis()
 	return n
 end
 
+-- L0: the renamed registry bridges a live Astra generation.
+local globalEnv = getgenv()
+globalEnv.__ASTRA_WINDOW_GENERATION_V1 = 5
+local bridged = Mova:CreateWindow({ name = "Registry bridge", configuration = { autoSave = false, autoLoad = false } })
+expect(globalEnv.__MOVA_WINDOW_GENERATION_V1 == 6, "Mova continues the old generation counter")
+expect(globalEnv.__ASTRA_WINDOW_GENERATION_V1 == 6, "the legacy generation counter stays in sync")
+expect(globalEnv.__MOVA_ACTIVE_WINDOW_V1 == bridged and globalEnv.__ASTRA_ACTIVE_WINDOW_V1 == bridged, "both active-window keys point to Mova")
+expect(globalEnv.__MOVA_LIVE_WINDOWS_V1 == globalEnv.__ASTRA_LIVE_WINDOWS_V1, "both live-window keys share one registry")
+bridged:Unload()
+TestPump(0.2)
+
 -- Sequential CreateWindow still replaces the previous window.
-local first = Astra:CreateWindow({ name = "First", configuration = { autoSave = false, autoLoad = false } })
+local first = Mova:CreateWindow({ name = "First", configuration = { autoSave = false, autoLoad = false } })
 expect(alive(first) and #first.instances > 0, "first window is constructed")
-local second = Astra:CreateWindow({ name = "Second", configuration = { autoSave = false, autoLoad = false } })
+local second = Mova:CreateWindow({ name = "Second", configuration = { autoSave = false, autoLoad = false } })
 expect(first.unloaded, "sequential CreateWindow unloads the previous window")
 expect(alive(second), "the replacement window stays alive")
 expect(#first.instances == 0, "unloaded window has no leftover instances")
@@ -49,9 +60,9 @@ second:Unload()
 TestPump(0.2)
 
 -- Per-window opt-out still allows a second window to coexist.
-local kept = Astra:CreateWindow({ name = "Opt out", configuration = { autoSave = false, autoLoad = false } })
+local kept = Mova:CreateWindow({ name = "Opt out", configuration = { autoSave = false, autoLoad = false } })
 kept.settings.antiWindowDuplicate = false
-local extra = Astra:CreateWindow({ name = "Allowed extra", configuration = { autoSave = false, autoLoad = false } })
+local extra = Mova:CreateWindow({ name = "Allowed extra", configuration = { autoSave = false, autoLoad = false } })
 expect(alive(kept) and alive(extra), "opt-out keeps the previous window")
 kept:Unload()
 extra:Unload()
@@ -67,7 +78,7 @@ local finished = 0
 for index = 1, 8 do
 	task.spawn(function()
 		entered += 1
-		overlapping[index] = Astra:CreateWindow({
+		overlapping[index] = Mova:CreateWindow({
 			name = "Spam " .. index,
 			configuration = { autoSave = false, autoLoad = false },
 		})
@@ -123,7 +134,7 @@ for _, window in overlapping do
 end
 
 -- A later sequential create still replaces the overlapping survivor.
-local followup = Astra:CreateWindow({ name = "Follow-up", configuration = { autoSave = false, autoLoad = false } })
+local followup = Mova:CreateWindow({ name = "Follow-up", configuration = { autoSave = false, autoLoad = false } })
 expect(survivor.unloaded, "a later CreateWindow unloads the overlapping survivor")
 expect(alive(followup) and countAlive({ survivor, followup }) == 1, "follow-up is the only live window")
 followup:Unload()
@@ -138,7 +149,7 @@ without pulling the tree out from under the suspended constructors; the
 superseded host thread resumes, finishes its build harmlessly, and the
 tree is destroyed once that construction has gone quiet.
 ]]
-local busy = Astra:CreateWindow({ name = "Busy", configuration = { autoSave = false, autoLoad = false } })
+local busy = Mova:CreateWindow({ name = "Busy", configuration = { autoSave = false, autoLoad = false } })
 local busyTab = busy:CreateTab({ name = "Busy tab" })
 local busyHostDone = false
 task.spawn(function()
@@ -161,7 +172,7 @@ for _ = 1, 200 do
 end
 expect(caughtSuspended, "a host thread was caught suspended at a construction checkpoint")
 
-local replacer = Astra:CreateWindow({ name = "Replacer", configuration = { autoSave = false, autoLoad = false } })
+local replacer = Mova:CreateWindow({ name = "Replacer", configuration = { autoSave = false, autoLoad = false } })
 expect(busy.unloaded, "a window under construction is marked unloaded at once")
 expect(alive(replacer), "the replacement window stays alive")
 expect(screenGuis() == 1, "the replacement is the only window on screen")
@@ -189,7 +200,7 @@ expect(lateSelectOk, "Select on an unloaded window is a harmless no-op")
 --[[
 A CreateTab owed after the tree is gone — a key-system onSuccess build
 starts with exactly one — must build detached instead of asserting the
-window alive. That assert surfaced as "Astra: key system callback errored:
+window alive. That assert surfaced as "Mova: key system callback errored:
 ... Cannot create a tab on an unloaded window."
 ]]
 local lateTabOk, lateTab = pcall(function()
@@ -220,7 +231,7 @@ never shown and is torn down once the host's construction goes quiet.
 local overtaken
 local overtakenHostDone = false
 task.spawn(function()
-	overtaken = Astra:CreateWindow({ name = "Overtaken", configuration = { autoSave = false, autoLoad = false } })
+	overtaken = Mova:CreateWindow({ name = "Overtaken", configuration = { autoSave = false, autoLoad = false } })
 	local tab = overtaken:CreateTab({ name = "Overtaken tab" })
 	local elements = {}
 	for index = 1, 24 do
@@ -236,7 +247,7 @@ task.spawn(function()
 end)
 -- One frame: the overtaken construction is suspended inside Window.new.
 TestPump(0.05)
-local overtopper = Astra:CreateWindow({ name = "Overtopper", configuration = { autoSave = false, autoLoad = false } })
+local overtopper = Mova:CreateWindow({ name = "Overtopper", configuration = { autoSave = false, autoLoad = false } })
 
 for _ = 1, 400 do
 	TestPump(0.05)

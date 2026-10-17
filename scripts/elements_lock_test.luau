@@ -32,7 +32,7 @@ local function containsUsage(value, tag)
 	return false
 end
 
-local window = Astra:CreateWindow({ name = "Element Lock Test" })
+local window = Mova:CreateWindow({ name = "Element Lock Test" })
 TestPump(0.5)
 window:Show()
 TestPump(0.5)
@@ -125,11 +125,13 @@ for _, element in {
 } do
 	expect(type(element.usageTag) == "string", element.__type .. " is tagged")
 	expect(containsUsage(element.usage, element.usageTag), element.__type .. " usage contains its lock tag")
-	expect(element.usageTag == "lockable:astra:" .. element.elementId, element.__type .. " tag uses the required namespace")
+	expect(element.usageTag == "lockable:mova:" .. element.elementId, element.__type .. " tag uses the Mova namespace")
+	eq(element.legacyUsageTag, "lockable:astra:" .. element.elementId, element.__type .. " exposes its migration tag")
+	expect(containsUsage(element.usage, element.legacyUsageTag), element.__type .. " keeps legacy host filters compatible")
 end
 
-eq(toggle.usageTag, "lockable:astra:createToggle", "toggle uses the documented usage format")
-eq(input.usageTag, "lockable:astra:usernameInput", "input uses its explicit element id")
+eq(toggle.usageTag, "lockable:mova:createToggle", "toggle uses the documented usage format")
+eq(input.usageTag, "lockable:mova:usernameInput", "input uses its explicit element id")
 eq(link.lockLevel, 2, "Links default to the standard tier")
 eq(input.lockLevel, 2, "Inputs default to the standard tier")
 eq(dropdown.lockLevel, 2, "Dropdowns default to the standard tier")
@@ -300,7 +302,7 @@ expect(not controller:IsLocked(), "the lock-all switch remains unlocked in Mode 
 eq(controller.usageTag, nil, "the switch is exempt from lockable usage metadata")
 eq(controller.usage, nil, "the switch cannot be included in Mode 5's lock-all set")
 eq(controller.flag, nil, "the switch owns no flag — the tier is stored as window state")
-eq(window.controls["astra.elementLockMode"], nil, "no control registers the tier's config flag")
+eq(window.controls["mova.elementLockMode"], nil, "no control registers the tier's config flag")
 
 controller:Set(false)
 TestPump(0.2)

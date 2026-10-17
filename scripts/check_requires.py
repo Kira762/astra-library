@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Require-path and cycle checker for the Astra modular tree.
+"""Require-path and cycle checker for the Mova modular tree.
 
 Resolves every static require() in the source modules (handling the
 `local utility = script.Parent.Parent.utilities` alias convention), verifies

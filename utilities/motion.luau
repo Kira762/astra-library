@@ -1,5 +1,5 @@
 --[[
-Astra motion service.
+Mova motion service.
 
 Every animation in the library used to build its own TweenInfo and call
 TweenService:Create directly. That has three costs:
@@ -43,7 +43,7 @@ export type MotionSpec = string | TweenInfo
 Named specs: the library's motion vocabulary. Each one is a fixed,
 shared TweenInfo, so a site that animates at 0.25s Quint/Out no longer
 allocates a new TweenInfo every time it runs. Names are stable API: a host
-can use them through `Astra.Motion.tween` to match the window's timing.
+can use them through `Mova.Motion.tween` to match the window's timing.
 
 The vocabulary follows one system, so unrelated components still read as
 the same interface:

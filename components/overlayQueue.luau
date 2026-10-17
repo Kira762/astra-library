@@ -1,5 +1,5 @@
 --[[
-Astra overlay entrance queue.
+Mova overlay entrance queue.
 
 Notifications are the cheapest thing in the interface to look at
 and the most expensive thing to build on a cold start: a host that fires
@@ -225,7 +225,7 @@ function OverlayQueue.pump(window, queue)
                 this library produces.
                 ]]
                 task.spawn(function()
-                    error("Astra: an overlay failed to open - " .. tostring(err), 0)
+                    error("Mova: an overlay failed to open - " .. tostring(err), 0)
                 end)
                 released = true
             end

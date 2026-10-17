@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-10-17 — Astra is rebranded as Mova
+
+The library's current identity is now Mova across its public API examples,
+project/module names, settings surfaces, loader diagnostics, documentation,
+agent skills, tests and generated bundle. Studio/Rojo consumers now require
+`ReplicatedStorage.Mova`, and the all-in-one bundle's internal root is `Mova`.
+
+The rebrand preserves existing user data and integrations: available files are
+copied from `Astra/` into `Mova/` without overwriting newer files or deleting
+the original, the old settings filename is migrated, legacy lock-mode values
+are accepted, and the singleton registry remains bridged across old and new
+loads. The historical changelog below keeps the name and paths that were true
+when those entries were written.
+
+- **Runtime and build** — the public API/type is `Mova`; Rojo/Wax roots,
+  bundled module lookup and test globals use Mova. The generated
+  `version-1.luau` bundle is rebuilt from the modular source.
+- **Persistence and compatibility** — user files migrate from `Astra/` to
+  `Mova/`; `lockable:mova:<id>` is the current tag while the old tag remains
+  in usage metadata during transition. Secure-mode, loader-test and build
+  scripts continue accepting their previous environment variables.
+- **Branding and docs** — examples, Settings/Key System copy, the built-in
+  mark's asset name, current documentation and Agent Skills now say Mova.
+  The GitHub repository slug remains `Kira762/astra-library` for now.
+
 ## 2026-10-10 — the capsule's name never rides a shape that is moving
 
 Double-tapping the restore capsule folds the wide pill into the icon-only

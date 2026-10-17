@@ -106,7 +106,7 @@ short_sha() { printf '%.7s' "$1"; }
 # --- working space -----------------------------------------------------------
 
 umask 077
-WORK="$(mktemp -d "${TMPDIR:-/tmp}/astra-discord-diffstat.XXXXXX")" || die "cannot create a temp directory." 2
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/mova-discord-diffstat.XXXXXX")" || die "cannot create a temp directory." 2
 trap 'rm -rf "$WORK"' EXIT INT TERM
 mkdir -p "$WORK/commits"
 RAW="$WORK/raw.json"
@@ -138,7 +138,7 @@ api_get() {
 		--max-time 30 \
 		--header 'Accept: application/vnd.github+json' \
 		--header 'X-GitHub-Api-Version: 2022-11-28' \
-		--user-agent 'astra-discord-diffstat' \
+		--user-agent 'mova-discord-diffstat' \
 		--config "$CURL_CONFIG" \
 		--output "$WORK/api.json" \
 		--write-out '%{http_code}' \

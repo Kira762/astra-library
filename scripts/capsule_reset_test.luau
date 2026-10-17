@@ -1,4 +1,4 @@
-local window = Astra:CreateWindow({ name = "Capsule reset" })
+local window = Mova:CreateWindow({ name = "Capsule reset" })
 TestPump(0.8)
 window:_buildSettingsUI()
 local general

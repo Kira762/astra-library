@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure the eager (transitive) module graph loaded at Astra startup.
+"""Measure the eager (transitive) module graph loaded at Mova startup.
 
 Starts from library_entrypoint.luau and follows static require() edges,
 reporting module count, total line count, and which folders got loaded.

@@ -1,6 +1,6 @@
 --[[
 ===== responsive sidebar sizing assertions =====
-Runs the real Astra bundle (loaded as global `Astra` above) against the
+Runs the real Mova bundle (loaded as global `Mova` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau. The stub
 TextService measures text at 0.6 * size per character, so expected
 widths are computed here from that same deterministic formula.
@@ -94,7 +94,7 @@ local function naturalRail(name, hasIcon)
 	return naturalRow(name, hasIcon) + ROW_INSET2
 end
 
-local window = Astra:CreateWindow({ name = "Sidebar Sizing Test" })
+local window = Mova:CreateWindow({ name = "Sidebar Sizing Test" })
 print("stage: window created")
 TestPump(0.5)
 print("stage: initial pump done")

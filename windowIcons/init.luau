@@ -1,5 +1,5 @@
 --[[
-Built-in window icons — the art Astra draws for itself.
+Built-in window icons — the art Mova draws for itself.
 
 This folder is deliberately NOT `icons/`. `icons/` is the user-facing
 catalog: seven third-party packs, `packBuilder`, custom-asset resolution and
@@ -7,7 +7,7 @@ catalog: seven third-party packs, `packBuilder`, custom-asset resolution and
 the other half — the fixed set of glyphs the library needs to render its own
 chrome (close, minimise, maximise, settings, search), its own affordances
 (chevron, check, config) and its brand mark (the window icon). Hosts never
-look these up by name and cannot swap them for a pack icon; they are Astra's
+look these up by name and cannot swap them for a pack icon; they are Mova's
 internals, not part of the icon API.
 
 Three tables describe the same ten glyphs from three sides, because three

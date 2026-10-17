@@ -1,5 +1,5 @@
 --[[
-A minimal in-memory stand-in for the executor filesystem API that Astra's
+A minimal in-memory stand-in for the executor filesystem API that Mova's
 persistence layer talks to (writefile / readfile / isfile / listfiles /
 delfile). Config and settings suites need it; without it `isfile` is nil and
 the first autosave assertion dies with "attempt to call a nil value".

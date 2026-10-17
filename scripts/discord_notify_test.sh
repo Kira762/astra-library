@@ -30,7 +30,7 @@ if ! command -v jq >/dev/null 2>&1; then
 	exit 2
 fi
 
-WORK="${TMPDIR:-/tmp}/astra_discord_notify_$$"
+WORK="${TMPDIR:-/tmp}/mova_discord_notify_$$"
 mkdir -p "$WORK" || exit 1
 trap 'rm -rf "$WORK"' EXIT INT TERM
 

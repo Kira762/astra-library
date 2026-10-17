@@ -1,16 +1,16 @@
 --[[
-HttpGuard — HTTP interception (spy / hook) detection for Astra.
+HttpGuard — HTTP interception (spy / hook) detection for Mova.
 
-HttpSpy-style tools work by hooking the exact functions Astra fetches with:
+HttpSpy-style tools work by hooking the exact functions Mova fetches with:
 `__namecall` on `game` (for `game:HttpGet` / `game:HttpPost` / `GetObjects`),
 the executor's `request` function (`(syn or http).request`, aliased over the
 global `request`), and the `game.HttpGet` / `game.HttpPost` closures directly.
-Once hooked, every URL Astra touches is logged to a file and a CoreGui window,
-and responses can be rewritten before Astra sees them (response spoofing).
+Once hooked, every URL Mova touches is logged to a file and a CoreGui window,
+and responses can be rewritten before Mova sees them (response spoofing).
 
 What this module can and cannot do (read before relying on it)
 --------------------------------------------------------------
-* CAN: detect the fingerprints such tools leave behind, and let Astra refuse
+* CAN: detect the fingerprints such tools leave behind, and let Mova refuse
   to fetch while they are present. Detection is layered so no single probe is
   load-bearing (see below).
 * CANNOT: prevent a hook. `hookfunction` patches the closure itself, so code
@@ -21,7 +21,7 @@ What this module can and cannot do (read before relying on it)
 Layers
 ------
 * A — tool artifacts. Order-independent: they work even when the spy loaded
-  before Astra. `genv-spy-api` (a `getgenv().HttpSpy` table with the spy's API
+  before Mova. `genv-spy-api` (a `getgenv().HttpSpy` table with the spy's API
   shape), `coregui-spy-window` (a `HttpSpyGui` ScreenGui under CoreGui/gethui),
   `spy-log-files` (`HttpSpy_*.txt` in the workspace listing).
 * B — baseline drift. `capture()` snapshots the pristine references (the
@@ -63,7 +63,7 @@ Enforcement points (strict where it matters, quiet everywhere else)
   script installed, an executor's Lua `request` wrapper) deny every fetch
   under the plain guard and left the whole window without catalog icons,
   which is the failure that split exists to prevent.
-* Hosts that want strict-at-load call `Astra.HttpGuard.check("strict")`
+* Hosts that want strict-at-load call `Mova.HttpGuard.check("strict")`
   before `CreateWindow`. It is not the entrypoint default on purpose: the
   C-layer trips on *any* `__namecall` hook (admin tools hook it too), and a
   UI library that refuses to coexist with those is a support burden.
@@ -89,7 +89,7 @@ local HttpGuard = {}
 local DEFAULT_POLICY: GuardPolicy = "strict"
 
 -- Hook/introspection primitives whose presence proves an executor. Deliberately
--- narrow: filesystem functions are NOT evidence (Astra's own test stubs define
+-- narrow: filesystem functions are NOT evidence (Mova's own test stubs define
 -- `writefile`/`listfiles`, and `getgenv` is stubbed too), and neither is
 -- `debug` (plain Luau ships it). HttpSpy itself cannot load without
 -- `hookfunction`/`hookmetamethod`/`newcclosure`, so anything it hooked trips
@@ -605,7 +605,7 @@ function HttpGuard.check(policy: GuardPolicy?): (boolean, GuardReport)
     for _, signal in report.signals do
         parts[#parts + 1] = signal.layer .. "/" .. signal.id
     end
-    error(("Astra: refusing to continue — HTTP interception detected (%s)"):format(table.concat(parts, ", ")), 0)
+    error(("Mova: refusing to continue — HTTP interception detected (%s)"):format(table.concat(parts, ", ")), 0)
     return false, report
 end
 
@@ -625,7 +625,7 @@ end
 
 function HttpGuard.setDefaultPolicy(policy: GuardPolicy): GuardPolicy
     if policy ~= "audit" and policy ~= "warn" and policy ~= "strict" and policy ~= "off" then
-        error(("Astra HttpGuard: invalid policy %q (want audit, warn, strict or off)"):format(tostring(policy)), 0)
+        error(("Mova HttpGuard: invalid policy %q (want audit, warn, strict or off)"):format(tostring(policy)), 0)
     end
     DEFAULT_POLICY = policy
     return DEFAULT_POLICY

@@ -6,7 +6,7 @@ window glyphs still rendered: an executor with the usual filesystem and
 `getcustomasset`, a `request` function that is a Lua wrapper (so the source
 probe reads a chunk path, not "[C]"), and a `__namecall` that some other
 script has hooked - an admin panel, ESP, aimbot, anything. Both are layer-C
-heuristics: they say an executor is present, not that Astra's own requests
+heuristics: they say an executor is present, not that Mova's own requests
 are being read or rewritten. There is no HTTP-spy artifact here.
 
 The request function counts its URLs; `game:HttpGet` is deliberately absent
@@ -78,7 +78,7 @@ genv.iscclosure = function()
     return false
 end
 
--- `debug.getinfo` as an executor exposes it: Astra's own engine HTTP entry
+-- `debug.getinfo` as an executor exposes it: Mova's own engine HTTP entry
 -- points read as "[C]", the executor's `request` wrapper reads as a chunk.
 genv.debug = {
     getinfo = function(fn)

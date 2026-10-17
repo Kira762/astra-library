@@ -1,6 +1,6 @@
 --[[
 ===== Settings -> Persistence -> Configurations: every button wears an icon =====
-Runs the real Astra bundle (loaded as global `Astra` above) against the mini
+Runs the real Mova bundle (loaded as global `Mova` above) against the mini
 Roblox environment from sidebar_sizing_stubs.luau, plus the in-memory files
 from filesystem_stubs.luau (the Configurations panel lists the config folder).
 
@@ -26,7 +26,7 @@ local function isLoadable(value)
 	return type(value) == "string" and (value:match("^https?://") ~= nil or value:match("^rbxasset") ~= nil)
 end
 
-local window = Astra:CreateWindow({ name = "ConfigIcons" })
+local window = Mova:CreateWindow({ name = "ConfigIcons" })
 TestPump(0.6)
 
 -- The Settings panel builds lazily: shells first, each tab's elements the

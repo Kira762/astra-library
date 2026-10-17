@@ -5,7 +5,7 @@ Exhaustive regression guard for the three recurring bug classes:
   Text/locale — SetSubtitle uses Window:_bindLocale (string + updates)
   Layout      — placement preserved, corners mirror, track geometry intact
 
-This is the exhaustive harness referenced by skills/astra-guard. It must
+This is the exhaustive harness referenced by skills/mova-guard. It must
 stay green — a red run is a contract violation, not a flake.
 ]]
 
@@ -49,7 +49,7 @@ local function flowLayoutChild(frame)
 end
 
 -- ── bootstrap window + tab ──────────────────────────────────────────────
-local window = Astra:CreateWindow({ name = "Guard Invariants" })
+local window = Mova:CreateWindow({ name = "Guard Invariants" })
 TestPump(0.5)
 window:Show()
 TestPump(0.5)
@@ -139,11 +139,13 @@ for _, element in {
 } do
 	expect(type(element.usageTag) == "string", element.__type .. " is tagged")
 	expect(containsUsage(element.usage, element.usageTag), element.__type .. " usage contains its lock tag " .. tostring(element.usageTag))
-	expect(element.usageTag == "lockable:astra:" .. element.elementId, element.__type .. " tag uses required namespace got " .. tostring(element.usageTag))
+	expect(element.usageTag == "lockable:mova:" .. element.elementId, element.__type .. " tag uses Mova namespace got " .. tostring(element.usageTag))
+	eq(element.legacyUsageTag, "lockable:astra:" .. element.elementId, element.__type .. " exposes migration tag")
+	expect(containsUsage(element.usage, element.legacyUsageTag), element.__type .. " preserves legacy host filters")
 end
-eq(toggle.usageTag, "lockable:astra:createToggle", "toggle uses documented usage format")
-eq(input.usageTag, "lockable:astra:usernameInput", "input uses explicit id")
-eq(minorToggle.usageTag, "lockable:astra:minorToggle", "explicit Level 1 keeps explicit id")
+eq(toggle.usageTag, "lockable:mova:createToggle", "toggle uses documented usage format")
+eq(input.usageTag, "lockable:mova:usernameInput", "input uses explicit id")
+eq(minorToggle.usageTag, "lockable:mova:minorToggle", "explicit Level 1 keeps explicit id")
 eq(link.lockLevel, 2, "Help Link defaults to standard tier (2)")
 eq(input.lockLevel, 2, "Inputs default to standard tier (2)")
 eq(dropdown.lockLevel, 2, "Dropdowns default to standard tier (2)")
@@ -402,7 +404,7 @@ expect(controller ~= nil and controller.__type == "Toggle", "built-in lock uses 
 eq(controller.usageTag, nil, "controller exempt from lockable usage")
 eq(controller.usage, nil, "controller cannot be in Mode 5 lock-all")
 eq(controller.flag, nil, "the switch owns no flag — the tier is window state")
-eq(window.controls["astra.elementLockMode"], nil, "no control registers the tier's flag")
+eq(window.controls["mova.elementLockMode"], nil, "no control registers the tier's flag")
 -- controller must stay usable even at Mode 5
 controller:Set(true)
 TestPump(0.2)

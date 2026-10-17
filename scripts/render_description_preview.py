@@ -12,8 +12,8 @@ Usage::
 
     python3 scripts/render_description_preview.py [out.png] [out.html]
 
-Defaults to ``/tmp/astra-description-preview.png`` and
-``/tmp/astra-description-preview.html``. Needs Pillow and a Luau CLI (PATH or
+Defaults to ``/tmp/mova-description-preview.png`` and
+``/tmp/mova-description-preview.html``. Needs Pillow and a Luau CLI (PATH or
 /tmp/luau).
 """
 
@@ -29,7 +29,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROBE = os.path.join(ROOT, "scripts", "description_geometry_probe.luau")
 STUBS = os.path.join(ROOT, "scripts", "sidebar_sizing_stubs.luau")
 BUNDLE = os.path.join(ROOT, "version-1.luau")
-ASSEMBLED = "/tmp/astra_description_geometry.luau"
+ASSEMBLED = "/tmp/mova_description_geometry.luau"
 
 # ---- palette (matches the library's default theme surfaces) ----------------
 S = 1.5                              # card render scale
@@ -75,7 +75,7 @@ def assemble():
     with open(ASSEMBLED, "w") as out:
         with open(STUBS) as stubs:
             out.write(stubs.read())
-        out.write('\nAstra = (function()\n')
+        out.write('\nMova = (function()\n')
         with open(BUNDLE) as bundle:
             out.write(bundle.read())
         out.write('\nend)()\n')
@@ -185,7 +185,7 @@ def write_png(elements, path):
     body = sum(element["h"] * S + 62 for element in elements)
     page = Image.new("RGB", (WIDTH, int(200 + body + 60)), BG)
     draw = ImageDraw.Draw(page)
-    stamp(draw, MARGIN, 44, "Astra v1 — element descriptions render inside the card", 14, TITLE, bold=True)
+    stamp(draw, MARGIN, 44, "Mova v1 — element descriptions render inside the card", 14, TITLE, bold=True)
     stamp(draw, MARGIN, 84,
           "Every card below is drawn from the bundle's measured geometry: card rects, title rows, controls and description",
           8.7, MUTED)
@@ -267,7 +267,7 @@ def write_html(elements, path):
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Astra v1 — in-card element descriptions</title>
+<title>Mova v1 — in-card element descriptions</title>
 <style>
   :root {{ color-scheme: dark; }}
   body {{ margin: 0; padding: 40px 28px 72px; background: #0a1923; color: #dfe8f1;
@@ -318,8 +318,8 @@ def write_html(elements, path):
 
 
 def main(argv):
-    png = argv[1] if len(argv) > 1 else "/tmp/astra-description-preview.png"
-    page = argv[2] if len(argv) > 2 else "/tmp/astra-description-preview.html"
+    png = argv[1] if len(argv) > 1 else "/tmp/mova-description-preview.png"
+    page = argv[2] if len(argv) > 2 else "/tmp/mova-description-preview.html"
     elements = probe_records()
     total = write_png(elements, png)
     write_html(elements, page)

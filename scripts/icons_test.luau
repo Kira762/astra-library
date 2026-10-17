@@ -1,6 +1,6 @@
 --[[
 ===== icon resolver assertions: name-only lookup, qualified names, caching =====
-Runs the real Astra bundle (loaded as global `Astra` above) against the
+Runs the real Mova bundle (loaded as global `Mova` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau.
 
 The resolver used to answer a bare name from one pack (lucide) and to
@@ -48,7 +48,7 @@ local function eq(actual, wanted, message)
 	end
 end
 
-local Icons = Astra.Icons
+local Icons = Mova.Icons
 local PACK_ORDER = { "lucide", "material", "tabler", "phosphor", "heroicons", "feather", "remix" }
 local ASSET_BASE = "https://raw.githubusercontent.com/Kira762/astra-library/main/"
 
@@ -280,7 +280,7 @@ eq(Icons.resolve("material:home"), urlOf(materialHome), "I11 a qualified repeat 
 
 -- ===== I12: window:ResolveIcon =============================================
 
-local window = Astra:CreateWindow({ name = "Icons" })
+local window = Mova:CreateWindow({ name = "Icons" })
 TestPump(0.6)
 
 eq(window:ResolveIcon("bar-chart"), Icons.resolve("bar-chart"), "I12 the window searches all packs")

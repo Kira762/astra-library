@@ -6,7 +6,7 @@ Roblox instances reject unknown members, so code like
     window.profileAvatar = window:Create("ImageLabel", {...})
     window.profileAvatar._myFlag = value   -- THROWS at runtime
 
-is a crash. Instances in Astra are created via `window:Create(...)` /
+is a crash. Instances in Mova are created via `window:Create(...)` /
 `Instance.new(...)`, so this check:
 
 1. Collects the names of fields assigned from `*:Create(` / `Instance.new(`
@@ -44,7 +44,7 @@ INSTANCE_NEW_RE = re.compile(r"^\s*(?:local\s+)?([A-Za-z_][\w.]*)\s*=\s*Instance
 FIELD_WRITE_RE = re.compile(r"^\s*([A-Za-z_][\w.]*)\.([A-Za-z_]\w*)\s*=(?!=)")
 
 # Fields that are legitimate Roblox members (upper-case properties, plus a few
-# lowercase APIs like Parent). Custom Astra state is lowerCamel with a leading
+# lowercase APIs like Parent). Custom Mova state is lowerCamel with a leading
 # underscore or lowercase word, so anything upper-case is safe.
 SAFE_FIELD = re.compile(r"^[A-Z]")
 

@@ -8,9 +8,9 @@ end
 
 local harness = getgenv().__ImageRemotePipeline
 expect(type(harness) == "table", "the partial executor stubs are installed")
-expect(Astra.Icons.get("house") == "assets/icons/lucide-pack/lucideHouse.png", "the example's bare icon name resolves")
+expect(Mova.Icons.get("house") == "assets/icons/lucide-pack/lucideHouse.png", "the example's bare icon name resolves")
 
-local window = Astra:CreateWindow({
+local window = Mova:CreateWindow({
     name = "Remote Icon Pipeline",
     icon = "house",
     configuration = { autoSave = false, autoLoad = false },
@@ -35,13 +35,13 @@ expect(foundCatalogRequest, "the exact catalog PNG URL was fetched once")
 
 local importedCatalogImage = false
 for path in harness.imported do
-    if string.find(path, "Astra/assets/images-icon/icon_", 1, true) == 1 then
+    if string.find(path, "Mova/assets/images-icon/icon_", 1, true) == 1 then
         importedCatalogImage = true
         break
     end
 end
 expect(importedCatalogImage, "the downloaded PNG was written before import")
-expect(harness.folders["Astra"] and harness.folders["Astra/assets/images-icon"], "partial filesystem folder APIs were used")
+expect(harness.folders["Mova"] and harness.folders["Mova/assets/images-icon"], "partial filesystem folder APIs were used")
 
 -- A request API exposed only through getgenv() should take precedence over
 -- HttpGet for another catalog icon.
@@ -50,7 +50,7 @@ getgenv().request = function(payload)
     requestFetched[payload.Url] = (requestFetched[payload.Url] or 0) + 1
     return { Success = true, StatusCode = 200, Body = harness.png }
 end
-local requestWindow = Astra:CreateWindow({
+local requestWindow = Mova:CreateWindow({
     name = "Genv Request Icon",
     icon = "lucide:code",
     configuration = { autoSave = false, autoLoad = false },

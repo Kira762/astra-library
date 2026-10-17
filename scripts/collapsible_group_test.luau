@@ -1,4 +1,4 @@
-local window = Astra:CreateWindow({ name = "Collapsible groups", configuration = { autoSave = false, autoLoad = false } })
+local window = Mova:CreateWindow({ name = "Collapsible groups", configuration = { autoSave = false, autoLoad = false } })
 local tab = window:CreateTab({ name = "Controls" })
 local callbacks = 0
 local defs = {
@@ -191,14 +191,14 @@ for _ = 1, 5 do group.interact.Activated:Fire() end
 TestPump(0.5)
 assert(not group._expanded and not group.body.Visible and not group.bodyClip.Visible, "Rapid clicks settle collapsed")
 assert(bandCorner.BottomLeftRadius == window.theme.ElementCornerRadius, "Reversed clicks still settle on a rounded closed band")
-Astra.Motion.setProfile("instant")
+Mova.Motion.setProfile("instant")
 group.interact.Activated:Fire()
 assert(group._expanded and group.body.Visible and group.bodyClip.Visible and group.chevron.Rotation == 90, "Instant animation profile")
 assert(bandCorner.BottomLeftRadius.Scale == 0 and bandCorner.BottomLeftRadius.Offset == 0, "Instant expand squares the band in the same step")
 group.interact.Activated:Fire()
 assert(not group.body.Visible and not group.bodyClip.Visible, "Instant collapse is synchronous")
 assert(bandCorner.BottomLeftRadius == window.theme.ElementCornerRadius, "Instant collapse rounds the band in the same step")
-Astra.Motion.setProfile("normal")
+Mova.Motion.setProfile("normal")
 
 --[[
 The corner set is re-read from the theme, so a radius change follows the

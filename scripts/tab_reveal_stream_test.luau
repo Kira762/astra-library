@@ -1,6 +1,6 @@
 --[[
 ===== Tab reveal: every row of a tab gets shown, in every order =====
-Runs the real Astra bundle against the mini Roblox environment from
+Runs the real Mova bundle against the mini Roblox environment from
 sidebar_sizing_stubs.luau and pins the contract the Fields section of the
 example depends on: a tab that owes a reveal is shown *completely*, no matter
 who asks for it or which page the player is looking at.
@@ -43,7 +43,7 @@ end
 
 local ROWS = 30
 
-local window = Astra:CreateWindow({ name = "Tab Reveal Stream" })
+local window = Mova:CreateWindow({ name = "Tab Reveal Stream" })
 TestPump(0.6)
 
 local front = window:CreateTab({ name = "Front" })

@@ -57,7 +57,7 @@ registry.definitions = {
         key = "fontChoice",
         kind = "enum",
         domain = "appearance",
-        description = "Text font: default (the original Roblox look) or brand (Astra's custom family).",
+        description = "Text font: default (the original Roblox look) or brand (Mova's custom family).",
     },
 }
 

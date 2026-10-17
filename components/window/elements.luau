@@ -167,6 +167,9 @@ function Window:_restoreUnowned(values)
         return
     end
     local stored = tonumber(values[shared.elementLockModeFlag])
+    if stored == nil then
+        stored = tonumber(values[shared.legacyElementLockModeFlag])
+    end
     if stored then
         self:SetElementLockMode(stored)
     end
@@ -478,7 +481,7 @@ function Window:_runGuarded(element, fn, ...)
         console for them to read.
         ]]
         error(
-            `Astra: the callback for {element.__type} '{element.name}' errored: {tostring(err)}`,
+            `Mova: the callback for {element.__type} '{element.name}' errored: {tostring(err)}`,
             0
         )
     end)

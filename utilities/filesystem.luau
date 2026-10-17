@@ -250,9 +250,9 @@ end
 --[[
 Some executors mkdir a workspace-root `ImageCache` the first time
 `getcustomasset` runs, then store the converted asset somewhere else
-(Roblox content / rbxasset://) and leave that folder empty. Astra already
-caches images under `Astra/assets`, never at the workspace root and never
-inside `Astra/config`, so an empty leftover is just noise.
+(Roblox content / rbxasset://) and leave that folder empty. Mova already
+caches images under `Mova/assets`, never at the workspace root and never
+inside `Mova/config`, so an empty leftover is just noise.
 
 Only a root folder with no children is removed. A folder that actually
 holds files — another script's cache, or an executor that does write here

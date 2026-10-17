@@ -1,5 +1,5 @@
 local function create()
-    local window = Astra:CreateWindow({ name = "Preferences" })
+    local window = Mova:CreateWindow({ name = "Preferences" })
     local tab = window:CreateTab({ name = "Main" })
     local group = tab:CreateAccordion({ name = "Saved controls", elements = {
         { type = "Toggle", name = "Active", flag = "savedActive", value = false },
@@ -27,11 +27,22 @@ local function settings(window)
     end
     error("Persistence settings missing")
 end
+-- The renamed default paths adopt a previous default config without
+-- overwriting the original Astra copy or a config already created in Mova.
+local legacyConfigContents = "{\"legacyBrandProbe\":true}"
+writefile("Astra/config/AstraConfigs/Astra-Hub.txt", legacyConfigContents)
+local migrationWindow = Mova:CreateWindow({ configuration = { autoSave = false, autoLoad = false } })
+local _, migratedConfigPath = migrationWindow:GetPath()
+assert(isfile(migratedConfigPath), "Legacy default config is copied into the Mova path")
+assert(readfile(migratedConfigPath) == legacyConfigContents, "Legacy default config contents are preserved")
+assert(isfile("Astra/config/AstraConfigs/Astra-Hub.txt"), "Legacy default config remains as a backup")
+migrationWindow:Unload()
+
 local window, group = create()
 assert(window.configuration.autoSave and window.configuration.autoLoad, "Save/load defaults are on")
-assert(window.configuration.customFolder == "AstraConfigs" and window.configuration.fileName == "Astra-Hub", "Hidden path defaults")
+assert(window.configuration.customFolder == "MovaConfigs" and window.configuration.fileName == "Mova-Hub", "Hidden path defaults")
 local folder, path = window:GetPath()
-assert(path:match("AstraConfigs/Astra%-Hub%.txt$"), "Default path is used without a configuration prop")
+assert(path:match("MovaConfigs/Mova%-Hub%.txt$"), "Default path is used without a configuration prop")
 local writes = 0
 local originalSave = window.Save
 window.Save = function(self, ...)
@@ -45,7 +56,7 @@ assert(writes == 1, "Autosave coalesces bursts of changes")
 assert(isfile(path), "Autosave writes the default config")
 local controls = settings(window)
 assert(controls["Auto Save Config"] and controls["Auto Load Config"], "Both switches are in Persistence")
-assert(table.find(controls["Saved Configurations"].options, "Astra-Hub"), "Saved configuration is exposed in Settings")
+assert(table.find(controls["Saved Configurations"].options, "Mova-Hub"), "Saved configuration is exposed in Settings")
 local savedData = readfile(path)
 controls["Auto Save Config"]:Set(false)
 controls["Auto Load Config"]:Set(false)
@@ -66,7 +77,7 @@ window, group = create()
 assert(group.elements[2].value == 30 and group.elements[1].value == true, "Next startup restores collapsed controls")
 assert(not group._expanded, "Control persistence does not force expansion")
 assert(not window.configuration.autoSave, "Save preference remains independent of load")
-assert(Astra.Settings.newManager():set("autoSaveConfig", false), "Settings manager accepts the preference")
+assert(Mova.Settings.newManager():set("autoSaveConfig", false), "Settings manager accepts the preference")
 controls = settings(window)
 controls["Auto Save Config"]:Set(true)
 TestPump(0.2)
@@ -80,9 +91,9 @@ window:Unload()
 re-reads on every save/delete (autosave included), so a config written
 after the panel was built still shows up. This is the "autosaved config
 is not showing in the settings Config section" regression. ]]
-window = Astra:CreateWindow({
+window = Mova:CreateWindow({
     name = "List freshness",
-    configuration = { fileName = "Autosave-Visible", customFolder = "AstraVisibility", autoSave = true, autoLoad = true },
+    configuration = { fileName = "Autosave-Visible", customFolder = "MovaVisibility", autoSave = true, autoLoad = true },
 })
 group = window:CreateTab({ name = "Main" }):CreateAccordion({ name = "Saved controls", elements = {
     { type = "Toggle", name = "Active", flag = "freshActive", value = false },

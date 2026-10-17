@@ -1,11 +1,11 @@
 --[[ 
 ===== motion service assertions: shared specs, time scale, profiles, =====
 ===== tween ownership, and the built-in default profile              =====
-Runs the real Astra bundle (loaded as global `Astra` above) against the
+Runs the real Mova bundle (loaded as global `Mova` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau.
 
 Expected behavior under test:
-  * M1 the service is public (Astra.Motion) and its vocabulary covers the
+  * M1 the service is public (Mova.Motion) and its vocabulary covers the
        specs the window actually asks for,
   * M2 named specs are shared values, not rebuilt per call,
   * M3 the time scale rescales every spec and is dropped from the cache
@@ -58,8 +58,8 @@ local function near(actual, wanted, message)
 	end
 end
 
-local state = Astra.Core.state
-local motion = Astra.Motion
+local state = Mova.Core.state
+local motion = Mova.Motion
 
 -- ===== M0: the built-in default is "normal but faster", never instant =====
 
@@ -70,7 +70,7 @@ eq(motion.setProfile("normal"), true, "M0 hosts can still rescale the library")
 
 -- ===== M1: public surface and vocabulary =====
 
-expect(type(motion) == "table", "M1 Astra.Motion is exposed")
+expect(type(motion) == "table", "M1 Mova.Motion is exposed")
 expect(type(motion.tween) == "function", "M1 motion.tween is callable")
 expect(type(motion.spec) == "function", "M1 motion.spec is callable")
 expect(type(motion.setProfile) == "function", "M1 motion.setProfile is callable")
@@ -211,14 +211,14 @@ motion.setProfile("normal")
 -- ===== M8: the animation-speed setting is gone; windows leave the service alone =====
 
 motion.setProfile("relaxed")
-local window = Astra:CreateWindow({ name = "Motion Test" })
+local window = Mova:CreateWindow({ name = "Motion Test" })
 TestPump(1.2)
 
 eq(motion.getProfile(), "relaxed", "M8 creating a window no longer forces a profile")
 eq(window.settings.motionSpeed, nil, "M8 the animation-speed setting is gone")
 eq(window._applyMotionSetting, nil, "M8 ... and nothing applies one")
 
-local manager = Astra.Settings.newManager()
+local manager = Mova.Settings.newManager()
 eq(manager:set("motionSpeed", "snappy"), false, "M8 the settings manager no longer knows motionSpeed")
 eq(manager:set("haptics", true), true, "M8 ... and still knows the settings that remain")
 
@@ -248,7 +248,7 @@ TestPump(0.1)
 -- ===== M11: the no-tween settle paths (animation off) =====
 
 motion.setProfile("instant")
-local instantWindow = Astra:CreateWindow({ name = "Motion Instant" })
+local instantWindow = Mova:CreateWindow({ name = "Motion Instant" })
 TestPump(1.2)
 
 eq(instantWindow.main.Visible, true, "M11 the window is up with animation off")

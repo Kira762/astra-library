@@ -1,6 +1,6 @@
-# Astra v1 — Usage Guide
+# Mova v1 — Usage Guide
 
-Load Astra and build your first window in a few lines.
+Load Mova and build your first window in a few lines.
 
 ---
 
@@ -9,7 +9,7 @@ Load Astra and build your first window in a few lines.
 One loader, one line — this is what `example.client.luau` does:
 
 ```lua
-local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau"))()
+local Mova = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau"))()
 ```
 
 Three things have to be right for that line to return a table:
@@ -19,12 +19,12 @@ Three things have to be right for that line to return a table:
   modular tree. `game:HttpGet` also needs `HttpService` requests enabled.
 - **The runtime has `loadstring`.** Executors provide it; plain Studio does not, so in
   Studio / Rojo the library is a ModuleScript and you `require` it instead
-  (`require(game:GetService("ReplicatedStorage").Astra)`). That is a load path, not a
+  (`require(game:GetService("ReplicatedStorage").Mova)`). That is a load path, not a
   second loader — nothing that fetches the bundle does anything else.
 - **The trailing `()` is there.** `loadstring(text)` only *compiles*; it returns the
-  chunk, and calling it is what runs Astra and hands back the module table. `local
-  Astra = loadstring(...)` without the call gives you a function, and every later
-  `Astra:CreateWindow` fails with `attempt to index a function value`.
+  chunk, and calling it is what runs Mova and hands back the module table. `local
+  Mova = loadstring(...)` without the call gives you a function, and every later
+  `Mova:CreateWindow` fails with `attempt to index a function value`.
 
 **What a failed load looks like.** `loadstring` does not throw when the text will not
 compile — it returns `nil` plus the error, so the one-liner reports nothing more useful
@@ -37,7 +37,7 @@ Script 'LocalScript', Line 1
 Stack End
 ```
 
-That message is about the *loader*, not about a bug inside Astra: the random name is the
+That message is about the *loader*, not about a bug inside Mova: the random name is the
 executor's chunk, `Line 1` is the line holding the call, and "attempt to call a nil
 value" only means the compiled chunk was `nil`. Read it as "the text I fetched never
 compiled" and check, in order:
@@ -51,7 +51,7 @@ compiled" and check, in order:
    with `node scripts/generate_bundle.js`.
 
 Once the line returns a table the compile is fine, and any later
-`attempt to call a nil value` names the Astra line that called it — a missing
+`attempt to call a nil value` names the Mova line that called it — a missing
 element method, a `Create…` on the wrong parent (Accordions live on a
 Tab, not on a Group), or props passed positionally instead of as one table.
 
@@ -62,9 +62,9 @@ Tab, not on a Group), or props passed positionally instead of as one table.
 A window is the entry point. Create one, add a tab, and fill it with elements.
 
 ```lua
-local window = Astra:CreateWindow({
+local window = Mova:CreateWindow({
     name = "Example Hub",
-    subtitle = "Astra",
+    subtitle = "Mova",
 })
 
 local tab = window:CreateTab({ name = "Home", icon = "house" })
@@ -102,12 +102,15 @@ from control values, even while Auto Save Config is off.
 - Stable, unique flags are recommended for controls that should be restored.
 - Ordinary controls and controls inside Accordions use the same system.
 - File persistence requires a runtime with writable storage.
-- Astra only creates an `Astra/` folder in the executor workspace
+- Mova only creates an `Mova/` folder in the executor workspace
   (`config/`, `settings/`, `assets/`, `keys/`). Saved configs live under
-  `Astra/config/`. Cached images live under `Astra/assets/`, not a sibling
+  `Mova/config/`. Cached images live under `Mova/assets/`, not a sibling
   `ImageCache` folder and not inside `config/`. Some executors mkdir an
-  empty `ImageCache` on `getcustomasset`; Astra discards that leftover
+  empty `ImageCache` on `getcustomasset`; Mova discards that leftover
   when it has no files.
+- On upgrade, Mova copies available data from the legacy `Astra/` folder into
+  `Mova/` without overwriting newer Mova files or deleting the old copy. The
+  old settings file is migrated to `Mova/settings/mova.txt` when it is read.
 
 Default storage identifiers are internal and are not displayed in Settings.
 The default configuration is shared by windows using the defaults; unrelated hubs
@@ -273,7 +276,7 @@ directly with `window:SetElementLockMode(1..5)` and inspect it with
 `window:GetElementLockMode()`.
 
 The active tier is part of the saved configuration (flag
-`astra.elementLockMode`), so the next run comes back on the same mode and locks
+`mova.elementLockMode`), so the next run comes back on the same mode and locks
 its controls straight away — the Settings panel does not have to be opened
 first, and a tier set through `window:SetElementLockMode` is saved even when
 that panel was never built. The switch owns no flag of its own: the window
@@ -286,10 +289,12 @@ host. Manual locks compose with mode locks, so `:Unlock()` cannot bypass a
 currently active mode. This is UI behavior, not a security boundary against a
 client that can call library APIs directly.
 
-Lockable elements carry a `usage` entry in the form
-`lockable:astra:<elementId>`. Existing usage entries are kept; set `id` (or
-`elementId`) for a stable explicit ID. Repeated IDs in one window get a unique
-numeric suffix. Static/decorative elements and Buttons without a callback do
+Lockable elements expose `usageTag = "lockable:mova:<elementId>"` and include
+that tag in their `usage` metadata. During the rebrand transition, `usage`
+also carries the legacy `lockable:astra:<elementId>` tag so existing host-side
+filters keep matching; use `usageTag` for the current namespace. Existing
+custom usage entries are kept. Set `id` (or `elementId`) for a stable explicit
+ID. Repeated IDs in one window get a unique numeric suffix. Static/decorative elements and Buttons without a callback do
 not receive a lock tag. `lockLevel` accepts 1–5 and overrides the automatic
 tier; `lockGroup` is an alternative string shorthand:
 
@@ -484,7 +489,7 @@ col:CreateToggle({ name = "Left 1" })
 
 A quiet, centred line of text runs and inline icons that stays centred as one
 unit and re-centres itself whenever its content changes — the classic
-"Built with ⚡ Astra ♡" credit row. `parts` is an ordered list; each entry is
+"Built with ⚡ Mova ♡" credit row. `parts` is an ordered list; each entry is
 `{ text = "..." }`, `{ icon = "..." }`, both in one entry (text then icon), or
 a plain string shorthand for text. Icons resolve through the icon catalog and
 scale with the text size automatically; unresolvable names drop instead of
@@ -495,12 +500,12 @@ local footer = tab:CreateFooter({
     parts = {
         { text = "Built with" },
         { icon = "zap" },
-        { text = "Astra" },
+        { text = "Mova" },
         { icon = "heart" },
     },
 })
 
-footer:Set({ "Made", { icon = "heart" }, "with Astra" })  -- replace the whole run
+footer:Set({ "Made", { icon = "heart" }, "with Mova" })  -- replace the whole run
 ```
 
 Optional props: `textSize` (default 13), `spacing` (default 6). Text runs
@@ -601,7 +606,7 @@ window:ChangeTheme({
 
 `AccentColor` is the shared active-control color: toggles, slider fills, and
 positive/neutral Stat accents stay in the same hue. If a partial theme changes
-only `AccentColor` (or the legacy `Accent` key), Astra derives matching
+only `AccentColor` (or the legacy `Accent` key), Mova derives matching
 `AccentStroke` and `SliderProgress` values; set either token explicitly when
 you want a separate treatment. Error,
 warning, and changelog markers retain their semantic status colors.
@@ -631,28 +636,28 @@ slider (7px track and fill, 10px handle), the drag pill and the unread dot.
 ### Icons
 
 ```lua
-Astra.Icons.get("house")                -- searched in every pack, priority order
-Astra.Icons.get("material:home")        -- exactly this pack (`pack:name`)
-Astra.Icons.get("home", "tabler")       -- the optional pack argument does the same
-Astra.Icons.getByPack("tabler", "home")
-Astra.Icons.resolve("house")            -- a URL / asset id, ready for an Image
-Astra.Icons.list("lucide")
-Astra.Icons.packs() Astra.Icons.count() Astra.Icons.isPack("feather")
-Astra.Icons.priority() Astra.Icons.loaded()      -- the search order / packs read so far
-Astra.Icons.refreshCustom()                      -- re-read custom_asset/
+Mova.Icons.get("house")                -- searched in every pack, priority order
+Mova.Icons.get("material:home")        -- exactly this pack (`pack:name`)
+Mova.Icons.get("home", "tabler")       -- the optional pack argument does the same
+Mova.Icons.getByPack("tabler", "home")
+Mova.Icons.resolve("house")            -- a URL / asset id, ready for an Image
+Mova.Icons.list("lucide")
+Mova.Icons.packs() Mova.Icons.count() Mova.Icons.isPack("feather")
+Mova.Icons.priority() Mova.Icons.loaded()      -- the search order / packs read so far
+Mova.Icons.refreshCustom()                      -- re-read custom_asset/
 window:ResolveIcon("house")             -- searches all packs
 window:ResolveIcon("feather:home")      -- selects one exact icon
 ```
 No window-wide `iconPack` option is needed.
 
 **Name-only lookup.** A bare name is searched in every pack, in a fixed order —
-lucide, material, tabler, phosphor, heroicons, feather, remix (`Astra.Icons.priority()`) —
+lucide, material, tabler, phosphor, heroicons, feather, remix (`Mova.Icons.priority()`) —
 and the first pack that has it wins. Nothing to pick, nothing to configure: lucide
 spells the home glyph `house`, material has no `house` but has `home`, so both
 `get("house")` and `get("home")` work, the latter from material. A name that exists
 in several packs always answers from the earlier pack. The search is lazy: a pack's
 table is read on first lookup, and only the packs up to the hit are read, so a lucide
-name costs one pack. `Astra.Icons.loaded()` tells you which packs a session has read.
+name costs one pack. `Mova.Icons.loaded()` tells you which packs a session has read.
 
 **Qualified names.** When it has to be a specific pack, qualify it —
 `get("tabler:home")`, `resolve("lucide:house")`, `window:ResolveIcon("material:home")`
@@ -664,13 +669,13 @@ lookup is lowercased, corrected or fuzzed. An unknown pack name resolves to
 nothing, rather than substituting a pack you did not ask for.
 
 **All-pack window lookup.** `window:ResolveIcon(name)` searches every pack, just
-like `Astra.Icons.resolve`. `ResolveIcon(name, pack)` and `pack:name` still select
+like `Mova.Icons.resolve`. `ResolveIcon(name, pack)` and `pack:name` still select
 one exact pack when desired. Window and element icons can mix packs freely.
 The old window-wide `iconPack` property is no longer used.
 
 Icon names resolve to PNGs that ship in this repo under
 `assets/icons/<pack>-pack/`; the resolver maps them to the repo's raw-GitHub
-URLs, downloads them into Astra's image cache and imports them as local assets.
+URLs, downloads them into Mova's image cache and imports them as local assets.
 Executors need an image importer (`getcustomasset` or `getsynasset`) and the
 filesystem functions needed to cache a file (`isfile`, `writefile`, `isfolder`,
 `makefolder`). Downloads use an executor `request` function when available, or a
@@ -688,20 +693,20 @@ over the packs at resolve time: one file per icon name, in `.png`, `.jpg`, `.jpe
 that provides `listfiles` the folder is indexed once and looked up by name, so names
 you have no file for cost nothing; without it the resolver keeps the historic
 extension probe. Either way a file is imported at most once per runtime, misses are
-remembered, and `Astra.Icons.refreshCustom()` re-reads the folder after you add or
+remembered, and `Mova.Icons.refreshCustom()` re-reads the folder after you add or
 remove files. Qualified names are never shadowed by the folder.
 
 ### Key System (key gate)
 
-`Astra:CreateKeySystem` shows a Rayfield-style "enter your key" card *before*
+`Mova:CreateKeySystem` shows a Rayfield-style "enter your key" card *before*
 any window exists — a 400px card in the window's own shell language (12px
 shell corner, 8px field and button corners, accent Continue) under a forced
 Sirius header. Build your window inside `onSuccess`:
 
 ```lua
-local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau"))()
+local Mova = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau"))()
 
-Astra:CreateKeySystem({
+Mova:CreateKeySystem({
     title = "Example Hub",
     subtitle = "Key System",
     note = "Get your key at example.com, then paste it below.",
@@ -714,7 +719,7 @@ Astra:CreateKeySystem({
     saveKey = true,
     fileName = "ExampleHub",
     onSuccess = function(key)
-        local window = Astra:CreateWindow({ name = "Example Hub" })
+        local window = Mova:CreateWindow({ name = "Example Hub" })
         local tab = window:CreateTab({ name = "Home" })
         tab:Select()
     end,
@@ -725,13 +730,13 @@ Astra:CreateKeySystem({
 |---|---|---|
 | `keys` | (none) | One key or a list. Blank entries are dropped; with no keys left the gate passes through so a misconfigured loader never bricks. |
 | `grabKeyFromSite` | `false` | Treat each entry as a raw URL and fetch the expected key from its trimmed body, once, up front. A URL that fails to fetch can never match and is dropped without a word. |
-| `saveKey` | `true` | Persist a passing key to `Astra/keys/<fileName>.txt`. |
+| `saveKey` | `true` | Persist a passing key to `Mova/keys/<fileName>.txt`. |
 | `fileName` | `title` | Key file name (sanitised, `.txt` appended). |
 | `note` | `"Enter your key to continue."` | Instruction line, up to two lines — longer notes truncate instead of growing the card, so keep it under ~110 characters. Always plain text: it is never a copy target. |
 | `placeholder` | `"Enter key"` | Field placeholder. |
 | `links` | (none) | 0–3 buttons in a row under the note. Each entry `{ name, icon?, link }` shows icon + name on its face — the URL itself never renders there. The `icon` accepts anything the [Icons](#icons) catalog accepts (a bare name, `pack:name`, an asset id, or a `custom_asset/` file) and renders through the same image pipeline as window icons, so the usage example's glyphs are yours to restyle. Pressing copies the link to the clipboard and confirms through a notification whose content *is* the copied link. An entry with no usable `link` is skipped; past three entries drop from the tail. |
 | `getKeyUrl` | (none) | Legacy sugar: prepends a leading **Get Key** link button carrying this URL (icon + name, copy on press, exactly like a `links` entry). The note itself stays plain. If three explicit `links` already fill the row, the last one makes room. |
-| `maxAttempts` | (none) | Wrong-submit budget. Exhausting it locks the gate permanently and fires `onMaxAttempts` — the host decides what that means (Rayfield kicks the player; Astra delegates). |
+| `maxAttempts` | (none) | Wrong-submit budget. Exhausting it locks the gate permanently and fires `onMaxAttempts` — the host decides what that means (Rayfield kicks the player; Mova delegates). |
 | `dismissable` | `true` | Show the close button and answer Escape. The backdrop never dismisses. `false` builds neither. |
 | `theme` | default palette | The same value `CreateWindow` accepts (name or table), resolved once and baked in. |
 | `icon` | — | **Ignored.** The header always wears the Sirius mark (`pack:name`, name or asset id are all overridden; an executor file at `custom_asset/sirius.png` still wins as the source). Accepted so older scripts keep running unchanged. |
@@ -759,12 +764,12 @@ never the destroyed tree.
 
 ### HttpGuard (spy/hook detection)
 
-HttpSpy-style tools hook the functions Astra fetches with (`game:HttpGet`,
+HttpSpy-style tools hook the functions Mova fetches with (`game:HttpGet`,
 the executor's `request`, `__namecall`) to log every URL and optionally spoof
 responses. HttpGuard detects the interception and refuses to feed it:
 
 ```lua
-local ok, report = Astra.HttpGuard.check("strict")  -- raises on any signal
+local ok, report = Mova.HttpGuard.check("strict")  -- raises on any signal
 -- report: { clean, executor, captured, httpSpy, hooked, signals = { { id, layer, detail } } }
 ```
 
@@ -777,10 +782,10 @@ gated on executor evidence, so Studio and plain Luau always scan clean and
 
 **Nothing is printed.** A denial has to look like a fetch that never
 happened, because the console is a channel whoever hooked HTTP is reading
-too: a line like `Astra HttpGuard [C/cfunc-lua-source]: …` tells them exactly
+too: a line like `Mova HttpGuard [C/cfunc-lua-source]: …` tells them exactly
 which fingerprint to scrub next. Findings reach you through the report
 `check`/`scan` return, and `guardFetch` reports by returning `(false, nil)`.
-That is the whole library's rule, not just the guard's: Astra writes nothing
+That is the whole library's rule, not just the guard's: Mova writes nothing
 to the console — the only thing it still emits is a raised error, so a
 callback that throws surfaces with a traceback and everything recoverable
 stays quiet.
@@ -792,7 +797,7 @@ fetch, so the gate fails closed, and it drops it without a word (no warning,
 and never the key URL, which the guard just kept off the wire). Asset
 downloads fall back to the no-request-function path silently: the icon or
 image simply does not load. Hosts that want strict-at-load call
-`Astra.HttpGuard.check("strict")` before `CreateWindow` — `strict` is the one
+`Mova.HttpGuard.check("strict")` before `CreateWindow` — `strict` is the one
 policy that makes noise, deliberately, and only because the host asked for it;
 a host that wants a silent refusal reads the second return value instead.
 
@@ -804,11 +809,11 @@ server.
 
 ### Motion (animation)
 
-Astra's window transitions — hover, element reveal, the window entrance, the
+Mova's window transitions — hover, element reveal, the window entrance, the
 result flashes, every card's entrance and dismissal — run through one service,
 so your own animations can use the same timing and follow the same built-in
 motion: the normal language, played faster — never instant. The old
-"Animation speed" setting is gone; `Astra.Motion.setProfile` still rescales
+"Animation speed" setting is gone; `Mova.Motion.setProfile` still rescales
 everything for a host that wants a different pace. (The entrance queue that
 spaces the notification and toast arrivals paces itself through `Motion.step`,
 so it stretches and shortens with the active profile too; the only curves
@@ -817,7 +822,7 @@ profile as well.)
 
 ```lua
 -- Animate with the library's own specs.
-Astra.Motion.tween(frame, { BackgroundTransparency = 0.5 }, "snappy")
+Mova.Motion.tween(frame, { BackgroundTransparency = 0.5 }, "snappy")
 
 -- Specs: instant, fast, snappy, normal, smooth, emphasized, pop, glide,
 -- exit, spring, settle, spin, drift. A TweenInfo works anywhere a name does.
@@ -827,19 +832,19 @@ Astra.Motion.tween(frame, { BackgroundTransparency = 0.5 }, "snappy")
 -- moves ease InOut (`glide` — the window folding into its capsule), and the
 -- playful surfaces get a small Back overshoot (`pop` for the shell, `settle`
 -- for small elements, `spring` for drag landings).
-Astra.Motion.tween(stroke, { Color = Color3.new(1, 1, 1) }, TweenInfo.new(0.3))
+Mova.Motion.tween(stroke, { Color = Color3.new(1, 1, 1) }, TweenInfo.new(0.3))
 
 -- Settle work after the animation, without racing a synchronous completion.
-Astra.Motion.tween(panel, { Position = target }, "smooth", function()
+Mova.Motion.tween(panel, { Position = target }, "smooth", function()
     panel.Visible = false
 end)
 
 -- Steer the whole interface.
-Astra.Motion.setProfile("relaxed")     -- relaxed | normal | snappy | instant
-Astra.Motion.setTimeScale(0.8)         -- custom multiplier instead
-Astra.Motion.setEnabled(false)         -- apply targets immediately, no tweens
-Astra.Motion.step(0.035)               -- cascade pacing, scaled like the rest
-Astra.Motion.cancel(frame)             -- stop what the service owns here
+Mova.Motion.setProfile("relaxed")     -- relaxed | normal | snappy | instant
+Mova.Motion.setTimeScale(0.8)         -- custom multiplier instead
+Mova.Motion.setEnabled(false)         -- apply targets immediately, no tweens
+Mova.Motion.step(0.035)               -- cascade pacing, scaled like the rest
+Mova.Motion.cancel(frame)             -- stop what the service owns here
 ```
 
 `motion.tween` never animates a property that is already at its target (a call
@@ -857,19 +862,19 @@ window:SetTranslator(function(source, localeId) return ... end)
 
 ### Full example
 
-See `example.client.luau` — a three-tab studio that loads the bundle with the one-line loader above, opens behind `Astra:CreateKeySystem` (the demo key `ASTRA-STUDIO-2026` shows the full gate → `onSuccess` flow, saved and replayed on the next join), and shows every element type (including ordinary and Accordions and Changelog) as a UI-only tour: no callbacks and no game wiring, with compact controls side by side in row Groups.
+See `example.client.luau` — a three-tab studio that loads the bundle with the one-line loader above, opens behind `Mova:CreateKeySystem` (the demo key `MOVA-STUDIO-2026` shows the full gate → `onSuccess` flow, saved and replayed on the next join), and shows every element type (including ordinary and Accordions and Changelog) as a UI-only tour: no callbacks and no game wiring, with compact controls side by side in row Groups.
 
 ---
 
 ## CreateWindow — all props
 
 ```lua
-local window = Astra:CreateWindow({
+local window = Mova:CreateWindow({
     name = "My UI",              -- title (left side of topbar)
     subtitle = "v1.0",           -- small text next to title
     icon = "house",              -- topbar icon (pack name or asset id)
     theme = "default",           -- built-in name (`"default"`) or a custom table
-    showName = "Astra",          -- name shown when the window is minimised to the capsule (default "Astra")
+    showName = "Mova",          -- name shown when the window is minimised to the capsule (default "Mova")
     showIconOnly = false,        -- capsule starts icon-only (double-tap it to switch shapes)
     fallbackFont = Enum.Font.Gotham,  -- font used when the brand font cannot load
     translator = function(source, localeId) return ... end,  -- optional custom translator
@@ -924,7 +929,7 @@ standalone elements and ordinary Groups are unchanged; nothing is automatically
 wrapped in a Accordion.
 
 ```lua
-local window = Astra:CreateWindow({
+local window = Mova:CreateWindow({
     name = "My Hub",
     subtitle = "Player tools",
     icon = "house",
@@ -992,7 +997,7 @@ are rejected before creating any UI.
 - `{ type = "Changelog", ... }` renders as a regular Changelog element.
 - Every Accordion starts collapsed; there is no `expanded` usage property.
 - Click the header to open/close. Multiple groups operate independently.
-- Expansion uses Astra's motion service, including the instant-motion setting.
+- Expansion uses Mova's motion service, including the instant-motion setting.
 - Values, flags and running features remain active when collapsed. Closing and
   reopening do not recreate controls, reset them, or rerun their value callbacks.
 - Closing cancels an uncommitted input edit and closes open dropdowns;

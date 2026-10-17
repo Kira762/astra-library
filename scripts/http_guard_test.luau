@@ -46,8 +46,8 @@ local function expectOnly(report, ids, message)
     end
 end
 
-local guard = (Astra :: any).HttpGuard
-expect(guard ~= nil, "Astra.HttpGuard is exposed")
+local guard = (Mova :: any).HttpGuard
+expect(guard ~= nil, "Mova.HttpGuard is exposed")
 expect(guard.capture() == true, "capture reports success")
 
 local genv = getgenv()
@@ -134,7 +134,7 @@ eq(#warns, 0, "strict prints nothing either")
 -- clean it downloads and says nothing, and with a spy planted it falls back to
 -- nil and still says nothing — the behaviour the old "No request function
 -- available to download asset content." warning broke.
-local resolver = (Astra :: any).Core.state.assetResolver
+local resolver = (Mova :: any).Core.state.assetResolver
 local fetched = {}
 local requestStub = function()
     fetched[#fetched + 1] = true

@@ -69,7 +69,7 @@ local function mouseButton()
 	return { UserInputType = { Name = "MouseButton1" } }
 end
 
-local window = Astra:CreateWindow({
+local window = Mova:CreateWindow({
 	name = "Drag handle",
 	configuration = { autoSave = false, autoLoad = false },
 })
@@ -84,9 +84,9 @@ local pill = window.drag.dragCosmetic
 --[[
 The stub's services are read through the library's own state so the test
 drives exactly the instances the window bound to. `services` is a local
-in the stubs, so the public handle is `Astra.Core.state`.
+in the stubs, so the public handle is `Mova.Core.state`.
 ]]
-local state = Astra.Core.state
+local state = Mova.Core.state
 local inputService = state.userInputService
 local realGetMouseLocation = inputService.GetMouseLocation
 local pointer = Vector2.new(960, 540)

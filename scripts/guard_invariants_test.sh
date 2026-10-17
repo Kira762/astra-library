@@ -1,9 +1,9 @@
 #!/bin/sh
 # Exhaustive regression guard — lock tiers, text/locale, layout/corners.
-# See skills/astra-guard/SKILL.md and skills/astra-guard/references/*.
+# See skills/mova-guard/SKILL.md and skills/mova-guard/references/*.
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BUNDLE="${ASTRA_BUNDLE:-$ROOT/version-1.luau}"
+BUNDLE="${MOVA_BUNDLE:-${ASTRA_BUNDLE:-$ROOT/version-1.luau}}"
 if [ ! -f "$BUNDLE" ]; then echo "bundle missing: $BUNDLE" >&2; exit 1; fi
 LUAU_BIN="$(command -v luau || true)"
 if [ -z "$LUAU_BIN" ]; then
@@ -13,12 +13,12 @@ if [ -z "$LUAU_BIN" ]; then
 fi
 if [ -z "$LUAU_BIN" ]; then echo "luau CLI not found (looked in PATH, /tmp, /usr/local/bin, .tools/bin)" >&2; exit 2; fi
 TMPDIR_LOCAL="${TMPDIR:-/tmp}"
-OUT="$TMPDIR_LOCAL/astra_guard_invariants_$$.luau"
+OUT="$TMPDIR_LOCAL/mova_guard_invariants_$$.luau"
 trap 'rm -f "$OUT"' EXIT
 {
 	cat "$ROOT/scripts/sidebar_sizing_stubs.luau"
 	echo ""
-	echo "Astra = (function()"
+	echo "Mova = (function()"
 	echo ""
 	cat "$BUNDLE"
 	echo ""

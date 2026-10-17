@@ -1,12 +1,12 @@
 --[[
-Astra loader — fetches and executes the current version-1.luau bundle.
+Mova loader — fetches and executes the current version-1.luau bundle.
 
     loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/loader.luau"))()
 
 The loader does not verify signatures or hashes. It fetches the bundle, compiles
 it, and returns its API. Failures return a quiet no-op stub.
 
-Set ASTRA_LOADER_NO_AUTORUN = true before running this file to receive the
+Set MOVA_LOADER_NO_AUTORUN = true before running this file to receive the
 loader internals table for tests instead of fetching the bundle.
 ]]
 
@@ -56,7 +56,7 @@ local function main()
 	if type(bundle) ~= "string" or #bundle == 0 then
 		return quietStub()
 	end
-	local compileOk, fn = pcall(loadstring, bundle, "AstraBundle")
+	local compileOk, fn = pcall(loadstring, bundle, "MovaBundle")
 	if not compileOk or type(fn) ~= "function" then
 		return quietStub()
 	end
@@ -76,7 +76,7 @@ local internals = {
 
 local noAuto = false
 pcall(function()
-	noAuto = ASTRA_LOADER_NO_AUTORUN == true
+	noAuto = MOVA_LOADER_NO_AUTORUN == true or ASTRA_LOADER_NO_AUTORUN == true
 end)
 if noAuto then
 	return internals

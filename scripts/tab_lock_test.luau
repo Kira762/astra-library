@@ -85,7 +85,7 @@ local function cardContainsClass(instance, className)
 	return false
 end
 
-local window = Astra:CreateWindow({ name = "Tab Lock Test" })
+local window = Mova:CreateWindow({ name = "Tab Lock Test" })
 TestPump(0.5)
 
 -- L1: the flag, the badge, and auto-select skipping a locked first tab.
@@ -182,7 +182,7 @@ eq(visibleButton.__type, "Button", "L8 control element still exists")
 -- L9: locking every remaining tab hides the content; unlocking restores it.
 window:Unload()
 TestPump(0.3)
-local w2 = Astra:CreateWindow({ name = "Tab Lock Edge" })
+local w2 = Mova:CreateWindow({ name = "Tab Lock Edge" })
 TestPump(0.5)
 local tabA = w2:CreateTab({ name = "A", icon = "house" })
 local tabB = w2:CreateTab({ name = "B", icon = "star" })
@@ -216,7 +216,7 @@ eq(tabA.topbarItemLock.Visible, false, "L9 badge hidden after the final unlock")
 w2:Unload()
 
 -- L10: the badge is integrated into the row, and the rail fits it.
-local w3 = Astra:CreateWindow({ name = "Tab Lock Geometry" })
+local w3 = Mova:CreateWindow({ name = "Tab Lock Geometry" })
 TestPump(0.5)
 local alphaTab = w3:CreateTab({ name = "Alpha", icon = "house" })
 local betaTab = w3:CreateTab({ name = "Beta", icon = "gauge" })

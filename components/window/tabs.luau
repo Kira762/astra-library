@@ -13,7 +13,7 @@ can replace this window while a superseded script's build is still adding
 tabs — a key-system `onSuccess` interleaved with a re-execution is the
 common case — and that thread must finish harmlessly, the same contract
 `Window:Create` honours with its construction graveyard, not die to an
-assert inside the caller's callback ("Astra: key system callback errored:
+assert inside the caller's callback ("Mova: key system callback errored:
 Cannot create a tab on an unloaded window"). `Tab.new` routes every
 instance through `Window:Create`, which parents into the graveyard once
 `unloaded` is set, so the returned tab is real and the host's remaining

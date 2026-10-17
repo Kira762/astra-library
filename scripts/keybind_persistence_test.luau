@@ -1,5 +1,5 @@
 local function create()
-    local window = Astra:CreateWindow({ name = "Saved keybind" })
+    local window = Mova:CreateWindow({ name = "Saved keybind" })
     local tab = window:CreateTab({ name = "Main" })
     local field = tab:CreateKeybind({ name = "Shortcut", value = "A", flag = "shortcut" })
     TestPump(1)
@@ -15,8 +15,8 @@ window, field = create()
 assert(field.value == "Z", "Flag restores a required uppercase letter")
 assert(window.settings.toggleKeybind == Enum.KeyCode.P, "Settings restore the enum binding")
 -- Simulate a legacy file containing a non-letter key, then reopen the window.
-local _, settingsPath = Astra.Settings.persistence.path()
-local http = Astra.Core.state.httpService
+local _, settingsPath = Mova.Settings.persistence.path()
+local http = Mova.Core.state.httpService
 for _, oldKey in { Enum.KeyCode.Space, Enum.KeyCode.Unknown, Enum.UserInputType.MouseButton2 } do
     window:Unload()
     local legacy = {

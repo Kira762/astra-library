@@ -65,7 +65,8 @@ that control is built lazily (Settings → Controls) and owns no flag of its
 own, so the window writes the tier itself: see
 `Window:_restoreUnowned` / `Window:_unownedConfigValues`.
 ]]
-local elementLockModeFlag = "astra.elementLockMode"
+local elementLockModeFlag = "mova.elementLockMode"
+local legacyElementLockModeFlag = "astra.elementLockMode"
 
 local viewportCheckInterval = 2
 
@@ -127,6 +128,7 @@ return {
     lockScrimTransparency = lockScrimTransparency,
     lockedTextTransparency = lockedTextTransparency,
     elementLockModeFlag = elementLockModeFlag,
+    legacyElementLockModeFlag = legacyElementLockModeFlag,
     viewportCheckInterval = viewportCheckInterval,
     constructionFrameBudget = constructionFrameBudget,
     constructionInstanceBudget = constructionInstanceBudget,

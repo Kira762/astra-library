@@ -1,9 +1,9 @@
 {
-  "name": "Astra UI Library",
+  "name": "Mova UI Library",
   "tree": {
     "$className": "DataModel",
     "ReplicatedStorage": {
-      "Astra": {
+      "Mova": {
         "$path": "library_entrypoint.luau"
       },
       "assets": { "$path": "assets" },

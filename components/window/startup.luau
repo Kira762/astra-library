@@ -40,11 +40,11 @@ function Window.new(props)
         state.setFallbackFont(fallbackFont)
     end
 
-        local layout = layouts.sidebar -- layout is controlled via Settings (Astra Settings → Bar Layout); CreateWindow no longer takes sidebarLayout
+        local layout = layouts.sidebar -- layout is controlled via Settings (Mova Settings → Bar Layout); CreateWindow no longer takes sidebarLayout
     local providedIcon = props.icon or props.Icon
 
     local self = setmetatable({
-        name = props.name or props.Name or "Astra Window",
+        name = props.name or props.Name or "Mova Window",
         subheading = props.subtitle or props.Subtitle,
         layout = layout,
         size = computeSize(layout.mode),
@@ -68,7 +68,7 @@ function Window.new(props)
         _overlayQueueRunning = false,
 
         icon = icons.resolve(providedIcon or constants.uiIcons.window),
-        showName = props.showName or props.ShowName or "Astra",
+        showName = props.showName or props.ShowName or "Mova",
         showIcon = icons.resolve(providedIcon or constants.uiIcons.window),
                 showIconOnly = props.showIconOnly or props.ShowIconOnly or false,
 
@@ -98,8 +98,8 @@ function Window.new(props)
             return {
                 autoSave = if save == nil then true else save == true,
                 autoLoad = if load == nil then true else load == true,
-                fileName = config.fileName or config.FileName or "Astra-Hub",
-                customFolder = config.customFolder or config.CustomFolder or "AstraConfigs",
+                fileName = config.fileName or config.FileName or "Mova-Hub",
+                customFolder = config.customFolder or config.CustomFolder or "MovaConfigs",
             }
         end)(),
     }, Window)

@@ -1,7 +1,7 @@
 --[[ 
 ===== Title-bar search reveal: the field grows out of the search action's =====
 ===== side and folds back into it                                         =====
-Runs the real Astra bundle (loaded as global `Astra` above) against the mini
+Runs the real Mova bundle (loaded as global `Mova` above) against the mini
 Roblox environment from sidebar_sizing_stubs.luau.
 
 Harness tweens play to their end inside `Play`, so a reveal is invisible to
@@ -61,7 +61,7 @@ local function near(actual, wanted, message)
 	end
 end
 
-local window = Astra:CreateWindow({ name = "Search reveal" })
+local window = Mova:CreateWindow({ name = "Search reveal" })
 local tab = window:CreateTab({ name = "Home" })
 tab:CreateButton({ name = "Action" })
 TestPump(1)
@@ -86,7 +86,7 @@ end
 
 -- The pill's movement is held, never played: the assertions read the frame a
 -- real open would show before its tween advances.
-local tweenService = Astra.Core.state.tweenService
+local tweenService = Mova.Core.state.tweenService
 local createTween = tweenService.Create
 local held
 local function holdSearchTween()
@@ -131,7 +131,7 @@ expect(held ~= nil, "R2 the open starts a movement")
 eq(held.props.Size.X.Offset, restWidth, "R2 ... that grows the field into the free space")
 eq(held.props.Size.Y.Offset, 35, "R2 ... without changing its height")
 eq(held.props.Position.X.Offset, rightLimit - restWidth, "R2 ... landing on the free space's left edge")
-near(held.info.Time, Astra.Motion.spec("smooth").Time, "R2 the reveal plays the surface-move spec")
+near(held.info.Time, Mova.Motion.spec("smooth").Time, "R2 the reveal plays the surface-move spec")
 
 -- R3: one-way growth -- the right edge is the same at the start and at the end.
 eq(
@@ -171,7 +171,7 @@ expect(held ~= nil, "R6 the close starts a movement")
 eq(held.props.Size.X.Offset, 0, "R6 ... that folds the field flat")
 eq(held.props.Position.X.Offset, rightLimit, "R6 ... back onto the action side")
 eq(held.props.BackgroundTransparency, 1, "R6 ... the surface fill leaving with it")
-near(held.info.Time, Astra.Motion.spec("exit").Time, "R6 the fold plays the dismissal spec")
+near(held.info.Time, Mova.Motion.spec("exit").Time, "R6 the fold plays the dismissal spec")
 releaseSearchTween()
 TestPump(0.05)
 eq(window.searchPill.Visible, false, "R6 the field hides when the fold ends")
@@ -195,7 +195,7 @@ eq(held.props.Size.X.Offset, restWidth, "R7 ... and grows back into the free spa
 eq(window.searchPill.Visible, true, "R7 the field is on screen for the new reveal")
 
 -- R8: motion off -- no tweens, so both directions land on the spot.
-Astra.Motion.setProfile("instant")
+Mova.Motion.setProfile("instant")
 window.searchAction.callback()
 TestPump(0.05)
 eq(window.searchPill.Visible, false, "R8 with motion off the field hides the moment it closes")
@@ -209,7 +209,7 @@ eq(window.searchPill.BackgroundTransparency, 0.9, "R8 ... with its fill already 
 eq(window._searchReveal, nil, "R8 nothing stays in flight when nothing tweens")
 
 -- Back to the library's own profile: the fold still settles and hides.
-Astra.Motion.setProfile("snappy")
+Mova.Motion.setProfile("snappy")
 tweenService.Create = createTween
 window.searchAction.callback()
 TestPump(0.4)

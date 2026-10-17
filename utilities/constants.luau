@@ -1,5 +1,5 @@
 --[[
-Astra's own glyphs (close, minimise, settings, ...). Not the icon-pack
+Mova's own glyphs (close, minimise, settings, ...). Not the icon-pack
 catalog — that is `icons/`, and a host never resolves these by name.
 ]]
 local windowIcons = require(script.Parent.Parent.windowIcons)

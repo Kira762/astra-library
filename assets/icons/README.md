@@ -1,4 +1,4 @@
-# Astra icon catalog
+# Mova icon catalog
 
 All packs can be mixed in one window. No window-wide pack option is needed.
 

@@ -22,7 +22,7 @@ export type Profile = {
 local minTrackedViewport = 200
 
 --[[
-Astra's phone tier: viewports below this width are phone-sized. The same
+Mova's phone tier: viewports below this width are phone-sized. The same
 breakpoint gates the fixed mobile profile in `isMobileViewport`.
 ]]
 local mobileBreakpoint = 700

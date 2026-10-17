@@ -2,11 +2,11 @@
 Hold the real main-frame tween to inspect the fold BEFORE Completed. Ordinary
 harness tweens finish synchronously and cannot catch the behind-window flash.
 ]]
-local window = Astra:CreateWindow({ name = "Capsule visibility" })
+local window = Mova:CreateWindow({ name = "Capsule visibility" })
 local tab = window:CreateTab({ name = "Home" })
 tab:CreateButton({ name = "Action" })
 TestPump(1)
-local tweenService = Astra.Core.state.tweenService
+local tweenService = Mova.Core.state.tweenService
 local createTween = tweenService.Create
 local finishFold, completeFold
 local function holdShellTween()
@@ -50,13 +50,13 @@ for _, iconOnly in { false, true } do
     TestPump(0.8)
     invisible("No capsule after maximisation")
 end
-Astra.Motion.setProfile("instant")
+Mova.Motion.setProfile("instant")
 window:Hide()
 assert(window.collapsedIcon.Visible and not window.animating, "Instant hide reveals the capsule after settling")
 window:Show()
 TestPump(0.8)
 invisible("Instant restore hides capsule")
-Astra.Motion.setProfile("normal")
+Mova.Motion.setProfile("normal")
 holdShellTween()
 window:Hide()
 local staleFinish = completeFold

@@ -1,4 +1,4 @@
-# Astra v1 — Module & Local Reference
+# Mova v1 — Module & Local Reference
 
 A guide to every module in the modular tree and the meaning of its important
 locals. After the minification pass, locals inside function bodies are renamed
@@ -20,12 +20,12 @@ Type definitions only (`export type ...`). No runtime locals.
 ### `library_entrypoint.luau`
 Public API singleton. Key top-level locals:
 - Requires — `core` (state/registry/loader), `core.state`, `images.image`, `utilities.locale`, `utilities.constants`, `icons`, `settings`, `Types`.
-- Singleton bookkeeping: existing-window guard backed by a module-local `activeWindow` **and** a `getgenv()`-backed global store so the anti-duplicate guard survives across `loadstring`ed instances. The store keeps the last window (`__ASTRA_ACTIVE_WINDOW_V1`), every still-live window (`__ASTRA_LIVE_WINDOWS_V1`), and a generation token (`__ASTRA_WINDOW_GENERATION_V1`) claimed *before* `Window.new` can yield, so overlapping spam-executes still collapse to one window. Replacement never interrupts active construction: a predecessor whose constructors are still running is unloaded without pulling its tree out from under them (the teardown defers destruction until that construction goes quiet), and a construction that is overtaken while still inside `Window.new` marks its window `_superseded` — never shown, still usable by the host that received it, unloaded by its reveal thread once its construction goes quiet. The `CreateWindow` dispatcher (pcall around `components.window.new`, re-throws on failure); the export table.
-Exported names (typed surface is `Types.luau`'s `Astra`): `CreateWindow`, `Icons`; `Core` and `Settings` are also assigned on the table at runtime. There is no top-level `ChangeTheme`/`SetLocale`/`SetTranslator`/`RegisterTranslations`/`Unload` — those are window methods.
+- Singleton bookkeeping: existing-window guard backed by a module-local `activeWindow` **and** a `getgenv()`-backed global store so the anti-duplicate guard survives across `loadstring`ed instances. The store keeps the last window (`__MOVA_ACTIVE_WINDOW_V1`), every still-live window (`__MOVA_LIVE_WINDOWS_V1`), and a generation token (`__MOVA_WINDOW_GENERATION_V1`) claimed *before* `Window.new` can yield, so overlapping spam-executes still collapse to one window. Replacement never interrupts active construction: a predecessor whose constructors are still running is unloaded without pulling its tree out from under them (the teardown defers destruction until that construction goes quiet), and a construction that is overtaken while still inside `Window.new` marks its window `_superseded` — never shown, still usable by the host that received it, unloaded by its reveal thread once its construction goes quiet. The `CreateWindow` dispatcher (pcall around `components.window.new`, re-throws on failure); the export table.
+Exported names (typed surface is `Types.luau`'s `Mova`): `CreateWindow`, `Icons`; `Core` and `Settings` are also assigned on the table at runtime. There is no top-level `ChangeTheme`/`SetLocale`/`SetTranslator`/`RegisterTranslations`/`Unload` — those are window methods.
 `CreateWindow` side effects: enforces the anti-duplicate guard (persisted `antiWindowDuplicate` setting, per-window opt-out via `settings.antiWindowDuplicate`; generation token + live-window list so rapid overlapping constructions still collapse to one window), in secure mode preloads window images (`Image.preload` → failure `Notify`) and swaps in the brand fonts via `ChangeTheme({ Font, TitleFont })` once the entrance has landed (a theme pass over every instance the window owns is not something to spend while the window is still arriving; `FONT_SETTLE_BUDGET` bounds the wait so a window that never shows still gets its font), then auto-`Show()`s the window on the next frame (a `task.defer` plus one heartbeat, so a script's first synchronous `CreateTab` calls land before the shell appears; remaining constructors stream in behind it in small budget-limited batches until the build goes quiet, and an explicit `Hide()` before that tick cancels it via `_autoShowCancelled`). The two secure-mode branches (optional-icon preload, brand-font swap) run as sibling threads under one guard.
 
 ### `example.client.luau`
-Usage example (not minified). Loads the published bundle and opens it through the standalone key gate: `Astra:CreateKeySystem` shows the card first (demo key `ASTRA-STUDIO-2026`, `saveKey` remembering it at `Astra/keys/Astra-Example.txt`) and the whole studio builds inside its `onSuccess` as `buildStudio()`; `keyGate`, `window`, `overview` and the build-quiet seam `studioReady` are file-scope locals so `scripts/example_test.luau` can drive the gate through `_submit` (wrong key first, padded right key second) and wait for the streamed build before asserting. The studio is a UI-only tour with three tabs: Overview (Section, Text, Link, a one-entry Changelog and Footer — all information lives here), Controls (three row Groups holding Buttons, Toggles and Sliders, then a Stepper, a Dropdown, an Input and a Keybind) and Layout (a row Group of Stats and a Collapsible Group folding a Toggle, a Slider and a Group of two Buttons). Nothing is wired to the game: no element carries a callback, the file sets no `configuration` or `flag`s and touches no Roblox service (`scripts/example_test.sh` greps for them), so the same file runs in an executor, in Studio and under `scripts/example_test.luau`. It ends with `overview:Select()` followed by the `studioReady` flip. The skill starter (`skills/astra/assets/example-window.luau`) is a separate file and is unchanged.
+Usage example (not minified). Loads the published bundle and opens it through the standalone key gate: `Mova:CreateKeySystem` shows the card first (demo key `MOVA-STUDIO-2026`, `saveKey` remembering it at `Mova/keys/Mova-Example.txt`) and the whole studio builds inside its `onSuccess` as `buildStudio()`; `keyGate`, `window`, `overview` and the build-quiet seam `studioReady` are file-scope locals so `scripts/example_test.luau` can drive the gate through `_submit` (wrong key first, padded right key second) and wait for the streamed build before asserting. The studio is a UI-only tour with three tabs: Overview (Section, Text, Link, a one-entry Changelog and Footer — all information lives here), Controls (three row Groups holding Buttons, Toggles and Sliders, then a Stepper, a Dropdown, an Input and a Keybind) and Layout (a row Group of Stats and a Collapsible Group folding a Toggle, a Slider and a Group of two Buttons). Nothing is wired to the game: no element carries a callback, the file sets no `configuration` or `flag`s and touches no Roblox service (`scripts/example_test.sh` greps for them), so the same file runs in an executor, in Studio and under `scripts/example_test.luau`. It ends with `overview:Select()` followed by the `studioReady` flip. The skill starter (`skills/mova/assets/example-window.luau`) is a separate file and is unchanged.
 
 ---
 
@@ -338,7 +338,7 @@ one locale-aware floating panel per window, positioned over the supplied anchor.
 The functional `(!)` badges and their hover/tap/hold wiring have been deleted.
 Window transitions and teardown still close programmatic descriptions.
 
-`keySystem.luau` is the standalone key gate behind `Astra:CreateKeySystem` —
+`keySystem.luau` is the standalone key gate behind `Mova:CreateKeySystem` —
 meaningful locals throughout (popup-style, nothing minified). It owns no
 window: `_create` is plain `Instance.new` plus immediate locale-token
 resolution (no live rebinding — the gate has no `SetLocale`), with every
@@ -348,7 +348,7 @@ theme is `themes.resolve` baked once at creation, and `Close` tracks every
 connection itself. `new` normalises `keys` (string or list, blanks dropped), optionally
 fetches remote keys up front (`grabKeyFromSite`, dead links fail closed),
 passes through on an empty key list or a matching
-`Astra/keys/<fileName>.txt` file, and otherwise builds the 400px card
+`Mova/keys/<fileName>.txt` file, and otherwise builds the 400px card
 (viewport-clamped, never under 280px) with the forced Sirius header
 (`props.icon` is ignored; `custom_asset/sirius.png` still wins as the
 source), field-plus-Continue row, plain note line and — from `links` plus
@@ -470,7 +470,7 @@ Per-element specifics:
   window. Full card for a tab or a column Group, compact row for
   a horizontal one.
 - `divider.luau`, `stat.luau`, `text.luau` — display and interaction elements.
-- `footer.luau` — the centred inline text-and-icon strip ("Built with ⚡ Astra ♡"):
+- `footer.luau` — the centred inline text-and-icon strip ("Built with ⚡ Mova ♡"):
   an ordered run of `{ text }` / `{ icon }` segments under one centring list
   layout; icons resolve through the catalog, scale with `textSize`, and
   unresolvable names drop instead of leaving gaps. `Set` rebuilds the run,
@@ -534,7 +534,7 @@ Per-element specifics:
 ## images/ & cache/
 
 The remote image pipeline — turning a value into something Roblox can load.
-Astra's own glyphs are **not** here; see `windowIcons/` below.
+Mova's own glyphs are **not** here; see `windowIcons/` below.
 
 - `init.luau` — folder module: re-exports the image helpers
   (`resolve`, `assign`, `preload`, `avatar`, `rewrites`).
@@ -544,14 +544,14 @@ Astra's own glyphs are **not** here; see `windowIcons/` below.
   fallback; `preload(callback)` — batch preload reporting
   `(failedCount, failedRoles)`; `rewrites`/`onBlock`/`pending` — URL
   rewrites, blocklist hook, in-flight tracking.
-- `cache/imageCache.luau` — disk/memory cache under `Astra/assets/images-icon`; `pcall(callback, uri or "")` at the end of the retry chain. `getcustomasset` goes through `importCustomAsset`, which discards an empty executor `ImageCache` leftover.
+- `cache/imageCache.luau` — disk/memory cache under `Mova/assets/images-icon`; `pcall(callback, uri or "")` at the end of the retry chain. `getcustomasset` goes through `importCustomAsset`, which discards an empty executor `ImageCache` leftover.
 - `cache/moduleCache.luau`, `persistenceCache.luau`, `init.luau` — generic memoization layers.
 
 ---
 
 ## windowIcons/
 
-The glyphs Astra draws for itself — the window chrome (close, minimise,
+The glyphs Mova draws for itself — the window chrome (close, minimise,
 maximise, settings, search), its own affordances (chevron, check, config) and
 the brand mark. This is **not** part of the `icons/` catalog: hosts cannot
 address these by name, swap them for a pack icon, or override them, and
@@ -657,7 +657,7 @@ needs to exist.
   1.35x, `normal` 1x, `snappy` 0.7x, `instant` = no animation). The library
   ships on `snappy` — the normal motion language, played faster, deliberately
   never `instant` — and `setProfile` is the host-facing way to rescale it
-  (the "Animation speed" setting is gone). Public as `Astra.Motion`.
+  (the "Animation speed" setting is gone). Public as `Mova.Motion`.
 - `persistenceSettings.luau` — settings JSON encode/decode.
 - `persistenceWrite.luau` — atomic write helper.
 - `persistenceConfig.luau`, `persistencePaths.luau` — window-config serialization and key paths.
@@ -670,12 +670,12 @@ needs to exist.
   (`get`, `implementation`, `railWidthFor`).
 - `HapticEngine.luau` — vibration wrappers guarded by service availability.
 - `moveable.luau` — drag/reordering mixin.
-- `lockable.luau` — Lockable API plus stable `lockable:astra:<elementId>` usage tags, functional-control registration and automatic level/group resolution for the cumulative five-mode lock system.
+- `lockable.luau` — Lockable API plus stable `lockable:mova:<elementId>` usage tags, functional-control registration and automatic level/group resolution for the cumulative five-mode lock system.
 - `locale.luau` — translation table + `SetTranslator` support.
-- `filesystem.luau`, `filesystemManager.luau` — RobloxFS abstraction (isFolder/WriteFile wrappers, secure-mode aware). `discardEmptyFolder` / `discardExecutorImageCache` remove a workspace-root `ImageCache` leftover some executors mkdir on `getcustomasset` when that folder has no children; Astra's own image files stay under `Astra/assets`, never under `Astra/config`.
+- `filesystem.luau`, `filesystemManager.luau` — RobloxFS abstraction (isFolder/WriteFile wrappers, secure-mode aware). `discardEmptyFolder` / `discardExecutorImageCache` remove a workspace-root `ImageCache` leftover some executors mkdir on `getcustomasset` when that folder has no children; Mova's own image files stay under `Mova/assets`, never under `Mova/config`.
 - `assetResolver.luau`, `network.luau`, `services.luau` — platform layer (HTTP fetch with retries, service singletons). `network` resolves the public-asset transports (`getAssetRequestFn`, `getAssetHttpGetFn`) under the layer-A-only gate described below, and the fully guarded variants (`getGuardedRequestFn`, `getGuardedHttpGetFn`) for sensitive callers.
 - `httpGuard.luau` — HTTP interception (spy/hook) detection, public as
-  `Astra.HttpGuard`: `scan()` (never raises), `check(policy)` (`audit` /
+  `Mova.HttpGuard`: `scan()` (never raises), `check(policy)` (`audit` /
   `warn` / `strict` / `off`, unknown fails closed), `guardFetch`,
   `capture()`, default-policy accessors. Three layers — A: spy artifacts
   (`getgenv().HttpSpy` API shape, `HttpSpyGui` window, `HttpSpy_*.txt` logs),
@@ -713,7 +713,7 @@ needs to exist.
 | `check_instance_fields.py` | Fails on custom-field writes on instances (the crash class that came from writing bookkeeping fields onto Instances). Scans the modular tree only — skips the generated bundle and hidden/vendored dirs, where flat scanning would collide same-name locals across module scopes. |
 | `check_dangling_refs.py` | Fails when a `.luau`/`.md` file names a slash-anchored repo path that does not exist (stale comments/docs after a delete or move). Skips URLs, tree diagrams, historical records and deleted/removed history lines; resolves relative links and extensionless module references. |
 | `check_syntax.sh` | Compiles every published file (modular tree, `example.client.luau`, `version-1.luau`). A syntax error in a loadstring'd bundle is invisible to the user — it only shows up as `attempt to call a nil value` at line 1 of the executor's chunk — so this is the gate that catches it here. |
-| `strip_luau.js` | Strips comments and indentation from Luau source without moving a line — a block comment is replaced by the newlines it spanned, so `LineOffsets` and the bundle's `Astra.utilities.locale:15: message` mapping survive. Copies every string verbatim, including Luau interpolated `` `...{expr}...` `` (which nest); keeps `--!` compiler directives. Throws rather than return output whose line count moved. |
+| `strip_luau.js` | Strips comments and indentation from Luau source without moving a line — a block comment is replaced by the newlines it spanned, so `LineOffsets` and the bundle's `Mova.utilities.locale:15: message` mapping survive. Copies every string verbatim, including Luau interpolated `` `...{expr}...` `` (which nest); keeps `--!` compiler directives. Throws rather than return output whose line count moved. |
 | `strip_equivalence_test.sh` | Compiles every published module with `luau-compile --binary` before and after stripping and requires byte-identical output. Bytecode is the whole program, so this is what makes publishing a stripped bundle safe rather than merely plausible. |
 | `sidebar_tab_sizing_test.sh`, `smoke_test_bundle.sh` | Rail sizing (name-driven width, cap, restore) and a bundle smoke run; also the collapsed rail: rows are icon-only (title hidden, content centred, no expanded padding) whether they were collapsed in place, rebuilt by a layout switch, or created while the rail was already icon-only, and a capped title re-constrains after that rebuild. |
 | `collapsible_group_test.sh` | Collapsible groups: every declarative element type, state/callbacks, the connected-card geometry and surface recipe, and the corner treatment (band's top arcs matching the container, body clipper's bottom arcs). |
@@ -731,14 +731,14 @@ needs to exist.
 | `tab_lock_test.sh` | Locked tabs: the preserved flag + badge (always hidden during the UI pause) and auto-select skipping a locked first tab; tap → notification with no selection; hover leaves the locked row dimmed; `Navigate`/`Select` guards; `SetLocked(false)` re-enables; locking the open tab moves the selection to a same-rail fallback; search excludes locked tabs' elements; locking every remaining tab clears the selection and hides content, and unlocking restores it; retained badge geometry with no layout reserve, full title slots, and hidden badges after collapse/rebuild. |
 | `elements_lock_test.sh` | Elements Lock System: per-window usage tags and stable IDs, existing usage merge, functional-only registration, default and explicit lock tiers, cumulative Mode 1–5 behavior, manual-lock composition, guarded callbacks, preserved input/draft/selection/layout, expanded-dropdown lock behavior, late controls, and the built-in Settings lock-all switch (exempt, unflagged, always able to release the page). |
 | `lock_mode_persistence_test.sh` | Element Lock Mode round trip: the chosen tier is written to the config, the next execution locks the page from it before Settings is ever opened (its switch builds lazily), the lazily built switch agrees with the live tier, a config saved without that panel still carries a host-driven tier, and a lowered tier leaves no stale locks. |
-| `image_cache_folder_test.sh` | Workspace folders: configs stay under `Astra/config`, Astra never creates a root `ImageCache`, an empty executor `ImageCache` created by `getcustomasset` is discarded, and a non-empty one is left alone. |
+| `image_cache_folder_test.sh` | Workspace folders: configs stay under `Mova/config`, Mova never creates a root `ImageCache`, an empty executor `ImageCache` created by `getcustomasset` is discarded, and a non-empty one is left alone. |
 | `toggle_switch_test.sh` | Switch geometry: one set of metrics, mirrored resting states, equal clearance, the sheen under the knob, and the animated positions matching the built ones. |
 | `input_field_test.sh` | Field-box corners: the Input field rounds with the theme's `ElementCornerRadius` as a theme binding (pixel radius, never a capsule scale), re-stated on a theme switch, and shared with its element card. |
 | `corner_scale_test.sh` | The corner scale: the three nested tiers (12px shell, 8px elements, 32px folds) and which surface wears which, the round-by-nature controls deriving a half-height pill from their own metrics (switch track/knob/sheen, slider track/fill/handle, drag pill), the dropdown's row tiers read from the panel that clips them, a `ChangeTheme` reaching every bound surface, the corners that stay square on purpose (the elements band's top edge), and a sweep that fails if any painted surface in the tree is left with an all-zero corner. |
 | `keybind_input_test.sh` | Dedicated A–Z capture: required value, validation, focus handling, cancellation, current-key suppression, groups, flags, lock/removal/unload and settings validation. |
 | `keybind_persistence_test.sh` | Config and settings round trips; unsupported legacy bindings migrate to required K. |
 | `capsule_visibility_test.sh` | Held-tween assertions before/after Hide completion, both styles, restore, topbar minimisation, instant motion and stale completion after unload. |
-| `example_test.sh` | Runs the real local demo; covers the one-word `Astra` window/key-gate title, three-tab contract, Group-based layout, every element, information-first tabs and no single-child Collapsible Groups in the demo/settings, and statically guards the example against game wiring (it must stay UI-only). |
+| `example_test.sh` | Runs the real local demo; covers the one-word `Mova` window/key-gate title, three-tab contract, Group-based layout, every element, information-first tabs and no single-child Collapsible Groups in the demo/settings, and statically guards the example against game wiring (it must stay UI-only). |
 | `slider_travel_test.sh` | Slider knob travel: the capsule's centre stays half a knob inside each track end (resting, held and after release), so it never overlaps the track end or card edge at max/min, and the fill ends at the knob's centre. |
 | `stepper_value_test.sh` | Stepper values: the `0` default, per-click `±step` with the display following, the `0` floor (a `(−)` tap there is a no-op with no callback), the optional `max` ceiling, typed commits clamping into range and unparseable text restoring the old value, the callback firing only on real changes, an inert `description` prop (no helper line, no card growth), the field's stroke being the pill's own `SurfaceStroke` (tightened by focus, restored on leave), and the title block and pill cluster sharing one centre line. |
 | `icons_test.sh` | Icon resolver: name-only lookup across the packs in priority order (and how lazily they load), qualified `pack:name`, case sensitivity, unknown packs resolving to nothing, custom assets (one import per path, memoised misses, the `listfiles` index), cache-key separation, and `window:ResolveIcon`. |

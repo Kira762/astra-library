@@ -1,6 +1,6 @@
 --[[
 ===== in-card description assertions: stat and group lines only ============
-Runs the real Astra bundle (loaded as global `Astra` above) against the
+Runs the real Mova bundle (loaded as global `Mova` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau.
 
 The in-card description line is a Stat recipe now: a muted 14px line under
@@ -135,7 +135,7 @@ local function assertClearOfContent(element, line, parts)
 	end
 end
 
-local window = Astra:CreateWindow({ name = "Inline Description Test" })
+local window = Mova:CreateWindow({ name = "Inline Description Test" })
 TestPump(0.6)
 local tab = window:CreateTab({ name = "Controls" })
 local more = window:CreateTab({ name = "More" })

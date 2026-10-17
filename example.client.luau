@@ -1,4 +1,4 @@
-local Astra = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau"))()
+local Mova = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kira762/astra-library/main/version-1.luau"))()
 
 -- Harness handles: the test drives the gate through these.
 local keyGate
@@ -7,7 +7,7 @@ local overview
 local studioReady
 
 local function buildStudio()
-    window = Astra:CreateWindow({
+    window = Mova:CreateWindow({
         name = "Mova",
         subtitle = "Gen 1",
         icon = "sirius",
@@ -16,7 +16,7 @@ local function buildStudio()
     -- 1. Overview — information lives here and only here
     overview = window:CreateTab({ name = "Overview", icon = "house" })
 
-    overview:CreateSection({ name = "Astra", icon = 80387863064905 })
+    overview:CreateSection({ name = "Mova", icon = 80387863064905 })
     overview:CreateText({
         name = "A UI-only tour of the API.",
         text = "Every element, grouped. Nothing here touches the game.",
@@ -34,7 +34,7 @@ local function buildStudio()
         },
     })
     overview:CreateDivider()
-    overview:CreateFooter({ parts = { { text = "Built with" }, { icon = "zap" }, { text = "Astra" } } })
+    overview:CreateFooter({ parts = { { text = "Built with" }, { icon = "zap" }, { text = "Mova" } } })
 
     -- 2. Controls — every interactive element, side by side in row Groups
     local controls = window:CreateTab({ name = "Controls", icon = "sliders-horizontal" })
@@ -92,17 +92,17 @@ local function buildStudio()
     studioReady = true
 end
 
-keyGate = Astra:CreateKeySystem({
-    title = "Astra",
+keyGate = Mova:CreateKeySystem({
+    title = "Mova",
     subtitle = "Key System",
-    note = "Demo key: ASTRA-STUDIO-2026.",
-    keys = { "ASTRA-STUDIO-2026" },
+    note = "Demo key: MOVA-STUDIO-2026.",
+    keys = { "MOVA-STUDIO-2026" },
     getKeyUrl = "https://github.com/Kira762/astra-library/blob/main/example.client.luau",
     links = {
         { name = "Repository", icon = "external-link", link = "https://github.com/Kira762/astra-library" },
     },
     saveKey = true,
-    fileName = "Astra-Example",
+    fileName = "Mova-Example",
     maxAttempts = 5,
     onSuccess = buildStudio,
     onClose = function()

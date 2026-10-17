@@ -1,6 +1,6 @@
 --[[
 ===== Stat letter mode in a row Group =====
-Runs the real Astra bundle against the mini Roblox environment from
+Runs the real Mova bundle against the mini Roblox environment from
 sidebar_sizing_stubs.luau and pins what a letter Stat does where it cannot
 have a badge: a row Group builds every child on the *compact* card, and the
 compact card has no glyph surface.
@@ -22,7 +22,7 @@ local function expect(cond, message)
 	end
 end
 
-local window = Astra:CreateWindow({ name = "Stat Letter Row Test", configuration = { autoSave = false, autoLoad = false } })
+local window = Mova:CreateWindow({ name = "Stat Letter Row Test", configuration = { autoSave = false, autoLoad = false } })
 TestPump(1.2)
 
 local tab = window:CreateTab({ name = "Probe", icon = "house" })

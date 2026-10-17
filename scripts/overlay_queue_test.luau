@@ -89,7 +89,7 @@ local function drainOverlays(targetWindow, limit)
 	return false
 end
 
-local window = Astra:CreateWindow({ name = "Overlay queue" })
+local window = Mova:CreateWindow({ name = "Overlay queue" })
 local tab = window:CreateTab({ name = "Home" })
 for index = 1, 6 do
 	tab:CreateToggle({ name = "Control " .. index, value = false })
@@ -107,7 +107,7 @@ eq(queueOf(window).paused, true, "Q1 the gate is closed until the entrance lands
 
 -- ===== Q2/Q3: a burst lands one card per turn, and the queue is capped =======
 
-local paced = Astra:CreateWindow({ name = "Overlay pacing" })
+local paced = Mova:CreateWindow({ name = "Overlay pacing" })
 paced:CreateTab({ name = "Home" }):CreateToggle({ name = "Control", value = false })
 expect(pumpUntilShown(paced), "Q2 the window must reach its shown state inside the pump budget")
 expect(drainOverlays(paced), "Q2 the queue must come to rest once it has nothing to do")
@@ -148,7 +148,7 @@ eq(queueOf(paced).running, false, "Q2 the pump parks itself once the queue is em
 
 -- ===== Q4: a card dismissed mid-entrance still hands the slot over ===========
 
-local released = Astra:CreateWindow({ name = "Overlay release" })
+local released = Mova:CreateWindow({ name = "Overlay release" })
 released:CreateTab({ name = "Home" })
 expect(pumpUntilShown(released), "Q4 the window must show inside the pump budget")
 expect(drainOverlays(released), "Q4 the queue must come to rest before the two cards")
@@ -179,10 +179,10 @@ eq(queueOf(released).closed, true, "Q5 the queue is closed with its window")
 
 -- ===== Q6: animation switched off still drains (ordered, no cooldowns) ======
 
-local instant = Astra:CreateWindow({ name = "Overlay instant" })
+local instant = Mova:CreateWindow({ name = "Overlay instant" })
 instant:CreateTab({ name = "Home" })
 expect(pumpUntilShown(instant), "Q6 the window must show inside the pump budget")
-Astra.Motion.setProfile("instant")
+Mova.Motion.setProfile("instant")
 expect(instant._overlayQueue.paused == false, "Q6 the entrance gate is open on a settled window")
 for index = 1, 3 do
 	instant:Notify({ title = "Instant " .. index, content = "No cooldown to wait for" })
@@ -198,13 +198,13 @@ Three cards at the normal pace are ~6 frames apart because of the cooldown
 between turns; with the cooldowns scaled away they arrive back to back.
 ]]
 expect(instantFrames <= 12, "Q6 the queue skipped its cooldowns (took " .. instantFrames .. " frames)")
-Astra.Motion.setProfile("normal")
+Mova.Motion.setProfile("normal")
 instant:Unload()
 TestPump(0.2)
 
 -- ===== Q7: the page's controls are staged behind the entrance ================
 
-local staged = Astra:CreateWindow({ name = "Staged reveal" })
+local staged = Mova:CreateWindow({ name = "Staged reveal" })
 local stagedTab = staged:CreateTab({ name = "Home" })
 for index = 1, 4 do
 	stagedTab:CreateButton({ name = "Button " .. index, callback = function() end })
@@ -266,7 +266,7 @@ pending list at all, and opening the gate read `#queue.pending` off it —
 `attempt to get length of a nil value`, raised out of the entrance's resume,
 on the first host that hid a window before it had ever shown.
 ]]
-local gated = Astra:CreateWindow({ name = "Overlay gate" })
+local gated = Mova:CreateWindow({ name = "Overlay gate" })
 gated:CreateTab({ name = "Home" })
 eq(gated.hidden, true, "Q8 the window has not shown yet")
 eq(type(gated._overlayQueue), "table", "Q8 the window carries a placeholder for its queue")

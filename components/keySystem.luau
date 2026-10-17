@@ -1,16 +1,16 @@
 --[[
 Standalone key gate: the Rayfield-style "enter your key" modal, drawn in
-Astra's own shell language so it reads as one family with the window that
+Mova's own shell language so it reads as one family with the window that
 follows it — the 12px shell corner and WindowColor gradient card, the 8px
 field and button corners, the SurfaceStroke hairline, the accent Continue.
 
 Unlike the popup it gates *before* any window exists: hosts call
-`Astra:CreateKeySystem` first and create their window inside `onSuccess`.
+`Mova:CreateKeySystem` first and create their window inside `onSuccess`.
 There is no window to bind theme tokens to, so the theme is resolved once
 at creation (the same value `CreateWindow` accepts) and baked in — a
 transient modal that is usually gone before any `ChangeTheme` could move
-it. Saved keys live beside the other Astra files at
-`Astra/keys/<fileName>.txt`, and a matching file skips the UI entirely
+it. Saved keys live beside the other Mova files at
+`Mova/keys/<fileName>.txt`, and a matching file skips the UI entirely
 (Rayfield's passthrough) straight into `onSuccess`.
 
 The header always wears the Sirius mark (`props.icon` is ignored; a user
@@ -63,7 +63,7 @@ Geometry. The 400px card is the popup's width, so a gate and a dialog
 read as one system; the height is measured from the note text (one or two
 lines) and a present links row, and lands around 150-165px bare / ~200px
 with buttons — the short wide card Rayfield's 500x187 gate made familiar,
-re-cut for Astra's 600px window. Narrow viewports clamp the width instead
+re-cut for Mova's 600px window. Narrow viewports clamp the width instead
 of clipping: the Continue button keeps its fixed width and the field
 absorbs the shrink.
 ]]
@@ -124,7 +124,7 @@ There is no clipboard in the Roblox API surface the library targets, so
 a link button asks the host for one: every executor spells it
 differently, and Studio/Rojo spells it differently again. The lookup runs
 per press rather than being cached at load, so a host that installs its
-clipboard API after Astra loads is still found. Mirrors the Link
+clipboard API after Mova loads is still found. Mirrors the Link
 element's resolver.
 ]]
 local function clipboardWriter()
@@ -258,10 +258,30 @@ local function keyFilePath(fileName)
     return folder, pathUtil.join(folder, base .. ".txt")
 end
 
+local function keyFileReadPaths(fileName)
+    local folder, currentPath = keyFilePath(fileName)
+    local base = pathUtil.sanitizeFile(fileName)
+    if base == "" then
+        base = "Key"
+    end
+
+    local paths = { currentPath }
+    -- The old default gate used both its title and filename "Astra". Keep
+    -- finding that saved key even though the new defaults are both "Mova".
+    if base == "Mova" then
+        table.insert(paths, pathUtil.join(folder, "Astra.txt"))
+    end
+    table.insert(paths, pathUtil.join("Astra/keys", base .. ".txt"))
+    if base == "Mova" then
+        table.insert(paths, pathUtil.join("Astra/keys", "Astra.txt"))
+    end
+    return paths
+end
+
 function KeySystem.new(props)
     props = if typeof(props) == "table" then props else {}
 
-    local title = tostring(props.title or props.Title or "Astra")
+    local title = tostring(props.title or props.Title or "Mova")
     local keys = props.keys or props.Keys or props.key or props.Key
     if typeof(keys) == "string" then
         keys = { keys }
@@ -319,7 +339,7 @@ function KeySystem.new(props)
     body would leak to the spy's log and the response could be spoofed, so
     a hit refuses the fetch and the key is dropped. Both outcomes are
     silent: the library prints nothing, and the URL a guard denial withheld
-    never reaches the console either. `Astra.HttpGuard.scan()` is where a
+    never reaches the console either. `Mova.HttpGuard.scan()` is where a
     host tells a denial apart from a dead link.
     ]]
     local grabFromSite = props.grabKeyFromSite or props.GrabKeyFromSite or false
@@ -357,14 +377,20 @@ function KeySystem.new(props)
     expected key skips the UI entirely, straight into `onSuccess`.
     ]]
     if self.saveKey then
-        local _, file = keyFilePath(self.fileName)
-        local savedOk, saved = pcall(function()
-            if filesystem.isfile(file) then
-                return filesystem.readfile(file)
+        local saved = nil
+        for _, file in keyFileReadPaths(self.fileName) do
+            local savedOk, candidate = pcall(function()
+                if filesystem.isfile(file) then
+                    return filesystem.readfile(file)
+                end
+                return nil
+            end)
+            if savedOk and typeof(candidate) == "string" then
+                saved = candidate
+                break
             end
-            return nil
-        end)
-        if savedOk and typeof(saved) == "string" then
+        end
+        if typeof(saved) == "string" then
             local cleaned = trim(saved)
             for _, key in self._expected do
                 if cleaned == key then
@@ -403,7 +429,7 @@ function KeySystem:_runCallback(callback, ...)
         the way to it.
         ]]
         if not ok then
-            error("Astra: key system callback errored: " .. tostring(err), 0)
+            error("Mova: key system callback errored: " .. tostring(err), 0)
         end
     end)
 end
@@ -1298,7 +1324,7 @@ end
 --[[
 The lock is permanent for the gate's life: the field stops editing, the
 action dims, the note says why. The host decides what exceeding the budget
-means (Rayfield kicks the player; Astra delegates through
+means (Rayfield kicks the player; Mova delegates through
 `onMaxAttempts`) — the gate itself only stops accepting keys.
 ]]
 function KeySystem:_lock()

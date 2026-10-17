@@ -1,6 +1,6 @@
 #!/bin/sh
-# Runtime test for the workspace ImageCache leftover: Astra never creates
-# that folder (configs stay under Astra/config, images under Astra/assets),
+# Runtime test for the workspace ImageCache leftover: Mova never creates
+# that folder (configs stay under Mova/config, images under Mova/assets),
 # an empty executor ImageCache created by getcustomasset is discarded, and
 # a non-empty one is left alone.
 #
@@ -9,7 +9,7 @@
 set -u
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BUNDLE="${ASTRA_BUNDLE:-$ROOT/version-1.luau}"
+BUNDLE="${MOVA_BUNDLE:-${ASTRA_BUNDLE:-$ROOT/version-1.luau}}"
 
 if [ ! -f "$BUNDLE" ]; then
 	echo "bundle missing: $BUNDLE" >&2
@@ -31,14 +31,25 @@ if [ -z "$LUAU_BIN" ]; then
 fi
 
 TMPDIR_LOCAL="${TMPDIR:-/tmp}"
-OUT="$TMPDIR_LOCAL/astra_image_cache_folder_$$.luau"
+OUT="$TMPDIR_LOCAL/mova_image_cache_folder_$$.luau"
 trap 'rm -f "$OUT"' EXIT
 
 {
 	cat "$ROOT/scripts/sidebar_sizing_stubs.luau"
 	cat "$ROOT/scripts/workspace_fs_stubs.luau"
+	cat <<'LUAU'
+makefolder("Astra/config")
+writefile("Astra/config/legacy.txt", "legacy-config")
+writefile("Astra/config/shared.txt", "old-astra-data")
+makefolder("Mova/config")
+writefile("Mova/config/shared.txt", "new-mova-data")
+makefolder("Astra/keys")
+writefile("Astra/keys/legacy.txt", "legacy-key")
+makefolder("Astra/settings")
+writefile("Astra/settings/astra.txt", "{\"migrationProbe\":\"legacy-settings\"}")
+LUAU
 	echo ""
-	echo "Astra = (function()"
+	echo "Mova = (function()"
 	echo ""
 	cat "$BUNDLE"
 	echo ""

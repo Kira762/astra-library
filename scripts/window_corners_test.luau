@@ -33,7 +33,7 @@ local PAINTABLE = {
 	TextBox = true,
 }
 
-local window = Astra:CreateWindow({
+local window = Mova:CreateWindow({
 	name = "Corner integrity",
 	configuration = { autoSave = false, autoLoad = false },
 })

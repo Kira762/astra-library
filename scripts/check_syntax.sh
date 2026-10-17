@@ -47,7 +47,7 @@ if [ -z "$LUAU_COMPILE" ] && [ -z "$LUAU_BIN" ]; then
 fi
 
 TMPDIR_LOCAL="${TMPDIR:-/tmp}"
-WORK="$TMPDIR_LOCAL/astra_syntax_$$"
+WORK="$TMPDIR_LOCAL/mova_syntax_$$"
 trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$WORK/out"
 

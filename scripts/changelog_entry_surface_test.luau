@@ -1,6 +1,6 @@
 --[[
 ===== Changelog entry surface: a nested level is a recess, not a second frame =====
-Runs the real Astra bundle (loaded as global `Astra` above) against the mini
+Runs the real Mova bundle (loaded as global `Mova` above) against the mini
 Roblox environment from sidebar_sizing_stubs.luau.
 
 Before this the Changelog drew `StyleElementBody` on its own card and
@@ -60,7 +60,7 @@ local function classNameCount(parent, className)
 	return count
 end
 
-local window = Astra:CreateWindow({ name = "Changelog Entry Surface" })
+local window = Mova:CreateWindow({ name = "Changelog Entry Surface" })
 TestPump(0.6)
 local tab = window:CreateTab({ name = "Notes" })
 

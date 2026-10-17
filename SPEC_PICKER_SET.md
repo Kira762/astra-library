@@ -5,7 +5,7 @@
 The approved implementation instead shipped a single self-contained element in
 the elements folder (`ModePicker`), built to the config contract below and
 covered by a dedicated runtime test. **That element has since been
-removed from Astra** — the built-in element-lock control it was serving is a plain
+removed from Mova** — the built-in element-lock control it was serving is a plain
 **Lock all controls** toggle now (`components/settings.luau`), and nothing in the
 tree references the picker any more. This file is kept only as the record of why the
 contract looked the way it did; it is not a plan and describes no shipped code.

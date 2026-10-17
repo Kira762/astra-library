@@ -38,7 +38,7 @@ def catalog(pack: str):
     return entries
 
 
-index = ["# Astra icon catalog", "", "All packs can be mixed in one window. No window-wide pack option is needed.",
+index = ["# Mova icon catalog", "", "All packs can be mixed in one window. No window-wide pack option is needed.",
          "", 'Use `icon = "pack:name"` to select an exact icon. Copy the name from the catalogs below.',
          "Bare names search lucide \u2192 material \u2192 tabler \u2192 phosphor \u2192 heroicons \u2192 feather \u2192 remix.",
          "Names are case-sensitive. Pack tables are loaded only when looked up.",

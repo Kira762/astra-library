@@ -8,7 +8,7 @@ local function expect(condition, message)
     end
 end
 
-local window = Astra:CreateWindow({ name = "Info removal" })
+local window = Mova:CreateWindow({ name = "Info removal" })
 local tab = window:CreateTab({ name = "Controls" })
 local clicked = 0
 local controls = {

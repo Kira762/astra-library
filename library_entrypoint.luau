@@ -3,7 +3,7 @@ HttpGuard loads and captures first, before any other module runs: the
 baseline-drift layer compares against these references, so the earlier the
 snapshot, the smaller the window a spy has to load in between. Capture is
 silent and never raises; enforcement lives at the fetch points (the loader
-preflight, the key system) and in `Astra.HttpGuard.check` for hosts.
+preflight, the key system) and in `Mova.HttpGuard.check` for hosts.
 ]]
 local HttpGuard = require(script.Parent.utilities.httpGuard)
 HttpGuard.capture()
@@ -76,15 +76,20 @@ export type HttpGuardSignal = types.HttpGuardSignal
 export type HttpGuardReport = types.HttpGuardReport
 export type HttpGuardPolicy = types.HttpGuardPolicy
 export type HttpGuardService = types.HttpGuardService
-export type Astra = types.Astra
+export type Mova = types.Mova
 
 type WindowModule = { new: (types.WindowProps) -> types.Window }
 
-local Astra = {} :: Astra
+local Mova = {} :: Mova
 local activeWindow: types.Window? = nil
-local ACTIVE_WINDOW_KEY = "__ASTRA_ACTIVE_WINDOW_V1"
-local LIVE_WINDOWS_KEY = "__ASTRA_LIVE_WINDOWS_V1"
-local GENERATION_KEY = "__ASTRA_WINDOW_GENERATION_V1"
+local ACTIVE_WINDOW_KEY = "__MOVA_ACTIVE_WINDOW_V1"
+local LIVE_WINDOWS_KEY = "__MOVA_LIVE_WINDOWS_V1"
+local GENERATION_KEY = "__MOVA_WINDOW_GENERATION_V1"
+-- Bridge the previous namespace so a Mova reload can replace a live Astra
+-- window instead of leaving two independent singleton registries behind.
+local LEGACY_ACTIVE_WINDOW_KEY = "__ASTRA_ACTIVE_WINDOW_V1"
+local LEGACY_LIVE_WINDOWS_KEY = "__ASTRA_LIVE_WINDOWS_V1"
+local LEGACY_GENERATION_KEY = "__ASTRA_WINDOW_GENERATION_V1"
 
 --[[
 How long a font download waits for the entrance before it triggers its own
@@ -110,10 +115,19 @@ local globalStore = getGlobalStore()
 
 local function getLiveWindows(): { types.Window }
 	local live = globalStore[LIVE_WINDOWS_KEY]
+	local legacyLive = globalStore[LEGACY_LIVE_WINDOWS_KEY]
 	if type(live) ~= "table" then
-		live = {}
-		globalStore[LIVE_WINDOWS_KEY] = live
+		live = if type(legacyLive) == "table" then legacyLive else {}
 	end
+	if type(legacyLive) == "table" and legacyLive ~= live then
+		for _, window in legacyLive do
+			if not table.find(live, window) then
+				table.insert(live, window)
+			end
+		end
+	end
+	globalStore[LIVE_WINDOWS_KEY] = live
+	globalStore[LEGACY_LIVE_WINDOWS_KEY] = live
 	return live
 end
 
@@ -135,11 +149,9 @@ local function trackedWindows(): { types.Window }
 
 	add(activeWindow)
 	add(globalStore[ACTIVE_WINDOW_KEY])
-	local live = globalStore[LIVE_WINDOWS_KEY]
-	if type(live) == "table" then
-		for _, window in live do
-			add(window)
-		end
+	add(globalStore[LEGACY_ACTIVE_WINDOW_KEY])
+	for _, window in getLiveWindows() do
+		add(window)
 	end
 	return list
 end
@@ -151,10 +163,10 @@ local function forgetWindow(window: types.Window)
 	if globalStore[ACTIVE_WINDOW_KEY] == window then
 		globalStore[ACTIVE_WINDOW_KEY] = nil
 	end
-	local live = globalStore[LIVE_WINDOWS_KEY]
-	if type(live) ~= "table" then
-		return
+	if globalStore[LEGACY_ACTIVE_WINDOW_KEY] == window then
+		globalStore[LEGACY_ACTIVE_WINDOW_KEY] = nil
 	end
+	local live = getLiveWindows()
 	for index = #live, 1, -1 do
 		if live[index] == window then
 			table.remove(live, index)
@@ -165,13 +177,23 @@ end
 local function rememberWindow(window: types.Window)
 	activeWindow = window
 	globalStore[ACTIVE_WINDOW_KEY] = window
+	globalStore[LEGACY_ACTIVE_WINDOW_KEY] = window
 	local live = getLiveWindows()
-	for _, existing in live do
-		if existing == window then
-			return
-		end
+	if not table.find(live, window) then
+		table.insert(live, window)
 	end
-	table.insert(live, window)
+end
+
+local function currentGeneration(): number
+	return math.max(
+		tonumber(globalStore[GENERATION_KEY]) or 0,
+		tonumber(globalStore[LEGACY_GENERATION_KEY]) or 0
+	)
+end
+
+local function setGeneration(value: number)
+	globalStore[GENERATION_KEY] = value
+	globalStore[LEGACY_GENERATION_KEY] = value
 end
 
 local function isReplaceableWindow(window: types.Window): boolean
@@ -201,18 +223,18 @@ local function unloadReplaceableWindows(except: types.Window?)
 	end
 end
 
-Astra.Icons = Icons
+Mova.Icons = Icons
 
 --[[
 The motion service is public: hosts can animate with the library's own
-specs (`Astra.Motion.tween(frame, props, "snappy")`) and steer the whole
+specs (`Mova.Motion.tween(frame, props, "snappy")`) and steer the whole
 interface's timing (`setProfile`, `setTimeScale`, `setEnabled`).
 ]]
-Astra.Motion = Motion
+Mova.Motion = Motion
 
-Astra.Core = Core
-Astra.Settings = Settings
-Astra.Performance = HardwarePerformance
+Mova.Core = Core
+Mova.Settings = Settings
+Mova.Performance = HardwarePerformance
 
 --[[
 HTTP interception detection (`utilities/httpGuard.luau`): `scan()` reports,
@@ -221,11 +243,11 @@ re-baselines, `guardFetch` wraps a fetch. Silence is part of the contract —
 a finding reaches the caller through the returned report and never the
 console, because whoever hooked HTTP is reading that console — so a denial
 is indistinguishable from a fetch that never happened. Hosts that want
-strict-at-load call `Astra.HttpGuard.check("strict")` before `CreateWindow`.
+strict-at-load call `Mova.HttpGuard.check("strict")` before `CreateWindow`.
 ]]
-Astra.HttpGuard = HttpGuard
+Mova.HttpGuard = HttpGuard
 
-function Astra:CreateWindow(props: types.WindowProps): types.Window
+function Mova:CreateWindow(props: types.WindowProps): types.Window
 	--[[
 	Anti-duplicate has to claim the slot *before* `Window.new` can yield.
 	Construction checkpoints with `task.wait`, so a second `loadstring` can
@@ -237,8 +259,8 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 	local antiDuplicateEnabled = Settings.readPersisted("antiWindowDuplicate", true)
 	local claimedGeneration: number? = nil
 	if antiDuplicateEnabled then
-		claimedGeneration = (tonumber(globalStore[GENERATION_KEY]) or 0) + 1
-		globalStore[GENERATION_KEY] = claimedGeneration
+		claimedGeneration = currentGeneration() + 1
+		setGeneration(claimedGeneration)
 		unloadReplaceableWindows(nil)
 	else
 		for _, existing in trackedWindows() do
@@ -257,7 +279,7 @@ function Astra:CreateWindow(props: types.WindowProps): types.Window
 
 	local window = result :: types.Window
 	if antiDuplicateEnabled then
-		if globalStore[GENERATION_KEY] ~= claimedGeneration then
+		if currentGeneration() ~= claimedGeneration then
 			--[[
 			A later CreateWindow claimed the slot while this one was
 			still constructing. Do not unload here: the host that called
@@ -437,7 +459,7 @@ hosts that never gate pay nothing at startup; the constructor either shows
 the card or passes straight through to `onSuccess` (no keys configured, or
 a saved key already matches).
 ]]
-function Astra:CreateKeySystem(props: types.KeySystemProps): types.KeySystem
+function Mova:CreateKeySystem(props: types.KeySystemProps): types.KeySystem
 	local ok, result = pcall(function()
 		return (require(script.Parent.components.keySystem) :: any).new(props)
 	end)
@@ -447,4 +469,4 @@ function Astra:CreateKeySystem(props: types.KeySystemProps): types.KeySystem
 	return result
 end
 
-return Astra
+return Mova

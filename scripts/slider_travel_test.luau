@@ -1,6 +1,6 @@
 --[[
 ===== slider travel assertions: the knob stays inside its track ==========
-Runs the real Astra bundle (loaded as global `Astra` above) against the
+Runs the real Mova bundle (loaded as global `Mova` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau.
 
 The knob's centre is placed in track-local pixels (handle.Position.X's
@@ -32,7 +32,7 @@ local function near(actual, wanted, message)
 	)
 end
 
-local window = Astra:CreateWindow({ name = "Slider Travel Test" })
+local window = Mova:CreateWindow({ name = "Slider Travel Test" })
 TestPump(0.6)
 local tab = window:CreateTab({ name = "Controls" })
 local slider = tab:CreateSlider({ name = "Volume", range = { 0, 100 }, value = 100 })

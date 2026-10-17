@@ -1,9 +1,9 @@
 ---
-name: astra-guard
-description: "Regression guard for Astra v1 — prevents the three recurring bug classes: Mode 1 locking when it should be unlocked, text/subtitle not rendering or not updating on locale change, and UI misalignment (placement shifts, rounded corners, track geometry). Use when touching elements/, components/window/elements.luau, utilities/lockable.luau, utilities/locale, components/window/theme.luau, or themes. Enforces exhaustive lock-tier, placement, corner-sync, and locale invariants that check_all.sh runs."
+name: mova-guard
+description: "Regression guard for Mova v1 — prevents the three recurring bug classes: Mode 1 locking when it should be unlocked, text/subtitle not rendering or not updating on locale change, and UI misalignment (placement shifts, rounded corners, track geometry). Use when touching elements/, components/window/elements.luau, utilities/lockable.luau, utilities/locale, components/window/theme.luau, or themes. Enforces exhaustive lock-tier, placement, corner-sync, and locale invariants that check_all.sh runs."
 ---
 
-# Astra Guard — Regression Guard
+# Mova Guard — Regression Guard
 
 This skill stops the bugs that have shipped more than once:
 
@@ -11,7 +11,7 @@ This skill stops the bugs that have shipped more than once:
 - **Text not rendering / bugging** — `string expected, got table` when a locale token table was written to `TextLabel.Text`, plus stale subtitles after `SetLocale`.
 - **UI misalignment** — lock scrims shifting `Position`/`Size`/`Parent`, header corners rounding over a straight divider, slider/mode-picker track geometry.
 
-It is the **complement** to `skills/astra` (the build/edit skill). That skill tells you *how* to build; this one tells you *what must still be true afterwards*.
+It is the **complement** to `skills/mova` (the build/edit skill). That skill tells you *how* to build; this one tells you *what must still be true afterwards*.
 
 ## When to use
 
@@ -28,7 +28,7 @@ Read the three references for the full spec; the short rules are:
 - **No automatic Level 1.** `defaultLockLevels` has no entry `=1`; fallback is `5`. Explicit `=1` still works via `lockLevel=1` or `lockGroup="minor"/"low"/"noncritical"`.
 - **Standard mapping:** Link/Input/Dropdown/Keybind = `2`, Toggle/Slider/Button/Stepper = `3`, Groups default `5`, `sensitive`/`advanced`/`highimpact` = `4`. Documented in `utilities/lockable.luau`.
 - **Cumulative modes:** Mode N locks every element with `lockLevel <= N`. Mode 5 locks all registered lockable elements. Lowering the mode unlocks only the tier above it.
-- **Registry:** Only functional controls register (`lockable.register` via `utilities/lockable.luau`). Static elements and callback-free Buttons never get `lockable:astra:<id>` / `_isLockable`.
+- **Registry:** Only functional controls register (`lockable.register` via `utilities/lockable.luau`). Static elements and callback-free Buttons never get `lockable:mova:<id>` / `_isLockable`.
 
 ### 2. Text / locale — `references/text-locale.md`
 
@@ -45,7 +45,7 @@ Read the three references for the full spec; the short rules are:
 ## How to use
 
 1. Make the change.
-2. Run the gates in order (same as `skills/astra/references/repo-workflow.md`):
+2. Run the gates in order (same as `skills/mova/references/repo-workflow.md`):
    ```sh
    node scripts/generate_bundle.js
    sh scripts/check_all.sh
@@ -63,7 +63,7 @@ Read the three references for the full spec; the short rules are:
 
 `scripts/guard_invariants_test.luau` (run via `scripts/guard_invariants_test.sh`) builds one tab with every lockable and non-lockable element, then asserts:
 
-- 9 lockable types have correct `lockLevel` and `usageTag = lockable:astra:<id>` present in `usage`; 7 non-lockable have `usageTag=nil` and `_isLockable~=true`
+- 9 lockable types have correct `lockLevel` and `usageTag = lockable:mova:<id>` present in `usage`; 7 non-lockable have `usageTag=nil` and `_isLockable~=true`
 - Mode 1 locks only explicit `=1`; Mode 2/3/4/5 are cumulative; late element inherits current mode; manual `Lock`/`Unlock` compose and `Unlock` cannot bypass a mode lock
 - Placement invariant (`Position/Size/Parent`) for 13 elements across `SetElementLockMode(5)`
 - Header `lockScrimCorner` mirrors `headerCorner` for `8,0` vs `8,8` in both expanded and collapsed states for Accordion

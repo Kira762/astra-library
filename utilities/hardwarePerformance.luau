@@ -1,5 +1,5 @@
 --[[
-Astra Hardware Performance Engine.
+Mova Hardware Performance Engine.
 
 Automatically detects GPU, CPU, frame timing, and device capabilities to
 dynamically tune UI construction pacing, instance budgets, element loading,

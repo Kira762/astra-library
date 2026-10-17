@@ -1,5 +1,5 @@
 -- The settings shortcut is a required, editable one-letter TextBox.
-local window = Astra:CreateWindow({ name = "Keybind test" })
+local window = Mova:CreateWindow({ name = "Keybind test" })
 TestPump(1)
 window:_buildSettingsUI()
 assert(window.rfSettings.name == "Overview", "Settings opens information first")
@@ -55,7 +55,7 @@ Public capture still supports keyboard input for hosts and for the menu
 setting. The focused keybind is allowed through the global input guard.
 ]]
 field:Capture()
-local inputService = Astra.Core.state.userInputService
+local inputService = Mova.Core.state.userInputService
 inputService.InputBegan:Fire({ UserInputType = Enum.UserInputType.Keyboard, KeyCode = Enum.KeyCode.P }, false)
 TestPump(0.05)
 assert(field.value == "P" and not field.capturing, "programmatic capture accepts a letter")
@@ -118,7 +118,7 @@ grouped:Capture()
 tab:Remove()
 assert(window._keybindCapture == nil, "Removing a tab clears its capture owner")
 
-local manager = Astra.Settings.newManager({ toggleKeybind = Enum.KeyCode.Space })
+local manager = Mova.Settings.newManager({ toggleKeybind = Enum.KeyCode.Space })
 assert(manager:get("toggleKeybind") == Enum.KeyCode.K, "Invalid initial settings fall back to K")
 assert(not manager:set("toggleKeybind", Enum.KeyCode.Space), "Settings validator rejects non-letters")
 assert(manager:set("toggleKeybind", "z") and manager:get("toggleKeybind") == Enum.KeyCode.Z, "Settings validator normalises letters")

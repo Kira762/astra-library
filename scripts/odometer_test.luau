@@ -1,6 +1,6 @@
 --[[
 ===== odometer assertions: lazy rows, identical readout =====
-Runs the real Astra bundle (loaded as global `Astra` above) against the
+Runs the real Mova bundle (loaded as global `Mova` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau.
 
 The roll builds a strip of rows and slides it inside a clipping cell. It
@@ -36,9 +36,9 @@ local function eq(actual, wanted, message)
 	end
 end
 
-local state = Astra.Core.state
+local state = Mova.Core.state
 
-local window = Astra:CreateWindow({ name = "Odometer Test" })
+local window = Mova:CreateWindow({ name = "Odometer Test" })
 TestPump(0.6)
 window:Show()
 TestPump(0.6)

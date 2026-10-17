@@ -2,7 +2,7 @@
 Mini Roblox environment for the sidebar tab-sizing test.
 Extends the smoke stubs with a working Instance model (properties,
 signals, parenting, destroy semantics) and service implementations
-with deterministic behavior, so Astra:CreateWindow can run for real
+with deterministic behavior, so Mova:CreateWindow can run for real
 and row sizes can be asserted.
 ]]
 

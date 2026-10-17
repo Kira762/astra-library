@@ -1,8 +1,8 @@
 local default = require(script.Parent.Parent.core.state)
 
 --[[
-Astra's default palette. The shared keys below are the historical set
-a theme table may overlay; the Astra-only semantic keys (Background,
+Mova's default palette. The shared keys below are the historical set
+a theme table may overlay; the Mova-only semantic keys (Background,
 WindowSurface, text tiers, Success/Warning, etc.) are derived from the
 same greyscale + teal accent so the capsule and settings surfaces stay
 coherent with the rest of the theme.

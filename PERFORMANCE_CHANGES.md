@@ -1,4 +1,4 @@
-# Astra — Performance Refactor Breakdown
+# Mova — Performance Refactor Breakdown
 
 Goal: remove the 1–3 s startup freeze. The shell must spawn **instantly with zero
 frame drops**; the rest of the UI is allowed to finish streaming in behind it.
@@ -15,7 +15,7 @@ parser. `loadstring` has to read all 1.1 MB before it can run anything, and
 the line structure **exactly** (a block comment is replaced by the newlines it
 spanned, indentation is dropped in place). Nothing that reports a line number
 can drift: the `LineOffsets[refId]` table and the wax runtime's
-`Astra.utilities.locale:15: message` mapping behave identically, verified by
+`Mova.utilities.locale:15: message` mapping behave identically, verified by
 planting an error and reading the same message out of both builds.
 
 | Metric (lower is better)                  | Before     | After      | Δ |
@@ -58,7 +58,7 @@ difference is not measurable.
 
 ## 2026-09-22 — Standalone key gate ships lazy
 
-The new `Astra:CreateKeySystem` module is required lazily from the entrypoint,
+The new `Mova:CreateKeySystem` module is required lazily from the entrypoint,
 like the window itself, so hosts that never gate pay nothing at startup:
 
 - `startup_test.sh` and `instance_budget_test.sh` still pass (full gate green,
@@ -248,7 +248,7 @@ slightly longer time-to-fully-interactive in exchange for an instant shell.
 * `utilities/motion.luau`
   * Added UI-dependent aesthetic easing specs (`modal`, `fluid`, `tabSwitch`,
     `control`, `micro`, `dropdownOpen`, `dropdownClose`, `toast`, `canvasPop`)
-    and the `Astra.Motion.uiSpec(componentType, action)` selector.
+    and the `Mova.Motion.uiSpec(componentType, action)` selector.
 
 ## Deliberately *not* changed
 
@@ -259,7 +259,7 @@ slightly longer time-to-fully-interactive in exchange for an instant shell.
   contract; instead each child already crosses the frame-budget checkpoint, so
   a big group streams in without hitching.
 * Entrance animations still tween `UIScale`/size only; theming, dragging,
-  singleton semantics (`__ASTRA_ACTIVE_WINDOW_V1__`), camelCase/PascalCase
+  singleton semantics (`__MOVA_ACTIVE_WINDOW_V1__`), camelCase/PascalCase
   prop aliases and the 260 px side-card clamp/recenter are untouched.
 
 ## Verification

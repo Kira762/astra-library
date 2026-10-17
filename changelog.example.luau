@@ -1,5 +1,5 @@
 --[[
-Astra changelog data file (host-side example).
+Mova changelog data file (host-side example).
 Keep your release history in its own file like this one, require it, and
 hand it to a Changelog element:
   local tab = window:CreateTab({ name = "Changelog" })

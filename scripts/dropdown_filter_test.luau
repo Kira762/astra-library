@@ -1,6 +1,6 @@
 --[[
 ===== dropdown filter assertions =====
-Runs the real Astra bundle (loaded as global `Astra` above) against the
+Runs the real Mova bundle (loaded as global `Mova` above) against the
 mini Roblox environment from sidebar_sizing_stubs.luau.
 
 Typing in a dropdown's search used to cost four walks of every option row per
@@ -70,7 +70,7 @@ local function sameSet(actual, wanted)
 	return true
 end
 
-local window = Astra:CreateWindow({ name = "Dropdown filter" })
+local window = Mova:CreateWindow({ name = "Dropdown filter" })
 TestPump(0.6)
 window:Show()
 TestPump(0.6)

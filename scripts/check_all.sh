@@ -65,16 +65,16 @@ fi
 
 section "5/7  bundle is up to date with the source tree"
 if command -v node >/dev/null 2>&1; then
-	cp version-1.luau "${TMPDIR:-/tmp}/astra_bundle_check.$$" 2>/dev/null
+	cp version-1.luau "${TMPDIR:-/tmp}/mova_bundle_check.$$" 2>/dev/null
 	node scripts/generate_bundle.js >/dev/null 2>&1
-	if diff -q "${TMPDIR:-/tmp}/astra_bundle_check.$$" version-1.luau >/dev/null 2>&1; then
+	if diff -q "${TMPDIR:-/tmp}/mova_bundle_check.$$" version-1.luau >/dev/null 2>&1; then
 		echo "bundle matches the source tree"
 	else
 		echo "BUNDLE IS STALE: version-1.luau did not match the source tree." >&2
 		echo "It has now been regenerated -- commit the result." >&2
 		failures=$((failures + 1))
 	fi
-	rm -f "${TMPDIR:-/tmp}/astra_bundle_check.$$"
+	rm -f "${TMPDIR:-/tmp}/mova_bundle_check.$$"
 else
 	echo "node not found; skipping bundle freshness check" >&2
 fi

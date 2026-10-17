@@ -16,11 +16,11 @@ local function eq(actual, wanted, message)
 	end
 end
 
-local motion = Astra.Motion
-local perf = Astra.Performance
+local motion = Mova.Motion
+local perf = Mova.Performance
 
--- ===== H1: Astra.Performance is exposed and provides adaptive metrics =====
-expect(type(perf) == "table", "H1 Astra.Performance is exposed on public root")
+-- ===== H1: Mova.Performance is exposed and provides adaptive metrics =====
+expect(type(perf) == "table", "H1 Mova.Performance is exposed on public root")
 expect(type(perf.getBudgets) == "function", "H1 getBudgets is callable")
 expect(type(perf.isLowEnd) == "function", "H1 isLowEnd is callable")
 expect(type(perf.isStruggling) == "function", "H1 isStruggling is callable")
@@ -62,7 +62,7 @@ local toastSpec = motion.uiSpec("toast")
 expect(toastSpec.EasingStyle == Enum.EasingStyle.Back, "H2 toast uses lively Back spring")
 
 -- ===== H3: popup architecture (the dialog owns a ScreenGui above the window) =====
-local window = Astra:CreateWindow({ name = "Single UI Test" })
+local window = Mova:CreateWindow({ name = "Single UI Test" })
 TestPump(0.6)
 window:Show()
 TestPump(0.6)

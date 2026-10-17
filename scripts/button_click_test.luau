@@ -41,7 +41,7 @@ local function expectSequence(log, wanted, message)
 	end
 end
 
-local window = Astra:CreateWindow({ name = "Button Test" })
+local window = Mova:CreateWindow({ name = "Button Test" })
 TestPump(0.6)
 window:Show()
 TestPump(0.6)
@@ -132,11 +132,11 @@ expectSequence(
 
 -- ===== B6: the settings surface wires its persistence module ==============
 
-local settings = Astra.Settings
-expect(type(settings) == "table", "B6 Astra.Settings exists")
+local settings = Mova.Settings
+expect(type(settings) == "table", "B6 Mova.Settings exists")
 expect(
 	type(settings.persistence) == "table",
-	"B6 Astra.Settings.persistence is the module it required, got " .. type(settings.persistence)
+	"B6 Mova.Settings.persistence is the module it required, got " .. type(settings.persistence)
 )
 expect(type(settings.persistence.read) == "function", "B6 the persistence module exposes read")
 

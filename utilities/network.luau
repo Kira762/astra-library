@@ -116,7 +116,7 @@ must never be the reason a window renders with no icons.
 The full guard is the wrong gate for them. Two of its probes are layer-C
 heuristics - they fire on *any* `__namecall` hook installed by another
 script (an admin panel, ESP, aimbot) and on an executor whose `request` is
-a Lua wrapper rather than a C closure. Neither means Astra's own requests
+a Lua wrapper rather than a C closure. Neither means Mova's own requests
 are being read or rewritten, yet `getGuardedRequestFn`/`getGuardedHttpGetFn`
 refuse on any signal, so the fetch returned nil, `cache/imageCache` kept its
 empty `Image`, and the numeric window glyphs (rbxassetids, no download) were

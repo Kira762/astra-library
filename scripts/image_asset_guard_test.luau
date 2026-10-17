@@ -31,7 +31,7 @@ expect(type(harness) == "table", "the executor stubs are installed")
 expect(type(Mova.HttpGuard) == "table", "Mova.HttpGuard is exposed")
 
 local ASSET_BASE = "https://raw.githubusercontent.com/Kira762/astra-library/main/"
-local houseUrl = ASSET_BASE .. "assets/icons/lucide-pack/lucideHouse.png"
+local houseUrl = ASSET_BASE .. "assets/icons/lucide-pack/lucideHouse.png" -- dangling-ok: asserts the resolver's string, not that the PNG still lives here
 
 local report = Mova.HttpGuard.scan()
 

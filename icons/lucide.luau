@@ -7,7 +7,7 @@ constructors. Regenerate with scripts/generate_icon_packs.js.
 ]]
 
 return require(script.Parent.packBuilder).create(
-	"assets/icons/lucide-pack/",
+	"assets/icons/lucide-pack/", -- dangling-ok: pack PNGs moved out of this repo
 	"lucide",
 [==[
 a-arrow-down a-arrow-up a-large-small accessibility activity ad air-vent airplay alarm-clock-check alarm-clock-minus

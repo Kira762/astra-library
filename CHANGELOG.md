@@ -1,5 +1,53 @@
 # Changelog
 
+## 2026-10-17 — the icon packs leave the repository, and the version catches up
+
+The seven icon packs were 13,715 of this repository's 14,017 files — 98% of
+the tree was PNG art that the library never bundles, only fetches by URL at
+runtime. They are moving to their own asset repository, so the pack folders
+are dropped here first. At the same time `MOVA_VERSION` is corrected: it read
+`1.0.0` because that is the value it was created with at the 2026-09-23
+history squash, and it was never bumped through the 94 commits and 31 merged
+pull requests that followed — including a rebrand, four removed elements, one
+renamed element and two removed element props.
+
+Nothing in the library's code path changes. The icon catalogs still resolve a
+name to exactly the URL they resolved yesterday; only the file at the far end
+of that URL is gone. Repointing `assetBase` is deliberately left for the
+commit that introduces the new asset repository, so this one stays a pure
+subtraction that can be reverted on its own.
+
+- **Assets** — removed `assets/icons/feather-pack/`, `heroicons-pack/`,
+  `lucide-pack/`, `material-pack/`, `phosphor-pack/`, `remix-pack/` and
+  `tabler-pack/` (13,715 PNGs). Kept `assets/icons/README.md`, the seven
+  `assets/icons/guides/*.md`, `assets/window-icons/` and
+  `assets/custom-icon/sirius.png`; `assets/` goes from 13,736 files to 21.
+- **Version** — `MOVA_VERSION` is `2.0.0`. One major bump covers the whole
+  unreleased breaking set rather than one per change, since none of it was
+  ever published as a tagged release. The bundle stays `version-1.luau` and
+  the docs keep saying "Mova v1": that `1` is the load-slot in the published
+  `loadstring` URL, and renaming it would break every host script already in
+  the field. `MOVA_VERSION` is referenced by no script, workflow or module,
+  so bumping it carries no runtime risk.
+- **Window chrome is unaffected** — the glyphs Mova draws for itself (close,
+  minimise, maximise, settings, search, chevron, check, config) come from
+  `windowIcons/` as `rbxassetid://` ids through `constants.icons`, never from
+  the GitHub PNGs, and the brand mark `sirius` is in `icons/init.luau`'s
+  `namedAssets` table, which short-circuits before any pack search.
+- **Known breakage** — `icons/init.luau`'s `assetBase` still points at this
+  repository, so a pack icon such as `icon = "house"` now resolves to a URL
+  that 404s. This reaches published users through the runtime fetch even
+  though `version-1.luau` is unchanged. The Settings → Persistence Load and
+  Delete buttons ask for `download` and `trash` by name and are catalog
+  icons, so they are affected too.
+- **References** — the seven `icons/*.luau` pack modules and three test files
+  keep naming the removed paths, because the paths are still what the
+  resolver builds and the assertions still hold. Each such line carries the
+  `dangling-ok` marker that `scripts/check_dangling_refs.py` documents for
+  intentional history, so the checker is clean again. The markers are
+  comments: the regenerated bundle is byte-identical to the previous one,
+  797,707 bytes, md5 `c8b92f54ec06691bd45dd5115699b845`.
+
 ## 2026-10-17 — Astra is rebranded as Mova
 
 The library's current identity is now Mova across its public API examples,

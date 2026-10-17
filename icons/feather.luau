@@ -7,7 +7,7 @@ constructors. Regenerate with scripts/generate_icon_packs.js.
 ]]
 
 return require(script.Parent.packBuilder).create(
-	"assets/icons/feather-pack/",
+	"assets/icons/feather-pack/", -- dangling-ok: pack PNGs moved out of this repo
 	"feather",
 [==[
 activity airplay alert-circle alert-octagon alert-triangle align-center align-justify align-left align-right anchor
